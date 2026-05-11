@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Heart } from 'lucide-react';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
+import { CrisisModal } from '@/components/classbot/crisis-modal';
 import type { EmotionMood } from '@/lib/mock';
+import { scanText, shouldTrigger, fireThreePartyAlert, type KeywordHit } from '@/lib/safety/keyword-gate';
 
 /**
  * 일일 감정 체크인.
- * spec 13 § 3.3.4, Flow R1.
+ * spec 13 § 3.3.4, Flow R1, Flow R4 (키워드 게이트).
  */
 export function CheckInForm() {
   const router = useRouter();
@@ -17,13 +19,33 @@ export function CheckInForm() {
   const [intensity, setIntensity] = useState(3);
   const [freeText, setFreeText] = useState('');
   const [done, setDone] = useState(false);
+  const [crisis, setCrisis] = useState<KeywordHit | null>(null);
 
   function submit() {
+    // 키워드 게이트 (Flow R4) — 자유 텍스트 검사
+    const hit = scanText(freeText);
+    if (shouldTrigger(hit) && hit) {
+      // 백그라운드: 3자 알림 (mock)
+      fireThreePartyAlert(hit, { source: 'wellness-checkin' });
+      setCrisis(hit);
+      return;
+    }
+
     // P0: console.log mock — 실 저장은 v1 백엔드
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line no-console
       console.log('[CHECKIN MOCK]', { mood, intensity, freeText });
     }
+    setDone(true);
+  }
+
+  function closeCrisisAndContinue() {
+    // 모달 닫은 후에도 체크인은 기록 (학생을 부드럽게 다음 단계로 — "봇과 이야기")
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[CHECKIN MOCK]', { mood, intensity, freeText, crisisFlag: crisis?.category });
+    }
+    setCrisis(null);
     setDone(true);
   }
 
@@ -56,6 +78,8 @@ export function CheckInForm() {
 
   return (
     <div className="space-y-4">
+      {crisis && <CrisisModal hit={crisis} onClose={closeCrisisAndContinue} />}
+
       <Link
         href="/classbot/wellness"
         className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Send, Save, MessageCircle, Eye } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
 import type { Assignment, AssignmentQuestion } from '@/lib/mock';
@@ -25,6 +25,7 @@ export function SolveWorkspace({
   const [answers, setAnswers] = useState<Answers>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [showBotPanel, setShowBotPanel] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
 
   // localStorage 복원
   useEffect(() => {
@@ -50,6 +51,23 @@ export function SolveWorkspace({
     }, 800);
     return () => window.clearTimeout(id);
   }, [answers, step, storageKey]);
+
+  // 시험 모드 외부 탭 카운트 (spec 12 § 5.4)
+  useEffect(() => {
+    if (assignment.mode !== 'exam' || typeof document === 'undefined') return;
+    function onVisibility() {
+      if (document.hidden) {
+        setTabSwitchCount(c => {
+          const next = c + 1;
+          // eslint-disable-next-line no-console
+          console.log('[EXAM TAB SWITCH MOCK]', { assignmentId: assignment.id, count: next });
+          return next;
+        });
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [assignment.mode, assignment.id]);
 
   const q = questions[step - 1];
   const isLast = step === questions.length;
@@ -94,6 +112,15 @@ export function SolveWorkspace({
             <span className="text-pullim-slate-400 inline-flex items-center gap-0.5 font-mono">
               <Save className="h-2.5 w-2.5" />
               {savedAt} 저장
+            </span>
+          )}
+          {isExam && tabSwitchCount > 0 && (
+            <span
+              className="bg-pullim-warn/20 text-pullim-lemon inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono font-bold"
+              title="시험 도중 외부 탭 전환 기록 — 교사에게 자동 전송"
+            >
+              <Eye className="h-2.5 w-2.5" />
+              {tabSwitchCount}
             </span>
           )}
           {isExam && <ExamCountdown />}

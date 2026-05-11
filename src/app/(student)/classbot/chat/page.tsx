@@ -4,12 +4,19 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Send, Shield, Eye, Sparkles } from 'lucide-react';
 import {
-  scopeMeta, currentPersona,
+  scopeMeta, currentPersona, classRoster,
   classbotChatGreeting, classbotQuickPrompts, pickClassbotReply,
-  getMyBots, type ClassBot,
+  getMyBots, hasTodayCheckIn, type ClassBot,
 } from '@/lib/mock';
 import { aiTierMeta } from '@/lib/tokens/tier';
+import { CheckInPrompt } from '@/components/classbot/check-in-prompt';
 import { cn } from '@/lib/utils';
+
+/** localStorage flag — 오늘자 키 (자정 넘으면 자동 갱신) */
+function todayKey(): string {
+  const d = new Date();
+  return `checkin-skipped-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
 
 type Turn = {
   id: string;
@@ -36,8 +43,30 @@ export default function ClassbotChatPage() {
   const [selectedBotId, setSelectedBotId] = useState<string>(myBots[0]?.id ?? 'cb_001');
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
 
+  // 체크인 인터셉트 — 오늘 체크인 미완료 + 스킵 flag 없으면 모달
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const me = classRoster.find(s => s.name === currentPersona.name);
+    if (!me) return;
+    const skipped = window.localStorage.getItem(todayKey()) === '1';
+    if (skipped) return;
+    if (!hasTodayCheckIn(me.id)) {
+      setShowCheckIn(true);
+    }
+  }, []);
+
+  function dismissCheckIn() {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(todayKey(), '1');
+    }
+    setShowCheckIn(false);
+  }
+
   return (
     <div className="space-y-3">
+      {showCheckIn && <CheckInPrompt onSkip={dismissCheckIn} />}
+
       {/* 봇 선택 chip strip */}
       {myBots.length > 1 && (
         <section className="bg-card rounded-xl border p-2">

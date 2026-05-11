@@ -1783,8 +1783,7 @@ export type EmotionCheckIn = {
 
 /** 학생별 7일 감정 기록 — 도현 3일 연속 "힘듦", 예은 무응답 시나리오 */
 export const emotionCheckIns: EmotionCheckIn[] = [
-  // 서연 (s1) — 안정
-  { id: 'em_s1_0', studentId: 's1', date: '2026-05-11', daysAgo: 0, mood: 2, intensity: 3 },
+  // 서연 (s1) — 안정 (오늘 미체크 — 인터셉트 시연용)
   { id: 'em_s1_1', studentId: 's1', date: '2026-05-10', daysAgo: 1, mood: 2 },
   { id: 'em_s1_2', studentId: 's1', date: '2026-05-09', daysAgo: 2, mood: 1, freeText: '시험 잘 봤어!' },
   { id: 'em_s1_3', studentId: 's1', date: '2026-05-08', daysAgo: 3, mood: 2 },

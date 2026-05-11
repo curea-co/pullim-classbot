@@ -158,9 +158,13 @@ export default function TeacherHomePage() {
             ))}
           </ul>
 
-          <button className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-2 text-xs font-bold">
-            1:1 상담 시작 / Wee센터 연결
-          </button>
+          <Link
+            href="/teacher/reports"
+            className="bg-pullim-lemon text-pullim-lemon-ink hover:opacity-90 mt-3 inline-flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold"
+          >
+            <ArrowRight className="h-3 w-3" />
+            위기 리포트 열기
+          </Link>
         </section>
       </div>
 
