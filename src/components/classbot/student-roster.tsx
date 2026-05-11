@@ -38,7 +38,15 @@ export function StudentRoster() {
             14/18명 참여 · 활동 히트맵: 지난 30분
           </p>
         </div>
-        <button className="text-pullim-blue-600 text-xs font-semibold">전체 메시지</button>
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="준비 중 (v2)"
+          className="text-pullim-blue-600 text-xs font-semibold opacity-60 cursor-not-allowed"
+        >
+          전체 메시지
+        </button>
       </header>
       <ul className="divide-pullim-slate-100 flex-1 divide-y overflow-y-auto">
         {classRoster.map(s => (
@@ -61,7 +69,11 @@ function RosterRow({ student: s }: { student: ClassroomStudent }) {
         <div className="bg-pullim-blue-100 text-pullim-blue-700 flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold">
           {s.name[0]}
         </div>
-        <span className={cn('absolute -right-0.5 -bottom-0.5 inline-block h-2.5 w-2.5 rounded-full ring-2 ring-white', status.dot)} />
+        <span
+          className={cn('absolute -right-0.5 -bottom-0.5 inline-block h-2.5 w-2.5 rounded-full ring-2 ring-white', status.dot)}
+          aria-label={`상태: ${status.label}`}
+          role="img"
+        />
       </div>
 
       {/* 이름 + 알림 */}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, AlertTriangle, History, ArrowRight } from 'lucide-react';
+import { Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, AlertTriangle, History, ArrowRight, Inbox } from 'lucide-react';
 import { ClassKpiBar } from '@/components/classbot/class-kpi-bar';
 import { ScopeControl } from '@/components/classbot/scope-control';
 import { StudentRoster } from '@/components/classbot/student-roster';
@@ -23,11 +23,13 @@ export default function TeacherClassbotPage() {
         action={
           <Link
             href="/teacher/replay/rp_004"
-            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 hidden items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-bold text-white lg:inline-flex"
+            aria-label="수업 종료 후 리플레이 생성"
+            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-white lg:px-4"
           >
-            <History className="h-4 w-4" />
-            수업 종료 → 리플레이 생성
-            <ArrowRight className="h-3.5 w-3.5" />
+            <History className="h-4 w-4" aria-hidden />
+            <span className="hidden lg:inline">수업 종료 → 리플레이 생성</span>
+            <span className="lg:hidden">수업 종료</span>
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         }
       />
@@ -57,8 +59,14 @@ export default function TeacherClassbotPage() {
               <li>• <strong className="text-white">예은</strong> — 22분 무응답 + 웰빙 급락</li>
               <li>• <strong className="text-white">도현</strong> — 감정 체크인 3일 연속 “힘듦”</li>
             </ul>
-            <button className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold">
-              1:1 상담 시작 / Wee센터 연결
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="준비 중 (v2 — Wee센터 연계)"
+              className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold opacity-60 cursor-not-allowed"
+            >
+              1:1 상담 시작 / Wee센터 연결 (v2)
             </button>
           </aside>
         </div>
@@ -100,9 +108,19 @@ function DispatchedAssignments() {
           </Link>
         }
       />
-      <ul className="space-y-2">
-        {assignments.map(a => <DispatchedRow key={a.id} assignment={a} />)}
-      </ul>
+      {assignments.length === 0 ? (
+        <div className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center">
+          <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-9 w-9 items-center justify-center rounded-lg">
+            <Inbox className="h-4 w-4" aria-hidden />
+          </span>
+          <p className="text-pullim-slate-900 text-sm font-bold">아직 발사한 과제가 없어요</p>
+          <p className="text-pullim-slate-500 text-[11px]">위의 [+ 새 과제] 버튼으로 첫 과제를 만들어 보세요.</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {assignments.map(a => <DispatchedRow key={a.id} assignment={a} />)}
+        </ul>
+      )}
     </section>
   );
 }
@@ -158,10 +176,13 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
         </div>
         <button
           type="button"
-          className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg hover:bg-pullim-blue-50"
-          aria-label="다시 발사"
+          disabled
+          aria-disabled="true"
+          title="준비 중 (v2 — 같은 과제 재발사)"
+          className="text-pullim-blue-600 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg opacity-60 cursor-not-allowed"
+          aria-label="다시 발사 (준비 중)"
         >
-          <Send className="h-3.5 w-3.5" />
+          <Send className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
     </li>

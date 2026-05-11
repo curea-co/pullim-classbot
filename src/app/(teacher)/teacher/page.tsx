@@ -158,8 +158,14 @@ export default function TeacherHomePage() {
             ))}
           </ul>
 
-          <button className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-2 text-xs font-bold">
-            1:1 상담 시작 / Wee센터 연결
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="준비 중 (v2 — Wee센터 연계)"
+            className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-2 text-xs font-bold opacity-60 cursor-not-allowed"
+          >
+            1:1 상담 시작 / Wee센터 연결 (v2)
           </button>
         </section>
       </div>
@@ -311,5 +317,15 @@ function QuickAction({
     </>
   );
   if (href) return <Link href={href} className={className}>{inner}</Link>;
-  return <button type="button" className={className}>{inner}</button>;
+  return (
+    <button
+      type="button"
+      disabled
+      aria-disabled="true"
+      title="준비 중 (v2)"
+      className={cn(className, 'opacity-60 cursor-not-allowed')}
+    >
+      {inner}
+    </button>
+  );
 }

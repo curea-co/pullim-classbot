@@ -23,10 +23,11 @@ export function Step1Identity({ form, setForm }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-pullim-slate-700 mb-1 block text-xs font-bold">
+        <label htmlFor="bld-name" className="text-pullim-slate-700 mb-1 block text-xs font-bold">
           봇 이름<RequiredMark />
         </label>
         <input
+          id="bld-name"
           type="text"
           value={form.name}
           onChange={e => setForm({ ...form, name: e.target.value })}
@@ -38,8 +39,9 @@ export function Step1Identity({ form, setForm }: Props) {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-pullim-slate-700 mb-1 block text-xs font-bold">과목</label>
+          <label htmlFor="bld-subject" className="text-pullim-slate-700 mb-1 block text-xs font-bold">과목</label>
           <select
+            id="bld-subject"
             value={form.subject}
             onChange={e => setForm({ ...form, subject: e.target.value })}
             className="border-pullim-slate-200 w-full rounded-lg border px-3 py-2 text-sm"
@@ -50,8 +52,9 @@ export function Step1Identity({ form, setForm }: Props) {
           </select>
         </div>
         <div>
-          <label className="text-pullim-slate-700 mb-1 block text-xs font-bold">대상 학년</label>
+          <label htmlFor="bld-grade" className="text-pullim-slate-700 mb-1 block text-xs font-bold">대상 학년</label>
           <select
+            id="bld-grade"
             value={form.grade}
             onChange={e => setForm({ ...form, grade: e.target.value })}
             className="border-pullim-slate-200 w-full rounded-lg border px-3 py-2 text-sm"
@@ -145,12 +148,12 @@ export function Step2Voice({ form, setForm }: Props) {
               const meta = voicePresetMeta[p];
               const active = form.voicePreset === p;
               return (
-                <li key={p}>
+                <li key={p} className="relative">
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, voicePreset: p })}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                      'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left transition-colors',
                       active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
                     )}
                   >
@@ -158,19 +161,20 @@ export function Step2Voice({ form, setForm }: Props) {
                       'flex h-7 w-7 items-center justify-center rounded-full',
                       active ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100',
                     )}>
-                      <Mic className="h-3.5 w-3.5" />
+                      <Mic className="h-3.5 w-3.5" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-pullim-slate-900 text-sm font-bold">{meta.label}</div>
                       <div className="text-pullim-slate-500 text-[10px]">{meta.description}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); toast.info('샘플 재생 (데모)'); }}
-                      className="text-pullim-blue-600 text-[10px] font-bold hover:underline"
-                    >
-                      ▶ 샘플
-                    </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toast.info('샘플 재생 (데모)')}
+                    aria-label={`${meta.label} 샘플 재생`}
+                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute top-1/2 right-2 inline-flex -translate-y-1/2 items-center rounded px-2 py-1 text-[10px] font-bold hover:underline"
+                  >
+                    ▶ 샘플
                   </button>
                 </li>
               );
@@ -549,7 +553,9 @@ export function Step8Deploy({ form, setForm }: Props) {
             onSubmit={e => { e.preventDefault(); sendTest(); }}
             className="flex items-center gap-2"
           >
+            <label htmlFor="bld-test-input" className="sr-only">테스트 질문</label>
             <input
+              id="bld-test-input"
               value={testInput}
               onChange={e => setTestInput(e.target.value)}
               placeholder='예: "극값 어떻게 찾아요?"'
@@ -557,9 +563,10 @@ export function Step8Deploy({ form, setForm }: Props) {
             />
             <button
               type="submit"
-              className="bg-pullim-blue-600 inline-flex h-8 w-8 items-center justify-center rounded-full text-white"
+              aria-label="테스트 질문 보내기"
+              className="bg-pullim-blue-600 inline-flex h-10 w-10 items-center justify-center rounded-full text-white"
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-3.5 w-3.5" aria-hidden />
             </button>
           </form>
         </div>
