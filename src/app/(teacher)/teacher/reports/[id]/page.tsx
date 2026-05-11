@@ -1,0 +1,123 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, AlertTriangle, MessageCircle, FileText } from 'lucide-react';
+import { PageHeader } from '@/components/shell/page-header';
+import { SectionHeading } from '@/components/shell/section-heading';
+import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
+import { ParentMessagePreview } from '@/components/classbot/parent-message-preview';
+import { reports, classRoster, buildParentMessage } from '@/lib/mock';
+import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
+
+type Params = Promise<{ id: string }>;
+
+export default async function ReportDetailPage({ params }: { params: Params }) {
+  const { id } = await params;
+  const report = reports.find(r => r.id === id);
+  if (!report) notFound();
+
+  // 학생 개인·학부모 리포트면 대상 학생 추출
+  const studentName = (() => {
+    const m = report.subject.match(/(서연|민준|지우|도현|하윤|예은|윤서)/);
+    return m ? m[1] : null;
+  })();
+  const student = studentName ? classRoster.find(s => s.name === studentName) : null;
+
+  const hasAlerts = (report.alerts?.length ?? 0) > 0;
+  const isParent = report.kind === 'parent';
+
+  return (
+    <div className="space-y-4 py-4 lg:py-6">
+      <Link
+        href="/teacher/reports"
+        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        리포트 센터
+      </Link>
+
+      <PageHeader
+        eyebrow={{ icon: FileText, text: report.subject }}
+        title={report.title}
+        description={`${report.generatedAt} · ${report.status === 'sent' ? '발송 완료' : report.status === 'approved' ? '승인됨' : report.status === 'pending-approval' ? '승인 대기' : '초안'}`}
+      />
+
+      {/* 위기 신호 */}
+      {hasAlerts && (
+        <section className="border-pullim-danger/30 bg-pullim-danger-bg rounded-2xl border p-4">
+          <header className="mb-2 flex items-center gap-2">
+            <AlertTriangle className="text-pullim-danger h-4 w-4" />
+            <h3 className="text-pullim-danger text-sm font-bold">위기 신호 {report.alerts?.length}건</h3>
+          </header>
+          <ul className="text-pullim-slate-700 space-y-1 text-[12px] leading-relaxed">
+            {report.alerts?.map((a, i) => <li key={i}>• {a}</li>)}
+          </ul>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold text-white"
+            >
+              <MessageCircle className="h-3 w-3" />
+              1:1 상담 시작
+            </button>
+            <button
+              type="button"
+              className="border-pullim-slate-300 text-pullim-slate-700 hover:bg-pullim-slate-100 rounded-lg border px-3 py-1.5 text-[11px] font-bold"
+            >
+              Wee센터 연결
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* KPI */}
+      <section className="bg-card rounded-2xl border p-4">
+        <SectionHeading
+          title="핵심 지표"
+          description="AI 자동 추출 · 추세는 지난 주 대비"
+        />
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {report.kpis.map((kpi, i) => <KpiTrendCard key={i} kpi={kpi} />)}
+        </ul>
+      </section>
+
+      {/* 1줄 요약 */}
+      <section className="bg-card rounded-2xl border p-4">
+        <SectionHeading title="1줄 요약" description="AI 초안 — 필요하면 수정해주세요." />
+        <textarea
+          defaultValue={report.summary}
+          rows={3}
+          className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
+        />
+      </section>
+
+      {/* 2-col: 학부모 미리보기 + 학생 추세 */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
+          {isParent && (
+            <ParentMessagePreview
+              initialMessage={buildParentMessage(report)}
+              status={report.status}
+            />
+          )}
+        </div>
+
+        <aside className="space-y-4">
+          {student && (
+            <>
+              <WellbeingGauge studentId={student.id} />
+              <section className="bg-pullim-slate-50 rounded-2xl p-4">
+                <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
+                  <MessageCircle className="h-3 w-3" />
+                  첨부된 1:1 면담 메모
+                </h4>
+                <p className="text-pullim-slate-500 mt-2 text-[11px] leading-relaxed">
+                  채점 허브에서 작성된 메모는 학생 개인 리포트에 자동 첨부돼요.
+                </p>
+              </section>
+            </>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}

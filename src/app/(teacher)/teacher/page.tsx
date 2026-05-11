@@ -252,11 +252,13 @@ export default function TeacherHomePage() {
             Icon={ClipboardCheck} label="채점 허브 열기"
             description={`${pendingItems[0].count}건 대기 중`}
             color="blue"
+            href="/teacher/grading"
           />
           <QuickAction
             Icon={BarChart3} label="리포트 센터"
             description={`${pendingItems[1].count}건 승인 필요`}
             color="slate"
+            href="/teacher/reports"
           />
           <QuickAction
             Icon={Bot} label="템플릿 찾기"
@@ -289,24 +291,25 @@ function Kpi({
 }
 
 function QuickAction({
-  Icon, label, description, color,
+  Icon, label, description, color, href,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
   label: string; description: string;
   color: 'warn' | 'blue' | 'slate';
+  href?: string;
 }) {
   const colorClass =
     color === 'warn'  ? 'bg-pullim-warn-bg text-pullim-warn hover:bg-pullim-warn/15'
     : color === 'blue' ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100'
     : 'bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200';
-  return (
-    <button
-      type="button"
-      className={cn('flex flex-col items-start gap-1 rounded-xl p-3.5 text-left transition-colors', colorClass)}
-    >
+  const className = cn('flex flex-col items-start gap-1 rounded-xl p-3.5 text-left transition-colors', colorClass);
+  const inner = (
+    <>
       <Icon className="h-5 w-5" />
       <div className="text-sm font-bold">{label}</div>
       <div className="text-[11px] opacity-80">{description}</div>
-    </button>
+    </>
   );
+  if (href) return <Link href={href} className={className}>{inner}</Link>;
+  return <button type="button" className={className}>{inner}</button>;
 }

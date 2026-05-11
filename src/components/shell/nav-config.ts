@@ -6,7 +6,8 @@
 
 import {
   Home, MessageCircle, GraduationCap, History, Compass, BookOpen,
-  LayoutDashboard, Bot, Plus,
+  LayoutDashboard, Bot, Plus, Target, Heart,
+  ClipboardCheck, BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -41,7 +42,9 @@ export type Role = 'student' | 'teacher';
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
+  { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능' },
+  { href: '/classbot/wellness',   label: '내 웰빙',     icon: Heart,         description: '오늘 기분 체크인 + 본인 리포트' },
   { href: '/classbot/replay',     label: '리플레이',    icon: History,       description: '지난 수업 다시 보기 — 봇별 필터' },
   { href: '/classbot/discover',   label: '봇 찾기',     icon: Compass,       description: '공식 봇 마켓 — 자발 등록', locked: true },
   { href: '/classbot/onboarding', label: '소개하기',    icon: BookOpen,      description: '4분 사용법 가이드' },
@@ -68,7 +71,7 @@ export const studentNav: NavGroup[] = [
   { label: '', items: [studentHomeItem, ...studentDomains] },
 ];
 
-/** 교사 사이드바 — 클래스봇 운영 + 빌더 */
+/** 교사 사이드바 — 클래스봇 운영 + 빌더 + 평가 */
 export const teacherNav: NavGroup[] = [
   {
     label: '워크스페이스',
@@ -76,6 +79,13 @@ export const teacherNav: NavGroup[] = [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
       { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
       { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
+    ],
+  },
+  {
+    label: '평가',
+    items: [
+      { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: 'AI 초안 검수 큐' },
+      { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
     ],
   },
 ];
@@ -90,10 +100,10 @@ export function navForRole(role: Role): NavGroup[] {
 /** 모바일 하단 탭 — 학생 클래스봇 sub-route 5개 */
 export const studentBottomTabs = [
   { href: '/classbot',            label: '홈',       icon: Home,          matchPrefix: ['/classbot'] as string[] },
+  { href: '/classbot/assignment', label: '과제',     icon: Target,        matchPrefix: ['/classbot/assignment'] as string[] },
   { href: '/classbot/chat',       label: '대화',     icon: MessageCircle, matchPrefix: ['/classbot/chat'] as string[] },
+  { href: '/classbot/wellness',   label: '웰빙',     icon: Heart,         matchPrefix: ['/classbot/wellness', '/classbot/me'] as string[] },
   { href: '/classbot/replay',     label: '리플레이', icon: History,       matchPrefix: ['/classbot/replay'] as string[] },
-  { href: '/classbot/discover',   label: '봇 찾기',  icon: Compass,       matchPrefix: ['/classbot/discover'] as string[] },
-  { href: '/classbot/onboarding', label: '소개',     icon: BookOpen,      matchPrefix: ['/classbot/onboarding'] as string[] },
 ] as const;
 
 export function findActiveSection(pathname: string, role: Role): NavItem | undefined {
