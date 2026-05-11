@@ -1491,7 +1491,7 @@ export const studentAssignments: Assignment[] = [
     completedCount: 8,
     recentAccuracy: 75,
     state: 'in-progress',
-    solveHref: '/q/infinity/solve?assignmentId=as_today&subject=math2&from=ch3-extremum&to=ch3-inflection&n=20&mode=practice',
+    solveHref: '/classbot/assignment/as_today/solve?step=9',
   },
   {
     id: 'as_prescription',
@@ -1514,7 +1514,7 @@ export const studentAssignments: Assignment[] = [
     completedCount: 0,
     state: 'todo',
     reasonHint: '어제 부호 변화 표 단계에서 5번 중 4번 막혔어요. 같은 패턴 5문항만 더.',
-    solveHref: '/q/infinity/solve?assignmentId=as_prescription&subject=math2&pattern=sign-change&n=5&mode=wrong-conquest',
+    solveHref: '/classbot/assignment/as_prescription/solve?step=1',
   },
   {
     id: 'as_exam_prep',
@@ -1537,7 +1537,7 @@ export const studentAssignments: Assignment[] = [
     dDay: 'D-9',
     completedCount: 0,
     state: 'todo',
-    solveHref: '/q/infinity/solve?assignmentId=as_exam_prep&subject=math2&from=ch2-limit&to=ch3-application&n=30&mode=exam&scope=L1',
+    solveHref: '/classbot/assignment/as_exam_prep/solve?step=1',
   },
 ];
 
@@ -1554,3 +1554,343 @@ export const studentAssignmentStats = {
   totalQuestions: studentAssignments.reduce((s, a) => s + a.questionCount, 0),
   completed: studentAssignments.reduce((s, a) => s + a.completedCount, 0),
 };
+
+/* ============================================================
+ * 과제 문항 시드 — 풀이 워크스페이스용 (spec 12)
+ * ========================================================== */
+
+export type QuestionType = 'mc' | 'short' | 'essay' | 'numeric';
+
+export type AssignmentQuestion = {
+  id: string;
+  assignmentId: string;
+  order: number;          // 1-indexed
+  type: QuestionType;
+  prompt: string;
+  /** 객관식 보기 */
+  options?: string[];
+  answerIndex?: number;   // 객관식 정답 인덱스
+  /** 단답·수치 정답 */
+  answerKey?: string;
+  /** 서술형 기준 응답 (Scope L5에서만 노출) */
+  modelAnswer?: string;
+  /** 봇 힌트 5단계 (practice 모드 한정) */
+  hints?: string[];
+};
+
+export const assignmentQuestions: AssignmentQuestion[] = [
+  // as_today (practice, 20문항 중 시드 5문항만)
+  {
+    id: 'q_today_1', assignmentId: 'as_today', order: 1, type: 'mc',
+    prompt: 'f(x) = x³ − 3x² + 1 의 극댓값은?',
+    options: ['1', '−3', '5', '−2'],
+    answerIndex: 0,
+    modelAnswer: 'f\'(x) = 3x² − 6x = 3x(x−2). 부호 변화로 x=0에서 극대, x=2에서 극소. f(0) = 1.',
+    hints: [
+      '도함수를 먼저 구해봐.',
+      '도함수가 0이 되는 x를 찾고, 그 주변 부호 변화를 봐.',
+      'x=0, x=2가 후보. 좌우 부호 변화 표를 그려봐.',
+      'x=0에서 좌 +, 우 −이니 극대. 그때 함수값을 계산하면?',
+      'f(0) = 0³ − 3·0² + 1 = 1. 답은 1.',
+    ],
+  },
+  {
+    id: 'q_today_2', assignmentId: 'as_today', order: 2, type: 'mc',
+    prompt: 'f\'(a) = 0 이지만 x=a가 극값이 아닌 경우는?',
+    options: ['좌우 부호 동일', '함수가 불연속', '이계도함수 = 0', '정의역 끝점'],
+    answerIndex: 0,
+    modelAnswer: '도함수가 0이어도 좌우 부호가 같으면 극값이 아니다. y = x³의 x = 0이 대표적 반례.',
+    hints: [
+      'y = x³ 그래프를 떠올려봐.',
+      'x = 0에서 도함수는 0이지만 그래프는 단조 증가야.',
+      '부호 변화가 없으면 극값일까?',
+      '좌우 부호가 같으면 극값이 아니야 — 변곡점일 수 있어.',
+      '답: 좌우 부호 동일. y = x³가 대표 예시.',
+    ],
+  },
+  {
+    id: 'q_today_3', assignmentId: 'as_today', order: 3, type: 'short',
+    prompt: '함수 f(x) = x⁴ − 4x³ 의 변곡점의 x좌표를 모두 구하시오.',
+    answerKey: '0, 2',
+    modelAnswer: 'f"(x) = 12x² − 24x = 12x(x−2). x=0, x=2 양쪽에서 부호가 바뀌므로 둘 다 변곡점.',
+    hints: [
+      '변곡점 판정은 이계도함수 부호 변화로.',
+      '먼저 f"(x)를 구해봐.',
+      'f"(x) = 12x(x−2). 0이 되는 x는?',
+      'x=0, x=2 후보. 각각 좌우 부호 변화를 확인해봐.',
+      '둘 다 부호 변화가 있으니 변곡점은 x=0, 2.',
+    ],
+  },
+  {
+    id: 'q_today_4', assignmentId: 'as_today', order: 4, type: 'essay',
+    prompt: '극값과 변곡점의 차이를 정의·판정 방법·대표 예시 3가지로 서술하시오.',
+    modelAnswer: '극값은 함수 값의 국소 최대·최소(도함수 부호 변화), 변곡점은 그래프의 휘는 방향이 바뀌는 점(이계도함수 부호 변화). 예: f(x) = x³의 x=0은 도함수 0이지만 극값 아닌 변곡점.',
+    hints: [
+      '정의부터 — 극값은 "값", 변곡점은 "휘어짐".',
+      '판정 — 극값은 1차, 변곡점은 2차 도함수.',
+      '예시는 부호 변화 있는 것과 없는 것 비교가 좋아.',
+      'y = x³의 x = 0 예시는 둘의 차이를 한 번에 보여줘.',
+      '3요소(정의·판정·예시)를 한 단락으로 정리하면 만점.',
+    ],
+  },
+  {
+    id: 'q_today_5', assignmentId: 'as_today', order: 5, type: 'mc',
+    prompt: 'f(x) = x³ − 6x² + 9x + 1 의 극댓값과 극솟값의 합은?',
+    options: ['1', '5', '6', '8'],
+    answerIndex: 2,
+    modelAnswer: 'f\'(x) = 3x² − 12x + 9 = 3(x−1)(x−3). x=1 극대 (f(1)=5), x=3 극소 (f(3)=1). 합 = 6.',
+    hints: [
+      'f\'(x)를 인수분해해봐.',
+      'x = 1, x = 3이 후보.',
+      'x = 1에서 극대, x = 3에서 극소.',
+      'f(1) = 5, f(3) = 1.',
+      '5 + 1 = 6.',
+    ],
+  },
+  // as_prescription (wrong-conquest, 5문항)
+  {
+    id: 'q_pres_1', assignmentId: 'as_prescription', order: 1, type: 'short',
+    prompt: 'f(x) = x³의 x = 0에서 극값인지 답하시오.',
+    answerKey: '아니다',
+    modelAnswer: 'f\'(0) = 0이지만 좌우 부호 변화가 없어 극값이 아니다. 변곡점일 뿐.',
+  },
+  {
+    id: 'q_pres_2', assignmentId: 'as_prescription', order: 2, type: 'short',
+    prompt: 'f(x) = x⁴의 x = 0에서 극값인지 답하시오.',
+    answerKey: '극소',
+    modelAnswer: 'f\'(0) = 0, 좌 −, 우 + 부호 변화가 있어 극소.',
+  },
+  {
+    id: 'q_pres_3', assignmentId: 'as_prescription', order: 3, type: 'mc',
+    prompt: 'f\'(x) = (x−1)²(x−3) 의 극값 개수는?',
+    options: ['0개', '1개', '2개', '3개'],
+    answerIndex: 1,
+    modelAnswer: 'x=1은 중근이라 부호 변화 없음 (극값 아님), x=3에서만 부호 변화 → 극값 1개.',
+  },
+  {
+    id: 'q_pres_4', assignmentId: 'as_prescription', order: 4, type: 'short',
+    prompt: 'f\'(x) = x(x+2)² 일 때 극값을 갖는 x좌표는?',
+    answerKey: '0',
+    modelAnswer: 'x = −2는 중근이라 부호 변화 없음, x = 0에서만 부호가 −에서 +로 → 극소.',
+  },
+  {
+    id: 'q_pres_5', assignmentId: 'as_prescription', order: 5, type: 'mc',
+    prompt: '도함수가 0인 모든 점이 극값이라는 명제는?',
+    options: ['참', '거짓', '함수에 따라', '판단 불가'],
+    answerIndex: 1,
+    modelAnswer: '부호 변화가 있어야만 극값. y = x³의 x=0이 반례. 거짓.',
+  },
+  // as_exam_prep (exam, 첫 3문항만 시드)
+  {
+    id: 'q_exam_1', assignmentId: 'as_exam_prep', order: 1, type: 'mc',
+    prompt: 'lim(x→0) (sin 2x) / x 의 값은?',
+    options: ['0', '1', '2', '∞'],
+    answerIndex: 2,
+  },
+  {
+    id: 'q_exam_2', assignmentId: 'as_exam_prep', order: 2, type: 'short',
+    prompt: 'f(x) = x³ − 3x 의 극댓값을 구하시오.',
+    answerKey: '2',
+  },
+  {
+    id: 'q_exam_3', assignmentId: 'as_exam_prep', order: 3, type: 'essay',
+    prompt: '함수의 연속성과 미분가능성의 관계를 예시와 함께 서술하시오.',
+  },
+];
+
+export function getQuestionsByAssignment(assignmentId: string): AssignmentQuestion[] {
+  return assignmentQuestions
+    .filter(q => q.assignmentId === assignmentId)
+    .sort((a, b) => a.order - b.order);
+}
+
+export function getAssignmentById(id: string): Assignment | undefined {
+  return studentAssignments.find(a => a.id === id);
+}
+
+/* ============================================================
+ * 채점 허브 — 학생별 최근 채점 이력 (spec 11 사이드 패널)
+ * ========================================================== */
+
+export type GradingHistoryEntry = {
+  studentId: string;
+  assignmentTitle: string;
+  gradedAt: string;     // "1주 전" / "3일 전"
+  score: number;
+  maxScore: number;
+};
+
+export const gradingHistory: GradingHistoryEntry[] = [
+  { studentId: 's13', assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 8,  maxScore: 10 },
+  { studentId: 's13', assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 16, maxScore: 20 },
+  { studentId: 's13', assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 9,  maxScore: 10 },
+  { studentId: 's1',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 9,  maxScore: 10 },
+  { studentId: 's1',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 18, maxScore: 20 },
+  { studentId: 's1',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 10, maxScore: 10 },
+  { studentId: 's2',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 6,  maxScore: 10 },
+  { studentId: 's2',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 11, maxScore: 20 },
+  { studentId: 's2',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 7,  maxScore: 10 },
+  { studentId: 's4',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 5,  maxScore: 10 },
+  { studentId: 's4',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 9,  maxScore: 20 },
+  { studentId: 's4',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 6,  maxScore: 10 },
+  { studentId: 's5',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 10, maxScore: 10 },
+  { studentId: 's5',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 19, maxScore: 20 },
+  { studentId: 's6',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 8,  maxScore: 10 },
+];
+
+/** overridden 시연용 1건 추가 — 변경률 24% (루브릭 재학습 임계 초과) */
+export const overriddenSample: GradingItem = {
+  id: 'gr_007', studentName: '나린', studentId: 's9',
+  assignmentTitle: '극값과 변곡점 — 서술형 3제',
+  submittedAt: '어제 20:10',
+  type: 'essay', topic: '미적분 III · 극값',
+  draftScore: 14, maxScore: 20, tier: 'T2', aiConfidence: 71,
+  responsePreview: '극값은 도함수가 0인 점. 변곡점은 이계도함수가 0인 점.',
+  draftComment: '정의 부분 정확하나 "부호 변화" 누락. 기준 답안에 핵심 누락.',
+  rubric: [
+    { criterion: '개념 정확성', weight: 40, score: 26, reason: '부호 변화 누락' },
+    { criterion: '예시 적절성', weight: 30, score: 20, reason: '예시 부족' },
+    { criterion: '표기 정확성', weight: 20, score: 18, reason: '오타 1회' },
+    { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '나열식' },
+  ],
+  status: 'overridden',
+  overrideDelta: 24,
+};
+
+/* ============================================================
+ * 감정 체크인 + 웰빙 스냅샷 + 위기 알림 (spec 13)
+ * ========================================================== */
+
+export type EmotionMood = 1 | 2 | 3 | 4;
+
+export const moodMeta: Record<EmotionMood, { emoji: string; label: string; tone: string }> = {
+  1: { emoji: '😄', label: '좋아',       tone: 'success' },
+  2: { emoji: '🙂', label: '그럭저럭',   tone: 'blue' },
+  3: { emoji: '😐', label: '그저그래',   tone: 'slate' },
+  4: { emoji: '😔', label: '힘들었어',   tone: 'warn' },
+};
+
+export type EmotionCheckIn = {
+  id: string;
+  studentId: string;
+  date: string;            // "2026-05-11"
+  daysAgo: number;         // 0 = 오늘
+  mood: EmotionMood;
+  intensity?: number;      // 1~5
+  freeText?: string;
+  keywordFlag?: 'suicidal' | 'depression' | 'bullying' | null;
+};
+
+/** 학생별 7일 감정 기록 — 도현 3일 연속 "힘듦", 예은 무응답 시나리오 */
+export const emotionCheckIns: EmotionCheckIn[] = [
+  // 서연 (s1) — 안정
+  { id: 'em_s1_0', studentId: 's1', date: '2026-05-11', daysAgo: 0, mood: 2, intensity: 3 },
+  { id: 'em_s1_1', studentId: 's1', date: '2026-05-10', daysAgo: 1, mood: 2 },
+  { id: 'em_s1_2', studentId: 's1', date: '2026-05-09', daysAgo: 2, mood: 1, freeText: '시험 잘 봤어!' },
+  { id: 'em_s1_3', studentId: 's1', date: '2026-05-08', daysAgo: 3, mood: 2 },
+  { id: 'em_s1_4', studentId: 's1', date: '2026-05-07', daysAgo: 4, mood: 3 },
+  { id: 'em_s1_5', studentId: 's1', date: '2026-05-06', daysAgo: 5, mood: 2 },
+  { id: 'em_s1_6', studentId: 's1', date: '2026-05-05', daysAgo: 6, mood: 1 },
+  // 민준 (s2)
+  { id: 'em_s2_0', studentId: 's2', date: '2026-05-11', daysAgo: 0, mood: 3, intensity: 3 },
+  { id: 'em_s2_1', studentId: 's2', date: '2026-05-10', daysAgo: 1, mood: 3 },
+  { id: 'em_s2_2', studentId: 's2', date: '2026-05-09', daysAgo: 2, mood: 2 },
+  // 도현 (s4) — 3일 연속 "힘듦" 시나리오
+  { id: 'em_s4_0', studentId: 's4', date: '2026-05-11', daysAgo: 0, mood: 4, intensity: 4, freeText: '오늘도 너무 어려워요...' },
+  { id: 'em_s4_1', studentId: 's4', date: '2026-05-10', daysAgo: 1, mood: 4, intensity: 4, freeText: '잠이 안 와요' },
+  { id: 'em_s4_2', studentId: 's4', date: '2026-05-09', daysAgo: 2, mood: 4, intensity: 3 },
+  { id: 'em_s4_3', studentId: 's4', date: '2026-05-08', daysAgo: 3, mood: 3 },
+  { id: 'em_s4_4', studentId: 's4', date: '2026-05-07', daysAgo: 4, mood: 3 },
+  // 하윤 (s5)
+  { id: 'em_s5_0', studentId: 's5', date: '2026-05-11', daysAgo: 0, mood: 1, intensity: 4 },
+  { id: 'em_s5_1', studentId: 's5', date: '2026-05-10', daysAgo: 1, mood: 2 },
+  // 예은 (s7) — 무응답 → 데이터 없음 (의도적)
+];
+
+export type WellbeingSnapshot = {
+  studentId: string;
+  daysAgo: number;
+  score: number;        // 0~100
+  flag?: 'below-60-3days' | 'below-40-instant' | null;
+};
+
+export const wellbeingSnapshots: WellbeingSnapshot[] = [
+  // 서연 — 안정
+  ...[78, 76, 80, 79, 75, 77, 78].map((score, i) => ({ studentId: 's1', daysAgo: i, score })),
+  // 민준
+  ...[62, 64, 60, 65, 67, 63, 61].map((score, i) => ({ studentId: 's2', daysAgo: i, score })),
+  // 도현 — 임계 미달 3일 지속
+  { studentId: 's4', daysAgo: 0, score: 48, flag: 'below-60-3days' },
+  { studentId: 's4', daysAgo: 1, score: 52, flag: 'below-60-3days' },
+  { studentId: 's4', daysAgo: 2, score: 58, flag: 'below-60-3days' },
+  { studentId: 's4', daysAgo: 3, score: 62 },
+  { studentId: 's4', daysAgo: 4, score: 65 },
+  { studentId: 's4', daysAgo: 5, score: 70 },
+  { studentId: 's4', daysAgo: 6, score: 72 },
+  // 예은 — 즉시 알림 (40 미만)
+  { studentId: 's7', daysAgo: 0, score: 38, flag: 'below-40-instant' },
+  { studentId: 's7', daysAgo: 1, score: 42 },
+  { studentId: 's7', daysAgo: 2, score: 50 },
+];
+
+export function getWellbeingTrend(studentId: string): WellbeingSnapshot[] {
+  return wellbeingSnapshots
+    .filter(w => w.studentId === studentId)
+    .sort((a, b) => b.daysAgo - a.daysAgo);
+}
+
+export function getCheckInsForStudent(studentId: string): EmotionCheckIn[] {
+  return emotionCheckIns
+    .filter(e => e.studentId === studentId)
+    .sort((a, b) => a.daysAgo - b.daysAgo);
+}
+
+export type CrisisAlert = {
+  id: string;
+  studentId: string;
+  triggerType: 'keyword' | 'wellbeing-threshold' | 'manual';
+  severity: 1 | 2 | 3 | 4 | 5;
+  detectedAt: string;
+  summary: string;
+  notifiedTeacher: boolean;
+  notifiedParent: boolean;
+  notifiedWeeCenter: boolean;
+  resolved: boolean;
+};
+
+export const crisisAlerts: CrisisAlert[] = [
+  {
+    id: 'ca_001', studentId: 's4',
+    triggerType: 'wellbeing-threshold', severity: 3,
+    detectedAt: '오늘 09:12',
+    summary: '웰빙 지수 3일 연속 60 미만 + 감정 체크인 "힘듦" 누적',
+    notifiedTeacher: true, notifiedParent: false, notifiedWeeCenter: false,
+    resolved: false,
+  },
+  {
+    id: 'ca_002', studentId: 's7',
+    triggerType: 'wellbeing-threshold', severity: 4,
+    detectedAt: '오늘 08:45',
+    summary: '웰빙 지수 38 — 즉시 알림 임계 미달. 22분 무응답 동반.',
+    notifiedTeacher: true, notifiedParent: true, notifiedWeeCenter: false,
+    resolved: false,
+  },
+];
+
+/** 학부모 발송 카카오 BIZ 미리보기 템플릿 */
+export function buildParentMessage(report: ReportSummary): string {
+  const kpiLines = report.kpis.slice(0, 4)
+    .map(k => `${k.label} ${k.value}${k.trend === 'up' ? ' ↑' : k.trend === 'down' ? ' ↓' : ''}`)
+    .join('\n');
+  return `[풀림 클래스봇] ${report.title}
+
+${kpiLines}
+
+자세히 보기: https://pullim.app/r/${report.id}
+이번 주 정말 수고했어요. 다음 주에도 함께해요.`;
+}
+
+/** 학생 본인 시점 (서연 — currentPersona) — 오늘 체크인 완료 여부 */
+export function hasTodayCheckIn(studentId: string): boolean {
+  return emotionCheckIns.some(e => e.studentId === studentId && e.daysAgo === 0);
+}
