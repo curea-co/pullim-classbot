@@ -11,19 +11,41 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const BRAND = '풀림 클래스봇';
+const TAGLINE = '교사가 만드는 AI 학습 교실';
+const DESCRIPTION =
+  '교사가 자신의 수업·교안·목소리를 AI에 이식해 만드는 디지털 분신 수업 동반자. 반 운영·과제 배포·실시간 피드백을 자동화하는 풀림 클래스봇.';
+
 export const metadata: Metadata = {
-  title: '풀림 스터디 — AI 학습 파트너',
-  description:
-    '내 실력에 딱 맞는 문제, 사고를 이끌어주는 AI 튜터, 시간 단위 맞춤 학습 계획. 풀림 스터디는 고등학생을 위한 AI 학습 플랫폼입니다.',
-  applicationName: '풀림 스터디',
+  title: {
+    default: `${BRAND} — ${TAGLINE}`,
+    template: `%s | ${BRAND}`,
+  },
+  description: DESCRIPTION,
+  applicationName: BRAND,
+  keywords: ['풀림 클래스봇', 'AI 학습 교실', '교사 AI', '수업 동반자', '클래스봇', 'ClassBot', '풀림'],
+  authors: [{ name: 'curea' }],
+  creator: 'curea',
   formatDetection: { telephone: false },
+  openGraph: {
+    type: 'website',
+    locale: 'ko_KR',
+    siteName: BRAND,
+    title: `${BRAND} — ${TAGLINE}`,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${BRAND} — ${TAGLINE}`,
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#3B6FF6',
+  themeColor: '#0362DA',
 };
 
 export default function RootLayout({
