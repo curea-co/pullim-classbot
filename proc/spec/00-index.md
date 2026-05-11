@@ -17,6 +17,16 @@
 | 09 | [09-tech-stack.md](09-tech-stack.md) | 기술 스택·개발 환경·배포 정책 |
 | 10 | [10-roadmap.md](10-roadmap.md) | 로드맵·Phase·통합 이력·검증 기준 |
 
+### 기능별 명세 (Feature Spec)
+
+01~10은 횡단(횡적) 카테고리, 11~는 추출본에서 추가로 만들어지는 도메인 기능 단위 명세이다.
+
+| # | 파일 | 다루는 내용 |
+|---|------|----------|
+| 11 | [11-grading-hub.md](11-grading-hub.md) | 채점 허브 — AI 초안 + 교사 검수 + 루브릭 재학습 (`/teacher/grading`) |
+| 12 | [12-student-assignment-solve.md](12-student-assignment-solve.md) | 학생 과제 풀이 — 클래스봇 내부 자급 워크스페이스 (`/classbot/assignment/*`) |
+| 13 | [13-reports-and-emotion-checkin.md](13-reports-and-emotion-checkin.md) | 리포트 6종 + 감정 체크인 + 웰빙 지수 + 학부모 발송 (`/teacher/reports`, `/classbot/wellness`) |
+
 ## 참고 자료
 
 - `input/docs-archive/` — 이전 11개 마스터/핸드오프 원문 (영구 보존, read-only)
@@ -36,4 +46,5 @@
 - **2026-05-06**: 기존 `docs/` 11개 문서 + `pullim-study-screens` 스킬을 본 spec으로 합성 (역설계 마이그레이션)
 - **2026-05-06**: UX/디자인 베이스라인 보강 — `04 § 6.6` 오버플로 처리 규칙 신설, `08 § 7.3` 버튼 어포던스 규칙 신설, `07 § 5.2` 학술 기호·약어 매핑 추가, `07 § 6` UX writing(한자어 정책) 신설. 트리거: `/q/infinity/solve` 시험 모드 다이얼로그 viewport 초과 버그, `/q/review` "정복 세트 풀이" 버튼 어포던스 미달, θ 등 학술 기호 노출 + 한자어("잔존" 등) 사용성 이슈.
 - **2026-05-07**: 명세 회귀 사례 closing — `04 § 6.6.3/6.6.4` (오버플로·다이얼로그 footer cleanup), `08 § 7.3.5` (버튼 어포던스 회귀: Q·라이브러리·클래스봇·플래너 처리 완료), `07 § 5.2` (학술 기호 회귀: 2026-05-06 시점 5건 + 2026-05-07 시점 신규 도메인 발견 처리 완료) 갱신. [2026-05-07 spec-regression-closing plan](../archive/2026-05-07_spec-regression-closing.md).
-- **2026-05-11**: 브랜드 표면 명칭 정렬 — `07 § 1` (서비스명/슬로건/미션 표 재구성: 모브랜드 "풀림" / 표면 "풀림 클래스봇" 분리), `07 § 1.4` (메타데이터 표준 신설 — title·description·OG·manifest 단일 진실원), `02` 추출본 컨텍스트 박스 추가. 트리거: Vercel 임베드에 "풀림 스터디" 노출. [plan 2026-05-11_brand-classbot-metadata](../plan/2026-05-11_brand-classbot-metadata.md).
+- **2026-05-11**: 추출본 누락 영역 명세 신설 — `11-grading-hub.md` (채점 허브), `12-student-assignment-solve.md` (학생 과제 풀이 — Q 도메인 의존 제거 + 클래스봇 내부 자급), `13-reports-and-emotion-checkin.md` (리포트 + 감정 체크인 + 웰빙 지수). 권위 문서 `07_풀림_클래스봇_핸드오프.md` § 4.1·4.7·4.8·4.9 기반. 우선순위는 채점 허브 → 풀이 → 리포트 순.
+- **2026-05-11**: 브랜드 표면 명칭 정렬 — `07 § 1` (서비스명/슬로건/미션 표 재구성: 모브랜드 "풀림" / 표면 "풀림 클래스봇" 분리), `07 § 1.4` (메타데이터 표준 신설 — title·description·OG·manifest 단일 진실원), `02` 추출본 컨텍스트 박스 추가. 트리거: Vercel 임베드에 "풀림 스터디" 노출. [plan 2026-05-11_brand-classbot-metadata](../archive/2026-05-11_brand-classbot-metadata.md).
