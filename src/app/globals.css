@@ -1,0 +1,285 @@
+/* Pretendard — 풀림 기본 본문 서체 (@import는 다른 모든 규칙보다 먼저) */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* 폰트 */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-heading: var(--font-sans);
+
+  /* shadcn 시맨틱 → 풀림 매핑 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 풀림 브랜드 블루 */
+  --color-pullim-blue-50: #EEF3FF;
+  --color-pullim-blue-100: #DCE6FF;
+  --color-pullim-blue-200: #B8CDFF;
+  --color-pullim-blue-300: #8BAEFF;
+  --color-pullim-blue-400: #5A8BFF;
+  --color-pullim-blue-500: #3B6FF6;
+  --color-pullim-blue-600: #2854D8;
+  --color-pullim-blue-700: #1D3FA8;
+  --color-pullim-blue-800: #152E7A;
+  --color-pullim-blue-900: #0E1F54;
+  --color-pullim-blue-950: #070F2C;
+
+  /* 풀림 슬레이트 (쿨한 중립색) */
+  --color-pullim-slate-0:   #FFFFFF;
+  --color-pullim-slate-25:  #FBFCFE;
+  --color-pullim-slate-50:  #F5F7FB;
+  --color-pullim-slate-100: #EDF0F5;
+  --color-pullim-slate-200: #DDE2EC;
+  --color-pullim-slate-300: #C4CBDA;
+  --color-pullim-slate-400: #97A0B4;
+  --color-pullim-slate-500: #6B7489;
+  --color-pullim-slate-600: #4A536A;
+  --color-pullim-slate-700: #343B50;
+  --color-pullim-slate-800: #20263A;
+  --color-pullim-slate-900: #121627;
+  --color-pullim-slate-950: #080B18;
+
+  /* 시맨틱 */
+  --color-pullim-success: #12B26B;
+  --color-pullim-success-bg: #E6F7EE;
+  --color-pullim-warn: #F59E0B;
+  --color-pullim-warn-bg: #FEF3DB;
+  --color-pullim-danger: #E5484D;
+  --color-pullim-danger-bg: #FCE9EA;
+
+  /* IRT 난이도 5단계 */
+  --color-pullim-lvl-1: #E5EEFF;
+  --color-pullim-lvl-2: #A9C4FF;
+  --color-pullim-lvl-3: #5A8BFF;
+  --color-pullim-lvl-4: #2854D8;
+  --color-pullim-lvl-5: #152E7A;
+
+  /* 풀림 레몬 — 강조·CTA·스트릭 (플래너 핸드오프 12.1) */
+  --color-pullim-lemon: #E6FF4C;
+  --color-pullim-lemon-soft: #F5FFB8;
+  --color-pullim-lemon-ink: #5C6B0A;
+
+  /* 학습 히트맵 6단계 */
+  --color-pullim-heat-0: #F0F3F9;
+  --color-pullim-heat-1: #D9E5FB;
+  --color-pullim-heat-2: #A9C4FF;
+  --color-pullim-heat-3: #5A8BFF;
+  --color-pullim-heat-4: #2854D8;
+  --color-pullim-heat-5: #0E1F54;
+
+  /* 라운드 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.625rem;
+
+  /* 라이트 테마 — 풀림 매핑 */
+  --background: #FFFFFF;
+  --foreground: #121627;
+  --card: #FFFFFF;
+  --card-foreground: #121627;
+  --popover: #FFFFFF;
+  --popover-foreground: #121627;
+  --primary: #3B6FF6;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EDF0F5;
+  --secondary-foreground: #20263A;
+  --muted: #F5F7FB;
+  --muted-foreground: #6B7489;
+  --accent: #EEF3FF;
+  --accent-foreground: #1D3FA8;
+  --destructive: #E5484D;
+  --border: #DDE2EC;
+  --input: #DDE2EC;
+  --ring: #3B6FF6;
+
+  /* 차트 — IRT 5단계 톤 */
+  --chart-1: #3B6FF6;
+  --chart-2: #5A8BFF;
+  --chart-3: #2854D8;
+  --chart-4: #1D3FA8;
+  --chart-5: #8BAEFF;
+
+  /* 사이드바 (학생 shell의 하단 탭 / 교사 사이드바 공용) */
+  --sidebar: #FBFCFE;
+  --sidebar-foreground: #121627;
+  --sidebar-primary: #3B6FF6;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EEF3FF;
+  --sidebar-accent-foreground: #1D3FA8;
+  --sidebar-border: #DDE2EC;
+  --sidebar-ring: #3B6FF6;
+
+  /* 풀림 그림자 */
+  --shadow-pullim-xs: 0 1px 2px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-sm: 0 1px 3px rgba(18, 22, 39, 0.06), 0 1px 2px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-md: 0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-lg: 0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-glow: 0 0 0 4px rgba(59, 111, 246, 0.15);
+}
+
+.dark {
+  /* 다크 — 풀림 슬레이트 900 베이스 (학생 야간 학습 모드 대비) */
+  --background: #080B18;
+  --foreground: #FBFCFE;
+  --card: #121627;
+  --card-foreground: #FBFCFE;
+  --popover: #121627;
+  --popover-foreground: #FBFCFE;
+  --primary: #5A8BFF;
+  --primary-foreground: #070F2C;
+  --secondary: #20263A;
+  --secondary-foreground: #FBFCFE;
+  --muted: #20263A;
+  --muted-foreground: #97A0B4;
+  --accent: #1D3FA8;
+  --accent-foreground: #DCE6FF;
+  --destructive: #E5484D;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: #5A8BFF;
+
+  --chart-1: #5A8BFF;
+  --chart-2: #8BAEFF;
+  --chart-3: #3B6FF6;
+  --chart-4: #B8CDFF;
+  --chart-5: #2854D8;
+
+  --sidebar: #121627;
+  --sidebar-foreground: #FBFCFE;
+  --sidebar-primary: #5A8BFF;
+  --sidebar-primary-foreground: #070F2C;
+  --sidebar-accent: #20263A;
+  --sidebar-accent-foreground: #DCE6FF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #5A8BFF;
+}
+
+@layer components {
+  /* Dual-thumb range slider — 트랙 클릭은 무시, 핸들만 드래그 가능 */
+  .dual-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    pointer-events: none;
+    outline: none;
+    margin: 0;
+    height: 100%;
+  }
+  .dual-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--color-pullim-blue-600);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    cursor: grab;
+    pointer-events: auto;
+    margin-top: 0;
+    transition: transform 120ms ease;
+  }
+  .dual-range::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+  }
+  .dual-range::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.15);
+  }
+  .dual-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    background: var(--color-pullim-blue-600);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    cursor: grab;
+    pointer-events: auto;
+    transition: transform 120ms ease;
+  }
+  .dual-range::-moz-range-thumb:hover {
+    transform: scale(1.1);
+  }
+  .dual-range::-moz-range-thumb:active {
+    cursor: grabbing;
+    transform: scale(1.15);
+  }
+  .dual-range::-webkit-slider-runnable-track {
+    background: transparent;
+    height: 100%;
+  }
+  .dual-range::-moz-range-track {
+    background: transparent;
+    height: 100%;
+  }
+  .dual-range:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-pullim-blue-400);
+    outline-offset: 2px;
+  }
+  .dual-range:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-pullim-blue-400);
+    outline-offset: 2px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'tnum' 1, 'cv11' 1;
+    letter-spacing: -0.01em;
+    /* 디스플레이 깨짐 방지 — 320px 미만에서는 가로 스크롤 */
+    min-width: 320px;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* 학생 화면은 모바일 우선 → 폰트 크기 살짝 키움 */
+  h1, h2, h3 { letter-spacing: -0.02em; }
+}
