@@ -90,13 +90,14 @@ function DispatchedAssignments() {
         title="발사한 과제"
         description={`오늘 ${totalSent}건 · 학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
         action={
-          <button
-            type="button"
+          <Link
+            href="/teacher/assignment/new"
+            data-testid="new-assignment-cta"
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
           >
             <Plus className="h-3.5 w-3.5" />
             새 과제
-          </button>
+          </Link>
         }
       />
       <ul className="space-y-2">

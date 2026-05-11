@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import {
   ArrowRight, Eye, History, MessageCircle, Play, Sparkles, Target, AlertCircle, Heart,
@@ -5,9 +7,10 @@ import {
 } from 'lucide-react';
 import {
   classRoster, currentPersona,
-  studentAssignments, type Assignment,
+  type Assignment,
   getMyBots, scopeMeta, type ClassBot, type StudentEnrollment,
 } from '@/lib/mock';
+import { useMergedAssignments } from '@/lib/store/assignments';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { cn } from '@/lib/utils';
@@ -28,8 +31,9 @@ export default function StudentClassbotPage() {
   const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
   const myBots = getMyBots();
   const liveBots = myBots.filter(b => b.bot.isLive);
-  const primary = studentAssignments[0];
-  const others = studentAssignments.slice(1);
+  const allAssignments = useMergedAssignments(me.id);
+  const primary = allAssignments[0];
+  const others = allAssignments.slice(1);
 
   return (
     <div className="space-y-4">

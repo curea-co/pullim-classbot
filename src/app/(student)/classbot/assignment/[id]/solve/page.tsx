@@ -1,16 +1,32 @@
+'use client';
+
+import { use } from 'react';
 import { notFound } from 'next/navigation';
-import { classBots, getAssignmentById, getQuestionsByAssignment } from '@/lib/mock';
+import { classBots } from '@/lib/mock';
+import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { SolveWorkspace } from './solve-workspace';
 
-type Params = Promise<{ id: string }>;
-type Search = Promise<{ step?: string }>;
+export default function SolvePage({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ step?: string }>;
+}) {
+  const { id } = use(params);
+  const { step } = use(searchParams);
 
-export default async function SolvePage({ params, searchParams }: { params: Params; searchParams: Search }) {
-  const { id } = await params;
-  const { step } = await searchParams;
-  const a = getAssignmentById(id);
-  if (!a) notFound();
-  const questions = getQuestionsByAssignment(id);
+  const a = useAssignmentLookup(id);
+  if (!a) {
+    if (id.startsWith('as_user_')) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중...</p>
+        </div>
+      );
+    }
+    notFound();
+  }
+  const questions = getQuestionsForAssignment(a);
   if (questions.length === 0) notFound();
 
   const bot = classBots.find(b => b.id === a.botId);
