@@ -1,6 +1,7 @@
 'use client';
 
 import { moodMeta, type EmotionMood } from '@/lib/mock';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 /**
@@ -65,12 +66,14 @@ export function EmotionEmojiPicker({
             <h3 className="text-pullim-slate-900 text-xs font-bold">강도 (선택)</h3>
             <span className="text-pullim-slate-500 font-mono text-[11px]">{intensity}/5</span>
           </div>
-          <input
-            type="range"
-            min={1} max={5} step={1} value={intensity}
-            onChange={(e) => onIntensityChange(Number(e.target.value))}
-            className="accent-pullim-blue-500 mt-2 w-full"
+          <Slider
+            min={1}
+            max={5}
+            step={1}
+            value={intensity}
+            onValueChange={(v) => onIntensityChange(Array.isArray(v) ? v[0] : v)}
             aria-label="감정 강도"
+            className="mt-2"
           />
           <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-[9px]">
             <span>살짝</span>

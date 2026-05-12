@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 import {
   classBots, classRoster, getBotCurriculum,
   type AssignmentMode, type ClassBot, type BotCurriculumUnit,
@@ -308,14 +309,15 @@ export function AssignmentForm() {
 
             <Field label="문항 수" htmlFor="af-qcount">
               <div className="flex items-center gap-3">
-                <input
+                <Slider
                   id="af-qcount"
-                  type="range"
-                  min={1} max={mode === 'exam' ? 60 : 50}
+                  min={1}
+                  max={mode === 'exam' ? 60 : 50}
+                  step={1}
                   value={questionCount}
-                  onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  onValueChange={(v) => setQuestionCount(Array.isArray(v) ? v[0] : v)}
                   aria-valuetext={`${questionCount}문항`}
-                  className="accent-pullim-blue-500 flex-1"
+                  className="flex-1"
                 />
                 <span className="bg-pullim-slate-100 text-pullim-slate-700 inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
                   {questionCount}
@@ -426,14 +428,16 @@ export function AssignmentForm() {
             <div className="space-y-3">
               <Field label="시간 제한 (분)" htmlFor="af-time">
                 <div className="flex items-center gap-3">
-                  <input
+                  <Slider
                     id="af-time"
-                    type="range"
-                    min={10} max={180} step={10}
+                    min={10}
+                    max={180}
+                    step={10}
                     value={examTimeLimit}
-                    onChange={(e) => setExamTimeLimit(Number(e.target.value))}
+                    onValueChange={(v) => setExamTimeLimit(Array.isArray(v) ? v[0] : v)}
                     aria-valuetext={`${examTimeLimit}분`}
-                    className="accent-pullim-danger flex-1"
+                    accentClassName="bg-pullim-danger"
+                    className="flex-1"
                   />
                   <span className="bg-white text-pullim-danger inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
                     {examTimeLimit}분

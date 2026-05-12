@@ -13,6 +13,9 @@ import {
 } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
@@ -180,6 +183,13 @@ function PlayerSurface({
     onSeek(pct * totalSec);
   }
 
+  function onTrackKey(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); onSeek(now - 5); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); onSeek(now + 5); }
+    if (e.key === 'Home')       { e.preventDefault(); onSeek(0); }
+    if (e.key === 'End')        { e.preventDefault(); onSeek(totalSec); }
+  }
+
   return (
     <section className="from-pullim-slate-900 to-pullim-blue-900 relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl lg:p-6">
       <div
@@ -216,12 +226,15 @@ function PlayerSurface({
           <div
             ref={trackRef}
             role="slider"
+            tabIndex={0}
             aria-label="재생 위치"
             aria-valuemin={0}
             aria-valuemax={totalSec}
             aria-valuenow={Math.floor(now)}
-            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15"
+            aria-valuetext={formatReplayTime(now)}
+            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15 outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50"
             onClick={onTrackClick}
+            onKeyDown={onTrackKey}
           >
             <div
               className="bg-pullim-lemon absolute inset-y-0 left-0 rounded-full"
@@ -279,42 +292,49 @@ function PlayerSurface({
 
         {/* 컨트롤 */}
         <div className="mt-4 flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-lg"
             onClick={() => onSeek(now - 10)}
             aria-label="10초 뒤로"
-            className="text-white/80 hover:text-white inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur"
+            className="text-white/80 hover:bg-white/20 hover:text-white rounded-full bg-white/10 backdrop-blur"
           >
-            <RotateCcw className="h-4 w-4" />
-          </button>
+            <RotateCcw />
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="pullim-lemon"
+            size="icon-lg"
             onClick={onPlayPause}
             aria-label={playing ? '일시정지' : '재생'}
-            className="bg-pullim-lemon text-pullim-lemon-ink inline-flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
+            className="size-12 rounded-full shadow-lg active:scale-95 [&_svg:not([class*='size-'])]:size-5"
           >
-            {playing ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current pl-0.5" />}
-          </button>
+            {playing ? <Pause className="fill-current" /> : <Play className="fill-current pl-0.5" />}
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-lg"
             onClick={() => onSeek(now + 10)}
             aria-label="10초 앞으로"
-            className="text-white/80 hover:text-white inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur"
+            className="text-white/80 hover:bg-white/20 hover:text-white rounded-full bg-white/10 backdrop-blur"
           >
-            <RotateCw className="h-4 w-4" />
-          </button>
+            <RotateCw />
+          </Button>
 
-          <div className="ml-auto flex items-center gap-0.5 rounded-full bg-white/10 backdrop-blur p-1">
+          <div role="radiogroup" aria-label="재생 속도" className="ml-auto flex items-center gap-0.5 rounded-full bg-white/10 backdrop-blur p-1">
             {SPEEDS.map(s => (
               <button
                 key={s}
                 type="button"
+                role="radio"
+                aria-checked={s === speed}
                 onClick={() => onSpeed(s)}
-                aria-pressed={s === speed}
                 className={cn(
-                  'rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors',
+                  'rounded-full px-2 py-0.5 font-mono text-[11px] font-bold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50',
                   s === speed
                     ? 'bg-pullim-lemon text-pullim-lemon-ink'
                     : 'text-white/70 hover:text-white',
@@ -420,8 +440,9 @@ function TranscriptStream({
               type="button"
               data-line={i}
               onClick={() => onSeek(line.atSec)}
+              aria-current={isCurrent ? 'true' : undefined}
               className={cn(
-                'block w-full rounded-lg p-3 text-left transition-all',
+                'block w-full rounded-lg p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                 isCurrent
                   ? 'bg-pullim-lemon/15 ring-2 ring-pullim-lemon shadow-sm'
                   : isPast
@@ -501,7 +522,7 @@ function FocusHeatmap({
             onClick={() => onSeek(i * 60)}
             aria-label={`${i}분 (집중도 ${v})`}
             className={cn(
-              'flex-1 rounded-sm transition-all hover:opacity-80',
+              'flex-1 rounded-sm transition-all hover:opacity-80 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
               i === currentBinIdx && 'ring-2 ring-pullim-lemon ring-offset-1',
             )}
             style={{
@@ -539,14 +560,16 @@ function BookmarksPanel({
           </h2>
           <p className="text-pullim-slate-500 text-[11px]">여기 다시 듣고 싶을 때 저장</p>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onAdd}
-          className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold whitespace-nowrap"
+          className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 hover:text-pullim-blue-700 font-mono whitespace-nowrap"
         >
-          <BookmarkPlus className="h-3 w-3" />
+          <BookmarkPlus />
           {formatReplayTime(now)} 저장
-        </button>
+        </Button>
       </header>
 
       {bookmarks.length === 0 ? (
@@ -558,7 +581,8 @@ function BookmarksPanel({
               <button
                 type="button"
                 onClick={() => onSeek(b.atSec)}
-                className="bg-pullim-slate-50 hover:bg-pullim-slate-100 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors"
+                aria-label={`${formatReplayTime(b.atSec)} ${b.label} 로 이동`}
+                className="bg-pullim-slate-50 hover:bg-pullim-slate-100 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
               >
                 <span className="text-pullim-blue-600 font-mono font-bold">{formatReplayTime(b.atSec)}</span>
                 <span className="text-pullim-slate-700 flex-1 truncate">{b.label}</span>
@@ -602,21 +626,23 @@ function TeacherQuestionsPanel({
         <span className="bg-pullim-blue-50 text-pullim-blue-700 shrink-0 rounded font-mono text-[10px] font-bold px-1.5 py-1">
           @{formatReplayTime(now)}
         </span>
-        <input
+        <Input
           type="text"
           value={draft}
           onChange={e => onDraftChange(e.target.value)}
           placeholder="여기 다시 설명해주세요…"
-          className="border-pullim-slate-200 focus:border-pullim-blue-400 flex-1 rounded-lg border px-2.5 py-1.5 text-xs outline-none"
+          aria-label="선생님께 질문"
+          className="h-8 flex-1 rounded-lg text-xs"
         />
-        <button
+        <Button
           type="submit"
+          variant="pullim"
+          size="icon-sm"
           disabled={!draft.trim()}
           aria-label="질문 보내기"
-          className="bg-pullim-blue-600 text-white inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg disabled:opacity-40"
         >
-          <Send className="h-3 w-3" />
-        </button>
+          <Send />
+        </Button>
       </form>
 
       {/* 보낸 질문 + 답 */}
@@ -630,7 +656,8 @@ function TeacherQuestionsPanel({
                 <button
                   type="button"
                   onClick={() => onSeek(q.atSec)}
-                  className="text-pullim-blue-600 hover:underline font-mono font-bold"
+                  aria-label={`${formatReplayTime(q.atSec)} 로 이동`}
+                  className="text-pullim-blue-600 hover:underline font-mono font-bold outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50 rounded-sm"
                 >
                   @{formatReplayTime(q.atSec)}
                 </button>
