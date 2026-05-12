@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { classRoster, currentPersona, type Assignment, type AssignmentMode } from '@/lib/mock';
@@ -40,9 +40,21 @@ export default function StudentAssignmentListPage() {
 
       <section>
         <SectionHeading title="모든 과제" description="새로 받은 과제가 위에 와요." />
-        <ul className="space-y-2">
-          {assignments.map(a => <AssignmentCard key={a.id} assignment={a} />)}
-        </ul>
+        {assignments.length === 0 ? (
+          <div className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-4 py-10 text-center">
+            <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 items-center justify-center rounded-xl">
+              <Inbox className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="text-pullim-slate-900 text-sm font-bold">아직 받은 과제가 없어요</p>
+            <p className="text-pullim-slate-500 text-[11px]">
+              선생님이 새 과제를 발사하면 여기에 표시돼요.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {assignments.map(a => <AssignmentCard key={a.id} assignment={a} />)}
+          </ul>
+        )}
       </section>
     </div>
   );

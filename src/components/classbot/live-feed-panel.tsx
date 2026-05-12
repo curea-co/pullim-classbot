@@ -83,8 +83,14 @@ export function LiveFeedPanel() {
                     {q.shared ? <EyeOff className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
                     {q.shared ? '공유 해제' : '전체 공유'}
                   </button>
-                  <button className="text-pullim-blue-600 hover:bg-pullim-blue-50 rounded-full px-2.5 py-1 text-[10px] font-bold inline-flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    title="준비 중 (v2)"
+                    className="text-pullim-blue-600 rounded-full px-2.5 py-1 text-[10px] font-bold inline-flex items-center gap-1 opacity-60 cursor-not-allowed"
+                  >
+                    <Sparkles className="h-3 w-3" aria-hidden />
                     답 보강
                   </button>
                 </div>

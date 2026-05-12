@@ -192,8 +192,9 @@ export function AssignmentForm() {
           />
 
           <div className="space-y-3">
-            <Field label="발사 봇">
+            <Field label="발사 봇" htmlFor="af-bot">
               <select
+                id="af-bot"
                 value={botId}
                 onChange={(e) => handleBotChange(e.target.value)}
                 data-testid="bot-select"
@@ -207,12 +208,15 @@ export function AssignmentForm() {
               </select>
             </Field>
 
-            <Field label="과제 제목" hint="5~50자">
+            <Field label="과제 제목" hint="5~50자" htmlFor="af-title">
               <input
+                id="af-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 50))}
                 placeholder="예: 도함수 활용 마무리 2탄"
                 data-testid="title-input"
+                aria-invalid={title !== '' && !titleValid}
+                aria-describedby={title !== '' && !titleValid ? 'af-title-err' : undefined}
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-sm outline-none',
                   title === '' || titleValid
@@ -221,7 +225,7 @@ export function AssignmentForm() {
                 )}
               />
               {title !== '' && !titleValid && (
-                <p className="text-pullim-danger mt-1 text-[10px]">제목은 5~50자 사이여야 해요.</p>
+                <p id="af-title-err" className="text-pullim-danger mt-1 text-[10px]">제목은 5~50자 사이여야 해요.</p>
               )}
             </Field>
 
@@ -281,8 +285,9 @@ export function AssignmentForm() {
           />
 
           <div className="space-y-3">
-            <Field label="단원">
+            <Field label="단원" htmlFor="af-unit">
               <select
+                id="af-unit"
                 value={unitId}
                 onChange={(e) => setUnitId(e.target.value)}
                 data-testid="unit-select"
@@ -298,13 +303,15 @@ export function AssignmentForm() {
               </p>
             </Field>
 
-            <Field label="문항 수">
+            <Field label="문항 수" htmlFor="af-qcount">
               <div className="flex items-center gap-3">
                 <input
+                  id="af-qcount"
                   type="range"
                   min={1} max={mode === 'exam' ? 60 : 50}
                   value={questionCount}
                   onChange={(e) => setQuestionCount(Number(e.target.value))}
+                  aria-valuetext={`${questionCount}문항`}
                   className="accent-pullim-blue-500 flex-1"
                 />
                 <span className="bg-pullim-slate-100 text-pullim-slate-700 inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
@@ -369,12 +376,15 @@ export function AssignmentForm() {
           />
 
           <div className="space-y-3">
-            <Field label="마감 일시">
+            <Field label="마감 일시" htmlFor="af-due">
               <input
+                id="af-due"
                 type="datetime-local"
                 value={dueIso}
                 onChange={(e) => setDueIso(e.target.value)}
                 data-testid="due-input"
+                aria-invalid={!dueValid}
+                aria-describedby={!dueValid ? 'af-due-err' : 'af-due-hint'}
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-sm outline-none',
                   dueValid
@@ -382,17 +392,18 @@ export function AssignmentForm() {
                     : 'border-pullim-danger',
                 )}
               />
-              <p className="text-pullim-slate-500 mt-1 text-[10px]">
+              <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-[10px]">
                 <Calendar className="-mt-0.5 mr-0.5 inline h-3 w-3" />
                 {formatDueLabel(dueIso)} ({computeDDay(dueIso)})
               </p>
               {!dueValid && (
-                <p className="text-pullim-danger mt-1 text-[10px]">미래 시각으로 설정해주세요.</p>
+                <p id="af-due-err" className="text-pullim-danger mt-1 text-[10px]">미래 시각으로 설정해주세요.</p>
               )}
             </Field>
 
-            <Field label="봇 한 마디 (선택)" hint="200자">
+            <Field label="봇 한 마디 (선택)" hint="200자" htmlFor="af-message">
               <textarea
+                id="af-message"
                 value={botMessage}
                 onChange={(e) => setBotMessage(e.target.value.slice(0, 200))}
                 rows={2}
@@ -412,13 +423,15 @@ export function AssignmentForm() {
             />
 
             <div className="space-y-3">
-              <Field label="시간 제한 (분)">
+              <Field label="시간 제한 (분)" htmlFor="af-time">
                 <div className="flex items-center gap-3">
                   <input
+                    id="af-time"
                     type="range"
                     min={10} max={180} step={10}
                     value={examTimeLimit}
                     onChange={(e) => setExamTimeLimit(Number(e.target.value))}
+                    aria-valuetext={`${examTimeLimit}분`}
                     className="accent-pullim-danger flex-1"
                   />
                   <span className="bg-white text-pullim-danger inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
@@ -486,10 +499,17 @@ export function AssignmentForm() {
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label, hint, htmlFor, children,
+}: {
+  label: string; hint?: string; htmlFor?: string; children: React.ReactNode;
+}) {
   return (
     <div>
-      <label className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold">
+      <label
+        htmlFor={htmlFor}
+        className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold"
+      >
         <span>{label}</span>
         {hint && <span className="text-pullim-slate-400 font-mono text-[10px]">{hint}</span>}
       </label>

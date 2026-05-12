@@ -42,18 +42,36 @@ export function QuizLauncher() {
         })}
       </ul>
 
-      {/* 액션 */}
+      {/* 액션 — v2 준비 중 */}
       <div className="mt-3 grid grid-cols-3 gap-1.5 text-[10px]">
-        <button className="bg-pullim-warn-bg text-pullim-warn flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold">
-          <FileQuestion className="h-3.5 w-3.5" />
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="준비 중 (v2)"
+          className="bg-pullim-warn-bg text-pullim-warn flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+        >
+          <FileQuestion className="h-3.5 w-3.5" aria-hidden />
           새 퀴즈
         </button>
-        <button className="bg-pullim-blue-50 text-pullim-blue-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold">
-          <RadioTower className="h-3.5 w-3.5" />
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="준비 중 (v2)"
+          className="bg-pullim-blue-50 text-pullim-blue-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+        >
+          <RadioTower className="h-3.5 w-3.5" aria-hidden />
           폴 생성
         </button>
-        <button className="bg-pullim-slate-100 text-pullim-slate-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold">
-          <BarChart3 className="h-3.5 w-3.5" />
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="준비 중 (v2)"
+          className="bg-pullim-slate-100 text-pullim-slate-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+        >
+          <BarChart3 className="h-3.5 w-3.5" aria-hidden />
           상세 분포
         </button>
       </div>
