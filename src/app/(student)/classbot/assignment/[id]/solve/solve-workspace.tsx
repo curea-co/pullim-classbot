@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
-import type { Assignment, AssignmentQuestion } from '@/lib/mock';
+import { classRoster, currentPersona, type Assignment, type AssignmentQuestion } from '@/lib/mock';
+import { useAssignmentStore, computeMockScore } from '@/lib/store/assignments';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -70,6 +71,16 @@ export function SolveWorkspace({
   }
 
   function submit() {
+    // 점수 mock 계산 + store 에 submission 기록 (교사 측 진행률 반영)
+    const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+    const scorePercent = computeMockScore(questions, answers);
+    useAssignmentStore.getState().recordSubmission({
+      assignmentId: assignment.id,
+      studentId: me.id,
+      answers,
+      scorePercent,
+    });
+
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(storageKey);
     }

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, AlertTriangle, History, ArrowRight, Inbox } from 'lucide-react';
 import { ClassKpiBar } from '@/components/classbot/class-kpi-bar';
@@ -6,6 +8,7 @@ import { StudentRoster } from '@/components/classbot/student-roster';
 import { LiveFeedPanel } from '@/components/classbot/live-feed-panel';
 import { QuizLauncher } from '@/components/classbot/quiz-launcher';
 import { myClassBot, studentAssignments, type Assignment } from '@/lib/mock';
+import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -87,13 +90,21 @@ const modeMeta = {
 } as const;
 
 function DispatchedAssignments() {
-  const assignments = studentAssignments;
-  const totalSent = assignments.reduce((s, a) => s + (a.assignedAt.includes('오늘') ? 1 : 0), 0);
-  const totalCompleted = assignments.reduce((s, a) => s + a.completedCount, 0);
-  const totalPending = assignments.reduce((s, a) => s + (a.questionCount - a.completedCount), 0);
+  const dispatched = useAssignmentStore((s) => s.dispatched);
+  const submissions = useAssignmentStore((s) => s.submissions);
+  const assignments = [...dispatched, ...studentAssignments];
+  const totalSent = assignments.reduce((s, a) => s + (a.assignedAt.includes('오늘') || a.assignedAt.includes('방금') ? 1 : 0), 0);
+  // 진행률 합산은 store submission 기준 — 실시간 반영
+  const totalCompleted = assignments.reduce((s, a) => {
+    const mine = submissions.filter((sub) => sub.assignmentId === a.id);
+    const submittedStudentCount = new Set(mine.map((sub) => sub.studentId)).size;
+    return s + Math.min(a.completedCount + submittedStudentCount, a.questionCount);
+  }, 0);
+  const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
+  const totalPending = totalQuestions - totalCompleted;
 
   return (
-    <section className="bg-card rounded-2xl border p-4">
+    <section data-testid="dispatched-section" className="bg-card rounded-2xl border p-4">
       <SectionHeading
         title="발사한 과제"
         description={`오늘 ${totalSent}건 · 학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
@@ -128,11 +139,18 @@ function DispatchedAssignments() {
 function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
   const mode = modeMeta[a.mode];
   const Icon = mode.icon;
-  const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
+  const { completedCount, avgScore, latestSubmittedAt } = useAssignmentProgress(a);
+  const progress = a.questionCount === 0 ? 0 : (completedCount / a.questionCount) * 100;
   const isUrgent = a.dDay === '오늘' || a.dDay === 'D-1';
+  // 라이브 인디케이터 — 최근 30초 내 제출
+  const isLive = latestSubmittedAt
+    ? Date.now() - new Date(latestSubmittedAt).getTime() < 30_000
+    : false;
+  // 표시 정답률 — 시드의 recentAccuracy 우선, 없으면 store avgScore
+  const displayAccuracy = a.recentAccuracy ?? avgScore;
 
   return (
-    <li className="bg-pullim-slate-50/50 hover:bg-pullim-slate-50 rounded-xl p-3 transition-colors">
+    <li data-testid={`dispatched-row-${a.id}`} className="bg-pullim-slate-50/50 hover:bg-pullim-slate-50 rounded-xl p-3 transition-colors">
       <div className="flex items-start gap-3">
         <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white', mode.color)}>
           <Icon className="h-4 w-4" />
@@ -147,6 +165,12 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
             <span className={cn('font-mono font-bold', isUrgent ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
               {a.dDay} ({a.dueLabel})
             </span>
+            {isLive && (
+              <span className="bg-pullim-success-bg text-pullim-success inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
+                <span className="bg-pullim-success inline-block h-1 w-1 animate-pulse rounded-full" />
+                방금 제출
+              </span>
+            )}
             <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', mode.color, 'text-white')}>
               {mode.label}
             </span>
@@ -160,16 +184,16 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
           <div className="mt-2 flex items-center gap-2">
             <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
               <div
-                className={cn('h-full rounded-full', a.recentAccuracy && a.recentAccuracy >= 70 ? 'bg-pullim-success' : 'bg-pullim-blue-500')}
+                className={cn('h-full rounded-full transition-all', displayAccuracy && displayAccuracy >= 70 ? 'bg-pullim-success' : 'bg-pullim-blue-500')}
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
-              {a.completedCount}/{a.questionCount}
+            <span data-testid={`progress-${a.id}`} className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+              {completedCount}/{a.questionCount}
             </span>
-            {a.recentAccuracy != null && (
-              <span className={cn('font-mono text-[10px] font-bold', a.recentAccuracy >= 70 ? 'text-pullim-success' : 'text-pullim-warn')}>
-                {a.recentAccuracy}%
+            {displayAccuracy != null && (
+              <span className={cn('font-mono text-[10px] font-bold', displayAccuracy >= 70 ? 'text-pullim-success' : 'text-pullim-warn')}>
+                {displayAccuracy}%
               </span>
             )}
           </div>
