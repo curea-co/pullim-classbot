@@ -10,13 +10,13 @@ type Kpi = ReportSummary['kpis'][number];
  */
 export function KpiTrendCard({ kpi }: { kpi: Kpi }) {
   const trendIcon =
-    kpi.trend === 'up' ? <TrendingUp className="text-pullim-success h-3 w-3" />
+    kpi.trend === 'up' ? <TrendingUp className="text-pullim-blue-600 h-3 w-3" />
     : kpi.trend === 'down' ? <TrendingDown className="text-pullim-danger h-3 w-3" />
     : kpi.trend === 'flat' ? <Minus className="text-pullim-slate-400 h-3 w-3" />
     : null;
   const valueClass =
     kpi.trend === 'down' ? 'text-pullim-danger'
-    : kpi.trend === 'up' ? 'text-pullim-success'
+    : kpi.trend === 'up' ? 'text-pullim-blue-600'
     : 'text-pullim-slate-900';
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg p-3">

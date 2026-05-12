@@ -22,9 +22,9 @@ const SPEEDS = [1, 1.25, 1.5, 2] as const;
 type Speed = typeof SPEEDS[number];
 
 const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; color: string; icon: LucideIcon }> = {
-  'concept':   { label: '개념',     color: 'bg-pullim-blue-500',  icon: Lightbulb },
-  'quiz':      { label: '퀴즈',     color: 'bg-pullim-warn',      icon: Target },
-  'student-q': { label: '내 질문',  color: 'bg-pullim-success',   icon: MessageCircle },
+  'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
+  'quiz':      { label: '퀴즈',     color: 'bg-pullim-blue-600',  icon: Target },
+  'student-q': { label: '내 질문',  color: 'bg-pullim-blue-700',  icon: MessageCircle },
   'sharing':   { label: '전체공유', color: 'bg-pullim-lemon',     icon: Eye },
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: Eye },
 };
@@ -284,7 +284,7 @@ function PlayerSurface({
               );
             })}
             <li className="text-pullim-lemon ml-auto inline-flex items-center gap-1 font-semibold">
-              <span className="bg-pullim-success ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
+              <span className="bg-pullim-lemon ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
               내 활동
             </li>
           </ul>
@@ -378,7 +378,7 @@ function KeyTakeaways({ takeaways }: { takeaways: string[] }) {
   return (
     <aside className="bg-card rounded-xl border p-4">
       <header className="mb-2 flex items-center gap-1.5">
-        <Lightbulb className="text-pullim-warn h-3.5 w-3.5" />
+        <Lightbulb className="text-pullim-lemon-ink h-3.5 w-3.5" />
         <strong className="text-pullim-slate-900 text-xs font-bold tracking-wider uppercase">
           이 수업 핵심 3개
         </strong>
@@ -387,7 +387,7 @@ function KeyTakeaways({ takeaways }: { takeaways: string[] }) {
       <ol className="space-y-1.5 text-sm">
         {takeaways.map((t, i) => (
           <li key={i} className="text-pullim-slate-700 flex items-start gap-2 leading-relaxed">
-            <span className="bg-pullim-warn/10 text-pullim-warn mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
               {i + 1}
             </span>
             {t}
@@ -478,10 +478,10 @@ function SpeakerBadge({
   speaker, ownedByMe,
 }: { speaker: '교사' | '봇' | '나' | '학생'; ownedByMe?: boolean }) {
   const cls =
-    speaker === '교사' ? 'bg-pullim-blue-50 text-pullim-blue-700' :
+    speaker === '교사' ? 'bg-pullim-blue-100 text-pullim-blue-700' :
     speaker === '봇'   ? 'bg-pullim-slate-100 text-pullim-slate-700' :
-    speaker === '나' || ownedByMe ? 'bg-pullim-success/10 text-pullim-success' :
-    'bg-pullim-warn-bg text-pullim-warn';
+    speaker === '나' || ownedByMe ? 'bg-pullim-lemon-soft text-pullim-lemon-ink' :
+    'bg-pullim-blue-50 text-pullim-blue-600';
   return (
     <span className={cn('rounded-full px-1.5 py-0.5 font-bold', cls)}>
       {speaker}
@@ -665,8 +665,8 @@ function TeacherQuestionsPanel({
                   className={cn(
                     'rounded-full px-1.5 py-0.5 text-[9px] font-bold',
                     q.status === 'replied'
-                      ? 'bg-pullim-success/10 text-pullim-success'
-                      : 'bg-pullim-warn-bg text-pullim-warn',
+                      ? 'bg-pullim-blue-50 text-pullim-blue-700'
+                      : 'bg-pullim-slate-100 text-pullim-slate-700',
                   )}
                 >
                   {q.status === 'replied' ? '답변 도착' : '전송됨'}

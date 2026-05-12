@@ -243,13 +243,13 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
             {bot && <span className="text-base leading-none">{bot.avatarEmoji}</span>}
             <span className="text-pullim-slate-500 font-mono font-bold">{r.date} · {r.startedAt}</span>
             {isCompleted && (
-              <span className="bg-pullim-success/10 text-pullim-success inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
+              <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
                 <CheckCircle2 className="h-2.5 w-2.5" />
                 시청 완료
               </span>
             )}
             {isStarted && (
-              <span className="bg-pullim-warn-bg text-pullim-warn rounded-full px-1.5 py-0.5 font-bold">
+              <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 font-bold">
                 {pct}% 보는 중
               </span>
             )}
@@ -267,7 +267,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
           {isStarted && (
             <div className="bg-pullim-slate-100 mt-2 h-1 overflow-hidden rounded-full">
               <div
-                className="bg-pullim-warn h-full rounded-full"
+                className="bg-pullim-blue-500 h-full rounded-full"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -281,7 +281,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
             className={cn(
               'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold',
               isStarted
-                ? 'bg-pullim-warn text-white'
+                ? 'bg-pullim-blue-600 text-white'
                 : 'bg-pullim-slate-100 text-pullim-slate-700',
             )}
           >
