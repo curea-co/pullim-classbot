@@ -7,6 +7,9 @@ import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
 import { ParentMessagePreview } from '@/components/classbot/parent-message-preview';
 import { reports, classRoster, buildParentMessage } from '@/lib/mock';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 type Params = Promise<{ id: string }>;
 
@@ -52,19 +55,28 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
             {report.alerts?.map((a, i) => <li key={i}>• {a}</li>)}
           </ul>
           <div className="mt-3 flex gap-2">
-            <button
+            <Button
               type="button"
-              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold text-white"
+              size="sm"
+              disabled
+              aria-disabled="true"
+              title="준비 중 (v2 — 1:1 상담)"
+              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 text-white opacity-60 cursor-not-allowed"
             >
-              <MessageCircle className="h-3 w-3" />
-              1:1 상담 시작
-            </button>
-            <button
+              <MessageCircle />
+              1:1 상담 시작 (v2)
+            </Button>
+            <Button
               type="button"
-              className="border-pullim-slate-300 text-pullim-slate-700 hover:bg-pullim-slate-100 rounded-lg border px-3 py-1.5 text-[11px] font-bold"
+              variant="outline"
+              size="sm"
+              disabled
+              aria-disabled="true"
+              title="준비 중 (v2 — Wee센터 연계)"
+              className="opacity-60 cursor-not-allowed"
             >
-              Wee센터 연결
-            </button>
+              Wee센터 연결 (v2)
+            </Button>
           </div>
         </section>
       )}
@@ -83,10 +95,12 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
       {/* 1줄 요약 */}
       <section className="bg-card rounded-2xl border p-4">
         <SectionHeading title="1줄 요약" description="AI 초안 — 필요하면 수정해주세요." />
-        <textarea
+        <Label htmlFor="report-summary" className="sr-only">1줄 요약 AI 초안</Label>
+        <Textarea
+          id="report-summary"
           defaultValue={report.summary}
           rows={3}
-          className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
+          className="rounded-xl text-sm leading-relaxed"
         />
       </section>
 

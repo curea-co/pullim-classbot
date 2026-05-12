@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Mail, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 /**
  * 학부모 카카오 BIZ MESSAGE 미리보기 + 발송 워크플로.
@@ -35,30 +37,36 @@ export function ParentMessagePreview({ initialMessage, status }: { initialMessag
         )}
       </header>
 
-      <textarea
+      <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         readOnly={sent}
         rows={8}
-        className="border-pullim-slate-200 focus:border-pullim-blue-500 bg-pullim-slate-50/50 w-full rounded-xl border p-3 font-mono text-[12px] leading-relaxed outline-none disabled:opacity-60"
+        aria-label="학부모 발송 메시지"
+        className="bg-pullim-slate-50/50 rounded-xl font-mono text-[12px] leading-relaxed"
       />
 
       {!sent && (
         <div className="mt-3 flex items-center gap-2">
-          <button
+          <Button
             type="button"
-            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 rounded-lg px-3 py-2 text-xs font-bold"
+            variant="secondary"
+            disabled
+            aria-disabled="true"
+            title="준비 중 (v2 — 발송 보류 큐)"
+            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 opacity-60 cursor-not-allowed"
           >
             보류
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            size="lg"
             onClick={handleSend}
-            className="bg-pullim-warn hover:bg-pullim-warn/90 ml-auto inline-flex items-center gap-1 rounded-lg px-4 py-2 text-xs font-bold text-white"
+            className="bg-pullim-warn hover:bg-pullim-warn/90 ml-auto text-white"
           >
-            <Mail className="h-3 w-3" />
+            <Mail />
             발송 승인
-          </button>
+          </Button>
         </div>
       )}
     </section>
