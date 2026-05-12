@@ -95,7 +95,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     setTurns(t => [...t, { id: `s${Date.now()}`, role: 'student', text: text.trim() }]);
     setPending(true);
 
-    const reply = pickClassbotReply(text);
+    const reply = pickClassbotReply(text, bot.tone);
     setTimeout(() => {
       setTurns(t => [...t, { id: `b${Date.now()}`, role: 'bot', text: reply }]);
       setPending(false);
