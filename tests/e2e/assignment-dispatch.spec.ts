@@ -84,9 +84,9 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
       }
     }
 
-    // 결과 페이지 도달 확인
+    // 결과 페이지 도달 확인 (Next.js route announcer와 구분 — heading role 사용)
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/result/, { timeout: 10000 });
-    await expect(page.getByText('수고했어요')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '수고했어요' })).toBeVisible();
   });
 
   test('localStorage 새로고침 영속성 — 발사 후 새 탭에서도 보임', async ({ page, context }) => {

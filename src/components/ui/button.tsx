@@ -18,6 +18,12 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        pullim:
+          "bg-pullim-blue-600 text-white hover:bg-pullim-blue-700 active:bg-pullim-blue-700",
+        "pullim-danger":
+          "bg-pullim-danger text-white hover:bg-pullim-danger/90 active:bg-pullim-danger/90",
+        "pullim-lemon":
+          "bg-pullim-lemon text-pullim-lemon-ink hover:bg-pullim-lemon-soft active:bg-pullim-lemon-soft",
       },
       size: {
         default:

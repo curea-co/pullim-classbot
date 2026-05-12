@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   classBots, classRoster, getBotCurriculum,
   type AssignmentMode, type ClassBot, type BotCurriculumUnit,
@@ -209,7 +213,7 @@ export function AssignmentForm() {
             </Field>
 
             <Field label="과제 제목" hint="5~50자" htmlFor="af-title">
-              <input
+              <Input
                 id="af-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 50))}
@@ -217,12 +221,7 @@ export function AssignmentForm() {
                 data-testid="title-input"
                 aria-invalid={title !== '' && !titleValid}
                 aria-describedby={title !== '' && !titleValid ? 'af-title-err' : undefined}
-                className={cn(
-                  'w-full rounded-lg border px-3 py-2 text-sm outline-none',
-                  title === '' || titleValid
-                    ? 'border-pullim-slate-200 focus:border-pullim-blue-500'
-                    : 'border-pullim-danger',
-                )}
+                className="h-10 text-sm"
               />
               {title !== '' && !titleValid && (
                 <p id="af-title-err" className="text-pullim-danger mt-1 text-[10px]">제목은 5~50자 사이여야 해요.</p>
@@ -230,7 +229,7 @@ export function AssignmentForm() {
             </Field>
 
             <Field label="모드">
-              <div className="grid grid-cols-3 gap-2">
+              <div role="radiogroup" aria-label="과제 모드" className="grid grid-cols-3 gap-2">
                 {(['practice', 'exam', 'wrong-conquest'] as AssignmentMode[]).map(m => {
                   const meta = modeOptions[m];
                   const active = mode === m;
@@ -238,10 +237,12 @@ export function AssignmentForm() {
                     <button
                       key={m}
                       type="button"
+                      role="radio"
+                      aria-checked={active}
                       onClick={() => setMode(m)}
                       data-testid={`mode-${m}`}
                       className={cn(
-                        'rounded-lg border-2 px-3 py-2 text-left transition-all',
+                        'rounded-lg border-2 px-3 py-2 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                         active
                           ? meta.color
                           : 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',
@@ -256,14 +257,16 @@ export function AssignmentForm() {
             </Field>
 
             <Field label="난이도">
-              <div className="flex gap-1.5">
+              <div role="radiogroup" aria-label="난이도" className="flex gap-1.5">
                 {difficultyOptions.map(d => (
                   <button
                     key={d}
                     type="button"
+                    role="radio"
+                    aria-checked={difficulty === d}
                     onClick={() => setDifficulty(d)}
                     className={cn(
-                      'flex-1 rounded-lg border-2 py-1.5 text-xs font-bold transition-all',
+                      'flex-1 rounded-lg border-2 py-1.5 text-xs font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                       difficulty === d
                         ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
                         : 'border-pullim-slate-200 bg-white text-pullim-slate-600',
@@ -328,36 +331,39 @@ export function AssignmentForm() {
             title={<><span className="text-pullim-blue-600 font-mono mr-1">③</span> 대상</>}
             description={`${targetIds.length}/${classRoster.length}명 선택됨`}
             action={
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => setTargetIds(targetIds.length === classRoster.length ? [] : classRoster.map(s => s.id))}
-                className="text-pullim-blue-600 hover:text-pullim-blue-700 text-xs font-bold"
+                className="text-pullim-blue-600 hover:text-pullim-blue-700"
               >
-                <Users className="-mt-0.5 mr-0.5 inline h-3 w-3" />
+                <Users />
                 {targetIds.length === classRoster.length ? '전체 해제' : '전체 선택'}
-              </button>
+              </Button>
             }
           />
 
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+          <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
             {classRoster.map(s => {
               const active = targetIds.includes(s.id);
               return (
                 <button
                   key={s.id}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setTargetIds(
                     active ? targetIds.filter(id => id !== s.id) : [...targetIds, s.id]
                   )}
                   data-testid={`student-${s.id}`}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-xs font-bold transition-all',
+                    'flex items-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-xs font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                     active
                       ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
                       : 'border-pullim-slate-200 bg-white text-pullim-slate-600 hover:border-pullim-slate-400',
                   )}
                 >
-                  {active && <CheckCircle2 className="h-3 w-3" />}
+                  {active && <CheckCircle2 className="h-3 w-3" aria-hidden />}
                   {s.name}
                 </button>
               );
@@ -377,7 +383,7 @@ export function AssignmentForm() {
 
           <div className="space-y-3">
             <Field label="마감 일시" htmlFor="af-due">
-              <input
+              <Input
                 id="af-due"
                 type="datetime-local"
                 value={dueIso}
@@ -385,12 +391,7 @@ export function AssignmentForm() {
                 data-testid="due-input"
                 aria-invalid={!dueValid}
                 aria-describedby={!dueValid ? 'af-due-err' : 'af-due-hint'}
-                className={cn(
-                  'w-full rounded-lg border px-3 py-2 text-sm outline-none',
-                  dueValid
-                    ? 'border-pullim-slate-200 focus:border-pullim-blue-500'
-                    : 'border-pullim-danger',
-                )}
+                className="h-10 text-sm"
               />
               <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-[10px]">
                 <Calendar className="-mt-0.5 mr-0.5 inline h-3 w-3" />
@@ -402,13 +403,13 @@ export function AssignmentForm() {
             </Field>
 
             <Field label="봇 한 마디 (선택)" hint="200자" htmlFor="af-message">
-              <textarea
+              <Textarea
                 id="af-message"
                 value={botMessage}
                 onChange={(e) => setBotMessage(e.target.value.slice(0, 200))}
                 rows={2}
                 placeholder="예: 어제 부호 변화에서 막혔던 사람들 다시 짚자"
-                className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                className="text-sm"
               />
             </Field>
           </div>
@@ -451,39 +452,38 @@ export function AssignmentForm() {
 
       {/* Sticky bottom 액션 바 */}
       <div className="bg-card sticky bottom-2 mt-6 flex items-center gap-2 rounded-2xl border p-3 shadow-pullim-md">
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={() => setPreview(true)}
-          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold"
+          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700"
         >
-          <Eye className="h-3 w-3" />
+          <Eye />
           미리보기
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
           disabled
-          className="bg-pullim-slate-50 text-pullim-slate-400 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold opacity-60 cursor-not-allowed"
+          aria-disabled="true"
+          title="준비 중 (v2)"
+          className="bg-pullim-slate-50 text-pullim-slate-400"
         >
-          <Save className="h-3 w-3" />
+          <Save />
           임시저장
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant={mode === 'exam' ? 'pullim-danger' : 'pullim'}
+          size="lg"
           onClick={handleDispatch}
           disabled={!canDispatch}
           data-testid="dispatch-btn"
-          className={cn(
-            'ml-auto inline-flex items-center gap-1 rounded-lg px-5 py-2 text-sm font-bold transition-all',
-            canDispatch
-              ? mode === 'exam'
-                ? 'bg-pullim-danger hover:bg-pullim-danger/90 text-white'
-                : 'bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white'
-              : 'bg-pullim-slate-100 text-pullim-slate-400 cursor-not-allowed',
-          )}
+          className="ml-auto"
         >
-          <Send className="h-3.5 w-3.5" />
+          <Send />
           발사 →
-        </button>
+        </Button>
       </div>
 
       {/* 미리보기 모달 */}
@@ -506,13 +506,13 @@ function Field({
 }) {
   return (
     <div>
-      <label
+      <Label
         htmlFor={htmlFor}
         className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold"
       >
         <span>{label}</span>
         {hint && <span className="text-pullim-slate-400 font-mono text-[10px]">{hint}</span>}
-      </label>
+      </Label>
       {children}
     </div>
   );
@@ -558,13 +558,14 @@ function PreviewModal({
           )}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={onClose}
-          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mt-4 w-full rounded-xl py-2 text-xs font-bold"
+          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mt-4 w-full rounded-xl"
         >
           닫기
-        </button>
+        </Button>
       </div>
     </div>
   );
