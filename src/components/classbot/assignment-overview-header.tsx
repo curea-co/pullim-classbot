@@ -3,9 +3,9 @@ import type { Assignment } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-500',   icon: Target,       tone: '한 번 해보자' },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle, tone: '집중하는 시간' },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-warn',        icon: Sparkles,    tone: '이번엔 잡아내자' },
+  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target,       tone: '한 번 해보자' },
+  'exam':           { label: '시험',     color: 'bg-pullim-danger',     icon: AlertCircle,  tone: '집중하는 시간' },
+  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',   icon: Sparkles,     tone: '이번엔 잡아내자' },
 } as const;
 
 const sourceMeta = {
@@ -54,8 +54,8 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
         </p>
 
         {a.reasonHint && (
-          <div className="border-pullim-warn/30 bg-pullim-warn-bg/50 mt-3 rounded-lg border p-3">
-            <div className="text-pullim-warn text-[10px] font-bold tracking-wider uppercase">
+          <div className="border-pullim-blue-200 bg-pullim-blue-50/50 mt-3 rounded-lg border p-3">
+            <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">
               <Sparkles className="-mt-0.5 mr-0.5 inline h-3 w-3" />
               봇 한 마디
             </div>

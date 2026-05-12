@@ -101,7 +101,7 @@ function StepCard({ step, index }: { step: OnboardingStep; index: number }) {
     <article
       className={cn(
         'bg-card relative rounded-2xl border p-4 transition-all',
-        step.signature && 'ring-pullim-warn/30 ring-2',
+        step.signature && 'ring-pullim-lemon-ink/30 ring-2',
       )}
     >
       <div className={cn(
@@ -117,7 +117,7 @@ function StepCard({ step, index }: { step: OnboardingStep; index: number }) {
               className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-full font-mono text-sm font-bold',
                 step.signature
-                  ? 'bg-pullim-warn text-white'
+                  ? 'bg-pullim-lemon text-pullim-lemon-ink'
                   : 'bg-pullim-blue-50 text-pullim-blue-700',
               )}
             >
@@ -133,7 +133,7 @@ function StepCard({ step, index }: { step: OnboardingStep; index: number }) {
                 {step.title}
               </h2>
               {step.signature && (
-                <span className="bg-pullim-warn inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white">
+                <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold">
                   <Star className="h-2 w-2 fill-current" aria-hidden />
                   시그니처
                 </span>

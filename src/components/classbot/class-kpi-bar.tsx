@@ -31,7 +31,7 @@ function Kpi({
   const valueClass =
     accent ? 'text-pullim-blue-600'
     : alert ? 'text-pullim-danger'
-    : success ? 'text-pullim-success'
+    : success ? 'text-pullim-blue-500'
     : 'text-pullim-slate-900';
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">

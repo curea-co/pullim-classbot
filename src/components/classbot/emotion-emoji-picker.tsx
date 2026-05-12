@@ -29,10 +29,10 @@ export function EmotionEmojiPicker({
             const meta = moodMeta[m];
             const active = mood === m;
             const toneClass =
-              meta.tone === 'success' ? 'border-pullim-success bg-pullim-success/10'
-              : meta.tone === 'blue'   ? 'border-pullim-blue-500 bg-pullim-blue-50'
-              : meta.tone === 'slate'  ? 'border-pullim-slate-400 bg-pullim-slate-100'
-              : 'border-pullim-warn bg-pullim-warn-bg';
+              meta.tone === 'blue-500' ? 'border-pullim-blue-500 bg-pullim-blue-50'
+              : meta.tone === 'blue-300' ? 'border-pullim-blue-300 bg-pullim-blue-50/50'
+              : meta.tone === 'slate'    ? 'border-pullim-slate-400 bg-pullim-slate-100'
+              : 'border-pullim-blue-700 bg-pullim-blue-100';
             return (
               <button
                 key={m}

@@ -34,10 +34,20 @@ export const pullimSlate = {
   950: '#080B18',
 } as const;
 
+/**
+ * 시맨틱 색.
+ * - danger: 위험·삭제·시험 모드 시그니처. 화면에 노출되는 유일한 시맨틱 hue.
+ * - success/warn: deprecated (2026-05-12). 토큰은 1차 보존하지만 신규 사용 금지 — 정답·완료는 pullimBlue로, 주의는 pullimBlue[700] 또는 pullimSlate[500] + 아이콘 명시로 대체.
+ *   spec § 1.3 / proc/plan/2026-05-12_color-palette-narrowing.md 참고.
+ */
 export const pullimSemantic = {
+  /** @deprecated 2026-05-12 — pullimBlue[500/600]으로 대체 */
   success:   '#12B26B',
+  /** @deprecated 2026-05-12 */
   successBg: '#E6F7EE',
+  /** @deprecated 2026-05-12 — pullimBlue[700] 또는 pullimSlate[500]로 대체 */
   warn:      '#F59E0B',
+  /** @deprecated 2026-05-12 */
   warnBg:    '#FEF3DB',
   danger:    '#E5484D',
   dangerBg:  '#FCE9EA',
@@ -91,14 +101,14 @@ export const pullimChartColors = [
   pullimBlue[200],
 ] as const;
 
-/** 과목별 컬러 — 일관성 유지 */
+/** 과목별 컬러 — 블루 명도 변주로 통일 (2026-05-12 색 스펙트럼 축소). */
 export const pullimSubjectColors = {
-  korean:  pullimBlue[600],   // 국어
+  korean:  pullimBlue[700],   // 국어
   math:    pullimBlue[500],   // 수학
   english: pullimBlue[400],   // 영어
-  science: '#8B5CF6',          // 과학 — 보조 보라
-  social:  '#10B981',          // 사회 — 보조 그린
-  history: '#F59E0B',          // 한국사 — 보조 앰버
+  science: pullimBlue[600],   // 과학
+  social:  pullimBlue[300],   // 사회
+  history: pullimBlue[800],   // 한국사
 } as const;
 
 export type PullimIrtLevel = 1 | 2 | 3 | 4 | 5;

@@ -62,7 +62,7 @@ export function RubricEditor({
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-sm font-bold">
-                    <span className={cn(pct >= 80 ? 'text-pullim-success' : pct >= 60 ? 'text-pullim-blue-600' : 'text-pullim-warn')}>
+                    <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
                       {r.score}
                     </span>
                     <span className="text-pullim-slate-400">/{r.weight}</span>

@@ -90,7 +90,7 @@ function SubRouteCard({ sub }: { sub: SubRoute }) {
         <span
           className={cn(
             'flex h-9 w-9 items-center justify-center rounded-lg',
-            sub.signature ? 'bg-pullim-warn text-white' : 'bg-pullim-blue-50 text-pullim-blue-600',
+            sub.signature ? 'bg-pullim-lemon text-pullim-lemon-ink' : 'bg-pullim-blue-50 text-pullim-blue-600',
           )}
         >
           <Icon className="h-4 w-4" />
@@ -104,7 +104,7 @@ function SubRouteCard({ sub }: { sub: SubRoute }) {
       <div className="flex items-center gap-1.5">
         <h4 className="text-pullim-slate-900 text-sm font-bold tracking-tight">{sub.label}</h4>
         {sub.signature && (
-          <span className="bg-pullim-warn inline-flex items-center justify-center rounded-full px-1 py-0.5 text-white">
+          <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center justify-center rounded-full px-1 py-0.5">
             <Star className="h-2 w-2 fill-current" aria-hidden />
           </span>
         )}
@@ -127,6 +127,6 @@ function baseClass(sub: SubRoute): string {
     sub.locked
       ? 'opacity-60 cursor-not-allowed border-dashed'
       : 'hover:border-pullim-blue-300 hover:shadow-pullim-md',
-    sub.signature && !sub.locked && 'ring-pullim-warn/30 ring-2',
+    sub.signature && !sub.locked && 'ring-pullim-lemon-ink/30 ring-2',
   );
 }

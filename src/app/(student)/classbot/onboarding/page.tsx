@@ -61,7 +61,7 @@ export default function ClassbotOnboardingPage() {
                     </div>
                   ))}
                 </div>
-                <div className="bg-pullim-warn-bg text-pullim-warn flex items-start gap-1 rounded p-1.5 text-[9px] leading-snug">
+                <div className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1 rounded p-1.5 text-[9px] leading-snug">
                   <AlarmClock className="mt-0.5 h-2.5 w-2.5 shrink-0" aria-hidden />
                   <span>자동 스위치: 18:00–19:00 L4 · 19:00–22:00 L3 · 22:00 이후 L5</span>
                 </div>

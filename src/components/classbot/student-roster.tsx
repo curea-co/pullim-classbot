@@ -12,15 +12,15 @@ const heatColors = [
 ];
 
 const statusMeta = {
-  active:   { label: '활성',   dot: 'bg-pullim-success' },
-  quiet:    { label: '저활성', dot: 'bg-pullim-warn' },
+  active:   { label: '활성',   dot: 'bg-pullim-blue-500' },
+  quiet:    { label: '저활성', dot: 'bg-pullim-slate-300' },
   inactive: { label: '무응답', dot: 'bg-pullim-danger' },
-  away:     { label: '미참여', dot: 'bg-pullim-slate-300' },
+  away:     { label: '미참여', dot: 'bg-pullim-slate-200' },
 } as const;
 
 const alertMeta = {
   burnout:    { label: '번아웃 위험', icon: AlertTriangle, color: 'text-pullim-danger' },
-  emotion:    { label: '감정 주의',   icon: Heart,         color: 'text-pullim-warn' },
+  emotion:    { label: '감정 주의',   icon: Heart,         color: 'text-pullim-slate-500' },
   attendance: { label: '결석',       icon: AlertTriangle, color: 'text-pullim-slate-500' },
 } as const;
 

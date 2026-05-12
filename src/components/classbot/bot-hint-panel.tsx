@@ -106,9 +106,9 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
 
 function WrongConquestPanel({ question, botName }: { question: AssignmentQuestion; botName: string }) {
   return (
-    <section className="bg-card border-pullim-warn/30 rounded-2xl border p-4">
+    <section className="bg-card border-pullim-blue-200 rounded-2xl border p-4">
       <header className="mb-3 flex items-center gap-2">
-        <span className="bg-pullim-warn flex h-7 w-7 items-center justify-center rounded-full text-white">
+        <span className="bg-pullim-blue-700 flex h-7 w-7 items-center justify-center rounded-full text-white">
           <Sparkles className="h-3.5 w-3.5" />
         </span>
         <div className="flex-1">
@@ -118,8 +118,8 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
       </header>
 
       {question.modelAnswer ? (
-        <div className="bg-pullim-warn-bg rounded-lg p-3">
-          <div className="text-pullim-warn text-[10px] font-bold tracking-wider uppercase">기준 응답</div>
+        <div className="bg-pullim-blue-50 rounded-lg p-3">
+          <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">기준 응답</div>
           <p className="text-pullim-slate-700 mt-1 text-[11px] leading-relaxed">{question.modelAnswer}</p>
         </div>
       ) : (

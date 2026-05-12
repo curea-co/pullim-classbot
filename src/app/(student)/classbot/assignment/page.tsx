@@ -9,9 +9,9 @@ import { useMergedAssignments } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
 const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-500',   icon: Target },
+  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
   'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-warn',        icon: Sparkles },
+  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
 };
 
 export default function StudentAssignmentListPage() {
@@ -85,7 +85,7 @@ function AssignmentCard({ assignment: a }: { assignment: Assignment }) {
                 {m.label}
               </span>
               {a.source === 'bot-prescribed' && (
-                <span className="text-pullim-warn font-bold">✨</span>
+                <span className="text-pullim-lemon-ink font-bold">✨</span>
               )}
             </div>
 
@@ -98,7 +98,7 @@ function AssignmentCard({ assignment: a }: { assignment: Assignment }) {
             <div className="mt-2 flex items-center gap-2">
               <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
                 <div
-                  className={cn('h-full rounded-full', a.recentAccuracy && a.recentAccuracy >= 70 ? 'bg-pullim-success' : 'bg-pullim-blue-500')}
+                  className={cn('h-full rounded-full', a.recentAccuracy && a.recentAccuracy >= 70 ? 'bg-pullim-blue-600' : 'bg-pullim-blue-400')}
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -112,7 +112,7 @@ function AssignmentCard({ assignment: a }: { assignment: Assignment }) {
             </div>
 
             {a.reasonHint && (
-              <p className="text-pullim-warn mt-2 text-[10px] leading-relaxed">
+              <p className="text-pullim-blue-700 mt-2 text-[10px] leading-relaxed">
                 <Sparkles className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {a.reasonHint}
               </p>

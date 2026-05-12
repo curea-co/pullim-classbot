@@ -9,14 +9,14 @@ const kindMeta: Record<ReportKind, { label: string; icon: typeof FileText; color
   student:     { label: '학생 개인', icon: BookOpen,  color: 'bg-pullim-blue-600' },
   period:      { label: '기간',     icon: BarChart3, color: 'bg-pullim-slate-700' },
   class:       { label: '학급',     icon: Users,     color: 'bg-pullim-slate-700' },
-  parent:      { label: '학부모',   icon: Mail,      color: 'bg-pullim-warn' },
+  parent:      { label: '학부모',   icon: Mail,      color: 'bg-pullim-blue-400' },
 };
 
 const statusMeta = {
   draft:               { label: '초안', color: 'bg-pullim-slate-100 text-pullim-slate-600' },
-  'pending-approval':  { label: '승인 대기', color: 'bg-pullim-warn-bg text-pullim-warn' },
+  'pending-approval':  { label: '승인 대기', color: 'bg-pullim-slate-100 text-pullim-slate-700' },
   approved:            { label: '승인됨', color: 'bg-pullim-blue-100 text-pullim-blue-700' },
-  sent:                { label: '발송됨', color: 'bg-pullim-success/15 text-pullim-success' },
+  sent:                { label: '발송됨', color: 'bg-pullim-blue-50 text-pullim-blue-700' },
 } as const;
 
 /**

@@ -12,7 +12,7 @@ export function QuizLauncher() {
   return (
     <section className="bg-card rounded-2xl border p-4">
       <header className="mb-3 flex items-center gap-2">
-        <Zap className="text-pullim-warn h-4 w-4" />
+        <Zap className="text-pullim-blue-600 h-4 w-4" />
         <h2 className="text-pullim-slate-900 text-sm font-bold flex-1">즉석 퀴즈</h2>
         <span className="text-pullim-slate-400 text-[10px] font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
       </header>
@@ -26,14 +26,14 @@ export function QuizLauncher() {
           return (
             <li key={i} className="text-[11px]">
               <div className="mb-0.5 flex items-center justify-between">
-                <span className={isAnswer ? 'text-pullim-success font-bold' : 'text-pullim-slate-600'}>
+                <span className={isAnswer ? 'text-pullim-blue-700 font-bold' : 'text-pullim-slate-600'}>
                   {['①','②','③','④'][i]} {opt} {isAnswer && '✓'}
                 </span>
                 <span className="font-mono">{q.distribution[i]}%</span>
               </div>
               <div className="bg-pullim-slate-100 h-1.5 overflow-hidden rounded-full">
                 <div
-                  className={isAnswer ? 'bg-pullim-success h-full rounded-full' : 'bg-pullim-blue-300 h-full rounded-full'}
+                  className={isAnswer ? 'bg-pullim-blue-600 h-full rounded-full' : 'bg-pullim-blue-200 h-full rounded-full'}
                   style={{ width: `${q.distribution[i]}%` }}
                 />
               </div>
@@ -49,7 +49,7 @@ export function QuizLauncher() {
           disabled
           aria-disabled="true"
           title="준비 중 (v2)"
-          className="bg-pullim-warn-bg text-pullim-warn flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+          className="bg-pullim-blue-100 text-pullim-blue-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
         >
           <FileQuestion className="h-3.5 w-3.5" aria-hidden />
           새 퀴즈

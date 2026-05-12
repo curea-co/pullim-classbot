@@ -18,9 +18,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; color: string; icon: LucideIcon }> = {
-  'concept':   { label: '개념',     color: 'bg-pullim-blue-500',  icon: Lightbulb },
-  'quiz':      { label: '퀴즈',     color: 'bg-pullim-warn',      icon: Target },
-  'student-q': { label: '학생 질문', color: 'bg-pullim-success',   icon: MessageCircle },
+  'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
+  'quiz':      { label: '퀴즈',     color: 'bg-pullim-blue-600',  icon: Target },
+  'student-q': { label: '학생 질문', color: 'bg-pullim-blue-700',  icon: MessageCircle },
   'sharing':   { label: '전체공유', color: 'bg-pullim-lemon',     icon: Eye },
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: AlertTriangle },
 };
@@ -110,14 +110,14 @@ function StatusBadge({ status, replay }: { status: Replay['status']; replay: Rep
   }
   if (status === 'review') {
     return (
-      <span className="bg-pullim-warn text-white inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold">
+      <span className="bg-pullim-blue-700 text-white inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold">
         <Eye className="h-3 w-3" />
         검토 대기
       </span>
     );
   }
   return (
-    <span className="bg-pullim-success/10 text-pullim-success inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold">
+    <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold">
       <CheckCircle2 className="h-3 w-3" />
       발송됨 · {replay.viewerStats?.startedCount}/{replay.viewerStats?.enrolledCount} 시청
     </span>
@@ -157,7 +157,7 @@ function ProcessStep({ label, done, active }: { label: string; done?: boolean; a
     <li className="flex items-center gap-2 text-xs">
       <span className={cn(
         'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-        done ? 'bg-pullim-success/30 text-pullim-success' :
+        done ? 'bg-pullim-blue-400/30 text-pullim-blue-100' :
         active ? 'bg-pullim-lemon text-pullim-lemon-ink' :
         'bg-white/10 text-white/40',
       )}>
@@ -173,7 +173,7 @@ function ProcessStep({ label, done, active }: { label: string; done?: boolean; a
 /* ─── Review banner ─── */
 function ReviewBanner({ aiAt }: { aiAt: string | null }) {
   return (
-    <aside className="bg-pullim-warn/10 border-pullim-warn/30 text-pullim-warn rounded-xl border p-3.5 text-xs leading-relaxed">
+    <aside className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-700 rounded-xl border p-3.5 text-xs leading-relaxed">
       <Sparkles className="-mt-0.5 mr-1 inline h-3 w-3" />
       AI 추출 완료 ({aiAt}). 핵심 메시지·라인을 검토 후 학생에게 보내세요.
     </aside>
@@ -193,7 +193,7 @@ function KeyTakeawaysEditor({
       <ul className="space-y-2.5">
         {takeaways.map((t, i) => (
           <li key={i} className="flex items-start gap-2">
-            <span className="bg-pullim-warn/10 text-pullim-warn mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
               {i + 1}
             </span>
             <Textarea
@@ -221,7 +221,7 @@ function KeyTakeawaysReadOnly({ takeaways }: { takeaways: string[] }) {
       <ol className="space-y-1.5 text-sm">
         {takeaways.map((t, i) => (
           <li key={i} className="text-pullim-slate-700 flex items-start gap-2 leading-relaxed">
-            <span className="bg-pullim-warn/10 text-pullim-warn mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
               {i + 1}
             </span>
             {t}
@@ -270,9 +270,9 @@ function TranscriptVisibility({
                   <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                   <span className={cn(
                     'rounded-full px-1.5 py-0.5 font-bold',
-                    line.speaker === '교사' ? 'bg-pullim-blue-50 text-pullim-blue-700' :
+                    line.speaker === '교사' ? 'bg-pullim-blue-100 text-pullim-blue-700' :
                     line.speaker === '봇' ? 'bg-pullim-slate-100 text-pullim-slate-700' :
-                    'bg-pullim-success/10 text-pullim-success',
+                    'bg-pullim-blue-50 text-pullim-blue-600',
                   )}>
                     {line.speaker}
                   </span>
@@ -284,7 +284,7 @@ function TranscriptVisibility({
                   <span
                     className={cn(
                       'ml-auto inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-bold',
-                      hidden ? 'bg-pullim-danger/10 text-pullim-danger' : 'bg-pullim-success/10 text-pullim-success',
+                      hidden ? 'bg-pullim-slate-200 text-pullim-slate-600' : 'bg-pullim-blue-50 text-pullim-blue-700',
                     )}
                   >
                     {hidden ? <EyeOff className="h-2.5 w-2.5" /> : <Eye className="h-2.5 w-2.5" />}
@@ -325,9 +325,9 @@ function TranscriptReadOnly({
               <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 font-bold',
-                line.speaker === '교사' ? 'bg-pullim-blue-50 text-pullim-blue-700' :
+                line.speaker === '교사' ? 'bg-pullim-blue-100 text-pullim-blue-700' :
                 line.speaker === '봇' ? 'bg-pullim-slate-100 text-pullim-slate-700' :
-                'bg-pullim-success/10 text-pullim-success',
+                'bg-pullim-blue-50 text-pullim-blue-600',
               )}>
                 {line.speaker}
               </span>
@@ -406,7 +406,7 @@ function FocusHeatmapPreview({ bins }: { bins: number[] }) {
 /* ─── Sent banner + Viewer stats ─── */
 function SentBanner({ sentAt }: { sentAt: string }) {
   return (
-    <aside className="bg-pullim-success/10 border-pullim-success/30 text-pullim-success rounded-xl border p-3.5 text-xs leading-relaxed">
+    <aside className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-700 rounded-xl border p-3.5 text-xs leading-relaxed">
       <CheckCircle2 className="-mt-0.5 mr-1 inline h-3 w-3" />
       {sentAt}에 학생들에게 발송됨. 시청 통계 + 학생 질문이 아래에 모이고 있어요.
     </aside>
@@ -443,7 +443,7 @@ function Stat({
         <Icon className="h-3 w-3" />
         {label}
       </div>
-      <div className={cn('mt-0.5 font-mono text-base font-bold', accent ? 'text-pullim-success' : 'text-pullim-slate-900')}>
+      <div className={cn('mt-0.5 font-mono text-base font-bold', accent ? 'text-pullim-blue-600' : 'text-pullim-slate-900')}>
         {value}
         {sub && <span className="text-pullim-slate-400 ml-1 text-[10px]">{sub}</span>}
       </div>
