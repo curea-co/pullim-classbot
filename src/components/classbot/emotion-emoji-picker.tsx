@@ -20,10 +20,10 @@ export function EmotionEmojiPicker({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-pullim-slate-900 text-sm font-bold">오늘 어땠어?</h3>
-        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">하나만 골라줘.</p>
+        <h3 className="text-pullim-slate-900 text-sm font-bold">오늘 어땠어요?</h3>
+        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">하나만 골라주세요.</p>
 
-        <div className="mt-3 grid grid-cols-4 gap-2">
+        <div role="radiogroup" aria-label="오늘 기분" className="mt-3 grid grid-cols-4 gap-2">
           {moods.map(m => {
             const meta = moodMeta[m];
             const active = mood === m;
@@ -36,9 +36,11 @@ export function EmotionEmojiPicker({
               <button
                 key={m}
                 type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => onMoodChange(m)}
                 className={cn(
-                  'flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 transition-all',
+                  'flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                   active
                     ? toneClass
                     : 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',

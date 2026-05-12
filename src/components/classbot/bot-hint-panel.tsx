@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Lock, Sparkles, MessageCircle, Lightbulb } from 'lucide-react';
 import type { AssignmentMode, AssignmentQuestion } from '@/lib/mock';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
@@ -75,14 +76,13 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           </ul>
 
           {revealed < hints.length && (
-            <button
+            <Button
               type="button"
+              variant={revealed === 0 ? 'pullim' : 'secondary'}
               onClick={() => setRevealed(r => r + 1)}
               className={cn(
-                'mt-3 w-full rounded-lg py-2 text-[11px] font-bold transition-colors',
-                revealed === 0
-                  ? 'bg-pullim-blue-600 text-white hover:bg-pullim-blue-700'
-                  : 'bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200',
+                'mt-3 w-full',
+                revealed !== 0 && 'bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700',
               )}
             >
               {revealed === 0
@@ -90,7 +90,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
                 : revealed === hints.length - 1
                   ? '마지막 — 해설 보기'
                   : `다음 단계 (${revealed + 1}/${hints.length})`}
-            </button>
+            </Button>
           )}
 
           {revealed === hints.length && (
@@ -128,13 +128,16 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </p>
       )}
 
-      <button
+      <Button
         type="button"
-        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 inline-flex w-full items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-bold text-white"
+        disabled
+        aria-disabled="true"
+        title="준비 중 (v2 — 추가 대화)"
+        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white opacity-60 cursor-not-allowed"
       >
-        <MessageCircle className="h-3 w-3" />
-        봇에게 더 물어보기
-      </button>
+        <MessageCircle />
+        봇에게 더 물어보기 (v2)
+      </Button>
     </section>
   );
 }

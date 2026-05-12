@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Share2, Sparkles, EyeOff, MessageCircle } from 'lucide-react';
 import { liveFeed, scopeMeta } from '@/lib/mock';
 import { aiTierMeta } from '@/lib/tokens/tier';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
@@ -70,29 +71,34 @@ export function LiveFeedPanel() {
                 </p>
 
                 <div className="mt-2 flex items-center gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="xs"
+                    aria-pressed={q.shared}
                     onClick={() => toggleShared(q.id)}
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold transition-colors',
+                      'rounded-full text-[10px]',
                       q.shared
-                        ? 'bg-pullim-lemon-ink text-pullim-lemon'
-                        : 'bg-white border border-pullim-slate-200 text-pullim-slate-700 hover:border-pullim-blue-300',
+                        ? 'bg-pullim-lemon-ink text-pullim-lemon border-pullim-lemon-ink hover:bg-pullim-lemon-ink/90 hover:text-pullim-lemon'
+                        : 'bg-white border-pullim-slate-200 text-pullim-slate-700 hover:border-pullim-blue-300',
                     )}
                   >
-                    {q.shared ? <EyeOff className="h-3 w-3" /> : <Share2 className="h-3 w-3" />}
+                    {q.shared ? <EyeOff /> : <Share2 />}
                     {q.shared ? '공유 해제' : '전체 공유'}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="xs"
                     disabled
                     aria-disabled="true"
                     title="준비 중 (v2)"
-                    className="text-pullim-blue-600 rounded-full px-2.5 py-1 text-[10px] font-bold inline-flex items-center gap-1 opacity-60 cursor-not-allowed"
+                    className="text-pullim-blue-600 rounded-full text-[10px] opacity-60 cursor-not-allowed"
                   >
-                    <Sparkles className="h-3 w-3" aria-hidden />
+                    <Sparkles aria-hidden />
                     답 보강
-                  </button>
+                  </Button>
                 </div>
               </article>
             </li>
