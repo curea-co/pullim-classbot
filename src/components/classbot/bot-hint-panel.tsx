@@ -30,7 +30,7 @@ function ExamLocked() {
       <Lock className="text-pullim-lemon mb-2 h-8 w-8" />
       <h3 className="text-sm font-bold text-white">봇이 잠긴 시간이에요</h3>
       <p className="mt-1 text-[11px] leading-relaxed">
-        지금은 도와줄 수 없어.<br />끝나고 다시 와줘.
+        지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
       <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold">
         <span className="text-pullim-lemon">Scope L1</span>
@@ -53,13 +53,13 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L4 · 단계별 힌트만 줄 수 있어</p>
+          <p className="text-pullim-slate-500 text-[10px]">Scope L4 · 단계별 힌트만 줄 수 있어요</p>
         </div>
       </header>
 
       {hints.length === 0 ? (
         <p className="text-pullim-slate-500 py-6 text-center text-[11px]">
-          이 문항은 힌트 없이 풀어보자.
+          이 문항은 힌트 없이 풀어봐요.
         </p>
       ) : (
         <>
@@ -86,7 +86,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
               )}
             >
               {revealed === 0
-                ? '한 줄만 알려줄게'
+                ? '한 줄만 알려줄게요'
                 : revealed === hints.length - 1
                   ? '마지막 — 해설 보기'
                   : `다음 단계 (${revealed + 1}/${hints.length})`}
@@ -95,7 +95,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
 
           {revealed === hints.length && (
             <p className="text-pullim-slate-400 mt-3 text-center text-[10px]">
-              다 본 다음에 다시 처음부터 풀어볼래?
+              다 본 다음에 다시 처음부터 풀어봐요.
             </p>
           )}
         </>
@@ -113,7 +113,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L5 · 이번엔 잡아내자</p>
+          <p className="text-pullim-slate-500 text-[10px]">Scope L5 · 이번엔 잡아내봐요</p>
         </div>
       </header>
 

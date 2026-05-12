@@ -26,8 +26,8 @@ export default function WellnessPage() {
 
       <PageHeader
         eyebrow={{ icon: Heart, text: '내 웰빙' }}
-        title="오늘 어땠어?"
-        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와줘.' : '아직 체크인 전이에요.'}
+        title="오늘 어땠어요?"
+        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
       />
 
       {/* 오늘 체크인 CTA */}
@@ -51,7 +51,7 @@ export default function WellnessPage() {
             {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
           </div>
           <div className={cn('text-[11px]', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
-            {checkedToday ? '다시 작성하고 싶으면 들어와도 돼' : '하나만 고르면 끝'}
+            {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
           </div>
         </div>
         <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-success' : 'text-white')} />
@@ -64,7 +64,7 @@ export default function WellnessPage() {
         <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
         {checkIns.length === 0 ? (
           <p className="text-pullim-slate-400 py-6 text-center text-[11px]">
-            아직 기록이 없어. 오늘부터 시작해보자.
+            아직 기록이 없어요. 오늘부터 시작해봐요.
           </p>
         ) : (
           <ul className="space-y-1">
@@ -100,10 +100,10 @@ export default function WellnessPage() {
         <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
           <h3 className="text-pullim-lemon inline-flex items-center gap-1 text-sm font-bold">
             <Heart className="h-3.5 w-3.5" />
-            선생님이 곁에 있어
+            선생님이 곁에 있어요
           </h3>
           <p className="text-pullim-slate-300 mt-2 text-[12px] leading-relaxed">
-            이번 주 좀 무거웠지. 혼자 끌어안지 않아도 돼. 봇이든 선생님이든 언제든 말 걸어줘.
+            이번 주 좀 무거웠어요. 혼자 끌어안지 않아도 돼요. 봇이든 선생님이든 언제든 말 걸어주세요.
           </p>
           <div className="mt-3 flex gap-2">
             <Link

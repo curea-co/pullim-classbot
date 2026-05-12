@@ -69,7 +69,7 @@ export default function MyReportPage() {
           선생님이 한 마디
         </h3>
         <p className="text-pullim-slate-200 mt-2 text-sm leading-relaxed">
-          서연아, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어. 다음 주도 천천히 같이 가자.
+          서연 학생, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어요. 다음 주도 천천히 같이 가요.
         </p>
         <div className="text-pullim-slate-400 mt-3 text-[10px] font-mono">
           — 수학이 형 · 오늘 18:00
@@ -86,7 +86,7 @@ export default function MyReportPage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">다음 주 도전</div>
-          <div className="text-pullim-blue-100 text-[11px]">봇이 처방한 과제로 시작해보자</div>
+          <div className="text-pullim-blue-100 text-[11px]">봇이 처방한 과제로 시작해봐요</div>
         </div>
         <ArrowRight className="h-4 w-4" />
       </Link>
