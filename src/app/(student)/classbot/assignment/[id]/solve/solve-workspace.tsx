@@ -7,6 +7,8 @@ import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
 import type { Assignment, AssignmentQuestion } from '@/lib/mock';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 type Answers = Record<string, string>;
@@ -125,22 +127,25 @@ export function SolveWorkspace({
       <section className="bg-card rounded-2xl border p-4">
         <h3 className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">내 답안</h3>
         {q.type === 'mc' && q.options ? (
-          <ul className="mt-2 grid grid-cols-1 gap-2">
+          <ul role="radiogroup" aria-label="객관식 선택지" className="mt-2 grid grid-cols-1 gap-2">
             {q.options.map((opt, i) => {
               const isSelected = current === String(i);
               return (
                 <li key={i}>
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     onClick={() => setAnswer(String(i))}
                     className={cn(
-                      'w-full rounded-lg border-2 px-3 py-2.5 text-left text-sm font-bold transition-all',
+                      'w-full rounded-lg border-2 px-3 py-2.5 text-left text-sm font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                       isSelected
                         ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
                         : 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',
                     )}
                   >
-                    <span className="font-mono mr-2">{['①','②','③','④','⑤'][i]}</span>
+                    <span className="font-mono mr-2" aria-hidden>{['①','②','③','④','⑤'][i]}</span>
+                    <span className="sr-only">{i + 1}번. </span>
                     {opt}
                   </button>
                 </li>
@@ -148,12 +153,13 @@ export function SolveWorkspace({
             })}
           </ul>
         ) : (
-          <textarea
+          <Textarea
             value={current}
             onChange={(e) => setAnswer(e.target.value)}
             rows={q.type === 'essay' ? 6 : 2}
             placeholder={q.type === 'short' ? '답을 한 줄로 적어주세요.' : '풀이 과정과 답을 자유롭게 적어주세요.'}
-            className="border-pullim-slate-200 focus:border-pullim-blue-500 mt-2 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
+            aria-label="답안"
+            className="mt-2 rounded-xl text-sm leading-relaxed"
           />
         )}
       </section>
@@ -162,45 +168,52 @@ export function SolveWorkspace({
       {showBotPanel || isExam ? (
         <BotHintPanel mode={assignment.mode} question={q} botName={botName} />
       ) : (
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => setShowBotPanel(true)}
-          className="border-pullim-blue-200 bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed py-3 text-xs font-bold"
+          className="border-pullim-blue-200 bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 hover:text-pullim-blue-700 w-full rounded-2xl border-2 border-dashed py-6 text-xs font-bold"
         >
-          <MessageCircle className="h-3.5 w-3.5" />
+          <MessageCircle />
           {botName}에게 힌트 받기
-        </button>
+        </Button>
       )}
 
       {/* 하단 액션 */}
       <div className="bg-card sticky bottom-2 flex items-center gap-2 rounded-2xl border p-3 shadow-pullim-md">
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="lg"
           onClick={() => go(-1)}
           disabled={step === 1}
-          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 disabled:opacity-40 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold"
+          className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700"
         >
-          <ArrowLeft className="h-3 w-3" />
+          <ArrowLeft />
           이전
-        </button>
+        </Button>
         {!isLast ? (
-          <button
+          <Button
             type="button"
+            variant="pullim"
+            size="lg"
             onClick={() => go(1)}
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 ml-auto inline-flex items-center gap-1 rounded-lg px-4 py-2 text-xs font-bold text-white"
+            className="ml-auto"
           >
             다음
-            <ArrowRight className="h-3 w-3" />
-          </button>
+            <ArrowRight />
+          </Button>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="pullim"
+            size="lg"
             onClick={submit}
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 ml-auto inline-flex items-center gap-1 rounded-lg px-4 py-2 text-xs font-bold text-white"
+            className="ml-auto"
           >
-            <Send className="h-3 w-3" />
+            <Send />
             제출
-          </button>
+          </Button>
         )}
       </div>
     </div>

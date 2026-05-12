@@ -12,6 +12,9 @@ import {
   type BuilderForm, toneMeta, teachingStyleMeta, voicePresetMeta, feedbackStyleMeta,
 } from './builder-types';
 import { RequiredMark } from '@/components/shell/required-mark';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Props = {
   form: BuilderForm;
@@ -23,28 +26,28 @@ export function Step1Identity({ form, setForm }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <label htmlFor="bld-name" className="text-pullim-slate-700 mb-1 block text-xs font-bold">
+        <Label htmlFor="bld-name" className="text-pullim-slate-700 mb-1 block text-xs font-bold">
           봇 이름<RequiredMark />
-        </label>
-        <input
+        </Label>
+        <Input
           id="bld-name"
           type="text"
           value={form.name}
           onChange={e => setForm({ ...form, name: e.target.value })}
           placeholder="예: 수학이 형 · 영어 박쌤"
-          className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 w-full rounded-lg border px-3 py-2 text-sm outline-none"
+          className="h-10 text-sm"
         />
         <p className="text-pullim-slate-400 mt-1 text-[10px]">학생이 부를 이름. 친근할수록 학생 참여 ↑</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="bld-subject" className="text-pullim-slate-700 mb-1 block text-xs font-bold">과목</label>
+          <Label htmlFor="bld-subject" className="text-pullim-slate-700 mb-1 block text-xs font-bold">과목</Label>
           <select
             id="bld-subject"
             value={form.subject}
             onChange={e => setForm({ ...form, subject: e.target.value })}
-            className="border-pullim-slate-200 w-full rounded-lg border px-3 py-2 text-sm"
+            className="border-pullim-slate-200 focus-visible:border-pullim-blue-500 focus-visible:ring-3 focus-visible:ring-pullim-blue-400/30 w-full rounded-lg border px-3 py-2 text-sm outline-none"
           >
             {['수학Ⅰ', '수학Ⅱ', '미적분', '확률과 통계', '영어 독해', '영어 어법', '국어 비문학', '물리Ⅰ', '화학Ⅰ', '생명과학Ⅰ'].map(s => (
               <option key={s} value={s}>{s}</option>
@@ -52,12 +55,12 @@ export function Step1Identity({ form, setForm }: Props) {
           </select>
         </div>
         <div>
-          <label htmlFor="bld-grade" className="text-pullim-slate-700 mb-1 block text-xs font-bold">대상 학년</label>
+          <Label htmlFor="bld-grade" className="text-pullim-slate-700 mb-1 block text-xs font-bold">대상 학년</Label>
           <select
             id="bld-grade"
             value={form.grade}
             onChange={e => setForm({ ...form, grade: e.target.value })}
-            className="border-pullim-slate-200 w-full rounded-lg border px-3 py-2 text-sm"
+            className="border-pullim-slate-200 focus-visible:border-pullim-blue-500 focus-visible:ring-3 focus-visible:ring-pullim-blue-400/30 w-full rounded-lg border px-3 py-2 text-sm outline-none"
           >
             {['중1', '중2', '중3', '고1', '고2', '고3', '재수'].map(g => (
               <option key={g} value={g}>{g}</option>
@@ -67,8 +70,8 @@ export function Step1Identity({ form, setForm }: Props) {
       </div>
 
       <div>
-        <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">캐릭터 톤</label>
-        <div className="grid grid-cols-3 gap-2">
+        <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">캐릭터 톤</Label>
+        <div role="radiogroup" aria-label="캐릭터 톤" className="grid grid-cols-3 gap-2">
           {(['formal', 'friendly', 'spartan'] as const).map(t => {
             const meta = toneMeta[t];
             const active = form.tone === t;
@@ -76,9 +79,11 @@ export function Step1Identity({ form, setForm }: Props) {
               <button
                 key={t}
                 type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => setForm({ ...form, tone: t })}
                 className={cn(
-                  'flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all',
+                  'flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                   active
                     ? 'border-pullim-blue-500 bg-pullim-blue-50'
                     : 'border-pullim-slate-200 hover:border-pullim-slate-400',
@@ -109,17 +114,19 @@ export function Step2Voice({ form, setForm }: Props) {
       </div>
 
       <div>
-        <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">선택 방식</label>
-        <div className="grid grid-cols-2 gap-2">
+        <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">선택 방식</Label>
+        <div role="radiogroup" aria-label="음성 선택 방식" className="grid grid-cols-2 gap-2">
           {(['preset', 'clone'] as const).map(m => {
             const active = form.voiceMode === m;
             return (
               <button
                 key={m}
                 type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => setForm({ ...form, voiceMode: m })}
                 className={cn(
-                  'inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm transition-all',
+                  'inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                   active ? 'border-pullim-blue-500 bg-pullim-blue-50 font-bold' : 'border-pullim-slate-200',
                 )}
               >
@@ -142,8 +149,8 @@ export function Step2Voice({ form, setForm }: Props) {
 
       {form.voiceMode === 'preset' ? (
         <div>
-          <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">TTS 프리셋 (5종)</label>
-          <ul className="space-y-1.5">
+          <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">TTS 프리셋 (5종)</Label>
+          <ul role="radiogroup" aria-label="TTS 프리셋" className="space-y-1.5">
             {(['tts1','tts2','tts3','tts4','tts5'] as const).map(p => {
               const meta = voicePresetMeta[p];
               const active = form.voicePreset === p;
@@ -151,9 +158,11 @@ export function Step2Voice({ form, setForm }: Props) {
                 <li key={p} className="relative">
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={active}
                     onClick={() => setForm({ ...form, voicePreset: p })}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left transition-colors',
+                      'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                       active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
                     )}
                   >
@@ -168,14 +177,16 @@ export function Step2Voice({ form, setForm }: Props) {
                       <div className="text-pullim-slate-500 text-[10px]">{meta.description}</div>
                     </div>
                   </button>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="xs"
                     onClick={() => toast.info('샘플 재생 (데모)')}
                     aria-label={`${meta.label} 샘플 재생`}
-                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute top-1/2 right-2 inline-flex -translate-y-1/2 items-center rounded px-2 py-1 text-[10px] font-bold hover:underline"
+                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute top-1/2 right-2 -translate-y-1/2 text-[10px] font-bold"
                   >
                     ▶ 샘플
-                  </button>
+                  </Button>
                 </li>
               );
             })}
@@ -186,13 +197,15 @@ export function Step2Voice({ form, setForm }: Props) {
           <Mic className="text-pullim-slate-400 mx-auto h-10 w-10" />
           <p className="text-pullim-slate-700 mt-2 text-sm font-bold">음성 샘플 업로드</p>
           <p className="text-pullim-slate-500 text-[11px]">2~5분 분량 권장 · WAV/MP3 · 최대 100MB</p>
-          <button
+          <Button
             type="button"
-            className="bg-pullim-blue-600 mt-3 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+            variant="pullim"
+            size="sm"
+            className="mt-3"
           >
-            <Upload className="h-3 w-3" />
+            <Upload />
             파일 선택
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -222,8 +235,9 @@ export function Step3Materials({ form, setForm }: Props) {
         <p className="text-pullim-slate-500 text-[11px]">
           PPT · PDF · 손글씨 노트 · 수업 녹화 (.mp4)
         </p>
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => {
             setForm({
               ...form,
@@ -231,11 +245,11 @@ export function Step3Materials({ form, setForm }: Props) {
             });
             toast.success('파일 추가됨');
           }}
-          className="bg-pullim-slate-900 mt-3 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+          className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 text-white"
         >
-          <Upload className="h-3 w-3" />
+          <Upload />
           샘플 파일 추가 (데모)
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -253,13 +267,16 @@ export function Step3Materials({ form, setForm }: Props) {
                   <div className="text-pullim-slate-900 truncate text-xs font-semibold">{f.name}</div>
                   <div className="text-pullim-slate-500 font-mono text-[10px]">{f.size}</div>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`${f.name} 삭제`}
                   onClick={() => setForm({ ...form, files: form.files.filter((_, j) => j !== i) })}
-                  className="text-pullim-slate-400 hover:text-pullim-danger inline-flex h-6 w-6 items-center justify-center rounded"
+                  className="text-pullim-slate-400 hover:text-pullim-danger"
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                  <X />
+                </Button>
               </li>
             );
           })}
@@ -281,7 +298,7 @@ export function Step4Style({ form, setForm }: Props) {
       <p className="text-pullim-slate-600 text-xs">
         봇의 기본 응답 전략. 단원·시간대별로 시스템이 자동 전환할 수도 있어요.
       </p>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <div role="radiogroup" aria-label="교수 스타일" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {(['lecture', 'discussion', 'problem', 'mixed'] as const).map(s => {
           const meta = teachingStyleMeta[s];
           const active = form.teachingStyle === s;
@@ -289,9 +306,11 @@ export function Step4Style({ form, setForm }: Props) {
             <button
               key={s}
               type="button"
+              role="radio"
+              aria-checked={active}
               onClick={() => setForm({ ...form, teachingStyle: s })}
               className={cn(
-                'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
+                'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                 active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200 hover:border-pullim-slate-400',
               )}
             >
@@ -311,8 +330,8 @@ export function Step5Scope({ form, setForm }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">기본 Scope 단계</label>
-        <ul className="space-y-1.5">
+        <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">기본 Scope 단계</Label>
+        <ul role="radiogroup" aria-label="기본 Scope 단계" className="space-y-1.5">
           {([1,2,3,4,5] as const).map(l => {
             const meta = scopeMeta[l];
             const active = form.scopeDefault === l;
@@ -320,9 +339,11 @@ export function Step5Scope({ form, setForm }: Props) {
               <li key={l}>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={active}
                   onClick={() => setForm({ ...form, scopeDefault: l })}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-lg border-2 p-2.5 text-left transition-all',
+                    'flex w-full items-center gap-3 rounded-lg border-2 p-2.5 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                     active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
                   )}
                 >
@@ -381,9 +402,9 @@ export function Step6Eval({ form, setForm }: Props) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">
+        <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">
           채점 루브릭 (5영역 가중치, 합계 100%)
-        </label>
+        </Label>
         <ul className="space-y-2.5">
           {(Object.keys(form.rubric) as (keyof typeof form.rubric)[]).map(k => (
             <li key={k}>
@@ -422,8 +443,8 @@ export function Step6Eval({ form, setForm }: Props) {
       </div>
 
       <div>
-        <label className="text-pullim-slate-700 mb-2 block text-xs font-bold">오답 피드백 스타일</label>
-        <div className="grid grid-cols-3 gap-2">
+        <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">오답 피드백 스타일</Label>
+        <div role="radiogroup" aria-label="오답 피드백 스타일" className="grid grid-cols-3 gap-2">
           {(['guide','direct','hybrid'] as const).map(s => {
             const meta = feedbackStyleMeta[s];
             const active = form.feedbackStyle === s;
@@ -431,9 +452,11 @@ export function Step6Eval({ form, setForm }: Props) {
               <button
                 key={s}
                 type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => setForm({ ...form, feedbackStyle: s })}
                 className={cn(
-                  'rounded-lg border-2 p-3 text-left transition-all',
+                  'rounded-lg border-2 p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                   active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
                 )}
               >
@@ -553,21 +576,23 @@ export function Step8Deploy({ form, setForm }: Props) {
             onSubmit={e => { e.preventDefault(); sendTest(); }}
             className="flex items-center gap-2"
           >
-            <label htmlFor="bld-test-input" className="sr-only">테스트 질문</label>
-            <input
+            <Label htmlFor="bld-test-input" className="sr-only">테스트 질문</Label>
+            <Input
               id="bld-test-input"
               value={testInput}
               onChange={e => setTestInput(e.target.value)}
               placeholder='예: "극값 어떻게 찾아요?"'
-              className="border-pullim-slate-200 flex-1 rounded-full border px-3 py-1.5 text-sm outline-none"
+              className="h-10 flex-1 rounded-full px-3.5 text-sm"
             />
-            <button
+            <Button
               type="submit"
+              variant="pullim"
+              size="icon-lg"
               aria-label="테스트 질문 보내기"
-              className="bg-pullim-blue-600 inline-flex h-10 w-10 items-center justify-center rounded-full text-white"
+              className="rounded-full"
             >
-              <Send className="h-3.5 w-3.5" aria-hidden />
-            </button>
+              <Send aria-hidden />
+            </Button>
           </form>
         </div>
       </section>
@@ -616,22 +641,25 @@ export function Step8Deploy({ form, setForm }: Props) {
           <li>· {form.classrooms.length}개 반 배포 예정</li>
         </ul>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => toast.info('드래프트 저장 (데모)')}
-            className="bg-white/10 inline-flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold text-white"
+            className="bg-white/10 text-white hover:bg-white/20"
           >
-            <Copy className="h-3 w-3" />
+            <Copy />
             드래프트 저장
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="pullim-lemon"
+            size="sm"
             onClick={deploy}
-            className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-bold"
           >
-            <Rocket className="h-3 w-3" aria-hidden />
+            <Rocket aria-hidden />
             배포하기
-          </button>
+          </Button>
         </div>
       </section>
     </div>
