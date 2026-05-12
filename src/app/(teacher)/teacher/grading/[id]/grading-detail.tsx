@@ -8,6 +8,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { RubricEditor } from '@/components/classbot/rubric-editor';
 import { OverrideDeltaMeter } from '@/components/classbot/override-delta-meter';
 import { CrisisGate } from '@/components/classbot/crisis-gate';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
@@ -113,12 +115,13 @@ export function GradingDetail({
               title="AI 초안 코멘트"
               description="필요하면 직접 수정하거나 한 줄 더해주세요."
             />
-            <textarea
+            <Textarea
               value={finalComment}
               onChange={(e) => setFinalComment(e.target.value)}
               rows={4}
               maxLength={500}
-              className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
+              aria-label="AI 초안 코멘트"
+              className="rounded-xl text-sm leading-relaxed"
             />
             <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
               {finalComment.length}/500
@@ -134,23 +137,25 @@ export function GradingDetail({
                   {finalScore}<span className="text-pullim-slate-400 text-base">/{item.maxScore}</span>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
+                size="lg"
                 onClick={handleApprove}
                 disabled={isApproved || finalScore !== item.draftScore}
-                className="bg-pullim-slate-700 hover:bg-pullim-slate-600 disabled:opacity-40 rounded-lg px-4 py-2 text-xs font-bold text-white"
+                className="bg-pullim-slate-700 hover:bg-pullim-slate-600 text-white"
               >
                 그대로 승인
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="pullim-lemon"
+                size="lg"
                 onClick={handleApproveWithEdit}
                 disabled={isApproved}
-                className="bg-pullim-lemon hover:opacity-90 text-pullim-lemon-ink disabled:opacity-40 rounded-lg px-4 py-2 text-xs font-bold"
               >
-                <Check className="-mt-0.5 mr-1 inline h-3 w-3" />
+                <Check />
                 수정 후 승인
-              </button>
+              </Button>
             </div>
           </section>
         </div>
@@ -199,12 +204,17 @@ export function GradingDetail({
             <p className="text-pullim-slate-500 mt-1 text-[11px] leading-relaxed">
               여기서 작성한 메모는 학생 개인 리포트에 자동 첨부돼 학생에게 부드러운 형태로 전달돼요.
             </p>
-            <button
+            <Button
               type="button"
-              className="border-pullim-slate-300 text-pullim-slate-700 hover:bg-pullim-slate-100 mt-2 w-full rounded-lg border px-3 py-1.5 text-[11px] font-bold"
+              variant="outline"
+              size="sm"
+              disabled
+              aria-disabled="true"
+              title="준비 중 (v2 — 면담 메모)"
+              className="mt-2 w-full opacity-60 cursor-not-allowed"
             >
               메모 작성하기
-            </button>
+            </Button>
           </section>
         </aside>
       </div>
