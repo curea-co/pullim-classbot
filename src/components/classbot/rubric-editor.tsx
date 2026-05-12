@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { GradingItem } from '@/lib/mock';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 type RubricItem = GradingItem['rubric'][number];
@@ -68,12 +69,14 @@ export function RubricEditor({
                   </div>
                 </div>
               </div>
-              <input
-                type="range"
-                min={0} max={r.weight} step={1} value={r.score}
-                onChange={(e) => updateScore(i, Number(e.target.value))}
-                className="mt-2 w-full accent-pullim-blue-500"
+              <Slider
+                min={0}
+                max={r.weight}
+                step={1}
+                value={r.score}
+                onValueChange={(v) => updateScore(i, Array.isArray(v) ? v[0] : v)}
                 aria-label={`${r.criterion} 점수`}
+                className="mt-2"
               />
             </li>
           );
