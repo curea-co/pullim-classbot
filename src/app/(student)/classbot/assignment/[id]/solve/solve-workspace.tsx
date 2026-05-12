@@ -144,8 +144,7 @@ export function SolveWorkspace({
                         : 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',
                     )}
                   >
-                    <span className="font-mono mr-2" aria-hidden>{['①','②','③','④','⑤'][i]}</span>
-                    <span className="sr-only">{i + 1}번. </span>
+                    <span className="font-mono mr-2">{['①','②','③','④','⑤'][i]}</span>
                     {opt}
                   </button>
                 </li>

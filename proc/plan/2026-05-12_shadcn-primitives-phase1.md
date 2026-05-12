@@ -38,7 +38,7 @@
 - [x] Step 5/7/8 SafetyToggle / 배포 반 checkbox — `<label>` wrapper 패턴 유지 (htmlFor 없이 input 자식 — 유효한 HTML)
 
 ### D. solve-workspace.tsx 마이그레이션
-- [x] 객관식 선택지 4~5개 → native + radiogroup/radio/aria-checked + sr-only "N번. " 추가 (스크린리더용)
+- [x] 객관식 선택지 4~5개 → native + radiogroup/radio/aria-checked
 - [x] 단답/서술형 `<textarea>` → `<Textarea>` + aria-label
 - [x] 이전/다음/제출 네비 → `<Button>` (`secondary` / `pullim` + `size="lg"`, disabled 자동)
 - [x] 힌트 받기 토글 → `<Button variant="outline">` (border-dashed 유지)
@@ -59,7 +59,7 @@
 ## 정합성 검토 노트
 
 - **토글 그룹은 native button 유지**: 다중 줄 콘텐츠(아이콘 + 제목 + 설명) + 활성 색 override 복잡도 때문에 `<Button variant="outline">` 변환보다 native가 가독성 ↑. 대신 `role="radiogroup"`/`role="radio"`/`aria-checked` + `focus-visible:ring-3` 일관 적용으로 a11y/포커스 결함 해소.
-- **계획에 없던 보너스**: Step 3 (파일 업로드/삭제) Button 도입, 학생 풀이의 힌트 받기 토글 Button outline, sr-only 객관식 번호 안내.
+- **계획에 없던 보너스**: Step 3 (파일 업로드/삭제) Button 도입, 학생 풀이의 힌트 받기 토글 Button outline.
 - **다음 단계 (Phase 1B)**: replay-player, grading-detail, check-in-form, bot-hint-panel 등 잔여 컴포넌트 + Range Slider primitive 도입.
 
 ## 보류 (Phase 1B 이후)
