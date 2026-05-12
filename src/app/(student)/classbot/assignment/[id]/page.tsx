@@ -1,17 +1,29 @@
+'use client';
+
+import { use } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Play, AlertCircle } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
-import { getAssignmentById, getQuestionsByAssignment } from '@/lib/mock';
+import { getQuestionsByAssignment } from '@/lib/mock';
+import { useAssignmentLookup } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
-type Params = Promise<{ id: string }>;
-
-export default async function AssignmentOverviewPage({ params }: { params: Params }) {
-  const { id } = await params;
-  const a = getAssignmentById(id);
-  if (!a) notFound();
+export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const a = useAssignmentLookup(id);
+  if (!a) {
+    // 신규 발사 직후 hydration 전엔 dispatched가 비어있을 수 있어 잠시 로딩 표시
+    if (id.startsWith('as_user_')) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중...</p>
+        </div>
+      );
+    }
+    notFound();
+  }
   const questions = getQuestionsByAssignment(id);
 
   const isInProgress = a.state === 'in-progress';
@@ -60,7 +72,7 @@ export default async function AssignmentOverviewPage({ params }: { params: Param
           {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
         </p>
         {questions.length === 0 ? (
-          <p className="text-pullim-slate-400 mt-3 text-[11px]">문항이 아직 준비되지 않았어요.</p>
+          <p className="text-pullim-slate-400 mt-3 text-[11px]">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
         ) : (
           <ul className="mt-3 space-y-1">
             {questions.map(q => (
@@ -79,6 +91,7 @@ export default async function AssignmentOverviewPage({ params }: { params: Param
       {/* CTA */}
       <Link
         href={ctaHref}
+        data-testid="assignment-start-cta"
         className={cn(
           'inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-colors',
           isExam

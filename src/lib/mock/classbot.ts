@@ -132,6 +132,41 @@ export const studentEnrollments: StudentEnrollment[] = [
   },
 ];
 
+/**
+ * 봇별 단원 트리 — 과제 생성 시 단원 드롭다운 선택지.
+ * spec 14 § 7.2.
+ */
+export type BotCurriculumUnit = {
+  id: string;
+  label: string;
+  /** "미적분 III · 도함수의 활용 · 극값" 등 3-depth full path */
+  fullPath: string;
+  /** 성취 코드 */
+  achievementCodes: string[];
+};
+
+export const botCurriculum: Record<string, BotCurriculumUnit[]> = {
+  cb_001: [
+    { id: 'math2-ch2-limit',      label: '함수의 극한',         fullPath: '미적분 II · 함수의 극한',           achievementCodes: ['수2-2-1'] },
+    { id: 'math2-ch2-continuity', label: '연속성',              fullPath: '미적분 II · 함수의 연속성',         achievementCodes: ['수2-2-2'] },
+    { id: 'math2-ch3-deriv',      label: '미분계수와 도함수',   fullPath: '미적분 III · 미분계수와 도함수',    achievementCodes: ['수2-3-1'] },
+    { id: 'math2-ch3-extremum',   label: '극값',                fullPath: '미적분 III · 도함수의 활용 · 극값', achievementCodes: ['수2-3-2'] },
+    { id: 'math2-ch3-inflection', label: '변곡점',              fullPath: '미적분 III · 도함수의 활용 · 변곡점', achievementCodes: ['수2-3-3'] },
+  ],
+  cb_002: [
+    { id: 'eng-blank-7',  label: '빈칸 추론 7유형',  fullPath: '수능 영어 · 빈칸 추론 7유형',  achievementCodes: ['영-수능-3'] },
+    { id: 'eng-summary',  label: '요약문 완성',      fullPath: '수능 영어 · 요약문',           achievementCodes: ['영-수능-4'] },
+  ],
+  cb_003: [
+    { id: 'sci-force',  label: '힘과 운동',  fullPath: '통합과학 · 힘과 운동',  achievementCodes: ['과-통합-1'] },
+    { id: 'sci-energy', label: '에너지',     fullPath: '통합과학 · 에너지',     achievementCodes: ['과-통합-2'] },
+  ],
+};
+
+export function getBotCurriculum(botId: string): BotCurriculumUnit[] {
+  return botCurriculum[botId] ?? [];
+}
+
 /** 학생이 보는 봇 — enrollment 순서로 정렬 */
 export function getMyBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
   return studentEnrollments

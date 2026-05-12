@@ -1,8 +1,11 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { studentAssignments, studentAssignmentStats, type Assignment, type AssignmentMode } from '@/lib/mock';
+import { classRoster, currentPersona, type Assignment, type AssignmentMode } from '@/lib/mock';
+import { useMergedAssignments } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
 const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
@@ -12,6 +15,13 @@ const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typ
 };
 
 export default function StudentAssignmentListPage() {
+  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  const assignments = useMergedAssignments(me.id);
+  const inProgress = assignments.filter(a => a.state === 'in-progress').length;
+  const todo = assignments.filter(a => a.state === 'todo').length;
+  const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
+  const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
+
   return (
     <div className="space-y-4">
       <Link
@@ -24,14 +34,14 @@ export default function StudentAssignmentListPage() {
 
       <PageHeader
         eyebrow={{ icon: Target, text: '받은 과제' }}
-        title={<>받은 과제 <span className="text-pullim-blue-600">{studentAssignmentStats.total}</span>건</>}
-        description={`진행 중 ${studentAssignmentStats.inProgress}건 · 대기 ${studentAssignmentStats.todo}건 · ${studentAssignmentStats.completed}/${studentAssignmentStats.totalQuestions}문항 진행`}
+        title={<>받은 과제 <span className="text-pullim-blue-600">{assignments.length}</span>건</>}
+        description={`진행 중 ${inProgress}건 · 대기 ${todo}건 · ${completed}/${totalQuestions}문항 진행`}
       />
 
       <section>
-        <SectionHeading title="모든 과제" description="D-day 임박 순으로 정렬했어요." />
+        <SectionHeading title="모든 과제" description="새로 받은 과제가 위에 와요." />
         <ul className="space-y-2">
-          {studentAssignments.map(a => <AssignmentCard key={a.id} assignment={a} />)}
+          {assignments.map(a => <AssignmentCard key={a.id} assignment={a} />)}
         </ul>
       </section>
     </div>

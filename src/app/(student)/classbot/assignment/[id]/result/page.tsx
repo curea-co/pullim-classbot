@@ -1,19 +1,30 @@
+'use client';
+
+import { use } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
-import { getAssignmentById, getQuestionsByAssignment, classBots } from '@/lib/mock';
+import { classBots } from '@/lib/mock';
+import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
-type Params = Promise<{ id: string }>;
-
-export default async function ResultPage({ params }: { params: Params }) {
-  const { id } = await params;
-  const a = getAssignmentById(id);
-  if (!a) notFound();
-  const questions = getQuestionsByAssignment(id);
+export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const a = useAssignmentLookup(id);
+  if (!a) {
+    if (id.startsWith('as_user_')) {
+      return (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="text-pullim-slate-500 text-sm">결과를 불러오는 중...</p>
+        </div>
+      );
+    }
+    notFound();
+  }
+  const questions = getQuestionsForAssignment(a);
   const bot = classBots.find(b => b.id === a.botId);
 
   const isExam = a.mode === 'exam';
