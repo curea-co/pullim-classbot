@@ -305,7 +305,7 @@ function QuickAction({
   href?: string;
 }) {
   const colorClass =
-    color === 'warn'  ? 'bg-pullim-warn-bg text-pullim-warn hover:bg-pullim-warn/15'
+    color === 'warn'  ? 'bg-pullim-blue-100 text-pullim-blue-700 hover:bg-pullim-blue-200/70'
     : color === 'blue' ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100'
     : 'bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200';
   const className = cn('flex flex-col items-start gap-1 rounded-xl p-3.5 text-left transition-colors', colorClass);

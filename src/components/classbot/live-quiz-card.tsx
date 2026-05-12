@@ -25,13 +25,13 @@ export function LiveQuizCard() {
   }, [submitted]);
 
   return (
-    <section className="border-pullim-warn/30 bg-pullim-warn/5 rounded-2xl border p-4">
+    <section className="border-pullim-blue-200 bg-pullim-blue-50/50 rounded-2xl border p-4">
       <div className="mb-2 flex items-center gap-2">
-        <span className="bg-pullim-warn flex h-7 w-7 items-center justify-center rounded-lg text-white">
+        <span className="bg-pullim-blue-600 flex h-7 w-7 items-center justify-center rounded-lg text-white">
           <Zap className="h-3.5 w-3.5" />
         </span>
         <div className="flex-1">
-          <div className="text-pullim-warn text-[10px] font-bold tracking-wider uppercase">
+          <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">
             지금 즉석 퀴즈
           </div>
           <div className="text-pullim-slate-900 text-xs font-bold">
@@ -64,9 +64,9 @@ export function LiveQuizCard() {
                 onClick={() => setSelected(i)}
                 className={cn(
                   'relative w-full overflow-hidden rounded-lg border-2 px-3 py-3 text-left text-sm font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                  isCorrect && 'border-pullim-success bg-pullim-success-bg text-pullim-success',
+                  isCorrect && 'border-pullim-blue-600 bg-pullim-blue-50 text-pullim-blue-700',
                   isWrong && 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger',
-                  !submitted && isSelected && 'border-pullim-warn bg-pullim-warn/10',
+                  !submitted && isSelected && 'border-pullim-blue-500 bg-pullim-blue-50',
                   !submitted && !isSelected && 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',
                 )}
               >
@@ -97,7 +97,7 @@ export function LiveQuizCard() {
           size="lg"
           disabled={selected === undefined}
           onClick={() => setSubmitted(true)}
-          className="bg-pullim-warn hover:bg-pullim-warn/90 mt-3 w-full rounded-xl text-white"
+          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 w-full rounded-xl text-white"
         >
           제출하기
         </Button>

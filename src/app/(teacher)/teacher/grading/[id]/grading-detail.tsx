@@ -77,7 +77,7 @@ export function GradingDetail({
         description={`제출 ${item.submittedAt} · ${item.type === 'essay' ? '서술형' : item.type === 'short' ? '단답' : '수치'} · AI 신뢰도 ${item.aiConfidence}%`}
         action={
           isApproved ? (
-            <span className="bg-pullim-success-bg text-pullim-success inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold">
               <Check className="h-3 w-3" /> 승인 완료
             </span>
           ) : null
@@ -183,7 +183,7 @@ export function GradingDetail({
                         <div className="text-pullim-slate-400 text-[10px]">{h.gradedAt}</div>
                       </div>
                       <div className="font-mono text-xs font-bold">
-                        <span className={cn(pct >= 80 ? 'text-pullim-success' : pct >= 60 ? 'text-pullim-blue-600' : 'text-pullim-warn')}>
+                        <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
                           {h.score}
                         </span>
                         <span className="text-pullim-slate-400">/{h.maxScore}</span>

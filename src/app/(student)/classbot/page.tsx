@@ -16,9 +16,9 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-500'   },
+  'practice':       { label: '연습',     color: 'bg-pullim-blue-400'   },
   'exam':           { label: '시험',     color: 'bg-pullim-danger'      },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-warn'        },
+  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700'    },
 } as const;
 
 const sourceMeta = {

@@ -41,7 +41,7 @@ const modeOptions: Record<AssignmentMode, ModeMeta> = {
   'wrong-conquest': {
     label: '오답정복',
     description: '봇이 정답·반례까지 즉시 노출 — 패턴 정복용',
-    color: 'border-pullim-warn bg-pullim-warn-bg',
+    color: 'border-pullim-blue-300 bg-pullim-blue-50',
     defaultScope: 5,
   },
 };
@@ -556,7 +556,7 @@ function PreviewModal({
           </p>
           {assignment.reasonHint && (
             <p className="bg-white mt-2 rounded-lg p-2 text-[11px]">
-              <Sparkles className="text-pullim-warn -mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
+              <Sparkles className="text-pullim-blue-600 -mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
               {assignment.reasonHint}
             </p>
           )}

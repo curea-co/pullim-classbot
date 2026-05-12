@@ -84,9 +84,9 @@ export default function TeacherClassbotPage() {
 
 /* ─── 오늘 발사한 과제 — 봇이 학생에게 보낸 풀이 컨텍스트 ─── */
 const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-500',   icon: Target },
+  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
   'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-warn',        icon: Sparkles },
+  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
 } as const;
 
 function DispatchedAssignments() {
@@ -166,8 +166,8 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
               {a.dDay} ({a.dueLabel})
             </span>
             {isLive && (
-              <span className="bg-pullim-success-bg text-pullim-success inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
-                <span className="bg-pullim-success inline-block h-1 w-1 animate-pulse rounded-full" />
+              <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
+                <span className="bg-pullim-blue-600 inline-block h-1 w-1 animate-pulse rounded-full" />
                 방금 제출
               </span>
             )}
@@ -184,7 +184,7 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
           <div className="mt-2 flex items-center gap-2">
             <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
               <div
-                className={cn('h-full rounded-full transition-all', displayAccuracy && displayAccuracy >= 70 ? 'bg-pullim-success' : 'bg-pullim-blue-500')}
+                className={cn('h-full rounded-full transition-all', displayAccuracy && displayAccuracy >= 70 ? 'bg-pullim-blue-600' : 'bg-pullim-blue-400')}
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -192,7 +192,7 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
               {completedCount}/{a.questionCount}
             </span>
             {displayAccuracy != null && (
-              <span className={cn('font-mono text-[10px] font-bold', displayAccuracy >= 70 ? 'text-pullim-success' : 'text-pullim-warn')}>
+              <span className={cn('font-mono text-[10px] font-bold', displayAccuracy >= 70 ? 'text-pullim-blue-700' : 'text-pullim-slate-500')}>
                 {displayAccuracy}%
               </span>
             )}

@@ -21,9 +21,9 @@ type Props = {
 
 const toneClass = {
   blue:    'text-pullim-blue-600',
-  warn:    'text-pullim-warn',
+  warn:    'text-pullim-blue-700',
   danger:  'text-pullim-danger',
-  success: 'text-pullim-success',
+  success: 'text-pullim-blue-500',
 } as const;
 
 /**

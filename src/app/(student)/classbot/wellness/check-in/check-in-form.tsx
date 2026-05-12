@@ -30,8 +30,8 @@ export function CheckInForm() {
   if (done) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <div className="bg-pullim-success/15 flex h-20 w-20 items-center justify-center rounded-full">
-          <Check className="text-pullim-success h-10 w-10" />
+        <div className="bg-pullim-blue-50 flex h-20 w-20 items-center justify-center rounded-full">
+          <Check className="text-pullim-blue-600 h-10 w-10" />
         </div>
         <h1 className="text-pullim-slate-900 mt-4 text-xl font-bold">기록했어요</h1>
         <p className="text-pullim-slate-500 mt-1 text-sm">내일 또 봐요.</p>

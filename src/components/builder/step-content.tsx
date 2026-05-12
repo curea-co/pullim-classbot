@@ -283,7 +283,7 @@ export function Step3Materials({ form, setForm }: Props) {
         </ul>
       </div>
 
-      <div className="bg-pullim-warn/10 text-pullim-warn flex items-start gap-1.5 rounded-lg p-2.5 text-[11px]">
+      <div className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1.5 rounded-lg p-2.5 text-[11px]">
         <Hourglass className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>업로드 후 RAG 인덱스 생성에 약 2~5분 소요. 인덱스 완료 후 봇 응답에 자료가 반영됩니다.</span>
       </div>
@@ -425,7 +425,7 @@ export function Step6Eval({ form, setForm }: Props) {
         <div
           className={cn(
             'mt-3 inline-flex items-center gap-1.5 rounded-lg p-2 text-xs',
-            isValid ? 'bg-pullim-success-bg text-pullim-success' : 'bg-pullim-warn-bg text-pullim-warn',
+            isValid ? 'bg-pullim-blue-50 text-pullim-blue-700' : 'bg-pullim-slate-100 text-pullim-slate-700',
           )}
         >
           {isValid ? (
@@ -525,7 +525,7 @@ function SafetyToggle({
         <div className="text-pullim-slate-900 text-sm font-bold">{label}</div>
         <div className="text-pullim-slate-500 mt-0.5 text-[11px]">{description}</div>
       </div>
-      {checked && <Check className="text-pullim-success ml-auto h-4 w-4 shrink-0" />}
+      {checked && <Check className="text-pullim-blue-600 ml-auto h-4 w-4 shrink-0" />}
     </label>
   );
 }

@@ -36,25 +36,25 @@ export default function WellnessPage() {
         className={cn(
           'flex items-center gap-3 rounded-2xl p-4 transition-colors',
           checkedToday
-            ? 'bg-pullim-success/10 hover:bg-pullim-success/15 border-pullim-success/30 border'
+            ? 'bg-pullim-blue-50 hover:bg-pullim-blue-100 border-pullim-blue-200 border'
             : 'bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white',
         )}
       >
         <span className={cn(
           'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl',
-          checkedToday ? 'bg-pullim-success/20' : 'bg-white/15',
+          checkedToday ? 'bg-pullim-blue-100' : 'bg-white/15',
         )}>
           {checkedToday ? '✅' : '💭'}
         </span>
         <div className="min-w-0 flex-1">
-          <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-success' : 'text-white')}>
+          <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
             {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
           </div>
           <div className={cn('text-[11px]', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
             {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
           </div>
         </div>
-        <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-success' : 'text-white')} />
+        <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-blue-700' : 'text-white')} />
       </Link>
 
       <WellbeingGauge studentId={me.id} />

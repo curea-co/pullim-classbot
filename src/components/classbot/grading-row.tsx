@@ -12,8 +12,8 @@ const typeMeta = {
 const statusMeta = {
   queue:      { label: '대기',     color: 'bg-pullim-slate-100 text-pullim-slate-600' },
   reviewing:  { label: '검토중',   color: 'bg-pullim-blue-100 text-pullim-blue-700' },
-  approved:   { label: '승인됨',   color: 'bg-pullim-success/15 text-pullim-success' },
-  overridden: { label: '오버라이드', color: 'bg-pullim-warn-bg text-pullim-warn' },
+  approved:   { label: '승인됨',   color: 'bg-pullim-blue-50 text-pullim-blue-700' },
+  overridden: { label: '오버라이드', color: 'bg-pullim-slate-100 text-pullim-slate-700' },
 } as const;
 
 /**
@@ -70,7 +70,7 @@ export function GradingRow({ item }: { item: GradingItem }) {
             <div className="flex items-center gap-1.5">
               <span className="text-pullim-slate-400 text-[10px] font-semibold uppercase tracking-wider">AI 초안</span>
               <span className="font-mono text-sm font-bold">
-                <span className={cn(pct >= 80 ? 'text-pullim-success' : pct >= 60 ? 'text-pullim-blue-600' : 'text-pullim-warn')}>
+                <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
                   {item.draftScore}
                 </span>
                 <span className="text-pullim-slate-400">/{item.maxScore}</span>
@@ -80,11 +80,11 @@ export function GradingRow({ item }: { item: GradingItem }) {
               <span className="text-pullim-slate-400 text-[10px]">신뢰도</span>
               <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
                 <div
-                  className={cn('h-full rounded-full', isLowConfidence ? 'bg-pullim-warn' : 'bg-pullim-blue-500')}
+                  className={cn('h-full rounded-full', isLowConfidence ? 'bg-pullim-slate-400' : 'bg-pullim-blue-500')}
                   style={{ width: `${item.aiConfidence}%` }}
                 />
               </div>
-              <span className={cn('font-mono text-[10px] font-bold', isLowConfidence ? 'text-pullim-warn' : 'text-pullim-slate-500')}>
+              <span className={cn('font-mono text-[10px] font-bold', isLowConfidence ? 'text-pullim-slate-500' : 'text-pullim-slate-500')}>
                 {item.aiConfidence}%
               </span>
               <span className="text-pullim-slate-300 font-mono text-[10px]">·</span>

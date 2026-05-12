@@ -41,8 +41,8 @@ export default function MyReportPage() {
 
       {/* 잘한 점 / 신경 쓸 점 */}
       <section className="space-y-2">
-        <div className="bg-pullim-success/10 rounded-2xl p-4">
-          <div className="text-pullim-success inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
+        <div className="bg-pullim-blue-50 rounded-2xl p-4">
+          <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
             <Heart className="h-3 w-3" />
             오늘 잘한 점
           </div>
@@ -51,8 +51,8 @@ export default function MyReportPage() {
           </p>
         </div>
 
-        <div className="bg-pullim-blue-50 rounded-2xl p-4">
-          <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
+        <div className="bg-pullim-slate-50 rounded-2xl p-4">
+          <div className="text-pullim-slate-700 inline-flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
             <Target className="h-3 w-3" />
             다음에 신경 쓸 점
           </div>

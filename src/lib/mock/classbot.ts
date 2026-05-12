@@ -1799,10 +1799,10 @@ export const overriddenSample: GradingItem = {
 export type EmotionMood = 1 | 2 | 3 | 4;
 
 export const moodMeta: Record<EmotionMood, { emoji: string; label: string; tone: string }> = {
-  1: { emoji: '😄', label: '좋아',       tone: 'success' },
-  2: { emoji: '🙂', label: '그럭저럭',   tone: 'blue' },
+  1: { emoji: '😄', label: '좋아',       tone: 'blue-500' },
+  2: { emoji: '🙂', label: '그럭저럭',   tone: 'blue-300' },
   3: { emoji: '😐', label: '그저그래',   tone: 'slate' },
-  4: { emoji: '😔', label: '힘들었어',   tone: 'warn' },
+  4: { emoji: '😔', label: '힘들었어',   tone: 'blue-700' },
 };
 
 export type EmotionCheckIn = {
