@@ -13,6 +13,8 @@ import {
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; color: string; icon: LucideIcon }> = {
@@ -194,7 +196,7 @@ function KeyTakeawaysEditor({
             <span className="bg-pullim-warn/10 text-pullim-warn mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
               {i + 1}
             </span>
-            <textarea
+            <Textarea
               rows={2}
               value={t}
               onChange={e => {
@@ -202,7 +204,8 @@ function KeyTakeawaysEditor({
                 next[i] = e.target.value;
                 onChange(next);
               }}
-              className="border-pullim-slate-200 focus:border-pullim-blue-400 flex-1 rounded-lg border px-3 py-2 text-sm outline-none resize-none leading-relaxed"
+              aria-label={`핵심 메시지 ${i + 1}`}
+              className="flex-1 rounded-lg resize-none text-sm leading-relaxed"
             />
           </li>
         ))}
@@ -255,9 +258,11 @@ function TranscriptVisibility({
             <li key={i}>
               <button
                 type="button"
+                aria-pressed={hidden}
+                aria-label={`${line.at} ${line.speaker} 라인 ${hidden ? '노출하기' : '가리기'}`}
                 onClick={() => onToggle(i)}
                 className={cn(
-                  'w-full px-4 py-3 text-left transition-colors',
+                  'w-full px-4 py-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50 focus-visible:ring-inset',
                   hidden ? 'bg-pullim-slate-50/60 hover:bg-pullim-slate-100' : 'hover:bg-pullim-blue-50/30',
                 )}
               >
@@ -468,20 +473,20 @@ function ApproveBar({
           타임라인 마커·집중도 자동 포함
         </p>
       </div>
-      <button
+      <Button
         type="button"
+        variant={ready ? 'pullim-lemon' : 'secondary'}
+        size="lg"
         onClick={onApprove}
         disabled={!ready}
         className={cn(
-          'mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold lg:mt-0 lg:w-auto',
-          ready
-            ? 'bg-pullim-lemon text-pullim-lemon-ink hover:opacity-90'
-            : 'bg-white/10 text-white/40 cursor-not-allowed',
+          'mt-3 w-full rounded-xl lg:mt-0 lg:w-auto',
+          !ready && 'bg-white/10 text-white/40 cursor-not-allowed',
         )}
       >
-        <Send className="h-4 w-4" />
+        <Send />
         {ready ? '학생에게 발송' : '핵심 메시지 3개 채우기'}
-      </button>
+      </Button>
     </div>
   );
 }

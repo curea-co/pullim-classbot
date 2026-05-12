@@ -30,7 +30,7 @@ export function ScopeControl() {
         </span>
       </header>
 
-      <div className="flex gap-1.5">
+      <div role="radiogroup" aria-label="Scope Guard 단계" className="flex gap-1.5">
         {levels.map(l => {
           const m = scopeMeta[l];
           const active = l === scope;
@@ -38,10 +38,11 @@ export function ScopeControl() {
             <button
               key={l}
               type="button"
+              role="radio"
+              aria-checked={active}
               onClick={() => setScope(l)}
-              aria-pressed={active}
               className={cn(
-                'flex-1 rounded-lg border-2 p-2 text-left transition-all',
+                'flex-1 rounded-lg border-2 p-2 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                 active
                   ? 'border-pullim-blue-500 bg-pullim-blue-50'
                   : 'border-pullim-slate-200 hover:border-pullim-slate-400',

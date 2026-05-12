@@ -33,8 +33,8 @@ export function CheckInForm() {
         <div className="bg-pullim-success/15 flex h-20 w-20 items-center justify-center rounded-full">
           <Check className="text-pullim-success h-10 w-10" />
         </div>
-        <h1 className="text-pullim-slate-900 mt-4 text-xl font-bold">기록했어</h1>
-        <p className="text-pullim-slate-500 mt-1 text-sm">내일 또 봐.</p>
+        <h1 className="text-pullim-slate-900 mt-4 text-xl font-bold">기록했어요</h1>
+        <p className="text-pullim-slate-500 mt-1 text-sm">내일 또 봐요.</p>
         <div className="mt-6 flex gap-2">
           <Link
             href="/classbot/me/report"
@@ -69,8 +69,8 @@ export function CheckInForm() {
           <Heart className="h-3 w-3" />
           30초 체크인
         </div>
-        <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">오늘 어땠어?</h1>
-        <p className="text-pullim-slate-500 mt-1 text-xs">짚고 가자. 부담 갖지 마.</p>
+        <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">오늘 어땠어요?</h1>
+        <p className="text-pullim-slate-500 mt-1 text-xs">짚고 가요. 부담 갖지 않아도 돼요.</p>
       </header>
 
       <section className="bg-card rounded-2xl border p-5">
@@ -84,12 +84,12 @@ export function CheckInForm() {
 
       {mood !== null && (
         <section className="bg-card rounded-2xl border p-4">
-          <h3 className="text-pullim-slate-900 text-xs font-bold">오늘 어떤 일이 있었어? (선택)</h3>
+          <h3 className="text-pullim-slate-900 text-xs font-bold">오늘 어떤 일이 있었어요? (선택)</h3>
           <textarea
             value={freeText}
             onChange={(e) => setFreeText(e.target.value.slice(0, 200))}
             rows={3}
-            placeholder="한 줄로 적어줘. 비워두고 넘어가도 괜찮아."
+            placeholder="한 줄로 적어주세요. 비워두고 넘어가도 괜찮아요."
             className="border-pullim-slate-200 focus:border-pullim-blue-500 mt-2 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
           />
           <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
@@ -112,7 +112,7 @@ export function CheckInForm() {
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-40 ml-auto inline-flex flex-1 items-center justify-center gap-1 rounded-2xl py-3 text-sm font-bold text-white"
         >
           <Check className="h-3.5 w-3.5" />
-          기록할게
+          기록할게요
         </button>
       </div>
     </div>

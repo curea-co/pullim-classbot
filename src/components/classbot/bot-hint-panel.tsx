@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Lock, Sparkles, MessageCircle, Lightbulb } from 'lucide-react';
 import type { AssignmentMode, AssignmentQuestion } from '@/lib/mock';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
@@ -30,7 +31,7 @@ function ExamLocked() {
       <Lock className="text-pullim-lemon mb-2 h-8 w-8" />
       <h3 className="text-sm font-bold text-white">봇이 잠긴 시간이에요</h3>
       <p className="mt-1 text-[11px] leading-relaxed">
-        지금은 도와줄 수 없어.<br />끝나고 다시 와줘.
+        지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
       <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold">
         <span className="text-pullim-lemon">Scope L1</span>
@@ -53,13 +54,13 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L4 · 단계별 힌트만 줄 수 있어</p>
+          <p className="text-pullim-slate-500 text-[10px]">Scope L4 · 단계별 힌트만 줄 수 있어요</p>
         </div>
       </header>
 
       {hints.length === 0 ? (
         <p className="text-pullim-slate-500 py-6 text-center text-[11px]">
-          이 문항은 힌트 없이 풀어보자.
+          이 문항은 힌트 없이 풀어봐요.
         </p>
       ) : (
         <>
@@ -75,27 +76,26 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           </ul>
 
           {revealed < hints.length && (
-            <button
+            <Button
               type="button"
+              variant={revealed === 0 ? 'pullim' : 'secondary'}
               onClick={() => setRevealed(r => r + 1)}
               className={cn(
-                'mt-3 w-full rounded-lg py-2 text-[11px] font-bold transition-colors',
-                revealed === 0
-                  ? 'bg-pullim-blue-600 text-white hover:bg-pullim-blue-700'
-                  : 'bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200',
+                'mt-3 w-full',
+                revealed !== 0 && 'bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700',
               )}
             >
               {revealed === 0
-                ? '한 줄만 알려줄게'
+                ? '한 줄만 알려줄게요'
                 : revealed === hints.length - 1
                   ? '마지막 — 해설 보기'
                   : `다음 단계 (${revealed + 1}/${hints.length})`}
-            </button>
+            </Button>
           )}
 
           {revealed === hints.length && (
             <p className="text-pullim-slate-400 mt-3 text-center text-[10px]">
-              다 본 다음에 다시 처음부터 풀어볼래?
+              다 본 다음에 다시 처음부터 풀어봐요.
             </p>
           )}
         </>
@@ -113,7 +113,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L5 · 이번엔 잡아내자</p>
+          <p className="text-pullim-slate-500 text-[10px]">Scope L5 · 이번엔 잡아내봐요</p>
         </div>
       </header>
 
@@ -128,13 +128,16 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </p>
       )}
 
-      <button
+      <Button
         type="button"
-        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 inline-flex w-full items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-bold text-white"
+        disabled
+        aria-disabled="true"
+        title="준비 중 (v2 — 추가 대화)"
+        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white opacity-60 cursor-not-allowed"
       >
-        <MessageCircle className="h-3 w-3" />
-        봇에게 더 물어보기
-      </button>
+        <MessageCircle />
+        봇에게 더 물어보기 (v2)
+      </Button>
     </section>
   );
 }

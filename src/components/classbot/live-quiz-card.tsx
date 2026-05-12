@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, Check, Clock } from 'lucide-react';
 import { currentQuiz } from '@/lib/mock';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
@@ -47,7 +48,7 @@ export function LiveQuizCard() {
         {q.question}
       </p>
 
-      <ol className="mt-3 grid grid-cols-2 gap-2">
+      <ol role="radiogroup" aria-label="객관식 보기" className="mt-3 grid grid-cols-2 gap-2">
         {q.options.map((opt, i) => {
           const isSelected = selected === i;
           const isCorrect = submitted && i === q.answerIndex;
@@ -57,10 +58,12 @@ export function LiveQuizCard() {
             <li key={i}>
               <button
                 type="button"
+                role="radio"
+                aria-checked={isSelected}
                 disabled={submitted}
                 onClick={() => setSelected(i)}
                 className={cn(
-                  'relative w-full overflow-hidden rounded-lg border-2 px-3 py-3 text-left text-sm font-bold transition-all',
+                  'relative w-full overflow-hidden rounded-lg border-2 px-3 py-3 text-left text-sm font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                   isCorrect && 'border-pullim-success bg-pullim-success-bg text-pullim-success',
                   isWrong && 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger',
                   !submitted && isSelected && 'border-pullim-warn bg-pullim-warn/10',
@@ -89,14 +92,15 @@ export function LiveQuizCard() {
       </ol>
 
       {!submitted ? (
-        <button
+        <Button
           type="button"
+          size="lg"
           disabled={selected === undefined}
           onClick={() => setSubmitted(true)}
-          className="bg-pullim-warn mt-3 w-full rounded-xl py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          className="bg-pullim-warn hover:bg-pullim-warn/90 mt-3 w-full rounded-xl text-white"
         >
           제출하기
-        </button>
+        </Button>
       ) : (
         <p className="text-pullim-slate-600 mt-3 text-center text-xs">
           {selected === q.answerIndex ? '🎉 정답이에요!' : '아쉽지만 다시 도전해봐요'}
