@@ -29,14 +29,30 @@ export type UserAssignment = Assignment & {
   examTimeLimitMin?: number;
 };
 
+/** 학생 제출 기록 — 교사 진행률 / 점수 집계의 원천 */
+export type Submission = {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  /** 제출 시각 (ISO8601) — 라이브 인디케이터 / 정렬 */
+  submittedAt: string;
+  /** 학생 답안 — { [questionId]: answer } */
+  answers: Record<string, string>;
+  /** 점수 0~100 (mock 추정) */
+  scorePercent: number;
+};
+
 type AssignmentStore = {
   /** 발사된 과제 모음 (학생이 받음) */
   dispatched: UserAssignment[];
   /** 임시 저장 모음 (학생 미발송) */
   drafts: UserAssignment[];
+  /** 학생 제출 기록 — 동일 assignmentId+studentId 는 upsert */
+  submissions: Submission[];
 
   dispatch: (a: UserAssignment) => void;
   saveDraft: (a: UserAssignment) => void;
+  recordSubmission: (s: Omit<Submission, 'id' | 'submittedAt'>) => Submission;
   /** 발사 직후 토스트 카피용 */
   lastDispatched: { count: number; botName: string; assignmentTitle: string } | null;
   clearLastDispatched: () => void;
@@ -47,6 +63,7 @@ export const useAssignmentStore = create<AssignmentStore>()(
     (set) => ({
       dispatched: [],
       drafts: [],
+      submissions: [],
       lastDispatched: null,
 
       dispatch: (a) =>
@@ -71,6 +88,22 @@ export const useAssignmentStore = create<AssignmentStore>()(
           }
           return { drafts: [...s.drafts, { ...a, dispatchStatus: 'draft' }] };
         }),
+
+      recordSubmission: (payload) => {
+        const submission: Submission = {
+          ...payload,
+          id: `sub_${Date.now()}`,
+          submittedAt: new Date().toISOString(),
+        };
+        set((s) => {
+          // upsert — 동일 assignment+student 는 갱신
+          const filtered = s.submissions.filter(
+            (sub) => !(sub.assignmentId === submission.assignmentId && sub.studentId === submission.studentId),
+          );
+          return { submissions: [submission, ...filtered] };
+        });
+        return submission;
+      },
 
       clearLastDispatched: () => set({ lastDispatched: null }),
     }),
@@ -126,4 +159,66 @@ export function getQuestionsForAssignment(assignment: Assignment): AssignmentQue
     return getQuestionsByAssignment('as_exam_prep').slice(0, assignment.questionCount);
   }
   return getQuestionsByAssignment('as_today').slice(0, assignment.questionCount);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Submission helpers — 학생 제출 → 교사 진행률 / 점수 집계
+ * ───────────────────────────────────────────────────────────── */
+
+/**
+ * 과제 진행률 — 시드의 정적 completedCount 와 store submissions 를 합산.
+ * 동일 학생이 시드 카운트에 이미 포함됐다고 가정하지 않음 (단순 합산).
+ * 데모용 — 실제로는 questionCount cap 적용.
+ */
+export function useAssignmentProgress(assignment: Assignment): {
+  completedCount: number;
+  submittedStudentCount: number;
+  avgScore: number | null;
+  latestSubmittedAt: string | null;
+} {
+  const submissions = useAssignmentStore((s) => s.submissions);
+  return computeProgress(assignment, submissions);
+}
+
+/** 컴포넌트 밖(루프·서버)에서 쓰는 동일 로직 */
+export function computeProgress(assignment: Assignment, submissions: Submission[]) {
+  const mine = submissions.filter((s) => s.assignmentId === assignment.id);
+  const submittedStudentCount = new Set(mine.map((s) => s.studentId)).size;
+  const completedCount = Math.min(
+    assignment.completedCount + submittedStudentCount,
+    assignment.questionCount,
+  );
+  const avgScore =
+    mine.length === 0 ? null : Math.round(mine.reduce((a, s) => a + s.scorePercent, 0) / mine.length);
+  const latestSubmittedAt =
+    mine.length === 0 ? null : mine.reduce((a, s) => (s.submittedAt > a ? s.submittedAt : a), mine[0].submittedAt);
+  return { completedCount, submittedStudentCount, avgScore, latestSubmittedAt };
+}
+
+/**
+ * 객관식 정답 비율 기반 mock 점수.
+ * 단답/서술은 답안 길이 ≥ 3자면 정답 가중 (mock).
+ */
+export function computeMockScore(
+  questions: AssignmentQuestion[],
+  answers: Record<string, string>,
+): number {
+  if (questions.length === 0) return 0;
+  let correct = 0;
+  for (const q of questions) {
+    const a = answers[q.id];
+    if (!a) continue;
+    if (q.type === 'mc' && q.answerIndex != null) {
+      if (a === String(q.answerIndex)) correct += 1;
+    } else if (q.type === 'short' || q.type === 'essay') {
+      if (a.trim().length >= 3) correct += 0.7;
+    }
+  }
+  return Math.round((correct / questions.length) * 100);
+}
+
+/** 특정 학생의 최신 submission */
+export function useStudentSubmission(assignmentId: string, studentId: string): Submission | undefined {
+  const submissions = useAssignmentStore((s) => s.submissions);
+  return submissions.find((s) => s.assignmentId === assignmentId && s.studentId === studentId);
 }

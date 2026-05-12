@@ -7,13 +7,15 @@ import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles, Clock } from 'lu
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
-import { classBots } from '@/lib/mock';
-import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
+import { classBots, classRoster, currentPersona } from '@/lib/mock';
+import { useAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const a = useAssignmentLookup(id);
+  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  const submission = useStudentSubmission(id, me.id);
   if (!a) {
     if (id.startsWith('as_user_')) {
       return (
@@ -69,7 +71,22 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
               </div>
               <p className="text-pullim-slate-500 mt-0.5 text-[10px]">객관식·단답·수치는 즉시</p>
             </div>
-            {essayCount > 0 && (
+            {submission ? (
+              <div>
+                <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">내 점수</div>
+                <div
+                  data-testid="result-score"
+                  className={cn(
+                    'mt-1 font-mono text-2xl font-bold',
+                    submission.scorePercent >= 70 ? 'text-pullim-success' : 'text-pullim-warn',
+                  )}
+                >
+                  {submission.scorePercent}
+                  <span className="text-pullim-slate-400 text-base">%</span>
+                </div>
+                <p className="text-pullim-slate-500 mt-0.5 text-[10px]">자동 채점 mock 추정</p>
+              </div>
+            ) : essayCount > 0 ? (
               <div>
                 <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">검수 대기</div>
                 <div className="text-pullim-warn mt-1 font-mono text-2xl font-bold">
@@ -77,7 +94,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                 </div>
                 <p className="text-pullim-slate-500 mt-0.5 text-[10px]">선생님이 곧 봐줄 거예요</p>
               </div>
-            )}
+            ) : null}
           </div>
         </section>
       )}
