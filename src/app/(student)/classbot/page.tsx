@@ -1,13 +1,16 @@
+'use client';
+
 import Link from 'next/link';
 import {
   ArrowRight, Eye, History, MessageCircle, Play, Sparkles, Target, AlertCircle, Heart,
-  Shield, GraduationCap, Compass,
+  Shield, GraduationCap, Compass, Inbox,
 } from 'lucide-react';
 import {
   classRoster, currentPersona,
-  studentAssignments, type Assignment,
+  type Assignment,
   getMyBots, scopeMeta, type ClassBot, type StudentEnrollment,
 } from '@/lib/mock';
+import { useMergedAssignments } from '@/lib/store/assignments';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { cn } from '@/lib/utils';
@@ -28,8 +31,9 @@ export default function StudentClassbotPage() {
   const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
   const myBots = getMyBots();
   const liveBots = myBots.filter(b => b.bot.isLive);
-  const primary = studentAssignments[0];
-  const others = studentAssignments.slice(1);
+  const allAssignments = useMergedAssignments(me.id);
+  const primary = allAssignments[0];
+  const others = allAssignments.slice(1);
 
   return (
     <div className="space-y-4">
@@ -37,7 +41,9 @@ export default function StudentClassbotPage() {
       <MyBotsStrip bots={myBots} />
 
       {/* 오늘 풀어야 할 것 — primary CTA (특정 봇이 보낸 과제) */}
-      <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
+      {primary
+        ? <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
+        : <EmptyAssignmentCard />}
 
       {/* 라이브 진행 중인 봇 */}
       {liveBots.length > 0 && (
@@ -183,6 +189,23 @@ function BotCard({ bot, enrollment }: { bot: ClassBot; enrollment: StudentEnroll
         </div>
       </Link>
     </li>
+  );
+}
+
+/* ─── Primary Assignment 빈 상태 ─── */
+function EmptyAssignmentCard() {
+  return (
+    <section className="bg-pullim-slate-50 border-pullim-slate-200 flex items-center gap-3 rounded-2xl border border-dashed p-5">
+      <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+        <Inbox className="h-5 w-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-pullim-slate-900 text-sm font-bold">오늘 풀 과제가 없어요</h2>
+        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+          선생님이 새 과제를 발사하면 여기에 표시돼요. 그 사이 봇과 자유 대화나 리플레이를 둘러봐도 좋아요.
+        </p>
+      </div>
+    </section>
   );
 }
 
