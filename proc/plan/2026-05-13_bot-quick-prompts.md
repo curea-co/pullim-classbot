@@ -43,14 +43,15 @@
 - [x] 신규 spec — 봇 3개 전환 시 prompt 텍스트 변화 + 클릭 시 봇 톤+과목 reply 노출 둘 다 자동 검증
 
 ### Phase 5 — 머지 & 배포
-- [ ] PR dev 머지 + main 릴리스
-- [ ] `bunx vercel --prod` 트리거 → production 라이브 검증
-- [ ] plan 체크박스 마무리
+- [x] PR #27 dev 머지 + PR #28 main 릴리스
+- [x] `bunx vercel --prod` 트리거 → `dpl_*-e5kj3n7yj` ready, main 도메인 `age: 0` 확인
+- [x] Production Playwright **11/11 통과** (색 검증 8 + chat greeting 1 + chat quick prompts 2)
+- [x] plan 체크박스 마무리
 
 ## 완료 기준
-- chat/page.tsx에 `classbotQuickPrompts` import 0건
-- 봇 chip 3개 전환 시 quickPrompt 4개 텍스트가 봇 과목에 맞게 변화 (자동 spec 통과)
-- production 라이브에서 봇별 quickPrompt 클릭 reply 검증
+- [x] chat/page.tsx에 `classbotQuickPrompts` import 0건
+- [x] 봇 chip 3개 전환 시 quickPrompt 4개 텍스트가 봇 과목에 맞게 변화 (자동 spec 통과)
+- [x] production 라이브에서 봇별 quickPrompt 클릭 reply 검증
 
 ## 비고
 - Slider variant 확장 / dual-range CSS cleanup은 본 plan 범위 외 — 다음 사이클 후보
