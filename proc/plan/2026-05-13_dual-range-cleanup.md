@@ -15,11 +15,11 @@ Slider primitive 도입(PR #16) 이후 사용처가 사라진 `.dual-range` CSS 
 - [x] `bun x tsc --noEmit` 통과
 - [x] `bun run build` 24 라우트 통과
 - [x] **Playwright 26/26** 무회귀 (회귀 23 + chat-greeting 1 + chat-quick-prompts 2)
-- [ ] PR dev 머지 + main 릴리스
-- [ ] `bunx vercel --prod` 트리거 → production 라이브 재검증
-- [x] plan 체크박스 마무리 (본 commit에 포함)
+- [x] PR #30 dev 머지 + PR #31 main 릴리스
+- [x] `bunx vercel --prod` 트리거 → `dpl_*-nb3028i2i` ready, `age: 0`
+- [x] plan 체크박스 마무리
 
 ## 완료 기준
 - [x] globals.css에서 `.dual-range` 정의 **0건**
 - [x] Playwright 26/26 유지
-- [ ] production 라이브에서 Slider 사용 페이지 회귀 없음 — vercel deploy 후 확인
+- [x] Production 라이브 — Playwright **11/11 통과** (색 검증 8 + chat greeting 1 + chat quick prompts 2)
