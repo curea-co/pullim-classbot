@@ -16,14 +16,10 @@
 - [x] production 캡처 저장 위치 분리: `output/live-shots/color-palette-prod/` (로컬과 구분)
   - [color-palette.spec.ts](tests/e2e/color-palette.spec.ts) `OUT_DIR`가 `PROD_CAPTURE=1` env 시 `-prod` 디렉토리로 분기 (PR #23에 포함)
 - [x] [playwright.config.ts](playwright.config.ts) `PLAYWRIGHT_BASE_URL` env override 지원 (PR #23에 포함)
-- [ ] production URL로 색 검증 재실행 — **Vercel edge cache HIT(age 21시간)으로 옛 버전 잔류**. 폴링 task `bvp8asby6`가 캐시-버스팅 query param으로 1분 간격 확인 중. 사용자 대시보드 redeploy/cache purge 트리거 대기.
-  ```bash
-  PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app \
-    PROD_CAPTURE=1 bun x playwright test color-palette --reporter=line
-  ```
-- [ ] 8/8 통과 확인 (캐시 무효화 후)
-- [ ] 캡처 8장 중 teacher/classbot + student/wellness 시각 확인 — blue 그라데이션 위계 정상
-- [ ] 검증 통과 시 PR #21 / #22 본문에 production 검증 완료 댓글 추가 (선택)
+- [x] `bunx vercel --prod`로 production deploy 트리거 → `dpl_GAHd26gWLF64M5s65iwB9hoyL269` ready. main 도메인 `age: 0` + `bg-pullim-warn` 카운트 0 확인
+  - 원인 정정: 어제 "Vercel 자동 트리거 깨졌다"는 추측이었고, 실제는 사용자가 main으로 production deploy를 새로 안 했기 때문에 옛 빌드가 그대로 응답했던 것. Vercel CLI(53.2.0)는 `.vercel/project.json` link + `powersh` 계정 인증 둘 다 이미 갖춰져 있어 한 줄 트리거로 해결.
+- [x] production URL로 검증 재실행 — `PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app PROD_CAPTURE=1 bun x playwright test color-palette chat-greeting-by-bot` **9/9 통과**
+- [x] 캡처 8장 `output/live-shots/color-palette-prod/` 보존. teacher/classbot 시각 확인 — blue 그라데이션 + slate + danger(번아웃·D-1) 3 hue만 노출
 
 ### 완료 기준
 production에서 success/warn hue 검출 0건 + 캡처 8장 보존
@@ -69,7 +65,7 @@ production에서 success/warn hue 검출 0건 + 캡처 8장 보존
 - [x] `chat/page.tsx`에 `bot.id ===` 비교 **0건** 달성
 - [x] 봇별 인삿말이 `ClassBot.greeting` 데이터에서 단일 출처
 - [x] PR #23 (dev) + PR #24 (main) 머지 완료
-- [ ] Production 라이브에서 봇 chip 전환 인삿말 변화 확인 — Vercel 캐시 무효화 후
+- [x] Production 라이브에서 봇 chip 전환 인삿말 변화 확인 — `chat-greeting-by-bot.spec` production hit 통과
 
 ---
 
