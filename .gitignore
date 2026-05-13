@@ -46,3 +46,9 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# daily outcome (PM 개인 업무 보고)
+/daily_outcome/
+
+# Playwright 라이브 캡처 — 시각 검증 산출물, repo에 push 안 함
+/output/live-shots/
