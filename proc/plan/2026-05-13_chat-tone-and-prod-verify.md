@@ -13,14 +13,15 @@
 - Playwright config는 어제 `PLAYWRIGHT_BASE_URL` env로 baseURL override 가능하게 수정해 둠
 
 ### 작업 항목
-- [ ] dev 서버 끄고(또는 무관) production URL로 색 검증 재실행
+- [x] production 캡처 저장 위치 분리: `output/live-shots/color-palette-prod/` (로컬과 구분)
+  - [color-palette.spec.ts](tests/e2e/color-palette.spec.ts) `OUT_DIR`가 `PROD_CAPTURE=1` env 시 `-prod` 디렉토리로 분기 (PR #23에 포함)
+- [x] [playwright.config.ts](playwright.config.ts) `PLAYWRIGHT_BASE_URL` env override 지원 (PR #23에 포함)
+- [ ] production URL로 색 검증 재실행 — **Vercel edge cache HIT(age 21시간)으로 옛 버전 잔류**. 폴링 task `bvp8asby6`가 캐시-버스팅 query param으로 1분 간격 확인 중. 사용자 대시보드 redeploy/cache purge 트리거 대기.
   ```bash
   PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app \
-    bun x playwright test color-palette --reporter=line
+    PROD_CAPTURE=1 bun x playwright test color-palette --reporter=line
   ```
-- [ ] 8/8 통과 확인 — 어제 localhost 검증과 동일 결과여야
-- [ ] production 캡처 저장 위치 분리: `output/live-shots/color-palette-prod/` (로컬과 구분)
-  - color-palette.spec.ts의 `OUT_DIR`가 환경에 따라 분기되도록 한 줄 수정 (env `PROD_CAPTURE=1` 시 -prod 디렉토리)
+- [ ] 8/8 통과 확인 (캐시 무효화 후)
 - [ ] 캡처 8장 중 teacher/classbot + student/wellness 시각 확인 — blue 그라데이션 위계 정상
 - [ ] 검증 통과 시 PR #21 / #22 본문에 production 검증 완료 댓글 추가 (선택)
 
@@ -57,17 +58,18 @@ production에서 success/warn hue 검출 0건 + 캡처 8장 보존
 > **결정**: `ClassBot.greeting: string` 필드 추가. 봇 ID 하드코딩 제거 목적 달성 + voice 자유도 보존.
 
 ### 작업 항목 (확정)
-- [ ] [classbot.ts ClassBot 타입](src/lib/mock/classbot.ts#L8-L32)에 `greeting: string` 필드 추가
-- [ ] cb_001 / cb_002 / cb_003 데이터에 `greeting` 채우기 — 기존 [chat/page.tsx greetingFor](src/app/(student)/classbot/chat/page.tsx#L21-L32)의 인라인 텍스트를 그대로 옮김
-- [ ] [chat/page.tsx](src/app/(student)/classbot/chat/page.tsx#L21-L32) `greetingFor` 함수 제거 + `bot.greeting` 직접 사용. fallback은 `bot.greeting ?? \`안녕! ${bot.name}이에요. 무엇을 도와줄까요?\`` 단순화
-- [ ] [chat.ts classbotChatGreeting](src/lib/mock/chat.ts#L8) 상수는 backward-compat alias로 변경 — `classBots[0].greeting` 참조하거나 deprecated 주석 + 그대로 보존
-- [ ] 봇 선택 chip 3개 전환 시 인삿말 톤이 바뀌는지 라이브 확인 (`/classbot/chat`)
-- [ ] Playwright 무회귀 — 23/23 유지
+- [x] [classbot.ts ClassBot 타입](src/lib/mock/classbot.ts)에 `greeting: string` 필드 추가
+- [x] cb_001 / cb_002 / cb_003 데이터에 `greeting` 채우기 — 기존 인라인 텍스트 그대로 이전
+- [x] [chat/page.tsx](src/app/(student)/classbot/chat/page.tsx) `greetingFor` 함수 제거 + `bot.greeting` 직접 사용
+- [x] [chat.ts classbotChatGreeting](src/lib/mock/chat.ts) 상수 삭제 (외부 import 0건 확인 후)
+- [x] 봇 chip 3개 전환 인삿말 톤 변화 — 자동 검증 spec [chat-greeting-by-bot.spec.ts](tests/e2e/chat-greeting-by-bot.spec.ts) 신규 추가
+- [x] Playwright **24/24** 통과 (회귀 15 + 색 검증 8 + chat greeting 신규 1)
 
 ### 완료 기준
-- `chat/page.tsx`에 `bot.id ===` 비교 0건
-- 봇별 인삿말이 `ClassBot.greeting` 데이터에서 단일 출처로 옴
-- PR 1건 dev → main 머지 + production 라이브에서 봇 chip 전환 인삿말 변화 확인
+- [x] `chat/page.tsx`에 `bot.id ===` 비교 **0건** 달성
+- [x] 봇별 인삿말이 `ClassBot.greeting` 데이터에서 단일 출처
+- [x] PR #23 (dev) + PR #24 (main) 머지 완료
+- [ ] Production 라이브에서 봇 chip 전환 인삿말 변화 확인 — Vercel 캐시 무효화 후
 
 ---
 
