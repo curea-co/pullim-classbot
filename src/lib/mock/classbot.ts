@@ -17,6 +17,8 @@ export type ClassBot = {
   grade: string;
   /** 캐릭터 톤 */
   tone: '정중' | '친근' | '스파르타';
+  /** 첫 인삿말 — 봇 voice 그대로 한 단락. tone과 일관되게 작성. */
+  greeting: string;
   scope: ScopeLevel;
   /** 라이브 수업 진행 여부 */
   isLive: boolean;
@@ -58,6 +60,9 @@ export const classBots: ClassBot[] = [
     subject: '수학Ⅱ',
     grade: '고2',
     tone: '친근',
+    greeting:
+      '서연 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
+      'Scope L3라서 개념 설명까지 도와줄 수 있어. 답은 직접 알려주진 않을 거지만, 길은 알려줄게.',
     scope: 3,
     isLive: true,
     currentLesson: {
@@ -78,6 +83,9 @@ export const classBots: ClassBot[] = [
     subject: '영어',
     grade: '고2',
     tone: '정중',
+    greeting:
+      '서연 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
+      'Scope L4라서 풀이 단계까지는 잡아줄 수 있어요.',
     scope: 4,
     isLive: true,
     currentLesson: {
@@ -98,6 +106,9 @@ export const classBots: ClassBot[] = [
     subject: '통합과학',
     grade: '고1',          // 고1 때 같이 했던 학교 봇 — 복습용 유지
     tone: '스파르타',
+    greeting:
+      '서연. 과학 쌤이다. 학교 1학년 때 통합과학 진도 복습용으로 남겨놨어. ' +
+      'Scope L3 — 개념 설명까진 해줄게. 답은 직접 풀어.',
     scope: 3,
     isLive: false,
     enrolledCount: 17,

@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: 'line',
   use: {
-    baseURL: 'http://localhost:3032',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032',
     headless: true,
     trace: 'retain-on-failure',
   },
