@@ -4,6 +4,7 @@
  */
 
 import type { ScopeLevel } from './tutor';
+import type { ClassbotQuickPrompt } from './chat';
 
 export type ClassBot = {
   id: string;
@@ -19,6 +20,8 @@ export type ClassBot = {
   tone: '정중' | '친근' | '스파르타';
   /** 첫 인삿말 — 봇 voice 그대로 한 단락. tone과 일관되게 작성. */
   greeting: string;
+  /** 학생 채팅 패널의 quick prompt 버튼 4개. 봇 과목/voice에 맞게 작성. */
+  quickPrompts: ClassbotQuickPrompt[];
   scope: ScopeLevel;
   /** 라이브 수업 진행 여부 */
   isLive: boolean;
@@ -63,6 +66,12 @@ export const classBots: ClassBot[] = [
     greeting:
       '서연 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
       'Scope L3라서 개념 설명까지 도와줄 수 있어. 답은 직접 알려주진 않을 거지만, 길은 알려줄게.',
+    quickPrompts: [
+      { text: '극값 어떻게 찾아요?',         expectedReplyKey: 'extremum' },
+      { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
+      { text: '4월 학평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
+    ],
     scope: 3,
     isLive: true,
     currentLesson: {
@@ -86,6 +95,12 @@ export const classBots: ClassBot[] = [
     greeting:
       '서연 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
       'Scope L4라서 풀이 단계까지는 잡아줄 수 있어요.',
+    quickPrompts: [
+      { text: '빈칸 추론 어떻게 풀어요?', expectedReplyKey: 'blank_inference' },
+      { text: '오늘 수업 요약해줘요',     expectedReplyKey: 'today_summary' },
+      { text: '수능까지 뭐 해야 해요?',   expectedReplyKey: 'exam_prep' },
+      { text: '저 잘하고 있는 거예요?',   expectedReplyKey: 'reassurance' },
+    ],
     scope: 4,
     isLive: true,
     currentLesson: {
@@ -109,6 +124,12 @@ export const classBots: ClassBot[] = [
     greeting:
       '서연. 과학 쌤이다. 학교 1학년 때 통합과학 진도 복습용으로 남겨놨어. ' +
       'Scope L3 — 개념 설명까진 해줄게. 답은 직접 풀어.',
+    quickPrompts: [
+      { text: '전기회로 어디부터?',     expectedReplyKey: 'circuit' },
+      { text: '오늘 수업 요약',         expectedReplyKey: 'today_summary' },
+      { text: '내신 대비 뭐 해야 해?',  expectedReplyKey: 'exam_prep' },
+      { text: '저 잘하고 있는 거예요?', expectedReplyKey: 'reassurance' },
+    ],
     scope: 3,
     isLive: false,
     enrolledCount: 17,
