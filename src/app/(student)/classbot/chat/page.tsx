@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Send, Shield, Eye, Sparkles } from 'lucide-react';
 import {
   scopeMeta, currentPersona,
-  classbotQuickPrompts, pickClassbotReply,
+  pickClassbotReply, type ReplyKey,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
 import { aiTierMeta } from '@/lib/tokens/tier';
@@ -76,12 +76,12 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [turns, pending]);
 
-  function send(text: string) {
+  function send(text: string, forcedKey?: ReplyKey) {
     if (!text.trim() || pending) return;
     setTurns(t => [...t, { id: `s${Date.now()}`, role: 'student', text: text.trim() }]);
     setPending(true);
 
-    const reply = pickClassbotReply(text, bot.tone);
+    const reply = pickClassbotReply(text, bot.tone, forcedKey);
     setTimeout(() => {
       setTurns(t => [...t, { id: `b${Date.now()}`, role: 'bot', text: reply }]);
       setPending(false);
@@ -146,11 +146,11 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
         <div className="border-t p-3 space-y-2">
           <div className="flex flex-wrap gap-1.5">
-            {classbotQuickPrompts.map(p => (
+            {bot.quickPrompts.map(p => (
               <button
                 key={p.text}
                 type="button"
-                onClick={() => send(p.text)}
+                onClick={() => send(p.text, p.expectedReplyKey)}
                 disabled={pending}
                 className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 disabled:opacity-50 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors"
               >
