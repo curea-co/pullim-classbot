@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Send, Shield, Eye, Sparkles } from 'lucide-react';
 import {
   scopeMeta, currentPersona,
-  classbotChatGreeting, classbotQuickPrompts, pickClassbotReply,
+  classbotQuickPrompts, pickClassbotReply,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
 import { aiTierMeta } from '@/lib/tokens/tier';
@@ -16,20 +16,6 @@ type Turn = {
   role: 'student' | 'bot';
   text: string;
 };
-
-/** 봇별 첫 인사 — 정체성 차이를 한 줄로 보여줌 */
-function greetingFor(bot: ClassBot): string {
-  if (bot.id === 'cb_001') return classbotChatGreeting;
-  if (bot.id === 'cb_002') {
-    return '서연 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
-      'Scope L4라서 풀이 단계까지는 잡아줄 수 있어요.';
-  }
-  if (bot.id === 'cb_003') {
-    return '서연. 과학 쌤이다. 학교 1학년 때 통합과학 진도 복습용으로 남겨놨어. ' +
-      'Scope L3 — 개념 설명까진 해줄게. 답은 직접 풀어.';
-  }
-  return `안녕! ${bot.name}이에요. 무엇을 도와줄까요?`;
-}
 
 export default function ClassbotChatPage() {
   const myBots = useMemo(() => getMyBots().map(b => b.bot), []);
@@ -81,7 +67,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   const tier = aiTierMeta.T2;
 
   const [turns, setTurns] = useState<Turn[]>(() => [
-    { id: `t0_${bot.id}`, role: 'bot', text: greetingFor(bot) },
+    { id: `t0_${bot.id}`, role: 'bot', text: bot.greeting },
   ]);
   const [pending, setPending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);

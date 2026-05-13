@@ -30,7 +30,12 @@ const TEACHER_ROUTES = [
   { name: 'builder', path: '/teacher/builder' },
 ];
 
-const OUT_DIR = path.resolve(process.cwd(), 'output/live-shots/color-palette');
+const OUT_DIR = path.resolve(
+  process.cwd(),
+  process.env.PROD_CAPTURE === '1'
+    ? 'output/live-shots/color-palette-prod'
+    : 'output/live-shots/color-palette',
+);
 
 /** 금지 hue RGB 범위 — success(#12B26B = rgb(18,178,107)) / warn(#F59E0B = rgb(245,158,11)). */
 function isForbiddenHue(r: number, g: number, b: number): null | 'success' | 'warn' {

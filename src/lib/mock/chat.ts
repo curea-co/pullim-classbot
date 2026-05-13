@@ -1,13 +1,8 @@
 /**
- * 클래스봇 학생 채팅 mock — 인사 / 빠른 프롬프트 / 자동 응답.
+ * 클래스봇 학생 채팅 mock — 빠른 프롬프트 / 자동 응답.
  * 봇 캐릭터 톤별로 분기 (친근 / 정중 / 스파르타).
- * 원본 phase1.ts에서 채팅 관련 export만 추출.
+ * 봇별 첫 인삿말은 `ClassBot.greeting`에서 옴 (lib/mock/classbot.ts).
  */
-
-/** 기본 인사 — chat/page.tsx greetingFor 에서 cb_001 용으로 사용 */
-export const classbotChatGreeting =
-  '서연 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
-  'Scope L3라서 개념 설명까지 도와줄 수 있어. 답은 직접 알려주진 않을 거지만, 길은 알려줄게.';
 
 export type ClassbotQuickPrompt = {
   text: string;
