@@ -1,0 +1,78 @@
+name: prod-verify
+
+# Production 회귀 자동화 (2026-05-14).
+# main push / 일일 schedule / 수동 dispatch 세 경로에서 풀림 클래스봇 production URL에
+# Playwright hit하여 색·chat·slider 회귀를 검증한다.
+#
+# 설계 결정: Vercel API 의존 없음. VERCEL_TOKEN secret 불요.
+#  - GitHub ↔ Vercel 자동 deploy webhook이 이미 webhook으로 main push를 잡아주므로,
+#    이 워크플로우는 "deploy 완료 후 production URL이 200을 응답할 때까지 polling 후
+#    Playwright spec을 prod hit으로 1회 돌린다" 만 책임.
+#  - Vercel 배포 상태 자체를 검증할 필요가 생기면 후속 plan에서 commit SHA 임베드 +
+#    assert 패턴으로 분리.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # KST 08:00 = UTC 23:00. 일일 회귀 1회.
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  prod-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROD_URL: https://pullim-classbot.vercel.app
+      PLAYWRIGHT_BASE_URL: https://pullim-classbot.vercel.app
+      PROD_CAPTURE: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: bun x playwright install chromium --with-deps
+
+      - name: Wait for production deploy
+        if: github.event_name == 'push'
+        run: |
+          # main push 직후엔 Vercel 자동 빌드가 ~30~120s. 최대 5분까지 polling.
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null -w "%{http_code}" "$PROD_URL/" | grep -q '^200$'; then
+              echo "Production ready after ${i} attempts."
+              exit 0
+            fi
+            echo "Attempt ${i}/60 — production not 200 yet, sleeping 5s."
+            sleep 5
+          done
+          echo "Production URL did not return 200 within 5 minutes."
+          exit 1
+
+      - name: Run Playwright against production
+        run: bun x playwright test
+
+      - name: Upload trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Upload production capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-capture-${{ github.run_id }}
+          path: output/live-shots/color-palette-prod/
+          retention-days: 7
+          if-no-files-found: ignore

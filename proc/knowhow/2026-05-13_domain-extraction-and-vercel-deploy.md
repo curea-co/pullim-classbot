@@ -213,7 +213,25 @@ done
 
 ---
 
-## 8. 체크리스트 — 추출 완료 정의
+## 8. 배포 후 자동 회귀 — GitHub Actions
+
+Vercel 자동 deploy(GitHub ↔ Vercel webhook)는 main push만 보면 알아서 굴러간다. 단, **deploy가 끝났다고 production이 정상이라는 보장은 없다** — 색 회귀, chat 봇 분기, slider variant 등 라이브 검증은 별도로 묶어야 한다. 이 저장소에선 [`.github/workflows/prod-verify.yml`](../../.github/workflows/prod-verify.yml) 로 자동화.
+
+설계 핵심:
+
+- **`VERCEL_TOKEN` secret 불요**. 검증 대상이 "production URL의 응답"이지 "Vercel project 상태"가 아니라서, Vercel API를 안 부르고 production URL에 직접 Playwright hit만 한다. secret 등록 권한 대기 없이 PR 머지 가능.
+- 트리거 3 종 — `push: main` (deploy 완료 polling 후 검증) / `schedule: '0 23 * * *'` (KST 08:00 일일 회귀) / `workflow_dispatch` (수동).
+- `push` 트리거는 5분까지 `curl` polling으로 production 200을 기다린다. Vercel 빌드가 5분 초과하면 워크플로우는 fail — 라우트가 늘어 빌드가 길어지면 polling 상향 필요.
+- Playwright spec은 `PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app` 환경에서 그대로 prod hit. `tests/e2e/color-palette.spec.ts` 의 `PROD_CAPTURE=1` 분기로 production 캡처도 artifact 업로드.
+
+함정:
+
+- main push마다 모든 spec이 prod hit으로 돈다 → 신규 e2e(예: 새 봇·새 컴포넌트)는 production에 머지된 다음 cycle부터 통과한다. PR 순서: primitive 확장 / 데이터 추가 → workflow 변경. 역순으로 가면 첫 main push에서 spec이 prod의 옛 빌드를 hit해 fail.
+- Vercel deploy 자체가 깨졌는데 (예: 어제 정정된 케이스 — main에 prod deploy를 안 한 상태) production URL은 여전히 옛 빌드를 200으로 응답한다. 이 워크플로우는 그걸 못 잡는다. commit SHA를 페이지에 임베드하고 `expect(html).toContain(SHA)` 같은 assert를 추가하면 잡을 수 있고, 그건 후속 plan으로 분리.
+
+---
+
+## 9. 체크리스트 — 추출 완료 정의
 
 - [ ] `bun x tsc --noEmit` 통과
 - [ ] `bun run build` 의 라우트 표가 추출 의도와 일치 (도메인 + 셸 진입점만)
