@@ -437,6 +437,7 @@ export function AssignmentForm() {
                     onValueChange={(v) => setExamTimeLimit(Array.isArray(v) ? v[0] : v)}
                     aria-valuetext={`${examTimeLimit}분`}
                     accentClassName="bg-pullim-danger"
+                    thumbClassName="bg-pullim-danger focus-visible:ring-pullim-danger/50"
                     className="flex-1"
                   />
                   <span className="bg-white text-pullim-danger inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
