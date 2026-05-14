@@ -59,8 +59,16 @@ jobs:
           echo "Production URL did not return 200 within 5 minutes."
           exit 1
 
-      - name: Run Playwright against production
-        run: bun x playwright test
+      - name: Run Playwright against production (prod-safe specs)
+        # 3 spec(assignment-dispatch / feedback-loop / mobile-and-focus)은 `const BASE = 'http://localhost:3032'`
+        # 하드코딩 + localStorage 의존이라 production hit에 부적합. 기본 회귀(28건)는 로컬에서만 굴리고,
+        # production에서는 라이브 hit만으로 의미 있는 4 spec만 명시 실행.
+        run: |
+          bun x playwright test \
+            tests/e2e/color-palette.spec.ts \
+            tests/e2e/chat-greeting-by-bot.spec.ts \
+            tests/e2e/chat-quick-prompts-by-bot.spec.ts \
+            tests/e2e/slider-variants.spec.ts
 
       - name: Upload trace on failure
         if: failure()
