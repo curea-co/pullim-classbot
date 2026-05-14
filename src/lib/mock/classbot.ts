@@ -16,8 +16,8 @@ export type ClassBot = {
   organization: string;
   subject: string;
   grade: string;
-  /** 캐릭터 톤 */
-  tone: '정중' | '친근' | '스파르타';
+  /** 캐릭터 톤 — 차분은 단계화·분석적 존댓말 */
+  tone: '정중' | '친근' | '스파르타' | '차분';
   /** 첫 인삿말 — 봇 voice 그대로 한 단락. tone과 일관되게 작성. */
   greeting: string;
   /** 학생 채팅 패널의 quick prompt 버튼 4개. 봇 과목/voice에 맞게 작성. */
@@ -134,9 +134,31 @@ export const classBots: ClassBot[] = [
     isLive: false,
     enrolledCount: 17,
   },
+  {
+    id: 'cb_004',
+    name: '국어 누나',
+    avatarEmoji: '👩‍💼',
+    teacherName: '최국어 선생님',
+    organization: '대치프리미엄 수학학원',
+    subject: '국어',
+    grade: '고2',
+    tone: '차분',
+    greeting:
+      '서연 학생, 안녕하세요. 국어 누나예요. 오늘 비문학 독해 — 주장과 근거 추적을 진행했어요. ' +
+      '막힌 문장이 있으면 단락 번호로 알려주세요. 단계별로 같이 풀어드릴게요. Scope L4 — 풀이 단계까지는 함께 잡아드립니다.',
+    quickPrompts: [
+      { text: '비문학 주제 어떻게 잡아요?', expectedReplyKey: 'reading_inference' },
+      { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
+      { text: '6월 모평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
+    ],
+    scope: 4,
+    isLive: false,
+    enrolledCount: 16,
+  },
 ];
 
-/** 서연 학생의 enrollment — 3봇 모두 등록 (각각 다른 경로로 배정됨) */
+/** 서연 학생의 enrollment — 4봇 모두 등록 (각각 다른 경로로 배정됨) */
 export const studentEnrollments: StudentEnrollment[] = [
   {
     botId: 'cb_001',
@@ -161,6 +183,14 @@ export const studentEnrollments: StudentEnrollment[] = [
     assignedBy: '정과학 선생님',
     assignedAt: '2025-03-02 09:00',
     via: '서울 모 고등학교',
+  },
+  {
+    botId: 'cb_004',
+    classroomId: 'cr_kor_a',
+    classroomLabel: '고2 비문학독해 A반',
+    assignedBy: '최국어 선생님',
+    assignedAt: '2026-04-08 17:30',
+    via: '대치프리미엄 수학학원',
   },
 ];
 
@@ -192,6 +222,10 @@ export const botCurriculum: Record<string, BotCurriculumUnit[]> = {
   cb_003: [
     { id: 'sci-force',  label: '힘과 운동',  fullPath: '통합과학 · 힘과 운동',  achievementCodes: ['과-통합-1'] },
     { id: 'sci-energy', label: '에너지',     fullPath: '통합과학 · 에너지',     achievementCodes: ['과-통합-2'] },
+  ],
+  cb_004: [
+    { id: 'kor-noninfo-arg',   label: '비문학 — 주장과 근거', fullPath: '비문학 · 인문/사회 · 주장과 근거', achievementCodes: ['국-비문-1'] },
+    { id: 'kor-noninfo-theme', label: '비문학 — 주제 추론',   fullPath: '비문학 · 주제 추론',               achievementCodes: ['국-비문-2'] },
   ],
 };
 
