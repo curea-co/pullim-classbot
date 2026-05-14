@@ -224,10 +224,10 @@ Vercel 자동 deploy(GitHub ↔ Vercel webhook)는 main push만 보면 알아서
 - `push` 트리거는 5분까지 `curl` polling으로 production 200을 기다린다. Vercel 빌드가 5분 초과하면 워크플로우는 fail — 라우트가 늘어 빌드가 길어지면 polling 상향 필요.
 - Playwright spec은 `PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app` 환경에서 그대로 prod hit. `tests/e2e/color-palette.spec.ts` 의 `PROD_CAPTURE=1` 분기로 production 캡처도 artifact 업로드.
 
-함정:
+함정 (해결):
 
 - main push마다 모든 spec이 prod hit으로 돈다 → 신규 e2e(예: 새 봇·새 컴포넌트)는 production에 머지된 다음 cycle부터 통과한다. PR 순서: primitive 확장 / 데이터 추가 → workflow 변경. 역순으로 가면 첫 main push에서 spec이 prod의 옛 빌드를 hit해 fail.
-- Vercel deploy 자체가 깨졌는데 (예: 어제 정정된 케이스 — main에 prod deploy를 안 한 상태) production URL은 여전히 옛 빌드를 200으로 응답한다. 이 워크플로우는 그걸 못 잡는다. commit SHA를 페이지에 임베드하고 `expect(html).toContain(SHA)` 같은 assert를 추가하면 잡을 수 있고, 그건 후속 plan으로 분리.
+- ~~Vercel deploy 자체가 깨졌는데 production URL은 여전히 옛 빌드를 200으로 응답한다. 이 워크플로우는 그걸 못 잡는다.~~ → **2026-05-14 해결**: root layout `metadata.other`에 `x-build-sha`(= `VERCEL_GIT_COMMIT_SHA`) 임베드, workflow polling이 `<meta name="x-build-sha" content="${{ github.sha }}">` 매칭까지 10분 대기. 일치 못 하면 fail. CDN stale·deploy 누락 케이스 양쪽 자동 검출. `tests/e2e/*.ts`의 `BASE` 도 `process.env.PLAYWRIGHT_BASE_URL ?? localhost`로 환경변수 분기 → 7 spec 모두 prod hit 가능.
 
 ---
 

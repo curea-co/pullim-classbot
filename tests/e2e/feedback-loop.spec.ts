@@ -10,7 +10,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const BASE = 'http://localhost:3032';
+const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   test.beforeEach(async ({ page }) => {

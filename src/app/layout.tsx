@@ -16,6 +16,11 @@ const TAGLINE = '교사가 만드는 AI 학습 교실';
 const DESCRIPTION =
   '교사가 자신의 수업·교안·목소리를 AI에 이식해 만드는 디지털 분신 수업 동반자. 반 운영·과제 배포·실시간 피드백을 자동화하는 풀림 클래스봇.';
 
+// Vercel은 빌드 시 VERCEL_GIT_COMMIT_SHA를, GitHub Actions는 GITHUB_SHA를 자동 주입.
+// 둘 다 없으면 'dev'. prod-verify workflow가 이 meta로 신선도 검증.
+const BUILD_SHA =
+  process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? 'dev';
+
 export const metadata: Metadata = {
   title: {
     default: `${BRAND} — ${TAGLINE}`,
@@ -38,6 +43,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `${BRAND} — ${TAGLINE}`,
     description: DESCRIPTION,
+  },
+  other: {
+    'x-build-sha': BUILD_SHA,
   },
 };
 

@@ -9,7 +9,7 @@
 
 import { test, expect, devices } from '@playwright/test';
 
-const BASE = 'http://localhost:3032';
+const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 test.describe('모바일 viewport 검증', () => {
   test('iPhone SE (375px) — 교사 라이브 수업 종료 CTA 노출', async ({ browser }) => {
