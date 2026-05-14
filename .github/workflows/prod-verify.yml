@@ -46,12 +46,14 @@ jobs:
         if: github.event_name == 'push'
         run: |
           # main push 직후엔 Vercel 자동 빌드가 ~30~120s. 최대 5분까지 polling.
+          # `/` 는 308로 `/classbot` 으로 리다이렉트되므로 `-L`로 따라가서 최종 200을 확인.
           for i in $(seq 1 60); do
-            if curl -fsS -o /dev/null -w "%{http_code}" "$PROD_URL/" | grep -q '^200$'; then
-              echo "Production ready after ${i} attempts."
+            code=$(curl -sS -o /dev/null -L -w "%{http_code}" "$PROD_URL/")
+            if [ "$code" = "200" ]; then
+              echo "Production ready after ${i} attempts (final status=200)."
               exit 0
             fi
-            echo "Attempt ${i}/60 — production not 200 yet, sleeping 5s."
+            echo "Attempt ${i}/60 — production status=${code}, sleeping 5s."
             sleep 5
           done
           echo "Production URL did not return 200 within 5 minutes."
