@@ -5,9 +5,10 @@
  */
 
 export type ReplyKey =
-  | 'extremum'         // 수학 — 극값 찾기 (cb_001)
-  | 'blank_inference'  // 영어 — 빈칸 추론 (cb_002)
-  | 'circuit'          // 과학 — 전기회로 (cb_003)
+  | 'extremum'           // 수학 — 극값 찾기 (cb_001)
+  | 'blank_inference'    // 영어 — 빈칸 추론 (cb_002)
+  | 'circuit'            // 과학 — 전기회로 (cb_003)
+  | 'reading_inference'  // 국어 — 비문학 주제·근거 추론 (cb_004)
   | 'today_summary'
   | 'exam_prep'
   | 'reassurance';
@@ -28,6 +29,9 @@ const repliesFriendly: Record<ReplyKey, string> = {
   circuit:
     '전기회로 처음부터? 일단 옴의 법칙 V=IR부터. 직렬 회로는 전류가 같고 전압이 나뉘고, 병렬은 반대야. ' +
     '통합과학 1단원 핵심 3공식이 옴의 법칙·직렬·병렬 — 이 셋만 잡으면 80% 끝. 풀림 비주얼로 회로 만져보면 한 방에 정리돼.',
+  reading_inference:
+    '비문학 주제 잡기? 첫 문단·마지막 문단 1줄 요약부터 해봐. 그 둘이 같은 방향이면 주제, 다르면 주장 vs 반박 구조야. ' +
+    '풀림 비주얼에서 단락 흐름 도식으로 보면 한 방에 잡혀.',
   today_summary:
     '오늘 미적분 III장 — 도함수 활용·극값·변곡점 진행했어. 핵심 메시지 3개:\n' +
     '① 부호 변화 없으면 극값 없음\n② f"(x) 부호 변화는 변곡점\n③ 극값 vs 극점 — y값/x값 구분 명확히\n\n' +
@@ -51,6 +55,9 @@ const repliesFormal: Record<ReplyKey, string> = {
   circuit:
     '전기회로 처음부터요? 옴의 법칙 V=IR부터 시작해요. 직렬 회로는 전류가 같고 전압이 나뉘고, 병렬은 반대예요. ' +
     '통합과학 1단원 핵심 3공식이 옴의 법칙·직렬·병렬이에요. 풀림 비주얼로 회로 직접 만져보면 한 번에 정리돼요.',
+  reading_inference:
+    '비문학 주제는 첫 문단과 마지막 문단 각 1줄 요약부터 해봐요. 두 요약이 같은 방향이면 그게 주제고, 다르면 주장 vs 반박 구조예요. ' +
+    '풀림 비주얼 단락 흐름 도식으로 만져보면 한 번에 잡혀요.',
   today_summary:
     '오늘 미적분 III장 — 도함수 활용·극값·변곡점 진행했어요. 핵심 메시지 3개:\n' +
     '① 부호 변화 없으면 극값 없음\n② f"(x) 부호 변화는 변곡점\n③ 극값 vs 극점 — y값/x값 구분 명확히\n\n' +
@@ -74,6 +81,9 @@ const repliesSpartan: Record<ReplyKey, string> = {
   circuit:
     '전기회로. 옴의 법칙 V=IR부터 외워라. 직렬 회로는 전류 같고 전압 나뉜다. 병렬은 전압 같고 전류 나뉜다. ' +
     '통합과학 1단원 핵심 3공식. 풀림 비주얼로 회로 직접 그려서 확인해라.',
+  reading_inference:
+    '비문학. 첫 문단·마지막 문단 1줄 요약부터 해라. 같은 방향이면 주제, 다르면 주장 대 반박. ' +
+    '풀림 비주얼 단락 흐름 도식으로 직접 확인해라.',
   today_summary:
     '오늘 미적분 III장 — 도함수 활용·극값·변곡점 진행했다. 외울 것:\n' +
     '① 부호 변화 없으면 극값 없음\n② f"(x) 부호 변화는 변곡점\n③ 극값과 극점 구분 명확히\n\n' +
@@ -86,15 +96,44 @@ const repliesSpartan: Record<ReplyKey, string> = {
     '미분 한 가지만 더 잡으면 1등급권. 페이스 유지해라.',
 };
 
+/** cb_004 국어 누나 — 차분 톤 (분석적 존댓말, 단계화 voice) */
+const repliesAnalytic: Record<ReplyKey, string> = {
+  extremum:
+    '극값은 세 단계로 정리됩니다. 1) 도함수 f\'(x)를 구해요. 2) f\'(x) = 0인 x를 찾아요. 3) 그 x 좌우의 부호 변화를 봐요. ' +
+    '+ → −면 극대, − → +면 극소. 부호 변화가 없으면 극값은 존재하지 않습니다. 풀림 비주얼 슬라이더로 부호 변화를 직접 확인해보세요.',
+  blank_inference:
+    '빈칸 추론은 단락 논리의 빈자리를 채우는 작업이에요. 1) 빈칸 앞뒤 문장의 논리 관계(역접/인과/예시)를 명시합니다. 2) 그 관계를 충족하는 단어를 후보로 정리합니다. ' +
+    '관계 규명이 정확하면 답은 후보 두 개 중에서 골라집니다.',
+  circuit:
+    '전기회로는 세 공식이 출발점이에요. 1) 옴의 법칙 V=IR. 2) 직렬: 전류 일정, 전압 분배. 3) 병렬: 전압 일정, 전류 분배. ' +
+    '이 셋만 정확히 외워두면 1단원 문제의 80%는 풀립니다. 회로도를 직접 그려가며 적용해보세요.',
+  reading_inference:
+    '비문학 주제 추론은 단락 단위 요약으로 시작합니다. 1) 첫 문단·마지막 문단을 각각 1줄로 요약해요. 2) 두 요약의 방향을 비교합니다. ' +
+    '같은 방향이면 그게 주제고, 다른 방향이면 주장 vs 반박 구조예요. 단락별 1줄 요약이 비문학 독해의 핵심 도구입니다.',
+  today_summary:
+    '오늘 비문학 — 주장과 근거 추적을 진행했어요. 핵심은 세 가지예요:\n' +
+    '1) 주장 문장은 단정형(~이다, ~해야 한다)으로 끝나는 경우가 많습니다\n' +
+    '2) 근거는 주장 앞 또는 바로 뒤에 위치해요\n' +
+    '3) 근거가 둘 이상이면 접속사로 묶입니다(또한, 게다가)\n' +
+    '내일은 주제 추론 — 주장형 vs 정보형 구분으로 이어갑니다.',
+  exam_prep:
+    '6월 모평까지 약 한 달 남았어요. 비문학 오답을 분석해보면 주장-근거 매칭에서 막힌 비율이 60%예요. ' +
+    '주 3회, 회당 비문학 1지문 + 단락 요약 연습을 권합니다. 일정에 자동 추가해드릴까요?',
+  reassurance:
+    '서연 학생, 단계별 점검을 하나 해볼게요. 1) 비문학 정답률은 지난 모의 대비 +12점이에요. 2) 17일 연속 학습 기록은 우리 반 상위 5%에 들어가요. ' +
+    '3) 주장-근거 매칭만 더 익히면 안정권이 유지됩니다. 지금 페이스가 정답이에요.',
+};
+
 /** 봇별 기본 응답 맵 */
-const repliesByTone: Record<'친근' | '정중' | '스파르타', Record<ReplyKey, string>> = {
+const repliesByTone: Record<'친근' | '정중' | '스파르타' | '차분', Record<ReplyKey, string>> = {
   친근: repliesFriendly,
   정중: repliesFormal,
   스파르타: repliesSpartan,
+  차분: repliesAnalytic,
 };
 
 /** 봇별 디폴트 응답 (자유 질문 매칭 실패 시) */
-const defaultRepliesByTone: Record<'친근' | '정중' | '스파르타', string> = {
+const defaultRepliesByTone: Record<'친근' | '정중' | '스파르타' | '차분', string> = {
   친근:
     '음, 좀 더 구체적으로 말해줄래? 어느 단원·어느 문제에서 막혔는지 알려주면 더 정확히 도와줄 수 있어. ' +
     '아니면 "도와줘" 누르면 5단계 힌트로 같이 풀어볼 수도 있고.',
@@ -104,9 +143,12 @@ const defaultRepliesByTone: Record<'친근' | '정중' | '스파르타', string>
   스파르타:
     '구체적으로 말해라. 어느 단원·어느 문제에서 막혔는지 알려야 도와준다. ' +
     '"도와줘" 누르면 5단계 힌트로 함께 풀어본다.',
+  차분:
+    '조금 더 구체적으로 알려주시면 단계별로 정리해드릴 수 있어요. 어느 단원·어느 문제에서 어떤 부분이 막혔는지 알려주세요. ' +
+    '"도와줘"를 누르면 5단계 힌트로 함께 풀어봅니다.',
 };
 
-type BotTone = '친근' | '정중' | '스파르타';
+type BotTone = '친근' | '정중' | '스파르타' | '차분';
 
 /**
  * 질문 → 봇 톤별 reply. quickPrompt 클릭 시 forcedKey가 들어오면 그걸 우선,
@@ -119,6 +161,7 @@ export function pickClassbotReply(question: string, botTone: BotTone = '친근',
   if (lower.match(/극값|극대|극소|미분|도함수/)) return replies.extremum;
   if (lower.match(/빈칸|추론/))                     return replies.blank_inference;
   if (lower.match(/회로|전기|옴의?\s*법칙/))         return replies.circuit;
+  if (lower.match(/비문학|주제|주장|근거|독해/))     return replies.reading_inference;
   if (lower.match(/오늘.*수업|요약|정리/))           return replies.today_summary;
   if (lower.match(/시험|학평|모의|모평|준비/))      return replies.exam_prep;
   if (lower.match(/잘하|힘들|괜찮|어떡|어떻게/))    return replies.reassurance;
