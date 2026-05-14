@@ -42,33 +42,30 @@ jobs:
       - name: Install Playwright Chromium
         run: bun x playwright install chromium --with-deps
 
-      - name: Wait for production deploy
+      - name: Wait for production SHA match
         if: github.event_name == 'push'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
-          # main push 직후엔 Vercel 자동 빌드가 ~30~120s. 최대 5분까지 polling.
-          # `/` 는 308로 `/classbot` 으로 리다이렉트되므로 `-L`로 따라가서 최종 200을 확인.
-          for i in $(seq 1 60); do
-            code=$(curl -sS -o /dev/null -L -w "%{http_code}" "$PROD_URL/")
-            if [ "$code" = "200" ]; then
-              echo "Production ready after ${i} attempts (final status=200)."
+          # production HTML의 <meta name="x-build-sha" content="<sha>"> 가 expected와 일치할 때까지 polling.
+          # Vercel 자동 빌드 ~30~120s + CDN 전파 → 최대 10분(120 × 5s) 대기.
+          # 이전 patten(`/` 200 응답만 확인)은 CDN이 stale 빌드 서빙 케이스를 못 잡았음.
+          for i in $(seq 1 120); do
+            html=$(curl -sS -L "$PROD_URL/classbot/chat" || true)
+            current=$(echo "$html" | grep -oE 'name="x-build-sha" content="[^"]+"' | head -1 | sed 's/.*content="\(.*\)"/\1/')
+            if [ "$current" = "$EXPECTED_SHA" ]; then
+              echo "Production SHA matched (${EXPECTED_SHA:0:12}) after ${i} attempts."
               exit 0
             fi
-            echo "Attempt ${i}/60 — production status=${code}, sleeping 5s."
+            echo "Attempt ${i}/120 — expected=${EXPECTED_SHA:0:12} current=${current:0:12} (full=${current:-<no-meta>}), sleeping 5s."
             sleep 5
           done
-          echo "Production URL did not return 200 within 5 minutes."
+          echo "Production SHA did not match ${EXPECTED_SHA:0:12} within 10 minutes — Vercel deploy may have been skipped or stuck."
           exit 1
 
-      - name: Run Playwright against production (prod-safe specs)
-        # 3 spec(assignment-dispatch / feedback-loop / mobile-and-focus)은 `const BASE = 'http://localhost:3032'`
-        # 하드코딩 + localStorage 의존이라 production hit에 부적합. 기본 회귀(28건)는 로컬에서만 굴리고,
-        # production에서는 라이브 hit만으로 의미 있는 4 spec만 명시 실행.
-        run: |
-          bun x playwright test \
-            tests/e2e/color-palette.spec.ts \
-            tests/e2e/chat-greeting-by-bot.spec.ts \
-            tests/e2e/chat-quick-prompts-by-bot.spec.ts \
-            tests/e2e/slider-variants.spec.ts
+      - name: Run Playwright against production
+        # 모든 7 spec이 prod-safe (3 spec은 `process.env.PLAYWRIGHT_BASE_URL ?? localhost` 패턴 적용).
+        run: bun x playwright test
 
       - name: Upload trace on failure
         if: failure()
