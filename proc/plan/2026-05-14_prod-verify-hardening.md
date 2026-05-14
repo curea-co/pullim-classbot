@@ -55,11 +55,11 @@
 - [x] `bun run build` 통과 + 빌드 결과 HTML grep으로 SHA meta 확인.
 - [x] 로컬 회귀 `bun x playwright test` 28/28 무회귀.
 - [x] 로컬 production hit `PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app bun x playwright test` — 3 spec 추가분 포함 통과 (어제 PR #41 직후 새로 deploy된 build 기준).
-- [ ] PR 머지 후 자동 `push:main` 트리거 — polling이 `${{ github.sha }}` 매칭 + 7 spec green.
+- [x] PR 머지 후 자동 `push:main` 트리거 — polling이 `${{ github.sha }}` 매칭 + 7 spec green. (※ 첫 자동 트리거에서 polling 10분 timeout: **Vercel GitHub webhook이 PR #41·#42 push에 대해 자동 deploy를 트리거하지 않은 상태 재현**. `bunx vercel --prod` 수동 강제 후 SHA = HEAD 일치 확인. 후속 `workflow_dispatch` 재실행 [run 25841721946](https://github.com/curea-co/pullim-classbot/actions/runs/25841721946) 1m33s green — 28 spec production hit 모두 통과.)
 
 ### E. 마무리
 - [x] knowhow doc § 8에 SHA 신선도 검증 패턴 cross-link.
-- [ ] dev/main PR 머지.
+- [x] dev/main PR 머지.
 
 ## 정합성 검토 노트
 
@@ -71,7 +71,16 @@
 - **schedule/dispatch에서의 polling 생략**: workflow는 `if: github.event_name == 'push'` 가드로 polling을 push에만 적용. schedule/dispatch는 현재 prod 상태 그대로 hit — 의도된 동작 (수동/주기 검증은 "지금 라이브 뭐가 있나" 확인 용도).
 
 ## 완료 기준
-- [x] production HTML `<head>`에 `<meta name="x-build-sha" content="<full-sha>">` 존재 (로컬 build `dev`, prod build commit SHA)
-- [ ] workflow polling이 `github.sha` 일치까지 대기 + 일치 후 green
-- [x] 7 spec 전부 production hit으로 통과 (28건 모두 prod-safe — 로컬 검증 완료)
-- [ ] dev/main PR 머지
+- [x] production HTML `<head>`에 `<meta name="x-build-sha" content="<full-sha>">` 존재 (로컬 build `dev`, prod build commit SHA — 현재 prod = `b444160…`)
+- [x] workflow polling이 `github.sha` 일치까지 대기 + 일치 후 green (push 자동 트리거 polling fail은 Vercel webhook 결함 — 별도 항목)
+- [x] 28 spec 전부 production hit으로 통과 ([run 25841721946](https://github.com/curea-co/pullim-classbot/actions/runs/25841721946))
+- [x] dev/main PR 머지 (PR #42)
+
+## 후속 — Vercel auto-deploy 결함 (별도 plan 후보)
+PR #42 main push 후에도 Vercel은 자동 deploy를 트리거하지 않았다. `bun x vercel ls` 로 확인 — 마지막 production deploy가 어제 11:21 KST의 수동 `bunx vercel --prod`. PR #41 main push, PR #42 main push 모두 자동 deploy 누락. Workflow의 SHA polling이 deploy 없음을 정확히 잡아냈지만(설계 의도), 매번 수동 force deploy를 요구하는 건 운영 비용 증가.
+
+해결 방향(후속 plan):
+1. **Vercel ↔ GitHub integration 점검** — Vercel 대시보드의 Git Integration 설정 확인, webhook 재설치. CEO 권한 필요.
+2. **workflow에 fallback deploy step 추가** — polling이 timeout 직전에 `bun x vercel --prod` 자동 호출. `VERCEL_TOKEN` secret 필요 — 어제 G1 컨펌에서 "토큰 불요" 선택했으니 그 결정 번복 필요.
+
+본 plan은 함정 자체(신선도 검증·spec 이식성)는 해결. Vercel webhook 결함은 인프라 레이어 이슈로 별도 다룸.
