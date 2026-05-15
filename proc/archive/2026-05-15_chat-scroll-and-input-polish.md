@@ -73,7 +73,7 @@
 - [x] `bun run build` 통과 — 라우트 수 변경 없음
 - [x] `bun x playwright test tests/e2e/chat-scroll-and-input.spec.ts` 로컬 green (4 passed, 21.1s)
 - [x] `bun x playwright test` 전체 회귀 green — 32 passed (기존 28 + 신규 4, 24.9s)
-- [ ] 수동 dogfooding — `/classbot/chat`에서 quick prompt 5회 + 위로 스크롤 + 배너 클릭 + Shift+Enter 줄바꿈 1회 (PR 머지 전 PM 수동 1회)
+- [x] 수동 dogfooding — PM 2026-05-15 수동 1회 통과: 배너 클릭 / 위로 스크롤 / quick prompt 5회 / Shift+Enter 줄바꿈 모두 정상 동작. 자유 입력 응답 완성도는 mock 사전 매칭 구조의 한계로 별도(LLM + RAG 도입 시 해소 예정).
 
 ### E. 머지
 - [x] PR dev/main — [PR #45](https://github.com/curea-co/pullim-classbot/pull/45) 머지 (commit e78c828)
