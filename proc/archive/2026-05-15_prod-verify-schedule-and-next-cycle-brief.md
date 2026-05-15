@@ -17,8 +17,8 @@
 - [x] green/red 판정 — **green** (duration 1m12s, Playwright 28 spec production hit 통과)
   - `Wait for production SHA match` step은 schedule 트리거라 `skipped` (설계대로). headSha=c3d154b로 현재 prod CDN 빌드 그대로 회귀 검증 — daily_outcome A의 "stale build 위에서 도는 시점도 정상 시나리오로 흡수" 조건 충족
 - [x] green이므로 17:30 보고 1줄 기록으로 종료 — 후속 plan 불필요
-- [ ] red 후속 plan 신규 — **불필요** (green)
-- [ ] webhook 복원 후속 — 별도 트랙(어제 17:30 보고 잔여)에서 진행, 본 사이클 산출물 제외
+- [x] red 후속 plan 신규 — **불필요** (green 판정으로 N/A 확정)
+- [x] webhook 복원 후속 — 본 사이클 산출물 제외 확정, 별도 트랙(어제 17:30 보고 잔여)에서 진행
 
 ### B. 다음 사이클 산출물 09:30 형식 brief 1건
 - [x] 후보 3건 스코프 비교 — Explore agent 보고로 파일 영향·블로커·시간 규모(S/M/L) 정리 완료
@@ -28,12 +28,12 @@
 - [x] G1 우선순위 합의 — **chat scroll·input 폴리싱** 선정
 - [x] [proc/plan/2026-05-15_chat-scroll-and-input-polish.md](2026-05-15_chat-scroll-and-input-polish.md) 09:30 형식 brief 신규
   - 목표(sticky-to-bottom + multiline + 전송 가드) / 배경 / 정책(2건) / 작업 A~E / 검증 / 다음 사이클 첫 액션 1줄 명시
-- [ ] PR dev/main 머지 — 본 plan과 동일 브랜치에서 함께 머지
+- [x] PR dev/main 머지 — [PR #43](https://github.com/curea-co/pullim-classbot/pull/43) 머지 (commit adfb2ae)
 
 ### C. 17:30 산출물 보고 준비
-- [ ] A schedule run 점검 결과 1줄: run 25892517441 green, 28 spec, schedule SHA polling skipped(설계대로)
-- [ ] B brief PR 링크 + 다음 사이클 첫 액션 1줄: "ChatPanel `useEffect([turns, pending])` 블록부터 sticky 판정 분기로 교체 시작"
-- [ ] 내일(2026-05-16) 후보 — slider dual-thumb 라이브 적용처(S, 사용처 컨펌만 되면 빠름) + cb_005 사회·과학(M, 과목·톤 컨펌 필요) 2건 잔여 + webhook 복원 후속
+- [x] A schedule run 점검 결과 1줄 — "run 25892517441 green, 28 spec, schedule SHA polling skipped(설계대로)" 본 plan에 기록 완료, 17:30 보고 본문에 그대로 인용
+- [x] B brief PR 링크 + 다음 사이클 첫 액션 1줄 — "ChatPanel `useEffect([turns, pending])` 블록부터 sticky 판정 분기로 교체 시작" + [PR #43](https://github.com/curea-co/pullim-classbot/pull/43) 링크
+- [x] 내일(2026-05-16) 후보 — slider dual-thumb 라이브 적용처(S, 사용처 컨펌만 되면 빠름) + cb_005 사회·과학(M, 과목·톤 컨펌 필요) 2건 잔여 + webhook 복원 후속
 
 ## 예상 블로커
 - Vercel webhook 자동 deploy 복원은 admin 권한 이슈로 오늘 산출물 제외 — `bunx vercel --prod` 수동 우회 유지.

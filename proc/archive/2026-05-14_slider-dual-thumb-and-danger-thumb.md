@@ -42,9 +42,9 @@
 - [x] `tests/e2e/slider-variants.spec.ts` 통과
 
 ### E. 마무리
-- [ ] PR 본문에 "primitive 확장 + 시험 시간 thumb danger 일관화. dual-thumb 라이브 적용은 후속" 명시
-- [ ] dev 머지 → main 릴리스
-- [ ] production 라이브 검증: `PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app bun x playwright test slider-variants` 1회 (production 배포 후)
+- [x] PR 본문에 "primitive 확장 + 시험 시간 thumb danger 일관화. dual-thumb 라이브 적용은 후속" 명시 — PR #37 본문 기록.
+- [x] dev 머지 → main 릴리스 — PR #37 머지 (commit f739499).
+- [x] production 라이브 검증 — prod-verify workflow(2026-05-14 PR #42 hardening 후) 회귀에 `slider-variants` 포함, dispatch run 25841721946 green으로 production hit 통과.
 
 ## 정합성 검토 노트
 - **Base UI multi-thumb 렌더**: Base UI Slider 의 Thumb는 `value` 배열 길이만큼 `<Thumb index={i} />` 를 명시 렌더해야 함. 자동 fan-out 아님. Slider primitive 내부에서 `Array.isArray(value) ? value.map(...) : <Thumb />` 분기.
@@ -56,4 +56,4 @@
 - [x] `slider.tsx` primitive에 dual-thumb 지원 + thumb 색 override prop
 - [x] 시험 시간 슬라이더 thumb 색 danger 일관화 (라이브)
 - [x] `tests/e2e/slider-variants.spec.ts` 신규 + 통과
-- [ ] dev/main PR 머지
+- [x] dev/main PR 머지 — PR #37 (commit f739499)
