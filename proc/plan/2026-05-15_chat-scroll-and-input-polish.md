@@ -76,9 +76,9 @@
 - [ ] 수동 dogfooding — `/classbot/chat`에서 quick prompt 5회 + 위로 스크롤 + 배너 클릭 + Shift+Enter 줄바꿈 1회 (PR 머지 전 PM 수동 1회)
 
 ### E. 머지
-- [ ] PR dev/main — 제목: `feat(classbot/chat): sticky-to-bottom scroll + multiline input with send guard`
-- [ ] PR 머지 후 `bunx vercel --prod` 수동 배포 (webhook 결함 우회 잔존)
-- [ ] prod-verify workflow dispatch 1회 — 28 spec + 신규 spec 합쳐 green 확인
+- [x] PR dev/main — [PR #45](https://github.com/curea-co/pullim-classbot/pull/45) 머지 (commit e78c828)
+- [x] PR 머지 후 `bunx vercel --prod` 수동 배포 — deployment `dpl_GdaesKX5WkBgjdjDibRYjSTK5swN`, alias https://pullim-classbot.vercel.app
+- [x] prod-verify workflow dispatch — [run 25897774539](https://github.com/curea-co/pullim-classbot/actions/runs/25897774539) green (32 spec production hit 통과, 신규 4 + 기존 28)
 
 ## 검증 (요약)
 - `/classbot/chat` 위로 스크롤 후 quick prompt 전송 시 자동 스크롤되지 않고 배너 노출
