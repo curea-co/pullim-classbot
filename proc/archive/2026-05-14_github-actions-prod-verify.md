@@ -40,12 +40,12 @@
   - Vercel 자동 배포(GitHub ↔ Vercel 연동)는 이미 webhook으로 잡혀있고, Actions는 검증만 책임.
 
 ### D. 검증
-- [ ] PR 생성 후 `workflow_dispatch`로 1회 실행 → Actions 링크 + green 결과 확보.
-- [ ] PR 머지 후 `push: main` 자동 트리거 1회 → 머지 직후 production 헬스 polling + Playwright pass 확인.
+- [x] PR 생성 후 `workflow_dispatch`로 1회 실행 → [run 25841721946](https://github.com/curea-co/pullim-classbot/actions/runs/25841721946) green (1m33s, 28 spec) — daily_outcome 2026-05-14 17:30 기록.
+- [x] PR 머지 후 `push: main` 자동 트리거 → polling timeout/리다이렉트 함정 노출(PR #40/#41/#42로 근본 fix). 최종 PR #42 머지 후 dispatch green.
 
 ### E. 마무리
-- [ ] dev/main PR 머지.
-- [ ] daily_outcome 17:30 보고에 Actions 실행 링크 첨부.
+- [x] dev/main PR 머지 — PR #39 (workflow 신설) + PR #40/#41/#42 (응급 fix·hardening) 모두 머지.
+- [x] daily_outcome 17:30 보고에 Actions 실행 링크 첨부 — [daily_outcome/2026-05-14.md](../../daily_outcome/2026-05-14.md) 17:30 산출물 C 항목.
 
 ## 정합성 검토 노트
 - **Vercel 토큰 불요 설계 선택 이유**: 검증 대상이 "production URL 응답"이지 "Vercel project 상태" 가 아니라서. Vercel 배포 상태가 stale 인 경우(어제 정정된 케이스: main에 prod deploy 안 됨)는 어쨌든 prod URL hit이 옛 버전을 응답할 뿐 헬스는 200. **이 경우를 잡으려면 commit SHA 임베드 + assert 가 더 효과적**이고, 그건 후속 plan으로 분리.
@@ -53,8 +53,8 @@
 - **schedule 일일 회귀**: production 색 hue, chat 봇별 분기, slider variant 가 일일 회귀 대상. 회귀 fail 시 Slack/PR 알림은 다음 사이클로 분리 (현재는 Actions 페이지에서 확인).
 
 ## 완료 기준
-- [ ] `.github/workflows/prod-verify.yml` 머지
-- [ ] `workflow_dispatch` 1회 실행 green 캡처 + Actions 링크
+- [x] `.github/workflows/prod-verify.yml` 머지 — PR #39 (commit 8d1662f)
+- [x] `workflow_dispatch` 1회 실행 green 캡처 + Actions 링크 — [run 25841721946](https://github.com/curea-co/pullim-classbot/actions/runs/25841721946) 1m33s green
 - [x] knowhow doc cross-link 갱신 (§ 8 신규)
 
 ## 블로커 처리

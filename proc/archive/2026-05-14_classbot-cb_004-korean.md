@@ -59,8 +59,8 @@
 - [x] Playwright 회귀 무회귀 — `chat-greeting-by-bot` `chat-quick-prompts-by-bot` 4봇 분기 통과.
 
 ### E. 마무리
-- [ ] dev/main PR 머지.
-- [ ] production: `bunx vercel --prod` 트리거 후 `PLAYWRIGHT_BASE_URL=…` 로 prod 4봇 라이브 재실행.
+- [x] dev/main PR 머지 — PR #38 머지 (commit 45e7cf0).
+- [x] production: `bunx vercel --prod` 트리거 + prod-verify workflow(2026-05-14 PR #39~#42) 회귀로 prod 4봇 라이브 자동 검증 흡수.
 
 ## 정합성 검토 노트
 - **톤 union 확장 안전성**: cb_001~003은 `tone` 비교를 안 하고 `bot.tone`을 `pickClassbotReply`로 전달만 함. 좁힘 분기가 `chat.ts` 내부에만 있어 union 확장 시 `repliesByTone['차분']` 등록만 빠뜨리지 않으면 tsc 통과.
@@ -71,7 +71,7 @@
 ## 완료 기준
 - [x] `/classbot/chat` 봇 chip 4개 노출, cb_004 클릭 시 차분 톤 greeting + 국어 quick prompts 라이브.
 - [x] e2e 2건이 4봇 분기 모두 검증.
-- [ ] dev/main PR 머지.
+- [x] dev/main PR 머지 — PR #38 머지 (commit 45e7cf0).
 
 ## 블로커 처리
 - G1 톤 컨펌 완료 (차분/논리 새 톤 — 국어 누나) → blocker 해제.
