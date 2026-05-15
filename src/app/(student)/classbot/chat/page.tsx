@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Send, Shield, Eye, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowLeft, Send, Shield, Eye, Sparkles } from 'lucide-react';
 import {
   scopeMeta, currentPersona,
   pickClassbotReply, type ReplyKey,
@@ -62,6 +62,9 @@ export default function ClassbotChatPage() {
   );
 }
 
+const STICKY_THRESHOLD = 80;
+const TEXTAREA_MAX_PX = 96;
+
 function ChatPanel({ bot }: { bot: ClassBot }) {
   const scope = scopeMeta[bot.scope];
   const tier = aiTierMeta.T2;
@@ -70,10 +73,33 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     { id: `t0_${bot.id}`, role: 'bot', text: bot.greeting },
   ]);
   const [pending, setPending] = useState(false);
+  const [value, setValue] = useState('');
+  const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const stickyRef = useRef<boolean>(true);
+
+  function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const isSticky = distanceFromBottom < STICKY_THRESHOLD;
+    stickyRef.current = isSticky;
+    if (isSticky) setShowNewMessageBanner(false);
+  }
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    if (stickyRef.current) {
+      scrollToBottom('smooth');
+    } else {
+      setShowNewMessageBanner(true);
+    }
   }, [turns, pending]);
 
   function send(text: string, forcedKey?: ReplyKey) {
@@ -87,6 +113,36 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       setPending(false);
     }, 900);
   }
+
+  function submit() {
+    if (!value.trim() || pending) return;
+    send(value);
+    setValue('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    submit();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      submit();
+    }
+  }
+
+  function handleTextareaInput(e: React.FormEvent<HTMLTextAreaElement>) {
+    const el = e.currentTarget;
+    setValue(el.value);
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, TEXTAREA_MAX_PX)}px`;
+  }
+
+  const isSendDisabled = pending || !value.trim();
 
   return (
     <>
@@ -139,9 +195,32 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       </header>
 
       <section className="bg-card flex flex-col rounded-2xl border mt-3">
-        <div ref={scrollRef} className="flex max-h-[520px] min-h-[360px] flex-col gap-3 overflow-y-auto p-4">
-          {turns.map(t => <Bubble key={t.id} turn={t} bot={bot} />)}
-          {pending && <PendingBubble bot={bot} />}
+        <div className="relative">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            data-slot="chat-scroll"
+            className="flex max-h-[520px] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
+          >
+            {turns.map(t => <Bubble key={t.id} turn={t} bot={bot} />)}
+            {pending && <PendingBubble bot={bot} />}
+          </div>
+
+          {showNewMessageBanner && (
+            <button
+              type="button"
+              onClick={() => {
+                scrollToBottom('smooth');
+                setShowNewMessageBanner(false);
+              }}
+              aria-label="새 메시지로 이동"
+              data-slot="new-message-banner"
+              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+            >
+              <span>새 메시지</span>
+              <ArrowDown className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         <div className="border-t p-3 space-y-2">
@@ -159,25 +238,23 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             ))}
           </div>
 
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              const input = e.currentTarget.elements.namedItem('q') as HTMLInputElement;
-              send(input.value);
-              input.value = '';
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
+          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+            <textarea
+              ref={textareaRef}
               name="q"
+              value={value}
+              rows={1}
+              onChange={handleTextareaInput}
+              onKeyDown={handleKeyDown}
               placeholder={`${bot.name}에게 물어보세요…`}
-              className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 flex-1 rounded-full border px-3.5 py-2 text-sm outline-none"
+              style={{ maxHeight: `${TEXTAREA_MAX_PX}px` }}
+              className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 flex-1 resize-none rounded-2xl border px-3.5 py-2 text-sm leading-relaxed outline-none"
             />
             <button
               type="submit"
-              disabled={pending}
+              disabled={isSendDisabled}
               aria-label="질문 보내기"
-              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 flex h-9 w-9 items-center justify-center rounded-full text-white"
+              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
             >
               <Send className="h-4 w-4" />
             </button>
