@@ -14,38 +14,36 @@
 
 ## 작업 항목
 
-### A. slider dual-thumb 라이브 적용처 1곳 (G1 컨펌 대기)
-- [ ] AI 보조: [src/components/ui/slider.tsx](../../src/components/ui/slider.tsx) 호출부 grep → 후보 2곳 비교표(파일·UX 영향·블로커) 1쪽 작성
-- [ ] G1 컨펌: 학생 wellness / teacher 빌더 점수 범위 중 1곳 선정
-- [ ] 선정 호출부 dual-thumb 교체 + 기존 single-thumb 호출 영향도 확인
-- [ ] e2e 회귀 1건 추가 (선정 페이지의 dual-thumb 인터랙션)
-- [ ] PR 생성 → dev/main 머지
-- [ ] `bunx vercel --prod` 수동 배포 → prod-verify green 확인
+### A. slider dual-thumb 라이브 적용처 1곳
+- [x] AI 보조: [src/components/ui/slider.tsx](../../src/components/ui/slider.tsx) 호출부 grep → 후보 4곳(assignment-form L312/L431, emotion-emoji-picker L69, rubric-editor L72) 비교 — wellness emotion-emoji-picker 추천
+- [x] G1 컨펌: **학생 wellness (emotion-emoji-picker)** 선정 — 감정 강도 변동성 데이터 신호로 의미 부여
+- [x] 선정 호출부 dual-thumb 교체: prop API `intensity:number → intensityRange:[number,number]`, 콜백·readout("X~Y/5")·안내 한 줄 동반 갱신
+- [x] e2e 회귀 1건 추가: [tests/e2e/wellness-intensity-range.spec.ts](../../tests/e2e/wellness-intensity-range.spec.ts) — mood 선택 → thumb 2개 + 초기 2~4 readout + low/high value 검증
+- [x] [PR #49](https://github.com/curea-co/pullim-classbot/pull/49) 머지 (commit 5699b2a)
+- [x] `bunx vercel --prod` 수동 배포 완료 (deployment 2FhtNQPfRGobvDuBANtjUmtkLdvd, READY, SHA 7f4284e prod alias 적용 — HTML meta `x-build-sha` 확인) → prod-verify dispatch [run 26009616712](https://github.com/curea-co/pullim-classbot/actions/runs/26009616712) **green** (1m38s, 28 spec 통과)
 
-### B. cb_005 사회·과학 후보 추가 (G1 컨펌 대기)
-- [ ] AI 보조: cb_004 추가 diff 추출 → cb_005에 mirror한 초안 PR 자동 생성 (톤 1개는 placeholder)
-- [ ] G1 컨펌: 신규 톤 1개 확정 (사회·과학 캐릭터 voice)
-- [ ] [src/lib/mock/classbot.ts](../../src/lib/mock/classbot.ts) cb_005 entry 확정 — 4개 분기(persona / 첫인사 / quick prompts / 마무리) 충족
-- [ ] 기존 e2e 5봇 spec에 cb_005 케이스 추가 → 통과 확인
-- [ ] PR 생성 → dev/main 머지
-- [ ] `bunx vercel --prod` 수동 배포 → prod-verify green 확인
+### B. cb_005 사회 코치 추가
+- [x] AI 보조: cb_004 entry 구조 추출 + cb_005 mirror 초안 — chat ReplyKey · BotTone union 영향도 파악
+- [x] G1 컨펌: **사회 (일반) + 신규 톤 '열정'** — 에너지·동기부여형 반말 코치 캐릭터
+- [x] [src/lib/mock/classbot.ts](../../src/lib/mock/classbot.ts) cb_005 entry 확정 — name '사회 코치', teacher 강사회, scope L3, enrolledCount 14, 4개 분기(persona / greeting / quickPrompts 4개 / 단원 트리 2개) 모두 충족
+- [x] e2e 두 spec 확장: chat-greeting-by-bot 5봇 시퀀스, chat-quick-prompts-by-bot 5봇 + cb_005 forced reply 검증
+- [x] [PR #48](https://github.com/curea-co/pullim-classbot/pull/48) 머지 (commit 02f3453)
+- [x] `bunx vercel --prod` 수동 배포 완료 (A와 같은 deployment 단일 배포로 흡수) → prod-verify dispatch [run 26009616712](https://github.com/curea-co/pullim-classbot/actions/runs/26009616712) **green** (1m38s, 28 spec 통과)
 
 ### C. prod-verify schedule 안정성 점검
-- [ ] AI 보조: 주말~오늘 schedule run 3건 로그 fetch
-  - 5/16 fail run URL
-  - 5/17 ok run URL
-  - 5/18 ok run URL
-- [ ] 5/16 failure SHA timeline 추출 → stale build / Playwright flake / 실제 회귀 중 분류
-- [ ] 분류 결과 17:30 4필드 보고에 기재
-- [ ] 분기 처리:
-  - stale build 시그널 → 보고만, 후속 plan 불필요
-  - 그 외 원인 → `proc/plan/2026-05-18_prod-verify-stability.md` 신규 + PR 머지
+- [x] AI 보조: schedule run 3건 로그 fetch
+  - 5/16 fail = [run 25946983757](https://github.com/curea-co/pullim-classbot/actions/runs/25946983757) (SHA 9e81cd2)
+  - 5/17 ok   = [run 25976214013](https://github.com/curea-co/pullim-classbot/actions/runs/25976214013) (동일 SHA)
+  - 5/18 ok   = [run 26006452463](https://github.com/curea-co/pullim-classbot/actions/runs/26006452463) (동일 SHA)
+- [x] 5/16 failure 분류: **Playwright flake** — `mobile-and-focus.spec.ts:60 toBeFocused` 5s timeout 1건만 실패(31/32 pass), 코드 변경 0건으로 자동 재실행 green. focus()와 toBeFocused 사이 hydration race 추정.
+- [x] 17:30 4필드 보고 기재 — 본 plan 본문에 분류 결과 + run URL 인용 완료
+- [x] 분기 처리: **외 원인 → plan 신규 + PR 머지** 선택. [proc/plan/2026-05-18_prod-verify-stability.md](2026-05-18_prod-verify-stability.md) 신규 + [PR #50](https://github.com/curea-co/pullim-classbot/pull/50) 머지 (commit 7f4284e). mitigation 패치: networkidle + visible 게이트 + 10s timeout. 1주 회귀 모니터링은 후속 plan에서 추적.
 
 ### D. 17:30 산출물 보고 준비
-- [ ] A 결과 1줄 (PR URL + prod-verify run URL) 또는 placeholder 상태
-- [ ] B 결과 1줄 (PR URL + prod-verify run URL) 또는 placeholder 상태
-- [ ] C 분류 결과 1줄 + (필요 시) 후속 plan PR 링크
-- [ ] 내일(2026-05-19) 후보 1줄 — 잔여 placeholder 해소 또는 webhook 복원 후속
+- [x] A 결과 1줄 — "[PR #49](https://github.com/curea-co/pullim-classbot/pull/49) 머지 + vercel --prod 배포(SHA 7f4284e) + prod-verify dispatch [run 26009616712](https://github.com/curea-co/pullim-classbot/actions/runs/26009616712) **green** (1m38s, 28 spec 통과)"
+- [x] B 결과 1줄 — "[PR #48](https://github.com/curea-co/pullim-classbot/pull/48) 머지 + 동일 배포에 흡수 + 동일 prod-verify run 26009616712 **green** (cb_005 칩·열정 톤 reply 회귀 포함)"
+- [x] C 분류 결과 1줄 — "5/16 schedule fail은 flake(focus race) 1건 단발 — 동일 SHA 5/17·5/18 자동 재실행 둘 다 green. mitigation [PR #50](https://github.com/curea-co/pullim-classbot/pull/50) 머지로 보강, 1주 회귀 모니터링"
+- [x] 내일(2026-05-19) 후보 — (1) prod-verify schedule run 26009616712 / 내일 08:56 KST schedule green 확인 (2) wellness/page.tsx 기존 시드 렌더에 intensityRange 표시 옵션 추가 (3) teacher rubric-editor dual-thumb 후속 검토 (4) Vercel webhook 복원 후속(admin 잔여)
 
 ## 예상 블로커
 - **G1 컨펌 2건(slider 적용처 / cb_005 톤) 미확정** — placeholder PR로 라이브까지는 진행, 머지는 컨펌 후 보류 가능.
