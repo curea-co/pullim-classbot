@@ -52,42 +52,71 @@ export default function StudentClassbotPage() {
         ? <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
         : <EmptyAssignmentCard />}
 
-      {/* 라이브 진행 중인 봇 — 진입 CTA + 즉석 퀴즈 */}
-      {liveBots.length > 0 && (
-        <section className="space-y-2">
-          <header className="flex items-center justify-between">
-            <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
-              <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
-                <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
-                LIVE
-              </span>
-              {liveBots.length}개 수업 진행 중
-            </h2>
+      {/* 라이브 수업 — IA(07:57 "클래스룸 > 실시간 수업") 정합: 항상 노출.
+          활성 시 진입 CTA + 즉석 퀴즈, 비활성 시 안내 카드 + 리플레이 진입 보조. */}
+      <section className="space-y-2">
+        <header className="flex items-center justify-between">
+          <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
+            {liveBots.length > 0 ? (
+              <>
+                <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+                  <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
+                  LIVE
+                </span>
+                {liveBots.length}개 수업 진행 중
+              </>
+            ) : (
+              <>
+                <span className="bg-pullim-slate-200 text-pullim-slate-500 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                  LIVE
+                </span>
+                라이브 수업
+              </>
+            )}
+          </h2>
+          {liveBots.length > 0 && (
             <span className="text-pullim-slate-500 font-mono text-[10px]">
-              {liveBots[0].bot.currentLesson?.startedAt}~ · 외 {liveBots.length - 1}건
+              {liveBots[0].bot.currentLesson?.startedAt}~{liveBots.length > 1 && ` · 외 ${liveBots.length - 1}건`}
             </span>
-          </header>
-          <Link
-            href={`/classbot/live/${liveBots[0].bot.id}`}
-            className="bg-gradient-to-br from-pullim-blue-600 to-pullim-blue-700 hover:to-pullim-blue-800 text-white block rounded-2xl p-4 transition-colors shadow-pullim-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="bg-white/20 backdrop-blur flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl">
-                {liveBots[0].bot.avatarEmoji}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-white/80 text-[10px] font-bold uppercase tracking-wider">지금 입장</div>
-                <div className="text-base font-bold">{liveBots[0].bot.name} 라이브</div>
-                <div className="text-white/80 mt-0.5 truncate text-[11px]">
-                  {liveBots[0].bot.currentLesson?.title} · {liveBots[0].bot.currentLesson?.studentCount}명 참여 중
+          )}
+        </header>
+        {liveBots.length > 0 ? (
+          <>
+            <Link
+              href={`/classbot/live/${liveBots[0].bot.id}`}
+              className="bg-gradient-to-br from-pullim-blue-600 to-pullim-blue-700 hover:to-pullim-blue-800 text-white block rounded-2xl p-4 transition-colors shadow-pullim-sm"
+            >
+              <div className="flex items-center gap-3">
+                <span className="bg-white/20 backdrop-blur flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl">
+                  {liveBots[0].bot.avatarEmoji}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-white/80 text-[10px] font-bold uppercase tracking-wider">지금 입장</div>
+                  <div className="text-base font-bold">{liveBots[0].bot.name} 라이브</div>
+                  <div className="text-white/80 mt-0.5 truncate text-[11px]">
+                    {liveBots[0].bot.currentLesson?.title} · {liveBots[0].bot.currentLesson?.studentCount}명 참여 중
+                  </div>
                 </div>
+                <span className="text-white/80 text-2xl">→</span>
               </div>
-              <span className="text-white/80 text-2xl">→</span>
+            </Link>
+            <LiveQuizCard />
+          </>
+        ) : (
+          <Link
+            href="/classbot/replay"
+            className="bg-pullim-slate-50 border-pullim-slate-200 hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-pullim-slate-700 text-sm font-bold">진행 중인 라이브 없음</div>
+              <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+                선생님이 라이브를 시작하면 여기에 표시돼요. 그 사이 지난 수업 리플레이를 둘러봐도 좋아요.
+              </div>
             </div>
+            <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
           </Link>
-          <LiveQuizCard />
-        </section>
-      )}
+        )}
+      </section>
 
       {/* 다른 과제 */}
       {others.length > 0 && (
@@ -102,20 +131,22 @@ export default function StudentClassbotPage() {
         </section>
       )}
 
-      {/* 빠른 진입 — 봇 대화 + 리플레이 + 봇 찾기 */}
+      {/* 빠른 진입 — IA(07:56-59 "클래스룸") 정합: 리플레이 강조.
+          봇 대화는 IA 1차 메뉴가 아니라 봇 카드의 행위라 칸은 유지하되 강조는 빼고,
+          리플레이를 클래스룸 영역의 영구 진입점으로 격상. */}
       <section className="grid grid-cols-3 gap-2">
         <QuickEntry
           href="/classbot/chat"
           icon={MessageCircle}
           label="봇 대화"
           hint={`${myBots.length}개 봇`}
-          accent
         />
         <QuickEntry
           href="/classbot/replay"
           icon={History}
           label="리플레이"
           hint="3개 저장됨"
+          accent
         />
         <QuickEntry
           href="/classbot/discover"
