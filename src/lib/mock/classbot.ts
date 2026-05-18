@@ -981,6 +981,19 @@ export function getSentReplays(): Replay[] {
   return studentReplays.filter(r => r.status === 'sent');
 }
 
+/** 교사가 보는 큐 — processing/review/sent 모두. 최근순. */
+export function getTeacherReplays(): Replay[] {
+  const order: ReplayStatus[] = ['review', 'processing', 'sent'];
+  return [...studentReplays].sort(
+    (a, b) => order.indexOf(a.status) - order.indexOf(b.status),
+  );
+}
+
+/** ID로 리플레이 1건 조회 */
+export function getReplayById(id: string): Replay | undefined {
+  return studentReplays.find(r => r.id === id);
+}
+
 /** MM:SS 포맷 */
 export function formatReplayTime(sec: number): string {
   const m = Math.floor(sec / 60);

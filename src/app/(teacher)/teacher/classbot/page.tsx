@@ -1,13 +1,15 @@
 'use client';
 
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, AlertTriangle, History, ArrowRight, Inbox } from 'lucide-react';
+import { Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, AlertTriangle, History, ArrowRight, Inbox, Users, Rocket, ToggleRight } from 'lucide-react';
 import { ClassKpiBar } from '@/components/classbot/class-kpi-bar';
 import { ScopeControl } from '@/components/classbot/scope-control';
 import { StudentRoster } from '@/components/classbot/student-roster';
 import { LiveFeedPanel } from '@/components/classbot/live-feed-panel';
 import { QuizLauncher } from '@/components/classbot/quiz-launcher';
-import { myClassBot, studentAssignments, type Assignment } from '@/lib/mock';
+import { myClassBot, studentAssignments, classRoster, type Assignment } from '@/lib/mock';
 import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
@@ -17,6 +19,10 @@ import { cn } from '@/lib/utils';
 export default function TeacherClassbotPage() {
   return (
     <div className="space-y-4 py-4 lg:py-6">
+      <Suspense fallback={null}>
+        <DeployedBanner />
+      </Suspense>
+
       <PageHeader
         eyebrow={{ icon: Bot, text: '클래스봇 운영' }}
         title={
@@ -42,6 +48,9 @@ export default function TeacherClassbotPage() {
 
       {/* Scope Control */}
       <ScopeControl />
+
+      {/* 등록 학생 관리 — enrollment 토글 */}
+      <EnrollmentToggleSection />
 
       {/* 오늘 발사한 과제 — Assignment 데이터 흐름 진입점 */}
       <DispatchedAssignments />
@@ -212,3 +221,76 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
     </li>
   );
 }
+
+/* ─── 배포 직후 banner — ?deployed=<name> ─── */
+function DeployedBanner() {
+  const params = useSearchParams();
+  const deployed = params.get('deployed');
+  if (!deployed) return null;
+  return (
+    <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-4">
+      <div className="flex items-center gap-2">
+        <Rocket className="h-4 w-4" />
+        <strong className="text-sm">방금 배포된 봇: {deployed}</strong>
+      </div>
+      <p className="text-pullim-blue-700 mt-1 text-[11px]">
+        선택한 반에 활성화됨 (데모). 아래 운영 화면이 새 봇 기준으로 갱신될 예정 — v1 backend 연결 후 실 반영.
+      </p>
+    </section>
+  );
+}
+
+/* ─── 등록 학생 토글 — enrollment 활성/비활성 (client-side mock) ─── */
+function EnrollmentToggleSection() {
+  const [inactive, setInactive] = useState<Set<string>>(new Set());
+  const enrolled = classRoster;
+  const activeCount = enrolled.length - inactive.size;
+
+  function toggle(id: string) {
+    setInactive(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <section className="bg-card rounded-2xl border p-4">
+      <SectionHeading
+        title="등록 학생 관리"
+        description={`${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
+        action={
+          <span className="text-pullim-slate-400 text-[10px]">데모 — 새로고침 시 초기화</span>
+        }
+      />
+      <ul className="mt-2 grid grid-cols-2 gap-1.5 lg:grid-cols-3">
+        {enrolled.map(s => {
+          const off = inactive.has(s.id);
+          return (
+            <li key={s.id}>
+              <button
+                type="button"
+                onClick={() => toggle(s.id)}
+                aria-pressed={!off}
+                className={cn(
+                  'group flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors',
+                  off
+                    ? 'border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-400'
+                    : 'border-pullim-blue-200 bg-pullim-blue-50/50 text-pullim-slate-900 hover:border-pullim-blue-400',
+                )}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Users className={cn('h-3 w-3', off ? 'text-pullim-slate-300' : 'text-pullim-blue-500')} />
+                  <span className={cn('font-bold', off && 'line-through')}>{s.name}</span>
+                </span>
+                <ToggleRight className={cn('h-3.5 w-3.5', off ? 'rotate-180 text-pullim-slate-400' : 'text-pullim-blue-600')} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+

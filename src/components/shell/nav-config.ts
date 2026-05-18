@@ -86,6 +86,7 @@ export const teacherNav: NavGroup[] = [
     items: [
       { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: 'AI 초안 검수 큐' },
       { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
+      { href: '/teacher/replay',   label: '수업 리플레이', icon: History,        description: 'AI 가공본 검수·발송' },
     ],
   },
 ];

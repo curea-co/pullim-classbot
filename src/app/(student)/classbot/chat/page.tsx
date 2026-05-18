@@ -192,6 +192,22 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             <strong className="text-pullim-lemon">{bot.teacherName}</strong>이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.
           </span>
         </div>
+
+        {/* 현재 scope chip + 시간대별 자동 스위치 안내 */}
+        <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
+          <summary className="cursor-pointer list-none flex items-center gap-1.5">
+            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold">
+              {scope.short}
+            </span>
+            <span className="text-white/90 font-semibold">지금 봇 범위: {scope.label}</span>
+            <span className="text-white/60 ml-auto text-[10px]">시간대별 자동 변동 ↗</span>
+          </summary>
+          <div className="text-white/80 mt-2 space-y-0.5 leading-relaxed">
+            <p>· 18:00~19:00 · <strong className="font-mono">L4 (단계 힌트)</strong></p>
+            <p>· 19:00~22:00 · <strong className="font-mono">L3 (개념까지)</strong> ← 현재 학원 시간</p>
+            <p>· 22:00 이후 · <strong className="font-mono">L5 (답까지)</strong> 자기학습</p>
+          </div>
+        </details>
       </header>
 
       <section className="bg-card flex flex-col rounded-2xl border mt-3">
