@@ -1,20 +1,21 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * chat quickPrompts 봇별 분리 검증 (2026-05-13 / 2026-05-14 cb_004 확장).
+ * chat quickPrompts 봇별 분리 검증 (2026-05-13 / 2026-05-14 cb_004 / 2026-05-18 cb_005 확장).
  *
  * 봇 chip 전환 시 quick prompt 4개 텍스트가 봇 과목에 맞게 바뀌어야 함.
  * - cb_001 수학이 형 → "극값 어떻게 찾아요?"
  * - cb_002 영어 누나 → "빈칸 추론 어떻게 풀어요?"
  * - cb_003 과학 쌤   → "전기회로 어디부터?"
  * - cb_004 국어 누나 → "비문학 주제 어떻게 잡아요?"
+ * - cb_005 사회 코치 → "시사 이슈 어떻게 분석해요?"
  *
  * 추가로 quickPrompt 클릭 시 expectedReplyKey가 forcedKey로 들어가
  * 봇 톤+과목에 맞는 reply가 나오는지(자유 질문 키워드 매칭과 무관) 검증.
  */
 
 test.describe('chat quickPrompts 봇별 변화', () => {
-  test('cb_001 → cb_002 → cb_003 → cb_004 전환 시 과목별 prompt 노출', async ({ page }) => {
+  test('cb_001 → cb_002 → cb_003 → cb_004 → cb_005 전환 시 과목별 prompt 노출', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     // cb_001 (수학이 형) — 기본 선택
@@ -35,6 +36,11 @@ test.describe('chat quickPrompts 봇별 변화', () => {
     await page.getByRole('button', { name: /국어 누나/ }).click();
     await expect(page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' })).toBeVisible();
     await expect(page.getByRole('button', { name: '전기회로 어디부터?' })).toHaveCount(0);
+
+    // cb_005 (사회 코치) 클릭 → 사회 prompt
+    await page.getByRole('button', { name: /사회 코치/ }).click();
+    await expect(page.getByRole('button', { name: '시사 이슈 어떻게 분석해요?' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' })).toHaveCount(0);
   });
 
   test('quickPrompt 클릭 → 봇 톤+과목에 맞는 reply 노출', async ({ page }) => {
@@ -54,5 +60,10 @@ test.describe('chat quickPrompts 봇별 변화', () => {
     await page.getByRole('button', { name: /국어 누나/ }).click();
     await page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' }).click();
     await expect(page.getByText(/비문학 주제 추론은 단락 단위 요약으로 시작합니다/)).toBeVisible({ timeout: 3000 });
+
+    // cb_005 사회 코치 → "시사 이슈" 클릭 → 열정 톤 사회 답변
+    await page.getByRole('button', { name: /사회 코치/ }).click();
+    await page.getByRole('button', { name: '시사 이슈 어떻게 분석해요?' }).click();
+    await expect(page.getByText(/입장 \/ 근거/)).toBeVisible({ timeout: 3000 });
   });
 });

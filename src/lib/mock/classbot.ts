@@ -16,8 +16,8 @@ export type ClassBot = {
   organization: string;
   subject: string;
   grade: string;
-  /** 캐릭터 톤 — 차분은 단계화·분석적 존댓말 */
-  tone: '정중' | '친근' | '스파르타' | '차분';
+  /** 캐릭터 톤 — 차분은 단계화·분석적 존댓말, 열정은 에너지·동기부여형 반말 */
+  tone: '정중' | '친근' | '스파르타' | '차분' | '열정';
   /** 첫 인삿말 — 봇 voice 그대로 한 단락. tone과 일관되게 작성. */
   greeting: string;
   /** 학생 채팅 패널의 quick prompt 버튼 4개. 봇 과목/voice에 맞게 작성. */
@@ -156,9 +156,31 @@ export const classBots: ClassBot[] = [
     isLive: false,
     enrolledCount: 16,
   },
+  {
+    id: 'cb_005',
+    name: '사회 코치',
+    avatarEmoji: '🧑‍🎓',
+    teacherName: '강사회 선생님',
+    organization: '대치프리미엄 수학학원',
+    subject: '사회',
+    grade: '고2',
+    tone: '열정',
+    greeting:
+      '서연아! 사회 코치야 🔥 오늘 현대사회 쟁점 — 갈등 사례 분석 진도 나갔지? 막힌 부분 있으면 지금 바로 들고와. ' +
+      'Scope L3라서 개념은 진짜 빡세게 잡아줄게. 답은 네가 풀어내는 거야. 가보자!',
+    quickPrompts: [
+      { text: '시사 이슈 어떻게 분석해요?', expectedReplyKey: 'social_inference' },
+      { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
+      { text: '6월 모평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
+    ],
+    scope: 3,
+    isLive: false,
+    enrolledCount: 14,
+  },
 ];
 
-/** 서연 학생의 enrollment — 4봇 모두 등록 (각각 다른 경로로 배정됨) */
+/** 서연 학생의 enrollment — 5봇 모두 등록 (각각 다른 경로로 배정됨) */
 export const studentEnrollments: StudentEnrollment[] = [
   {
     botId: 'cb_001',
@@ -190,6 +212,14 @@ export const studentEnrollments: StudentEnrollment[] = [
     classroomLabel: '고2 비문학독해 A반',
     assignedBy: '최국어 선생님',
     assignedAt: '2026-04-08 17:30',
+    via: '대치프리미엄 수학학원',
+  },
+  {
+    botId: 'cb_005',
+    classroomId: 'cr_soc_a',
+    classroomLabel: '고2 사회 A반',
+    assignedBy: '강사회 선생님',
+    assignedAt: '2026-05-12 09:00',
     via: '대치프리미엄 수학학원',
   },
 ];
@@ -226,6 +256,10 @@ export const botCurriculum: Record<string, BotCurriculumUnit[]> = {
   cb_004: [
     { id: 'kor-noninfo-arg',   label: '비문학 — 주장과 근거', fullPath: '비문학 · 인문/사회 · 주장과 근거', achievementCodes: ['국-비문-1'] },
     { id: 'kor-noninfo-theme', label: '비문학 — 주제 추론',   fullPath: '비문학 · 주제 추론',               achievementCodes: ['국-비문-2'] },
+  ],
+  cb_005: [
+    { id: 'social-issues-modern', label: '현대사회의 쟁점', fullPath: '사회 · 현대사회의 쟁점',     achievementCodes: ['사-현대-1'] },
+    { id: 'social-econ-basic',    label: '경제 기초',       fullPath: '사회 · 경제 · 시장과 가격', achievementCodes: ['사-경제-1'] },
   ],
 };
 
