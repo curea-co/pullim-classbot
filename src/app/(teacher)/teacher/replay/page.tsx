@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { History, ArrowRight, Clock, CheckCircle2, Sparkles } from 'lucide-react';
 import { getTeacherReplays, classBots, type Replay, type ReplayStatus } from '@/lib/mock';
+import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { cn } from '@/lib/utils';
 
@@ -15,8 +16,23 @@ const STATUS_META: Record<ReplayStatus, { label: string; tone: string; icon: typ
   sent:       { label: '발송 완료', tone: 'bg-pullim-blue-100 text-pullim-blue-700', icon: CheckCircle2 },
 };
 
+type ListItem = Pick<Replay,
+  | 'id' | 'botId' | 'classroom' | 'title' | 'chapter' | 'botName'
+  | 'date' | 'startedAt' | 'endedAt' | 'durationMin' | 'participantCount' | 'status'
+>;
+
 export default function TeacherReplayListPage() {
-  const all = useMemo(() => getTeacherReplays(), []);
+  const seedAll = useMemo(() => getTeacherReplays(), []);
+  const created = useReplayStore(s => s.created);
+  const overrides = useReplayStore(s => s.overrides);
+  // 라이브 종료 후 생성된 신규 리플레이 + seed (override 적용)
+  const all: ListItem[] = useMemo(() => {
+    const seeded: ListItem[] = seedAll.map(r => ({
+      ...r,
+      status: overrides[r.id]?.status ?? r.status,
+    }));
+    return [...created.map(r => ({ ...r })), ...seeded];
+  }, [seedAll, created, overrides]);
   const [filter, setFilter] = useState<StatusFilter>('all');
 
   const filtered = filter === 'all' ? all : all.filter(r => r.status === filter);
@@ -74,7 +90,7 @@ export default function TeacherReplayListPage() {
   );
 }
 
-function TeacherReplayCard({ replay }: { replay: Replay }) {
+function TeacherReplayCard({ replay }: { replay: ListItem }) {
   const bot = classBots.find(b => b.id === replay.botId);
   const meta = STATUS_META[replay.status];
   const Icon = meta.icon;

@@ -9,6 +9,7 @@ import {
 import {
   getSentReplays, classBots, formatReplayTime, type Replay,
 } from '@/lib/mock';
+import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils';
 
 export default function ClassbotReplayListPage() {
   const allReplays = useMemo(() => getSentReplays(), []);
+  const createdSent = useReplayStore(s => s.created.filter(r => r.status === 'sent'));
   const [filterBotId, setFilterBotId] = useState<'all' | string>('all');
 
   const replays = filterBotId === 'all'
@@ -45,8 +47,27 @@ export default function ClassbotReplayListPage() {
       <PageHeader
         eyebrow={{ icon: History, text: '풀림 클래스봇' }}
         title="리플레이"
-        description={`${allReplays.length}개 수업 · 총 시청 ${totalWatchedMin}분`}
+        description={`${allReplays.length + createdSent.length}개 수업 · 총 시청 ${totalWatchedMin}분`}
       />
+
+      {/* 방금 도착한 리플레이 — 라이브 종료 후 교사 승인된 신규본 */}
+      {createdSent.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-pullim-blue-700 text-xs font-bold uppercase tracking-wider">방금 도착한 리플레이 {createdSent.length}건</h2>
+          <ul className="space-y-2">
+            {createdSent.map(r => (
+              <li key={r.id} className="bg-pullim-blue-50 border-pullim-blue-200 rounded-2xl border p-3">
+                <div className="text-pullim-blue-700 text-[10px] font-bold uppercase tracking-wider">{r.botName}</div>
+                <div className="text-pullim-slate-900 text-sm font-bold">{r.title}</div>
+                <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+                  {r.chapter} · {r.startedAt}~{r.endedAt} · {r.durationMin}분 · {r.participantCount}명 참여
+                </div>
+                <div className="text-pullim-blue-600 mt-1.5 text-[11px] font-bold">📩 선생님이 방금 발송했어요 — 상세 player는 v1 backend 후 제공</div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 봇 필터 chip */}
       {botFilters.length > 1 && (

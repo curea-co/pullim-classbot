@@ -9,6 +9,7 @@ import { ScopeControl } from '@/components/classbot/scope-control';
 import { StudentRoster } from '@/components/classbot/student-roster';
 import { LiveFeedPanel } from '@/components/classbot/live-feed-panel';
 import { QuizLauncher } from '@/components/classbot/quiz-launcher';
+import { LiveBroadcastControls } from '@/components/classbot/live-broadcast-controls';
 import { myClassBot, studentAssignments, classRoster, type Assignment } from '@/lib/mock';
 import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
 import { PageHeader } from '@/components/shell/page-header';
@@ -28,20 +29,11 @@ export default function TeacherClassbotPage() {
         title={
           <>{myClassBot.name} <span className="text-pullim-slate-400 text-base font-medium">— {myClassBot.subject} {myClassBot.grade}</span></>
         }
-        description={`${myClassBot.currentLesson?.title} · 라이브 진행 중`}
-        action={
-          <Link
-            href="/teacher/replay/rp_004"
-            aria-label="수업 종료 후 리플레이 생성"
-            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-white lg:px-4"
-          >
-            <History className="h-4 w-4" aria-hidden />
-            <span className="hidden lg:inline">수업 종료 → 리플레이 생성</span>
-            <span className="lg:hidden">수업 종료</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
-        }
+        description={`${myClassBot.currentLesson?.title}`}
       />
+
+      {/* 라이브 broadcasting 컨트롤 — 시작/종료, 슬라이드 제어, 학생 질문 모더레이션 */}
+      <LiveBroadcastControls bot={myClassBot} />
 
       {/* KPI */}
       <ClassKpiBar />

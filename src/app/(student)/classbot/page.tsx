@@ -14,6 +14,7 @@ import { useMergedAssignments } from '@/lib/store/assignments';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
 import { GradingNotificationCard } from '@/components/classbot/grading-notification-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { useLiveStore } from '@/lib/store/live';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
@@ -31,7 +32,9 @@ const sourceMeta = {
 export default function StudentClassbotPage() {
   const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
   const myBots = getMyBots();
-  const liveBots = myBots.filter(b => b.bot.isLive);
+  const activeLive = useLiveStore(s => s.active);
+  // 학생은 "지금 실제 라이브 진행 중" 봇만 본다 — bot.isLive(seed) 무시, liveStore가 truth
+  const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
   const allAssignments = useMergedAssignments(me.id);
   const primary = allAssignments[0];
   const others = allAssignments.slice(1);
