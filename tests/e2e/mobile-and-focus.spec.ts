@@ -54,10 +54,12 @@ test.describe('모바일 viewport 검증', () => {
 
 test.describe('키보드 Tab 포커스 가시성', () => {
   test('과제 발사 폼 — 제목 input Tab 진입 시 focus-visible 활성', async ({ page }) => {
-    await page.goto(BASE + '/teacher/assignment/new');
+    // 2026-05-18 flake mitigation: networkidle + visible gate + 10s timeout (proc/plan/2026-05-18_prod-verify-stability.md)
+    await page.goto(BASE + '/teacher/assignment/new', { waitUntil: 'networkidle' });
     const titleInput = page.getByTestId('title-input');
+    await expect(titleInput).toBeVisible();
     await titleInput.focus();
-    await expect(titleInput).toBeFocused();
+    await expect(titleInput).toBeFocused({ timeout: 10_000 });
     // focus-visible:ring-3 클래스가 shadcn Input 에 포함됨 — 실제 focus 상태인지만 확인
   });
 
