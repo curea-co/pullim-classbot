@@ -71,6 +71,51 @@ const targets = [
       await page.waitForTimeout(300);
     },
   },
+
+  // ── 2026-05-18 신규 6장 (9-플로우 갭 해소) ───────────
+  {
+    file: '19-student-live-session.png',
+    label: '학생 라이브 세션 화면 (F1 신규)',
+    go: '/classbot/live/cb_001',
+    after: async (page) => { await page.waitForTimeout(800); },
+  },
+  {
+    file: '20-teacher-replay-list.png',
+    label: '교사 — 리플레이 큐 (F2 신규)',
+    go: '/teacher/replay',
+  },
+  {
+    file: '21-teacher-replay-review.png',
+    label: '교사 — 리플레이 검수 (rp_005, B9)',
+    go: '/teacher/replay/rp_005',
+  },
+  {
+    file: '22-teacher-quiz-launch-modal.png',
+    label: '교사 — 즉석 퀴즈 발사 모달 (F4)',
+    go: '/teacher/classbot',
+    after: async (page) => {
+      await page.getByRole('button', { name: '새 퀴즈' }).click();
+      await page.waitForTimeout(400);
+    },
+  },
+  {
+    file: '23-teacher-crisis-modal.png',
+    label: '교사 — 위기 학생 상세 모달 (F5)',
+    go: '/teacher',
+    after: async (page) => {
+      await page.getByRole('button', { name: /도현/ }).click();
+      await page.waitForTimeout(400);
+    },
+  },
+  {
+    file: '24-student-chat-scope-chip.png',
+    label: '학생 chat — scope chip + 시간대별 안내 (B4)',
+    go: '/classbot/chat',
+    after: async (page) => {
+      await page.getByText(/지금 봇 범위/).click();
+      await page.waitForTimeout(300);
+    },
+  },
 ];
 
 async function main() {
