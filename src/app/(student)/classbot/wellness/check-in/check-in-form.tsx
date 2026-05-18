@@ -14,7 +14,7 @@ import type { EmotionMood } from '@/lib/mock';
 export function CheckInForm() {
   const router = useRouter();
   const [mood, setMood] = useState<EmotionMood | null>(null);
-  const [intensity, setIntensity] = useState(3);
+  const [intensityRange, setIntensityRange] = useState<[number, number]>([2, 4]);
   const [freeText, setFreeText] = useState('');
   const [done, setDone] = useState(false);
 
@@ -22,7 +22,7 @@ export function CheckInForm() {
     // P0: console.log mock — 실 저장은 v1 백엔드
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line no-console
-      console.log('[CHECKIN MOCK]', { mood, intensity, freeText });
+      console.log('[CHECKIN MOCK]', { mood, intensityRange, freeText });
     }
     setDone(true);
   }
@@ -76,9 +76,9 @@ export function CheckInForm() {
       <section className="bg-card rounded-2xl border p-5">
         <EmotionEmojiPicker
           mood={mood}
-          intensity={intensity}
+          intensityRange={intensityRange}
           onMoodChange={setMood}
-          onIntensityChange={setIntensity}
+          onIntensityRangeChange={setIntensityRange}
         />
       </section>
 
