@@ -111,7 +111,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
           className="bg-white/10 hover:bg-white/20 text-white ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
         >
           <StopCircle className="h-3.5 w-3.5" />
-          종료
+          수업 종료
         </button>
       </header>
 
