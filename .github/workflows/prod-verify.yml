@@ -14,6 +14,17 @@ name: prod-verify
 on:
   push:
     branches: [main]
+    # 빌드 산출물에 영향을 주는 경로만 트리거. docs/scripts/proc/input-only PR은 Vercel이
+    # 빌드를 skip하므로 SHA polling이 영원히 실패한다 (PR #59 회고 → 2026-05-18).
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'next.config.*'
+      - 'playwright.config.*'
+      - 'tsconfig.json'
+      - '.github/workflows/prod-verify.yml'
   schedule:
     # KST 08:00 = UTC 23:00. 일일 회귀 1회.
     - cron: '0 23 * * *'
