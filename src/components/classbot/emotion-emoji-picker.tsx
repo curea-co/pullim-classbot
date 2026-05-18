@@ -5,18 +5,20 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 /**
- * 4이모지 + 강도 슬라이더.
- * spec 13 § 3.3.4.
+ * 4이모지 + 강도 범위 슬라이더 (dual-thumb).
+ * 강도는 하루 변동 폭을 나타냄 — 예: 2~4 = "약간 ~ 꽤".
+ * spec 13 § 3.3.4 (2026-05-18 dual-thumb 전환).
  */
 export function EmotionEmojiPicker({
-  mood, intensity, onMoodChange, onIntensityChange,
+  mood, intensityRange, onMoodChange, onIntensityRangeChange,
 }: {
   mood: EmotionMood | null;
-  intensity: number;
+  intensityRange: [number, number];
   onMoodChange: (m: EmotionMood) => void;
-  onIntensityChange: (n: number) => void;
+  onIntensityRangeChange: (r: [number, number]) => void;
 }) {
   const moods: EmotionMood[] = [1, 2, 3, 4];
+  const [low, high] = intensityRange;
 
   return (
     <div className="space-y-4">
@@ -61,24 +63,29 @@ export function EmotionEmojiPicker({
       </div>
 
       {mood !== null && (
-        <div>
+        <div data-testid="intensity-range-block">
           <div className="flex items-center justify-between">
-            <h3 className="text-pullim-slate-900 text-xs font-bold">강도 (선택)</h3>
-            <span className="text-pullim-slate-500 font-mono text-[11px]">{intensity}/5</span>
+            <h3 className="text-pullim-slate-900 text-xs font-bold">강도 범위 (선택)</h3>
+            <span className="text-pullim-slate-500 font-mono text-[11px]" data-testid="intensity-range-readout">{low}~{high}/5</span>
           </div>
           <Slider
             min={1}
             max={5}
             step={1}
-            value={intensity}
-            onValueChange={(v) => onIntensityChange(Array.isArray(v) ? v[0] : v)}
-            aria-label="감정 강도"
+            value={intensityRange}
+            onValueChange={(v) => {
+              if (Array.isArray(v) && v.length === 2) {
+                onIntensityRangeChange([v[0], v[1]]);
+              }
+            }}
+            aria-label="감정 강도 범위"
             className="mt-2"
           />
           <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-[9px]">
             <span>살짝</span>
             <span>많이</span>
           </div>
+          <p className="text-pullim-slate-400 mt-1 text-[10px]">하루 동안 변동 폭을 적어주세요. 두 점을 따로 움직일 수 있어요.</p>
         </div>
       )}
     </div>

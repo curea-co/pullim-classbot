@@ -1911,7 +1911,10 @@ export type EmotionCheckIn = {
   date: string;            // "2026-05-11"
   daysAgo: number;         // 0 = 오늘
   mood: EmotionMood;
+  /** legacy 단일 강도 — 기존 시드 호환용 */
   intensity?: number;      // 1~5
+  /** 2026-05-18~ dual-thumb로 입력되는 하루 변동 폭 [low, high] */
+  intensityRange?: [number, number];
   freeText?: string;
   keywordFlag?: 'suicidal' | 'depression' | 'bullying' | null;
 };
