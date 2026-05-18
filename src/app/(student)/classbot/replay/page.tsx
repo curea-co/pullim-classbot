@@ -17,7 +17,8 @@ import { cn } from '@/lib/utils';
 
 export default function ClassbotReplayListPage() {
   const allReplays = useMemo(() => getSentReplays(), []);
-  const createdSent = useReplayStore(s => s.created.filter(r => r.status === 'sent'));
+  const created = useReplayStore(s => s.created);
+  const createdSent = useMemo(() => created.filter(r => r.status === 'sent'), [created]);
   const [filterBotId, setFilterBotId] = useState<'all' | string>('all');
 
   const replays = filterBotId === 'all'
