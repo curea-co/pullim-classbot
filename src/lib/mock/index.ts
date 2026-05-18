@@ -9,3 +9,4 @@ export * from './family';
 export * from './tutor';
 export * from './classbot';
 export * from './chat';
+export * from './live-content';
