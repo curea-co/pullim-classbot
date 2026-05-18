@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Upload, FileText, Presentation, PenLine, Video, X, Mic, Music, Sparkles, Shield,
   Check, AlertTriangle, Copy, Send, GraduationCap, Hourglass, Rocket,
@@ -532,6 +533,7 @@ function SafetyToggle({
 
 /* ─── Step 8 ─── */
 export function Step8Deploy({ form, setForm }: Props) {
+  const router = useRouter();
   const [testInput, setTestInput] = useState('');
   const [testReply, setTestReply] = useState<string | null>(null);
 
@@ -550,9 +552,11 @@ export function Step8Deploy({ form, setForm }: Props) {
       return;
     }
     toast.success('🚀 배포 완료 (데모)', {
-      description: `${form.name || '새 봇'} → ${form.classrooms.join(', ')}에 배포됨. 클래스봇 운영 화면에서 확인.`,
+      description: `${form.name || '새 봇'} → ${form.classrooms.join(', ')} (${form.classrooms.length}개 반). 운영 화면으로 이동.`,
       duration: 4000,
     });
+    // 운영 화면 진입 — 마치 방금 배포된 봇이 활성화된 상태처럼 보이도록
+    router.push('/teacher/classbot?deployed=' + encodeURIComponent(form.name || '새 봇'));
   }
 
   return (
