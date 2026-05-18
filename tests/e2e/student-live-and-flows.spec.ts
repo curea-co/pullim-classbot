@@ -40,7 +40,7 @@ test.describe('교사 리플레이 라우트 + 검수 발송 (F2, B9)', () => {
   test('/teacher/replay 목록 + 검수 대기 카드 → 상세 진입', async ({ page }) => {
     await page.goto(BASE + '/teacher/replay', { waitUntil: 'networkidle' });
 
-    await expect(page.getByText('수업 리플레이')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '수업 리플레이' })).toBeVisible();
     // rp_005 review status
     await page.getByRole('link', { name: /평균값 정리/ }).click();
     await expect(page).toHaveURL(/\/teacher\/replay\/rp_005/);
@@ -57,13 +57,14 @@ test.describe('즉석 퀴즈 store 동기화 (F4, B8)', () => {
     await page.getByRole('button', { name: '새 퀴즈' }).click();
     await expect(page.getByRole('dialog', { name: '새 즉석 퀴즈' })).toBeVisible();
 
-    // 모든 옵션 채우기 + 발사
-    await page.getByLabel('문제').fill('테스트 문제');
-    await page.getByPlaceholder('선택지 1').fill('A');
-    await page.getByPlaceholder('선택지 2').fill('B');
-    await page.getByPlaceholder('선택지 3').fill('C');
-    await page.getByPlaceholder('선택지 4').fill('D');
-    await page.getByRole('button', { name: /발사/ }).click();
+    // 모든 옵션 채우기 + 발사 (모달 내부 발사 버튼만 — exact 매칭)
+    const dialog = page.getByRole('dialog', { name: '새 즉석 퀴즈' });
+    await dialog.getByLabel('문제').fill('테스트 문제');
+    await dialog.getByPlaceholder('선택지 1').fill('A');
+    await dialog.getByPlaceholder('선택지 2').fill('B');
+    await dialog.getByPlaceholder('선택지 3').fill('C');
+    await dialog.getByPlaceholder('선택지 4').fill('D');
+    await dialog.getByRole('button', { name: '발사', exact: true }).click();
 
     // 모달 닫힘 — 발사 후 currentQuiz가 새 문제로 바뀜
     await expect(page.getByRole('dialog')).toHaveCount(0);
