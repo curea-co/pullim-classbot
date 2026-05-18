@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Clock, Sparkles, CheckCircle2, Edit3, Send } from 'lucide-react';
+import { ArrowLeft, Clock, Sparkles, CheckCircle2 } from 'lucide-react';
 import { getReplayById, getTeacherReplays, classBots, type ReplayStatus } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
+import { ReplayReviewActions } from '@/components/classbot/replay-review-actions';
 import { cn } from '@/lib/utils';
 
 type Params = { id: string };
@@ -114,34 +115,7 @@ export default async function TeacherReplayDetailPage({ params }: { params: Prom
         </>
       )}
 
-      {replay.status === 'review' && (
-        <section className="bg-pullim-slate-50 rounded-2xl border border-dashed p-4">
-          <header className="mb-2">
-            <h2 className="text-pullim-slate-700 text-sm font-bold">검수 액션</h2>
-            <p className="text-pullim-slate-500 text-[11px]">핵심 메시지 편집 + 승인 → 학생에게 발송</p>
-          </header>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled
-              title="다음 사이클에서 활성화 (B9 — proc/plan/2026-05-18_*.md)"
-              className="bg-white text-pullim-slate-600 border-pullim-slate-200 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold opacity-60 cursor-not-allowed"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              핵심 메시지 편집
-            </button>
-            <button
-              type="button"
-              disabled
-              title="다음 사이클에서 활성화 (B9 — proc/plan/2026-05-18_*.md)"
-              className="bg-pullim-blue-600 text-white inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold opacity-60 cursor-not-allowed"
-            >
-              <Send className="h-3.5 w-3.5" />
-              승인 → 학생 발송
-            </button>
-          </div>
-        </section>
-      )}
+      <ReplayReviewActions replay={replay} />
     </div>
   );
 }

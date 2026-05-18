@@ -9,6 +9,7 @@ import {
   upcomingLessons, pendingItems, scopeMeta,
 } from '@/lib/mock';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { CrisisInterventionPanel } from '@/components/classbot/crisis-intervention-panel';
 import { cn } from '@/lib/utils';
 
 export default function TeacherHomePage() {
@@ -122,52 +123,8 @@ export default function TeacherHomePage() {
           </div>
         </section>
 
-        {/* 위기 신호 */}
-        <section className="bg-pullim-slate-900 text-pullim-slate-200 rounded-2xl p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <div className="text-pullim-lemon flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
-                <AlertTriangle className="h-3 w-3" />
-                위기 신호
-              </div>
-              <h2 className="mt-0.5 text-base font-bold text-white">즉시 개입 대상</h2>
-            </div>
-            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-2 py-0.5 text-[10px] font-bold">
-              {alertStudents.length}명
-            </span>
-          </div>
-
-          <ul className="space-y-2">
-            {alertStudents.map(s => (
-              <li key={s.id} className="bg-white/5 hover:bg-white/10 rounded-lg p-2.5 transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className="bg-pullim-blue-600 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white">
-                    {s.name[0]}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-white">{s.name}</div>
-                    <div className="text-pullim-slate-400 text-[10px]">
-                      {s.alert === 'burnout' && '번아웃 위험 — 웰빙 ' + s.wellbeing}
-                      {s.alert === 'emotion' && '감정 체크인 "힘듦" 3일 연속'}
-                      {s.alert === 'attendance' && `${s.lastActiveMin}분째 무응답`}
-                    </div>
-                  </div>
-                  <Heart className="text-pullim-lemon h-3 w-3" />
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="준비 중 (v2 — Wee센터 연계)"
-            className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-2 text-xs font-bold opacity-60 cursor-not-allowed"
-          >
-            1:1 상담 시작 / Wee센터 연결 (v2)
-          </button>
-        </section>
+        {/* 위기 신호 — 카드 클릭 시 상세 모달 + 1:1 chat CTA */}
+        <CrisisInterventionPanel students={alertStudents} />
       </div>
 
       {/* 최근 봇 질문 + 다가오는 수업 */}
