@@ -45,9 +45,9 @@ export default function StudentClassbotPage() {
         ? <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
         : <EmptyAssignmentCard />}
 
-      {/* 라이브 진행 중인 봇 */}
+      {/* 라이브 진행 중인 봇 — 진입 CTA + 즉석 퀴즈 */}
       {liveBots.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-2">
           <header className="flex items-center justify-between">
             <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
               <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
@@ -60,6 +60,24 @@ export default function StudentClassbotPage() {
               {liveBots[0].bot.currentLesson?.startedAt}~ · 외 {liveBots.length - 1}건
             </span>
           </header>
+          <Link
+            href={`/classbot/live/${liveBots[0].bot.id}`}
+            className="bg-gradient-to-br from-pullim-blue-600 to-pullim-blue-700 hover:to-pullim-blue-800 text-white block rounded-2xl p-4 transition-colors shadow-pullim-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="bg-white/20 backdrop-blur flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl">
+                {liveBots[0].bot.avatarEmoji}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-white/80 text-[10px] font-bold uppercase tracking-wider">지금 입장</div>
+                <div className="text-base font-bold">{liveBots[0].bot.name} 라이브</div>
+                <div className="text-white/80 mt-0.5 truncate text-[11px]">
+                  {liveBots[0].bot.currentLesson?.title} · {liveBots[0].bot.currentLesson?.studentCount}명 참여 중
+                </div>
+              </div>
+              <span className="text-white/80 text-2xl">→</span>
+            </div>
+          </Link>
           <LiveQuizCard />
         </section>
       )}
