@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * chat 인삿말 봇 데이터 단일 출처 검증 (2026-05-13 / 2026-05-14 cb_004 확장).
+ * chat 인삿말 봇 데이터 단일 출처 검증 (2026-05-13 / 2026-05-14 cb_004 / 2026-05-18 cb_005 확장).
  *
  * - chat/page.tsx에서 `bot.id === ...` 하드코딩 분기 제거됨
- * - 봇 chip 4개(cb_001 친근 / cb_002 정중 / cb_003 스파르타 / cb_004 차분) 전환 시
+ * - 봇 chip 5개(cb_001 친근 / cb_002 정중 / cb_003 스파르타 / cb_004 차분 / cb_005 열정) 전환 시
  *   인삿말이 각 봇의 `greeting` 필드 톤으로 자연스럽게 바뀌어야 함
  * - key={bot.id}로 ChatPanel remount되면서 첫 메시지가 새 봇의 greeting으로 교체됨
  */
 
 test.describe('chat 인삿말 봇별 변화', () => {
-  test('cb_001 친근 → cb_002 정중 → cb_003 스파르타 → cb_004 차분 전환', async ({ page }) => {
+  test('cb_001 친근 → cb_002 정중 → cb_003 스파르타 → cb_004 차분 → cb_005 열정 전환', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     // cb_001 (수학이 형, 친근 반말) — 기본 선택
@@ -30,6 +30,11 @@ test.describe('chat 인삿말 봇별 변화', () => {
     await page.getByRole('button', { name: /국어 누나/ }).click();
     await expect(page.getByText(/국어 누나예요/)).toBeVisible();
     await expect(page.getByText(/단계별로 같이 풀어드릴게요/)).toBeVisible();
+
+    // cb_005 사회 코치 클릭 → 열정 반말 (에너지·동기부여)
+    await page.getByRole('button', { name: /사회 코치/ }).click();
+    await expect(page.getByText(/사회 코치야/)).toBeVisible();
+    await expect(page.getByText(/가보자/)).toBeVisible();
 
     // cb_001 수학이 형 다시 클릭 → 친근 반말 복귀
     await page.getByRole('button', { name: /수학이 형/ }).click();
