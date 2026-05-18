@@ -2,19 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { Zap, Check, Clock } from 'lucide-react';
-import { currentQuiz } from '@/lib/mock';
+import { useQuizStore } from '@/lib/store/quiz';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
  * 학생 뷰 — 라이브 퀴즈 참여 카드.
- * 핸드오프 4.5 (즉석 퀴즈·폴).
+ * 핸드오프 4.5 (즉석 퀴즈·폴). 교사 발사 시 store로 즉시 갱신.
  */
 export function LiveQuizCard() {
-  const q = currentQuiz;
+  const q = useQuizStore(s => s.active);
   const [selected, setSelected] = useState<number | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [remain, setRemain] = useState(q.remainingSec);
+
+  // 새 퀴즈 발사 시 상태 리셋
+  useEffect(() => {
+    setSelected(undefined);
+    setSubmitted(false);
+    setRemain(q.remainingSec);
+  }, [q.id, q.remainingSec]);
 
   useEffect(() => {
     if (submitted) return;
