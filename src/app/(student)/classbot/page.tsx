@@ -12,6 +12,7 @@ import {
 } from '@/lib/mock';
 import { useMergedAssignments } from '@/lib/store/assignments';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
+import { GradingNotificationCard } from '@/components/classbot/grading-notification-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,9 @@ export default function StudentClassbotPage() {
     <div className="space-y-4">
       {/* 내 봇 N개 — 학생 정체성 */}
       <MyBotsStrip bots={myBots} />
+
+      {/* 채점 완료 알림 — 최근 5분 내 submission */}
+      <GradingNotificationCard />
 
       {/* 오늘 풀어야 할 것 — primary CTA (특정 봇이 보낸 과제) */}
       {primary
