@@ -70,7 +70,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
 function Meta({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <div className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[9px] font-bold tracking-wider uppercase">{label}</div>
+      <div className="text-pullim-slate-500 text-[11px] font-bold tracking-wider uppercase">{label}</div>
       <div className={cn('font-mono text-sm font-bold', alert ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
         {value}
       </div>

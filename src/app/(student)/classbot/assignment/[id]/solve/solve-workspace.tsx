@@ -127,7 +127,7 @@ export function SolveWorkspace({
           <span className="bg-pullim-blue-100 text-pullim-blue-700 font-mono inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold">
             {q.order}
           </span>
-          <span className="text-pullim-slate-400 text-[9px] font-bold tracking-wider uppercase">{q.type}</span>
+          <span className="text-pullim-slate-400 text-[11px] font-bold tracking-wider uppercase">{q.type}</span>
         </div>
         <p className="text-pullim-slate-900 mt-2 text-base leading-relaxed font-medium">
           {q.prompt}

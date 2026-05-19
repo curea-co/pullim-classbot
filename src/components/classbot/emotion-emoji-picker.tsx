@@ -81,7 +81,7 @@ export function EmotionEmojiPicker({
             aria-label="감정 강도 범위"
             className="mt-2"
           />
-          <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-[9px]">
+          <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-[11px]">
             <span>살짝</span>
             <span>많이</span>
           </div>

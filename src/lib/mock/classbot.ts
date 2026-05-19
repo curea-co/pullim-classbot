@@ -65,7 +65,7 @@ export const classBots: ClassBot[] = [
     tone: '친근',
     greeting:
       '서연 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
-      'Scope L3라서 개념 설명까지 도와줄 수 있어. 답은 직접 알려주진 않을 거지만, 길은 알려줄게.',
+      '오늘은 개념 설명까지 도와줄 수 있어 (L3). 답은 직접 알려주진 않을 거지만, 길은 알려줄게.',
     quickPrompts: [
       { text: '극값 어떻게 찾아요?',         expectedReplyKey: 'extremum' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
@@ -94,7 +94,7 @@ export const classBots: ClassBot[] = [
     tone: '정중',
     greeting:
       '서연 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
-      'Scope L4라서 풀이 단계까지는 잡아줄 수 있어요.',
+      '오늘은 풀이 단계까지 잡아줄 수 있어요 (L4).',
     quickPrompts: [
       { text: '빈칸 추론 어떻게 풀어요?', expectedReplyKey: 'blank_inference' },
       { text: '오늘 수업 요약해줘요',     expectedReplyKey: 'today_summary' },
@@ -123,7 +123,7 @@ export const classBots: ClassBot[] = [
     tone: '스파르타',
     greeting:
       '서연. 과학 쌤이다. 학교 1학년 때 통합과학 진도 복습용으로 남겨놨어. ' +
-      'Scope L3 — 개념 설명까진 해줄게. 답은 직접 풀어.',
+      '개념 설명까진 해줄게 (L3). 답은 직접 풀어.',
     quickPrompts: [
       { text: '전기회로 어디부터?',     expectedReplyKey: 'circuit' },
       { text: '오늘 수업 요약',         expectedReplyKey: 'today_summary' },
@@ -145,7 +145,7 @@ export const classBots: ClassBot[] = [
     tone: '차분',
     greeting:
       '서연 학생, 안녕하세요. 국어 누나예요. 오늘 비문학 독해 — 주장과 근거 추적을 진행했어요. ' +
-      '막힌 문장이 있으면 단락 번호로 알려주세요. 단계별로 같이 풀어드릴게요. Scope L4 — 풀이 단계까지는 함께 잡아드립니다.',
+      '막힌 문장이 있으면 단락 번호로 알려주세요. 단계별로 같이 풀어드릴게요 (L4).',
     quickPrompts: [
       { text: '비문학 주제 어떻게 잡아요?', expectedReplyKey: 'reading_inference' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
@@ -167,7 +167,7 @@ export const classBots: ClassBot[] = [
     tone: '열정',
     greeting:
       '서연아! 사회 코치야 🔥 오늘 현대사회 쟁점 — 갈등 사례 분석 진도 나갔지? 막힌 부분 있으면 지금 바로 들고와. ' +
-      'Scope L3라서 개념은 진짜 빡세게 잡아줄게. 답은 네가 풀어내는 거야. 가보자!',
+      '개념은 진짜 빡세게 잡아줄게 (L3). 답은 네가 풀어내는 거야. 가보자!',
     quickPrompts: [
       { text: '시사 이슈 어떻게 분석해요?', expectedReplyKey: 'social_inference' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },

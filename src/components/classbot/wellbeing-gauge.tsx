@@ -73,7 +73,7 @@ export function WellbeingGauge({ studentId, compact }: { studentId: string; comp
             );
           })}
         </div>
-        <div className="text-pullim-slate-400 mt-1 flex justify-between text-[9px]">
+        <div className="text-pullim-slate-400 mt-1 flex justify-between text-[11px]">
           <span>7일 전</span>
           <span>오늘</span>
         </div>

@@ -5,10 +5,21 @@ import { cn } from '@/lib/utils';
 /**
  * 학생 뷰 — 봇 정체성 헤더 (디지털 분신 강조).
  * 핸드오프 7.1 (봇 정체성).
+ *
+ * `headingLevel` — 봇 이름을 어떤 시맨틱으로 렌더링할지.
+ * 페이지 1차 헤더로 쓰일 땐 'h1', 다른 헤더가 있거나 온보딩 데모처럼
+ * 미리보기 안에서 쓰일 땐 'h2'/'span'로 강등.
  */
-export function BotHeader({ compact }: { compact?: boolean }) {
+export function BotHeader({
+  compact,
+  headingLevel = 'h1',
+}: {
+  compact?: boolean;
+  headingLevel?: 'h1' | 'h2' | 'span';
+}) {
   const bot = myClassBot;
   const scope = scopeMeta[bot.scope];
+  const NameTag = headingLevel;
 
   return (
     <section
@@ -24,8 +35,8 @@ export function BotHeader({ compact }: { compact?: boolean }) {
             🧑‍🏫
           </div>
           {bot.isLive && (
-            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase">
-              <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
+            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase">
+              <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
               LIVE
             </span>
           )}
@@ -35,7 +46,7 @@ export function BotHeader({ compact }: { compact?: boolean }) {
           <div className="text-pullim-blue-200 text-[10px] font-semibold tracking-wider uppercase">
             클래스봇 · {bot.organization}
           </div>
-          <h1 className="text-lg font-bold tracking-tight">{bot.name}</h1>
+          <NameTag className="block text-lg font-bold tracking-tight">{bot.name}</NameTag>
           <p className="text-pullim-blue-100/80 text-xs">
             <GraduationCap className="-mt-0.5 mr-0.5 inline h-3 w-3" />
             {bot.teacherName}의 디지털 분신 · {bot.subject} · {bot.grade}
@@ -43,11 +54,11 @@ export function BotHeader({ compact }: { compact?: boolean }) {
         </div>
       </div>
 
-      {/* Scope Guard 배지 — 학생은 변경 불가, 표시만 */}
+      {/* 봇 범위 배지 — 학생은 변경 불가, 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
       <div className="bg-white/10 backdrop-blur mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs">
         <Shield className="text-pullim-lemon h-3.5 w-3.5" />
-        <span className="font-mono text-[10px] font-bold">{scope.short}</span>
         <span className="font-semibold">{scope.label}</span>
+        <span className="font-mono text-[9px] text-white/55">({scope.short})</span>
         <span className="text-white/60 ml-auto text-[10px]">
           선생님이 설정 · {scope.allow}
         </span>

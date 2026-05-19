@@ -80,7 +80,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
                 <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
                   {q.order}
                 </span>
-                <span className="text-pullim-slate-400 font-mono text-[9px] uppercase">{q.type}</span>
+                <span className="text-pullim-slate-400 font-mono text-[11px] uppercase">{q.type}</span>
                 <span className="truncate">{q.prompt}</span>
               </li>
             ))}

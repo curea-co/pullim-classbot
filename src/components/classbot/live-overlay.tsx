@@ -1,132 +1,63 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Send, Radio, Mic, MessageCircle, Lock, History } from 'lucide-react';
-import { type ClassBot, scopeMeta, getLiveContent, currentPersona } from '@/lib/mock';
+import { Send, Radio, Mic, MessageCircle } from 'lucide-react';
+import { type ClassBot, getLiveContent, currentPersona } from '@/lib/mock';
 import { useLiveStore, type PendingQuestion } from '@/lib/store/live';
 import { LiveQuizCard } from './live-quiz-card';
 import { cn } from '@/lib/utils';
 
 /**
- * 학생 라이브 세션 화면 — liveStore 활성 봇만 진입 가능.
- * 비활성 봇은 "라이브 진행 중 아님" 빈 상태.
- *
- * 데이터 소스:
- *  - liveStore.active[botId] — 시작 시각·슬라이드·질문 큐
- *  - liveContents[botId] — 봇별 transcript·슬라이드 메타 mock
+ * 라이브 진행 중인 봇의 채팅 페이지 위에 얹히는 오버레이.
+ * - 슬라이드 + 실시간 자막 + 즉석 퀴즈 + 질문 큐
+ * - 챗봇 대화는 하단에 그대로 유지 (개념 질문은 봇에게 직접도 가능)
+ * - 라이브 비활성이면 null 반환 → 일반 chat 모드
  */
-
-export function LiveSessionPanel({ bot }: { bot: ClassBot }) {
+export function LiveOverlay({ bot }: { bot: ClassBot }) {
   const session = useLiveStore(s => s.active[bot.id]);
-  if (!session) return <LiveInactiveState bot={bot} />;
-  return <LiveActiveSession bot={bot} />;
-}
-
-/* ─── 비활성 빈 상태 ─── */
-function LiveInactiveState({ bot }: { bot: ClassBot }) {
+  if (!session) return null;
   return (
-    <div className="space-y-3 pb-20">
-      <Link href="/classbot" className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs">
-        <ArrowLeft className="h-3 w-3" />
-        홈으로
-      </Link>
-      <section className="bg-card mt-3 rounded-2xl border p-8 text-center">
-        <div className="bg-pullim-slate-100 mx-auto flex h-12 w-12 items-center justify-center rounded-full text-2xl">
-          {bot.avatarEmoji}
-        </div>
-        <h1 className="text-pullim-slate-900 mt-3 text-base font-bold">{bot.name} 라이브 진행 중이 아니에요</h1>
-        <p className="text-pullim-slate-500 mt-1 text-xs">
-          선생님이 라이브 수업을 시작하면 여기로 자동 진입할 수 있어요.
-        </p>
-        <div className="mt-4 flex justify-center gap-2">
-          <Link
-            href="/classbot/chat"
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-bold text-white"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            봇 채팅으로 가기
-          </Link>
-          <Link
-            href="/classbot/replay"
-            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-xl px-4 py-2 text-xs font-bold"
-          >
-            <History className="h-3.5 w-3.5" />
-            지난 리플레이
-          </Link>
-        </div>
-      </section>
+    <div className="space-y-3">
+      <SlideAudioArea botId={bot.id} currentSlide={session.currentSlide} />
+      <TranscriptStream botId={bot.id} startedAt={session.startedAt} />
+      <LiveQuizCard />
+      <StudentQuestionPanel botId={bot.id} />
     </div>
   );
 }
 
-/* ─── 활성 라이브 진행 ─── */
-function LiveActiveSession({ bot }: { bot: ClassBot }) {
-  const session = useLiveStore(s => s.active[bot.id])!;
-  const scope = scopeMeta[bot.scope];
-  const content = getLiveContent(bot.id);
-
+/** 헤더에 표시할 라이브 진행 메타 (경과 시간) */
+export function LiveHeaderMeta({ bot }: { bot: ClassBot }) {
+  const session = useLiveStore(s => s.active[bot.id]);
+  if (!session) return null;
   return (
-    <div className="space-y-3 pb-20">
-      <header className="bg-gradient-to-br from-pullim-blue-700 to-pullim-blue-900 text-white relative overflow-hidden rounded-2xl p-4">
-        <Link href="/classbot" className="text-white/80 hover:text-white inline-flex items-center gap-1 text-xs">
-          <ArrowLeft className="h-3 w-3" />
-          홈으로
-        </Link>
-        <div className="mt-2 flex items-start gap-3">
-          <span className="bg-white/20 backdrop-blur flex h-12 w-12 items-center justify-center rounded-xl text-2xl">
-            {bot.avatarEmoji}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
-                LIVE
-              </span>
-              <ElapsedTime startedAt={session.startedAt} />
-            </div>
-            <h1 className="mt-1 text-lg font-bold leading-tight">{bot.currentLesson?.title ?? content?.slideTitle}</h1>
-            <p className="text-white/80 text-[11px]">
-              {bot.name} · {bot.teacherName} · {bot.currentLesson?.studentCount}명 참여
-            </p>
-          </div>
-        </div>
-        <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
-          <Lock className="text-pullim-lemon h-3 w-3" />
-          <span className="text-white/90">
-            라이브 동안 봇은 <strong className="text-pullim-lemon font-mono">{scope.short}</strong>({scope.label})로 자동 잠겨요.
-          </span>
-        </div>
-      </header>
-
-      <SlideAudioArea content={content} currentSlide={session.currentSlide} />
-      <TranscriptStream botId={bot.id} startedAt={session.startedAt} />
-      <LiveQuizCard />
-      <StudentQuestionPanel botId={bot.id} />
-
-      <section className="bg-card rounded-2xl border p-3 text-center text-[11px]">
-        <p className="text-pullim-slate-600">
-          개념 질문은 봇에게 직접도 가능 —{' '}
-          <Link href="/classbot/chat" className="text-pullim-blue-600 font-bold underline">봇 채팅 열기 →</Link>
-        </p>
-      </section>
+    <div className="bg-pullim-danger/15 border-pullim-danger/40 mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold">
+      <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-white uppercase tracking-wider">
+        <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+        LIVE
+      </span>
+      <ElapsedTime startedAt={session.startedAt} />
+      <span className="text-pullim-lemon">· 스코프 자동 잠금</span>
     </div>
   );
 }
 
 function ElapsedTime({ startedAt }: { startedAt: string }) {
-  const [elapsedMin, setElapsedMin] = useState(() => Math.floor((Date.now() - new Date(startedAt).getTime()) / 60_000));
+  // SSR/CSR 시간 mismatch 방지 — 마운트 후에만 계산
+  const [elapsedMin, setElapsedMin] = useState<number | null>(null);
   useEffect(() => {
+    setElapsedMin(Math.floor((Date.now() - new Date(startedAt).getTime()) / 60_000));
     const id = setInterval(() => {
       setElapsedMin(Math.floor((Date.now() - new Date(startedAt).getTime()) / 60_000));
     }, 30_000);
     return () => clearInterval(id);
   }, [startedAt]);
-  return <span className="text-white/80 text-[11px]">{elapsedMin}분 진행 중</span>;
+  if (elapsedMin === null) return <span className="text-white/90">진행 중</span>;
+  return <span className="text-white/90">{elapsedMin}분 진행 중</span>;
 }
 
-/* ─── 영역 1: 슬라이드 + 음성 ─── */
-function SlideAudioArea({ content, currentSlide }: { content?: ReturnType<typeof getLiveContent>; currentSlide: number }) {
+function SlideAudioArea({ botId, currentSlide }: { botId: string; currentSlide: number }) {
+  const content = getLiveContent(botId);
   if (!content) {
     return (
       <section className="bg-card rounded-2xl border p-6 text-center">
@@ -147,33 +78,34 @@ function SlideAudioArea({ content, currentSlide }: { content?: ReturnType<typeof
           </div>
         </div>
         <span className="bg-pullim-danger absolute top-2 left-2 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
-          <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
+          <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
           LIVE
         </span>
       </div>
       <div className="bg-pullim-slate-900 text-white flex items-center gap-2 px-3 py-2 text-xs">
         <Mic className="text-pullim-blue-400 h-3.5 w-3.5 animate-pulse" />
         <span className="text-white/90 font-bold">{content.micLabel}</span>
-        <span className="text-white/50 ml-auto font-mono text-[10px]">live · 음성+슬라이드 only</span>
+        <span className="text-white/50 ml-auto font-mono text-[10px]">live · 음성+슬라이드</span>
       </div>
     </section>
   );
 }
 
-/* ─── 영역 2: 실시간 transcript stream ─── */
 function TranscriptStream({ botId, startedAt }: { botId: string; startedAt: string }) {
   const content = getLiveContent(botId);
-  const [now, setNow] = useState(Date.now());
+  // SSR 시점엔 now=null → 자막 빈 상태. 마운트 후 실제 시각으로 계산.
+  const [now, setNow] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 2000);
     return () => clearInterval(id);
   }, []);
 
   if (!content) return null;
 
-  const elapsedSec = Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  const elapsedSec = now === null ? 0 : Math.floor((now - new Date(startedAt).getTime()) / 1000);
   const visible = content.transcript.filter(t => t.atSec <= elapsedSec).slice(-30);
   const currentLineIdx = visible.length - 1;
 
@@ -208,7 +140,6 @@ function TranscriptStream({ botId, startedAt }: { botId: string; startedAt: stri
   );
 }
 
-/* ─── 영역 3: 학생 질문 submit — liveStore 큐로 push ─── */
 function StudentQuestionPanel({ botId }: { botId: string }) {
   const [text, setText] = useState('');
   const submit = useLiveStore(s => s.submitQuestion);
@@ -243,7 +174,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
           type="submit"
           disabled={!text.trim()}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-40 inline-flex h-8 w-8 items-center justify-center rounded-lg text-white"
-          aria-label="질문 보내기"
+          aria-label="선생님에게 질문 보내기"
         >
           <Send className="h-3.5 w-3.5" />
         </button>
