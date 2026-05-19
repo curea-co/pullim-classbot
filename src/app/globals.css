@@ -93,6 +93,13 @@
   --color-pullim-lemon-soft: #F5FFB8;
   --color-pullim-lemon-ink: #5C6B0A;
 
+  /* 클래스봇 5종 시그니처 컬러 ([07-branding § 4.6.2], [08 § 15.2.1]) */
+  --color-bot-math:    #E6FF4C; /* 수학이 형 — lime */
+  --color-bot-english: #FF7A6B; /* 영어 누나 — coral */
+  --color-bot-science: #22C5A8; /* 과학 쌤 — mint */
+  --color-bot-korean:  #7B5CFF; /* 국어 누나 — violet */
+  --color-bot-social:  #D97706; /* 사회 코치 — amber */
+
   /* 학습 히트맵 6단계 */
   --color-pullim-heat-0: #F0F3F9;
   --color-pullim-heat-1: #D9E5FB;
@@ -159,6 +166,20 @@
   --shadow-pullim-md: 0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
   --shadow-pullim-lg: 0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
   --shadow-pullim-glow: 0 0 0 4px rgba(59, 111, 246, 0.15);
+
+  /* 포커스 링 ([08-design-system § 5.1] a11y 필수) */
+  --focus-ring:        0 0 0 3px rgba(59, 111, 246, 0.35);
+  --focus-ring-danger: 0 0 0 3px rgba(229, 72, 77, 0.30);
+
+  /* 모션 토큰 ([08 § 10.1]) */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* visualViewport 키보드 offset (P0-1 ─ JS가 동적으로 갱신) */
+  --keyboard-offset: 0px;
 }
 
 .dark {
@@ -217,4 +238,51 @@
   }
   /* 학생 화면은 모바일 우선 → 폰트 크기 살짝 키움 */
   h1, h2, h3 { letter-spacing: -0.02em; }
+}
+
+/* 클래스봇 시그니처 모션 ([08-design-system § 15.2]) */
+@keyframes pullim-live-pulse {
+  /* M5 LIVE 펄스 — opacity 1→0.4→1 + scale 1→1.2→1, 1.4s loop */
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(1.2); }
+}
+
+@keyframes pullim-message-mount {
+  /* M1 메시지 mount — opacity 0→1, translateY 8→0, 220ms emphasis */
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pullim-typing-bounce {
+  /* M2 타이핑 3-dot bounce 12px, 1.4s loop, ease-in-out (3개 점 각각 220ms 시차) */
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-6px); }
+}
+
+.pullim-anim-live-pulse {
+  animation: pullim-live-pulse 1.4s ease-out infinite;
+}
+
+.pullim-anim-message-mount {
+  animation: pullim-message-mount var(--duration-base) var(--easing-emphasis) both;
+}
+
+.pullim-anim-typing-dot {
+  animation: pullim-typing-bounce 1.4s ease-in-out infinite;
+}
+
+/* 모션 감소 ([08 § 10.3]) — 무한 loop은 정지, mount는 opacity-only 120ms */
+@media (prefers-reduced-motion: reduce) {
+  .pullim-anim-live-pulse,
+  .pullim-anim-typing-dot {
+    animation: none;
+  }
+  .pullim-anim-message-mount {
+    animation: pullim-message-mount-reduced var(--duration-fast) linear both;
+  }
+}
+
+@keyframes pullim-message-mount-reduced {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

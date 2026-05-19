@@ -6,8 +6,8 @@ import { test, expect } from '@playwright/test';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
-test.describe('학생 라이브 진입점 + 라이브 세션 화면 (F1)', () => {
-  test('학생 홈 LIVE 카드 → /classbot/live/cb_001 진입 + 4영역 렌더', async ({ page }) => {
+test.describe('학생 라이브 진입점 — chat 통합 IA (F1)', () => {
+  test('학생 홈 LIVE 카드 → /classbot/chat?bot=cb_001 진입 + 라이브 오버레이', async ({ page }) => {
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
     // LIVE 진입 CTA 카드 visible
@@ -15,21 +15,28 @@ test.describe('학생 라이브 진입점 + 라이브 세션 화면 (F1)', () =>
     await expect(liveCta).toBeVisible();
     await liveCta.click();
 
-    await expect(page).toHaveURL(/\/classbot\/live\/cb_001/);
+    await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);
 
-    // 4영역 — 헤더 / 슬라이드 / transcript / 학생 질문 / 퀴즈
-    await expect(page.getByText('도함수의 활용 — 극값과 변곡점')).toBeVisible();
-    await expect(page.getByText('실시간 자막')).toBeVisible();
-    await expect(page.getByText('선생님에게 질문')).toBeVisible();
+    // 라이브 오버레이 4영역 + 봇 채팅 모두 한 화면에
+    await expect(page.getByRole('heading', { name: '실시간 자막' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '선생님에게 질문' })).toBeVisible();
     await expect(page.getByText('지금 즉석 퀴즈')).toBeVisible();
+    await expect(page.getByText(/라이브 정책 적용 중/)).toBeVisible();
+    // 봇 채팅도 함께 보임
+    await expect(page.getByText('봇과 대화', { exact: true })).toBeVisible();
   });
 
-  test('학생 질문 submit → pending 상태 → shared/hidden 시뮬레이션', async ({ page }) => {
+  test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
     await page.goto(BASE + '/classbot/live/cb_001', { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);
+  });
+
+  test('학생 질문 submit → pending 상태', async ({ page }) => {
+    await page.goto(BASE + '/classbot/chat?bot=cb_001', { waitUntil: 'networkidle' });
 
     const input = page.getByLabel('질문 입력');
     await input.fill('극값이 변곡점이 될 수도 있나요?');
-    await page.getByRole('button', { name: /질문 보내기/ }).click();
+    await page.getByRole('button', { name: '선생님에게 질문 보내기', exact: true }).click();
 
     // pending 상태 표시
     await expect(page.getByText(/교사 검토 중/)).toBeVisible();
@@ -83,10 +90,16 @@ test.describe('위기 학생 상세 모달 (F5, B10)', () => {
 });
 
 test.describe('학생 chat scope chip + 자동 스위치 안내 (B4)', () => {
-  test('chat 헤더에 scope details disclosure', async ({ page }) => {
-    await page.goto(BASE + '/classbot/chat', { waitUntil: 'networkidle' });
+  test('비라이브 봇 chat 헤더에 scope details disclosure', async ({ page }) => {
+    // cb_002는 라이브 비활성 — scope details 표시
+    await page.goto(BASE + '/classbot/chat?bot=cb_002', { waitUntil: 'networkidle' });
 
-    // details summary "지금 봇 범위:"
     await expect(page.getByText(/지금 봇 범위/)).toBeVisible();
+  });
+
+  test('라이브 봇 chat은 scope details 대신 라이브 정책 배너', async ({ page }) => {
+    await page.goto(BASE + '/classbot/chat?bot=cb_001', { waitUntil: 'networkidle' });
+
+    await expect(page.getByText(/라이브 정책 적용 중/)).toBeVisible();
   });
 });

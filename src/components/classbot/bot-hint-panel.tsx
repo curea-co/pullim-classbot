@@ -33,9 +33,10 @@ function ExamLocked() {
       <p className="mt-1 text-[11px] leading-relaxed">
         지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
+      {/* 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
       <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold">
-        <span className="text-pullim-lemon">Scope L1</span>
-        <span className="text-pullim-slate-400">시험 모드</span>
+        <span className="text-pullim-lemon">시험 모드</span>
+        <span className="text-pullim-slate-400 font-mono text-[9px]">(L1)</span>
       </div>
     </section>
   );
@@ -54,7 +55,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L4 · 단계별 힌트만 줄 수 있어요</p>
+          <p className="text-pullim-slate-500 text-[10px]">단계별 힌트만 줄 수 있어요 <span className="font-mono text-[9px] text-pullim-slate-400">(L4)</span></p>
         </div>
       </header>
 
@@ -67,7 +68,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           <ul className="space-y-2">
             {hints.slice(0, revealed).map((h, i) => (
               <li key={i} className="bg-pullim-blue-50 rounded-lg p-2.5">
-                <div className="text-pullim-blue-700 mb-1 inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase">
+                <div className="text-pullim-blue-700 mb-1 inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[11px] font-bold tracking-wider uppercase">
                   {i + 1}단계 · {labels[i]}
                 </div>
                 <p className="text-pullim-slate-700 text-[11px] leading-relaxed">{h}</p>
@@ -113,7 +114,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">Scope L5 · 이번엔 잡아내봐요</p>
+          <p className="text-pullim-slate-500 text-[10px]">이번엔 잡아내봐요 <span className="font-mono text-[9px] text-pullim-slate-400">(L5)</span></p>
         </div>
       </header>
 

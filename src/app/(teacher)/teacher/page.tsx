@@ -150,7 +150,7 @@ export default function TeacherHomePage() {
                   <span className="text-pullim-slate-400">·</span>
                   <span className="text-pullim-slate-500 font-mono">{q.agoMin === 0 ? '방금' : `${q.agoMin}분 전`}</span>
                   {q.shared && (
-                    <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-bold">
+                    <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold">
                       전체 공유됨
                     </span>
                   )}
@@ -181,7 +181,7 @@ export default function TeacherHomePage() {
                     {l.start}
                   </span>
                   {l.status === 'live' && (
-                    <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white">
                       <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
                       LIVE
                     </span>
