@@ -53,3 +53,6 @@ next-env.d.ts
 # Playwright 라이브 캡처 — 시각 검증 산출물, repo에 push 안 함
 /output/live-shots/
 /output/screen-captures/
+
+# 로컬 Postgres 컨테이너 볼륨 (docker-compose.yml)
+/.docker/
