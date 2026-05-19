@@ -259,6 +259,18 @@
   30%           { transform: translateY(-6px); }
 }
 
+@keyframes pullim-bot-switch {
+  /* M6 봇 전환 cross-fade — channel remount 시 적용 */
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pullim-liner-swipe {
+  /* M6 봇 시그니처 라이너 swipe — 봇 메타카드 좌측 좌→우 240ms */
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+
 .pullim-anim-live-pulse {
   animation: pullim-live-pulse 1.4s ease-out infinite;
 }
@@ -271,13 +283,23 @@
   animation: pullim-typing-bounce 1.4s ease-in-out infinite;
 }
 
+.pullim-anim-bot-switch {
+  animation: pullim-bot-switch var(--duration-base) var(--easing-emphasis) both;
+}
+
+.pullim-anim-liner-swipe {
+  animation: pullim-liner-swipe var(--duration-slow) var(--easing-emphasis) both;
+}
+
 /* 모션 감소 ([08 § 10.3]) — 무한 loop은 정지, mount는 opacity-only 120ms */
 @media (prefers-reduced-motion: reduce) {
   .pullim-anim-live-pulse,
   .pullim-anim-typing-dot {
     animation: none;
   }
-  .pullim-anim-message-mount {
+  .pullim-anim-message-mount,
+  .pullim-anim-bot-switch,
+  .pullim-anim-liner-swipe {
     animation: pullim-message-mount-reduced var(--duration-fast) linear both;
   }
 }

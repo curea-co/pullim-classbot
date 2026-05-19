@@ -1,0 +1,164 @@
+/**
+ * @pullim/design-tokens v0.1.0
+ * CSS custom properties for Planner / Q / Classbot
+ * Import once in app root: `@import "@pullim/design-tokens/tokens.css";`
+ */
+
+:root {
+  /* ─────────────── Color: Brand ─────────────── */
+  --color-brand-50:  #EEF3FF;
+  --color-brand-100: #DCE6FF;
+  --color-brand-200: #B8CDFF;
+  --color-brand-300: #8BAEFF;
+  --color-brand-400: #5A8BFF;
+  --color-brand-500: #3B6FF6;
+  --color-brand-600: #2854D8; /* ★ Primary CTA */
+  --color-brand-700: #1D3FA8; /* hover / pressed */
+  --color-brand-900: #070F2C;
+
+  /* ─────────────── Color: Accent ─────────────── */
+  --color-accent-lime:    #E6FF4C;
+  --color-accent-lime-on: #5C6B0A;
+
+  /* ─────────────── Color: Text ─────────────── */
+  --color-text-primary:    #121627;
+  --color-text-secondary:  #4A536A;
+  --color-text-tertiary:   #6B7489; /* ★ 본문 메타 최소선 (12~14px) */
+  --color-text-quaternary: #97A0B4; /* 14px 이상에서만 */
+  --color-text-disabled:   #B7BDCD;
+  --color-text-on-primary: #FFFFFF;
+
+  /* ─────────────── Color: Surface ─────────────── */
+  --color-surface-canvas:  #F5F7FB;
+  --color-surface-subtle:  #EDF0F5;
+  --color-surface-default: #FFFFFF;
+  --color-surface-inverse: #0F1A3A;
+
+  /* ─────────────── Color: Border ─────────────── */
+  --color-border-subtle:  #EDF0F5;
+  --color-border-default: #DDE2EC;
+  --color-border-strong:  #B7BDCD;
+
+  /* ─────────────── Color: Semantic ─────────────── */
+  --color-success-fg:     #0E8C56;
+  --color-success-bg:     #E6F8EF;
+  --color-success-border: #A5E5C4;
+
+  --color-warning-fg:     #B7791F;
+  --color-warning-bg:     #FFF7E6;
+  --color-warning-cta-bg: #D97706; /* ★ 흰 글자 위 AA */
+  --color-warning-border: #F2C879;
+
+  --color-danger-fg:     #C03B3F;
+  --color-danger-bg:     #FDECEC;
+  --color-danger-border: #F0A8AB;
+
+  --color-live-fg: #E5484D;
+  --color-live-bg: #FFE9EA;
+
+  /* ─────────────── Color: Chart ─────────────── */
+  --color-chart-1: #2854D8;
+  --color-chart-2: #0E8C56;
+  --color-chart-3: #D97706;
+  --color-chart-4: #8B5CF6;
+  --color-chart-5: #06B6D4;
+  --color-chart-6: #E5484D;
+
+  /* ─────────────── Typography ─────────────── */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* size / line-height / 권장 weight */
+  --text-caption-size:   12px;  --text-caption-lh:  16px;
+  --text-body-size:      14px;  --text-body-lh:     22px;
+  --text-body-lg-size:   16px;  --text-body-lg-lh:  24px;
+  --text-title-3-size:   18px;  --text-title-3-lh:  26px;
+  --text-title-2-size:   20px;  --text-title-2-lh:  28px;
+  --text-title-1-size:   24px;  --text-title-1-lh:  32px;
+  --text-display-2-size: 28px;  --text-display-2-lh:36px;
+  --text-display-1-size: 32px;  --text-display-1-lh:40px;
+
+  /* ─────────────── Spacing (8pt 변형) ─────────────── */
+  --space-0:  0px;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ─────────────── Radius ─────────────── */
+  --radius-sm:   8px;
+  --radius-md:   14px;  /* ★ 카드/버튼/인풋 표준 */
+  --radius-lg:   20px;
+  --radius-pill: 9999px;
+
+  /* ─────────────── Elevation ─────────────── */
+  --elev-0:   none;
+  --elev-1:   0 1px 2px rgba(18, 22, 39, 0.04);
+  --elev-2:   0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
+  --elev-3:   0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
+  --elev-fab: 0 10px 15px -3px rgba(40, 84, 216, 0.30), 0 4px 6px -4px rgba(40, 84, 216, 0.30);
+
+  /* ─────────────── Focus ring (a11y 필수) ─────────────── */
+  --focus-ring:        0 0 0 3px rgba(59, 111, 246, 0.35);
+  --focus-ring-danger: 0 0 0 3px rgba(229, 72, 77, 0.30);
+
+  /* ─────────────── Motion ─────────────── */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ─────────────── Layout ─────────────── */
+  --header-height-desktop: 56px;
+  --header-height-mobile:  52px;
+  --sidebar-width:         240px;
+  --tabbar-height:         64px;
+  --content-max-width:     1280px;
+  --content-gutter-desktop:24px;
+  --content-gutter-mobile: 16px;
+  --hit-area-min:          44px;
+}
+
+/* ─────────────── Optional Dark Theme (Planner CSS만 있던 죽은 코드 정리용) ─────────────── */
+@media (prefers-color-scheme: dark) {
+  :root.theme-auto-dark,
+  :root[data-theme="dark"] {
+    --color-text-primary:    #F5F7FB;
+    --color-text-secondary:  #C4CBDA;
+    --color-text-tertiary:   #97A0B4;
+    --color-text-quaternary: #6B7489;
+    --color-surface-canvas:  #080B18;
+    --color-surface-subtle:  #0F1A3A;
+    --color-surface-default: #121627;
+    --color-border-subtle:   #1F2740;
+    --color-border-default:  #2B3556;
+    --color-border-strong:   #4A536A;
+  }
+}
+
+/* ─────────────── Base resets aligned with tokens ─────────────── */
+html {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background: var(--color-surface-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 키보드 포커스만 ring 표시 (마우스 클릭 시 ring X) */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Heart, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
@@ -7,12 +7,16 @@ import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
 import {
   currentPersona, classRoster, getCheckInsForStudent, hasTodayCheckIn, moodMeta,
 } from '@/lib/mock';
+import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 
 export default function WellnessPage() {
   const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
   const checkIns = getCheckInsForStudent(me.id);
   const checkedToday = hasTodayCheckIn(me.id);
+  // [13 § 3.3.3·9.3] 담당 봇 코멘트 — 가장 낮은 5지표 영역의 봇 자동 매칭
+  const botComment = getWellnessBotComment(me.id);
 
   return (
     <div className="space-y-4">
@@ -58,6 +62,44 @@ export default function WellnessPage() {
       </Link>
 
       <WellbeingGauge studentId={me.id} />
+
+      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3] */}
+      {botComment && (() => {
+        const sig = botSignature(botComment.bot);
+        return (
+          <section
+            className="bg-card rounded-2xl border border-l-[4px] p-4"
+            style={{ borderLeftColor: sig.hex }}
+          >
+            <header className="mb-2 flex items-center gap-2">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
+                style={{ backgroundColor: sig.hex }}
+              >
+                {botComment.bot.avatarEmoji}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
+                  {botComment.bot.name}
+                  <span className="text-pullim-slate-400 font-normal text-[11px]">· 오늘 코멘트</span>
+                </div>
+                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 가장 낮아요</p>
+              </div>
+              <Sparkles className="text-pullim-slate-300 h-3 w-3" />
+            </header>
+            <p className="text-pullim-slate-700 mt-1 text-[13px] leading-relaxed">
+              &ldquo;{botComment.text}&rdquo;
+            </p>
+            <Link
+              href={botComment.ctaHref}
+              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold text-white"
+            >
+              {botComment.ctaLabel}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </section>
+        );
+      })()}
 
       {/* 주간 감정 그래프 */}
       <section className="bg-card rounded-2xl border p-4">
