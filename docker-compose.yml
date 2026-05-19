@@ -1,0 +1,31 @@
+# 풀림 클래스봇 — 로컬 BE 인프라
+# DB만 컨테이너, Next.js dev 서버는 host에서 (hot reload 즉시).
+# 사용:
+#   bun run db:up         # 컨테이너 시작 (백그라운드)
+#   bun run db:down       # 컨테이너 종료 (데이터 유지)
+#   bun run db:reset      # 컨테이너 + 볼륨 모두 삭제 후 재기동
+#
+# 데이터: ./.docker/postgres (gitignored)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pullim-classbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pullim
+      POSTGRES_PASSWORD: pullim
+      POSTGRES_DB: pullim_classbot
+      # UTC로 고정 — seed가 시각 컬럼을 KST 라벨로 다루더라도 저장은 UTC.
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      # 호스트 5432·5433은 다른 풀림 프로젝트 Postgres가 점유 중이라 5434로 노출.
+      - "5434:5432"
+    volumes:
+      - ./.docker/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pullim -d pullim_classbot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
