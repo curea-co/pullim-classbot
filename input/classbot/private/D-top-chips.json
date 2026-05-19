@@ -1,0 +1,72 @@
+[
+  {
+    "text": "🧑‍🏫 수학이 형",
+    "rect": {
+      "x": 281,
+      "y": 119,
+      "width": 101.3125,
+      "height": 28,
+      "top": 119,
+      "right": 382.3125,
+      "bottom": 147,
+      "left": 281
+    },
+    "cls": "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors bg-pullim-blue-600 text-white"
+  },
+  {
+    "text": "👩‍🏫 영어 누나",
+    "rect": {
+      "x": 388.3125,
+      "y": 119,
+      "width": 101.3125,
+      "height": 28,
+      "top": 119,
+      "right": 489.625,
+      "bottom": 147,
+      "left": 388.3125
+    },
+    "cls": "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100"
+  },
+  {
+    "text": "🧑‍🔬 과학 쌤",
+    "rect": {
+      "x": 495.625,
+      "y": 119,
+      "width": 79.09375,
+      "height": 28,
+      "top": 119,
+      "right": 574.71875,
+      "bottom": 147,
+      "left": 495.625
+    },
+    "cls": "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100"
+  },
+  {
+    "text": "👩‍💼 국어 누나",
+    "rect": {
+      "x": 580.71875,
+      "y": 119,
+      "width": 89.3125,
+      "height": 28,
+      "top": 119,
+      "right": 670.03125,
+      "bottom": 147,
+      "left": 580.71875
+    },
+    "cls": "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100"
+  },
+  {
+    "text": "🧑‍🎓 사회 코치",
+    "rect": {
+      "x": 676.03125,
+      "y": 119,
+      "width": 89.3125,
+      "height": 28,
+      "top": 119,
+      "right": 765.34375,
+      "bottom": 147,
+      "left": 676.03125
+    },
+    "cls": "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100"
+  }
+]

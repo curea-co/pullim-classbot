@@ -1,0 +1,1032 @@
+{
+  "desktop": {
+    "lang": "ko",
+    "title": "풀림 클래스봇 — 교사가 만드는 AI 학습 교실",
+    "desc": "교사가 자신의 수업·교안·목소리를 AI에 이식해 만드는 디지털 분신 수업 동반자. 반 운영·과제 배포·실시간 피드백을 자동화하는 풀림 클래스봇.",
+    "bodyFont": "\"Pretendard Variable\", Pretendard, -apple-system, \"system-ui\", system-ui, Roboto, sans-serif",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(18, 22, 39)",
+    "colors": [
+      [
+        "rgb(18, 22, 39)",
+        130
+      ],
+      [
+        "rgb(255, 255, 255)",
+        43
+      ],
+      [
+        "rgb(107, 116, 137)",
+        34
+      ],
+      [
+        "rgb(29, 63, 168)",
+        26
+      ],
+      [
+        "rgb(74, 83, 106)",
+        24
+      ],
+      [
+        "rgb(151, 160, 180)",
+        20
+      ],
+      [
+        "rgb(52, 59, 80)",
+        14
+      ],
+      [
+        "rgb(196, 203, 218)",
+        13
+      ],
+      [
+        "rgb(92, 107, 10)",
+        6
+      ],
+      [
+        "rgb(59, 111, 246)",
+        5
+      ],
+      [
+        "rgb(220, 230, 255)",
+        5
+      ],
+      [
+        "rgb(40, 84, 216)",
+        4
+      ],
+      [
+        "oklab(0.999994 0.0000455677 0.0000200868 / 0.8)",
+        3
+      ],
+      [
+        "rgb(21, 46, 122)",
+        2
+      ],
+      [
+        "rgb(0, 0, 0)",
+        1
+      ]
+    ],
+    "backgrounds": [
+      [
+        "rgb(255, 255, 255)",
+        15
+      ],
+      [
+        "rgb(238, 243, 255)",
+        9
+      ],
+      [
+        "rgb(237, 240, 245)",
+        8
+      ],
+      [
+        "rgb(40, 84, 216)",
+        7
+      ],
+      [
+        "rgb(229, 72, 77)",
+        5
+      ],
+      [
+        "rgb(230, 255, 76)",
+        3
+      ],
+      [
+        "rgb(245, 247, 251)",
+        2
+      ],
+      [
+        "lab(54.5835 61.4482 33.7329 / 0.05)",
+        2
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.15)",
+        2
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.85)",
+        1
+      ],
+      [
+        "lab(97.1635 -0.153184 -2.17012 / 0.8)",
+        1
+      ],
+      [
+        "rgb(90, 139, 255)",
+        1
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.2)",
+        1
+      ],
+      [
+        "lab(95.7213 -0.0681579 -6.39557 / 0.5)",
+        1
+      ],
+      [
+        "rgb(29, 63, 168)",
+        1
+      ]
+    ],
+    "fontFamilies": [
+      "\"Pretendard Variable\", Pretendard, -apple-system, \"system-ui\", system-ui, Roboto, sans-serif",
+      "\"Geist Mono\", \"Geist Mono Fallback\", ui-monospace, SFMono-Regular, monospace"
+    ],
+    "fontSizes": [
+      [
+        "16px",
+        131
+      ],
+      [
+        "10px",
+        68
+      ],
+      [
+        "12px",
+        58
+      ],
+      [
+        "14px",
+        51
+      ],
+      [
+        "11px",
+        16
+      ],
+      [
+        "20px",
+        7
+      ],
+      [
+        "15.84px",
+        1
+      ],
+      [
+        "24px",
+        1
+      ]
+    ],
+    "fontWeights": [
+      [
+        "400",
+        187
+      ],
+      [
+        "700",
+        85
+      ],
+      [
+        "500",
+        52
+      ],
+      [
+        "600",
+        9
+      ]
+    ],
+    "borderRadii": [
+      [
+        "3.35544e+07px",
+        23
+      ],
+      [
+        "20px",
+        21
+      ],
+      [
+        "14px",
+        20
+      ],
+      [
+        "18px",
+        4
+      ],
+      [
+        "26px",
+        1
+      ]
+    ],
+    "shadows": [
+      [
+        "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(230, 255, 76) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        2
+      ],
+      [
+        "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 20px 25px -5px, rgba(0, 0, 0, 0.1) 0px 8px 10px -6px",
+        1
+      ]
+    ],
+    "spacings": [
+      [
+        "12px",
+        15
+      ],
+      [
+        "2px 6px",
+        11
+      ],
+      [
+        "8px",
+        9
+      ],
+      [
+        "2px 8px",
+        4
+      ],
+      [
+        "16px",
+        3
+      ],
+      [
+        "14px",
+        3
+      ],
+      [
+        "0px 16px",
+        1
+      ],
+      [
+        "12px 8px",
+        1
+      ],
+      [
+        "0px 0px 0px 8px",
+        1
+      ],
+      [
+        "0px 32px",
+        1
+      ],
+      [
+        "16px 32px 40px",
+        1
+      ],
+      [
+        "20px",
+        1
+      ],
+      [
+        "8px 14px",
+        1
+      ],
+      [
+        "4px 8px",
+        1
+      ],
+      [
+        "0px 10px",
+        1
+      ]
+    ],
+    "headings": [
+      {
+        "tag": "H2",
+        "text": "내 클래스봇",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "도함수 활용 마무리",
+        "fontSize": "20px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "LIVE\n1개 수업 진행 중",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "받은 과제",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      }
+    ],
+    "buttons": [
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "서",
+        "bg": "rgb(40, 84, 216)",
+        "color": "rgb(255, 255, 255)",
+        "padding": "0px",
+        "borderRadius": "3.35544e+07px",
+        "fontSize": "12px"
+      },
+      {
+        "text": "①\n1",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "②\n5",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "③\n6",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "④\n8",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "제출하기",
+        "bg": "rgb(40, 84, 216)",
+        "color": "rgb(255, 255, 255)",
+        "padding": "0px 10px",
+        "borderRadius": "20px",
+        "fontSize": "14px"
+      }
+    ],
+    "inputs": [],
+    "links": [
+      {
+        "text": "풀림\n클래스봇",
+        "href": "/"
+      },
+      {
+        "text": "홈",
+        "href": "/"
+      },
+      {
+        "text": "풀림 클래스봇",
+        "href": "/classbot"
+      },
+      {
+        "text": "홈",
+        "href": "/classbot"
+      },
+      {
+        "text": "받은 과제",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "봇 대화",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "내 웰빙",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "리플레이",
+        "href": "/classbot/replay"
+      },
+      {
+        "text": "봇 찾기",
+        "href": "#"
+      },
+      {
+        "text": "소개하기",
+        "href": "/classbot/onboarding"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "",
+        "href": "/classbot"
+      },
+      {
+        "text": "",
+        "href": "/classbot"
+      },
+      {
+        "text": "",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "",
+        "href": "/classbot/replay"
+      },
+      {
+        "text": "",
+        "href": "#"
+      },
+      {
+        "text": "",
+        "href": "/classbot/onboarding"
+      },
+      {
+        "text": "풀림 클래스봇",
+        "href": "/"
+      },
+      {
+        "text": "홈",
+        "href": "/classbot"
+      },
+      {
+        "text": "과제",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "대화",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "웰빙",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "리플레이",
+        "href": "/classbot/replay"
+      }
+    ],
+    "imgCount": 0,
+    "imgsNoAlt": 0,
+    "focusables": 46,
+    "sections": [
+      {
+        "heading": "내 클래스봇",
+        "height": 287
+      },
+      {
+        "heading": "LIVE\n1개 수업 진행 중",
+        "height": 385
+      },
+      {
+        "heading": "(no heading)",
+        "height": 260
+      },
+      {
+        "heading": "받은 과제",
+        "height": 238
+      },
+      {
+        "heading": "(no heading)",
+        "height": 62
+      },
+      {
+        "heading": "(no heading)",
+        "height": 76
+      },
+      {
+        "heading": "(no heading)",
+        "height": 0
+      }
+    ],
+    "scrollHeight": 900,
+    "viewportH": 900,
+    "viewportW": 1440
+  },
+  "mobile": {
+    "lang": "ko",
+    "title": "풀림 클래스봇 — 교사가 만드는 AI 학습 교실",
+    "desc": "교사가 자신의 수업·교안·목소리를 AI에 이식해 만드는 디지털 분신 수업 동반자. 반 운영·과제 배포·실시간 피드백을 자동화하는 풀림 클래스봇.",
+    "bodyFont": "\"Pretendard Variable\", Pretendard, -apple-system, \"system-ui\", system-ui, Roboto, sans-serif",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(18, 22, 39)",
+    "colors": [
+      [
+        "rgb(18, 22, 39)",
+        125
+      ],
+      [
+        "rgb(107, 116, 137)",
+        54
+      ],
+      [
+        "rgb(255, 255, 255)",
+        38
+      ],
+      [
+        "rgb(29, 63, 168)",
+        18
+      ],
+      [
+        "rgb(151, 160, 180)",
+        14
+      ],
+      [
+        "rgb(196, 203, 218)",
+        10
+      ],
+      [
+        "rgb(40, 84, 216)",
+        9
+      ],
+      [
+        "rgb(52, 59, 80)",
+        9
+      ],
+      [
+        "rgb(92, 107, 10)",
+        6
+      ],
+      [
+        "rgb(59, 111, 246)",
+        5
+      ],
+      [
+        "rgb(220, 230, 255)",
+        5
+      ],
+      [
+        "oklab(0.999994 0.0000455677 0.0000200868 / 0.8)",
+        3
+      ],
+      [
+        "rgb(21, 46, 122)",
+        2
+      ],
+      [
+        "rgb(0, 0, 0)",
+        1
+      ],
+      [
+        "rgb(230, 255, 76)",
+        1
+      ]
+    ],
+    "backgrounds": [
+      [
+        "rgb(255, 255, 255)",
+        14
+      ],
+      [
+        "rgb(237, 240, 245)",
+        8
+      ],
+      [
+        "rgb(238, 243, 255)",
+        7
+      ],
+      [
+        "rgb(40, 84, 216)",
+        6
+      ],
+      [
+        "rgb(229, 72, 77)",
+        5
+      ],
+      [
+        "rgb(230, 255, 76)",
+        3
+      ],
+      [
+        "rgb(245, 247, 251)",
+        2
+      ],
+      [
+        "lab(54.5835 61.4482 33.7329 / 0.05)",
+        2
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.15)",
+        2
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.85)",
+        1
+      ],
+      [
+        "lab(97.1635 -0.153184 -2.17012 / 0.8)",
+        1
+      ],
+      [
+        "rgb(90, 139, 255)",
+        1
+      ],
+      [
+        "oklab(0.999994 0.0000455678 0.0000200868 / 0.2)",
+        1
+      ],
+      [
+        "lab(95.7213 -0.0681579 -6.39557 / 0.5)",
+        1
+      ],
+      [
+        "rgb(29, 63, 168)",
+        1
+      ]
+    ],
+    "fontFamilies": [
+      "\"Pretendard Variable\", Pretendard, -apple-system, \"system-ui\", system-ui, Roboto, sans-serif",
+      "\"Geist Mono\", \"Geist Mono Fallback\", ui-monospace, SFMono-Regular, monospace"
+    ],
+    "fontSizes": [
+      [
+        "16px",
+        126
+      ],
+      [
+        "10px",
+        67
+      ],
+      [
+        "14px",
+        41
+      ],
+      [
+        "11px",
+        41
+      ],
+      [
+        "12px",
+        18
+      ],
+      [
+        "20px",
+        7
+      ],
+      [
+        "15.84px",
+        1
+      ],
+      [
+        "24px",
+        1
+      ]
+    ],
+    "fontWeights": [
+      [
+        "400",
+        182
+      ],
+      [
+        "700",
+        84
+      ],
+      [
+        "500",
+        27
+      ],
+      [
+        "600",
+        9
+      ]
+    ],
+    "borderRadii": [
+      [
+        "3.35544e+07px",
+        23
+      ],
+      [
+        "20px",
+        21
+      ],
+      [
+        "14px",
+        12
+      ],
+      [
+        "18px",
+        4
+      ]
+    ],
+    "shadows": [
+      [
+        "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(230, 255, 76) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        2
+      ],
+      [
+        "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 20px 25px -5px, rgba(0, 0, 0, 0.1) 0px 8px 10px -6px",
+        1
+      ]
+    ],
+    "spacings": [
+      [
+        "12px",
+        15
+      ],
+      [
+        "2px 6px",
+        11
+      ],
+      [
+        "10px 0px",
+        5
+      ],
+      [
+        "16px",
+        3
+      ],
+      [
+        "2px 8px",
+        3
+      ],
+      [
+        "14px",
+        3
+      ],
+      [
+        "0px 12px",
+        1
+      ],
+      [
+        "0px 16px",
+        1
+      ],
+      [
+        "16px 16px 96px",
+        1
+      ],
+      [
+        "20px",
+        1
+      ],
+      [
+        "8px 14px",
+        1
+      ],
+      [
+        "4px 8px",
+        1
+      ],
+      [
+        "0px 10px",
+        1
+      ]
+    ],
+    "headings": [
+      {
+        "tag": "H2",
+        "text": "내 클래스봇",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "도함수 활용 마무리",
+        "fontSize": "20px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "LIVE\n1개 수업 진행 중",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      },
+      {
+        "tag": "H2",
+        "text": "받은 과제",
+        "fontSize": "14px",
+        "fontWeight": "700"
+      }
+    ],
+    "buttons": [
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "",
+        "bg": "rgba(0, 0, 0, 0)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "0px",
+        "borderRadius": "14px",
+        "fontSize": "16px"
+      },
+      {
+        "text": "서",
+        "bg": "rgb(40, 84, 216)",
+        "color": "rgb(255, 255, 255)",
+        "padding": "0px",
+        "borderRadius": "3.35544e+07px",
+        "fontSize": "12px"
+      },
+      {
+        "text": "①\n1",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "②\n5",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "③\n6",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "④\n8",
+        "bg": "rgb(255, 255, 255)",
+        "color": "rgb(18, 22, 39)",
+        "padding": "12px",
+        "borderRadius": "14px",
+        "fontSize": "14px"
+      },
+      {
+        "text": "제출하기",
+        "bg": "rgb(40, 84, 216)",
+        "color": "rgb(255, 255, 255)",
+        "padding": "0px 10px",
+        "borderRadius": "20px",
+        "fontSize": "14px"
+      }
+    ],
+    "inputs": [],
+    "links": [
+      {
+        "text": "풀림",
+        "href": "/"
+      },
+      {
+        "text": "홈",
+        "href": "/"
+      },
+      {
+        "text": "풀림 클래스봇",
+        "href": "/classbot"
+      },
+      {
+        "text": "홈",
+        "href": "/classbot"
+      },
+      {
+        "text": "받은 과제",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "봇 대화",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "내 웰빙",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "리플레이",
+        "href": "/classbot/replay"
+      },
+      {
+        "text": "봇 찾기",
+        "href": "#"
+      },
+      {
+        "text": "소개하기",
+        "href": "/classbot/onboarding"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "",
+        "href": "/classbot"
+      },
+      {
+        "text": "",
+        "href": "/classbot"
+      },
+      {
+        "text": "",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "",
+        "href": "/classbot/replay"
+      },
+      {
+        "text": "",
+        "href": "#"
+      },
+      {
+        "text": "",
+        "href": "/classbot/onboarding"
+      },
+      {
+        "text": "풀림 클래스봇",
+        "href": "/"
+      },
+      {
+        "text": "홈",
+        "href": "/classbot"
+      },
+      {
+        "text": "과제",
+        "href": "/classbot/assignment"
+      },
+      {
+        "text": "대화",
+        "href": "/classbot/chat"
+      },
+      {
+        "text": "웰빙",
+        "href": "/classbot/wellness"
+      },
+      {
+        "text": "리플레이",
+        "href": "/classbot/replay"
+      }
+    ],
+    "imgCount": 0,
+    "imgsNoAlt": 0,
+    "focusables": 46,
+    "sections": [
+      {
+        "heading": "내 클래스봇",
+        "height": 599
+      },
+      {
+        "heading": "LIVE\n1개 수업 진행 중",
+        "height": 385
+      },
+      {
+        "heading": "(no heading)",
+        "height": 260
+      },
+      {
+        "heading": "받은 과제",
+        "height": 238
+      },
+      {
+        "heading": "(no heading)",
+        "height": 96
+      },
+      {
+        "heading": "(no heading)",
+        "height": 76
+      },
+      {
+        "heading": "(no heading)",
+        "height": 0
+      }
+    ],
+    "scrollHeight": 844,
+    "viewportH": 844,
+    "viewportW": 390
+  }
+}
