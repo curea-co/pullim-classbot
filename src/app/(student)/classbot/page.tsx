@@ -61,8 +61,9 @@ export default function StudentClassbotPage() {
           6. 최근 리플레이 진입 (빠른 진입)
       */}
 
-      {/* 1. 지금 LIVE ([08 § 15.3] navy solid + 4px lime 좌측 라이너 + LIVE 펄스) */}
-      {liveBots.length > 0 && <LiveSection liveBots={liveBots.map(b => b.bot)} />}
+      {/* 1. 지금 LIVE ([08 § 15.3] navy solid + 4px lime 좌측 라이너 + LIVE 펄스).
+          IA(07:57 "클래스룸 > 실시간 수업") 정합으로 항상 노출 — 비활성 시 리플레이 진입 보조. */}
+      <LiveSection liveBots={liveBots.map(b => b.bot)} />
 
       {/* 2. 내 클래스봇 — 카드 정보 보강 (마지막 메시지 + 미완료 카운트 + 1차 CTA) */}
       <MyBotsStrip bots={myBots} incompleteByBot={incompleteByBot} activeLive={activeLive} />
@@ -134,6 +135,32 @@ export default function StudentClassbotPage() {
 
 /* ─── LIVE 카드 시그니처 ([08 § 15.3] navy solid + lime 좌측 라이너 + 시청자 spring) ─── */
 function LiveSection({ liveBots }: { liveBots: ClassBot[] }) {
+  if (liveBots.length === 0) {
+    return (
+      <section className="space-y-2">
+        <header className="flex items-center justify-between">
+          <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
+            <span className="bg-pullim-slate-200 text-pullim-slate-500 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+              LIVE
+            </span>
+            라이브 수업
+          </h2>
+        </header>
+        <Link
+          href="/classbot/replay"
+          className="bg-pullim-slate-50 border-pullim-slate-200 hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-pullim-slate-700 text-sm font-bold">진행 중인 라이브 없음</div>
+            <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+              선생님이 라이브를 시작하면 여기에 표시돼요. 그 사이 지난 수업 리플레이를 둘러봐도 좋아요.
+            </div>
+          </div>
+          <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
+        </Link>
+      </section>
+    );
+  }
   const first = liveBots[0];
   return (
     <section className="space-y-2">

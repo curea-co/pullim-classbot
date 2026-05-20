@@ -12,6 +12,9 @@ import { test, expect } from '@playwright/test';
 test.describe('chat 인삿말 봇별 변화', () => {
   test('cb_001 친근 → cb_002 정중 → cb_003 스파르타 → cb_004 차분 → cb_005 열정 전환', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
+    // Suspense fallback("불러오는 중…") 이후 ChatPanel hydration 완료까지 대기.
+    // #65 머지 후 prod 빌드에서 networkidle + 기본 5s 안에 fallback이 사라지지 않는 회귀.
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
 
     // cb_001 (수학이 형, 친근 반말) — 기본 선택
     await expect(page.getByText(/수학이 형이야/)).toBeVisible();

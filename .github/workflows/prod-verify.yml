@@ -19,6 +19,7 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
+      - 'tests/**'
       - 'package.json'
       - 'bun.lock'
       - 'next.config.*'
