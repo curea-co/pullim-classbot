@@ -94,12 +94,12 @@
 
 ## Phase 3 — P2 (별도 PR)
 
-- [ ] P2-12 메시지 타입 6종 카탈로그 (text → problem-card → explain-step 우선)
-- [ ] P2-13 봇 스위처 칩 LIVE 펄스 + 시그니처 활성 상태
-- [ ] P2-14 과제 카드 상태별 컬러/라이너 매핑
+- [x] P2-12 메시지 타입 6종 카탈로그 (#69 — `MessageBody`/`buildRichBotTurn` dispatcher)
+- [x] P2-13 봇 스위처 칩 LIVE 펄스 + 시그니처 활성 상태 (#69 — `chat/page.tsx:118,127`)
+- [x] P2-14 과제 카드 상태별 컬러/라이너 매핑 (#69 — `src/lib/tokens/assignment-state.ts` 신규)
 - [ ] P2-15 과제 봇별 그룹 헤더
-- [ ] P2-16 웰빙 담당 봇 코멘트 카드 + 체크인 사후 봇 반응
-- [ ] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침
+- [ ] P2-16 웰빙 담당 봇 코멘트 카드 + 체크인 사후 봇 반응 (#69 — `classbot-wellness-bot.ts` mock만, UI 카드 미진행)
+- [ ] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침 (#69 — gauge 라벨 색만 적용, 5지표 펼침 미진행)
 
 ## Phase 4 — P3 (별도 PR)
 
