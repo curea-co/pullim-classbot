@@ -76,8 +76,9 @@
   /* 시맨틱 */
   --color-pullim-success: #12B26B;
   --color-pullim-success-bg: #E6F7EE;
-  --color-pullim-warn: #F59E0B;
-  --color-pullim-warn-bg: #FEF3DB;
+  /* warning.fg/bg — input/design-system/tokens.json 정합. #F59E0B는 텍스트 AA 미통과(2.6:1). */
+  --color-pullim-warn: #B7791F;
+  --color-pullim-warn-bg: #FFF7E6;
   --color-pullim-danger: #E5484D;
   --color-pullim-danger-bg: #FCE9EA;
 
