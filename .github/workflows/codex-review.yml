@@ -36,34 +36,47 @@ jobs:
       - name: Clean Codex config
         run: rm -f ~/.codex/config.toml
 
-      - name: Clean previous review
-        run: rm -f /tmp/codex-review-${{ github.event.repository.name }}.json /tmp/pr-diff-${{ github.event.repository.name }}.txt
+      - name: Prepare runtime workspace
+        # Codex 지적(round 2 #3): /tmp 경로 + safety_strategy=unsafe = 워크스페이스 외부 파일 시스템 접근.
+        # 모든 input/output 을 workspace 내부(.codex-runtime/) 로 옮겨 sandbox 기본 동작으로 격리.
+        run: |
+          rm -rf .codex-runtime
+          mkdir -p .codex-runtime
 
       - name: Extract PR diff
         run: |
           set -euo pipefail
           # base.sha · head.sha 직접 사용 — base.ref 가 force-push 시 흔들리지 않음.
           git diff "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
-            > /tmp/pr-diff-${{ github.event.repository.name }}.txt
-          echo "PR diff: $(wc -l < /tmp/pr-diff-${{ github.event.repository.name }}.txt) lines"
+            > .codex-runtime/pr-diff.txt
+          echo "PR diff: $(wc -l < .codex-runtime/pr-diff.txt) lines"
 
-      # safety_strategy=unsafe 정당화:
-      # Codex CLI 가 /tmp/pr-diff*.txt 읽기 · /tmp/codex-review*.json 쓰기 필요.
-      # workspace-write sandbox + unsafe = 워크스페이스 외부 파일 시스템 접근 허용.
-      # /tmp 만 사용 + concurrency group 으로 PR 격리 → 실제 영향 격리됨.
+      - name: Snapshot review rules from base SHA
+        # Codex 지적(round 2 #2): PR head 의 AGENTS.md / CLAUDE.md 를 그대로 기준으로 쓰면 PR 작성자가
+        # 리뷰 기준 자체를 흔들 수 있음. base.sha 의 파일을 별도 스냅샷 → prompt 에 명시.
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          git show "${BASE_SHA}:AGENTS.md" > .codex-runtime/base-AGENTS.md 2>/dev/null || true
+          git show "${BASE_SHA}:CLAUDE.md" > .codex-runtime/base-CLAUDE.md 2>/dev/null || true
+          ls -la .codex-runtime/
+
       - name: Codex Review
         id: codex
+        # sandbox=workspace-write + safety_strategy 기본값 — .codex-runtime/ 안의 read/write 만 허용.
+        # 호스트 외부 파일 시스템 접근 차단 (Codex 지적 round 2 #3).
         run: |
-          cat <<PROMPT | codex exec --model gpt-5.4 --sandbox workspace-write -c safety_strategy=unsafe -
-          /tmp/pr-diff-${{ github.event.repository.name }}.txt 파일에 이 PR의 변경 diff가 있다.
-          이 diff를 대상으로 루트 AGENTS.md 와 CLAUDE.md 를 우선 적용해 리뷰해라.
-          명시되지 않은 공통 규칙은 CLAUDE.md 가 가리키는 권위 문서를 참조해라.
+          cat <<'PROMPT' | codex exec --model gpt-5.4 --sandbox workspace-write -
+          .codex-runtime/pr-diff.txt 파일에 이 PR의 변경 diff가 있다.
+          .codex-runtime/base-AGENTS.md 와 .codex-runtime/base-CLAUDE.md 는 base 브랜치 스냅샷이다 (PR 작성자가 흔들 수 없는 권위 문서).
+          이 두 base 스냅샷을 우선 적용해 diff 를 리뷰해라.
+          명시되지 않은 공통 규칙은 base-CLAUDE.md 가 가리키는 권위 문서를 참조하되 PR head 가 아닌 base 기준으로 판단해라.
           모든 리뷰 코멘트는 반드시 한국어로 작성해라.
 
           변경된 코드의 맥락 이해가 필요하면 워크스페이스의 관련 파일을 참조해라.
           단, 전체 파일을 읽지 말고 필요한 부분만 확인해라.
 
-          리뷰 결과를 /tmp/codex-review-${{ github.event.repository.name }}.json 파일에 아래 JSON 형식으로 출력해라:
+          리뷰 결과를 .codex-runtime/review.json 파일에 아래 JSON 형식으로 출력해라:
           {
             "action": "COMMENT" 또는 "APPROVE",
             "body": "전체 리뷰 요약 (한국어)",
@@ -89,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: codex-review-${{ github.event.pull_request.number }}
-          path: /tmp/codex-review-${{ github.event.repository.name }}.json
+          path: .codex-runtime/review.json
           retention-days: 7
 
       - name: Generate App Token
@@ -105,7 +118,7 @@ jobs:
         if: always() && steps.codex.outcome == 'success'
         uses: actions/github-script@v7
         env:
-          REVIEW_PATH: /tmp/codex-review-${{ github.event.repository.name }}.json
+          REVIEW_PATH: .codex-runtime/review.json
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
