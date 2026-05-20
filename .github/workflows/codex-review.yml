@@ -1,10 +1,10 @@
 name: Codex Review
 
 on:
-  # Codex 지적(3차 #1): pull_request_target 패턴 — base 브랜치의 워크플로 yml만
-  # secret 에 접근. PR 가 본 yml 자체를 수정해도 secret 유출 불가.
-  # 단점: 본 yml 의 변경은 main 머지 후 다음 PR 부터 효력 발생.
-  pull_request_target:
+  # !!! 임시 전환 — PR #74 내에서 codex review 루프 동작용 !!!
+  # 정상 트리거는 pull_request_target (base 브랜치 yml 사용 → PR 가 본 yml 자체를 수정해도
+  # secret 유출 불가). main 머지 직전 마지막 commit 에서 pull_request_target 으로 복귀.
+  pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
