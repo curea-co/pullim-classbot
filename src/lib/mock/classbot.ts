@@ -1963,15 +1963,22 @@ export type WellbeingSnapshot = {
   daysAgo: number;
   score: number;        // 0~100
   flag?: 'below-60-3days' | 'below-40-instant' | null;
+  /**
+   * 5지표 분해 — [13 § 9.2] 펼침 패턴용.
+   * 학생 노출 라벨: 수면 / 집중 / 감정 / 사회 / 학업.
+   * 추출본은 오늘(daysAgo=0) snapshot에만 포함; v2에서 7일 모두 보유.
+   */
+  components?: { sleep: number; focus: number; mood: number; social: number; academic: number };
 };
 
 export const wellbeingSnapshots: WellbeingSnapshot[] = [
-  // 서연 — 안정
-  ...[78, 76, 80, 79, 75, 77, 78].map((score, i) => ({ studentId: 's1', daysAgo: i, score })),
+  // 서연 — 안정. 오늘 snapshot에 5지표 분해 포함 ([13 § 9.2] 펼침 데모)
+  { studentId: 's1', daysAgo: 0, score: 78, components: { sleep: 82, focus: 64, mood: 96, social: 78, academic: 72 } },
+  ...[76, 80, 79, 75, 77, 78].map((score, i) => ({ studentId: 's1', daysAgo: i + 1, score })),
   // 민준
   ...[62, 64, 60, 65, 67, 63, 61].map((score, i) => ({ studentId: 's2', daysAgo: i, score })),
-  // 도현 — 임계 미달 3일 지속
-  { studentId: 's4', daysAgo: 0, score: 48, flag: 'below-60-3days' },
+  // 도현 — 임계 미달 3일 지속 (오늘 5지표 분해 포함 — 위기 학생 패널 데모)
+  { studentId: 's4', daysAgo: 0, score: 48, flag: 'below-60-3days', components: { sleep: 42, focus: 38, mood: 52, social: 58, academic: 50 } },
   { studentId: 's4', daysAgo: 1, score: 52, flag: 'below-60-3days' },
   { studentId: 's4', daysAgo: 2, score: 58, flag: 'below-60-3days' },
   { studentId: 's4', daysAgo: 3, score: 62 },

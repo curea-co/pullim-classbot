@@ -18,12 +18,53 @@ import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay'
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
 import { cn } from '@/lib/utils';
 
+/**
+ * 메시지 타입 6종 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
+ * - text: 기본 버블
+ * - problem-card: 라임 좌측 라이너 + 문제번호 + "풀러 가기" CTA (과제·퀴즈 인라인)
+ * - explain-step: 1️⃣2️⃣3️⃣ 단계 indent + 수식 mono (단계별 풀이)
+ * - reference-link / image / audio: 스캐폴드 — v2에서 본격 구현
+ */
+type MessageKind = 'text' | 'problem-card' | 'explain-step' | 'reference-link' | 'image' | 'audio';
+
 type Turn = {
   id: string;
   role: 'student' | 'bot';
   text: string;
   /** epoch ms — 메시지 그루핑/디바이더 계산용 ([04 § 9.8]) */
   at: number;
+  /** 메시지 타입 (기본 text) */
+  kind?: MessageKind;
+  /** 타입별 payload */
+  payload?: ProblemCardPayload | ExplainStepPayload | ReferenceLinkPayload | ImagePayload | AudioPayload;
+};
+
+type ProblemCardPayload = {
+  problemNumber: string;
+  title: string;
+  ctaLabel: string;
+  ctaHref: string;
+};
+
+type ExplainStepPayload = {
+  steps: { num: number; label: string; body: string; formula?: string }[];
+};
+
+type ReferenceLinkPayload = {
+  domain: string;
+  title: string;
+  summary: string;
+  thumbUrl?: string;
+};
+
+type ImagePayload = {
+  url: string;
+  alt: string;
+};
+
+type AudioPayload = {
+  url: string;
+  durationSec: number;
 };
 
 export default function ClassbotChatPage() {
@@ -169,7 +210,9 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     const reply = pickClassbotReply(text, bot.tone, forcedKey);
     setTimeout(() => {
       const at = Date.now();
-      setTurns(t => [...t, { id: `b${at}`, role: 'bot', text: reply, at }]);
+      // [08 § 15.1.3] 시연용 메시지 타입 mapping — forcedKey 기반
+      const richTurn = buildRichBotTurn(`b${at}`, reply, at, forcedKey, bot.id);
+      setTurns(t => [...t, richTurn]);
       // [04 § 9.6] forcedKey가 있을 때만 후속 칩 추천 가능 (free text는 키 미지정)
       setLastBotReplyKey(forcedKey);
       setPending(false);
@@ -213,12 +256,19 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
         collapsed: 56px 정도, 아바타 + 이름 + 범위 라벨 + ⌃
         expanded: 모든 메타 (조직·교사·톤·시청·범위 시간표·라이브 안내)
         키보드 열림 시 자동 collapse (위 useEffect), 명시 토글로 expand.
+        ChatPanel은 key={bot.id}로 봇 전환 시 remount — M6 cross-fade ([08 § 15.2]).
       */}
       <header
         data-slot="bot-meta-header"
         data-collapsed={headerCollapsed ? 'true' : 'false'}
-        className="from-pullim-slate-900 to-pullim-blue-900 relative overflow-hidden rounded-2xl bg-gradient-to-br p-3 text-white shadow-xl"
+        className="from-pullim-slate-900 to-pullim-blue-900 pullim-anim-bot-switch relative overflow-hidden rounded-2xl bg-gradient-to-br p-3 text-white shadow-xl"
       >
+        {/* M6 시그니처 라이너 swipe — 봇 전환 시 좌→우 240ms */}
+        <span
+          aria-hidden
+          className="pullim-anim-liner-swipe absolute left-0 top-0 h-full w-1"
+          style={{ backgroundColor: botSig.hex }}
+        />
         <div className="flex items-center gap-2">
           <Link
             href="/classbot"
@@ -429,6 +479,39 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   );
 }
 
+/* ─── 메시지 타입 dispatch ([08 § 15.1.3] 6종 카탈로그) ─── */
+
+function buildRichBotTurn(id: string, text: string, at: number, forcedKey: ReplyKey | undefined, botId: string): Turn {
+  // 시연용 — forcedKey 기반으로 다른 타입 매핑. v2에서 LLM tool-calling으로 대체.
+  if (forcedKey === 'extremum') {
+    return {
+      id, role: 'bot', at, text,
+      kind: 'explain-step',
+      payload: {
+        steps: [
+          { num: 1, label: '도함수 계산', body: '먼저 f(x)를 미분해서 도함수를 구해.', formula: "f'(x) = …" },
+          { num: 2, label: '임계점 탐색', body: "f'(x) = 0 인 x를 찾아 — 그게 극값 후보야." },
+          { num: 3, label: '부호 변화 표', body: '+ → − 면 극대, − → + 면 극소. 부호 안 바뀌면 극값 X.' },
+        ],
+      } satisfies ExplainStepPayload,
+    };
+  }
+  if (forcedKey === 'exam_prep') {
+    return {
+      id, role: 'bot', at, text,
+      kind: 'problem-card',
+      payload: {
+        problemNumber: 'Q-12',
+        title: '극값 판정 — 부호 변화 표 5문항',
+        ctaLabel: '풀러 가기',
+        ctaHref: `/classbot/assignment/as_prescription/solve?bot=${botId}`,
+      } satisfies ProblemCardPayload,
+    };
+  }
+  // 기본 — text 버블
+  return { id, role: 'bot', at, text, kind: 'text' };
+}
+
 /* ─── 메시지 렌더 + 그루핑 디바이더 ([04 § 9.8]) ─── */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -510,21 +593,121 @@ function Bubble({ turn, bot, continuation = false }: { turn: Turn; bot: ClassBot
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
-        <div
-          className={cn(
-            'rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
-            isStudent
-              ? 'bg-pullim-blue-600 text-white rounded-tr-sm'
-              : 'bg-card border-pullim-slate-100 border border-l-[3px] text-pullim-slate-800 rounded-tl-sm',
-          )}
-          style={isStudent ? undefined : { borderLeftColor: botSig.hex }}
-        >
-          {turn.text}
-        </div>
+        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} />
         {isStudent && (
           <div className="text-pullim-slate-400 mt-1 text-[10px]">{formatTime(turn.at)}</div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── 메시지 본문 6종 dispatch ([08 § 15.1.3]) ─── */
+function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: boolean; botLinerHex: string }) {
+  const baseBubbleClass = cn(
+    'rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',
+    isStudent
+      ? 'bg-pullim-blue-600 text-white rounded-tr-sm px-3.5 py-2.5'
+      : 'bg-card border-pullim-slate-100 border border-l-[3px] text-pullim-slate-800 rounded-tl-sm',
+  );
+  const linerStyle = isStudent ? undefined : { borderLeftColor: botLinerHex };
+
+  // 사용자 메시지는 항상 text — 다른 타입은 봇 전용
+  if (isStudent || !turn.kind || turn.kind === 'text') {
+    return (
+      <div className={cn(baseBubbleClass, !isStudent && 'px-3.5 py-2.5')} style={linerStyle}>
+        {turn.text}
+      </div>
+    );
+  }
+
+  // explain-step — 1️⃣2️⃣3️⃣ 단계 (수식 mono)
+  if (turn.kind === 'explain-step' && turn.payload && 'steps' in turn.payload) {
+    const { steps } = turn.payload;
+    return (
+      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-3')} style={linerStyle}>
+        <p>{turn.text}</p>
+        <ol className="space-y-2 border-t border-pullim-slate-100 pt-2">
+          {steps.map(s => (
+            <li key={s.num} className="flex gap-2">
+              <span className="bg-pullim-blue-50 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold">{s.num}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-pullim-slate-900 text-[12px] font-bold">{s.label}</div>
+                <div className="text-pullim-slate-600 mt-0.5 text-[12px]">{s.body}</div>
+                {s.formula && (
+                  <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-[11px]">
+                    {s.formula}
+                  </code>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
+
+  // problem-card — lime 좌측 라이너 + 문제번호 큰 숫자 + CTA
+  if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
+    const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
+    return (
+      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-2')} style={{ borderLeftColor: '#E6FF4C' }}>
+        <p>{turn.text}</p>
+        <div className="bg-pullim-slate-50 flex items-center gap-2.5 rounded-lg p-2.5">
+          <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-[11px] font-bold">
+            {problemNumber}
+          </span>
+          <div className="min-w-0 flex-1 text-[12px] font-semibold text-pullim-slate-800">{title}</div>
+          <Link
+            href={ctaHref}
+            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+          >
+            {ctaLabel} →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // image / reference-link / audio — 스캐폴드 (v2)
+  if (turn.kind === 'image' && turn.payload && 'url' in turn.payload && 'alt' in turn.payload) {
+    return (
+      <div className={cn(baseBubbleClass, 'overflow-hidden p-0')} style={linerStyle}>
+        <img src={(turn.payload as ImagePayload).url} alt={(turn.payload as ImagePayload).alt} className="block w-full" />
+        {turn.text && <p className="px-3.5 py-2">{turn.text}</p>}
+      </div>
+    );
+  }
+  if (turn.kind === 'reference-link' && turn.payload && 'domain' in turn.payload) {
+    const { domain, title, summary, thumbUrl } = turn.payload as ReferenceLinkPayload;
+    return (
+      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-2')} style={linerStyle}>
+        <p>{turn.text}</p>
+        <div className="bg-pullim-slate-50 flex gap-2 rounded-lg p-2">
+          {thumbUrl && <img src={thumbUrl} alt="" className="aspect-video w-24 rounded object-cover" />}
+          <div className="min-w-0 flex-1">
+            <div className="text-pullim-slate-400 text-[10px]">{domain}</div>
+            <div className="text-pullim-slate-900 text-[12px] font-bold">{title}</div>
+            <p className="text-pullim-slate-500 mt-0.5 line-clamp-1 text-[11px]">{summary}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (turn.kind === 'audio' && turn.payload && 'durationSec' in turn.payload) {
+    return (
+      <div className={cn(baseBubbleClass, 'flex items-center gap-2 px-3.5 py-3')} style={linerStyle}>
+        <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-7 w-7 items-center justify-center rounded-full text-[11px]">▶</span>
+        <div className="min-w-0 flex-1 text-[12px] text-pullim-slate-700">{turn.text}</div>
+        <span className="text-pullim-slate-400 font-mono text-[10px]">{(turn.payload as AudioPayload).durationSec}s</span>
+      </div>
+    );
+  }
+
+  // fallback — 미지원 타입은 text 처리
+  return (
+    <div className={cn(baseBubbleClass, 'px-3.5 py-2.5')} style={linerStyle}>
+      {turn.text}
     </div>
   );
 }

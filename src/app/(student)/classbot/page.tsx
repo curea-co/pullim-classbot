@@ -16,6 +16,7 @@ import { GradingNotificationCard } from '@/components/classbot/grading-notificat
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
+import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
 import { cn } from '@/lib/utils';
 
@@ -438,10 +439,10 @@ function PrimaryAssignmentCard({ assignment: a, bots }: { assignment: Assignment
   );
 }
 
-/* ─── Assignment Row ─── */
+/* ─── Assignment Row — [08 § 15.6] 상태별 컬러/라이너 매핑 ─── */
 function AssignmentRow({ assignment: a, bots }: { assignment: Assignment; bots: ClassBot[] }) {
   const mode = modeMeta[a.mode];
-  const isUrgent = a.dDay === '오늘' || a.dDay === 'D-1';
+  const visual = getAssignmentVisual(a);
   const Icon = a.mode === 'wrong-conquest' ? Target : a.mode === 'exam' ? AlertCircle : Play;
   const fromBot = bots.find(b => b.id === a.botId);
 
@@ -449,7 +450,8 @@ function AssignmentRow({ assignment: a, bots }: { assignment: Assignment; bots: 
     <li>
       <Link
         href={a.solveHref}
-        className="bg-card hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border p-3.5 transition-colors"
+        className="bg-card hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-l-[4px] p-3.5 transition-colors"
+        style={{ borderLeftColor: visual.linerHex }}
       >
         <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white', mode.color)}>
           <Icon className="h-4 w-4" />
@@ -460,14 +462,25 @@ function AssignmentRow({ assignment: a, bots }: { assignment: Assignment; bots: 
             <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
             <span className="text-pullim-slate-300">·</span>
             <span className="text-pullim-slate-500">{sourceMeta[a.source]}</span>
-            <span className="text-pullim-slate-300">·</span>
-            <span className={cn('font-mono font-bold', isUrgent ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
-              {a.dDay}
+            <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
+              {visual.dDayLabel}
             </span>
           </div>
           <div className="text-pullim-slate-900 mt-0.5 text-sm font-bold">{a.title}</div>
           <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
             {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
+          </div>
+          {/* 진행 바 (mode/state 컬러 적용) */}
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
+              <div
+                className={cn('h-full rounded-full transition-all', visual.progressClass)}
+                style={{ width: `${a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100}%` }}
+              />
+            </div>
+            <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+              {a.completedCount}/{a.questionCount}
+            </span>
           </div>
           {a.reasonHint && (
             <p className="text-pullim-slate-400 mt-1 line-clamp-1 text-[11px] italic">

@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Heart } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Heart } from 'lucide-react';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
-import type { EmotionMood } from '@/lib/mock';
+import { classRoster, currentPersona, type EmotionMood } from '@/lib/mock';
+import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
+import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
  * 일일 감정 체크인.
@@ -28,13 +30,46 @@ export function CheckInForm() {
   }
 
   if (done) {
+    // [13 § 3.3.4] 체크인 사후 봇 반응 — 가장 낮은 영역 담당 봇이 한 줄 + actionable CTA
+    const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+    const reaction = getCheckInReaction(me.id, mood);
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <div className="bg-pullim-blue-50 flex h-20 w-20 items-center justify-center rounded-full">
+        <div className="bg-pullim-blue-50 pullim-anim-message-mount flex h-20 w-20 items-center justify-center rounded-full">
           <Check className="text-pullim-blue-600 h-10 w-10" />
         </div>
         <h1 className="text-pullim-slate-900 mt-4 text-xl font-bold">기록했어요</h1>
         <p className="text-pullim-slate-500 mt-1 text-sm">내일 또 봐요.</p>
+
+        {/* 봇 반응 카드 — dead-end 방지 + actionable */}
+        {reaction && (() => {
+          const sig = botSignature(reaction.bot);
+          return (
+            <section
+              className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border border-l-[4px] p-3 text-left"
+              style={{ borderLeftColor: sig.hex }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
+                  style={{ backgroundColor: sig.hex }}
+                >
+                  {reaction.bot.avatarEmoji}
+                </span>
+                <div className="text-pullim-slate-900 text-xs font-bold">{reaction.bot.name}</div>
+              </div>
+              <p className="text-pullim-slate-700 mt-2 text-[13px] leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
+              <Link
+                href={reaction.ctaHref}
+                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold text-white"
+              >
+                {reaction.ctaLabel}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </section>
+          );
+        })()}
+
         <div className="mt-6 flex gap-2">
           <Link
             href="/classbot/me/report"
