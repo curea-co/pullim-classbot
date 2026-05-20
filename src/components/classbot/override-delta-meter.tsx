@@ -31,7 +31,7 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
           <div className={cn('font-mono text-lg font-bold', isOver ? 'text-pullim-blue-700' : 'text-pullim-slate-900')}>
             {cumulative}%
           </div>
-          <div className="text-pullim-slate-400 text-[9px]">/ 임계 {threshold}%</div>
+          <div className="text-pullim-slate-400 text-[11px]">/ 임계 {threshold}%</div>
         </div>
       </header>
 

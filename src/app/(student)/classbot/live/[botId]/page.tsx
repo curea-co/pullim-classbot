@@ -1,17 +1,20 @@
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { classBots } from '@/lib/mock';
-import { LiveSessionPanel } from '@/components/classbot/live-session-panel';
 
 type Params = { botId: string };
 
 export function generateStaticParams(): Params[] {
-  // 모든 봇 prerender — 실제 활성 여부는 client liveStore에서 검사
   return classBots.map(b => ({ botId: b.id }));
 }
 
+/**
+ * /classbot/live/[botId] → /classbot/chat?bot={botId}
+ *
+ * 봇 진입점을 chat 한 곳으로 단일화. chat 페이지가 liveStore.active[botId]를 보고
+ * 라이브 오버레이(슬라이드·자막·퀴즈·질문 큐)를 채팅 위에 자동 부착한다.
+ * (handoff § 4.2 — 봇은 라이브 외에도 자기주도 학습용으로 항상 사용 가능)
+ */
 export default async function StudentLiveSessionPage({ params }: { params: Promise<Params> }) {
   const { botId } = await params;
-  const bot = classBots.find(b => b.id === botId);
-  if (!bot) notFound();
-  return <LiveSessionPanel bot={bot} />;
+  redirect(`/classbot/chat?bot=${botId}`);
 }

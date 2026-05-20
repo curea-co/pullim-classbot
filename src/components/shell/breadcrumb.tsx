@@ -11,7 +11,9 @@ import { buildBreadcrumb, type Role } from './nav-config';
  */
 export function Breadcrumb({ role }: { role: Role }) {
   const pathname = usePathname();
-  const trail = buildBreadcrumb(pathname, role);
+  const rawTrail = buildBreadcrumb(pathname, role);
+  // 인접 라벨 중복 제거 ([04 § 9.12]) — "풀림 클래스봇 > 풀림 클래스봇" 회귀 방지
+  const trail = rawTrail.filter((node, i) => i === 0 || node.label !== rawTrail[i - 1].label);
 
   if (trail.length <= 1) return null;
 

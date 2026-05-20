@@ -88,7 +88,7 @@ export function GradingRow({ item }: { item: GradingItem }) {
                 {item.aiConfidence}%
               </span>
               <span className="text-pullim-slate-300 font-mono text-[10px]">·</span>
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded px-1 font-mono text-[9px] font-bold">
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded px-1 font-mono text-[11px] font-bold">
                 {item.tier}
               </span>
             </div>

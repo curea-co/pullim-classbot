@@ -125,7 +125,7 @@ test.describe('chat textarea multiline input', () => {
   test('빈 입력 / whitespace-only → 전송 버튼 disabled', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
-    const sendBtn = page.getByRole('button', { name: '질문 보내기' });
+    const sendBtn = page.getByRole('button', { name: '질문 보내기', exact: true });
     const textarea = page.getByPlaceholder(/에게 물어보세요/);
 
     // 초기 빈 상태 → disabled

@@ -3,18 +3,20 @@
 import Link from 'next/link';
 import {
   ArrowRight, Eye, History, MessageCircle, Play, Sparkles, Target, AlertCircle, Heart,
-  Shield, GraduationCap, Compass, Inbox,
+  GraduationCap, Compass, Inbox, MessageSquareText, ClipboardList, Radio,
 } from 'lucide-react';
 import {
   classRoster, currentPersona,
   type Assignment,
-  getMyBots, scopeMeta, type ClassBot, type StudentEnrollment,
+  getMyBots, type ClassBot, type StudentEnrollment,
 } from '@/lib/mock';
 import { useMergedAssignments } from '@/lib/store/assignments';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
 import { GradingNotificationCard } from '@/components/classbot/grading-notification-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { useLiveStore } from '@/lib/store/live';
+import { botSignature } from '@/lib/tokens/bot-signature';
+import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
@@ -39,86 +41,41 @@ export default function StudentClassbotPage() {
   const primary = allAssignments[0];
   const others = allAssignments.slice(1);
 
+  // 봇별 미완료 과제 수 — 봇 카드 카운트 ([04 § 9.2])
+  const incompleteByBot = new Map<string, number>();
+  for (const a of allAssignments) {
+    if (a.completedCount >= a.questionCount) continue;
+    incompleteByBot.set(a.botId, (incompleteByBot.get(a.botId) ?? 0) + 1);
+  }
+
   return (
     <div className="space-y-4">
-      {/* 내 봇 N개 — 학생 정체성 */}
-      <MyBotsStrip bots={myBots} />
+      {/*
+        [04 § 9.1] 학생 홈 블록 우선순위 — 시간 가치순:
+          1. 지금 LIVE (있을 때만)
+          2. 내 클래스봇 (5개) — 메시지·과제 미리보기 포함
+          3. 진행 중 과제 1개 (가장 임박)
+          4. 받은 과제 (others)
+          5. 오늘의 KPI / 웰빙 한 줄
+          6. 최근 리플레이 진입 (빠른 진입)
+      */}
+
+      {/* 1. 지금 LIVE ([08 § 15.3] navy solid + 4px lime 좌측 라이너 + LIVE 펄스).
+          IA(07:57 "클래스룸 > 실시간 수업") 정합으로 항상 노출 — 비활성 시 리플레이 진입 보조. */}
+      <LiveSection liveBots={liveBots.map(b => b.bot)} />
+
+      {/* 2. 내 클래스봇 — 카드 정보 보강 (마지막 메시지 + 미완료 카운트 + 1차 CTA) */}
+      <MyBotsStrip bots={myBots} incompleteByBot={incompleteByBot} activeLive={activeLive} />
 
       {/* 채점 완료 알림 — 최근 5분 내 submission */}
       <GradingNotificationCard />
 
-      {/* 오늘 풀어야 할 것 — primary CTA (특정 봇이 보낸 과제) */}
+      {/* 3. 진행 중 과제 1개 — 가장 임박 */}
       {primary
         ? <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
         : <EmptyAssignmentCard />}
 
-      {/* 라이브 수업 — IA(07:57 "클래스룸 > 실시간 수업") 정합: 항상 노출.
-          활성 시 진입 CTA + 즉석 퀴즈, 비활성 시 안내 카드 + 리플레이 진입 보조. */}
-      <section className="space-y-2">
-        <header className="flex items-center justify-between">
-          <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
-            {liveBots.length > 0 ? (
-              <>
-                <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
-                  <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
-                  LIVE
-                </span>
-                {liveBots.length}개 수업 진행 중
-              </>
-            ) : (
-              <>
-                <span className="bg-pullim-slate-200 text-pullim-slate-500 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
-                  LIVE
-                </span>
-                라이브 수업
-              </>
-            )}
-          </h2>
-          {liveBots.length > 0 && (
-            <span className="text-pullim-slate-500 font-mono text-[10px]">
-              {liveBots[0].bot.currentLesson?.startedAt}~{liveBots.length > 1 && ` · 외 ${liveBots.length - 1}건`}
-            </span>
-          )}
-        </header>
-        {liveBots.length > 0 ? (
-          <>
-            <Link
-              href={`/classbot/live/${liveBots[0].bot.id}`}
-              className="bg-gradient-to-br from-pullim-blue-600 to-pullim-blue-700 hover:to-pullim-blue-800 text-white block rounded-2xl p-4 transition-colors shadow-pullim-sm"
-            >
-              <div className="flex items-center gap-3">
-                <span className="bg-white/20 backdrop-blur flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl">
-                  {liveBots[0].bot.avatarEmoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-white/80 text-[10px] font-bold uppercase tracking-wider">지금 입장</div>
-                  <div className="text-base font-bold">{liveBots[0].bot.name} 라이브</div>
-                  <div className="text-white/80 mt-0.5 truncate text-[11px]">
-                    {liveBots[0].bot.currentLesson?.title} · {liveBots[0].bot.currentLesson?.studentCount}명 참여 중
-                  </div>
-                </div>
-                <span className="text-white/80 text-2xl">→</span>
-              </div>
-            </Link>
-            <LiveQuizCard />
-          </>
-        ) : (
-          <Link
-            href="/classbot/replay"
-            className="bg-pullim-slate-50 border-pullim-slate-200 hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="text-pullim-slate-700 text-sm font-bold">진행 중인 라이브 없음</div>
-              <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
-                선생님이 라이브를 시작하면 여기에 표시돼요. 그 사이 지난 수업 리플레이를 둘러봐도 좋아요.
-              </div>
-            </div>
-            <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
-          </Link>
-        )}
-      </section>
-
-      {/* 다른 과제 */}
+      {/* 4. 다른 과제 */}
       {others.length > 0 && (
         <section>
           <header className="mb-2 flex items-end justify-between">
@@ -131,16 +88,15 @@ export default function StudentClassbotPage() {
         </section>
       )}
 
-      {/* 빠른 진입 — IA(07:56-59 "클래스룸") 정합: 리플레이 강조.
-          봇 대화는 IA 1차 메뉴가 아니라 봇 카드의 행위라 칸은 유지하되 강조는 빼고,
-          리플레이를 클래스룸 영역의 영구 진입점으로 격상. */}
+      {/* 5. 내 활동 한 줄 — 오늘 KPI / 웰빙 */}
+      <section className="bg-card flex items-center divide-x divide-pullim-slate-100 rounded-xl border">
+        <Mini label="오늘 질문" value={`${me.botQuestions}회`} />
+        <Mini label="정답률" value={`${me.accuracy}%`} accent />
+        <Mini label="웰빙" value={`${me.wellbeing}/100`} icon={<Heart className="h-3 w-3" />} />
+      </section>
+
+      {/* 6. 빠른 진입 — 리플레이 우선 (LIVE/내 클래스봇은 위에서 처리) */}
       <section className="grid grid-cols-3 gap-2">
-        <QuickEntry
-          href="/classbot/chat"
-          icon={MessageCircle}
-          label="봇 대화"
-          hint={`${myBots.length}개 봇`}
-        />
         <QuickEntry
           href="/classbot/replay"
           icon={History}
@@ -149,19 +105,18 @@ export default function StudentClassbotPage() {
           accent
         />
         <QuickEntry
+          href="/classbot/chat"
+          icon={MessageCircle}
+          label="봇 대화"
+          hint={`${myBots.length}개 봇`}
+        />
+        <QuickEntry
           href="/classbot/discover"
           icon={Compass}
           label="봇 찾기"
           hint="공식 봇"
           locked
         />
-      </section>
-
-      {/* 내 활동 한 줄 */}
-      <section className="bg-card flex items-center divide-x divide-pullim-slate-100 rounded-xl border">
-        <Mini label="오늘 질문" value={`${me.botQuestions}회`} />
-        <Mini label="정답률" value={`${me.accuracy}%`} accent />
-        <Mini label="웰빙" value={`${me.wellbeing}/100`} icon={<Heart className="h-3 w-3" />} />
       </section>
 
       {/* 모니터링 안내 */}
@@ -177,8 +132,96 @@ export default function StudentClassbotPage() {
   );
 }
 
-/* ─── 내 봇 N개 — 학생 정체성 strip ─── */
-function MyBotsStrip({ bots }: { bots: { bot: ClassBot; enrollment: StudentEnrollment }[] }) {
+/* ─── LIVE 카드 시그니처 ([08 § 15.3] navy solid + lime 좌측 라이너 + 시청자 spring) ─── */
+function LiveSection({ liveBots }: { liveBots: ClassBot[] }) {
+  if (liveBots.length === 0) {
+    return (
+      <section className="space-y-2">
+        <header className="flex items-center justify-between">
+          <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
+            <span className="bg-pullim-slate-200 text-pullim-slate-500 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+              LIVE
+            </span>
+            라이브 수업
+          </h2>
+        </header>
+        <Link
+          href="/classbot/replay"
+          className="bg-pullim-slate-50 border-pullim-slate-200 hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-pullim-slate-700 text-sm font-bold">진행 중인 라이브 없음</div>
+            <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+              선생님이 라이브를 시작하면 여기에 표시돼요. 그 사이 지난 수업 리플레이를 둘러봐도 좋아요.
+            </div>
+          </div>
+          <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
+        </Link>
+      </section>
+    );
+  }
+  const first = liveBots[0];
+  return (
+    <section className="space-y-2">
+      <header className="flex items-center justify-between">
+        <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
+          <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+            <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+            LIVE
+          </span>
+          {liveBots.length}개 수업 진행 중
+        </h2>
+        <span className="text-pullim-slate-500 font-mono text-[10px]">
+          {first.currentLesson?.startedAt}~{liveBots.length > 1 && ` · 외 ${liveBots.length - 1}건`}
+        </span>
+      </header>
+      <Link
+        href={`/classbot/chat?bot=${first.id}`}
+        className="bg-pullim-slate-900 text-white relative block overflow-hidden rounded-2xl p-4 transition-transform active:scale-[0.99] shadow-pullim-sm"
+        style={{ borderLeft: '4px solid var(--color-pullim-lemon)' }}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className="ring-pullim-lemon/40 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl ring-2"
+            style={{ backgroundColor: botSignature(first).hex }}
+          >
+            {first.avatarEmoji}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-pullim-lemon inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
+              <Radio className="pullim-anim-live-pulse h-3 w-3" />
+              지금 입장
+            </div>
+            <div className="text-base font-bold">{first.name} 라이브</div>
+            <div className="text-white/80 mt-0.5 truncate text-[11px]">
+              {first.currentLesson?.title} · <LiveAudienceCount count={first.currentLesson?.studentCount ?? 0} />
+            </div>
+          </div>
+          <span className="text-pullim-lemon text-2xl">→</span>
+        </div>
+      </Link>
+      <LiveQuizCard />
+    </section>
+  );
+}
+
+/** 시청자 수 — mount 시 spring 모션 ([08 § 15.2.2]) */
+function LiveAudienceCount({ count }: { count: number }) {
+  return (
+    <span className="pullim-anim-message-mount font-mono text-pullim-lemon font-bold">{count}명 참여 중</span>
+  );
+}
+
+/* ─── 내 봇 N개 — 학생 정체성 strip ([04 § 9.2] 정보 보강) ─── */
+function MyBotsStrip({
+  bots,
+  incompleteByBot,
+  activeLive,
+}: {
+  bots: { bot: ClassBot; enrollment: StudentEnrollment }[];
+  incompleteByBot: Map<string, number>;
+  activeLive: Record<string, unknown>;
+}) {
   return (
     <section className="bg-card rounded-2xl border p-4">
       <header className="mb-3 flex items-center justify-between">
@@ -193,55 +236,109 @@ function MyBotsStrip({ bots }: { bots: { bot: ClassBot; enrollment: StudentEnrol
         </div>
       </header>
 
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {bots.map(({ bot, enrollment }) => <BotCard key={bot.id} bot={bot} enrollment={enrollment} />)}
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {bots.map(({ bot, enrollment }) => (
+          <BotCard
+            key={bot.id}
+            bot={bot}
+            enrollment={enrollment}
+            incompleteCount={incompleteByBot.get(bot.id) ?? 0}
+            isLiveNow={Boolean(activeLive[bot.id])}
+          />
+        ))}
       </ul>
     </section>
   );
 }
 
-function BotCard({ bot, enrollment }: { bot: ClassBot; enrollment: StudentEnrollment }) {
-  const scope = scopeMeta[bot.scope];
+function BotCard({
+  bot, enrollment, incompleteCount, isLiveNow,
+}: {
+  bot: ClassBot;
+  enrollment: StudentEnrollment;
+  incompleteCount: number;
+  isLiveNow: boolean;
+}) {
+  const sig = botSignature(bot);
+  const preview = getBotHomePreview(bot.id);
+  const ctaLabel = isLiveNow ? '입장' : '대화';
   return (
     <li>
       <Link
-        href="/classbot/chat"
+        href={`/classbot/chat?bot=${bot.id}`}
         className={cn(
-          'flex items-start gap-2.5 rounded-xl border p-3 transition-all',
-          bot.isLive
+          'group flex flex-col gap-2.5 rounded-xl border p-3 transition-all',
+          isLiveNow
             ? 'border-pullim-danger/30 bg-pullim-danger/5'
             : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/30',
         )}
       >
-        <span className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl',
-          bot.isLive ? 'bg-pullim-blue-600 ring-2 ring-pullim-lemon' : 'bg-pullim-slate-100',
-        )}>
-          {bot.avatarEmoji}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px]">
-            {bot.isLive ? (
-              <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold text-white">
-                <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
-                LIVE
+        <div className="flex items-start gap-2.5">
+          <span
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl',
+              isLiveNow && 'ring-pullim-lemon ring-2',
+            )}
+            style={{ backgroundColor: sig.hex }}
+          >
+            {bot.avatarEmoji}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-[10px]">
+              {isLiveNow ? (
+                <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold text-white">
+                  <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+                  LIVE
+                </span>
+              ) : (
+                <span className="bg-pullim-slate-100 text-pullim-slate-500 rounded-full px-1.5 py-0.5 font-bold">
+                  대기
+                </span>
+              )}
+              <span className="text-pullim-slate-400 ml-auto text-[10px]">
+                {enrollment.classroomLabel}
               </span>
-            ) : (
-              <span className="bg-pullim-slate-100 text-pullim-slate-500 rounded-full px-1.5 py-0.5 font-bold">
-                대기
+            </div>
+            <div className="text-pullim-slate-900 mt-1 text-sm font-bold leading-tight">{bot.name}</div>
+            <div className="text-pullim-slate-500 text-[10px] leading-snug">{bot.teacherName}</div>
+          </div>
+        </div>
+
+        {/* 마지막 메시지 미리보기 + 카운트 — [04 § 9.2] */}
+        {preview && (
+          <div className="text-pullim-slate-500 border-pullim-slate-100 flex items-start gap-1.5 border-t pt-2 text-[11px] leading-snug">
+            <MessageSquareText className="text-pullim-slate-400 mt-0.5 h-3 w-3 shrink-0" />
+            <span className="line-clamp-1 italic">{preview.lastMessage}</span>
+          </div>
+        )}
+
+        <div className="text-pullim-slate-500 flex items-center justify-between text-[10px]">
+          <div className="inline-flex items-center gap-2">
+            {incompleteCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 font-semibold">
+                <ClipboardList className="h-3 w-3" />
+                미완료 {incompleteCount}
               </span>
             )}
-            <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono font-bold">
-              <Shield className="h-2.5 w-2.5" />
-              {scope.short}
-            </span>
+            {isLiveNow && (
+              <span className="text-pullim-danger inline-flex items-center gap-0.5 font-semibold">
+                <Radio className="h-3 w-3" />
+                라이브 1
+              </span>
+            )}
+            {preview && (
+              <span className="text-pullim-slate-400">{preview.lastAt}</span>
+            )}
           </div>
-          <div className="text-pullim-slate-900 mt-1 text-sm font-bold leading-tight">{bot.name}</div>
-          <div className="text-pullim-slate-500 mt-0.5 text-[10px] leading-snug">
-            {bot.teacherName}
-            <br />
-            <span className="text-pullim-slate-400">{enrollment.classroomLabel}</span>
-          </div>
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-transform group-hover:translate-x-0.5"
+            style={{
+              backgroundColor: isLiveNow ? sig.hex : 'var(--color-pullim-slate-100)',
+              color: isLiveNow ? (sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF') : 'var(--color-pullim-slate-700)',
+            }}
+          >
+            {ctaLabel} →
+          </span>
         </div>
       </Link>
     </li>

@@ -212,7 +212,12 @@ function NavRow({
       {!compact && (
         <>
           <span className="flex-1 truncate">{item.label}</span>
-          {item.locked && <Lock className="text-pullim-slate-300 h-3 w-3" />}
+          {item.locked && (
+            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold">
+              <Lock aria-hidden className="h-2.5 w-2.5" />
+              준비 중
+            </span>
+          )}
           {item.badge !== undefined && (
             <span
               className={cn(
@@ -278,7 +283,19 @@ function SubNavRow({
         {!compact && (
           <>
             <span className="flex-1 truncate">{sub.label}</span>
-            {sub.locked && <Lock className={cn('h-3 w-3', active ? 'text-white/70' : 'text-pullim-slate-300')} />}
+            {sub.locked && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold',
+                  active
+                    ? 'bg-white/15 text-white/80'
+                    : 'bg-pullim-slate-100 text-pullim-slate-500',
+                )}
+              >
+                <Lock aria-hidden className="h-2.5 w-2.5" />
+                준비 중
+              </span>
+            )}
           </>
         )}
       </Link>

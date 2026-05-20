@@ -355,7 +355,7 @@ function PlayerSurface({
               <span className="bg-pullim-lemon h-1 w-1 rounded-full" />
               {currentLine.speaker} 발언 중
               {currentLine.shared && (
-                <span className="bg-pullim-lemon/20 text-pullim-lemon ml-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold">
+                <span className="bg-pullim-lemon/20 text-pullim-lemon ml-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold">
                   전체 공유
                 </span>
               )}
@@ -663,7 +663,7 @@ function TeacherQuestionsPanel({
                 </button>
                 <span
                   className={cn(
-                    'rounded-full px-1.5 py-0.5 text-[9px] font-bold',
+                    'rounded-full px-1.5 py-0.5 text-[11px] font-bold',
                     q.status === 'replied'
                       ? 'bg-pullim-blue-50 text-pullim-blue-700'
                       : 'bg-pullim-slate-100 text-pullim-slate-700',
