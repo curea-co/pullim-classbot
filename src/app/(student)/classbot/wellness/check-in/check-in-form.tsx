@@ -41,7 +41,7 @@ export function CheckInForm() {
         <h1 className="text-pullim-slate-900 mt-4 text-xl font-bold">기록했어요</h1>
         <p className="text-pullim-slate-500 mt-1 text-sm">내일 또 봐요.</p>
 
-        {/* 봇 반응 카드 — dead-end 방지 + actionable */}
+        {/* 봇 반응 카드 — dead-end 방지 + actionable. [13 § 3.3.4·9.3] 시간 메타 + 시그니처 ghost CTA */}
         {reaction && (() => {
           const sig = botSignature(reaction.bot);
           return (
@@ -56,12 +56,16 @@ export function CheckInForm() {
                 >
                   {reaction.bot.avatarEmoji}
                 </span>
-                <div className="text-pullim-slate-900 text-xs font-bold">{reaction.bot.name}</div>
+                <div className="text-pullim-slate-900 inline-flex items-center gap-1.5 text-xs font-bold">
+                  {reaction.bot.name}
+                  <span className="text-pullim-slate-400 font-mono font-normal text-[11px]">· {reaction.timeLabel}</span>
+                </div>
               </div>
               <p className="text-pullim-slate-700 mt-2 text-[13px] leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
               <Link
                 href={reaction.ctaHref}
-                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold text-white"
+                className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-pullim-slate-50"
+                style={{ borderColor: sig.hex, color: sig.hex }}
               >
                 {reaction.ctaLabel}
                 <ArrowRight className="h-3 w-3" />
