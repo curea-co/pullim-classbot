@@ -275,8 +275,13 @@ function ComponentBreakdown({
           <div className="flex flex-col gap-2">
             <p className="text-pullim-slate-700 text-[11px] leading-relaxed">
               <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
-              {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
-              <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이에요. {botInsight.text}</span>
+              {audience === 'student-self' ? (
+                // [13 § 3.3.5] 본인 주간 리포트 1인칭 톤 — "봇이 본 나의 한 주" 형식. § 8.3 완화 표현.
+                <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.</span>
+              ) : (
+                // [13 § 9.2·8.3] 봇 발화 톤 — § 8.3 "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화. 봇 어조는 [07 § 4.6.2] 시그니처.
+                <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이에요. {botInsight.text}</span>
+              )}
             </p>
             <Link
               href={botInsight.ctaHref}
@@ -288,9 +293,9 @@ function ComponentBreakdown({
             </Link>
           </div>
         ) : audience === 'student-self' ? (
-          // 본인 리포트 톤 — 자기 성찰 컨텍스트, 봇 권유 없이 신경 쓸 부분만 짚어줌
+          // student-self fallback (botInsight 합성 실패 시) — 1인칭 톤
           <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
-            🌱 이번 주 {lowest.label} 신경 써볼 부분이에요. 다음 주에 조금씩 같이 가봐요.
+            🌱 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.
           </p>
         ) : (
           // student-chat fallback (botInsight 합성 실패 시) — § 8.3 완화 표현
