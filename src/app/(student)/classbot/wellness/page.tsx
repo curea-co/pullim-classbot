@@ -9,6 +9,7 @@ import {
 } from '@/lib/mock';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { botSignature } from '@/lib/tokens/bot-signature';
+import { CurrentTimeLabel } from '@/components/classbot/current-time-label';
 import { cn } from '@/lib/utils';
 
 export default function WellnessPage() {
@@ -81,7 +82,7 @@ export default function WellnessPage() {
               <div className="min-w-0 flex-1">
                 <div className="text-pullim-slate-900 inline-flex items-center gap-1.5 text-xs font-bold">
                   {botComment.bot.name}
-                  <span className="text-pullim-slate-400 font-mono font-normal text-[11px]">· {botComment.timeLabel}</span>
+                  <span className="text-pullim-slate-400 font-normal text-[11px]">· <CurrentTimeLabel /></span>
                 </div>
                 <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 가장 낮아요</p>
               </div>

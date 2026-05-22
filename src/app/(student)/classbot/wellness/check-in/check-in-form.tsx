@@ -19,6 +19,8 @@ export function CheckInForm() {
   const [intensityRange, setIntensityRange] = useState<[number, number]>([2, 4]);
   const [freeText, setFreeText] = useState('');
   const [done, setDone] = useState(false);
+  // [13 § 3.3.4] 체크인 사후 반응의 즉시성 보장 — submit 시점의 실제 시간을 캡처
+  const [submittedAt, setSubmittedAt] = useState<string>('');
 
   function submit() {
     // P0: console.log mock — 실 저장은 v1 백엔드
@@ -26,6 +28,10 @@ export function CheckInForm() {
       // eslint-disable-next-line no-console
       console.log('[CHECKIN MOCK]', { mood, intensityRange, freeText });
     }
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    setSubmittedAt(`${hh}:${mm}`);
     setDone(true);
   }
 
@@ -58,7 +64,7 @@ export function CheckInForm() {
                 </span>
                 <div className="text-pullim-slate-900 inline-flex items-center gap-1.5 text-xs font-bold">
                   {reaction.bot.name}
-                  <span className="text-pullim-slate-400 font-mono font-normal text-[11px]">· {reaction.timeLabel}</span>
+                  <span className="text-pullim-slate-400 font-mono font-normal text-[11px]">· {submittedAt || '방금'}</span>
                 </div>
               </div>
               <p className="text-pullim-slate-700 mt-2 text-[13px] leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
