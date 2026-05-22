@@ -14,6 +14,11 @@ export type WellnessBotComment = {
   ctaHref: string;
   /** "가장 낮은 영역" 정보 (디버그/툴팁용) */
   weakArea: '수면' | '집중' | '감정' | '사회' | '학업';
+  /**
+   * [13 § 3.3.3·9.3] 코멘트가 봇에 의해 실제 생성된 시점. mock 시연용 fixed (reports `generatedAt` 패턴과 동일).
+   * v1에서는 백엔드의 코멘트 생성 timestamp을 직렬화해 표시.
+   */
+  generatedAt: string;
 };
 
 /**
@@ -82,6 +87,8 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
     ctaLabel: seed.cta,
     ctaHref: `/classbot/chat?bot=${bot.id}`,
     weakArea: lowest.label,
+    // 시연용 — 봇이 오늘 아침 wellbeing snapshot 분석 후 코멘트 생성 시점. reports.generatedAt 패턴과 정합.
+    generatedAt: '오늘 07:30',
   };
 }
 
