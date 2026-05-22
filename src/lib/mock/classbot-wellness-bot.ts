@@ -14,6 +14,8 @@ export type WellnessBotComment = {
   ctaHref: string;
   /** "가장 낮은 영역" 정보 (디버그/툴팁용) */
   weakArea: '수면' | '집중' | '감정' | '사회' | '학업';
+  /** [13 § 3.3.3·9.3] 메타 표시용 시간 ("HH:MM"). 시연용 fixed — v1에서 동적 생성. */
+  timeLabel: string;
 };
 
 /**
@@ -82,6 +84,7 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
     ctaLabel: seed.cta,
     ctaHref: `/classbot/chat?bot=${bot.id}`,
     weakArea: lowest.label,
+    timeLabel: '19:55',  // 시연용 fixed — spec § 3.3.3 예시
   };
 }
 
