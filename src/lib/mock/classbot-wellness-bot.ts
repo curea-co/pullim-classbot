@@ -33,13 +33,16 @@ const AREA_TO_BOT_KIND: Record<string, 'math' | 'english' | 'science' | 'korean'
   '학업': 'math',
 };
 
-/** 봇별 한 줄 코멘트 시드 — 어조에 맞춘 격려 + actionable. */
+/**
+ * 봇별 한 줄 코멘트 시드 — 어조에 맞춘 격려 + actionable.
+ * 학생 노출 카피는 모두 친근한 존댓말 통일 ([07-branding § 4 학생 UI](../../../proc/spec/07-branding.md), [01-ai-instruction:35]).
+ */
 const TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
-  math:    { text: '오늘 그럭저럭이었구나. 6일째 출석! 내일 1문항만 같이 풀어볼까?', cta: '좋아 → 1문항' },
-  english: { text: '오늘 좀 무거웠어요? 짧은 지문 한 단락만 같이 봐요.',            cta: '좋아요 → 1단락' },
-  science: { text: '컨디션 신경 쓰자. 짧은 실험 1개부터 같이 가보자.',             cta: '좋아 → 1실험' },
-  korean:  { text: '오늘 기분은 어땠어요? 한 줄 일기처럼 짧게 적어볼래요?',        cta: '좋아요 → 한 줄' },
-  social:  { text: '오늘도 잘 왔어! 5분짜리 시사 요약 한 편 같이 볼까?',           cta: '좋아 → 5분' },
+  math:    { text: '오늘 그럭저럭이었어요. 6일째 출석이에요! 내일 1문항만 같이 풀어볼까요?', cta: '좋아요 → 1문항' },
+  english: { text: '오늘 좀 무거웠어요? 짧은 지문 한 단락만 같이 봐요.',                   cta: '좋아요 → 1단락' },
+  science: { text: '컨디션 신경 써봐요. 짧은 실험 1개부터 같이 가볼까요?',                 cta: '좋아요 → 1실험' },
+  korean:  { text: '오늘 기분은 어땠어요? 한 줄 일기처럼 짧게 적어볼래요?',                cta: '좋아요 → 한 줄' },
+  social:  { text: '오늘도 잘 와줬어요! 5분짜리 시사 요약 한 편 같이 볼까요?',             cta: '좋아요 → 5분' },
 };
 
 /**
@@ -100,11 +103,11 @@ export function getCheckInReaction(studentId: string, mood: EmotionMood | null):
   const base = getWellnessBotComment(studentId);
   if (!base) return null;
 
-  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게
+  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — 학생 톤 정책 (b) 존댓말
   if (mood !== null && mood >= 3) {
     return {
       ...base,
-      text: `오늘 좀 무거웠지. 6일째 출석! 내일은 짧게 1개만 같이 가보자.`,
+      text: `오늘 좀 무거웠죠. 6일째 출석이에요! 내일은 짧게 1개만 같이 가볼까요?`,
       ctaLabel: '내일 1개',
     };
   }
