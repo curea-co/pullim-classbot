@@ -55,6 +55,18 @@ const TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
 };
 
 /**
+ * mood ≥ 3 (그저그래/힘들었어) 시 더 부드러운 봇 반응 — [07 § 4.6.2] 봇별 어조 그대로 유지.
+ * 반말 봇은 반말로, 존대 봇은 존대로 mood 보정 표현.
+ */
+const LOW_MOOD_TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
+  math:    { text: '오늘 좀 무거웠지. 6일째 출석! 내일은 짧게 1개만 같이 가보자.',     cta: '내일 1개' },
+  english: { text: '오늘 좀 무거웠죠. 6일째 출석이네요! 내일은 짧게 한 단락만 같이 봐요.', cta: '내일 1단락' },
+  science: { text: '오늘 좀 힘들었구나. 컨디션 챙기고 내일 짧은 실험 1개만 가보자.',     cta: '내일 1실험' },
+  korean:  { text: '오늘은 좀 무거웠어요. 한 줄 일기처럼 내일 짧게 적어볼래요?',        cta: '내일 한 줄' },
+  social:  { text: '오늘 좀 힘들었지. 6일째 잘 왔어! 내일 짧은 시사 1편만 같이 가자.',  cta: '내일 1편' },
+};
+
+/**
  * 학생의 오늘 웰빙 snapshot에서 가장 낮은 5지표 영역의 담당 봇 코멘트를 생성.
  * 분해 데이터가 없으면 null.
  */
@@ -112,13 +124,14 @@ export function getCheckInReaction(studentId: string, mood: EmotionMood | null):
   const base = getWellnessBotComment(studentId);
   if (!base) return null;
 
-  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — 봇 발화이므로 [07 § 4.6.2] 봇별 어조 시그니처 적용
-  // 데모 봇(수학이 형) 기준 반말 default. 봇별 동적 분기는 v1에서 페르소나-aware 합성으로.
+  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어/국어 누나는 존대, 나머지 반말)
   if (mood !== null && mood >= 3) {
+    const kind = AREA_TO_BOT_KIND[base.weakArea] ?? 'math';
+    const lowSeed = LOW_MOOD_TEXT_BY_KIND[kind] ?? LOW_MOOD_TEXT_BY_KIND.math;
     return {
       ...base,
-      text: `오늘 좀 무거웠지. 6일째 출석! 내일은 짧게 1개만 같이 가보자.`,
-      ctaLabel: '내일 1개',
+      text: lowSeed.text,
+      ctaLabel: lowSeed.cta,
     };
   }
   // 좋아·그럭저럭 — 정상 격려
