@@ -118,7 +118,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
         <aside className="space-y-4">
           {student && (
             <>
-              <WellbeingGauge studentId={student.id} />
+              <WellbeingGauge studentId={student.id} audience="teacher" />
               <section className="bg-pullim-slate-50 rounded-2xl p-4">
                 <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
                   <MessageCircle className="h-3 w-3" />

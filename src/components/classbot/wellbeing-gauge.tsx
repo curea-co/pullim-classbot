@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Heart, ChevronDown, ChevronUp } from 'lucide-react';
+import Link from 'next/link';
+import { Heart, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
+import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 
 /**
@@ -12,8 +15,24 @@ import { cn } from '@/lib/utils';
  * 7일 막대 컬러 매핑 ([13 § 9.1.2]):
  *   0–40 danger / 41–60 warning / 61–80 brand.300 / 81–100 success
  */
-export function WellbeingGauge({ studentId, compact }: { studentId: string; compact?: boolean }) {
+export function WellbeingGauge({
+  studentId,
+  compact,
+  audience = 'student-chat',
+}: {
+  studentId: string;
+  compact?: boolean;
+  /**
+   * 화면 컨텍스트별 봇 CTA/카피 분기:
+   * - `'student-chat'` (default, /classbot/wellness): 봇 인사이트 + actionable CTA — 봇 채팅 진입 강한 권유
+   * - `'student-self'` (/classbot/me/report): 봇 CTA 미노출 + 본인 리포트 톤 — 자기 성찰 컨텍스트
+   * - `'teacher'` (/teacher/reports/[id]): 봇 CTA 미노출 + 관찰 중성 카피 — 역할 혼선 방지
+   */
+  audience?: 'student-chat' | 'student-self' | 'teacher';
+}) {
   const trend = getWellbeingTrend(studentId);
+  // 봇 채팅 CTA는 'student-chat'에서만 노출 — 본인 리포트/교사 화면에서는 비노출
+  const botInsight = audience === 'student-chat' ? getWellnessBotComment(studentId) : null;
   const [open, setOpen] = useState(false);
 
   if (trend.length === 0) {
@@ -40,35 +59,54 @@ export function WellbeingGauge({ studentId, compact }: { studentId: string; comp
 
   return (
     <section className="bg-card rounded-2xl border p-4">
-      <header className="mb-3 flex items-center gap-2">
-        <Heart className={cn('h-4 w-4', tone.text)} />
-        <div className="flex-1">
-          <h3 className="text-pullim-slate-900 text-sm font-bold">웰빙 지수</h3>
-          <p className="text-pullim-slate-500 text-[11px]">5지표 가중 평균 · 0~100</p>
+      {/* [13 § 9.2] affordance: 헤더 + 점수 영역 자체 클릭으로 펼침 토글 (`[ⓘ] 또는 게이지 카드 자체 클릭`) */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="wellbeing-breakdown"
+        aria-label="5지표 분해 보기"
+        className="w-full text-left"
+      >
+        <header className="mb-3 flex items-center gap-2">
+          <Heart className={cn('h-4 w-4', tone.text)} />
+          <div className="flex-1">
+            <h3 className="text-pullim-slate-900 text-sm font-bold">웰빙 지수</h3>
+            <p className="text-pullim-slate-500 text-[11px]">5지표 가중 평균 · 0~100</p>
+          </div>
+          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold', tone.chipBg, tone.chipText)}>
+            {tone.label}
+          </span>
+        </header>
+
+        <div className="flex items-end gap-2">
+          <div className={cn('font-mono text-4xl font-bold', tone.text)}>{score}</div>
+          <div className="text-pullim-slate-500 mb-1.5 text-sm">/ 100</div>
+          <span className="text-pullim-slate-500 ml-auto inline-flex h-8 items-center gap-1 rounded-full px-2 text-[11px] font-semibold">
+            5지표 {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </span>
         </div>
-        <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold', tone.chipBg, tone.chipText)}>
-          {tone.label}
-        </span>
-      </header>
+      </button>
 
-      <div className="flex items-end gap-2">
-        <div className={cn('font-mono text-4xl font-bold', tone.text)}>{score}</div>
-        <div className="text-pullim-slate-500 mb-1.5 text-sm">/ 100</div>
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          aria-expanded={open}
-          aria-label="5지표 분해 보기"
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 hover:text-pullim-slate-700 ml-auto inline-flex h-8 items-center gap-1 rounded-full px-2 text-[11px] font-semibold"
-        >
-          5지표 {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
+      {/* [13 § 9.2 · 10.1] 5지표 펼침 모션 — duration-base 200ms easing-standard, grid-row 패턴 (max-height 없이 부드러운 collapse) */}
+      {/* a11y: 접힌 상태 inner Link/button이 키보드 포커스 받지 않도록 `inert` 적용 (React 19+ native support) */}
+      <div
+        id="wellbeing-breakdown"
+        className={cn(
+          'grid transition-[grid-template-rows] motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+        style={{
+          transitionDuration: 'var(--duration-base)',
+          transitionTimingFunction: 'var(--easing-standard)',
+        }}
+        aria-hidden={!open}
+        inert={!open}
+      >
+        <div className="overflow-hidden">
+          <ComponentBreakdown snapshot={today} botInsight={botInsight} audience={audience} />
+        </div>
       </div>
-
-      {/* 5지표 펼침 ([13 § 9.2]) */}
-      {open && (
-        <ComponentBreakdown snapshot={today} />
-      )}
 
       {/* 7일 추세 — 새 컬러 매핑 ([13 § 9.1.2]) */}
       <div className="mt-3">
@@ -142,8 +180,17 @@ function scoreTone(score: number) {
   };
 }
 
-/** 5지표 분해 ([13 § 9.2]) — 수면·집중·감정·사회·학업 */
-function ComponentBreakdown({ snapshot }: { snapshot: WellbeingSnapshot }) {
+/** 5지표 분해 ([13 § 9.2]) — 수면·집중·감정·사회·학업 + 봇 인사이트 1줄 + actionable CTA */
+function ComponentBreakdown({
+  snapshot,
+  botInsight,
+  audience,
+}: {
+  snapshot: WellbeingSnapshot;
+  botInsight: ReturnType<typeof getWellnessBotComment>;
+  /** 화면별 fallback 카피 분기 — [WellbeingGauge audience prop 참고] */
+  audience: 'student-chat' | 'student-self' | 'teacher';
+}) {
   const c = snapshot.components;
   if (!c) {
     return (
@@ -161,6 +208,7 @@ function ComponentBreakdown({ snapshot }: { snapshot: WellbeingSnapshot }) {
   ];
   // 가장 점수 낮은 지표 — 봇 인사이트 1줄에 활용
   const lowest = items.reduce((acc, cur) => (c[cur.key] < c[acc.key] ? cur : acc), items[0]);
+  const insightSig = botInsight ? botSignature(botInsight.bot) : null;
 
   return (
     <div className="bg-pullim-slate-50 mt-3 space-y-2 rounded-lg p-3">
@@ -182,9 +230,39 @@ function ComponentBreakdown({ snapshot }: { snapshot: WellbeingSnapshot }) {
           );
         })}
       </ul>
-      <p className="text-pullim-slate-600 border-t border-pullim-slate-200 pt-2 text-[11px] leading-relaxed">
-        💡 이번 주 {lowest.label}이 가장 낮아요. 짧은 세션부터 다시 가볼까?
-      </p>
+      <div className="border-t border-pullim-slate-200 pt-2">
+        {botInsight && insightSig ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-pullim-slate-700 text-[11px] leading-relaxed">
+              <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
+              {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
+              <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이에요. {botInsight.text}</span>
+            </p>
+            <Link
+              href={botInsight.ctaHref}
+              className="inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-[11px] font-bold transition-colors hover:bg-white"
+              style={{ borderColor: insightSig.inkLight, color: insightSig.inkLight }}
+            >
+              {botInsight.ctaLabel}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        ) : audience === 'teacher' ? (
+          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
+            가장 낮은 영역: {lowest.label} — 학생 화면에서 담당 봇 인사이트가 노출돼요.
+          </p>
+        ) : audience === 'student-self' ? (
+          // 본인 리포트 톤 — 자기 성찰 컨텍스트, 봇 권유 없이 신경 쓸 부분만 짚어줌
+          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
+            🌱 이번 주 {lowest.label} 신경 써볼 부분이에요. 다음 주에 조금씩 같이 가봐요.
+          </p>
+        ) : (
+          // student-chat fallback (botInsight 합성 실패 시) — § 8.3 완화 표현
+          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
+            💡 이번 주 {lowest.label} 신경 쓸 부분이에요. 짧은 세션부터 다시 가볼까요?
+          </p>
+        )}
+      </div>
     </div>
   );
 }

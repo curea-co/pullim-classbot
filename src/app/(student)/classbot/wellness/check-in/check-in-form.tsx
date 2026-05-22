@@ -72,7 +72,7 @@ export function CheckInForm() {
               <Link
                 href={reaction.ctaHref}
                 className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-pullim-slate-50"
-                style={{ borderColor: sig.hex, color: sig.hex }}
+                style={{ borderColor: sig.inkLight, color: sig.inkLight }}
               >
                 {reaction.ctaLabel}
                 <ArrowRight className="h-3 w-3" />

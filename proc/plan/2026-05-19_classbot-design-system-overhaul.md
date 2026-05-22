@@ -99,7 +99,7 @@
 - [x] P2-14 과제 카드 상태별 컬러/라이너 매핑 (#69 — `src/lib/tokens/assignment-state.ts` 신규)
 - [x] P2-15 과제 봇별 그룹 헤더 (PR #75 / 2026-05-22 — `assignment/page.tsx` BotGroupSection: 좌측 시그니처 라이너 3px + **시그니처 컬러 점** + subject chip + 그룹 진도 막대 — [08 § 15.6] 충족)
 - [x] P2-16 웰빙 담당 봇 코멘트 카드 + 체크인 사후 봇 반응 (PR #76 / 2026-05-22 — `wellness/page.tsx` 봇 코멘트 카드 + `check-in-form.tsx` 사후 반응 + 시간 메타 + 시그니처 ghost CTA — [13 § 9.3] 충족)
-- [ ] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침 (#69 머지본에 UI 포함 — PR #77에서 [13 § 9.2] 정합 확인 후 체크 예정)
+- [x] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침 (PR #77 / 2026-05-22 — `wellbeing-gauge.tsx` 4단계 `scoreTone` + collapsible `ComponentBreakdown` + actionable CTA — [13 § 9.2] 충족)
 
 ## Phase 4 — P3 (별도 PR)
 

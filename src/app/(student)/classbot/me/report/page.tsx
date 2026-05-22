@@ -29,7 +29,7 @@ export default function MyReportPage() {
         description="봇이 본 나의 한 주 — 1인칭 톤"
       />
 
-      <WellbeingGauge studentId={me.id} />
+      <WellbeingGauge studentId={me.id} audience="student-self" />
 
       {/* KPI */}
       <section className="bg-card rounded-2xl border p-4">
