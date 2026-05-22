@@ -14,6 +14,11 @@ export type WellnessBotComment = {
   ctaHref: string;
   /** "가장 낮은 영역" 정보 (디버그/툴팁용) */
   weakArea: '수면' | '집중' | '감정' | '사회' | '학업';
+  /**
+   * [13 § 3.3.3·9.3] 코멘트가 봇에 의해 실제 생성된 시점. mock 시연용 fixed (reports `generatedAt` 패턴과 동일).
+   * v1에서는 백엔드의 코멘트 생성 timestamp을 직렬화해 표시.
+   */
+  generatedAt: string;
 };
 
 /**
@@ -28,13 +33,37 @@ const AREA_TO_BOT_KIND: Record<string, 'math' | 'english' | 'science' | 'korean'
   '학업': 'math',
 };
 
-/** 봇별 한 줄 코멘트 시드 — 어조에 맞춘 격려 + actionable. */
+/**
+ * 봇별 한 줄 코멘트 시드 — 봇 페르소나 어조 시그니처 정합 ([07-branding § 4.6.2]).
+ *
+ * 학생 톤 정책 (b) [commit 1609d5b]: "학생 전반 UI 카피는 존댓말 통일, 봇 발화 카드 안 메시지만 반말 유지."
+ * 즉 본 mock은 봇 발화 카드 안 메시지이므로 [07 § 4.6.2] 봇별 어조 시그니처(반말/존대)를 그대로 따른다.
+ *
+ * 봇별 어조 (spec 07 § 4.6.2):
+ *   math    수학이 형  단정·반말
+ *   english 영어 누나  상냥·존대
+ *   science 과학 쌤    호기심·반말
+ *   korean  국어 누나  차분·존대
+ *   social  사회 코치  격려·반말
+ */
 const TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
   math:    { text: '오늘 그럭저럭이었구나. 6일째 출석! 내일 1문항만 같이 풀어볼까?', cta: '좋아 → 1문항' },
-  english: { text: '오늘 좀 무거웠어요? 짧은 지문 한 단락만 같이 봐요.',            cta: '좋아요 → 1단락' },
-  science: { text: '컨디션 신경 쓰자. 짧은 실험 1개부터 같이 가보자.',             cta: '좋아 → 1실험' },
-  korean:  { text: '오늘 기분은 어땠어요? 한 줄 일기처럼 짧게 적어볼래요?',        cta: '좋아요 → 한 줄' },
-  social:  { text: '오늘도 잘 왔어! 5분짜리 시사 요약 한 편 같이 볼까?',           cta: '좋아 → 5분' },
+  english: { text: '오늘 좀 무거웠어요? 짧은 지문 한 단락만 같이 봐요.',              cta: '좋아요 → 1단락' },
+  science: { text: '컨디션 신경 쓰자. 짧은 실험 1개부터 같이 가보자.',                cta: '좋아 → 1실험' },
+  korean:  { text: '오늘 기분은 어땠어요? 한 줄 일기처럼 짧게 적어볼래요?',           cta: '좋아요 → 한 줄' },
+  social:  { text: '오늘도 잘 왔어! 5분짜리 시사 요약 한 편 같이 볼까?',              cta: '좋아 → 5분' },
+};
+
+/**
+ * mood ≥ 3 (그저그래/힘들었어) 시 더 부드러운 봇 반응 — [07 § 4.6.2] 봇별 어조 그대로 유지.
+ * 반말 봇은 반말로, 존대 봇은 존대로 mood 보정 표현.
+ */
+const LOW_MOOD_TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
+  math:    { text: '오늘 좀 무거웠지. 6일째 출석! 내일은 짧게 1개만 같이 가보자.',     cta: '내일 1개' },
+  english: { text: '오늘 좀 무거웠죠. 6일째 출석이네요! 내일은 짧게 한 단락만 같이 봐요.', cta: '내일 1단락' },
+  science: { text: '오늘 좀 힘들었구나. 컨디션 챙기고 내일 짧은 실험 1개만 가보자.',     cta: '내일 1실험' },
+  korean:  { text: '오늘은 좀 무거웠어요. 한 줄 일기처럼 내일 짧게 적어볼래요?',        cta: '내일 한 줄' },
+  social:  { text: '오늘 좀 힘들었지. 6일째 잘 왔어! 내일 짧은 시사 1편만 같이 가자.',  cta: '내일 1편' },
 };
 
 /**
@@ -82,6 +111,8 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
     ctaLabel: seed.cta,
     ctaHref: `/classbot/chat?bot=${bot.id}`,
     weakArea: lowest.label,
+    // 시연용 — 봇이 오늘 아침 wellbeing snapshot 분석 후 코멘트 생성 시점. reports.generatedAt 패턴과 정합.
+    generatedAt: '오늘 07:30',
   };
 }
 
@@ -93,12 +124,14 @@ export function getCheckInReaction(studentId: string, mood: EmotionMood | null):
   const base = getWellnessBotComment(studentId);
   if (!base) return null;
 
-  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게
+  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어/국어 누나는 존대, 나머지 반말)
   if (mood !== null && mood >= 3) {
+    const kind = AREA_TO_BOT_KIND[base.weakArea] ?? 'math';
+    const lowSeed = LOW_MOOD_TEXT_BY_KIND[kind] ?? LOW_MOOD_TEXT_BY_KIND.math;
     return {
       ...base,
-      text: `오늘 좀 무거웠지. 6일째 출석! 내일은 짧게 1개만 같이 가보자.`,
-      ctaLabel: '내일 1개',
+      text: lowSeed.text,
+      ctaLabel: lowSeed.cta,
     };
   }
   // 좋아·그럭저럭 — 정상 격려

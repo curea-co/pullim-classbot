@@ -153,7 +153,7 @@ function CrisisDetailModal({ student, onClose }: { student: ClassroomStudent; on
                       <span className="text-pullim-slate-700 w-12 font-bold">{c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`}</span>
                       <span className="text-pullim-slate-500">{m.label}</span>
                       {c.freeText && (
-                        <span className="text-pullim-slate-400 ml-auto truncate text-[10px] italic">"{c.freeText}"</span>
+                        <span className="text-pullim-slate-400 ml-auto truncate text-[10px] italic">“{c.freeText}”</span>
                       )}
                     </li>
                   );

@@ -103,15 +103,17 @@ function TranscriptStream({ botId, startedAt }: { botId: string; startedAt: stri
     return () => clearInterval(id);
   }, []);
 
-  if (!content) return null;
-
   const elapsedSec = now === null ? 0 : Math.floor((now - new Date(startedAt).getTime()) / 1000);
-  const visible = content.transcript.filter(t => t.atSec <= elapsedSec).slice(-30);
-  const currentLineIdx = visible.length - 1;
+  const visible = content ? content.transcript.filter(t => t.atSec <= elapsedSec).slice(-30) : [];
 
+  // hooks 룰: early return 보다 위에 위치 — content 없으면 visible.length=0 으로 no-op scroll.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [visible.length]);
+
+  if (!content) return null;
+
+  const currentLineIdx = visible.length - 1;
 
   return (
     <section className="bg-card rounded-2xl border">
@@ -186,7 +188,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
         </ul>
       )}
       <p className="text-pullim-slate-400 mt-2 text-[10px]">
-        교사가 검토한 뒤 "전체 공유"하면 다른 학생에게도 보이고, "비공개"면 선생님과 1:1.
+        교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
       </p>
     </section>
   );
@@ -202,7 +204,7 @@ function QuestionStatusItem({ q }: { q: PendingQuestion }) {
         q.status === 'hidden'  && 'border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-500',
       )}
     >
-      <div className="font-bold">"{q.text}"</div>
+      <div className="font-bold">“{q.text}”</div>
       <div className="mt-0.5 text-[10px]">
         {q.status === 'pending' && '🟡 교사 검토 중…'}
         {q.status === 'shared'  && '🔵 전체 공유됨! 곧 답변 받으실 거예요.'}

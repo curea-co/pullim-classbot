@@ -118,7 +118,8 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
         <aside className="space-y-4">
           {student && (
             <>
-              <WellbeingGauge studentId={student.id} />
+              {/* [13 § 3.3.2] 사이드 — 학생 7일 추세 mini chart. compact mode로 봇 CTA 자동 미노출. */}
+              <WellbeingGauge studentId={student.id} compact />
               <section className="bg-pullim-slate-50 rounded-2xl p-4">
                 <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
                   <MessageCircle className="h-3 w-3" />

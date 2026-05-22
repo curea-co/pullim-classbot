@@ -63,7 +63,7 @@ export default function WellnessPage() {
 
       <WellbeingGauge studentId={me.id} />
 
-      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3] */}
+      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3] 좌측 라이너 4px + 아바타 + 이름 + 시간 + 시그니처 ghost CTA */}
       {botComment && (() => {
         const sig = botSignature(botComment.bot);
         return (
@@ -79,11 +79,13 @@ export default function WellnessPage() {
                 {botComment.bot.avatarEmoji}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
-                  {botComment.bot.name}
-                  <span className="text-pullim-slate-400 font-normal text-[11px]">· 오늘 코멘트</span>
+                {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
+                <div className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="text-pullim-slate-900 font-bold">{botComment.bot.name}</span>
+                  <span className="text-pullim-slate-400 font-normal">· {botComment.generatedAt}</span>
                 </div>
-                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 가장 낮아요</p>
+                {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
+                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 신경 쓸 부분이에요</p>
               </div>
               <Sparkles className="text-pullim-slate-300 h-3 w-3" />
             </header>
@@ -92,7 +94,8 @@ export default function WellnessPage() {
             </p>
             <Link
               href={botComment.ctaHref}
-              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold text-white"
+              className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-pullim-slate-50"
+              style={{ borderColor: sig.inkLight, color: sig.inkLight }}
             >
               {botComment.ctaLabel}
               <ArrowRight className="h-3 w-3" />
