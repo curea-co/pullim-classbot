@@ -21,19 +21,24 @@ export function WellbeingGauge({
   audience = 'student-chat',
 }: {
   studentId: string;
+  /**
+   * Mini chart 모드 — [13 § 3.3.2] 교사 리포트 상세 사이드 "학생 7일 추세" mini chart로 사용.
+   * compact 시 점수 + 7일 막대만 inline 표시, 봇 인사이트/CTA 미노출.
+   */
   compact?: boolean;
   /**
-   * 화면 컨텍스트별 봇 인사이트 + CTA 분기 ([13 § 9.2] 봇 인사이트 + actionable CTA는 학생 화면 필수):
-   * - `'student-chat'` (default, /classbot/wellness): 봇 인사이트 + 봇 채팅 진입 CTA
-   * - `'student-self'` (/classbot/me/report): 봇 인사이트 텍스트 유지 + CTA를 "다음 주 도전" → `/classbot/assignment` 로 override ([13 § 3.3.5] "다음 주 도전: 봇 처방" 정합)
-   * - `'teacher'` (/teacher/reports/[id]): 봇 인사이트 미노출 + 관찰 중성 카피 — 역할 혼선 방지
+   * 학생 화면 컨텍스트별 봇 인사이트 CTA 분기 ([13 § 9.2] 봇 인사이트 + actionable CTA는 학생 화면 필수):
+   * - `'student-chat'` (default, /classbot/wellness): 봇 채팅 진입 CTA
+   * - `'student-self'` (/classbot/me/report): CTA를 "다음 주 도전" → `/classbot/assignment` 로 override ([13 § 3.3.5] "다음 주 도전: 봇 처방" 정합)
+   *
+   * 교사 화면(/teacher/reports/[id])은 본 prop을 사용하지 않고 `compact` mode로 mini chart 표시 ([13 § 3.3.2]).
    */
-  audience?: 'student-chat' | 'student-self' | 'teacher';
+  audience?: 'student-chat' | 'student-self';
 }) {
   const trend = getWellbeingTrend(studentId);
-  // 학생 화면(student-chat / student-self)에는 봇 인사이트 합성 — § 9.2 필수 요소.
+  // 학생 화면에는 봇 인사이트 합성 — § 9.2 필수 요소. compact mode(교사 mini chart)는 inline early return 분기로 자동 미노출.
   // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
-  const rawInsight = audience !== 'teacher' ? getWellnessBotComment(studentId) : null;
+  const rawInsight = getWellnessBotComment(studentId);
   const botInsight = rawInsight && audience === 'student-self'
     ? { ...rawInsight, ctaHref: '/classbot/assignment', ctaLabel: '다음 주 도전' }
     : rawInsight;
@@ -52,25 +57,56 @@ export function WellbeingGauge({
   const tone = scoreTone(score);
 
   if (compact) {
+    // [13 § 3.3.2] mini chart — 점수 + 톤 라벨 + 7일 막대 추세 (교사 리포트 사이드용)
     return (
-      <div className="flex items-center gap-2">
-        <Heart className={cn('h-3 w-3', tone.text)} />
-        <span className={cn('font-mono text-sm font-bold', tone.text)}>{score}</span>
-        <span className="text-pullim-slate-400 text-[11px]">/100</span>
-      </div>
+      <section className="bg-card rounded-2xl border p-3">
+        <header className="mb-2 flex items-center gap-2">
+          <Heart className={cn('h-3 w-3', tone.text)} />
+          <span className={cn('font-mono text-sm font-bold', tone.text)}>{score}</span>
+          <span className="text-pullim-slate-400 text-[11px]">/100</span>
+          <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold', tone.chipBg, tone.chipText)}>
+            {tone.label}
+          </span>
+        </header>
+        <div className="flex h-8 items-end gap-0.5" aria-label="최근 7일 웰빙 추세">
+          {trend.map((t) => {
+            const h = Math.max(4, (t.score / 100) * 32);
+            const c = scoreTone(t.score).bar;
+            return (
+              <div
+                key={t.daysAgo}
+                className={cn('w-full rounded-sm', c)}
+                style={{ height: `${h}px` }}
+                title={`${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}`}
+              />
+            );
+          })}
+        </div>
+      </section>
     );
   }
 
   return (
     <section className="bg-card rounded-2xl border p-4">
-      {/* [13 § 9.2] affordance: 헤더 + 점수 영역 자체 클릭으로 펼침 토글 (`[ⓘ] 또는 게이지 카드 자체 클릭`) */}
-      <button
-        type="button"
+      {/*
+        [13 § 9.2] affordance: 헤더 + 점수 영역 자체 클릭으로 펼침 토글 (`[ⓘ] 또는 게이지 카드 자체 클릭`).
+        a11y: `<button>` content는 phrasing content만 허용 — `<h3>`/`<header>` 등 flow content를 직접 넣으면 HTML invalid.
+        대신 `<div role="button">` + 키보드 이벤트로 동등한 인터랙션 제공.
+      */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(o => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setOpen(o => !o);
+          }
+        }}
         aria-expanded={open}
         aria-controls="wellbeing-breakdown"
         aria-label="5지표 분해 보기"
-        className="w-full text-left"
+        className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pullim-blue-500 rounded-lg"
       >
         <header className="mb-3 flex items-center gap-2">
           <Heart className={cn('h-4 w-4', tone.text)} />
@@ -90,7 +126,7 @@ export function WellbeingGauge({
             5지표 {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </span>
         </div>
-      </button>
+      </div>
 
       {/* [13 § 9.2 · 10.1] 5지표 펼침 모션 — duration-base 200ms easing-standard, grid-row 패턴 (max-height 없이 부드러운 collapse) */}
       {/* a11y: 접힌 상태 inner Link/button이 키보드 포커스 받지 않도록 `inert` 적용 (React 19+ native support) */}
@@ -193,7 +229,7 @@ function ComponentBreakdown({
   snapshot: WellbeingSnapshot;
   botInsight: ReturnType<typeof getWellnessBotComment>;
   /** 화면별 fallback 카피 분기 — [WellbeingGauge audience prop 참고] */
-  audience: 'student-chat' | 'student-self' | 'teacher';
+  audience: 'student-chat' | 'student-self';
 }) {
   const c = snapshot.components;
   if (!c) {
@@ -251,11 +287,6 @@ function ComponentBreakdown({
               <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-        ) : audience === 'teacher' ? (
-          // 교사 화면 — 학생 상태 관찰형 카피 ([13 § 9.1.2] 교사 화면은 직접적 표현 가능)
-          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
-            이번 주 신경 쓸 영역: {lowest.label}. 학생과 1:1 면담을 권장해요.
-          </p>
         ) : audience === 'student-self' ? (
           // 본인 리포트 톤 — 자기 성찰 컨텍스트, 봇 권유 없이 신경 쓸 부분만 짚어줌
           <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
