@@ -18,7 +18,7 @@ concurrency:
 jobs:
   review:
     name: Review
-    runs-on: self-hosted
+    runs-on: [self-hosted, curea-runner-2]
     # 사전 sweep: workflow hang 방지 — 15분 상한.
     timeout-minutes: 15
     # 포크 PR 차단 — curea-co 소속 브랜치만 self-hosted runner 실행.
