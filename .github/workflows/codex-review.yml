@@ -18,7 +18,11 @@ concurrency:
 jobs:
   review:
     name: Review
-    runs-on: [self-hosted, curea-runner-2]
+    # default group (visibility=all) 의존성 격리 — pullim-classbot 전용 group 명시.
+    # group 미지정 시 default group runner 만 후보로 잡혀 다른 레포 부하와 큐 경합 발생.
+    runs-on:
+      group: curea-runner-groups-2
+      labels: [self-hosted]
     # 사전 sweep: workflow hang 방지 — 15분 상한.
     timeout-minutes: 15
     # 포크 PR 차단 — curea-co 소속 브랜치만 self-hosted runner 실행.
