@@ -62,9 +62,10 @@ export function CheckInForm() {
                 >
                   {reaction.bot.avatarEmoji}
                 </span>
-                <div className="text-pullim-slate-900 inline-flex items-center gap-1.5 text-xs font-bold">
-                  {reaction.bot.name}
-                  <span className="text-pullim-slate-400 font-mono font-normal text-[11px]">· {submittedAt || '방금'}</span>
+                {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
+                <div className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="text-pullim-slate-900 font-bold">{reaction.bot.name}</span>
+                  <span className="text-pullim-slate-400 font-mono font-normal">· {submittedAt || '방금'}</span>
                 </div>
               </div>
               <p className="text-pullim-slate-700 mt-2 text-[13px] leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
