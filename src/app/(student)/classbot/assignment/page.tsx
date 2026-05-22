@@ -84,26 +84,59 @@ export default function StudentAssignmentListPage() {
   );
 }
 
-/* ─── 봇별 그룹 헤더 ([04 § 9.1·15.6]) ─── */
+/* ─── 봇별 그룹 헤더 ([08 § 15.6]·[04 § 9.1·15.6] — 카드 위 [아바타 + 이름 + 카운트] + 시그니처 컬러 점 + 진척 한 줄) ─── */
+const ORPHAN_GROUP_HEX = '#94A3B8';
+
 function BotGroupSection({ bot, items }: { bot: ClassBot; items: Assignment[] }) {
+  const isOrphan = bot.id === 'unknown';
   const sig = botSignature(bot);
+  const groupHex = isOrphan ? ORPHAN_GROUP_HEX : sig.hex;
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
+  const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
   return (
-    <section className="space-y-2">
+    <section
+      className="space-y-2 border-l-[3px] pl-3"
+      style={{ borderLeftColor: groupHex }}
+    >
       <header className="flex items-center gap-2">
         <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-          style={{ backgroundColor: sig.hex }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
+          style={{ backgroundColor: groupHex }}
         >
           {bot.avatarEmoji}
         </span>
-        <h3 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
-          {bot.name} <span className="text-pullim-slate-500 font-normal">· {items.length}개</span>
-        </h3>
-        <span className="text-pullim-slate-400 font-mono text-[10px] ml-auto">
-          {completedQ}/{totalQ}문항
-        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: groupHex }}
+            />
+            <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
+              {bot.name}
+            </h3>
+            {bot.subject && (
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                {bot.subject}
+              </span>
+            )}
+            <span className="text-pullim-slate-500 ml-auto shrink-0 text-[10px] font-semibold">
+              {items.length}개
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${progress}%`, backgroundColor: groupHex }}
+              />
+            </div>
+            <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+              {completedQ}/{totalQ}문항
+            </span>
+          </div>
+        </div>
       </header>
       <ul className="space-y-2">
         {items.map(a => <AssignmentCard key={a.id} assignment={a} />)}
