@@ -252,8 +252,9 @@ function ComponentBreakdown({
             </Link>
           </div>
         ) : audience === 'teacher' ? (
+          // 교사 화면 — 학생 상태 관찰형 카피 ([13 § 9.1.2] 교사 화면은 직접적 표현 가능)
           <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
-            가장 낮은 영역: {lowest.label} — 학생 화면에서 담당 봇 인사이트가 노출돼요.
+            이번 주 신경 쓸 영역: {lowest.label}. 학생과 1:1 면담을 권장해요.
           </p>
         ) : audience === 'student-self' ? (
           // 본인 리포트 톤 — 자기 성찰 컨텍스트, 봇 권유 없이 신경 쓸 부분만 짚어줌

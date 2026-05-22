@@ -84,7 +84,8 @@ export default function WellnessPage() {
                   <span className="text-pullim-slate-900 font-bold">{botComment.bot.name}</span>
                   <span className="text-pullim-slate-400 font-normal">· {botComment.generatedAt}</span>
                 </div>
-                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 가장 낮아요</p>
+                {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
+                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 신경 쓸 부분이에요</p>
               </div>
               <Sparkles className="text-pullim-slate-300 h-3 w-3" />
             </header>
