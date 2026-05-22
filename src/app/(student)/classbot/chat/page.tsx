@@ -380,7 +380,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
             <span className="text-pullim-slate-400 ml-auto">
-              개념 질문은 여기서 — 라이브 모더레이션 큐는 위쪽 "선생님에게 질문"
+              개념 질문은 여기서 — 라이브 모더레이션 큐는 위쪽 “선생님에게 질문”
             </span>
           )}
         </header>
