@@ -23,16 +23,20 @@ export function WellbeingGauge({
   studentId: string;
   compact?: boolean;
   /**
-   * 화면 컨텍스트별 봇 CTA/카피 분기:
-   * - `'student-chat'` (default, /classbot/wellness): 봇 인사이트 + actionable CTA — 봇 채팅 진입 강한 권유
-   * - `'student-self'` (/classbot/me/report): 봇 CTA 미노출 + 본인 리포트 톤 — 자기 성찰 컨텍스트
-   * - `'teacher'` (/teacher/reports/[id]): 봇 CTA 미노출 + 관찰 중성 카피 — 역할 혼선 방지
+   * 화면 컨텍스트별 봇 인사이트 + CTA 분기 ([13 § 9.2] 봇 인사이트 + actionable CTA는 학생 화면 필수):
+   * - `'student-chat'` (default, /classbot/wellness): 봇 인사이트 + 봇 채팅 진입 CTA
+   * - `'student-self'` (/classbot/me/report): 봇 인사이트 텍스트 유지 + CTA를 "다음 주 도전" → `/classbot/assignment` 로 override ([13 § 3.3.5] "다음 주 도전: 봇 처방" 정합)
+   * - `'teacher'` (/teacher/reports/[id]): 봇 인사이트 미노출 + 관찰 중성 카피 — 역할 혼선 방지
    */
   audience?: 'student-chat' | 'student-self' | 'teacher';
 }) {
   const trend = getWellbeingTrend(studentId);
-  // 봇 채팅 CTA는 'student-chat'에서만 노출 — 본인 리포트/교사 화면에서는 비노출
-  const botInsight = audience === 'student-chat' ? getWellnessBotComment(studentId) : null;
+  // 학생 화면(student-chat / student-self)에는 봇 인사이트 합성 — § 9.2 필수 요소.
+  // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
+  const rawInsight = audience !== 'teacher' ? getWellnessBotComment(studentId) : null;
+  const botInsight = rawInsight && audience === 'student-self'
+    ? { ...rawInsight, ctaHref: '/classbot/assignment', ctaLabel: '다음 주 도전' }
+    : rawInsight;
   const [open, setOpen] = useState(false);
 
   if (trend.length === 0) {
