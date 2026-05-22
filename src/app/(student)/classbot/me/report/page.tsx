@@ -29,7 +29,8 @@ export default function MyReportPage() {
         description="봇이 본 나의 한 주 — 1인칭 톤"
       />
 
-      <WellbeingGauge studentId={me.id} audience="student-self" />
+      {/* [13 § 3.3.5·9.2] 본인 리포트도 봇 인사이트 + actionable CTA 노출 — § 3.3.5 "다음 주 도전: 봇 처방" 정합 */}
+      <WellbeingGauge studentId={me.id} />
 
       {/* KPI */}
       <section className="bg-card rounded-2xl border p-4">
