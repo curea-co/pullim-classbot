@@ -84,7 +84,7 @@ export default function StudentAssignmentListPage() {
   );
 }
 
-/* ─── 봇별 그룹 헤더 ([04 § 9.1·15.6]·[08 § 15.2.1] — 봇 시그니처 컬러로 그룹 정체성) ─── */
+/* ─── 봇별 그룹 헤더 ([08 § 15.6]·[04 § 9.1·15.6] — 카드 위 [아바타 + 이름 + 카운트] + 시그니처 컬러 점 + 진척 한 줄) ─── */
 const ORPHAN_GROUP_HEX = '#94A3B8';
 
 function BotGroupSection({ bot, items }: { bot: ClassBot; items: Assignment[] }) {
@@ -107,7 +107,12 @@ function BotGroupSection({ bot, items }: { bot: ClassBot; items: Assignment[] })
           {bot.avatarEmoji}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: groupHex }}
+            />
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
               {bot.name}
             </h3>

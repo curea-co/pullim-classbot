@@ -97,9 +97,9 @@
 - [x] P2-12 메시지 타입 6종 카탈로그 (#69 — `MessageBody`/`buildRichBotTurn` dispatcher)
 - [x] P2-13 봇 스위처 칩 LIVE 펄스 + 시그니처 활성 상태 (#69 — `chat/page.tsx:118,127`)
 - [x] P2-14 과제 카드 상태별 컬러/라이너 매핑 (#69 — `src/lib/tokens/assignment-state.ts` 신규)
-- [x] P2-15 과제 봇별 그룹 헤더 (2026-05-22 — `assignment/page.tsx` BotGroupSection: 좌측 시그니처 라이너 3px + subject chip + 그룹 진도 막대)
-- [ ] P2-16 웰빙 담당 봇 코멘트 카드 + 체크인 사후 봇 반응 (#69 — `classbot-wellness-bot.ts` mock만, UI 카드 미진행)
-- [ ] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침 (#69 — gauge 라벨 색만 적용, 5지표 펼침 미진행)
+- [x] P2-15 과제 봇별 그룹 헤더 (PR #75 / 2026-05-22 — `assignment/page.tsx` BotGroupSection: 좌측 시그니처 라이너 3px + **시그니처 컬러 점** + subject chip + 그룹 진도 막대 — [08 § 15.6] 충족)
+- [ ] P2-16 웰빙 담당 봇 코멘트 카드 + 체크인 사후 봇 반응 (#69 머지본에 UI 포함 — PR #76에서 [13 § 9.3] 정합 확인 후 체크 예정)
+- [ ] P2-17 웰빙 7일 막대 컬러 + 5지표 펼침 (#69 머지본에 UI 포함 — PR #77에서 [13 § 9.2] 정합 확인 후 체크 예정)
 
 ## Phase 4 — P3 (별도 PR)
 
