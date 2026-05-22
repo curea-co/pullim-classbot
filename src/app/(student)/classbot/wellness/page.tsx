@@ -79,9 +79,10 @@ export default function WellnessPage() {
                 {botComment.bot.avatarEmoji}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-pullim-slate-900 inline-flex items-center gap-1.5 text-xs font-bold">
-                  {botComment.bot.name}
-                  <span className="text-pullim-slate-400 font-normal text-[11px]">· {botComment.generatedAt}</span>
+                {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
+                <div className="inline-flex items-center gap-1.5 text-xs">
+                  <span className="text-pullim-slate-900 font-bold">{botComment.bot.name}</span>
+                  <span className="text-pullim-slate-400 font-normal">· {botComment.generatedAt}</span>
                 </div>
                 <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 가장 낮아요</p>
               </div>
