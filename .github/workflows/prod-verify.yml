@@ -72,7 +72,15 @@ jobs:
             echo "Attempt ${i}/120 — expected=${EXPECTED_SHA:0:12} current=${current:0:12} (full=${current:-<no-meta>}), sleeping 5s."
             sleep 5
           done
-          echo "Production SHA did not match ${EXPECTED_SHA:0:12} within 10 minutes — Vercel deploy may have been skipped or stuck."
+          echo "::error title=prod-verify SHA mismatch::Production SHA did not match within 10 minutes"
+          echo "  Expected SHA (this push):     ${EXPECTED_SHA}"
+          echo "  Last observed production SHA: ${current:-<no-meta>}"
+          if [ -n "$current" ] && [ "$current" != "<no-meta>" ]; then
+            echo "  Production appears stuck at SHA ${current:0:12}."
+            echo "  → Check Vercel project Deployments for build failures or paused project state since that commit."
+          else
+            echo "  Production HTML had no x-build-sha meta — check production URL availability and x-build-sha embed in src/app/layout.tsx."
+          fi
           exit 1
 
       - name: Run Playwright against production
