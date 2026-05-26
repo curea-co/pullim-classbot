@@ -2,555 +2,375 @@
 
 import Link from 'next/link';
 import {
-  ArrowRight, Eye, History, MessageCircle, Play, Sparkles, Target, AlertCircle, Heart,
-  GraduationCap, Compass, Inbox, MessageSquareText, ClipboardList, Radio,
+  ArrowRight, Bell, ClipboardList, ClipboardCheck, MessageSquareText, Radio,
 } from 'lucide-react';
 import {
   classRoster, currentPersona,
-  type Assignment,
   getMyBots, type ClassBot, type StudentEnrollment,
 } from '@/lib/mock';
-import { useMergedAssignments } from '@/lib/store/assignments';
-import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
-import { GradingNotificationCard } from '@/components/classbot/grading-notification-card';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
+import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { cn } from '@/lib/utils';
 
-const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400'   },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger'      },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700'    },
-} as const;
-
-const sourceMeta = {
-  'teacher-assigned': '선생님 과제',
-  'bot-prescribed':   '봇 처방',
-  'self':             '내가 추가',
-} as const;
-
+/**
+ * 학생 홈 — V15 변형 (KPI header + V09 bot grid).
+ *
+ * 첫 시선이 "오늘 얼마나 바쁜지" 압축 카운트로 떨어지도록
+ * KPI header 한 줄을 최상단에 두고, 그 아래 V09 구조를 잇는다.
+ *
+ * 구성:
+ *   1. KPI header — "오늘 N개 새 알림" + 라이브/마감/한 마디 인라인 메타
+ *   2. 내 클래스봇 — 가로 5개 strip (정체성)
+ *   3. 새로 온 것 — 2x2 카테고리 grid (과제·채점·한 마디·라이브)
+ *   4. 받은 과제 다 보기 CTA
+ */
 export default function StudentClassbotPage() {
   const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
   const myBots = getMyBots();
-  const activeLive = useLiveStore(s => s.active);
-  // 학생은 "지금 실제 라이브 진행 중" 봇만 본다 — bot.isLive(seed) 무시, liveStore가 truth
-  const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
-  const allAssignments = useMergedAssignments(me.id);
-  const primary = allAssignments[0];
-  const others = allAssignments.slice(1);
+  const myStudentId = `s${currentPersona.id ?? 1}`;
 
-  // 봇별 미완료 과제 수 — 봇 카드 카운트 ([04 § 9.2])
-  const incompleteByBot = new Map<string, number>();
-  for (const a of allAssignments) {
-    if (a.completedCount >= a.questionCount) continue;
-    incompleteByBot.set(a.botId, (incompleteByBot.get(a.botId) ?? 0) + 1);
-  }
+  const activeLive = useLiveStore(s => s.active);
+  const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
+
+  const allAssignments = useMergedAssignments(me.id);
+  const incompleteAssignments = allAssignments.filter(a => a.completedCount < a.questionCount);
+  const urgentCount = allAssignments.filter(
+    a => a.completedCount < a.questionCount && (a.dDay === '오늘' || a.dDay === 'D-1'),
+  ).length;
+
+  const submissions = useAssignmentStore(s => s.submissions);
+  const recentGradedCount = submissions
+    .filter(s => s.studentId === myStudentId)
+    .filter(s => Date.now() - new Date(s.submittedAt).getTime() < 5 * 60_000).length;
+
+  const wellnessComment = getWellnessBotComment(me.id);
+  const wellnessUnread = wellnessComment ? 1 : 0;
+
+  const newAssignmentCount = incompleteAssignments.length;
+  const liveCount = liveBots.length;
+  const totalNew = newAssignmentCount + liveCount + recentGradedCount + wellnessUnread;
 
   return (
     <div className="space-y-4">
-      {/*
-        [04 § 9.1] 학생 홈 블록 우선순위 — 시간 가치순:
-          1. 지금 LIVE (있을 때만)
-          2. 내 클래스봇 (5개) — 메시지·과제 미리보기 포함
-          3. 진행 중 과제 1개 (가장 임박)
-          4. 받은 과제 (others)
-          5. 오늘의 KPI / 웰빙 한 줄
-          6. 최근 리플레이 진입 (빠른 진입)
-      */}
+      {/* 1. KPI Header — 첫 시선 압축 카운트 */}
+      <KpiHeader
+        totalNew={totalNew}
+        liveCount={liveCount}
+        urgentCount={urgentCount}
+        wellnessUnread={wellnessUnread}
+      />
 
-      {/* 1. 지금 LIVE ([08 § 15.3] navy solid + 4px lime 좌측 라이너 + LIVE 펄스).
-          IA(07:57 "클래스룸 > 실시간 수업") 정합으로 항상 노출 — 비활성 시 리플레이 진입 보조. */}
-      <LiveSection liveBots={liveBots.map(b => b.bot)} />
+      {/* 2. 내 클래스봇 — 가로 strip (정체성) */}
+      <MyBotsStrip
+        bots={myBots}
+        activeLive={activeLive}
+      />
 
-      {/* 2. 내 클래스봇 — 카드 정보 보강 (마지막 메시지 + 미완료 카운트 + 1차 CTA) */}
-      <MyBotsStrip bots={myBots} incompleteByBot={incompleteByBot} activeLive={activeLive} />
+      {/* 3. 새로 온 것 — 2x2 카테고리 grid */}
+      <NewItemsGrid
+        assignmentCount={newAssignmentCount}
+        gradedCount={recentGradedCount}
+        wellnessUnread={wellnessUnread}
+        liveCount={liveCount}
+        liveHref={liveBots[0] ? `/classbot/live/${liveBots[0].bot.id}` : '/classbot/replay'}
+      />
 
-      {/* 채점 완료 알림 — 최근 5분 내 submission */}
-      <GradingNotificationCard />
-
-      {/* 3. 진행 중 과제 1개 — 가장 임박 */}
-      {primary
-        ? <PrimaryAssignmentCard assignment={primary} bots={myBots.map(b => b.bot)} />
-        : <EmptyAssignmentCard />}
-
-      {/* 4. 다른 과제 */}
-      {others.length > 0 && (
-        <section>
-          <header className="mb-2 flex items-end justify-between">
-            <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">받은 과제</h2>
-            <span className="text-pullim-slate-400 font-mono text-[10px]">{others.length}건</span>
-          </header>
-          <ul className="space-y-2">
-            {others.map(a => <AssignmentRow key={a.id} assignment={a} bots={myBots.map(b => b.bot)} />)}
-          </ul>
-        </section>
-      )}
-
-      {/* 5. 내 활동 한 줄 — 오늘 KPI / 웰빙 */}
-      <section className="bg-card flex items-center divide-x divide-pullim-slate-100 rounded-xl border">
-        <Mini label="오늘 질문" value={`${me.botQuestions}회`} />
-        <Mini label="정답률" value={`${me.accuracy}%`} accent />
-        <Mini label="웰빙" value={`${me.wellbeing}/100`} icon={<Heart className="h-3 w-3" />} />
-      </section>
-
-      {/* 6. 빠른 진입 — 리플레이 우선 (LIVE/내 클래스봇은 위에서 처리) */}
-      <section className="grid grid-cols-3 gap-2">
-        <QuickEntry
-          href="/classbot/replay"
-          icon={History}
-          label="리플레이"
-          hint="3개 저장됨"
-          accent
-        />
-        <QuickEntry
-          href="/classbot/chat"
-          icon={MessageCircle}
-          label="봇 대화"
-          hint={`${myBots.length}개 봇`}
-        />
-        <QuickEntry
-          href="/classbot/discover"
-          icon={Compass}
-          label="봇 찾기"
-          hint="공식 봇"
-          locked
-        />
-      </section>
-
-      {/* 모니터링 안내 */}
-      <p className="text-pullim-slate-500 inline-flex items-center gap-1 text-[11px]">
-        <Eye className="h-3 w-3" />
-        등록된 선생님들이 활동을 실시간으로 봐요. 시험 기간엔 봇이 자동으로 차단돼요.
-      </p>
-
-      <FlywheelNote>
-        풀이·질문은 각 봇 선생님 리포트로 흘러가고, 자주 막힌 패턴은 <strong>풀림 복습</strong>의 정복 큐로 자동 추가돼요.
-      </FlywheelNote>
+      {/* 4. 받은 과제 다 보기 CTA */}
+      <Link
+        href="/classbot/assignment"
+        className="bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white flex items-center justify-between gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-colors shadow-pullim-sm"
+      >
+        <span className="inline-flex items-center gap-2">
+          <ClipboardList className="h-4 w-4" />
+          받은 과제 다 보기
+          {newAssignmentCount > 0 && (
+            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-2 py-0.5 font-mono text-[10px]">
+              {newAssignmentCount}
+            </span>
+          )}
+        </span>
+        <ArrowRight className="h-4 w-4" />
+      </Link>
     </div>
   );
 }
 
-/* ─── LIVE 카드 시그니처 ([08 § 15.3] navy solid + lime 좌측 라이너 + 시청자 spring) ─── */
-function LiveSection({ liveBots }: { liveBots: ClassBot[] }) {
-  if (liveBots.length === 0) {
+/* ─── KPI Header ─── */
+function KpiHeader({
+  totalNew, liveCount, urgentCount, wellnessUnread,
+}: {
+  totalNew: number;
+  liveCount: number;
+  urgentCount: number;
+  wellnessUnread: number;
+}) {
+  if (totalNew === 0) {
     return (
-      <section className="space-y-2">
-        <header className="flex items-center justify-between">
-          <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
-            <span className="bg-pullim-slate-200 text-pullim-slate-500 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
-              LIVE
-            </span>
-            라이브 수업
-          </h2>
-        </header>
-        <Link
-          href="/classbot/replay"
-          className="bg-pullim-slate-50 border-pullim-slate-200 hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-dashed p-3.5 transition-colors"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="text-pullim-slate-700 text-sm font-bold">진행 중인 라이브 없음</div>
-            <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
-              선생님이 라이브를 시작하면 여기에 표시돼요. 그 사이 지난 수업 리플레이를 둘러봐도 좋아요.
-            </div>
-          </div>
-          <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
-        </Link>
+      <section className="bg-pullim-slate-50 border-pullim-slate-200 rounded-2xl border p-4">
+        <div className="text-pullim-slate-500 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
+          <Bell className="h-3 w-3" />
+          오늘 새 알림
+        </div>
+        <div className="text-pullim-slate-900 mt-1 text-2xl font-bold">
+          0<span className="text-pullim-slate-400 ml-1 text-sm font-semibold">개</span>
+        </div>
+        <p className="text-pullim-slate-500 mt-1 text-[11px]">
+          전부 따라잡았어요. 봇과 자유 대화로 한 발 더 가도 좋아요.
+        </p>
       </section>
     );
   }
-  const first = liveBots[0];
+
+  const metaParts: string[] = [];
+  if (liveCount > 0) metaParts.push(`라이브 ${liveCount}`);
+  if (urgentCount > 0) metaParts.push(`마감 ${urgentCount}`);
+  if (wellnessUnread > 0) metaParts.push(`한 마디 ${wellnessUnread}`);
+
   return (
-    <section className="space-y-2">
-      <header className="flex items-center justify-between">
-        <h2 className="text-pullim-slate-900 inline-flex items-center gap-2 text-sm font-bold tracking-tight">
-          <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
-            <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
-            LIVE
-          </span>
-          {liveBots.length}개 수업 진행 중
-        </h2>
-        <span className="text-pullim-slate-500 font-mono text-[10px]">
-          {first.currentLesson?.startedAt}~{liveBots.length > 1 && ` · 외 ${liveBots.length - 1}건`}
-        </span>
-      </header>
-      <Link
-        href={`/classbot/chat?bot=${first.id}`}
-        className="bg-pullim-slate-900 text-white relative block overflow-hidden rounded-2xl p-4 transition-transform active:scale-[0.99] shadow-pullim-sm"
-        style={{ borderLeft: '4px solid var(--color-pullim-lemon)' }}
-      >
-        <div className="flex items-center gap-3">
-          <span
-            className="ring-pullim-lemon/40 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl ring-2"
-            style={{ backgroundColor: botSignature(first).hex }}
-          >
-            {first.avatarEmoji}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-pullim-lemon inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
-              <Radio className="pullim-anim-live-pulse h-3 w-3" />
-              지금 입장
-            </div>
-            <div className="text-base font-bold">{first.name} 라이브</div>
-            <div className="text-white/80 mt-0.5 truncate text-[11px]">
-              {first.currentLesson?.title} · <LiveAudienceCount count={first.currentLesson?.studentCount ?? 0} />
-            </div>
-          </div>
-          <span className="text-pullim-lemon text-2xl">→</span>
+    <section className="bg-pullim-blue-700 text-white relative overflow-hidden rounded-2xl p-4 shadow-pullim-sm">
+      {/* lemon glow */}
+      <div
+        aria-hidden
+        className="absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
+        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+      />
+      <div className="relative">
+        <div className="text-pullim-blue-100 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
+          <Bell className="h-3 w-3" />
+          오늘 새 알림
         </div>
-      </Link>
-      <LiveQuizCard />
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-pullim-lemon font-mono text-4xl font-bold leading-none">
+            {totalNew}
+          </span>
+          <span className="text-white/80 text-sm font-semibold">개</span>
+        </div>
+        {metaParts.length > 0 && (
+          <p className="text-pullim-blue-100 mt-2 text-[12px] font-semibold">
+            {metaParts.map((p, i) => (
+              <span key={p}>
+                {i > 0 && <span className="text-pullim-blue-300 mx-1.5">·</span>}
+                {p}
+              </span>
+            ))}
+          </p>
+        )}
+      </div>
     </section>
   );
 }
 
-/** 시청자 수 — mount 시 spring 모션 ([08 § 15.2.2]) */
-function LiveAudienceCount({ count }: { count: number }) {
-  return (
-    <span className="pullim-anim-message-mount font-mono text-pullim-lemon font-bold">{count}명 참여 중</span>
-  );
-}
-
-/* ─── 내 봇 N개 — 학생 정체성 strip ([04 § 9.2] 정보 보강) ─── */
+/* ─── 내 클래스봇 가로 strip (V09 정체성) ─── */
 function MyBotsStrip({
   bots,
-  incompleteByBot,
   activeLive,
 }: {
   bots: { bot: ClassBot; enrollment: StudentEnrollment }[];
-  incompleteByBot: Map<string, number>;
   activeLive: Record<string, unknown>;
 }) {
-  return (
-    <section className="bg-card rounded-2xl border p-4">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-pullim-slate-900 inline-flex items-center gap-1 text-sm font-bold">
-            <GraduationCap className="text-pullim-blue-600 h-3.5 w-3.5" />
-            내 클래스봇
-          </h2>
-          <p className="text-pullim-slate-500 text-[11px]">
-            {bots.length}명의 선생님이 배정한 봇
-          </p>
-        </div>
-      </header>
+  // 5개 미만은 빈 슬롯으로 채워 strip 형태 유지
+  const slots = Array.from({ length: Math.max(5, bots.length) }, (_, i) => bots[i] ?? null);
 
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {bots.map(({ bot, enrollment }) => (
-          <BotCard
-            key={bot.id}
-            bot={bot}
-            enrollment={enrollment}
-            incompleteCount={incompleteByBot.get(bot.id) ?? 0}
-            isLiveNow={Boolean(activeLive[bot.id])}
-          />
-        ))}
+  return (
+    <section>
+      <header className="mb-2 flex items-end justify-between">
+        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
+          내 클래스봇
+        </h2>
+        <span className="text-pullim-slate-400 font-mono text-[10px]">
+          {bots.length}명
+        </span>
+      </header>
+      <ul className="grid grid-cols-5 gap-1.5">
+        {slots.map((slot, i) => {
+          if (!slot) return <EmptyBotSlot key={`empty-${i}`} />;
+          return (
+            <BotStripItem
+              key={slot.bot.id}
+              bot={slot.bot}
+              enrollment={slot.enrollment}
+              isLiveNow={Boolean(activeLive[slot.bot.id])}
+            />
+          );
+        })}
       </ul>
     </section>
   );
 }
 
-function BotCard({
-  bot, enrollment, incompleteCount, isLiveNow,
+function BotStripItem({
+  bot, isLiveNow,
 }: {
   bot: ClassBot;
   enrollment: StudentEnrollment;
-  incompleteCount: number;
   isLiveNow: boolean;
 }) {
   const sig = botSignature(bot);
   const preview = getBotHomePreview(bot.id);
-  const ctaLabel = isLiveNow ? '입장' : '대화';
+  // 배지 — 라이브 최우선, 그 외 미리보기 시각이 "오늘"이면 mini dot
+  const hasNewToday = !isLiveNow && preview?.lastAt.startsWith('오늘');
+
   return (
     <li>
       <Link
         href={`/classbot/chat?bot=${bot.id}`}
         className={cn(
-          'group flex flex-col gap-2.5 rounded-xl border p-3 transition-all',
+          'group flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition-all',
           isLiveNow
-            ? 'border-pullim-danger/30 bg-pullim-danger/5'
-            : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/30',
+            ? 'border-pullim-danger/40 bg-pullim-danger/5'
+            : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40',
         )}
       >
-        <div className="flex items-start gap-2.5">
+        <div className="relative">
           <span
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl',
+              'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
               isLiveNow && 'ring-pullim-lemon ring-2',
             )}
             style={{ backgroundColor: sig.hex }}
           >
             {bot.avatarEmoji}
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[10px]">
-              {isLiveNow ? (
-                <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold text-white">
-                  <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
-                  LIVE
-                </span>
-              ) : (
-                <span className="bg-pullim-slate-100 text-pullim-slate-500 rounded-full px-1.5 py-0.5 font-bold">
-                  대기
-                </span>
-              )}
-              <span className="text-pullim-slate-400 ml-auto text-[10px]">
-                {enrollment.classroomLabel}
-              </span>
-            </div>
-            <div className="text-pullim-slate-900 mt-1 text-sm font-bold leading-tight">{bot.name}</div>
-            <div className="text-pullim-slate-500 text-[10px] leading-snug">{bot.teacherName}</div>
-          </div>
+          {isLiveNow && (
+            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-[9px] font-bold text-white">
+              <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+              LV
+            </span>
+          )}
+          {hasNewToday && (
+            <span className="bg-pullim-blue-600 absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" />
+          )}
         </div>
-
-        {/* 마지막 메시지 미리보기 + 카운트 — [04 § 9.2] */}
-        {preview && (
-          <div className="text-pullim-slate-500 border-pullim-slate-100 flex items-start gap-1.5 border-t pt-2 text-[11px] leading-snug">
-            <MessageSquareText className="text-pullim-slate-400 mt-0.5 h-3 w-3 shrink-0" />
-            <span className="line-clamp-1 italic">{preview.lastMessage}</span>
-          </div>
-        )}
-
-        <div className="text-pullim-slate-500 flex items-center justify-between text-[10px]">
-          <div className="inline-flex items-center gap-2">
-            {incompleteCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 font-semibold">
-                <ClipboardList className="h-3 w-3" />
-                미완료 {incompleteCount}
-              </span>
-            )}
-            {isLiveNow && (
-              <span className="text-pullim-danger inline-flex items-center gap-0.5 font-semibold">
-                <Radio className="h-3 w-3" />
-                라이브 1
-              </span>
-            )}
-            {preview && (
-              <span className="text-pullim-slate-400">{preview.lastAt}</span>
-            )}
-          </div>
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-transform group-hover:translate-x-0.5"
-            style={{
-              backgroundColor: isLiveNow ? sig.hex : 'var(--color-pullim-slate-100)',
-              color: isLiveNow ? (sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF') : 'var(--color-pullim-slate-700)',
-            }}
-          >
-            {ctaLabel} →
-          </span>
+        <div className="text-pullim-slate-900 line-clamp-1 w-full text-[11px] font-bold leading-tight">
+          {bot.name}
         </div>
       </Link>
     </li>
   );
 }
 
-/* ─── Primary Assignment 빈 상태 ─── */
-function EmptyAssignmentCard() {
+function EmptyBotSlot() {
   return (
-    <section className="bg-pullim-slate-50 border-pullim-slate-200 flex items-center gap-3 rounded-2xl border border-dashed p-5">
-      <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-        <Inbox className="h-5 w-5" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <h2 className="text-pullim-slate-900 text-sm font-bold">오늘 풀 과제가 없어요</h2>
-        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
-          선생님이 새 과제를 발사하면 여기에 표시돼요. 그 사이 봇과 자유 대화나 리플레이를 둘러봐도 좋아요.
-        </p>
-      </div>
+    <li>
+      <Link
+        href="/classbot/discover"
+        className="border-pullim-slate-200 text-pullim-slate-300 hover:border-pullim-blue-300 hover:text-pullim-blue-500 flex h-full min-h-[68px] flex-col items-center justify-center rounded-xl border border-dashed transition-colors"
+      >
+        <span className="text-lg leading-none">＋</span>
+        <span className="text-[10px] font-semibold mt-0.5">추가</span>
+      </Link>
+    </li>
+  );
+}
+
+/* ─── 새로 온 것 — 2x2 카테고리 grid ─── */
+function NewItemsGrid({
+  assignmentCount, gradedCount, wellnessUnread, liveCount, liveHref,
+}: {
+  assignmentCount: number;
+  gradedCount: number;
+  wellnessUnread: number;
+  liveCount: number;
+  liveHref: string;
+}) {
+  return (
+    <section>
+      <header className="mb-2">
+        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
+          새로 온 것
+        </h2>
+      </header>
+      <ul className="grid grid-cols-2 gap-2">
+        <CategoryCell
+          href="/classbot/assignment"
+          icon={ClipboardList}
+          label="과제"
+          count={assignmentCount}
+          tone="blue"
+        />
+        <CategoryCell
+          href="/classbot/assignment"
+          icon={ClipboardCheck}
+          label="채점"
+          count={gradedCount}
+          tone="green"
+        />
+        <CategoryCell
+          href="/classbot/wellness"
+          icon={MessageSquareText}
+          label="한 마디"
+          count={wellnessUnread}
+          tone="lemon"
+        />
+        <CategoryCell
+          href={liveHref}
+          icon={Radio}
+          label="라이브"
+          count={liveCount}
+          tone="red"
+          pulse={liveCount > 0}
+        />
+      </ul>
     </section>
   );
 }
 
-/* ─── Primary Assignment ─── */
-function PrimaryAssignmentCard({ assignment: a, bots }: { assignment: Assignment; bots: ClassBot[] }) {
-  const mode = modeMeta[a.mode];
-  const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
-  const isUrgent = a.dDay === '오늘' || a.dDay === 'D-1';
-  const remaining = a.questionCount - a.completedCount;
-  const fromBot = bots.find(b => b.id === a.botId);
-
-  return (
-    <Link
-      href={a.solveHref}
-      className="from-pullim-blue-700 to-pullim-blue-500 group relative block overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl transition-transform active:scale-[0.99]"
-    >
-      <div
-        aria-hidden
-        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
-      />
-
-      <div className="relative">
-        <div className="flex items-center gap-1.5 text-[10px]">
-          <span className={cn('rounded-full px-2 py-0.5 font-bold tracking-wider uppercase', mode.color)}>
-            {mode.label}
-          </span>
-          <span className="bg-white/15 rounded-full px-2 py-0.5 font-bold backdrop-blur">
-            {sourceMeta[a.source]}
-          </span>
-          <span className={cn(
-            'rounded-full px-2 py-0.5 font-mono font-bold ml-auto',
-            isUrgent ? 'bg-pullim-lemon text-pullim-lemon-ink' : 'bg-white/15 text-white',
-          )}>
-            {a.dDay}
-          </span>
-        </div>
-
-        <h2 className="mt-2.5 text-xl font-bold tracking-tight">{a.title}</h2>
-        <p className="text-pullim-blue-100 mt-0.5 text-xs">
-          {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
-        </p>
-
-        <div className="mt-4">
-          <div className="text-pullim-blue-100 mb-1 flex items-center justify-between text-[11px] font-semibold">
-            <span>{a.completedCount}/{a.questionCount} 풀이 완료</span>
-            <span className="text-pullim-lemon font-mono">{Math.round(progress)}%</span>
-          </div>
-          <div className="bg-white/15 h-1.5 overflow-hidden rounded-full">
-            <div
-              className="bg-pullim-lemon h-full rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {a.reasonHint && (
-          <p className="bg-white/10 backdrop-blur mt-3 rounded-lg px-3 py-2 text-[11px] leading-snug">
-            <Sparkles className="text-pullim-lemon -mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
-            {a.reasonHint}
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <span className="text-pullim-blue-100 inline-flex items-center gap-1 text-[11px]">
-            {fromBot && <span className="text-base leading-none">{fromBot.avatarEmoji}</span>}
-            {a.assignedBy} · {a.assignedAt}
-          </span>
-          <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-sm font-bold transition-transform group-hover:translate-x-0.5">
-            <Play className="h-3.5 w-3.5" />
-            {a.completedCount === 0 ? '시작' : `이어서 ${remaining}문항`}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-/* ─── Assignment Row — [08 § 15.6] 상태별 컬러/라이너 매핑 ─── */
-function AssignmentRow({ assignment: a, bots }: { assignment: Assignment; bots: ClassBot[] }) {
-  const mode = modeMeta[a.mode];
-  const visual = getAssignmentVisual(a);
-  const Icon = a.mode === 'wrong-conquest' ? Target : a.mode === 'exam' ? AlertCircle : Play;
-  const fromBot = bots.find(b => b.id === a.botId);
+function CategoryCell({
+  href, icon: Icon, label, count, tone, pulse,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  count: number;
+  tone: 'blue' | 'green' | 'lemon' | 'red';
+  pulse?: boolean;
+}) {
+  const hasNew = count > 0;
+  const toneClasses = {
+    blue:  { iconBg: 'bg-pullim-blue-50 text-pullim-blue-700',     countText: 'text-pullim-blue-700'   },
+    green: { iconBg: 'bg-emerald-50 text-emerald-700',             countText: 'text-emerald-700'      },
+    lemon: { iconBg: 'bg-pullim-lemon/30 text-pullim-lemon-ink',   countText: 'text-pullim-lemon-ink' },
+    red:   { iconBg: 'bg-pullim-danger/10 text-pullim-danger',     countText: 'text-pullim-danger'    },
+  }[tone];
 
   return (
     <li>
       <Link
-        href={a.solveHref}
-        className="bg-card hover:border-pullim-blue-300 flex items-center gap-3 rounded-xl border border-l-[4px] p-3.5 transition-colors"
-        style={{ borderLeftColor: visual.linerHex }}
+        href={href}
+        className={cn(
+          'group bg-card flex items-center gap-3 rounded-xl border p-3 transition-all',
+          hasNew
+            ? 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/30'
+            : 'border-pullim-slate-100 hover:border-pullim-slate-200',
+        )}
       >
-        <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white', mode.color)}>
-          <Icon className="h-4 w-4" />
+        <span
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+            toneClasses.iconBg,
+          )}
+        >
+          <Icon className={cn('h-5 w-5', pulse && 'pullim-anim-live-pulse')} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px]">
-            {fromBot && <span className="text-sm">{fromBot.avatarEmoji}</span>}
-            <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
-            <span className="text-pullim-slate-300">·</span>
-            <span className="text-pullim-slate-500">{sourceMeta[a.source]}</span>
-            <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
-              {visual.dDayLabel}
-            </span>
+          <div className="text-pullim-slate-700 text-[11px] font-semibold uppercase tracking-wider">
+            {label}
           </div>
-          <div className="text-pullim-slate-900 mt-0.5 text-sm font-bold">{a.title}</div>
-          <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
-            {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
+          <div className={cn(
+            'font-mono text-xl font-bold leading-tight',
+            hasNew ? toneClasses.countText : 'text-pullim-slate-400',
+          )}>
+            {count}
+            <span className="text-pullim-slate-400 ml-1 text-[11px] font-semibold">건</span>
           </div>
-          {/* 진행 바 (mode/state 컬러 적용) */}
-          <div className="mt-1.5 flex items-center gap-2">
-            <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
-              <div
-                className={cn('h-full rounded-full transition-all', visual.progressClass)}
-                style={{ width: `${a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100}%` }}
-              />
-            </div>
-            <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
-              {a.completedCount}/{a.questionCount}
-            </span>
-          </div>
-          {a.reasonHint && (
-            <p className="text-pullim-slate-400 mt-1 line-clamp-1 text-[11px] italic">
-              <Sparkles className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
-              {a.reasonHint}
-            </p>
-          )}
         </div>
-        <ArrowRight className="text-pullim-slate-300 h-4 w-4 shrink-0" />
+        {hasNew && (
+          <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
+        )}
       </Link>
     </li>
-  );
-}
-
-/* ─── 빠른 진입 ─── */
-function QuickEntry({
-  href, icon: Icon, label, hint, accent, locked,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string; hint: string; accent?: boolean; locked?: boolean;
-}) {
-  const className = cn(
-    'flex items-center gap-2.5 rounded-xl border p-3 transition-colors',
-    locked
-      ? 'bg-pullim-slate-50 border-pullim-slate-200 opacity-60 cursor-not-allowed'
-      : accent
-        ? 'bg-pullim-blue-50 border-pullim-blue-100 hover:bg-pullim-blue-100/70'
-        : 'bg-card hover:border-pullim-blue-300',
-  );
-  const inner = (
-    <>
-      <span className={cn(
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-        locked ? 'bg-pullim-slate-100 text-pullim-slate-400'
-          : accent ? 'bg-pullim-blue-600 text-white'
-          : 'bg-pullim-slate-100 text-pullim-slate-700',
-      )}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <div className={cn(
-          'text-sm font-bold',
-          locked ? 'text-pullim-slate-500'
-            : accent ? 'text-pullim-blue-700' : 'text-pullim-slate-900',
-        )}>
-          {label}
-        </div>
-        <div className="text-pullim-slate-500 text-[10px]">{hint}{locked && ' · 준비 중'}</div>
-      </div>
-    </>
-  );
-  if (locked) return <div className={className} aria-disabled="true">{inner}</div>;
-  return <Link href={href} className={className}>{inner}</Link>;
-}
-
-function Mini({
-  label, value, accent, icon,
-}: {
-  label: string; value: string; accent?: boolean; icon?: React.ReactNode;
-}) {
-  return (
-    <div className="flex-1 px-3 py-3 text-center">
-      <div className="text-pullim-slate-500 inline-flex items-center justify-center gap-0.5 text-[10px] font-semibold tracking-wider uppercase">
-        {icon}
-        {label}
-      </div>
-      <div className={cn('mt-0.5 font-mono text-base font-bold', accent ? 'text-pullim-blue-600' : 'text-pullim-slate-900')}>
-        {value}
-      </div>
-    </div>
   );
 }
