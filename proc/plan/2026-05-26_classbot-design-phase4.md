@@ -84,3 +84,14 @@
 - Chrome DevTools 모바일 시뮬레이션: 375×667 / 390×844
 - DevTools "Rendering" 패널 → "Emulate CSS prefers-reduced-motion: reduce"
 - Playwright e2e: `tests/e2e/chat-scroll-and-input.spec.ts`, `tests/e2e/student-live-and-flows.spec.ts`
+
+---
+
+## 사후 메모 (2026-05-26 18:30)
+
+P3-20 착수 전 **production 배포 정상화 선행 필요**:
+- production이 commit `#68 (44bc5a09)` 이후 11일째 Vercel deploy 안 됨 (`x-build-sha` meta stuck). main HEAD가 `f6372d2`인데도 production은 11일 전 SHA 그대로.
+- 그 사이 머지된 11개 PR(#69~#77 + 본일 commits)이 모두 production 미반영.
+- prod-verify workflow의 SHA polling timeout 메시지는 [PR #78](https://github.com/curea-co/pullim-classbot/pull/78)에서 진단 가능하게 개선.
+- **사용자/G3 영역**: Vercel 콘솔 Deployments 점검 → 빌드 실패/paused 해소 → prod-verify rerun으로 main HEAD 반영 확인.
+- 그 후 G4 모션 정책 합의(LIVE 봇만 M3 vs 전체 봇 M3) 진행 가능.
