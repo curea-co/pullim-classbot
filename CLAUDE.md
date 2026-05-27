@@ -1,86 +1,114 @@
 @AGENTS.md
 
-# 풀림 클래스봇 단일 추출본 — 작업 가이드
+# 풀림 클래스봇 모노레포 작업 가이드
 
-이 프로젝트는 **풀림 스터디 데모(`260506 pullim-study-demo`)** 에서 **풀림 클래스봇 도메인만** 떼어 낸 SPARK + IPO 하네스 템플릿입니다.
+이 리포는 [curea-co/pullim](https://github.com/curea-co/pullim) 의 BE 구조를 차용한 **bun workspace 모노레포**입니다. `pullim-classbot` 은 **풀림 클래스봇 도메인** 추출본으로, 향후 `pullim` 플랫폼의 하위 도메인으로 흡수될 SaaS 단위입니다.
 
-원본의 6 도메인(스튜디오/스토어/플래너/Q/클래스봇/라이브러리) 중 **클래스봇만 살아 있고**, 나머지 도메인의 페이지·컴포넌트·mock·라우트는 모두 제거됐습니다. 사이드바·하단탭·역할 전환(GNB)도 클래스봇/빌더 라우트만 노출하도록 좁혀져 있습니다.
+도메인 구체 룰은 [`apps/classbot/CLAUDE.md`](apps/classbot/CLAUDE.md) 를 우선 참조.
 
-## 1. 살아 있는 영역
-
-| 구분 | 경로 | 비고 |
-|---|---|---|
-| 학생 라우트 | `src/app/(student)/classbot/{,chat,discover,replay,replay/[id],onboarding}` | 5 페이지 + 동적 1 |
-| 학생 루트 | `src/app/(student)/page.tsx` | `/classbot`로 즉시 redirect — 6 도메인 홈은 사라짐 |
-| 교사 라우트 | `src/app/(teacher)/teacher/{,classbot,builder}` | 홈/내 클래스봇/봇 빌더 3 페이지 |
-| 도메인 컴포넌트 | `src/components/classbot/*`, `src/components/builder/*` | 13 파일 |
-| 공유 셸 | `src/components/shell/*` | Role = `student | teacher` (parent 분기 제거, CoachFab 제거) |
-| 공유 UI | `src/components/ui/*`, `src/components/brand/*` | shadcn 프리미티브 |
-| 도메인 mock | `src/lib/mock/{persona,family,tutor,classbot,chat}.ts` | tutor는 `ScopeLevel` 유지용, chat은 원본 `phase1.ts`에서 클래스봇 채팅만 발췌 |
-| 토큰 / 유틸 | `src/lib/tokens/*`, `src/lib/utils.ts` | |
-
-## 2. 사라진 영역 (작업 시 의식할 것)
-
-다음은 **이 저장소에 존재하지 않습니다.** 클래스봇 안에서 다른 도메인을 참조하는 코드를 새로 쓰지 말 것:
-
-- 플래너 / Q(무한풀기·코치·분석·복습) / 라이브러리 / 스튜디오 / 스토어 페이지·컴포넌트
-- 보호자 영역(`(parent)/parent/*`), `currentParent` UI 분기 (mock의 `family.ts`는 type만 살려둠)
-- `lib/mock/{features,domains,planner,coach,tutor 본체,conqueror,infinity,memory,irt,xray,visual,phase1(채팅 외),subscriptions,billing,parent-notifications}`
-- `components/{planner,planner-builder,planner-manage,infinity,coach,tutor,conqueror,memory,study-index,xray,visual,parent,study}` — 학생 홈 카드 위젯(`study/*`)도 함께 제거됨
-- 공유 셸 중 `coach-fab.tsx` — `/q/talk` 의존 → 삭제
-
-## 3. SPARK + IPO 하네스 구조
+## 1. 모노레포 구조
 
 ```
-project/
-├── input/           # 입력·참고 데이터 (클래스봇 마스터 문서만 보존)
-│   ├── docs-archive/  # 00 기능기획, 03 스터디, 04 종합, 05 수업방, 07 클래스봇 핸드오프
-│   └── design-prototype/
-├── proc/            # 명령 처리 규칙 (SPARK)
-│   ├── spec/          # 00~10 마스터 spec (도메인 비종속)
-│   ├── plan/          # 작업 계획
-│   ├── archive/       # 비활성 문서 — 클래스봇/셸 글로벌만 보존
-│   ├── research/      # 조사 (비어있음 — 원본은 모두 다른 도메인이라 누락)
-│   └── knowhow/       # 재사용 프롬프트
-├── output/          # 출력 데이터
-├── src/             # 소스 코드
-├── .claude/         # Claude Code skills 설정
-├── README.md        # SPARK + IPO 템플릿 설명 (원본 그대로)
-├── AGENTS.md        # Next.js 에이전트 룰
-└── CLAUDE.md        # 이 문서 — 클래스봇 추출본 가이드
+pullim-classbot/
+├── apps/
+│   ├── classbot/       # Next.js 16 (App Router) — 클래스봇 추출본 FE (port 3032)
+│   └── backend/        # NestJS 11 — Phase β 이후 본격 (port 4032, 현재 health endpoint만)
+├── packages/
+│   ├── types/          # BE↔FE 공유 타입 (현재 빈 placeholder)
+│   ├── api-client/     # FE → BE fetch 래퍼 (현재 빈 placeholder)
+│   └── auth/           # IAuthProvider 추상화 + MockAuthProvider (현재 빈 placeholder)
+├── proc/               # plan / spec / knowhow / archive / research
+├── input/              # 기획 문서 (docs-archive 권위)
+├── output/             # PM·QA 산출물
+├── docker-compose.yml  # 로컬 Postgres 16 (port 5434)
+├── turbo.json
+├── tsconfig.base.json
+├── package.json        # workspace root
+└── bun.lock
 ```
 
-## 4. 권위 문서 (read only)
+## 2. 작업 영역별 boundary
 
-- `input/docs-archive/07_풀림_클래스봇_핸드오프.md` — **클래스봇 도메인 권위 문서**. 변경 작업 전에 반드시 참조.
-- `input/docs-archive/05_풀림_수업방_세부기획.md` — 수업방·라이브 세션 RBAC·Scope 정책.
-- `input/docs-archive/04_풀림_종합_마스터.md` — 풀림 전체 IA (현재 추출본은 그중 클래스봇만 구현).
-- `input/docs-archive/03_풀림_스터디_마스터.md` — 학생 영역 공통 톤·UX.
-- `input/docs-archive/00_풀림_기능기획_Skill.md` — 기획 작성 가이드.
+### apps/classbot — 클래스봇 FE (단일 도메인 락인)
 
-## 5. 작업 컨벤션
+자세한 룰: [apps/classbot/CLAUDE.md](apps/classbot/CLAUDE.md), [apps/classbot/AGENTS.md](apps/classbot/AGENTS.md).
 
-추출본이라 락인 도메인이 한 개뿐 — 모든 편집은 클래스봇 단일 도메인 범위.
+요지:
+- **편집 자유**: 페이지(`app/(student)/classbot/*`, `app/(teacher)/teacher/{classbot,builder}/*`), `components/{classbot,builder}/*`, `lib/{db,mock,tokens,hooks,store}/*`
+- **read-only**: 공유 셸·UI 프리미티브는 클래스봇 단일 도메인이라 사실상 안전하지만 role/nav 변경은 보고
+- **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어/보호자) 코드 추가, DS 패키지 import, i18n / Sentry 도입
+- **alias**: `@/*` → `apps/classbot/*` (모노레포 root 아님)
 
-**해도 되는 것**
-- `src/app/(student)/classbot/*`, `src/app/(teacher)/teacher/{classbot,builder}/*` 페이지·컴포넌트·mock 수정·신규
-- 클래스봇 import 경로 갱신, 클래스봇 onboarding 페이지/UX 작업
-- 공유 셸(`components/shell/*`)·UI 프리미티브(`components/ui/*`) **read**
+### apps/backend — NestJS skeleton
 
-**확인 후에만 (사용자 명시 동의 필요)**
-- 공유 셸 / UI / nav-config 수정 — 클래스봇 한 도메인만 쓰는 상황이라 보통 안전하지만, role/nav 변경은 보고 후 진행
-- 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
+- 현재 `app.controller.ts` 의 `GET /api/health` 만 존재
+- Phase β 부터 classbot 도메인 모듈(`apps/backend/src/modules/classbot/`) 추가 예정
+- pullim 패턴 그대로 차용: controller / use-cases / service / interface / infrastructure
+- 새 도메인 모듈 추가는 **사용자 명시 확인 필요**
 
-**하면 안 되는 것**
-- 다른 도메인(플래너/Q/라이브러리 등) 코드를 새로 작성 — 추출본 범위 외. 필요하면 원본 풀림 스터디 데모 저장소에서 작업하기를 권장.
+### packages/* — 공유 패키지
 
-## 6. 검증
+- 편집 시 apps/classbot 과 apps/backend 양쪽에 영향 → 신중
+- 현재는 빈 placeholder, Phase β·δ 에서 본격 구현
+- 패키지 scope: `@pullim-classbot/{api-client,auth,types}`
 
-```bash
-bun install
-bun x tsc --noEmit          # 타입 검사
-bun run build               # 정적 생성 16 라우트 확인
-bun dev                     # http://localhost:3030/classbot
+### 공통 문서 (read only)
+
+- `input/docs-archive/00_풀림_기능기획_Skill.md` — 기획 작성 가이드
+- `input/docs-archive/04_풀림_종합_마스터.md` — 풀림 전체 IA 컨텍스트
+- `input/docs-archive/05_풀림_수업방_세부기획.md` — 수업방·라이브 세션 RBAC·Scope 정책
+- `input/docs-archive/07_풀림_클래스봇_핸드오프.md` — **클래스봇 도메인 권위** (이 리포의 source of truth)
+- `proc/spec/2026-05-18_be-api-design.md` — BE API 설계 spec
+
+## 3. 명령어
+
+| 작업 | 명령 |
+|---|---|
+| 의존성 설치 | `bun install` |
+| Classbot FE dev (port 3032) | `bun run dev:classbot` |
+| Backend dev (port 4032) | `bun run dev:backend` |
+| 둘 다 dev (turbo 병렬) | `bun run dev` |
+| Classbot build (standalone) | `bun run build:classbot` |
+| Backend build | `bun run build:backend` |
+| 전체 build | `bun run build` |
+| 전체 typecheck | `bun run typecheck` |
+| 전체 lint | `bun run lint` |
+| 전체 test | `bun run test` |
+| Postgres 컨테이너 | `bun run db:up` / `db:down` / `db:reset` |
+
+특정 워크스페이스에만 명령 실행:
+```
+bun --filter @pullim-classbot/classbot <script>
+bun --filter @pullim-classbot/backend <script>
 ```
 
-원본의 6 도메인 라우트(`/planner`, `/q`, `/library`, `/parent` 등)는 모두 404가 정상입니다.
+## 4. 락인 컨벤션
+
+이 리포는 *영구 클래스봇 락인*이라 별도 도메인 선언 없이도 classbot boundary 가 기본값.
+
+### 해도 되는 것 (편집)
+- `apps/classbot/` 내 페이지·컴포넌트·mock·lib 수정·신규 (단일 도메인 범위)
+- `apps/backend/src/modules/classbot/` 내 BE 작업 (Phase β 이후)
+
+### 사용자 명시 확인 필요 (글로벌 작업)
+- root 파일(`package.json`, `turbo.json`, `tsconfig.base.json`, `docker-compose.yml`) 편집
+- `.github/workflows/**` 편집 (CI/Codex Review/prod-verify 등 저장소 전체 자동화 동작 변경)
+- `packages/*` 내부 인터페이스 변경 (apps 양쪽 영향)
+- `apps/backend/src/{common,config,database}/*` 편집 (BE 전역 영향)
+- 새 도메인 모듈 추가 (이 리포는 classbot 단일 도메인이라 본질적으로 거의 발생 X)
+- 이 가이드 / AGENTS.md / README.md 편집
+
+## 5. prod-verify (classbot 고유 자산)
+
+`apps/classbot/tests/e2e/*` + `.github/workflows/prod-verify.yml` 은 production 회귀 자동화 자산:
+- main push / KST 08:00 일일 schedule / 수동 dispatch 세 경로
+- https://pullim-classbot.vercel.app 의 HTML `<meta name="x-build-sha">` 가 commit SHA 와 일치할 때까지 polling 후 Playwright 7 spec 실행
+- 색·chat·slider 회귀 자동 검출
+
+작업 시 깨지 말 것:
+- `apps/classbot/app/layout.tsx` 의 x-build-sha meta tag
+- Playwright spec 의 `baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032'` 패턴
+
+## 6. 컨벤션 변경
+
+이 가이드 자체를 수정해야 할 때는 **글로벌 작업**으로 분리. 일반 작업 중에 이 파일을 수정하지 말 것.

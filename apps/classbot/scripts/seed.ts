@@ -17,7 +17,7 @@ loadEnv({ path: '.env' });
 
 import { sql } from 'drizzle-orm';
 
-import { db, getPool } from '../src/lib/db';
+import { db, getPool } from '../lib/db';
 import {
   assignmentQuestions,
   assignments,
@@ -45,10 +45,10 @@ import {
   templates,
   users,
   wellbeingSnapshots,
-} from '../src/lib/db/schema';
+} from '../lib/db/schema';
 
-import { currentPersona } from '../src/lib/mock/persona';
-import { childLinks, consentLog, currentParent } from '../src/lib/mock/family';
+import { currentPersona } from '../lib/mock/persona';
+import { childLinks, consentLog, currentParent } from '../lib/mock/family';
 import {
   botCurriculum,
   botSettings as mockBotSettings,
@@ -76,7 +76,7 @@ import {
   upcomingLessons,
   wellbeingSnapshots as mockWellbeingSnapshots,
   type ClassroomStudent,
-} from '../src/lib/mock/classbot';
+} from '../lib/mock/classbot';
 
 const ALL_TABLES = [
   // 부모 순서로 — TRUNCATE RESTART IDENTITY CASCADE는 의존관계 자동 처리하지만 순서 명시로 가독성 확보
