@@ -27,10 +27,10 @@ test.describe('모바일 viewport 검증', () => {
     await page.goto(BASE + '/classbot');
     // 내 클래스봇 헤더 보임
     await expect(page.getByText('내 클래스봇')).toBeVisible();
-    // 빠른 진입 — QuickEntry 카드 (BotCard와 동일 href를 쓰므로 .last() 로 좁힘)
+    // V15 home — BotChip이 `?bot=...` query 포함한 chat link 노출. prefix 매칭으로 변경.
     const main = page.getByRole('main');
-    await expect(main.locator('a[href="/classbot/chat"]').last()).toBeVisible();
-    await expect(main.locator('a[href="/classbot/replay"]').last()).toBeVisible();
+    await expect(main.locator('a[href^="/classbot/chat"]').last()).toBeVisible();
+    await expect(main.locator('a[href^="/classbot/replay"]').last()).toBeVisible();
     await context.close();
   });
 

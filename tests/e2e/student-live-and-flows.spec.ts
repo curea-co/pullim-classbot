@@ -10,8 +10,9 @@ test.describe('학생 라이브 진입점 — chat 통합 IA (F1)', () => {
   test('학생 홈 LIVE 카드 → /classbot/chat?bot=cb_001 진입 + 라이브 오버레이', async ({ page }) => {
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
-    // LIVE 진입 CTA 카드 visible
-    const liveCta = page.getByRole('link', { name: /수학이 형 라이브/ });
+    // V15 home — LIVE 카드는 사라지고 BotChip이 LIVE 봇을 ring + LV 뱃지로 표시.
+    // BotChip link("수학이 형" 이름) 클릭 → /classbot/chat?bot=cb_001 진입.
+    const liveCta = page.getByRole('link', { name: /수학이 형/ }).first();
     await expect(liveCta).toBeVisible();
     await liveCta.click();
 
