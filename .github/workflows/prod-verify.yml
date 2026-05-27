@@ -102,6 +102,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: prod-capture-${{ github.run_id }}
-          path: output/live-shots/color-palette-prod/
+          path: apps/classbot/output/live-shots/color-palette-prod/
           retention-days: 7
           if-no-files-found: ignore
