@@ -1,0 +1,21 @@
+{
+  "name": "@pullim-classbot/auth",
+  "version": "0.0.1",
+  "private": true,
+  "description": "IAuthProvider 추상화 + MockAuthProvider. pullim/packages/auth 패턴 그대로.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

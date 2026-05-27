@@ -5,45 +5,141 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# 루트 package.json 의 `packageManager: bun@1.3.12` 와 일치시킴 —
+# `latest` 사용 시 Bun 업데이트만으로 lockfile 해석 / workspace 동작이 비결정적으로 깨질 수 있음
+env:
+  BUN_VERSION: "1.3.12"
+
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Job 1. 변경된 앱 감지 (pullim 패턴 — bun 워크스페이스 정렬)
+  # packages/** 또는 root 설정 변경 시 → 양쪽 모두 영향
+  # ─────────────────────────────────────────────────────────────
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      classbot: ${{ steps.filter.outputs.classbot }}
+      backend: ${{ steps.filter.outputs.backend }}
+      packages: ${{ steps.filter.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+        # main push 이벤트에서도 paths-filter가 이전 커밋과 git diff 계산 가능하도록 전체 이력 fetch
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            classbot:
+              - 'apps/classbot/**'
+              - 'packages/**'
+              - 'tsconfig.base.json'
+              - 'turbo.json'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/**'
+            backend:
+              - 'apps/backend/**'
+              - 'packages/**'
+              - 'tsconfig.base.json'
+              - 'turbo.json'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/**'
+            packages:
+              - 'packages/**'
+              - 'tsconfig.base.json'
+              - 'turbo.json'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/**'
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2. Lint & Typecheck (영향받은 앱만 / turbo --filter 병렬)
+  # ─────────────────────────────────────────────────────────────
   validate:
     name: validate (typecheck + lint)
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: >-
+      needs.detect-changes.outputs.classbot == 'true' ||
+      needs.detect-changes.outputs.backend == 'true' ||
+      needs.detect-changes.outputs.packages == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
-          # 재현성 — local + production 검증 버전(1.3.12) 고정. 업그레이드는 별도 PR 로.
-          bun-version: 1.3.12
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Typecheck
-        run: bunx tsc --noEmit
+      # packages/** 변경 시 packages 워크스페이스 자체도 typecheck 대상에 추가
+      - name: Typecheck (affected)
+        run: |
+          FILTER=""
+          if [ "${{ needs.detect-changes.outputs.classbot }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/classbot"
+          fi
+          if [ "${{ needs.detect-changes.outputs.backend }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/backend"
+          fi
+          if [ "${{ needs.detect-changes.outputs.packages }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/types --filter=@pullim-classbot/api-client --filter=@pullim-classbot/auth"
+          fi
+          bunx turbo typecheck $FILTER
 
-      - name: Lint
-        run: bun run lint
+      - name: Lint (affected)
+        # packages는 아직 lint script 없음 — Phase β에서 도입 예정
+        if: >-
+          needs.detect-changes.outputs.classbot == 'true' ||
+          needs.detect-changes.outputs.backend == 'true'
+        run: |
+          FILTER=""
+          if [ "${{ needs.detect-changes.outputs.classbot }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/classbot"
+          fi
+          if [ "${{ needs.detect-changes.outputs.backend }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/backend"
+          fi
+          bunx turbo lint $FILTER
 
+  # ─────────────────────────────────────────────────────────────
+  # Job 3. Build (영향받은 앱만)
+  # 주의: e2e job 은 classbot 의 playwright.config 가 외부 dev 서버를 전제 (webServer 블록 없음).
+  # prod-verify.yml 이 prod hit 으로 e2e 회귀를 이미 책임지고 있어 ci 에서는 e2e 를 제외한다.
+  # ─────────────────────────────────────────────────────────────
   build:
-    name: build (Next.js)
-    needs: validate
+    name: build (Next.js + NestJS)
+    needs: [detect-changes, validate]
     runs-on: ubuntu-latest
+    if: >-
+      needs.detect-changes.outputs.classbot == 'true' ||
+      needs.detect-changes.outputs.backend == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          # 재현성 — local + production 검증 버전(1.3.12) 고정. 업그레이드는 별도 PR 로.
-          bun-version: 1.3.12
+          bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - run: bun run build
-
-  # 주의: e2e job 은 classbot 의 playwright.config 가 외부 dev 서버를 전제 (webServer 블록 없음).
-  # prod-verify.yml 이 prod hit 으로 e2e 회귀를 이미 책임지고 있어 ci 에서는 e2e 를 제외한다.
-  # 로컬 e2e 가 필요해지면 playwright.config 에 webServer 블록 추가 + package.json 에 test:e2e 스크립트
-  # 정의 후 별도 plan 으로 도입.
+      - name: Build (affected)
+        run: |
+          FILTER=""
+          if [ "${{ needs.detect-changes.outputs.classbot }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/classbot"
+          fi
+          if [ "${{ needs.detect-changes.outputs.backend }}" = "true" ]; then
+            FILTER="$FILTER --filter=@pullim-classbot/backend"
+          fi
+          bunx turbo build $FILTER
