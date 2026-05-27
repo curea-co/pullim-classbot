@@ -48,11 +48,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     expect(stored).toBeTruthy();
     expect(stored).toContain('E2E 테스트 과제');
 
-    // [6] 학생 홈 진입 — /classbot → PrimaryCard에 새 과제 표시
-    await page.goto(BASE + '/classbot');
-    await expect(page.getByText('E2E 테스트 과제 — 도함수 마무리')).toBeVisible();
-
-    // [7] 받은 과제 목록 — /classbot/assignment
+    // [6] V15 home은 과제 제목 노출 안 함(요약 카운트만) — /classbot/assignment에서 검증.
     await page.goto(BASE + '/classbot/assignment');
     await expect(page.getByText('E2E 테스트 과제 — 도함수 마무리')).toBeVisible();
 
@@ -96,9 +92,9 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
-    // 새 탭(같은 context = localStorage 공유)에서 학생 홈
+    // 새 탭(같은 context = localStorage 공유)에서 학생 — V15 home은 과제 제목 미노출, /classbot/assignment에서 확인.
     const studentPage = await context.newPage();
-    await studentPage.goto(BASE + '/classbot');
+    await studentPage.goto(BASE + '/classbot/assignment');
     await expect(studentPage.getByText('영속성 테스트 과제')).toBeVisible();
   });
 
