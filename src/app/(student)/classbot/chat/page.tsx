@@ -280,7 +280,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
           <div
             className={cn(
-              'flex shrink-0 items-center justify-center rounded-2xl ring-2 ring-white/15 transition-all',
+              'pullim-anim-bot-breath pullim-anim-bot-blink flex shrink-0 items-center justify-center rounded-2xl ring-2 ring-white/15 transition-all',
               headerCollapsed ? 'h-8 w-8 text-lg' : 'h-12 w-12 text-2xl',
             )}
             style={{ backgroundColor: botSig.hex }}
@@ -725,21 +725,29 @@ function PendingBubble({ bot }: { bot: ClassBot }) {
       <div>
         <div className="text-pullim-slate-700 mb-1 text-[10px] font-bold">{bot.name}</div>
         <div
-          className="bg-card border-pullim-slate-100 flex items-center gap-1 rounded-2xl rounded-tl-sm border border-l-[3px] px-4 py-3"
+          className="bg-card border-pullim-slate-100 relative overflow-hidden rounded-2xl rounded-tl-sm border border-l-[3px] px-4 py-3"
           style={{ borderLeftColor: botSig.hex }}
         >
-          <span
-            className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: botSig.hex, animationDelay: '0ms' }}
+          {/* M9 응답 wave bar — 봇 응답 시작 직전 1회 ([08 § 12 M9]) */}
+          <div
+            aria-hidden
+            className="pullim-anim-wave-bar absolute top-0 left-0 h-[3px] w-full"
+            style={{ backgroundColor: botSig.hex }}
           />
-          <span
-            className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: botSig.hex, animationDelay: '220ms' }}
-          />
-          <span
-            className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: botSig.hex, animationDelay: '440ms' }}
-          />
+          <div className="flex items-center gap-1">
+            <span
+              className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: botSig.hex, animationDelay: '0ms' }}
+            />
+            <span
+              className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: botSig.hex, animationDelay: '220ms' }}
+            />
+            <span
+              className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: botSig.hex, animationDelay: '440ms' }}
+            />
+          </div>
         </div>
       </div>
     </div>

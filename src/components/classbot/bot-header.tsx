@@ -31,7 +31,12 @@ export function BotHeader({
       <div className="flex items-start gap-3">
         {/* 봇 아바타 — 교사의 디지털 분신을 의미 */}
         <div className="relative shrink-0">
-          <div className="bg-pullim-blue-500 ring-pullim-blue-300/50 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ring-2 ring-offset-2 ring-offset-pullim-slate-900">
+          <div
+            className={cn(
+              'bg-pullim-blue-500 ring-pullim-blue-300/50 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ring-2 ring-offset-2 ring-offset-pullim-slate-900',
+              bot.isLive && 'pullim-anim-bot-breath',
+            )}
+          >
             🧑‍🏫
           </div>
           {bot.isLive && (

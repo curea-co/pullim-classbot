@@ -228,7 +228,7 @@ function BotStripItem({
           <span
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
-              isLiveNow && 'ring-pullim-lemon ring-2',
+              isLiveNow && 'ring-pullim-lemon ring-2 pullim-anim-bot-breath',
             )}
             style={{ backgroundColor: sig.hex }}
           >
