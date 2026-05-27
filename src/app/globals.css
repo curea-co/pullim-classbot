@@ -292,15 +292,51 @@
   animation: pullim-liner-swipe var(--duration-slow) var(--easing-emphasis) both;
 }
 
+/* P3-20 모션 ([08 § 12]) — M3 봇 idle 호흡 / M4 봇 blink / M9 응답 wave bar */
+@keyframes pullim-bot-breath {
+  /* M3 — 3.2s loop, scale 1↔1.03 + opacity 1↔0.92, ease-in-out */
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.03); opacity: 0.92; }
+}
+
+@keyframes pullim-bot-blink {
+  /* M4 — duration 5s 안에 0%~2.8% 구간(약 140ms)만 깜빡. animation-delay로 봇별 분산 */
+  0%, 2.8%, 100% { opacity: 1; }
+  1.4%           { opacity: 0.55; }
+}
+
+@keyframes pullim-wave-bar {
+  /* M9 — 봇 응답 시작 직전 1회, 320ms, easing-emphasis */
+  from { transform: scaleX(0); transform-origin: left; }
+  to   { transform: scaleX(1); transform-origin: left; }
+}
+
+.pullim-anim-bot-breath {
+  animation: pullim-bot-breath 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.pullim-anim-bot-blink {
+  animation: pullim-bot-blink 5s linear infinite;
+}
+
+.pullim-anim-wave-bar {
+  animation: pullim-wave-bar 320ms var(--easing-emphasis) both;
+  transform-origin: left;
+}
+
 /* 모션 감소 ([08 § 10.3]) — 무한 loop은 정지, mount는 opacity-only 120ms */
 @media (prefers-reduced-motion: reduce) {
   .pullim-anim-live-pulse,
-  .pullim-anim-typing-dot {
+  .pullim-anim-typing-dot,
+  .pullim-anim-bot-breath,
+  .pullim-anim-bot-blink {
     animation: none;
   }
   .pullim-anim-message-mount,
   .pullim-anim-bot-switch,
-  .pullim-anim-liner-swipe {
+  .pullim-anim-liner-swipe,
+  .pullim-anim-wave-bar {
     animation: pullim-message-mount-reduced var(--duration-fast) linear both;
   }
 }
