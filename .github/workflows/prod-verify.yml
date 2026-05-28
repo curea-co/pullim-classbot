@@ -4,6 +4,8 @@ name: prod-verify
 # main push / 일일 schedule / 수동 dispatch 세 경로에서 풀림 클래스봇 production URL에
 # Playwright hit하여 색·chat·slider 회귀를 검증한다.
 #
+# 모노레포 전환 (2026-05-27): src/** → apps/classbot/** 로 paths/working-directory 갱신.
+#
 # 설계 결정: Vercel API 의존 없음. VERCEL_TOKEN secret 불요.
 #  - GitHub ↔ Vercel 자동 deploy webhook이 이미 webhook으로 main push를 잡아주므로,
 #    이 워크플로우는 "deploy 완료 후 production URL이 200을 응답할 때까지 polling 후
@@ -17,14 +19,12 @@ on:
     # 빌드 산출물에 영향을 주는 경로만 트리거. docs/scripts/proc/input-only PR은 Vercel이
     # 빌드를 skip하므로 SHA polling이 영원히 실패한다 (PR #59 회고 → 2026-05-18).
     paths:
-      - 'src/**'
-      - 'public/**'
-      - 'tests/**'
+      - 'apps/classbot/**'
+      - 'packages/**'
       - 'package.json'
       - 'bun.lock'
-      - 'next.config.*'
-      - 'playwright.config.*'
-      - 'tsconfig.json'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
       - '.github/workflows/prod-verify.yml'
   schedule:
     # KST 08:00 = UTC 23:00. 일일 회귀 1회.
@@ -39,6 +39,9 @@ jobs:
       PROD_URL: https://pullim-classbot.vercel.app
       PLAYWRIGHT_BASE_URL: https://pullim-classbot.vercel.app
       PROD_CAPTURE: '1'
+      # 루트 packageManager (`bun@1.3.12`) 및 ci.yml 과 일치시킴 — `latest` 사용 시
+      # Bun 업데이트만으로 lockfile 해석 / workspace 동작이 비결정적으로 깨질 수 있음
+      BUN_VERSION: "1.3.12"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,12 +49,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Install Playwright Chromium
+        working-directory: apps/classbot
         run: bun x playwright install chromium --with-deps
 
       - name: Wait for production SHA match
@@ -79,12 +83,13 @@ jobs:
             echo "  Production appears stuck at SHA ${current:0:12}."
             echo "  → Check Vercel project Deployments for build failures or paused project state since that commit."
           else
-            echo "  Production HTML had no x-build-sha meta — check production URL availability and x-build-sha embed in src/app/layout.tsx."
+            echo "  Production HTML had no x-build-sha meta — check production URL availability and x-build-sha embed in apps/classbot/app/layout.tsx."
           fi
           exit 1
 
       - name: Run Playwright against production
         # 모든 7 spec이 prod-safe (3 spec은 `process.env.PLAYWRIGHT_BASE_URL ?? localhost` 패턴 적용).
+        working-directory: apps/classbot
         run: bun x playwright test
 
       - name: Upload trace on failure
@@ -92,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-trace-${{ github.run_id }}
-          path: test-results/
+          path: apps/classbot/test-results/
           retention-days: 7
 
       - name: Upload production capture
@@ -100,6 +105,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: prod-capture-${{ github.run_id }}
-          path: output/live-shots/color-palette-prod/
+          path: apps/classbot/output/live-shots/color-palette-prod/
           retention-days: 7
           if-no-files-found: ignore

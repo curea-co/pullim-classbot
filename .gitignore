@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# dependencies (모노레포 — 모든 워크스페이스 node_modules 무시)
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,11 +11,20 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
+
+# turbo
+.turbo
+
+# nest build
+apps/backend/dist
+
+# swc
+.swc
 
 # production
 /build
@@ -41,11 +50,15 @@ yarn-error.log*
 next-env.d.ts
 .gstack/
 
-# playwright
+# playwright (모노레포 — 루트 + 앱별 산출물 모두 ignore)
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+apps/*/test-results/
+apps/*/playwright-report/
+apps/*/blob-report/
+apps/*/playwright/.cache/
 
 # daily outcome (PM 개인 업무 보고)
 /daily_outcome/
@@ -53,6 +66,8 @@ next-env.d.ts
 # Playwright 라이브 캡처 — 시각 검증 산출물, repo에 push 안 함
 /output/live-shots/
 /output/screen-captures/
+apps/*/output/live-shots/
+apps/*/output/screen-captures/
 
 # 로컬 Postgres 컨테이너 볼륨 (docker-compose.yml)
 /.docker/
