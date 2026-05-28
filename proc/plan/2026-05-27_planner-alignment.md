@@ -4,28 +4,42 @@
 
 이 리포(`pullim-classbot`)를 자매 리포 [`pullim-planner`](https://github.com/curea-co/pullim-planner) 와 동일한 **bun workspace mini-monorepo + NestJS BE + Container/Presenter FE** 패턴으로 정렬한다. planner가 PR #27(BE 차용 Phase α 머지) + PR #32(Container/Presenter 파일럿 머지) 까지 진행한 두 정렬 plan을 **classbot 도메인 특수성에 적응**시켜 단계화한 문서.
 
+**현 상태 (PR #81 D-Lite 머지 후 base origin/main 기준)**:
+- 이미 `apps/{classbot,backend}/` + `packages/{api-client,auth,types}/` bun workspace 모노레포 (root `CLAUDE.md` / `AGENTS.md` 가 SOT)
+- `apps/classbot/` = Next.js 16 FE (학생 14 + 교사 10 페이지, port 3032). `app/`·`components/`·`lib/{db,mock,tokens,hooks,store,utils}` 직속
+- `apps/classbot/lib/db/` = Drizzle schema SOT (spec §2 `src/lib/db/schema.ts` 참조 라인은 D-Lite 후에는 `apps/classbot/lib/db/schema.ts` 로 읽어야 함)
+- `apps/classbot/drizzle/` = 마이그레이션 (`0000_stiff_ulik.sql`)
+- `apps/classbot/scripts/seed.ts` = Drizzle seed
+- `apps/backend/` = NestJS 11 스켈레톤 — `app.controller.ts` 의 `GET /api/health` 만 존재 (port 4032)
+- `packages/{api-client,auth,types}/` = 빈 placeholder
+- `.github/workflows/prod-verify.yml` = D-Lite 머지 시 path filter 이미 `apps/classbot/**` + `packages/**` 등으로 갱신 완료 → **본 plan 진행 중 무변경**
+
 **완료 기준** (이 plan 전체):
-- 리포 루트가 `apps/{classbot,backend}/` + `packages/{types,api-client,auth}/` 로 재편 (현 워크트리는 단일 `src/` — base `CLAUDE.md` §1·§3 가 이미 단일 추출본으로 규정하고 있으므로, 본 plan은 권위 문서가 *아직 정의하지 않은* 모노레포 구조를 신규 도입하는 작업임)
-- `apps/backend/src/modules/classbot/` 가 spec `2026-05-18_be-api-design.md` **24 테이블** / ~36 endpoint 카탈로그에 대응하는 NestJS 모듈 보유 (Drizzle → TypeORM 완전 대체)
+- `apps/backend/src/modules/classbot/` 가 spec `2026-05-18_be-api-design.md` 도메인 모델 (spec 본문 "총 **24 테이블**", entity 표 행 #1~#26) / ~36 endpoint 카탈로그에 대응하는 NestJS 모듈 보유 (`apps/classbot/lib/db/` Drizzle → `apps/backend/src/entities/` TypeORM 대체. 폐기는 entity 동등성 검증 통과 후 별도 PR에서)
 - `apps/classbot/` FE 페이지(학생 14 + 교사 10)가 모두 Container/Presenter 분리 + `features/<domain>/` 컨벤션
 - `apps/classbot/` FE는 `@pullim-classbot/api-client` 만 import (mock 직접 import 0건)
-- `proc/spec/2026-05-18_be-api-design.md` 갱신: 채택 ORM·API 스타일·디렉토리 구조를 새 결정으로 교체. 동시에 spec §3 응답 컨벤션을 pullim envelope 로 전환
-- CLAUDE.md / AGENTS.md / README.md 가 새 모노레포 + Container/Presenter 컨벤션 반영
-- `.github/workflows/prod-verify.yml` 은 **정렬 대상 외 — 별 자산으로 보존** (§3.5)
+- `proc/spec/2026-05-18_be-api-design.md` 갱신: 채택 ORM·API 스타일·디렉토리 구조를 새 결정으로 교체. 동시에 spec §3 응답 컨벤션을 pullim envelope 로 전환. spec 본문 "24 테이블" ↔ entity 표 26행 불일치도 본 갱신 시 해소 (§4.4 결정 참조)
+- root `CLAUDE.md` / `AGENTS.md` 의 BE 영역 + Container/Presenter 컨벤션 갱신, `apps/classbot/{CLAUDE,AGENTS,README}.md` 의 FE features/ 컨벤션 갱신
+- `.github/workflows/prod-verify.yml` 은 **정렬 대상 외 — 본 plan 무변경, D-Lite 머지 시 이미 모노레포 path filter 적용 완료** (§3.5)
 
 ---
 
 ## 1. 배경 — 왜 정렬하나
 
-### 1.1 D-Lite (이전 작업) 산출
+### 1.1 D-Lite (PR #81) 산출
 
-- ✅ mini-monorepo 의도 (단, 실제 폴더는 아직 단일 `src/` — 본 plan Phase α에서 분리)
-- ✅ Jest 셋업 (pullim-planner Phase β common 차용 시 그대로 활용)
-- ✅ Drizzle ORM 유지 (Phase γ에서 TypeORM으로 완전 대체)
+- ✅ **mini-monorepo 완료** — `apps/{classbot,backend}/` + `packages/{api-client,auth,types}/` 폴더 + bun workspace + turbo + `tsconfig.base.json` 모두 신규
+- ✅ `apps/classbot/` 직속 구조 (Next.js 16, port 3032) — `app/`·`components/`·`lib/`·`drizzle/`·`scripts/`·`tests/`·`playwright.config.ts`·`drizzle.config.ts`·`package.json` 등 D-Lite 머지 시 src/ 제거하고 평면화
+- ✅ `apps/backend/` NestJS 스켈레톤 — `app.controller.ts`/`app.module.ts`/`main.ts` + `GET /api/health` (port 4032). Phase β 부터 도메인 모듈 채움
+- ✅ `packages/{api-client,auth,types}/` — 빈 placeholder
+- ✅ root `CLAUDE.md` / `AGENTS.md` + `apps/classbot/{CLAUDE,AGENTS,README}.md` 신규 — 도메인별 boundary 명시
+- ✅ Jest 셋업 (`config/jest.setup.ts` — jest-dom + next/navigation mock + matchMedia stub)
+- ✅ `.github/workflows/prod-verify.yml` path filter D-Lite 머지 시 모노레포로 갱신 (`apps/classbot/**`, `packages/**`, `turbo.json`, `tsconfig.base.json` 등)
+- ✅ **`prod-verify.yml`** — production 회귀 자동화. 5개 자매 리포 중 classbot 유일 보유 자산
+- ✅ Drizzle ORM 유지 (`apps/classbot/lib/db/schema.ts` = 도메인 SOT) — Phase γ entity 동등성 검증 통과 후 별도 PR 에서 폐기 (Phase α 폐기는 위험, §5 Phase α 결정 참조)
 - ❌ Mock 잔존: `apps/classbot/lib/mock/{persona,family,tutor,classbot,chat,live-content,classbot-dynamic-replies,classbot-greeting,classbot-home-preview,classbot-wellness-bot}.ts` (총 10 파일) — Phase η에서 제거
 - ❌ Container/Presenter 미도입 — 14+10 페이지가 모두 page 안에 로직
-- ❌ BE 도메인 모듈 미작성 — `src/lib/db/` Drizzle schema만 존재 (Ph1·Ph2 seed 완료, Ph3 read API는 미착수)
-- ✅ **`prod-verify.yml`** — production 회귀 자동화. 5개 자매 리포 중 classbot 유일 보유 자산
+- ❌ BE 도메인 모듈 미작성 — `apps/classbot/lib/db/` Drizzle schema만 존재 (Ph1·Ph2 seed 완료, Ph3 read API는 미착수)
 
 ### 1.2 자매 리포(pullim-planner) 정렬 결정 (정본 정독)
 
@@ -54,57 +68,71 @@
 | **사용자 그룹** | 학생 단일 (`student_001`) | **학생 + 교사** 2그룹 | route group `(student)` / `(teacher)` 그대로 유지. Container/Presenter Phase를 학생/교사 **두 하위 Phase로 분리** (§5 Phase 2s/2t/3s/3t) |
 | **페이지 규모** | 6 페이지 (manage 3 + planner home + onboarding + reports) | **학생 14 + 교사 10 = 24 페이지** | planner 4 Phase → 본 plan **6 Phase** (학생 4 + 교사 3) — §5 |
 | **권한 모델** | 없음 (단일 사용자) | **`ScopeLevel` 1~5** — base `input/docs-archive/07_풀림_클래스봇_핸드오프.md` (5단계 Scope Guard 정의) + `input/docs-archive/05_풀림_수업방_세부기획.md` (수업방·라이브 Scope 정책) + spec `2026-05-18_be-api-design.md` (entity 스키마)가 SOT. `src/lib/mock/tutor.ts` 가 ScopeLevel 타입 보유. `class_bots.scope`, `live_sessions.scope`, `bot_questions.scope_used`, `assignments.scope_override` 등 다수 entity에 침투 | TypeORM entity 작성 시 `ScopeLevel` 을 `@pullim-classbot/types` 공유 패키지로 승격(Phase γ). 권한 가드는 Phase β에서 `RolesGuard` (pullim의 `JwtAuthGuard`+`RolesGuard` 패턴)을 **scope 기반으로 확장한 `ScopeGuard`** 신설 (mock 헤더 인증 위에 얹음) |
-| **mock 출처 분기** | `lib/mock/planner.ts` 가 SOT | `chat.ts` = 원본 `phase1.ts`에서 클래스봇 채팅만 발췌. `tutor.ts` = ScopeLevel만 잔존(본체는 Q 도메인). `family.ts` = type만 (보호자 UI는 사라짐) | Phase η에서 mock 제거 시 chat은 `chat_messages` entity로 이식, tutor는 ScopeLevel만 types 패키지로 승격, family는 spec entity #2 `parent_child_links` 로 흡수 |
+| **mock 출처 분기** | `lib/mock/planner.ts` 가 SOT | `apps/classbot/lib/mock/chat.ts` = 원본 `phase1.ts`에서 클래스봇 채팅만 발췌. `tutor.ts` = ScopeLevel만 잔존(본체는 Q 도메인). `family.ts` = type만 (보호자 UI는 사라짐) | Phase η에서 mock 제거 시 chat은 `chat_messages` entity로 이식, tutor는 ScopeLevel만 types 패키지로 승격, family는 spec entity #2 `parent_child_links` 로 흡수 |
 
 ### 2.1 builder · replay 의미
 
-- **builder** (`apps/classbot/(teacher)/teacher/builder/page.tsx`, 156줄) = 봇 빌더 (교사 도구). 봇 생성 wizard. `class_bots` + `bot_settings` + `bot_curriculum_units` 3 entity 동시 mutation
+- **builder** (`apps/classbot/app/(teacher)/teacher/builder/page.tsx`, 156줄) = 봇 빌더 (교사 도구). 봇 생성 wizard. `class_bots` + `bot_settings` + `bot_curriculum_units` 3 entity 동시 mutation
 - **replay** (학생 `/classbot/replay`, 교사 `/teacher/replay`) = 학생 대화 리플레이. spec entity #13~#16 (`replays`, `replay_bookmarks`, `replay_teacher_questions`, `replay_watch_progress`) 4 entity 단일 feature
 
 builder는 **교사 Phase**, replay는 **학생/교사 양쪽 모두**에 등장 — features 폴더에서는 단일 도메인(`classbot-replay`)으로 두고 학생/교사 Container 두 개를 같은 feature 안에 둔다 (cross-route widget 공유).
 
+### 2.2 §6.3 ScopeGuard — 도메인 SOT 와 가드 결정 cross-link
+
+본 §2 권한 모델 행 + §6.3 ScopeGuard 결정 표 + Phase β `apps/backend/src/common/guards/scope.guard.ts` 구현이 한 묶음. ScopeGuard 설계 근거는 다음 3축:
+- **도메인 권위**: `input/docs-archive/07_풀림_클래스봇_핸드오프.md` 5단계 Scope Guard 정의
+- **수업방·라이브 RBAC 정책**: `input/docs-archive/05_풀림_수업방_세부기획.md`
+- **entity 스키마**: spec `2026-05-18_be-api-design.md` (`class_bots.scope`, `live_sessions.scope`, `bot_questions.scope_used`, `assignments.scope_override`)
+
 ---
 
-## 3. 최종 디렉토리 구조 (after)
+## 3. 최종 디렉토리 구조 (after — D-Lite 머지 후 base에서 본 plan 진행 시)
 
 ```
-pullim-classbot/
+pullim-classbot/                              # ★ D-Lite 머지로 모노레포 base 확정 (root 가이드 SOT)
 ├── apps/
-│   ├── classbot/                            # ← 현 src/, public/, next.config.ts 등 통째로
-│   │   ├── src/
-│   │   │   ├── app/
-│   │   │   │   ├── (student)/classbot/      # 14 페이지
-│   │   │   │   └── (teacher)/teacher/       # 10 페이지
-│   │   │   ├── components/
-│   │   │   │   ├── features/
-│   │   │   │   │   ├── classbot-home/       # 학생 홈 (376줄)
-│   │   │   │   │   ├── classbot-chat/       # 학생 채팅 (755줄 — 최대 단일 페이지)
-│   │   │   │   │   ├── classbot-discover/   # 학생 봇 발견
-│   │   │   │   │   ├── classbot-replay/     # 학생+교사 공용 replay
-│   │   │   │   │   ├── classbot-assignment/ # 학생 과제 (assignment 3 page + result)
-│   │   │   │   │   ├── classbot-wellness/   # 학생 웰빙·감정 체크인
-│   │   │   │   │   ├── classbot-live/       # 학생 라이브 시청
-│   │   │   │   │   ├── classbot-me/         # 학생 본인 리포트
-│   │   │   │   │   ├── classbot-onboarding/ # 학생 온보딩
-│   │   │   │   │   ├── teacher-home/        # 교사 홈 (288줄)
-│   │   │   │   │   ├── teacher-classbot/    # 교사 내 봇 목록 (288줄)
-│   │   │   │   │   ├── teacher-builder/     # 교사 봇 빌더 (156줄)
-│   │   │   │   │   ├── teacher-grading/     # 교사 채점
-│   │   │   │   │   ├── teacher-replay/      # 교사 replay (classbot-replay 빌려옴 가능)
-│   │   │   │   │   ├── teacher-reports/     # 교사 리포트
-│   │   │   │   │   └── teacher-assignment/  # 교사 과제 출제
-│   │   │   │   ├── shell/                   # 현 shell — 그대로 (글로벌)
-│   │   │   │   ├── ui/                      # shadcn 프리미티브 — 그대로
-│   │   │   │   ├── brand/                   # 그대로
-│   │   │   │   └── shared/                  # (Phase η에서 필요 시) 진짜 순수 뷰만
-│   │   │   └── lib/{tokens,utils,...}/
-│   │   ├── tests/                           # Playwright — apps/classbot 안으로 이동
+│   ├── classbot/                            # D-Lite 후: src/ 제거, 평면화 완료
+│   │   ├── app/
+│   │   │   ├── (student)/classbot/          # 14 페이지
+│   │   │   └── (teacher)/teacher/           # 10 페이지
+│   │   ├── components/
+│   │   │   ├── features/                    # ★ 본 plan Phase ζ·η 에서 신규 (현재 없음)
+│   │   │   │   ├── classbot-home/           # 학생 홈 (376줄)
+│   │   │   │   ├── classbot-chat/           # 학생 채팅 (755줄 — 최대 단일 페이지)
+│   │   │   │   ├── classbot-discover/       # 학생 봇 발견
+│   │   │   │   ├── classbot-replay/         # 학생+교사 공용 replay
+│   │   │   │   ├── classbot-assignment/     # 학생 과제 (assignment 3 page + result)
+│   │   │   │   ├── classbot-wellness/       # 학생 웰빙·감정 체크인
+│   │   │   │   ├── classbot-live/           # 학생 라이브 시청
+│   │   │   │   ├── classbot-me/             # 학생 본인 리포트
+│   │   │   │   ├── classbot-onboarding/     # 학생 온보딩
+│   │   │   │   ├── teacher-home/            # 교사 홈 (288줄)
+│   │   │   │   ├── teacher-classbot/        # 교사 내 봇 목록 (288줄)
+│   │   │   │   ├── teacher-builder/         # 교사 봇 빌더 (156줄)
+│   │   │   │   ├── teacher-grading/         # 교사 채점
+│   │   │   │   ├── teacher-replay/          # 교사 replay (classbot-replay 빌려옴 가능)
+│   │   │   │   ├── teacher-reports/         # 교사 리포트
+│   │   │   │   └── teacher-assignment/      # 교사 과제 출제
+│   │   │   ├── classbot/                    # 현 widget 28개 — 학생/교사 분배 작업 (Phase ζ·η)
+│   │   │   ├── builder/                     # 현 builder 컴포넌트 — Phase η builder feature 흡수
+│   │   │   ├── shell/                       # 그대로 (글로벌)
+│   │   │   ├── ui/                          # shadcn 프리미티브 — 그대로
+│   │   │   ├── brand/                       # 그대로
+│   │   │   └── shared/                      # (Phase η에서 필요 시) 진짜 순수 뷰만
+│   │   ├── lib/
+│   │   │   ├── db/                          # Drizzle schema SOT — Phase γ entity 검증 통과 후 폐기 (별 PR)
+│   │   │   ├── mock/                        # 10 파일 — Phase η 에서 제거
+│   │   │   ├── tokens/, hooks/, store/, utils.ts
+│   │   ├── drizzle/                         # 0000_stiff_ulik.sql — Phase γ 검증 후 폐기
+│   │   ├── scripts/seed.ts                  # Drizzle seed — Phase γ TypeORM seed 로 재작성 후 폐기
+│   │   ├── tests/                           # Playwright 7 spec
+│   │   ├── __tests__/                       # Jest sanity
 │   │   ├── playwright.config.ts
-│   │   ├── next.config.ts
-│   │   ├── eslint.config.mjs
-│   │   ├── tsconfig.json
+│   │   ├── jest.config.ts
+│   │   ├── next.config.ts, eslint.config.mjs, tsconfig.json
+│   │   ├── drizzle.config.ts                # Phase γ 검증 후 폐기
 │   │   └── package.json                     # @pullim-classbot/classbot
-│   └── backend/                             # ← NestJS 11 신규 (planner와 동일 토대)
+│   └── backend/                             # NestJS 11 스켈레톤 (D-Lite 후 신규)
 │       ├── src/
 │       │   ├── common/{bootstrap,filters,guards,interceptors,decorators,dto,swagger,validation-messages,utils,interfaces,infrastructure,constants}/
 │       │   ├── config/{database,timezone,swagger}.config.ts
@@ -136,27 +164,27 @@ pullim-classbot/
 │   └── auth/                                # @pullim-classbot/auth — MockAuthProvider + ScopeGuard helper
 ├── proc/                                    # 그대로
 ├── input/                                   # 그대로
+├── config/jest.setup.ts                     # D-Lite 신규 — 그대로
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
 │       ├── codex-review.yml
-│       └── prod-verify.yml                  # ★ 정렬 대상 외 — 별 자산으로 보존 (§3.5)
+│       └── prod-verify.yml                  # ★ 정렬 대상 외 — D-Lite 시 모노레포 path filter 이미 적용 (§3.5)
 ├── docker-compose.yml                       # Postgres 그대로 (port 5434, classbot DB 유지)
-├── package.json                             # workspace root
-├── bun.lock
-├── turbo.json                               # 신규
-├── tsconfig.base.json                       # 신규
-├── CLAUDE.md
-├── AGENTS.md
+├── package.json                             # workspace root (D-Lite)
+├── bun.lock                                 # D-Lite
+├── turbo.json                               # D-Lite
+├── tsconfig.base.json                       # D-Lite
+├── CLAUDE.md                                # root 가이드 (D-Lite 신규)
+├── AGENTS.md                                # root 가이드 (D-Lite 신규)
 └── README.md
 ```
 
-**폐기 대상 (Phase α PR에서 제거)**:
-- `drizzle/`, `drizzle.config.ts`
-- `src/lib/db/` (Drizzle schema)
-- `src/app/api/` (있을 경우 — 현재 미작성 상태로 추정, Phase α 진입 시 확인)
-- `scripts/seed.ts` (apps/backend TypeORM seed로 재작성)
-- 루트 `package.json` 내 `db:generate/migrate/push/studio/seed` 스크립트 + Drizzle·pg 의존성
+**폐기 대상** (Phase γ entity 동등성 검증 통과 후 별 PR — Phase α 폐기는 위험 §5):
+- `apps/classbot/drizzle/`, `apps/classbot/drizzle.config.ts`
+- `apps/classbot/lib/db/` (Drizzle schema SOT — spec §2 본문 참조 라인도 함께 갱신)
+- `apps/classbot/scripts/seed.ts` (apps/backend TypeORM seed로 재작성 후 폐기)
+- 루트 `package.json` 내 `db:generate/migrate/push/studio/seed` 스크립트 (있을 경우) + Drizzle·pg 의존성 (`apps/classbot/package.json` 에서 제거)
 
 **port 정책 유지**:
 - classbot FE: **3032** (현재 그대로, planner 3030과 분리)
@@ -165,12 +193,15 @@ pullim-classbot/
 
 ### 3.5 prod-verify.yml 보존 정책
 
-`.github/workflows/prod-verify.yml` 은 5개 자매 리포 중 classbot 유일 보유 자산이다. 본 정렬 plan은 이 워크플로우를 **건드리지 않는다**:
+`.github/workflows/prod-verify.yml` 은 5개 자매 리포 중 classbot 유일 보유 자산이며, classbot 핵심 회귀 안전장치(`bun --filter @pullim-classbot/classbot test:e2e` 7 spec)다. 본 정렬 plan은 이 워크플로우를 **건드리지 않는다**:
 
-- 모든 Phase 에서 `.github/workflows/prod-verify.yml` 편집 금지 (`.github/workflows/**` 는 글로벌 작업 범주 — base 가이드 정신 + 자매 리포 `CLAUDE.md` 패턴 모두 사용자 명시 확인을 요구하는 영역)
-- 단, **path filter 갱신은 Phase α에서 필요**: 현 `paths` 가 `src/**`, `public/**`, `tests/**` 등을 가리키는데, 모노레포 재편 후에는 `apps/classbot/**` 로 옮겨야 함. → **이 path 갱신은 본 plan 이 자체 예외 선언하지 않는다.** Phase α PR 본문에서 사용자에게 **명시 확인을 요청**하고 (글로벌 작업으로 분류), 승인을 받은 뒤에만 단순 경로 치환을 수행한다 (워크플로우 로직 무변경). 승인 미획득 시 Phase α는 path filter 갱신 없이 머지하고 prod-verify 영향(빌드 트리거 누락)을 PR 본문에 명시한다
+- D-Lite (PR #81) 머지 시 path filter 이미 모노레포 기준으로 갱신 완료: `apps/classbot/**`, `packages/**`, `package.json`, `bun.lock`, `turbo.json`, `tsconfig.base.json`, `.github/workflows/prod-verify.yml` → 본 plan Phase α~θ 어느 단계에서도 path filter 추가 갱신 불필요
+- 모든 Phase 에서 `.github/workflows/prod-verify.yml` 편집 금지 (`.github/workflows/**` 는 글로벌 작업 범주 — root `CLAUDE.md` 및 자매 리포 패턴 모두 사용자 명시 확인을 요구하는 영역. classbot 회귀 안전장치를 끊는 변경은 절대 금지)
 - production URL (`https://pullim-classbot.vercel.app`), x-build-sha 검증 메커니즘, Playwright spec 7개 모두 보존
-- Phase η (FE mock 제거) 진행 시 Playwright spec 의 `lib/mock` 의존이 깨질 수 있음 → **Phase η PR 본문에서 prod-verify 영향 분석 + 필요 시 spec 갱신 PR을 별도로 분리** (prod-verify 워크플로우 자체는 무변경. spec 파일 편집도 워크플로우 트리거에 영향 주는 작업이므로 PR 본문에서 사용자에게 영향 요약 + 진행 승인 요청)
+- **Phase η (FE Container/Presenter 학생) · Phase θ (FE mock 제거) 진행 시 Playwright spec 의 `lib/mock` 의존이 깨질 수 있음** → 해당 Phase PR 본문에서 prod-verify 영향 분석을 *사전* 수행. 영향 spec 발견 시:
+  - 옵션 a — spec 갱신 PR 을 본 Phase PR 보다 *먼저* 머지 (prod-verify 회귀 안전장치 유지)
+  - 옵션 b — 본 Phase PR 안에 spec 갱신 동봉 (단일 PR로 동기 머지, prod-verify 회귀 위험은 PR 본문에 명시 + 사용자 승인 필수)
+- 어느 옵션이든 **prod-verify 워크플로우 자체는 무변경**. 워크플로우 변경이 *반드시* 필요한 시나리오(예: 신규 spec 추가로 timeout 조정)는 본 plan 범위 외 — 별도 plan 으로 분리
 
 ---
 
@@ -178,36 +209,42 @@ pullim-classbot/
 
 ### 4.1 명령어 — bun workspace 패턴
 
-| 현재 | 변경 후 |
+D-Lite 머지 시 root `package.json` scripts 가 이미 모노레포 turbo 패턴으로 셋업됐다 (`dev`, `build`, `typecheck`, `lint`, `test`, `db:up/down/reset`, `dev:classbot`, `dev:backend`, `build:classbot`, `build:backend`).
+
+| 현재 (D-Lite 후) | 본 plan 진행 중 신규 |
 |---|---|
-| `bun dev` (port 3032) | `bun run dev` (turbo) 또는 `bun run dev:classbot` |
-| `bun run build` | `bun run build` (turbo) |
-| `bun x tsc --noEmit` | `bun run typecheck` (turbo) |
-| `bun run db:up` | `bun run db:up` (root, docker-compose 그대로) |
-| (없음) | `bun run dev:backend` — `bun --filter @pullim-classbot/backend start:dev` |
-| `bun x playwright test` | `bun --filter @pullim-classbot/classbot test:e2e` (Phase α에서 playwright apps/classbot 안으로 이동) |
-| `bun run db:generate` (drizzle-kit) | `bun --filter @pullim-classbot/backend migration:generate -- <Name>` |
-| `bun run db:seed` (scripts/seed.ts) | `bun --filter @pullim-classbot/backend seed:run` |
+| `bun run dev` (turbo) / `bun run dev:classbot` (port 3032) | (그대로) |
+| `bun run build` / `build:classbot` / `build:backend` | (그대로) |
+| `bun run typecheck` / `lint` / `test` (turbo) | (그대로) |
+| `bun run db:up/down/reset` (docker-compose Postgres 5434) | (그대로) |
+| `bun run dev:backend` (현재 health endpoint만) | Phase β 부터 NestJS 도메인 모듈 부팅 |
+| `bun --filter @pullim-classbot/classbot test:e2e` (Playwright) | (그대로) |
+| `bun --filter @pullim-classbot/classbot run db:generate` (drizzle-kit, 현재) | Phase γ 진입 시 → `bun --filter @pullim-classbot/backend migration:generate -- <Name>` 로 전환 (Drizzle 명령은 entity 검증 통과 후 폐기) |
+| `bun --filter @pullim-classbot/classbot run db:seed` (Drizzle seed, 현재) | Phase γ → `bun --filter @pullim-classbot/backend seed:run` 로 재작성 |
 
-### 4.2 CLAUDE.md / AGENTS.md 갱신 항목
+### 4.2 docs 갱신 항목 (D-Lite 후 base 기준)
 
-- §1 살아 있는 영역 표 → `apps/classbot/...` 경로로 일괄 치환
-- §2 사라진 영역은 그대로 (도메인 추출 사실 자체는 무관)
-- 신규 §1.5 (또는 §3) **모노레포 구조** 표 추가 — planner CLAUDE.md §1 패턴
-- §5 작업 컨벤션 → 학생/교사 두 그룹 boundary 명시, `features/<domain>/` 컨벤션 추가, `apps/backend/src/{common,config,database}/` = 글로벌 작업 명시
-- AGENTS.md → planner AGENTS.md 의 "Container/Presenter 컨벤션" 표 + "cross-feature import 정책" 그대로 차용 (도메인명만 `planner-*` → `classbot-*`, `teacher-*`)
+D-Lite 머지 시 이미 root `CLAUDE.md` / `AGENTS.md` + `apps/classbot/{CLAUDE,AGENTS,README}.md` 분리 셋업됨. 본 plan 진행 중 갱신:
+
+- **root `CLAUDE.md`** — §2 `apps/backend` 절: Phase β 진입 시 NestJS 도메인 모듈 추가 명시. Phase γ 진입 시 entities 표 cross-link
+- **root `AGENTS.md`** — BE 패턴 권위(pullim) 외에 ScopeGuard·Container/Presenter 결정도 본 plan 진행 시 갱신
+- **`apps/classbot/CLAUDE.md`** — Phase ζ·η 진입 시 `components/features/<domain>/` 컨벤션 + Container/Presenter 분리 boundary 추가. Phase θ 진입 시 mock 0건 + `@pullim-classbot/api-client` 단일 import 정책 명시
+- **`apps/classbot/AGENTS.md`** — planner AGENTS.md 의 "Container/Presenter 컨벤션" 표 + "cross-feature import 정책" 그대로 차용 (도메인명만 `planner-*` → `classbot-*`, `teacher-*`)
 
 ### 4.3 권위 spec 갱신 (`proc/spec/2026-05-18_be-api-design.md`)
 
-| 결정 항목 | 현행 | 갱신 |
-|---|---|---|
-| ORM | Drizzle 0.36.x | **TypeORM 0.3.x** (Data Mapper) |
-| API 스타일 | Next.js API routes | **NestJS 11 — apps/backend** |
-| 마이그레이션 | drizzle-kit | typeorm migration:generate |
-| 디렉토리 | `src/lib/db/schema.ts` (SOT) | `apps/backend/src/entities/*` (SOT) |
-| 응답 컨벤션 (§3) | raw `{ id, ... }` 또는 `{ error: { code, message } }` | **pullim envelope** `{ success, data \| error }` + `ResponseInterceptor`/`HttpExceptionFilter`/`AllExceptionsFilter` 3축 + 도메인 prefix 에러 코드(`BOT_NOT_FOUND`, `LIVE_SESSION_FORBIDDEN`, `SCOPE_VIOLATION`, `COMMON_VALIDATION_FAILED` 등) |
-| 인증 (§3, Ph8) | mock `x-user-id` 헤더 | **유지** — `@pullim-classbot/auth` MockAuthProvider 추상화 추가, role(`student`/`teacher`/`parent`) + ScopeLevel(1~5) 가드 |
-| Phase 로드맵 (§5) | Ph1~Ph9 | **재진입**: Ph1·Ph2 결과물은 pullim 패턴으로 재작성 (Drizzle 시드 → TypeORM 시드). Ph3~Ph7 = 본 plan Phase γ~η. Ph8·Ph9 보류 (자매 리포 결정 그대로) |
+spec 은 본 plan 진행 시점에서 **여전히 권위 문서**이며, 결정 항목 갱신 PR은 Phase β 동봉 (응답 envelope) + Phase γ 동봉 (ORM·디렉토리·entity 표 24/26 모순 해소) 두 단계로 분리. spec 패치가 머지되기 전까지 plan 의 새 결정은 *제안* 상태이며, 실제 구현(Phase δ 이후)은 spec 패치 머지 후에 진행.
+
+| 결정 항목 | 현행 spec | 본 plan 의 갱신 제안 | 갱신 PR 시점 |
+|---|---|---|---|
+| ORM | Drizzle 0.36.x | **TypeORM 0.3.x** (Data Mapper) | Phase γ PR 동봉 |
+| API 스타일 | Next.js API routes | **NestJS 11 — apps/backend** | Phase β PR 동봉 |
+| 마이그레이션 | drizzle-kit | typeorm migration:generate | Phase γ PR 동봉 |
+| entity SOT 디렉토리 | `src/lib/db/schema.ts` → 본 SOT 라인은 D-Lite 후 실제로 `apps/classbot/lib/db/schema.ts` 에 위치 (spec 본문 경로도 동시 갱신) | `apps/backend/src/entities/*` (SOT) | Phase γ PR 동봉 |
+| entity 표 24/26 모순 | spec 본문 "총 24 테이블" ↔ entity 표 행 #1~#26 (templates·chat_messages 포함) | **결정: spec 본문을 "총 24 테이블 (entity 표 #1~#24) + Ph7 이후 영속화 대상 2건 (#25 templates, #26 chat_messages)" 식으로 재기술**. 본 plan 의 entity 디렉토리·DTO 도 동일한 분류 따름 — Phase γ 에서 #1~#24 entity 24개 우선 작성 + invariant 검증, #25·#26 은 Phase ε·θ 에서 mutation·영속화 작업 시 entity 추가 | Phase γ PR 동봉 |
+| 응답 컨벤션 (§3) | raw `{ id, ... }` 또는 `{ error: { code, message } }` | **pullim envelope** `{ success, data \| error }` + `ResponseInterceptor`/`HttpExceptionFilter`/`AllExceptionsFilter` 3축 + 도메인 prefix 에러 코드(`BOT_NOT_FOUND`, `LIVE_SESSION_FORBIDDEN`, `SCOPE_VIOLATION`, `COMMON_VALIDATION_FAILED` 등). **spec §3 패치가 머지된 후에만 Phase δ 구현 진입 — plan 이 spec 보다 먼저 계약을 덮어쓰지 않음** | Phase β PR 동봉, Phase δ 구현 전까지 머지 완료 필수 |
+| 인증 (§3, Ph8) | mock `x-user-id` 헤더 | **유지** — `@pullim-classbot/auth` MockAuthProvider 추상화 추가, role(`student`/`teacher`/`parent`) + ScopeLevel(1~5) 가드 | Phase β PR 동봉 |
+| Phase 로드맵 (§5) | Ph1~Ph9 | **재진입**: Ph1·Ph2 결과물은 pullim 패턴으로 재작성 (Drizzle 시드 → TypeORM 시드). Ph3~Ph7 = 본 plan Phase γ~η. Ph8·Ph9 보류 (자매 리포 결정 그대로) | Phase γ PR 동봉 |
 
 ### 4.4 의존성 변경
 
@@ -216,8 +253,8 @@ pullim-classbot/
 - `typeorm`, `pg`, `class-validator`, `class-transformer`, `nestjs-cls`, `reflect-metadata`
 - dev: `@nestjs/cli`, `@nestjs/testing`, `@types/express`, `@types/node`, `ts-node`, `tsconfig-paths`
 
-**루트에서 제거** (apps/classbot은 유지):
-- `drizzle-orm`, `drizzle-kit`, `pg`(루트에서), `@types/pg`
+**`apps/classbot/package.json` 제거** (Phase γ entity 동등성 검증 통과 후 별 PR):
+- `drizzle-orm`, `drizzle-kit`, `pg`, `@types/pg` (현재 apps/classbot 에 있음 — D-Lite 후 root 가 아님)
 
 **packages/types 추가** (`@pullim-classbot/types`):
 - `ScopeLevel` 1~5 + `scopeMeta` Record (현 `lib/mock/tutor.ts` 를 그대로 이식)
@@ -229,7 +266,7 @@ pullim-classbot/
 - 매 PR Codex Review 통과 필수 (자매 리포 룰)
 - main 머지 후 prod-verify 워크플로우 자동 트리거 — Vercel 빌드 → x-build-sha polling → Playwright prod hit 7 spec
 - **Phase η 진입 전까지 Playwright spec 영향 없음** (mock 제거 전이라 spec 의존성 무변경)
-- 본 plan 진행 중 어느 PR도 prod-verify 워크플로우 자체를 편집하지 않음 — path filter 갱신 단 1회(Phase α)만 예외이며, 이마저도 글로벌 작업 분류로 사용자 명시 확인이 선행되어야 함 (§3.5)
+- 본 plan 진행 중 어느 PR도 prod-verify 워크플로우 자체를 편집하지 않음 (path filter 는 D-Lite 시 모노레포 기준으로 이미 갱신됨 — §3.5)
 
 ---
 
@@ -237,19 +274,18 @@ pullim-classbot/
 
 각 단계는 독립 PR로 머지 가능. 이전 단계 머지 → 다음 단계 진입. **학생/교사 페이지 분리**가 정렬의 핵심이라 Phase 2·3은 학생/교사 하위 Phase로 분할.
 
-### Phase α — 모노레포 재편 + Drizzle 자산 폐기 (1 PR)
+> **모노레포 재편 자체는 D-Lite (PR #81) 머지로 완료됨.** 본 plan 의 Phase α 는 *재편이 아닌* "BE 차용 사전 정리 + spec §2 SOT 라인 갱신" 작업.
 
-**목표**: 동작 회귀 없이 구조만 재편. prod-verify 보존.
+### Phase α — spec §2 SOT 라인 갱신 + Phase β 진입 준비 (1 PR)
 
-- `apps/classbot/` 생성, 기존 `src/`, `public/`, `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `playwright.config.ts`, `tests/`, `components.json` 통째로 이동
-- `apps/backend/` 빈 NestJS 부팅 (Hello World controller만)
-- `packages/{types,api-client,auth}/` 빈 스캐폴딩 (`src/index.ts` exports만)
-- bun workspace 셋업 (`package.json` workspaces 필드, name `@pullim-classbot/*`)
-- `turbo.json` 신규 + `tsconfig.base.json` 신규
-- **폐기**: `drizzle/`, `drizzle.config.ts`, `src/lib/db/`, `scripts/seed.ts`, 루트 `db:*` 스크립트 일부 (`db:up/down/reset`는 root에 잔존)
-- **prod-verify path filter 갱신** (글로벌 작업 — 사용자 명시 확인 필요): `src/**` → `apps/classbot/src/**`, `tests/**` → `apps/classbot/tests/**`, `playwright.config.*` → `apps/classbot/playwright.config.*`. 워크플로우 다른 부분 무변경. Phase α PR 본문에서 사용자에게 path filter 변경 승인 요청 후 적용 (§3.5 참조)
-- CLAUDE.md / AGENTS.md / README.md 갱신
-- **완료 기준**: `bun run dev` (classbot port 3032) + `bun run dev:backend` (NestJS hello, port 4032) 둘 다 부팅. 기존 라우트(student 14 + teacher 10) 회귀 0. prod-verify 워크플로우 path filter만 갱신, 다음 main push 시 정상 동작 확인.
+**목표**: D-Lite 후 base 와 spec 본문 사이 SOT 라인 불일치 정리. Drizzle 폐기는 **본 Phase 작업 외** — Phase γ entity 동등성 검증 통과 후 별도 PR.
+
+- **spec §2 SOT 라인 갱신**: `src/lib/db/schema.ts` → `apps/classbot/lib/db/schema.ts` (D-Lite 실제 위치 반영). 본 갱신은 entity 컬럼 시그니처 변경 *아님* (경로 명시만)
+- **root `CLAUDE.md` / `AGENTS.md`** 본 plan §5 PR 9개 진입 예고 cross-link 추가 (구조 변경 없음)
+- `apps/backend/src/main.ts` 의 `PORT` 환경변수 기본값 (4032) 확인, `apps/backend/package.json` 의 `start:dev` 스크립트 명시
+- Drizzle 자산(`apps/classbot/{drizzle/,drizzle.config.ts,lib/db/,scripts/seed.ts}`) 은 **Phase α 에서 폐기하지 않는다.** Phase γ TypeORM entity + 마이그레이션 + seed 가 Drizzle 동등성 검증을 통과한 *후* 별도 PR (Phase γ' 으로 표기) 에서 폐기. 본 plan §1.1 D-Lite 산출 및 §4.4 의존성 변경 항목 참조
+- prod-verify 워크플로우 무변경 (D-Lite 시 path filter 이미 모노레포 기준으로 갱신 완료, §3.5)
+- **완료 기준**: spec §2 본문 SOT 라인 1줄 갱신 + docs cross-link. 빌드/테스트/회귀 영향 0 (`bun run typecheck`, `bun --filter @pullim-classbot/classbot test:e2e`, `bun run test` 모두 그대로 통과).
 
 ### Phase β — pullim common 패턴 차용 + ScopeGuard 신설 (1 PR)
 
@@ -261,32 +297,40 @@ pullim-classbot/
 - nestjs-cls 글로벌, AllExceptionsFilter + HttpExceptionFilter + ResponseInterceptor 전역 등록
 - **MockAuthGuard** (`x-user-id` 헤더 → fallback `student_001`/`teacher_001` role 분기) — `users.role` 컬럼 조회 후 req.user 주입
 - **RolesGuard** — `@Roles('teacher')` 데코레이터로 교사 전용 endpoint 보호 (spec §4.6 grading, §4.2 봇 생성, §4.5 출제 등)
-- **ScopeGuard 신설** — `@RequireScope(level)` 데코레이터. `class_bots.scope` 1~5 + `assignments.scope_override`/`live_sessions.scope` 와 매칭. 클래스봇 도메인 특수 가드 (planner에는 없음, **§2.3** 참조)
+- **ScopeGuard 신설** — `@RequireScope(level)` 데코레이터. `class_bots.scope` 1~5 + `assignments.scope_override`/`live_sessions.scope` 와 매칭. 클래스봇 도메인 특수 가드 (planner에는 없음). 설계 근거 cross-link: §2 권한 모델 행 + §2.2 (ScopeGuard 도메인 SOT 와 가드 결정) + §6.3 (ScopeGuard 도입 위치·체크 시점·scope 값 출처·테스트 커버리지 결정 표)
   - decorator: `apps/backend/src/common/decorators/scope.decorator.ts`
   - guard: `apps/backend/src/common/guards/scope.guard.ts`
   - `@pullim-classbot/auth` 패키지로 ScopeLevel 비교 helper 노출
 - `packages/types/src/scope.ts` — `ScopeLevel` + `scopeMeta` 정의 (apps/classbot 의 `lib/mock/tutor.ts` 를 import하던 곳을 types로 전환)
 - **완료 기준**: Swagger `/api-docs` 노출, `x-user-id` 헤더 가드 동작, `@RequireScope(3)` 붙은 더미 endpoint가 scope 2 사용자에 403 응답.
 
-### Phase γ — entity 설계 (spec §2 24 테이블) + 마이그레이션 1개 (1 PR)
+### Phase γ — entity 설계 (spec §2 24 테이블) + spec 갱신 + 마이그레이션 (1 PR) + Phase γ' — Drizzle 폐기 (1 PR, 동등성 검증 통과 후)
 
-**목표**: mock 시그니처 ↔ TypeORM entity 매핑 + 첫 마이그레이션. spec §2 entity 표 **24 테이블** (행 #1~#26, templates·chat_messages 포함) 전체 1차 작성.
+**목표**: mock 시그니처 ↔ TypeORM entity 매핑 + 첫 마이그레이션. spec §2 entity 표 24/26 모순도 본 PR 에서 spec 갱신으로 해소.
 
-- `apps/backend/src/entities/` 작성 (spec §2 24 테이블 — entity 디렉토리는 26 파일):
-  - Identity 3: `user`, `parent-child-link`, `consent-log`
-  - Bot Definition 5: `classroom`, `class-bot`, `enrollment`, `bot-curriculum-unit`, `bot-settings`
-  - Live 4: `lesson`, `live-session`, `live-quiz`, `bot-question`
-  - Replay 4: `replay`, `replay-bookmark`, `replay-teacher-question`, `replay-watch-progress`
-  - Assignment & Chat 3: `assignment`, `assignment-question`, `chat-message`
-  - Grading 2: `grading-item`, `grading-history`
-  - Wellbeing 3: `emotion-checkin`, `wellbeing-snapshot`, `crisis-alert`
-  - Reports & Market 2: `report`, `template`
-- DB 스키마는 **현 Drizzle schema와 비트단위 동일**하게 도출 (`pg_dump --schema-only` diff 검증)
-- TypeORM 마이그레이션 1개 생성 (현 `drizzle/0000_stiff_ulik.sql` 와 동등)
-- seed: `apps/backend/src/database/seeds/` 신설, 기존 `scripts/seed.ts` 의 mock 데이터를 TypeORM repo로 재작성 — 10개 mock 파일 전부 흡수 (persona·family·tutor·classbot·chat·live-content·classbot-greeting·classbot-home-preview·classbot-wellness-bot·classbot-dynamic-replies)
-- spec §2 entity 표는 **시그니처 갱신 불요** (entity 컬럼 시그니처는 이미 확정). spec §2 말미 `src/lib/db/schema.ts`가 SOT → `apps/backend/src/entities/*`가 SOT로 한 줄 갱신
+- **spec §2 본문 갱신 (Phase γ PR 동봉)**: "총 24 테이블" 표현을 *"총 24 테이블 (entity 표 #1~#24) + Ph7 이후 영속화 대상 2건 (#25 templates 마켓플레이스, #26 chat_messages 채팅 영속화)"* 식으로 재기술. entity 표 행 자체는 시그니처 갱신 불요. 그리고 §2 말미 SOT 라인 `apps/classbot/lib/db/schema.ts` → `apps/backend/src/entities/*` 로 갱신
+- `apps/backend/src/entities/` 작성 — **#1~#24 entity 24개를 Phase γ 본 PR 의 1차 범위로 확정**. #25 templates 는 Phase ε `templates` 마켓플레이스 endpoint 작업 시, #26 chat_messages 는 Phase ε `POST /api/bots/{id}/chat` (chat 영속화) 작업 시 entity 추가:
+  - Identity 3 (#1~#3): `user`, `parent-child-link`, `consent-log`
+  - Bot Definition 5 (#4~#8): `classroom`, `class-bot`, `enrollment`, `bot-curriculum-unit`, `bot-settings`
+  - Live 4 (#9~#12): `lesson`, `live-session`, `live-quiz`, `bot-question`
+  - Replay 4 (#13~#16): `replay`, `replay-bookmark`, `replay-teacher-question`, `replay-watch-progress`
+  - Assignment 2 (#17·#18): `assignment`, `assignment-question` (chat-message 는 Phase ε 에서 추가)
+  - Grading 2 (#19·#20): `grading-item`, `grading-history`
+  - Wellbeing 3 (#21~#23): `emotion-checkin`, `wellbeing-snapshot`, `crisis-alert`
+  - Reports 1 (#24): `report` (templates 는 Phase ε 에서 추가)
+- DB 스키마는 **현 Drizzle schema 와 비트단위 동일**하게 도출 (`pg_dump --schema-only` diff 검증). 즉 `apps/classbot/drizzle/0000_stiff_ulik.sql` + `apps/classbot/lib/db/schema.ts` 가 Phase γ entity 작성의 *비교 기준*. 이 기준이 동등성 검증 완료될 때까지 폐기 금지
+- TypeORM 마이그레이션 1개 생성 (현 `apps/classbot/drizzle/0000_stiff_ulik.sql` 와 동등 — pg_dump diff 0)
+- seed: `apps/backend/src/database/seeds/` 신설, 기존 `apps/classbot/scripts/seed.ts` 의 mock 데이터를 TypeORM repo 로 재작성 — 10개 mock 파일 전부 흡수 (persona·family·tutor·classbot·chat·live-content·classbot-greeting·classbot-home-preview·classbot-wellness-bot·classbot-dynamic-replies)
 - **invariant 검증** (spec §2.주요 invariant): enrollments PK / bot_settings PK / replay_watch_progress PK / emotion_checkins unique(student_id, date) / wellbeing_snapshots PK / enrollments→class_bots ON DELETE CASCADE / replay_bookmarks→replays ON DELETE CASCADE — 모두 TypeORM `@PrimaryColumn` + `@Unique` + `@OneToMany({ onDelete: 'CASCADE' })` 로 표현
-- **완료 기준**: `bun --filter @pullim-classbot/backend migration:run` → 기존 Drizzle 스키마와 diff 0. `bun --filter @pullim-classbot/backend seed:run` → users 3행 (학생+교사+학부모) + class_bots 5행 (cb_001~cb_005) + 학생·교사 mock 시그니처 전부 동등.
+- **완료 기준** (Phase γ): `bun --filter @pullim-classbot/backend migration:run` → 기존 Drizzle 스키마와 diff 0. `bun --filter @pullim-classbot/backend seed:run` → users 3행 (학생+교사+학부모) + class_bots 5행 (cb_001~cb_005) + 학생·교사 mock 시그니처 전부 동등. **Phase γ PR 머지 시점에는 Drizzle 자산 여전히 유지** (회귀 안전망)
+
+#### Phase γ' — Drizzle 폐기 (Phase γ 머지 직후 1 PR)
+
+Phase γ entity·마이그레이션·seed 가 prod-verify Playwright 7 spec 회귀 0 으로 main 머지 + production 정상 동작이 확인된 *후* 별도 PR 로 폐기:
+
+- 폐기 대상: `apps/classbot/drizzle/`, `apps/classbot/drizzle.config.ts`, `apps/classbot/lib/db/`, `apps/classbot/scripts/seed.ts`, `apps/classbot/package.json` 의 drizzle-orm/drizzle-kit/pg/@types/pg 의존성
+- spec §2 말미 SOT 라인은 Phase γ 본 PR 에서 이미 `apps/backend/src/entities/*` 로 갱신됨 — Phase γ' 에서는 추가 갱신 불필요
+- **완료 기준**: `grep -r "drizzle" apps/classbot/` 0건 (의존성 import 잔존 없음). Playwright 7 spec 회귀 0
 
 ### Phase δ — read endpoint 25개 이식 (1 PR)
 
@@ -393,12 +437,12 @@ logic 비중 높은 4개부터:
 
 | 리스크 | 영향 | 대응 |
 |---|---|---|
-| **bun + NestJS 호환성** | NestJS 부팅 실패 시 전체 좌초 | planner 결정 그대로: Phase α 진입 시 30분 spike. 실패 시 backend만 node + pnpm 자동 분기 (사용자 사전 지시) |
-| **bun workspace ↔ turbo** | Phase α PR 부풀어오름 | turbo 2.7.x bun 지원. 막히면 root scripts 래핑 |
-| **현행 Drizzle 스키마 ↔ TypeORM entity 매핑 정확도** | Phase γ 24 테이블 diff (spec §2 SOT) | `pg_dump --schema-only` 비교 + Phase γ PR diff 보고서 |
-| **응답 envelope shape 변경 (raw → pullim envelope)** | Phase δ·ε FE 즉시 영향 없음, Phase θ 폭발 | spec §3 갱신 (Phase β PR 동봉). FE 전환은 Phase θ 한 번에 |
-| **prod-verify Playwright spec mock 의존** | Phase θ 머지 시점에 prod-verify 자동 실패 가능 | Phase θ 진입 시 spec 의존성 사전 확인 + 영향 있는 spec 별도 PR로 분리 갱신. **prod-verify 워크플로우 자체는 무변경** (§3.5) |
-| **postgres port 5434 자매 리포 충돌** | 두 리포 동시 dev 실행 시 docker-compose 충돌 | Phase α PR 본문에서 사용자 확인 — classbot port를 5435로 변경할지, 자매 리포 동시 실행 안 함을 정책으로 둘지 |
+| **bun + NestJS 호환성** | NestJS 부팅 시 전체 좌초 | D-Lite 시 NestJS 스켈레톤 (`apps/backend/`) + `GET /api/health` 부팅 *이미 검증됨*. Phase β common 차용 시점에 typeorm·class-validator 의존성 추가에서 막히면 backend 만 node + pnpm 자동 분기 (사용자 사전 지시) |
+| **bun workspace ↔ turbo** | 빌드/테스트 명령 회귀 | turbo 2.7.4 bun 지원 (D-Lite 시 셋업 완료). 추가 명령 (typeorm migration, swagger 생성 등) 추가 시 root scripts 래핑 |
+| **현행 Drizzle 스키마 ↔ TypeORM entity 매핑 정확도** | Phase γ 24 테이블 diff (spec §2 SOT) | `pg_dump --schema-only` 비교 + Phase γ PR diff 보고서. Drizzle 자산은 Phase γ' 까지 보존 (검증 기준) |
+| **응답 envelope shape 변경 (raw → pullim envelope)** | Phase δ·ε FE 즉시 영향 없음, Phase θ 폭발 | spec §3 갱신 (Phase β PR 동봉, 사용자 명시 확인 후 머지). FE 전환은 Phase θ 한 번에. spec 패치 미머지 시 envelope 구현 보류 (§6.2) |
+| **prod-verify Playwright spec mock 의존** | Phase η·θ 머지 시점에 prod-verify 자동 실패 가능 | Phase η·θ 진입 시 spec 의존성 사전 확인 + 영향 있는 spec 별도 PR로 분리 갱신. **prod-verify 워크플로우 자체는 무변경** (§3.5) |
+| **postgres port 5434 자매 리포 충돌** | 두 리포 동시 dev 실행 시 docker-compose 충돌 | 본 plan Phase α PR 본문에서 사용자 확인 — classbot port 를 5435 로 변경할지, 자매 리포 동시 실행 안 함을 정책으로 둘지 |
 | **학생/교사 mock 시그니처 분리 정도** | Phase γ entity 작성 시 어디까지를 학생/교사 entity로 분할? | spec §2 24 테이블 표가 이미 통합 entity (예: `users.role`) → planner와 동일하게 single-table-role 패턴. Phase γ 시작 시 추가 분리 결정 불요 |
 | **ScopeGuard 신설 — pullim에는 없는 패턴** | Phase β 진입 시 pullim 패턴 일탈, 다른 게이트키퍼 합의 | spec §4 의 🟠 endpoint(scope 변경·intensity 갱신)가 명시적 권한 모델 요구 → ScopeGuard 신설은 spec 강제. PR 본문에 spec §3 → §4.3 cross-link |
 | **classbot 28 컴포넌트의 학생/교사 분배 모호** | Phase ζ·η에서 widget 분류 시간 소모 | planner Phase 4 패턴 그대로: 모호한 widget은 일단 `classbot-home/components/` (학생) 또는 `teacher-home/components/` (교사) 에 두고 추후 재배치 — 이번 plan 범위 밖 |
@@ -415,10 +459,11 @@ pullim envelope (Phase β 차용):
 - 에러: `{ success: false, error: { code, message, statusCode } }`
 - 에러 코드 = 도메인 prefix 대문자 (`BOT_NOT_FOUND`, `LIVE_SESSION_FORBIDDEN`, `ASSIGNMENT_VALIDATION`, `SCOPE_VIOLATION`, `COMMON_NOT_FOUND` 등)
 
-**결정 — 옵션 A 자동 채택** (planner G3 게이트 해소 그대로):
-- Phase β에서 `ResponseInterceptor` / `HttpExceptionFilter` / `AllExceptionsFilter` + classbot 도메인 `ErrorMessages` 상수
-- Phase δ·ε snapshot은 envelope shape로 새로 기록 (byte-equal 목표 폐기)
-- spec §3 갱신 패치는 Phase β PR에 동봉
+**제안 — 옵션 A 채택** (planner G3 게이트 해소와 동일 패턴):
+- Phase β PR 에 spec §3 갱신 패치를 **동봉** — 즉 spec §3 패치가 Phase β PR 머지의 일부로 함께 머지되며, 본 plan 이 *권위 spec 보다 먼저 envelope 계약을 덮어쓰지 않는다*
+- spec §3 패치 머지 *이후* 에만 Phase δ 구현 진입: `ResponseInterceptor` / `HttpExceptionFilter` / `AllExceptionsFilter` + classbot 도메인 `ErrorMessages` 상수 신규
+- Phase δ·ε snapshot 은 spec §3 갱신본 기준 envelope shape 로 기록 (byte-equal 목표 폐기는 spec §3 갱신본의 효과 — plan 의 일방 선언 아님)
+- **승인 게이트**: Phase β PR 본문에 spec §3 갱신 diff 명시 + 사용자 명시 확인 후 머지. 미승인 시 Phase β PR 은 envelope 부분만 보류하고 common 패턴 차용만 진행
 
 ### 6.3 ScopeGuard — classbot 추가 결정 (planner에 없음)
 
@@ -439,10 +484,11 @@ pullim envelope (Phase β 차용):
 - **G1** — 본 plan은 내부 구조 작업. §5 진척 보고 시점에 일괄
 
 **사용자 명시 확인이 필요한 글로벌 작업 게이트** (G3·G4 도메인 합의와 별개로 항상 필수):
-- Phase α — root `package.json`/`bun.lock`/`turbo.json`/`tsconfig.base.json` 신규·재편, `CLAUDE.md`/`AGENTS.md`/`README.md` 갱신, `.github/workflows/prod-verify.yml` path filter 갱신, `drizzle/`·`src/lib/db/`·`scripts/seed.ts` 폐기 (§3.5)
-- Phase β — `apps/backend/src/{common,config,database}/` 전부 신규 (글로벌 토대), `packages/{types,api-client,auth}/` 공유 패키지 신규
-- Phase γ — `apps/backend/src/entities/*` 24 테이블 entity 신규 (도메인 모델 락인)
-- Phase η·θ — FE mock 제거가 Playwright spec/prod-verify 에 영향 시
+- Phase α — `proc/spec/2026-05-18_be-api-design.md` §2 SOT 라인 갱신, root `CLAUDE.md`/`AGENTS.md` cross-link 추가 (모노레포 구조 자체는 D-Lite 머지로 이미 확정)
+- Phase β — `apps/backend/src/{common,config,database}/` 전부 신규 (글로벌 토대), `packages/{types,api-client,auth}/` 공유 패키지 본격 구현 (D-Lite 시 빈 placeholder), spec §3 envelope 갱신 (§6.2)
+- Phase γ — `apps/backend/src/entities/*` 24 테이블 entity 신규 (도메인 모델 락인), spec §2 본문 "24 테이블 vs 표 #1~#26 모순" 해소 갱신
+- Phase γ' — Drizzle 자산 폐기 (`apps/classbot/{drizzle/, drizzle.config.ts, lib/db/, scripts/seed.ts}`, 의존성)
+- Phase η·θ — FE mock 제거가 Playwright spec/prod-verify 에 영향 시 spec 갱신 PR 동봉 또는 선행 (§3.5)
 
 본 plan 은 도메인 시그니처 측면에서 G3·G4 합의 게이트 부재 상태로 Phase α → θ 까지 진입 가능하지만, **위 글로벌 작업 게이트는 각 Phase PR 본문에서 사용자 명시 확인을 받은 뒤에 적용**한다 ("합의 게이트 0건" 결론은 도메인 시그니처에 한정 — 글로벌 작업 게이트는 별도).
 
@@ -456,17 +502,13 @@ pullim envelope (Phase β 차용):
 
 ## 9. 다음 단계
 
-본 plan 동의 시 — Phase α 진입. 진입 시 작업 순서:
+본 plan 동의 시 — Phase α 진입. D-Lite (PR #81) 머지로 모노레포 base 가 이미 확정됐으므로 Phase α 는 가벼운 SOT 라인 정리만:
 
-1. bun + NestJS 30분 spike (§6.1 리스크 1번)
-2. **자매 리포 port 충돌 확인** — classbot postgres 5434 ↔ planner 5434. 자매 동시 dev 정책 결정 (사용자 입력)
-3. `apps/classbot/` 디렉토리로 현 코드 이동 + import 경로 갱신 + `bun dev` 3032 검증 + `bun x playwright test` 7 spec 회귀 0
-4. `apps/backend/` 빈 NestJS 스캐폴딩 + Hello World (port 4032)
-5. `packages/{types,api-client,auth}/` 빈 패키지
-6. workspace · turbo · tsconfig.base 셋업
-7. CLAUDE.md / AGENTS.md / README.md / spec 갱신
-8. **폐기**: `drizzle/`, `src/lib/db/`, `scripts/seed.ts`, drizzle 의존성
-9. **prod-verify path filter 갱신** (예외 — §3.5)
-10. 1개 PR로 묶어 push (Codex Review 통과 후 머지)
+1. **자매 리포 port 충돌 확인** — classbot postgres 5434 ↔ planner 5434. 자매 동시 dev 정책 결정 (사용자 입력)
+2. spec §2 본문 SOT 라인 갱신: `src/lib/db/schema.ts` → `apps/classbot/lib/db/schema.ts` (단 1줄, 경로 명시)
+3. root `CLAUDE.md` / `AGENTS.md` 에 본 plan §5 PR 진입 예고 cross-link 추가
+4. `apps/backend/main.ts` `PORT` 기본값 (4032) 명시
+5. Phase α PR 본문에 본 plan §5 진입 의도 + §6.1 리스크 매트릭스 cross-link
+6. 1개 PR로 push (Codex Review 통과 후 머지)
 
-본 10단계 진입 여부 — 사용자 응답 대기.
+Phase β 이후 작업 (NestJS common 차용 → entity 작성 → endpoint 이식 → FE Container/Presenter → mock 제거) 은 §5 단계별 PR 로 분리 진행. 본 plan 진입 여부 — 사용자 응답 대기.
