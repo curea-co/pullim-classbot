@@ -22,10 +22,11 @@
 **구체 패배 사례** (현재 권위 우선 항목 — 본 문서가 다르게 적었더라도 무시):
 
 - planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 G4 (인프라 결정) 게이트 통과 후에만.
-- planner / Q / classbot 의 현행 scope-out (JWT / Redis / BullMQ / Design System / i18n / Sentry) — 본 문서가 정본 스택으로 적었더라도, 채택은 각 리포의 별도 spec 갱신 PR을 통해서만. 본 문서 자체로 채택 효력 없음.
+- classbot 의 frozen base 확정 금지/보류 항목 (codex R6 — 과장 금지): `.codex-runtime/base-CLAUDE.md` 가 **명시적으로 금지**하는 것은 `@pullim/design-system` import · i18n · Sentry 이고, **인증은 Ph8 보류**(`x-user-id` fallback) 다. **Redis/BullMQ 는 금지 목록이 아니다** — BE 도입 가능한 일반 작업이므로 "권위상 금지" 로 적지 않는다. planner/Q 의 JWT/Redis/BullMQ 도입 역시 각 리포 spec 갱신 PR 을 통해서만 정본 채택. 본 문서 자체로 채택 효력 없음.
 - classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
 - **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
 - **classbot 인증·CI·prod DB (codex R5)** — (인증) G6 의 "5건 모두 JWT" 는 classbot 제외 — Ph8 결정 보류·`x-user-id` mock. (CI) P0-4 의 `actions/setup-pnpm` 강제는 classbot 비적용 — bun workspace 고정이므로 classbot CI 는 `setup-bun` 유지(워크플로만 pnpm 으로 바꾸면 패키지매니저와 모순). (prod DB) P0-3 의 classbot RDS 확정은 오기 — base spec 은 `Neon/Supabase/RDS` 중 Ph9 결정 보류. 모두 spec 결정·§16 보류와 정합.
+- **authority chain 재현성 (codex R6)** — (i) classbot 금지 목록 과장 금지: 금지는 DS/i18n/Sentry + 인증 Ph8 보류뿐, Redis/BullMQ 는 비금지(§0 위·G7). (ii) §2 정본 스택은 외부 본체 *최신* commit 이 아니라 frozen 관찰값으로 고정(§2 콜아웃). (iii) classbot 예외 근거는 mutable `apps/classbot/CLAUDE.md` 가 아니라 frozen `.codex-runtime/base-CLAUDE.md` 인용(§6). (iv) §15 인프라 결정 4건은 §16 보류와 정합되게 "보류 해제 조건" 으로 재작성. (v) 코덱스 정책은 로컬 메모리 경로 대신 본문 직접 기록(§16.4).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -50,7 +51,9 @@
 
 ## 2. 정본 스택 — 본체 의존성 매트릭스 (확인 기준)
 
-본체 리포(`curea-co/pullim`)의 `package.json`, `apps/web/package.json`, `apps/backend/package.json` 을 본 문서 작성 시점(2026-05-27)에 정독한 관찰값이다. 후속 PR 은 해당 본체의 *최신* commit 을 다시 확인해야 한다.
+본체 리포(`curea-co/pullim`)의 `package.json`, `apps/web/package.json`, `apps/backend/package.json` 을 본 문서 작성 시점(2026-05-27)에 정독한 **고정 스냅샷 관찰값**이다.
+
+> **⚠ authority chain 고정 (codex R6)**: 본 표는 외부 본체의 *최신* commit 이 아니라 **작성 시점 관찰값으로 고정**한다 — mutable 한 외부 상태를 권위처럼 따라가면 정본 스택이 시점마다 흔들린다. 본 리뷰에서 신뢰 가능한 authority 는 frozen base snapshot(`.codex-runtime/base-*`)뿐이며, 본체 스냅샷 인용은 *관찰값* 으로만 해석한다. 본체 의존성 버전을 실제 갱신할 때는 (a) 관찰한 본체 **commit SHA 를 본 표에 함께 고정 기록**하거나, (b) 이 리포 안의 고정 문서(`proc/spec/` 발췌)로 다시 적은 뒤 §2 를 정정한다. 후속 PR 이 "본체 최신 재확인" 만으로 권위를 끌어오는 것은 금지.
 
 | 영역 | 정본 값 | 본체 출처 |
 |---|---|---|
@@ -184,15 +187,15 @@
 |---|---|---|---|
 | **P1-1** | Passport/JWT 인증 도입 | 5 도메인 (**classbot 보류** — 아래 단서) | MockAuth → @nestjs/passport + @nestjs/jwt, refresh token rotation, bcrypt password hashing. arcade 의 bcryptjs → bcrypt 전환<br>⚠ **classbot 단서 (codex R3)**: classbot 권위 spec(`proc/spec/2026-05-18_be-api-design.md`)은 인증 방식을 **Ph8 결정 보류**(NextAuth v5 / lucia-auth / 자체 중 미정)로 두고 현재는 `x-user-id` 헤더 폴백 mock 단계다. 또한 classbot 의존성에 **bcryptjs 자체가 없다**(전환 대상 아님). 따라서 classbot 에 Passport/JWT+bcrypt 를 확정 목표로 적지 않는다 — spec 의 인증 결정이 내려진 *이후에만* 적용 |
 | **P1-2** | Redis + BullMQ 도입 (BE) | 5 도메인 | ioredis connection, BullMQ queue 셋업, ElastiCache 또는 Redis container 모두 |
-| **P1-3** | shadcn 로컬 → @pullim/design-system 마이그레이션 (FE) | 5 도메인 (**classbot 제외/보류**) | Button/Card/Dialog/Input/Tabs/Heading/Text/toast import 전환, lucide-react → @pullim/design-system/icons, sonner → @pullim/design-system. 도메인별 GitHub Action으로 release tag 핀<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 `@pullim/design-system` import 를 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 본 Phase 적용 대상에서 제외 — 본 plan 머지만으로 효력 없음 |
-| **P1-4** | next-intl 도입 (i18n) | 5 도메인 (**classbot 제외/보류**) | `messages/{ko,en}.json` 단일 파일, `useTranslations()` / `getTranslations()` 적용, 하드코딩 텍스트 전수 추출. mock 데이터의 한글은 예외<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 i18n 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
+| **P1-3** | shadcn 로컬 → @pullim/design-system 마이그레이션 (FE) | 5 도메인 (**classbot 제외/보류**) | Button/Card/Dialog/Input/Tabs/Heading/Text/toast import 전환, lucide-react → @pullim/design-system/icons, sonner → @pullim/design-system. 도메인별 GitHub Action으로 release tag 핀<br>⚠ **classbot 단서 (codex R3)**: frozen base `.codex-runtime/base-CLAUDE.md` (classbot 리포 루트 CLAUDE.md 의 고정 스냅샷) 는 `@pullim/design-system` import 를 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 본 Phase 적용 대상에서 제외 — 본 plan 머지만으로 효력 없음 |
+| **P1-4** | next-intl 도입 (i18n) | 5 도메인 (**classbot 제외/보류**) | `messages/{ko,en}.json` 단일 파일, `useTranslations()` / `getTranslations()` 적용, 하드코딩 텍스트 전수 추출. mock 데이터의 한글은 예외<br>⚠ **classbot 단서 (codex R3)**: frozen base `.codex-runtime/base-CLAUDE.md` 는 i18n 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
 | **P1-5** | TanStack Query 도입 (FE 서버 state) | 4 도메인 (classbot 제외 — 이미 보유) | QueryClient provider, hydration boundary, queryKey 컨벤션 |
 
 ### P2 — 추가 도입 (P1 완료 후, 도메인 필요도별)
 
 | Phase | 이름 | 대상 | 산출물 |
 |---|---|---|---|
-| **P2-1** | Sentry 도입 | 5 도메인 (**classbot 제외/보류**) | `instrumentation.ts` + sentry.client/server/edge.config.ts, DSN Secret 관리<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 Sentry 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
+| **P2-1** | Sentry 도입 | 5 도메인 (**classbot 제외/보류**) | `instrumentation.ts` + sentry.client/server/edge.config.ts, DSN Secret 관리<br>⚠ **classbot 단서 (codex R3)**: frozen base `.codex-runtime/base-CLAUDE.md` 는 Sentry 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
 | **P2-2** | AWS SDK (S3 / SES) 도입 | 사용처별 (classbot 봇 미디어, planner 리포트 PDF, Q 학습 자료 등) | presigned URL 패턴, SES verified sender |
 | **P2-3** | Tiptap 도입 | classbot builder, planner 메모 (필요 도메인만) | @tiptap/react + extensions |
 | **P2-4** | packages 6개 정렬 (analytics/config/logging/remote-config/ui/utils) | 5 도메인 각자 | placeholder → 실제 구현, types/api-client/auth 기존 3 + 신규 3 |
@@ -215,10 +218,10 @@
 | P0-5 Secrets·Logs·S3·SES | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 |
 | P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | **보류** — spec Ph8 인증 미정(현 `x-user-id` mock), bcryptjs 의존성 없음. spec 결정 후 적용 (§6 P1-1 단서) | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
 | P1-2 Redis·BullMQ | BE 신규 | BE 신규 | BE 신규 + drizzle 호환성 검토 | BE 신설 시 | BE 신규 |
-| P1-3 DS | shadcn 28+ 컴포넌트 마이그레이션 | shadcn 마이그레이션 | **제외/보류** — classbot `CLAUDE.md` 가 DS import 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-3 단서) | shadcn (new-york/slate) → DS (시각 회귀 위험 — `bun run ui:audit` 4 viewport 필수) | shadcn 마이그레이션 |
-| P1-4 i18n | hard-coded 한글 추출 (planner-home/reports/manage/onboarding 28+ 컴포넌트) | hard-coded 한글 추출 (q/{infinity,talk,analysis,review}) | **제외/보류** — classbot `CLAUDE.md` 가 i18n 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-4 단서) | hard-coded 한글 추출 (21 게임 + 셸 + 메커니즘) — **mock 한글 데이터는 예외 컨벤션 적용** | placeholder 라 비용 작음 |
+| P1-3 DS | shadcn 28+ 컴포넌트 마이그레이션 | shadcn 마이그레이션 | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 DS import 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-3 단서) | shadcn (new-york/slate) → DS (시각 회귀 위험 — `bun run ui:audit` 4 viewport 필수) | shadcn 마이그레이션 |
+| P1-4 i18n | hard-coded 한글 추출 (planner-home/reports/manage/onboarding 28+ 컴포넌트) | hard-coded 한글 추출 (q/{infinity,talk,analysis,review}) | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 i18n 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-4 단서) | hard-coded 한글 추출 (21 게임 + 셸 + 메커니즘) — **mock 한글 데이터는 예외 컨벤션 적용** | placeholder 라 비용 작음 |
 | P1-5 TanStack Query | 신규 | 신규 | **이미 보유 (5.100.1)** — 정본 5.90.21 과 minor 호환 확인 | 신규 (BE 신설 시) | 신규 |
-| P2-1 Sentry | 신규 | 신규 | **제외/보류** — classbot `CLAUDE.md` 가 Sentry 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P2-1 단서) | 신규 | 신규 |
+| P2-1 Sentry | 신규 | 신규 | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 Sentry 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P2-1 단서) | 신규 | 신규 |
 | P2-2 AWS SDK | 리포트 PDF S3 + 이메일 알림 SES | 학습 자료 S3 | 봇 미디어 S3 + 알림 SES | (사용처 평가 후 — 게임 콘텐츠 이미지는 정적 호스팅으로 우선) | 사용처 평가 후 |
 | P2-3 Tiptap | 메모/회고 영역 가능성 | (미적용 후보) | **봇 빌더 핵심** — 우선 도입 | (미적용 — 게임은 인터랙션 위주) | (미적용) |
 | P2-4 packages 6개 | placeholder 3 → 실 구현 + 3 추가 | placeholder 3 → 실 구현 + 3 추가 | **기존 placeholder 3(`types,api-client,auth`) → 실 구현 + 3 추가** (codex R4 — classbot 은 이미 모노레포·packages 보유, 신설 아님) | 모노레포 전환 후 packages 신설 | packages 신설 |
@@ -352,18 +355,27 @@
 
 ---
 
-## 15. 즉시 결정 필요 사안
+## 15. 결정 사안 — 보류군(§16 종속) vs 즉시 결정 가능군
+
+> **⚠ §15 ↔ §16 정합 (codex R6)**: 인프라 결정 4건(D-CLU/D-RDS/D-SEQ/D-COST)은 §16.2/§16.3 에서 **병합 토폴로지 확정 전까지 무기한 보류**로 확정됐다. 따라서 이들은 더 이상 "즉시 결정 필요" 가 아니다 — 아래 표는 두 군으로 나눠, 보류군은 **결정 항목이 아니라 "보류 해제 조건"** 으로 적는다. 후속 작업자가 §15 만 보고 인프라 결정을 진행하면 안 된다.
+
+### 15-A. 보류군 — §16 병합 토폴로지 확정 전까지 결정 금지 (권장안은 *해제 후* 후보일 뿐)
+
+| # | 사안 | 보류 해제 조건 | 해제 후 권장안 (참고) |
+|---|---|---|---|
+| **D-CLU** | AWS ECS cluster 토폴로지 | §16.3 (a) 병합 미진행 확정 또는 (b) 병합 토폴로지 확정 | 옵션 C — 신규 공유 cluster `pullim-domains` |
+| **D-RDS** | RDS 운영 방식 | 동상 (§16.3) + classbot 은 base spec Ph9 prod DB(`Neon/Supabase/RDS`) 결정 선행 | 옵션 B — 공유 instance + DB 분리 |
+| **D-SEQ** | 출시 시퀀스 | 인프라 보류 해제 + 본 plan 합의 | 옵션 C — planner 선행 → 4 도메인 병렬 |
+| **D-COST** | 월 AWS 청구 상한선 | 인프라(P0-2/3/5) 보류 해제 시 | retention 7d, S3 90d→IA→1y Glacier, RDS db.t4g.small 시작 |
+
+### 15-B. 즉시 결정 가능군 — 인프라 보류와 무관 (구조·코드 트랙)
 
 | # | 사안 | 결정자 | Phase 영향 | 권장안 |
 |---|---|---|---|---|
-| **D-CLU** | AWS ECS cluster 토폴로지 (옵션 A/B/C) | G1 + G3 | P0-2 시작 | **옵션 C** — 신규 공유 cluster `pullim-domains` |
-| **D-RDS** | RDS 운영 방식 (옵션 A/B/C) | G1 + G3 | P0-3 시작 | **옵션 B** — 공유 instance + DB 분리 |
-| **D-SEQ** | 출시 시퀀스 (옵션 A/B/C) | G1 | 본 plan 합의 시 | **옵션 C** — planner 선행 → 4 도메인 병렬 |
-| **D-DS** | `@pullim/design-system` 외부 노출·발행·deprecation 정책 | 본체팀 + G4 | P1-3 시작 | GitHub release tag pin + semver + 5 도메인 deprecation lead time 1 sprint |
-| **D-CB-ORM** | classbot drizzle → TypeORM 전환 방식 (data migration) | G3 | P0-3 시작 | drizzle schema SQL dump → TypeORM entities 재생성 + 첫 migration generate |
-| **D-GM-BE** | games BE 신설 여부 (5 중 유일 BE 없음) | G1 + G3 | P0-2 + alignment plan #108 정합 | 신설 — 추후 진척·점수·랭킹·콘텐츠 메타 backend 후보. SPA 유지는 옵션 |
+| **D-DS** | `@pullim/design-system` 외부 노출·발행·deprecation 정책 | 본체팀 + G4 | P1-3 시작 (classbot 제외) | GitHub release tag pin + semver + 5 도메인 deprecation lead time 1 sprint |
+| **D-CB-ORM** | classbot drizzle → TypeORM 전환 방식 (data migration) | G3 + classbot spec 갱신 선행 | 별 마이그레이션 plan | drizzle schema SQL dump → TypeORM entities 재생성 + 첫 migration generate |
+| **D-GM-BE** | games BE 신설 여부 (5 중 유일 BE 없음) | G1 + G3 | alignment plan #108 정합 | 신설 — 추후 진척·점수·랭킹·콘텐츠 메타 backend 후보. SPA 유지는 옵션 |
 | **D-GM-N16** | games Next 15 → 16 시점 | G4 + games audit T5 | P2-5 | P1 완료 후 별 PR. 21 게임 회귀 audit 필수 |
-| **D-COST** | 월 AWS 청구 상한선 (CW Logs retention, S3 lifecycle, RDS 인스턴스 사이즈) | G1 | P0-5 | retention 7d, S3 90d → IA → 1y Glacier, RDS db.t4g.small 시작 |
 
 ---
 
@@ -428,6 +440,6 @@
 
 ### 16.4 코덱스 review 통과 정책 (확인)
 
-사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. 룰: `~/.claude/projects/-Users-curea/memory/feedback_codex_review_required.md` 와 일치.
+사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. (codex R6 — 재현성: 본 정책은 *사용자 명시 결정* 으로 본문에 직접 기록한다. 외부 로컬 메모리 경로 인용 제거 — 부록 A 의 "repo-relative 경로만" 규칙과 정합. 필요 시 이 리포 안의 고정 문서로 옮긴다.)
 
 → 진행 중 3 alignment PR (#101, #82, #108) 처리는 별 사안 — 코덱스가 매 round 새 지적 발견 패턴이라 *어떤 정상 흐름이 가능한지* 사용자 명확화 필요 (close X · 강제 X · 보류 X 모두 잘못된 선택지로 인식).
