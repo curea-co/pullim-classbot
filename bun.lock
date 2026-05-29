@@ -62,6 +62,9 @@
       "version": "0.1.0",
       "dependencies": {
         "@base-ui/react": "^1.4.1",
+        "@pullim-classbot/api-client": "workspace:*",
+        "@pullim-classbot/auth": "workspace:*",
+        "@pullim-classbot/types": "workspace:*",
         "@tanstack/react-query": "^5.100.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -114,6 +117,10 @@
     "packages/auth": {
       "name": "@pullim-classbot/auth",
       "version": "0.0.1",
+      "dependencies": {
+        "@pullim-classbot/api-client": "workspace:*",
+        "@pullim-classbot/types": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.7.3",
       },
