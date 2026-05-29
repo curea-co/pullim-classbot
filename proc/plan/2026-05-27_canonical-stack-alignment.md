@@ -33,6 +33,7 @@
 - **classbot 글로벌 작업 게이트 보강 (codex R9)** — (i) authority order 에 앱 레벨 문서(`apps/classbot/{AGENTS,CLAUDE}.md`) 우선 참조 추가(§0 1번 하위). (ii) P0-1 pnpm 은 룰 갱신뿐 아니라 root 파일(`package.json`·`turbo.json`·`tsconfig.base.json`·`docker-compose.yml`) 편집 사용자 승인 선행(§6 P0-1). (iii) P1-2 Redis/BullMQ 는 BE 모듈·common/config 경로를 건드리므로 classbot 별도 승인 게이트(§6 P1-2). (iv) P2-4 `packages/*` 변경은 글로벌 작업이라 classbot 사용자 승인 선행(§6 P2-4). 모두 frozen `base-CLAUDE.md` 글로벌 작업 분류 기준.
 - **app-level 우선순위·게이트 노출·보류 신호 정합 (codex R10)** — (i) classbot 도메인-구체 룰에서 **app-level 문서가 루트보다 우선**(§0 1번 하위 — "루트→앱 순" 아님). (ii) P1-2 per-domain 매트릭스 행에도 classbot 승인 게이트 노출(§7 매트릭스). (iii) §§8-10 의 인프라 결정 "결정 시점" 을 §15-A/§16 무기한 보류와 동일 톤으로 정정(즉시 결정 신호 제거).
 - **재현 가능 authority chain·게이트 단일화 (codex R11)** — (i) app-level 문서 사본이 frozen snapshot 에 없으므로 본 plan 의 재현 authority 는 frozen `base-AGENTS/CLAUDE` + `base-input/proc/spec/*` 로 한정(§0 1번 하위). (ii) §2 표는 비권위 proposal baseline — mutable head·`사용자 정본 표` 행은 재현 검증 불가로 명시, commit SHA 고정 또는 in-repo 치환 필요(§2 콜아웃). (iii) mock 한글 예외는 본 plan 이 직접 정의(mutable `apps/web/CLAUDE.md` 인용 제거 — §11 R-I18N). (iv) Gate↔Phase 단일 기준표: pnpm=G3 통일, G1 코드 트랙은 인프라 결정(§8/§9/§10)과 분리, 인프라 게이트는 §16 보류(§12).
+- **비재현 입력 제거·결정 출처 고정 (codex R12)** — (i) §2 footer 의 "5 도메인 정합 기준선" 승격 제거 — frozen·SHA 확보 항목만 실행 기준선(§2 footer). (ii) §3 현재상태 매트릭스는 classbot 행만 frozen 재현 가능·실행 기준, 타 도메인 행은 참고값(§3 콜아웃). (iii) §16 D-CLU/D-RDS/D-SEQ·§16.4 코덱스 정책은 frozen base 파생 아닌 사용자 결정 — 본 §16(커밋 plan)이 재현 고정 출처, merge workflow 정책은 고정 경로 정책 문서로 승격 권고(§16 콜아웃·§16.4).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -97,13 +98,15 @@
 | AWS 리전 | **ap-northeast-2** | 사용자 정본 표 |
 | 패키지 빌드 정책 | `pnpm.onlyBuiltDependencies: ["@pullim/design-system", "bcrypt"]` | root package.json |
 
-본 표가 5 도메인 정합의 기준선. 갱신은 본체 PR 머지 시점에 본 plan 의 §2 를 먼저 정정한 뒤 5 도메인에 전파한다.
+(codex R12 — "5 도메인 정합의 기준선" 승격 문장 제거) 본 표는 §2 콜아웃대로 **비권위 proposal baseline** 이며, frozen snapshot 으로 재현 검증되지 않는 한 §4~§13 의 Phase/리스크/PR 분할이 이를 *실행 입력* 으로 받아들여서는 안 된다. **실행 기준선으로 쓸 수 있는 것은 frozen snapshot 안에 고정된 발췌 또는 commit SHA 가 확보된 항목뿐**이다. 본체 의존성 갱신 시에는 §2 콜아웃 절차(SHA 고정 또는 in-repo 재기술)를 거친 뒤에만 §2 를 정정·전파한다.
 
 ---
 
 ## 3. 5 도메인 현재 상태 매트릭스
 
 각 도메인 `package.json` + `CLAUDE.md` 정독 결과 (**2026-05-27 작성 시점 스냅샷** — 후속 PR 은 *현 시점* 워크스페이스 재확인 필요):
+
+> **⚠ 재현성 한계 (codex R12)**: 본 리뷰 기준에서 권위·재현 가능한 것은 **`.codex-runtime/base-*` (classbot frozen snapshot) 뿐**이다. 따라서 본 표의 **classbot 행만 frozen 으로 재현 검증 가능**하고, **planner/Q/games/arcade 행은 이 리포 안에 immutable snapshot·commit SHA 가 없어 재현 검증 불가**한 *참고 관찰값* 이다. §4 갭 분석·§13 PR 계획은 **classbot 행만 실행 기준** 으로 쓰고, 타 도메인 행은 *참고* 로만 취급한다 — 타 도메인 현황을 실행 게이트 계산의 사실값으로 쓰려면 각 행의 근거 스냅샷(commit SHA)을 이 리포에 고정해야 한다. 그 전까지 타 도메인 행은 부록성 참고.
 
 | 항목 | planner | Q | classbot | games | arcade |
 |---|---|---|---|---|---|
@@ -417,6 +420,8 @@
 
 ## §16 — 사용자 결정 (2026-05-27 후속) — 명시적 보류 사항
 
+> **⚠ 재현성 — 본 §16 이 결정의 고정 출처 (codex R12)**: 아래 D-CLU/D-RDS/D-SEQ 보류와 §16.4 코덱스 정책은 **frozen base snapshot(`.codex-runtime/base-*`)에서 파생되지 않는 *사용자 직접 결정*** 이다 (채팅 맥락 기반). 따라서 base snapshot 만 읽는 후속 리뷰어는 왜 P0-2/3/4 가 막혔는지 base 에서 재현할 수 없다 — **본 §16(이 리포에 커밋된 plan 문서) 자체가 이 결정들의 재현 가능한 고정 출처**다. 후속 작업자·리뷰어는 인프라 게이트(§8~§10·§14·§15)의 보류 근거로 *외부 채팅이 아니라 본 §16 의 해당 항목* 을 인용한다. (별도 immutable 결정 로그가 필요하면 이 리포 내 고정 경로 — 예 `proc/decisions/` — 로 승격 후 §16 에서 링크.)
+
 ### 16.1 진행 결정
 
 | 결정 | 답 |
@@ -457,6 +462,6 @@
 
 ### 16.4 코덱스 review 통과 정책 (확인)
 
-사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. (codex R6 — 재현성: 본 정책은 *사용자 명시 결정* 으로 본문에 직접 기록한다. 외부 로컬 메모리 경로 인용 제거 — 부록 A 의 "repo-relative 경로만" 규칙과 정합. 필요 시 이 리포 안의 고정 문서로 옮긴다.)
+사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. (codex R6·R12 — 재현성: 본 정책은 frozen base 에 없는 *사용자 명시 운영 결정* 이며 본 §16.4(이 리포 커밋 문서)가 그 고정 출처다. ⚠ **단 이 정책은 저장소 전반 merge workflow 에 영향을 주므로**, 본 plan 본문에만 두면 frozen authority 만 보는 작업자와 어긋난다 — **재현 가능한 고정 경로의 정책 문서(예 이 리포 `proc/` 하위 또는 `.github/` 정책)로 승격한 뒤 본 §16.4 에서 참조**하는 것을 권고. 그 전까지 본 §16.4 가 임시 고정 출처. 외부 로컬 메모리 경로 인용은 제거됨 — 부록 A "repo-relative 경로만" 규칙과 정합.)
 
 → 진행 중 3 alignment PR (#101, #82, #108) 처리는 별 사안 — 코덱스가 매 round 새 지적 발견 패턴이라 *어떤 정상 흐름이 가능한지* 사용자 명확화 필요 (close X · 강제 X · 보류 X 모두 잘못된 선택지로 인식).
