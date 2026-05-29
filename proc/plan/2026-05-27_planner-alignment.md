@@ -12,15 +12,18 @@
 
 > **권위 계층에 plan 문서 없음 (codex R17)**: 이 저장소에서 권위로 인정되는 것은 **root `AGENTS.md`/`CLAUDE.md` + `proc/spec/` + `input/docs-archive/`(+ app-local 가이드)** 뿐이다. `pullim-planner` 의 plan 이든 *이미 채택된 다른 plan* 이든, **plan 문서는 권위 계층이 아니라 참고 문서**다 — 본 plan 이 다른 plan 과 충돌하더라도 그 plan 이 권위라서 패배하는 게 아니라, 위 1·2 권위 문서 기준으로만 판단한다.
 
-**패배 사례** (codex R1~R18 누적 지적 흡수):
+**패배 사례** (codex R1~R19 누적 지적 흡수):
+- **`BotTone` 권위 라벨 충돌** (R19) — 권위 문서끼리 `정중/친근/스파르타`(07핸드오프) vs `정석/친구톤/스파르타`(03·05) 불일치. SOT 단정 금지, spec 정합화 전까지 충돌 상태 기록 (§4.2).
+- **`/teacher/*` boundary 구분** (R19) — base 가 `{classbot,builder}` 만 자유편집 개방. 나머지는 *자유편집 외* 일 뿐 *진입 금지 분류 아님*. "권위가 막는다" 과장 금지 (§5 Phase η).
+- **pullim envelope 는 spec §3 충돌 제안** (R19) — base spec §3 = "데이터 그대로, wrapper 없음". envelope 는 spec 패치 머지 전까지 구현 기준 아님 (§1 완료 기준).
 - **backend 레이어 구조** — base 권위는 `controller / use-cases / service / interface / infrastructure`. `repository` 만 적으면 interface/infrastructure 누락 위험 (§3 트리·§5 Phase δ).
 - **planner 패턴 참조 방식** — read endpoint 이식 등은 `curea-co/pullim` 권위 패턴 기준, planner 는 *참고만*. "planner Phase δ 패턴 그대로" 식 재승격 금지 (§5 Phase δ).
 - **app-local 가이드 게이트 — 단정 금지** — base 가 글로벌로 명시 분류 안 했으나 "우선 참조" 도메인 문서. 도메인 규칙·금지/예외 변경은 보수적 사용자 확인, 단순 컨벤션 표기만 일반 작업 (§4.2).
 - **plan 문서는 권위 계층 아님** — 권위는 root 가이드 + `proc/spec/` + `input/docs-archive/`(+ app-local 가이드)뿐. "이미 채택된 다른 plan" 도 참고 문서 (§0 위).
-- **`BotTone` taxonomy SOT** — mutable mock(5종)이 아니라 권위 문서 3 톤(정중/친근/스파르타). 5종 확정은 spec 갱신 선행 (§4.2).
-- **교사 IA 완전 정렬은 종속 항목** — 본 plan 완료 ≠ 교사 IA 완전 정렬. `/teacher/{live,quiz,templates,settings}` 4 라우트는 별도 plan 종속 (§1 완료 기준).
+- **`BotTone` taxonomy 충돌** (codex R19) — **권위 문서끼리도 라벨 불일치**: `07_풀림_클래스봇_핸드오프.md`=`정중/친근/스파르타`, `03-features-and-ia.md`·`05-business-rules.md`=`정석/친구톤/스파르타`. 한쪽을 SOT 로 단정 금지 — spec 정합화 PR 전까지 충돌 상태로 기록(+ mock 5종 별개 불일치). 해소 절차 §4.2.
+- **교사 IA 미스매치 = 미해결 부채** (codex R19) — `/teacher/{live,quiz,templates,settings}` 는 권위 IA(03)·roadmap(10) 정식 라우트인데 워크트리에 없음 = 현 리포↔문서 미스매치. 완료 정의 밖으로 밀지 않고 **본 plan 미해결 부채로 추적**, 닫히기 전까지 "교사 IA 완전 정렬" 주장 불가 (§1).
 - **assignment surfaces mock 제외** — spec `14-teacher-assignment-workspace.md` 가 mock+localStorage MVP 로 고정. spec 14 BE 연동 개정 전까지 assignment 는 mock 제거 제외 (§5 Phase θ).
-- **app-local 가이드 게이트·권위 (codex R16)** — 글로벌 승인 게이트는 root `CLAUDE.md`/`AGENTS.md`/`README.md` + 저장소 전역 파일만. `apps/classbot/{CLAUDE,AGENTS}.md` 는 게이트 아닌 일반 작업이며, classbot 도메인-구체 룰의 *우선 참조* 권위다(비권위는 planner plan 문서뿐). §4.2.
+- **app-local 가이드 게이트·권위 (codex R16·R18)** — 명시적 글로벌 승인 게이트는 root `CLAUDE.md`/`AGENTS.md`/`README.md` + 저장소 전역 파일. `apps/classbot/{CLAUDE,AGENTS}.md` 는 base 가 글로벌로 명시 분류하진 않았으나 *우선 참조* 도메인 권위 — 도메인 규칙·금지/예외 변경은 보수적 사용자 확인, 단순 컨벤션 표기만 일반 작업(비권위는 planner plan 문서뿐). §4.2.
 - **Container/Presenter thin 판정** — `page.tsx` 줄 수가 아니라 route-local 로직 위치로 판단. `wellness/check-in`(form 166줄)·`grading/[id]`(detail 223줄)·`assignment/new`(form 577줄) 은 wrapper 가 얇아도 분리 대상 (§5 Phase ζ-2·η). 완료 기준: 학생 10·교사 9.
 - **Phase 수·명칭 정합** — 본 plan 은 8 Phase α~θ(+γ' 정리 PR). "6 Phase·7 단계·Phase 2s/2t/3s/3t·η-2" 등 표기는 오기 — FE 분리는 ζ(학생)/η(교사), mock 제거는 θ (§2·§5).
 - **`apps/classbot/AGENTS.md` 규칙 원천** — planner AGENTS.md 그대로 차용 금지. base 권위(`curea-co/pullim`·base spec) + 현재 소스에서 재도출 (§4.2).
@@ -39,7 +42,7 @@
 - **mock 제거·데이터 출처 전환 시점** — Phase ζ·η 는 Container/Presenter 구조 분리만. mock 제거 + api-client 전환은 **Phase θ** (§5).
 - **`chat_messages` seed 시점** — spec 정의대로 seed 단계 비움. `chat.ts` 메시지는 seed 흡수 아님, Phase ε mutation 으로만 채움 (§4.4·§5 Phase γ·θ 일치).
 - **`pullim-planner` plan 문서의 authority 지위** — planner plan 은 authority 가 아니다 (BE 패턴 권위는 루트 `AGENTS.md` 가 가리키는 `curea-co/pullim`). §1.2 표는 배경 참고일 뿐, 채택은 본 리포 base 검증 후에만 유효.
-- **교사 라우트 자유 편집 boundary** — 루트 `CLAUDE.md` 가 명시한 open boundary 는 `app/(teacher)/teacher/{classbot,builder}/*` 뿐. Phase η 가 건드리는 `{classbot,builder}` 외 전부 — `teacher/page.tsx`(루트), `grading`/`replay`/`reports`/`assignment/new` (8 라우트) — 는 boundary 밖이므로, 본 plan 머지만으로 진입 불가 — 별도 룰 갱신 PR 또는 사용자 승인 게이트 선행 (§5 Phase η 게이트).
+- **교사 라우트 자유 편집 boundary** (codex R19 — "open boundary 아님" ≠ "진입 금지" 분리) — 루트 `CLAUDE.md` 가 *자유 편집* 으로 명시 개방한 영역은 `app/(teacher)/teacher/{classbot,builder}/*` 뿐. 그 밖의 `/teacher/*`(`teacher/page.tsx`, `grading`/`replay`/`reports`/`assignment/new`)는 base 가 "사용자 명시 확인 필요" 로 *분류한 것은 아니므로 진입 자체가 금지는 아니다* — 다만 **자유 편집 영역으로 선언되지 않았을 뿐**. 따라서 후속 PR 은 (자유편집 외 라우트라는) 사실을 PR 본문에 명시하고 사용자 확인을 받는 편이 안전하나, "권위가 막는다" 가 아니라 "자유편집 선언 범위 밖" 으로 기술 (§5 Phase η 게이트).
 - **루트 가이드(root `CLAUDE.md`/`AGENTS.md`/`README.md`) 수정** — 루트 `CLAUDE.md` 가 사용자 명시 확인 필요한 글로벌 작업으로 분류. 본 plan 머지만으로 진입 불가 — 룰 PR 또는 사용자 승인 선행. **app-local 문서(`apps/classbot/{CLAUDE,AGENTS}.md`)** 는 base 가 글로벌로 명시 분류하지 않았으나 "우선 참조" 도메인 규칙 문서다 — *도메인 규칙·금지/예외* 갱신은 보수적으로 사용자 확인, 단순 컨벤션 표기는 일반 작업 (codex R16·R18, §4.2).
 - **`packages/*` shared 변경** — apps 양쪽 영향 공유 작업이라 사용자 명시 확인 필요. Phase β/θ 의 `@pullim-classbot/auth`·`packages/types` 추가는 별도 승인 게이트 선행 (§5 Phase β shared packages 게이트).
 - **classbot 도메인 scope 로직의 `common/*` 배치** — ScopeGuard/resolver 디폴트는 `apps/backend/src/modules/classbot/` 도메인 래퍼 안. `common/*` (글로벌) 승격은 재사용 근거 확정 + 글로벌 이동 승인 게이트 후에만 (§6.3).
@@ -72,9 +75,10 @@
 
 **완료 기준** (이 plan 전체):
 - `apps/backend/src/modules/classbot/` (root `CLAUDE.md` §2 가 명시한 도메인 래퍼) 가 spec `2026-05-18_be-api-design.md` 도메인 모델 (entity 표 #1~#26 = **26 테이블**, Phase γ PR 동봉 spec 갱신으로 본문 "24 테이블" → "26 테이블" 으로 해소) / ~36 endpoint 카탈로그에 대응하는 NestJS 모듈 보유 (`apps/classbot/lib/db/` Drizzle → `apps/backend/src/modules/classbot/entities/` TypeORM 대체. 폐기는 entity 동등성 검증 통과 후 별도 PR에서)
-- `apps/classbot/` FE 페이지(학생 14 + 교사 10)가 모두 Container/Presenter 분리 + `features/<domain>/` 컨벤션. **단 이 완료 정의는 "구조 정렬 완료" 이지 "교사 IA 완전 정렬" 이 아니다** (codex R17): 권위 IA `proc/spec/03-features-and-ia.md` §2.2 가 고정한 `/teacher/{live,quiz,templates,settings}` 4 라우트는 현재 미구현 — 이 4 라우트 신규 구현은 **본 plan 완료의 종속 항목**으로, 별도 plan(`proc/plan/<date>_teacher-ia-missing-routes.md`)이 진입·완료되어야 권위 IA 와 완전 정렬된다. 본 plan 단독 완료 ≠ 교사 IA 완전 정렬
+- `apps/classbot/` FE 페이지(학생 14 + 교사 10)가 모두 Container/Presenter 분리 + `features/<domain>/` 컨벤션.
+- **⚠ 교사 IA 미스매치 = 본 plan 의 미해결 부채 (codex R17·R19 — 완료 정의 밖으로 밀지 않음)**: 권위 IA `proc/spec/03-features-and-ia.md` §2.2 는 `/teacher/{live,quiz,templates,settings}` 를 교사 영역의 *정식 IA* 로 고정하고, `10-roadmap.md` 는 `/teacher/classbot` + 6 운영 라우트를 🟢 로 표기한다. 즉 이 4 라우트가 현재 워크트리에 없는 것은 "선택 과제" 가 아니라 **현 리포 ↔ 권위 문서의 미스매치**다. 정렬 plan 으로서 본 plan 은 이 갭을 **본 plan 의 미해결 부채(open debt)** 로 명시적으로 남긴다 — 별도 plan(`proc/plan/<date>_teacher-ia-missing-routes.md`)으로 구현하되, **그 부채가 닫히기 전까지 본 plan 은 "교사 IA 완전 정렬" 을 주장하지 않는다**(부분 완료로만 archive 가능). 완료 정의에서 *제외* 가 아니라 *미결 부채로 추적*.
 - `apps/classbot/` FE는 `@pullim-classbot/api-client` 만 import (mock 직접 import 0건). **단 assignment surfaces 예외** (codex R17): 권위 spec `proc/spec/14-teacher-assignment-workspace.md` 는 `/teacher/assignment/new` MVP 를 *"백엔드 없이 mock + Zustand/localStorage E2E 시연"* 으로 고정하므로, **이 spec 이 BE 연동으로 개정되기 전까지 assignment surfaces 는 mock 제거 범위에서 제외**한다 (§5 Phase θ 단서). 즉 "mock 0건" 완료 기준은 spec 14 개정 후에만 assignment 포함
-- `proc/spec/2026-05-18_be-api-design.md` 갱신: 채택 ORM·API 스타일·디렉토리 구조를 새 결정으로 교체. 동시에 spec §3 응답 컨벤션을 pullim envelope 로 전환. spec 본문 "24 테이블" ↔ entity 표 26행 불일치도 본 갱신 시 해소 (§4.4 결정 참조)
+- `proc/spec/2026-05-18_be-api-design.md` 갱신: 채택 ORM·API 스타일·디렉토리 구조를 새 결정으로 교체. 동시에 spec §3 응답 컨벤션을 pullim envelope 로 전환. spec 본문 "24 테이블" ↔ entity 표 26행 불일치도 본 갱신 시 해소 (§4.4 결정 참조). **⚠ pullim envelope 전환은 현행 authority 와 정면 충돌하는 *제안* 임 (codex R19)**: base spec `2026-05-18_be-api-design.md` §3 은 성공 응답을 *"데이터 그대로, 별도 wrapper 없음"* 으로 못박는다. 따라서 envelope 는 **spec §3 변경 PR 이 머지되기 전까지 구현 기준이 아니다** — 후속 구현자는 spec 패치 머지 전에는 현행 §3(wrapper 없음)을 따른다. 본 완료 기준의 envelope 항목은 spec 패치 머지를 *전제* 로 한 목표값.
 - **`proc/spec/14-teacher-assignment-workspace.md` 갱신 조건 명시** (codex R17): 이 spec 이 assignment 워크스페이스 MVP 를 "BE 없이 mock + localStorage E2E" 로 고정하므로, assignment surfaces 를 BE 연동 + mock 제거로 전환하려면 **spec 14 를 "BE 연동" 으로 개정하는 PR 이 선행**되어야 한다 (spec read-only 예외 승인 — §4.3). spec 14 개정 전까지 assignment surfaces 는 mock 유지 (BE 다른 도메인은 Phase δ·ε 로 진행하되 assignment 영속화만 spec 14 개정에 종속)
 - root `CLAUDE.md` / `AGENTS.md` 의 BE 영역 + Container/Presenter 컨벤션 갱신, `apps/classbot/{CLAUDE,AGENTS,README}.md` 의 FE features/ 컨벤션 갱신
 - `.github/workflows/prod-verify.yml` 은 **정렬 대상 외 — 본 plan 무변경, D-Lite 머지 시 이미 모노레포 path filter 적용 완료** (§3.5)
@@ -485,7 +489,7 @@ logic 비중 높은 4개부터:
 
 **목표**: 교사 10 페이지 (D-Lite 후 워크트리에 *실제 존재하는* 라우트) 분리. builder는 단일 feature로 통합.
 
-> **⚠ boundary 승인 게이트 (codex R8·R12 — Phase η 진입 전 필수)**: 루트 `CLAUDE.md` 가 현재 **자유 편집 영역으로 명시한 교사 페이지는 `app/(teacher)/teacher/{classbot,builder}/*` 뿐**이다. 본 Phase η 가 재편하는 라우트 중 **`{classbot,builder}` 외 전부가 open boundary 밖**이다 — 즉 `teacher/page.tsx`(`/teacher` 루트 대시보드, codex R12 — 이것도 boundary 밖), `teacher/grading`, `teacher/grading/[id]`, `teacher/replay`, `teacher/replay/[id]`, `teacher/reports`, `teacher/reports/[id]`, `teacher/assignment/new` 의 **8 라우트**. 따라서 Phase η 는 자동 진입 불가 — 진입 전에 (a) 루트 `CLAUDE.md` 의 자유 편집 boundary 를 위 8 라우트까지 확장하는 **별도 룰 갱신 PR 머지**, 또는 (b) 해당 PR 에 대한 **사용자 명시 승인 게이트** 중 하나가 선행되어야 한다. 본 plan 머지만으로는 이 boundary 가 열리지 않는다 (§0 권위 순서 — 글로벌 파일 수정은 본 plan 만으로 승인 게이트 아님).
+> **⚠ boundary 구분 (codex R8·R12·R19 — "자유편집 외" ≠ "진입 금지")**: 루트 `CLAUDE.md` 가 **자유 편집 영역으로 명시 개방한 교사 페이지는 `app/(teacher)/teacher/{classbot,builder}/*` 뿐**이다. 본 Phase η 가 재편하는 나머지 라우트 — `teacher/page.tsx`(`/teacher` 루트), `teacher/grading`, `teacher/grading/[id]`, `teacher/replay`, `teacher/replay/[id]`, `teacher/reports`, `teacher/reports/[id]`, `teacher/assignment/new` (8 라우트) — 는 **자유 편집 선언 범위 밖**이다. ⚠ 단 (codex R19) base `CLAUDE.md` 가 이들을 *"사용자 명시 확인 필요"로 분류한 것은 아니다* — 즉 권위가 진입을 *금지* 하는 건 아니고, 단지 *자유편집으로 미리 승인한 영역도 아니다*. 따라서 Phase η PR 은 "자유편집 외 라우트" 임을 PR 본문에 명시하고 사용자 확인을 받는 것을 권장하되, 이를 "권위가 막는 게이트" 로 과장하지 않는다. (자유 편집 boundary 를 8 라우트로 확장하는 룰 갱신 PR 은 별도 — root `CLAUDE.md` 수정이므로 §4.2 글로벌 게이트 대상.)
 
 > **spec IA vs 실제 구현 차이 명시**: base spec `proc/spec/03-features-and-ia.md` §2.2 교사 IA 는 11 라우트 (`/teacher`, `/teacher/classbot`, `/teacher/builder`, `/teacher/live`, `/teacher/quiz`, `/teacher/reports`, `/teacher/grading`, `/teacher/templates`, `/teacher/settings`, `/teacher/replay`, `/teacher/replay/[id]`) 를 fix. 실제 워크트리는 `/teacher/{,classbot,builder,grading,grading/[id],replay,replay/[id],reports,reports/[id],assignment/new}` 10 라우트 — **spec IA 의 `live`/`quiz`/`templates`/`settings` 4 라우트는 미구현 상태**. 본 plan 의 Container/Presenter 재편 범위는 *실제 존재하는 10 라우트* 한정. 미구현 4 라우트 신규 구현은 본 plan 범위 외 — 별도 plan (`proc/plan/<date>_teacher-ia-missing-routes.md`) 으로 분리 처리 후 진입. Phase γ entity (templates), Phase ε mutation (live/quiz/settings 관련 mutation) 은 BE 측에서 이미 작성하므로 FE 신규 라우트가 추후 추가될 때 BE 는 즉시 연결 가능
 >
@@ -588,7 +592,7 @@ pullim envelope (Phase β 차용):
 
 ## 8. 본 plan의 완료 정의
 
-§1 "완료 기준" 7줄 모두 충족 시 — 사용자 명시("archive로 옮겨")가 있을 때만 `proc/archive/2026-05-27_planner-alignment.md` 로 이동.
+§1 "완료 기준" 항목 모두 충족 시 — 사용자 명시("archive로 옮겨")가 있을 때만 `proc/archive/2026-05-27_planner-alignment.md` 로 이동. **단 §1 의 교사 IA 미해결 부채(`/teacher/{live,quiz,templates,settings}`)가 열려 있는 동안은 "부분 완료"로만 취급** — 그 부채가 별도 plan 으로 닫히기 전까지 "교사 IA 완전 정렬" archive 는 불가 (codex R19).
 
 ---
 
