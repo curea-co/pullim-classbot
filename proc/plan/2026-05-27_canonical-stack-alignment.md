@@ -25,6 +25,7 @@
 - planner / Q / classbot 의 현행 scope-out (JWT / Redis / BullMQ / Design System / i18n / Sentry) — 본 문서가 정본 스택으로 적었더라도, 채택은 각 리포의 별도 spec 갱신 PR을 통해서만. 본 문서 자체로 채택 효력 없음.
 - classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
 - **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
+- **classbot 인증·CI·prod DB (codex R5)** — (인증) G6 의 "5건 모두 JWT" 는 classbot 제외 — Ph8 결정 보류·`x-user-id` mock. (CI) P0-4 의 `actions/setup-pnpm` 강제는 classbot 비적용 — bun workspace 고정이므로 classbot CI 는 `setup-bun` 유지(워크플로만 pnpm 으로 바꾸면 패키지매니저와 모순). (prod DB) P0-3 의 classbot RDS 확정은 오기 — base spec 은 `Neon/Supabase/RDS` 중 Ph9 결정 보류. 모두 spec 결정·§16 보류와 정합.
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -133,7 +134,7 @@
 | G3 | Next.js | 16.1.2 | 16 (games 만 15) | **S** (games 만 1 단계) | games — Next 15 → 16 |
 | G4 | BE 프레임워크 | NestJS 11 (common·config·database 표준 모듈) | planner/Q/classbot/arcade skeleton, games 부재 | **L** | games — BE 신설 결정 필요 |
 | G5 | ORM | TypeORM 0.3.28 + naming-strategies | classbot drizzle, 나머지 미적용 | **L** | classbot — **drizzle 은 갭 아님·현행 SOT** (codex R3): base `proc/spec/2026-05-18_be-api-design.md` 가 Drizzle config/schema/초기 migration 을 Ph1 완료 산출물로 고정하고 마이그레이션 정책도 `drizzle-kit migrate` 로 명시. TypeORM 전환은 spec 갱신 PR 선행 후에만 (§15 D-CB-ORM). 본 표의 "전환" 은 정본 모방 목표일 뿐 즉시 작업 아님 |
-| G6 | 인증 | Passport/JWT + bcrypt | Mock 4건, arcade bcryptjs, games 없음 | **L** | 5건 모두 JWT 도입 |
+| G6 | 인증 | Passport/JWT + bcrypt | Mock 4건, arcade bcryptjs, games 없음 | **L** | JWT 도입 — **단 classbot 제외/보류** (codex R5): classbot base spec 은 인증을 Ph8 결정 보류로 두고 현재 `x-user-id` mock fallback 만 허용. §6 P1-1·§7 단서대로 spec 인증 결정 전 적용 금지. 나머지 도메인(planner/Q/arcade)만 JWT 도입 대상 |
 | G7 | 캐시·큐 | Redis(ioredis) + BullMQ | 0건 | **L** | 5건 모두 신규 도입 |
 | G8 | FE DS | @pullim/design-system + DS 강제 import | shadcn 로컬 5건 | **L** | 5건 모두 마이그레이션 + 본체 DS 외부 노출 정책 확정 필요 |
 | G9 | FE i18n | next-intl + ko/en 단일 messages | 0건 (모두 한글 하드코딩) | **L** | 5건 모두 신규 도입, 텍스트 추출 비용 큼 |
@@ -174,7 +175,7 @@
 | **P0-1** | bun → pnpm 전환 | 5 도메인 일괄 (**classbot 보류** — 아래 단서) | bun.lock 삭제·pnpm-lock.yaml 생성, `packageManager: "pnpm@10.26.1"`, scripts `bun --filter` → `pnpm -C` 또는 `pnpm --filter`, `predev`의 `bun run` → `pnpm`, Dockerfile pnpm 베이스, CI workflow pnpm/action-setup<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `AGENTS.md`/`CLAUDE.md` 와 실제 root `packageManager` 가 **bun(`bun@1.3.12`) workspace** 로 고정돼 있다. classbot 에서는 이 항목을 기본 완료조건이 아니라 **권위 문서 선개정(룰 갱신 PR) 머지 전에는 적용 금지**인 별도 의사결정으로 다룬다. 본 plan 머지만으로 classbot pnpm 전환 효력 없음 |
 | **P0-2** | AWS ECS Fargate 셋업 | 5 도메인 또는 공유 cluster | cluster·service·task definition·ALB·target group·security group. cluster 옵션은 §8 결정 후 |
 | **P0-3** | RDS PostgreSQL 셋업 | 5 도메인 또는 공유 RDS | RDS 인스턴스·VPC·subnet group·parameter group·migrations. RDS 옵션은 §9 결정 후 |
-| **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 | `.github/workflows/{ci.yml,deploy.yml}`: actions/setup-pnpm·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update |
+| **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 (**classbot CI 는 bun 유지**) | `.github/workflows/{ci.yml,deploy.yml}`: setup(도메인 패키지매니저 기준)·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update<br>⚠ **classbot 단서 (codex R5)**: classbot 은 bun workspace 고정(권위)이고 P0-1 에서 pnpm 전환을 권위 문서 선개정 전까지 금지했으므로, classbot CI 워크플로의 setup 도 **`oven-sh/setup-bun` (bun 기준) 유지**한다. `actions/setup-pnpm` 강제는 pnpm 전환이 확정된 도메인 한정 — classbot 에 적용하면 패키지매니저(bun)와 워크플로(pnpm)가 모순됨. *§16 에 의해 P0-4 자체가 무기한 보류이기도 함* |
 | **P0-5** | Secrets Manager + CloudWatch Logs + S3 + SES | 5 도메인 또는 공유 | env 추출·Secrets Manager rotation policy·로그 그룹·S3 버킷 정책·SES verified identity |
 
 ### P1 — 코드 마이그레이션 (P0 완료 후)
@@ -209,7 +210,7 @@
 |---|---|---|---|---|---|
 | P0-1 pnpm | 신규 적용 | 신규 적용 | **보류** — classbot 은 bun workspace 고정(권위), 권위 문서 선개정 전 적용 금지 (§6 P0-1 단서) | alignment plan 의 Phase 0a 로 흡수 | 신규 적용 |
 | P0-2 ECS | 신규 적용 | 신규 적용 | 신규 적용 | BE 신설 + ECS 동시 (§8 결정) | 신규 적용 |
-| P0-3 RDS | 기존 docker compose → RDS | 기존 docker compose → RDS | drizzle 분리 결정 + RDS | 신규 (BE 신설 시) | 기존 docker compose → RDS |
+| P0-3 RDS | 기존 docker compose → RDS | 기존 docker compose → RDS | **prod DB 결정 대기** (codex R5 — classbot base spec 은 prod DB 를 `Neon / Supabase / RDS` 중 Ph9 결정 보류로 둠. RDS 확정 아님. §16 P0-3 무기한 보류와도 정합) | 신규 (BE 신설 시) | 기존 docker compose → RDS |
 | P0-4 CI/CD | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 + codex-review.yml 유지 | Vercel workflow 폐기 |
 | P0-5 Secrets·Logs·S3·SES | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 |
 | P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | **보류** — spec Ph8 인증 미정(현 `x-user-id` mock), bcryptjs 의존성 없음. spec 결정 후 적용 (§6 P1-1 단서) | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
