@@ -15,7 +15,7 @@
 다음 우선순위로 해석한다 (위가 강함):
 
 1. **각 리포 루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배한다.
-   - **앱 레벨 문서 우선 (codex R9 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 도메인 구체 룰에서 **`apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 먼저 참조**하라고 명시한다. 즉 classbot 의 도메인-구체 규칙은 루트 문서 → *앱 레벨 문서* 순으로 함께 권위를 갖는다. 본 문서가 둘 중 어느 것과도 충돌하면 패배. (단, 인용 시 mutable head 가 아니라 frozen `.codex-runtime/base-*` 스냅샷 경로로 고정 — 부록 A)
+   - **앱 레벨 문서 우선 (codex R9·R10 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다. 즉 **classbot 의 도메인-구체 규칙(금지/예외 포함)에서는 app-level 문서가 루트 문서보다 우선한다** (codex R10 — "루트 → 앱" 순이 아님). 루트 문서는 저장소 전역 규칙에, app-level 문서는 classbot 도메인 규칙에 각각 권위를 가지며, classbot 도메인 사안에서 둘이 충돌하면 **app-level 이 이긴다**. 본 문서가 둘 중 어느 것과도 충돌하면 패배. (단, 인용 시 mutable head 가 아니라 frozen `.codex-runtime/base-*` 스냅샷 경로로 고정 — 부록 A)
 2. **각 리포 `proc/spec/`** — 도메인 SOT. 본 문서는 spec 변경 제안일 뿐, spec 자체가 아니다.
 3. **각 리포 `proc/plan/2026-05-26_pullim-be-adoption.md` / `2026-05-26_container-presenter-adoption.md`** — 이미 채택된 BE/FE 정본 plan. 본 문서가 충돌하는 항목은 패배한다.
 4. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
@@ -31,6 +31,7 @@
 - **실행·완료 판정 명확화 (codex R7)** — (i) P2-4 packages 는 "기존 공유 3(types/api-client/auth) 구현 + 신규 3(config/logging/ui) = 6" 으로 개수·목록 고정(§6 P2-4·G15). (ii) 완료 조건의 결정 이력은 외부 `.pullim-meta/DECISIONS.md` 가 아니라 이 리포 안 본 plan 본문(§15/§16)에 누적(§14). (iii) games BE(D-GM-BE)는 §16.2 대로 "옵션 B 자체 NestJS 결정 완료" 로 §15 와 통일(재결정 게이트 불요).
 - **classbot 게이트 강도·재현성 (codex R8)** — (i) Redis/BullMQ 는 명시 금지는 아니나 BE 모듈 신설 + `common/config/database` 편집이 "사용자 명시 확인 필요"이므로 "바로 진행 가능한 일반 작업" 아님(§0 위·G7). (ii) classbot P0-4 는 `prod-verify.yml`(고유 회귀 자산) 유지/동등 대체 + workflow 편집 사용자 승인 선행(§6 P0-4·매트릭스). (iii) 부록 A 의 리포 루트 `CLAUDE.md`/`AGENTS.md` 는 mutable head 참고용 — classbot 권위 인용은 frozen `.codex-runtime/base-*` 로 고정(부록 A 콜아웃).
 - **classbot 글로벌 작업 게이트 보강 (codex R9)** — (i) authority order 에 앱 레벨 문서(`apps/classbot/{AGENTS,CLAUDE}.md`) 우선 참조 추가(§0 1번 하위). (ii) P0-1 pnpm 은 룰 갱신뿐 아니라 root 파일(`package.json`·`turbo.json`·`tsconfig.base.json`·`docker-compose.yml`) 편집 사용자 승인 선행(§6 P0-1). (iii) P1-2 Redis/BullMQ 는 BE 모듈·common/config 경로를 건드리므로 classbot 별도 승인 게이트(§6 P1-2). (iv) P2-4 `packages/*` 변경은 글로벌 작업이라 classbot 사용자 승인 선행(§6 P2-4). 모두 frozen `base-CLAUDE.md` 글로벌 작업 분류 기준.
+- **app-level 우선순위·게이트 노출·보류 신호 정합 (codex R10)** — (i) classbot 도메인-구체 룰에서 **app-level 문서가 루트보다 우선**(§0 1번 하위 — "루트→앱 순" 아님). (ii) P1-2 per-domain 매트릭스 행에도 classbot 승인 게이트 노출(§7 매트릭스). (iii) §§8-10 의 인프라 결정 "결정 시점" 을 §15-A/§16 무기한 보류와 동일 톤으로 정정(즉시 결정 신호 제거).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -221,7 +222,7 @@
 | P0-4 CI/CD | Vercel workflow 폐기 | Vercel workflow 폐기 | **Vercel workflow 폐기 — 단 `prod-verify.yml` 유지/동등 대체 + workflow 편집 사용자 승인 선행** (codex R8 — classbot 고유 회귀 자산) | Vercel workflow 폐기 + codex-review.yml 유지 | Vercel workflow 폐기 |
 | P0-5 Secrets·Logs·S3·SES | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 |
 | P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | **보류** — spec Ph8 인증 미정(현 `x-user-id` mock), bcryptjs 의존성 없음. spec 결정 후 적용 (§6 P1-1 단서) | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
-| P1-2 Redis·BullMQ | BE 신규 | BE 신규 | BE 신규 + drizzle 호환성 검토 | BE 신설 시 | BE 신규 |
+| P1-2 Redis·BullMQ | BE 신규 | BE 신규 | **사용자 승인 게이트 대상** — BE 모듈 신설 + `common/config/database` 편집 동반(글로벌 작업), 자동 진입 불가 (codex R10 — §0·§6 P1-2 와 동일). 진행 시 drizzle 호환성 검토 | BE 신설 시 | BE 신규 |
 | P1-3 DS | shadcn 28+ 컴포넌트 마이그레이션 | shadcn 마이그레이션 | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 DS import 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-3 단서) | shadcn (new-york/slate) → DS (시각 회귀 위험 — `bun run ui:audit` 4 viewport 필수) | shadcn 마이그레이션 |
 | P1-4 i18n | hard-coded 한글 추출 (planner-home/reports/manage/onboarding 28+ 컴포넌트) | hard-coded 한글 추출 (q/{infinity,talk,analysis,review}) | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 i18n 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-4 단서) | hard-coded 한글 추출 (21 게임 + 셸 + 메커니즘) — **mock 한글 데이터는 예외 컨벤션 적용** | placeholder 라 비용 작음 |
 | P1-5 TanStack Query | 신규 | 신규 | **이미 보유 (5.100.1)** — 정본 5.90.21 과 minor 호환 확인 | 신규 (BE 신설 시) | 신규 |
@@ -245,7 +246,7 @@
 
 **권장 (PM 의견)**: 옵션 C. 본체 격리 의도와 비용 효율의 절충. 도메인별 service 라 무중단 deploy 와 capacity 독립.
 **결정자**: G1 + G3 (BE 게이트키퍼).
-**결정 시점**: P0-2 시작 전 — 본 plan §15 즉시 결정 사안.
+**결정 시점**: ⚠ **무기한 보류** (codex R10 — §15-A·§16.2/16.3). "P0-2 시작 전 즉시 결정" 아님 — **프로젝트 병합 토폴로지 확정(§16.3 (a)/(b)) 전까지 결정 금지**. 위 옵션·권장안은 *보류 해제 후* 참고 후보일 뿐. 후속 작업자는 이 결정으로 인프라 트랙(P0-2)을 열지 말 것.
 
 ---
 
@@ -261,7 +262,7 @@
 
 **권장 (PM 의견)**: 옵션 B. 비용 절약 + 도메인 격리 보존. 인스턴스는 1 이지만 DB 가 분리되어 권한·dump 도 분리 가능.
 **결정자**: G1 + G3.
-**결정 시점**: P0-3 시작 전.
+**결정 시점**: ⚠ **무기한 보류** (codex R10 — §15-A·§16.2/16.3). "P0-3 시작 전" 아님 — 병합 토폴로지 확정 전까지 결정 금지. classbot 은 추가로 base spec Ph9 prod DB(`Neon/Supabase/RDS`) 결정도 선행. 위 옵션·권장안은 *보류 해제 후* 참고.
 
 ---
 
@@ -277,7 +278,7 @@
 
 **권장 (PM 의견)**: 옵션 C. planner 는 이미 Phase β 진행 중 → 자연스러운 1 선행. P1-1 머지 후 4 도메인 일제 P0 시작.
 **결정자**: G1 (대표 — 일정 사안).
-**결정 시점**: 본 plan 합의 시점.
+**결정 시점**: ⚠ **인프라 보류 종속** (codex R10 — §15-A·§16). 출시 시퀀스는 P0 인프라(P0-2/3/4) 보류 해제 이후에만 확정 가능 — "본 plan 합의 시점" 즉시 결정 아님. 구조·코드 트랙(§14-A)은 보류와 무관하게 진행 가능하나, 인프라 시퀀스 자체는 §16.3 조건 충족 후. 위 권장안은 *해제 후* 참고.
 
 ---
 
