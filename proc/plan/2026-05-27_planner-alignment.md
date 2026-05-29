@@ -11,7 +11,9 @@
 3. **이미 채택된 다른 plan** — 본 plan 이 충돌하면 패배.
 4. **본 plan** — PROPOSAL.
 
-**패배 사례** (codex R1~R7 누적 지적 흡수):
+**패배 사례** (codex R1~R8 누적 지적 흡수):
+- **`pullim-planner` plan 문서의 authority 지위** — planner plan 은 authority 가 아니다 (BE 패턴 권위는 루트 `AGENTS.md` 가 가리키는 `curea-co/pullim`). §1.2 표는 배경 참고일 뿐, 채택은 본 리포 base 검증 후에만 유효.
+- **교사 라우트 자유 편집 boundary** — 루트 `CLAUDE.md` 가 명시한 open boundary 는 `app/(teacher)/teacher/{classbot,builder}/*` 뿐. Phase η 가 건드리는 `grading`/`replay`/`reports`/`assignment/new` 는 boundary 밖이므로, 본 plan 머지만으로 진입 불가 — 별도 룰 갱신 PR 또는 사용자 승인 게이트 선행 (§5 Phase η 게이트).
 - 본 plan 의 **현재 base 가정** (D-Lite 완료 / `apps/{classbot,backend}` 모노레포 등) — 실제 base 와 다르면 base 우선. 후속 PR 은 *현 시점 실제 워크스페이스* 를 다시 확인하고 진입.
 - **모노레포 전제·엔티티 26표·read endpoint 수** 등 정량 수치 — `proc/spec/` 의 권위 수치가 우선. 본 plan 의 표기 차이는 본 plan 측 오기로 간주.
 - **글로벌 파일(GA workflow, root `CLAUDE.md`) 수정** — 본 plan 만으로 승인 게이트 아님. 별도 spec/룰 PR 필요.
@@ -66,13 +68,15 @@
 - ❌ Container/Presenter 미도입 — 14+10 페이지가 모두 page 안에 로직
 - ❌ BE 도메인 모듈 미작성 — `apps/classbot/lib/db/` Drizzle schema만 존재 (Ph1·Ph2 seed 완료, Ph3 read API는 미착수)
 
-### 1.2 자매 리포(pullim-planner) 정렬 결정 (정본 정독)
+### 1.2 자매 리포(pullim-planner) 정렬 패턴 (배경 참고 — authority 아님)
 
-| 출처 | 채택 결정 (이 리포에도 그대로 적용) |
+> **권위 격하 (codex R8)**: `pullim-planner` 의 plan 문서는 본 리뷰의 authority 출처가 **아니다**. 루트 `AGENTS.md` 는 BE 패턴 권위를 `curea-co/pullim` 으로만 두고, planner plan 은 authority 로 승격된 적이 없다. 아래 표는 **참고 패턴(reference)** 일 뿐이며, 실제 채택은 §0 권위 순서에 따라 **본 리포 base 문서(`proc/spec/` · 루트 `AGENTS.md`/`CLAUDE.md`)로 검증된 결정만** 유효하다. planner plan 과 본 리포 base 가 충돌하면 항상 base 우선.
+
+| 출처 (참고 패턴) | planner 측 패턴 — 본 리포 채택 여부는 §0 base 검증 후 결정 |
 |---|---|
-| `proc/plan/2026-05-26_pullim-be-adoption.md` | 풀 흡수(`apps/planner` + `apps/backend`) / Drizzle 완전 대체 / bun + workspace / NestJS 11 + TypeORM 0.3.x / Cls 채택·Redis·JWT 보류 / mock 인증(`X-User-Id` 헤더) 유지 / 응답 envelope = pullim 패턴(`{ success, data \| error }`) |
-| `proc/plan/2026-05-26_container-presenter-adoption.md` | 로직 보유 page(80줄+) → Container + Presenter / `features/<domain>/{containers,presenters,components,hooks}/` / `page.tsx` = `<Suspense><XxxContainer /></Suspense>` 마운트만 / cross-feature import 허용(widget 소유권 명확 시) |
-| `CLAUDE.md` · `AGENTS.md` (root) | 영구 도메인 락인 / 새 도메인 추가는 글로벌 작업 / shell·ui·brand·tokens는 자유 / `apps/backend/src/{common,config,database}/`는 글로벌 |
+| `proc/plan/2026-05-26_pullim-be-adoption.md` (planner, 참고) | 풀 흡수(`apps/planner` + `apps/backend`) / Drizzle 완전 대체 / bun + workspace / NestJS 11 + TypeORM 0.3.x / Cls 채택·Redis·JWT 보류 / mock 인증(`X-User-Id` 헤더) 유지 / 응답 envelope = pullim 패턴(`{ success, data \| error }`) — *본 리포에서는 spec 갱신 PR 로 채택 검증 전까지 미적용* |
+| `proc/plan/2026-05-26_container-presenter-adoption.md` (planner, 참고) | 로직 보유 page(80줄+) → Container + Presenter / `features/<domain>/{containers,presenters,components,hooks}/` / `page.tsx` = `<Suspense><XxxContainer /></Suspense>` 마운트만 / cross-feature import 허용(widget 소유권 명확 시) |
+| `CLAUDE.md` · `AGENTS.md` (본 리포 root — **authority**) | 영구 도메인 락인 / 새 도메인 추가는 글로벌 작업 / shell·ui·brand·tokens는 자유 / `apps/backend/src/{common,config,database}/`는 글로벌 |
 
 ### 1.3 classbot 권위 문서 (정렬 시 reference)
 
@@ -365,7 +369,7 @@ spec 은 본 plan 진행 시점에서 **여전히 권위 문서**이며, 결정 
 Phase γ entity·마이그레이션·seed 가 prod-verify Playwright 7 spec 회귀 0 으로 main 머지 + production 정상 동작이 확인된 *후* 별도 PR 로 폐기:
 
 - 폐기 대상: `apps/classbot/drizzle/`, `apps/classbot/drizzle.config.ts`, `apps/classbot/lib/db/`, `apps/classbot/scripts/seed.ts`, `apps/classbot/package.json` 의 drizzle-orm/drizzle-kit/pg/@types/pg 의존성
-- spec §2 말미 SOT 라인은 Phase γ 본 PR 에서 이미 `apps/backend/src/entities/*` 로 갱신됨 — Phase γ' 에서는 추가 갱신 불필요
+- spec §2 말미 SOT 라인은 Phase γ 본 PR 에서 이미 `apps/backend/src/modules/classbot/entities/*` (루트 `CLAUDE.md` §2 도메인 래퍼 boundary 내부) 로 갱신됨 — Phase γ' 에서는 추가 갱신 불필요
 - **완료 기준**: `grep -r "drizzle" apps/classbot/` 0건 (의존성 import 잔존 없음). Playwright 7 spec 회귀 0
 
 ### Phase δ — read endpoint 25개 이식 (1 PR)
@@ -438,6 +442,8 @@ logic 비중 높은 4개부터:
 ### Phase η — FE Container/Presenter 재편 (교사) + builder feature 통합 (1 PR)
 
 **목표**: 교사 10 페이지 (D-Lite 후 워크트리에 *실제 존재하는* 라우트) 분리. builder는 단일 feature로 통합.
+
+> **⚠ boundary 승인 게이트 (codex R8 — Phase η 진입 전 필수)**: 루트 `CLAUDE.md` 가 현재 **자유 편집 영역으로 명시한 교사 페이지는 `app/(teacher)/teacher/{classbot,builder}/*` 뿐**이다. 본 Phase η 가 재편하는 `teacher/grading`, `teacher/grading/[id]`, `teacher/replay`, `teacher/replay/[id]`, `teacher/reports`, `teacher/reports/[id]`, `teacher/assignment/new` 는 **현행 open boundary 밖**이다. 따라서 Phase η 는 자동 진입 불가 — 진입 전에 (a) 루트 `CLAUDE.md` 의 자유 편집 boundary 를 위 7 라우트까지 확장하는 **별도 룰 갱신 PR 머지**, 또는 (b) 해당 PR 에 대한 **사용자 명시 승인 게이트** 중 하나가 선행되어야 한다. 본 plan 머지만으로는 이 boundary 가 열리지 않는다 (§0 권위 순서 — 글로벌 파일 수정은 본 plan 만으로 승인 게이트 아님).
 
 > **spec IA vs 실제 구현 차이 명시**: base spec `proc/spec/03-features-and-ia.md` §2.2 교사 IA 는 11 라우트 (`/teacher`, `/teacher/classbot`, `/teacher/builder`, `/teacher/live`, `/teacher/quiz`, `/teacher/reports`, `/teacher/grading`, `/teacher/templates`, `/teacher/settings`, `/teacher/replay`, `/teacher/replay/[id]`) 를 fix. 실제 워크트리는 `/teacher/{,classbot,builder,grading,grading/[id],replay,replay/[id],reports,reports/[id],assignment/new}` 10 라우트 — **spec IA 의 `live`/`quiz`/`templates`/`settings` 4 라우트는 미구현 상태**. 본 plan 의 Container/Presenter 재편 범위는 *실제 존재하는 10 라우트* 한정. 미구현 4 라우트 신규 구현은 본 plan 범위 외 — 별도 plan (`proc/plan/<date>_teacher-ia-missing-routes.md`) 으로 분리 처리 후 진입. Phase γ entity (templates), Phase ε mutation (live/quiz/settings 관련 mutation) 은 BE 측에서 이미 작성하므로 FE 신규 라우트가 추후 추가될 때 BE 는 즉시 연결 가능
 
