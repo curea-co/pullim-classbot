@@ -6,12 +6,17 @@
 
 본 plan 은 classbot 도메인의 **정렬 목표 제안서** 다. 실행 게이트로 채택된 적은 없으며 다음 우선순위로 해석한다:
 
-1. **루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배.
-2. **`proc/spec/`** — classbot 도메인 SOT (특히 `2026-05-18_be-api-design.md`). 본 plan 은 spec 변경 제안일 뿐.
-3. **이미 채택된 다른 plan** — 본 plan 이 충돌하면 패배.
-4. **본 plan** — PROPOSAL.
+1. **루트 `AGENTS.md` / `CLAUDE.md`** (+ classbot 도메인-구체 룰은 `apps/classbot/{AGENTS,CLAUDE}.md` 우선 참조) — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배.
+2. **`proc/spec/` · `input/docs-archive/`** — classbot 도메인 SOT (특히 `2026-05-18_be-api-design.md`, `14-teacher-assignment-workspace.md`, `03-features-and-ia.md`, `07_풀림_클래스봇_핸드오프.md`). 본 plan 은 spec 변경 제안일 뿐.
+3. **본 plan** — PROPOSAL.
 
-**패배 사례** (codex R1~R16 누적 지적 흡수):
+> **권위 계층에 plan 문서 없음 (codex R17)**: 이 저장소에서 권위로 인정되는 것은 **root `AGENTS.md`/`CLAUDE.md` + `proc/spec/` + `input/docs-archive/`(+ app-local 가이드)** 뿐이다. `pullim-planner` 의 plan 이든 *이미 채택된 다른 plan* 이든, **plan 문서는 권위 계층이 아니라 참고 문서**다 — 본 plan 이 다른 plan 과 충돌하더라도 그 plan 이 권위라서 패배하는 게 아니라, 위 1·2 권위 문서 기준으로만 판단한다.
+
+**패배 사례** (codex R1~R17 누적 지적 흡수):
+- **plan 문서는 권위 계층 아님** — 권위는 root 가이드 + `proc/spec/` + `input/docs-archive/`(+ app-local 가이드)뿐. "이미 채택된 다른 plan" 도 참고 문서 (§0 위).
+- **`BotTone` taxonomy SOT** — mutable mock(5종)이 아니라 권위 문서 3 톤(정중/친근/스파르타). 5종 확정은 spec 갱신 선행 (§4.2).
+- **교사 IA 완전 정렬은 종속 항목** — 본 plan 완료 ≠ 교사 IA 완전 정렬. `/teacher/{live,quiz,templates,settings}` 4 라우트는 별도 plan 종속 (§1 완료 기준).
+- **assignment surfaces mock 제외** — spec `14-teacher-assignment-workspace.md` 가 mock+localStorage MVP 로 고정. spec 14 BE 연동 개정 전까지 assignment 는 mock 제거 제외 (§5 Phase θ).
 - **app-local 가이드 게이트·권위 (codex R16)** — 글로벌 승인 게이트는 root `CLAUDE.md`/`AGENTS.md`/`README.md` + 저장소 전역 파일만. `apps/classbot/{CLAUDE,AGENTS}.md` 는 게이트 아닌 일반 작업이며, classbot 도메인-구체 룰의 *우선 참조* 권위다(비권위는 planner plan 문서뿐). §4.2.
 - **Container/Presenter thin 판정** — `page.tsx` 줄 수가 아니라 route-local 로직 위치로 판단. `wellness/check-in`(form 166줄)·`grading/[id]`(detail 223줄)·`assignment/new`(form 577줄) 은 wrapper 가 얇아도 분리 대상 (§5 Phase ζ-2·η). 완료 기준: 학생 10·교사 9.
 - **Phase 수·명칭 정합** — 본 plan 은 8 Phase α~θ(+γ' 정리 PR). "6 Phase·7 단계·Phase 2s/2t/3s/3t·η-2" 등 표기는 오기 — FE 분리는 ζ(학생)/η(교사), mock 제거는 θ (§2·§5).
@@ -40,7 +45,7 @@
 - **글로벌 파일(GA workflow, root `CLAUDE.md`) 수정** — 본 plan 만으로 승인 게이트 아님. 별도 spec/룰 PR 필요.
 - **Drizzle SOT 폐기 시점** — Phase γ entity 동등성 검증 통과 전에는 SOT 유지. 본 plan 의 "Phase α 폐기" 등 표기는 정렬 목표 (실행 시점이 아니라 종착점).
 - **BE entity 배치** (도메인 래퍼 안/밖) — 본 plan 내부 모순이 있다면 root `CLAUDE.md` §2 의 `apps/backend/src/modules/classbot/` 도메인 래퍼 규정이 우선.
-- **공유 타입 `BotTone` 정의** — 현재 소스가 SOT. 본 plan 의 다른 정의는 spec 변경 제안일 뿐.
+- **공유 타입 `BotTone` 정의** — tone taxonomy 정본은 **권위 문서(`07_풀림_클래스봇_핸드오프.md`·`03-features-and-ia.md`)의 3 톤** (codex R17). mutable mock source(5종)는 SOT 아님 — 5종 확정은 spec 갱신 PR 선행 (§4.2 BotTone 결정).
 - **actor/RBAC/교사 IA** — 권위 spec 의 actor·RBAC·교사 IA 가 우선. 본 plan 의 학생·교사 단순화 표기는 정렬 목표 (실제 권위는 spec).
 - **`bun` 우회 `pnpm` 경로** — base 가이드 우선. pnpm 전환은 별도 인프라 결정 PR 통해서만.
 
@@ -64,9 +69,10 @@
 
 **완료 기준** (이 plan 전체):
 - `apps/backend/src/modules/classbot/` (root `CLAUDE.md` §2 가 명시한 도메인 래퍼) 가 spec `2026-05-18_be-api-design.md` 도메인 모델 (entity 표 #1~#26 = **26 테이블**, Phase γ PR 동봉 spec 갱신으로 본문 "24 테이블" → "26 테이블" 으로 해소) / ~36 endpoint 카탈로그에 대응하는 NestJS 모듈 보유 (`apps/classbot/lib/db/` Drizzle → `apps/backend/src/modules/classbot/entities/` TypeORM 대체. 폐기는 entity 동등성 검증 통과 후 별도 PR에서)
-- `apps/classbot/` FE 페이지(학생 14 + 교사 10)가 모두 Container/Presenter 분리 + `features/<domain>/` 컨벤션
-- `apps/classbot/` FE는 `@pullim-classbot/api-client` 만 import (mock 직접 import 0건)
+- `apps/classbot/` FE 페이지(학생 14 + 교사 10)가 모두 Container/Presenter 분리 + `features/<domain>/` 컨벤션. **단 이 완료 정의는 "구조 정렬 완료" 이지 "교사 IA 완전 정렬" 이 아니다** (codex R17): 권위 IA `proc/spec/03-features-and-ia.md` §2.2 가 고정한 `/teacher/{live,quiz,templates,settings}` 4 라우트는 현재 미구현 — 이 4 라우트 신규 구현은 **본 plan 완료의 종속 항목**으로, 별도 plan(`proc/plan/<date>_teacher-ia-missing-routes.md`)이 진입·완료되어야 권위 IA 와 완전 정렬된다. 본 plan 단독 완료 ≠ 교사 IA 완전 정렬
+- `apps/classbot/` FE는 `@pullim-classbot/api-client` 만 import (mock 직접 import 0건). **단 assignment surfaces 예외** (codex R17): 권위 spec `proc/spec/14-teacher-assignment-workspace.md` 는 `/teacher/assignment/new` MVP 를 *"백엔드 없이 mock + Zustand/localStorage E2E 시연"* 으로 고정하므로, **이 spec 이 BE 연동으로 개정되기 전까지 assignment surfaces 는 mock 제거 범위에서 제외**한다 (§5 Phase θ 단서). 즉 "mock 0건" 완료 기준은 spec 14 개정 후에만 assignment 포함
 - `proc/spec/2026-05-18_be-api-design.md` 갱신: 채택 ORM·API 스타일·디렉토리 구조를 새 결정으로 교체. 동시에 spec §3 응답 컨벤션을 pullim envelope 로 전환. spec 본문 "24 테이블" ↔ entity 표 26행 불일치도 본 갱신 시 해소 (§4.4 결정 참조)
+- **`proc/spec/14-teacher-assignment-workspace.md` 갱신 조건 명시** (codex R17): 이 spec 이 assignment 워크스페이스 MVP 를 "BE 없이 mock + localStorage E2E" 로 고정하므로, assignment surfaces 를 BE 연동 + mock 제거로 전환하려면 **spec 14 를 "BE 연동" 으로 개정하는 PR 이 선행**되어야 한다 (spec read-only 예외 승인 — §4.3). spec 14 개정 전까지 assignment surfaces 는 mock 유지 (BE 다른 도메인은 Phase δ·ε 로 진행하되 assignment 영속화만 spec 14 개정에 종속)
 - root `CLAUDE.md` / `AGENTS.md` 의 BE 영역 + Container/Presenter 컨벤션 갱신, `apps/classbot/{CLAUDE,AGENTS,README}.md` 의 FE features/ 컨벤션 갱신
 - `.github/workflows/prod-verify.yml` 은 **정렬 대상 외 — 본 plan 무변경, D-Lite 머지 시 이미 모노레포 path filter 적용 완료** (§3.5)
 
@@ -320,10 +326,11 @@ spec 은 본 plan 진행 시점에서 **여전히 권위 문서**이며, 결정 
 
 **packages/types 추가** (`@pullim-classbot/types`):
 - `ScopeLevel` 1~5 + `scopeMeta` Record (현 `apps/classbot/lib/mock/tutor.ts` 를 그대로 이식)
-- `BotTone` — **도메인 SOT 와 builder UI 간 불일치 사전 정리 필요** (Phase γ 또는 Phase η 진입 전):
-  - **도메인 SOT** = `apps/classbot/lib/mock/classbot.ts` 의 `ClassBot.tone = '정중' | '친근' | '스파르타' | '차분' | '열정'` (한글 5종). `lib/mock/chat.ts`·`classbot-greeting.ts` 도 한글 5종 일치
-  - **builder UI** = `apps/classbot/components/builder/builder-types.ts:12` 의 `BotTone = 'formal' | 'friendly' | 'spartan'` (영문 3종 + `toneMeta` Record) — 도메인 SOT 와 어긋남
-  - **결정**: `packages/types/src/bot-tone.ts` 에 도메인 SOT 따라 한글 5종 `BotTone` 정본 정의. builder UI 의 영문 3종은 *UI label key* 로 격하 (별도 `BuilderToneOption` 타입) + ↔ 매핑 helper (`mapBuilderToBotTone()`). Phase η builder 재편 시 매핑 계층 도입 + builder-types.ts 의 `BotTone` 이름 삭제(또는 alias 만). 본 결정은 Phase γ entity (`class_bots.tone`) 작성 *전* 에 확정해야 entity 컬럼 타입과 일치 — Phase β PR 또는 별도 사전 PR 에서 처리
+- `BotTone` — **tone taxonomy 는 권위 문서 기준으로 확정** (codex R17 — mutable source 를 SOT 로 선언 금지). 현황과 권위가 셋이 다 다름:
+  - **권위 문서 (SOT)** = `input/docs-archive/07_풀림_클래스봇_핸드오프.md` + `proc/spec/03-features-and-ia.md` 가 **3 톤** 명시 (정중/친근/스파르타 — 또는 정석/친구톤/스파르타). **tone taxonomy 의 정본은 이 권위 문서**다.
+  - **(참고) 현재 mock source** = `apps/classbot/lib/mock/classbot.ts` 의 한글 5종(`정중|친근|스파르타|차분|열정`) — *mutable head 구현일 뿐 SOT 아님*. 권위 3 톤과 불일치(2종 초과).
+  - **(참고) builder UI** = `apps/classbot/components/builder/builder-types.ts:12` 의 영문 3종(`formal|friendly|spartan`) — 권위 3 톤과 *개수는 일치, 표기는 영문*.
+  - **결정 (codex R17)**: `packages/types/src/bot-tone.ts` 의 `BotTone` 정본은 **권위 문서 3 톤 기준**으로 정의한다. 현재 mock 의 5종(`차분`/`열정` 등 권위 외 2종)을 정본으로 승격하려면 **먼저 `proc/spec/`(또는 `07_핸드오프`) 갱신 PR 로 tone taxonomy 를 확정**해야 한다 (spec read-only 예외 승인 — §4.3). spec 갱신 전에는 권위 3 톤으로 한정. builder UI 영문 3종은 ↔ 매핑 helper (`mapBuilderToBotTone()`) 로 권위 3 톤과 연결. 본 결정은 Phase γ entity (`class_bots.tone`) 작성 *전* 확정 — Phase β PR 또는 별도 사전 PR + (5종 확정 시) spec 갱신 동봉
 - spec §2 entity 표 **26 테이블** (#1~#26 행 — templates·chat_messages 포함) 의 DTO 타입 (BE↔FE 공유)
 
 ### 4.5 PR 머지 정책
@@ -498,14 +505,16 @@ logic 비중 높은 4개부터:
 
 ### Phase θ — FE mock 제거 → `@pullim-classbot/api-client` 전환 (1~2 PR)
 
-**목표**: mock 직접 import 0건 + prod-verify Playwright spec 영향 최소화.
+**목표**: mock 직접 import 0건 (**assignment surfaces 예외 — 아래 단서**) + prod-verify Playwright spec 영향 최소화.
 
-- `apps/classbot/components/features/*/containers/*` 안의 `from '@/lib/mock/*'` 전부 `@pullim-classbot/api-client` 호출로 치환 (`@/*` 는 D-Lite 후 `apps/classbot/*` 를 가리킴 — root `CLAUDE.md` §2 참조)
+> **⚠ assignment surfaces 는 mock 제거 제외 (codex R17)**: 권위 spec `proc/spec/14-teacher-assignment-workspace.md` 가 `/teacher/assignment/new` MVP 를 "BE 없이 mock + Zustand/localStorage E2E 시연" + 학생 자동 반영도 같은 전제로 고정한다. 따라서 **spec 14 를 BE 연동으로 개정하는 PR 이 머지되기 전까지 assignment 관련 surface(`teacher/assignment/new`, 학생 `assignment/*`)는 mock 제거 대상에서 제외**한다 — 본 Phase θ 의 "mock 0건" 은 *assignment 외 surface* 한정. assignment 의 mock→API 전환은 spec 14 개정 동봉 후 별도 진입
+
+- `apps/classbot/components/features/*/containers/*` 안의 `from '@/lib/mock/*'` 전부 `@pullim-classbot/api-client` 호출로 치환 (`@/*` 는 D-Lite 후 `apps/classbot/*` 를 가리킴 — root `CLAUDE.md` §2 참조). **단 assignment surface 의 mock 은 spec 14 개정 전까지 유지**
 - Server Component 데이터 패칭 패턴 확정 (Server Component fetch vs Route Handler proxy vs Server Action — pullim envelope 분기 한 군데로)
 - `chat.ts` mock (원본 phase1.ts 발췌분) → **seed 흡수 아님** (codex R10 — `chat_messages` 는 spec 정의대로 seed 비움, §4.4·Phase γ 와 일치). FE 채팅 화면은 **Phase ε `POST /api/bots/{id}/chat` (🟠 — chat_messages 영속화) 호출로 전환**하고, `chat.ts` mock 직접 import 는 본 Phase θ 마지막 PR 에서 제거. 즉 chat_messages 테이블은 런타임 mutation 으로만 채워지며 seed 단계에서는 비어 있음
 - mock 10개 파일 자체는 **마지막 PR에서만 제거** (회귀 안전망)
 - **prod-verify 영향 검증**: Playwright spec 7개 중 어느 spec이 mock에 의존하는지 사전 확인. 의존 spec이 있으면 해당 spec을 BE 응답 expect로 갱신 (prod-verify 워크플로우 자체는 무변경)
-- **완료 기준**: `grep -r "from '@/lib/mock" apps/classbot/` 0건 (D-Lite 후 평면 구조, src/ 없음). `bun --filter @pullim-classbot/classbot test:e2e` 통과. prod-verify 다음 main push 시 정상 동작.
+- **완료 기준**: `grep -r "from '@/lib/mock" apps/classbot/` 0건 — **단 spec 14 개정 전에는 assignment surface 제외** (`grep` 시 `--exclude` 또는 assignment 경로 별도 추적). spec 14 가 BE 연동으로 개정되면 그때 assignment mock 도 제거하여 0건 달성. `bun --filter @pullim-classbot/classbot test:e2e` 통과. prod-verify 다음 main push 시 정상 동작.
 
 ---
 
