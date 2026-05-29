@@ -11,7 +11,9 @@
 3. **이미 채택된 다른 plan** — 본 plan 이 충돌하면 패배.
 4. **본 plan** — PROPOSAL.
 
-**패배 사례** (codex R1~R13 누적 지적 흡수):
+**패배 사례** (codex R1~R14 누적 지적 흡수):
+- **Phase 수·명칭 정합** — 본 plan 은 8 Phase α~θ(+γ' 정리 PR). "6 Phase·7 단계·Phase 2s/2t/3s/3t·η-2" 등 표기는 오기 — FE 분리는 ζ(학생)/η(교사), mock 제거는 θ (§2·§5).
+- **`apps/classbot/AGENTS.md` 규칙 원천** — planner AGENTS.md 그대로 차용 금지. base 권위(`curea-co/pullim`·base spec) + 현재 소스에서 재도출 (§4.2).
 - **Phase β `common/` 차용 출처** — planner plan 이 아니라 `pullim` 본체/base spec 으로 검증된 항목만 채택. planner 특화 결정 직차용 금지 (§5 Phase β).
 - **Phase γ' drizzle grep 완료 기준** — 코드 경로(`*.ts/*.tsx/package.json`)만. 가이드 `*.md` 의 drizzle 정리는 별도 가이드 수정 게이트(§4.2) 대상 (§5 Phase γ').
 - **Phase α 진입 승인** — plan 동의만으로 Phase α 착수 불가. spec read-only 예외(§4.3) + root 가이드 수정 승인(§4.2) 선행 후에만 (§9 다음 단계).
@@ -111,8 +113,8 @@
 
 | 축 | planner | classbot | 본 plan 대응 |
 |---|---|---|---|
-| **사용자 그룹** | 학생 단일 (`student_001`) | **학생 + 교사** 2그룹 | route group `(student)` / `(teacher)` 그대로 유지. Container/Presenter Phase를 학생/교사 **두 하위 Phase로 분리** (§5 Phase 2s/2t/3s/3t) |
-| **페이지 규모** | 6 페이지 (manage 3 + planner home + onboarding + reports) | **학생 14 + 교사 10 = 24 페이지** | planner 4 Phase → 본 plan **6 Phase** (학생 4 + 교사 3) — §5 |
+| **사용자 그룹** | 학생 단일 (`student_001`) | **학생 + 교사** 2그룹 | route group `(student)` / `(teacher)` 그대로 유지. Container/Presenter Phase를 학생/교사 **두 Phase로 분리** — **Phase ζ(학생, ζ-1·ζ-2) / Phase η(교사)** (§5) |
+| **페이지 규모** | 6 페이지 (manage 3 + planner home + onboarding + reports) | **학생 14 + 교사 10 = 24 페이지** | planner 4 Phase → 본 plan **8 Phase** (α·β·γ(+γ')·δ·ε·ζ·η·θ) — FE Container/Presenter 는 학생(ζ)·교사(η) 두 Phase 로 분리, mock 제거는 θ. §5 참조 |
 | **권한 모델** | 없음 (단일 사용자) | **`ScopeLevel` 1~5** — base `input/docs-archive/07_풀림_클래스봇_핸드오프.md` (5단계 Scope Guard 정의) + `input/docs-archive/05_풀림_수업방_세부기획.md` (수업방·라이브 Scope 정책) + spec `2026-05-18_be-api-design.md` (entity 스키마)가 SOT. `apps/classbot/lib/mock/tutor.ts` 가 ScopeLevel 타입 보유. `class_bots.scope`, `live_sessions.scope`, `bot_questions.scope_used`, `assignments.scope_override` 등 다수 entity에 침투 | TypeORM entity 작성 시 `ScopeLevel` 을 `@pullim-classbot/types` 공유 패키지로 승격(Phase γ). 권한 가드는 Phase β에서 `RolesGuard` (pullim의 `JwtAuthGuard`+`RolesGuard` 패턴)을 **scope 기반으로 확장한 `ScopeGuard`** 신설 (mock 헤더 인증 위에 얹음) |
 | **mock 출처 분기** | `lib/mock/planner.ts` 가 SOT | `apps/classbot/lib/mock/chat.ts` = 원본 `phase1.ts`에서 클래스봇 채팅만 발췌. `tutor.ts` = ScopeLevel만 잔존(본체는 Q 도메인). `family.ts` = type만 (보호자 UI는 사라짐) | **Phase θ 에서 mock 제거** 시 chat 은 FE 가 `chat_messages` 영속 API(Phase ε `POST /api/bots/{id}/chat`)로 전환, tutor 는 ScopeLevel 만 types 패키지로 승격, family 는 spec entity #2 `parent_child_links` 로 흡수 (BE 측 entity 작성은 Phase γ, 채팅 영속화 mutation 은 Phase ε) |
 
@@ -283,7 +285,7 @@ D-Lite 머지 시 이미 root `CLAUDE.md` / `AGENTS.md` + `apps/classbot/{CLAUDE
 - **root `CLAUDE.md`** — §2 `apps/backend` 절: Phase β 진입 시 NestJS 도메인 모듈 추가 명시. Phase γ 진입 시 entities 표 cross-link
 - **root `AGENTS.md`** — BE 패턴 권위(pullim) 외에 ScopeGuard·Container/Presenter 결정도 본 plan 진행 시 갱신
 - **`apps/classbot/CLAUDE.md`** — Phase ζ·η 진입 시 `components/features/<domain>/` 컨벤션 + Container/Presenter 분리 boundary 추가. Phase θ 진입 시 mock 0건 + `@pullim-classbot/api-client` 단일 import 정책 명시
-- **`apps/classbot/AGENTS.md`** — planner AGENTS.md 의 "Container/Presenter 컨벤션" 표 + "cross-feature import 정책" 그대로 차용 (도메인명만 `planner-*` → `classbot-*`, `teacher-*`)
+- **`apps/classbot/AGENTS.md`** — Container/Presenter 컨벤션 + cross-feature import 정책을 명시. **단 planner AGENTS.md 를 규칙 원천으로 *그대로 차용* 하지 않는다** (codex R14 — base `AGENTS.md` 는 BE 패턴 권위를 `curea-co/pullim` 으로만 두고, base snapshot 외 AGENTS/CLAUDE 는 권위 아님). planner 문서는 *참고* 일 뿐이며, classbot 용 규칙은 **base 권위 문서(`curea-co/pullim`·base spec) + 현재 classbot 소스에서 재도출**한다 (도메인명은 `classbot-*`·`teacher-*`)
 
 ### 4.3 권위 spec 갱신 (`proc/spec/2026-05-18_be-api-design.md`)
 
@@ -331,7 +333,7 @@ spec 은 본 plan 진행 시점에서 **여전히 권위 문서**이며, 결정 
 
 ---
 
-## 5. PR 분할 (제안 — 7 단계 / 9 PR)
+## 5. PR 분할 (제안 — 8 Phase α~θ + γ' 정리 PR / 약 10~12 PR)
 
 각 단계는 독립 PR로 머지 가능. 이전 단계 머지 → 다음 단계 진입. **학생/교사 페이지 분리**가 정렬의 핵심이라 Phase 2·3은 학생/교사 하위 Phase로 분할.
 
@@ -450,7 +452,7 @@ logic 비중 높은 4개부터:
 - `classbot/replay/page.tsx` (340줄) → `ReplayListContainer` + `ReplayListPresenter`
 - `classbot/assignment/page.tsx` (213줄) → `AssignmentListContainer` + `AssignmentListPresenter`
 
-각 페이지의 `'use client'` 제거 + Server Component + `<Suspense><XxxContainer /></Suspense>` 패턴. `apps/classbot/components/classbot/*` 28개 컴포넌트 중 **학생 라우트가 쓰는 것** 만 `apps/classbot/components/features/classbot-*/components/` 로 이동 (git mv). 교사용은 Phase η-2 까지 잔존.
+각 페이지의 `'use client'` 제거 + Server Component + `<Suspense><XxxContainer /></Suspense>` 패턴. `apps/classbot/components/classbot/*` 28개 컴포넌트 중 **학생 라우트가 쓰는 것** 만 `apps/classbot/components/features/classbot-*/components/` 로 이동 (git mv). 교사 전용 컴포넌트는 **Phase η (교사 재편) 까지 기존 위치에 잔존** (codex R14 — `η-2` 하위 phase 는 없음. 교사 재편은 Phase η 단일 PR).
 
 #### Phase ζ-2: 학생 나머지 10 페이지 + replay 상세·assignment 상세·wellness·me·onboarding·discover·live (1 PR)
 
