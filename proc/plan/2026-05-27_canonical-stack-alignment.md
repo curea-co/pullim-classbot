@@ -28,7 +28,7 @@
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
 **외부 절대 경로 참조 처리**:
-본문에 `/Users/curea/dev_git/pullim/…` 등 작성자 로컬 경로가 나오면, 해당 줄은 "본 문서 작성 시점의 정본 본체 스냅샷 관찰" 로만 해석한다. 후속 PR/spec 은 해당 경로를 의존하지 않으며, 정본 본체 변화는 commit hash 또는 `proc/spec/` 의 별도 spec 발췌를 통해서만 인용한다.
+구버전(2026-05-27 초안)에는 작성자 로컬 절대경로 (`/Users/curea/...` 류) 가 §2 / 부록 A 에 다수 잔존했다. R2 정정으로 모두 **리포 식별자 + 리포 내 상대경로** (예: `curea-co/pullim` 의 `apps/web/package.json`) 로 치환했다. 본문에 그런 잔존이 추가로 발견되면 모두 "본 문서 작성 시점의 정본 본체 스냅샷 관찰" 로만 해석하고, 후속 PR 은 commit hash 또는 `proc/spec/` 의 별도 spec 발췌를 통해서만 본체 상태를 인용한다.
 
 **머지 효력**:
 본 문서가 머지되더라도 자동 실행 게이트가 열리지 않는다. 후속 alignment PR / 마이그레이션 PR 은 **본 문서가 아닌 spec 갱신**을 근거로만 진입한다.
@@ -48,7 +48,7 @@
 
 ## 2. 정본 스택 — 본체 의존성 매트릭스 (확인 기준)
 
-`/Users/curea/dev_git/pullim/{package.json, apps/web/package.json, apps/backend/package.json}` 정독 결과:
+본체 리포(`curea-co/pullim`)의 `package.json`, `apps/web/package.json`, `apps/backend/package.json` 을 본 문서 작성 시점(2026-05-27)에 정독한 관찰값이다. 후속 PR 은 해당 본체의 *최신* commit 을 다시 확인해야 한다.
 
 | 영역 | 정본 값 | 본체 출처 |
 |---|---|---|
@@ -87,11 +87,11 @@
 
 ## 3. 5 도메인 현재 상태 매트릭스
 
-각 도메인 `package.json` + `CLAUDE.md` 정독 결과 (2026-05-27 기준):
+각 도메인 `package.json` + `CLAUDE.md` 정독 결과 (**2026-05-27 작성 시점 스냅샷** — 후속 PR 은 *현 시점* 워크스페이스 재확인 필요):
 
 | 항목 | planner | Q | classbot | games | arcade |
 |---|---|---|---|---|---|
-| **레포** | `~/dev_git/pullim-planner` | `~/dev_git/pullim-Q` | `~/dev_git/pullim-classbot` | `~/dev_git/pullim-games` | `~/dev_git/pullim-games-arcade` |
+| **레포** | `curea-co/pullim-planner` | `curea-co/pullim-Q` | `curea-co/pullim-classbot` | `curea-co/pullim-games` | `curea-co/pullim-arcade` |
 | **모노레포** | ✅ bun workspace + Turborepo | ✅ bun workspace + Turborepo | ❌ 단일 앱 (D-Lite 진행) | ❌ 단일 앱 (alignment PR #108 작성) | ✅ Turborepo 없음, 단일 앱 (D-Lite 머지) |
 | **패키지 매니저** | bun 1.3.12 | bun 1.3.12 | bun | bun | bun |
 | **Next.js** | 16 (apps/planner) | 16 (apps/q) | 16 | **15** (정본 ≠) | 16.2.4 |
@@ -359,16 +359,18 @@
 
 ---
 
-## 부록 A — 참고 경로
+## 부록 A — 참고 경로 (리포 상대)
 
-- 본체: `/Users/curea/dev_git/pullim/{package.json, apps/web/package.json, apps/backend/package.json}`
-- 본체 컨벤션: `/Users/curea/dev_git/pullim/apps/web/CLAUDE.md`, `/Users/curea/dev_git/pullim/apps/backend/CLAUDE.md`
-- 5 도메인 컨벤션: `/Users/curea/dev_git/pullim-{planner,Q,classbot,games,games-arcade}/CLAUDE.md`
-- 공통 운영 룰: `/Users/curea/dev_git/.pullim-meta/CONVENTION.md`
-- 표류 결정 이력: `/Users/curea/dev_git/.pullim-meta/DECISIONS.md`
-- planner BE 차용 plan: `/Users/curea/dev_git/pullim-planner/proc/plan/2026-05-26_pullim-be-adoption.md`
-- games alignment plan: `pullim-games` PR #108 (대상)
-- games 거버넌스: `/Users/curea/dev_git/pullim-games/AGENTS.md`, `proc/spec/09-기술-환경.md`
+> 모두 작성자 로컬 절대경로가 아닌 **리포 식별자 + 리포 내 상대경로** 로 기록. 후속 협업자가 GitHub UI 또는 동일 checkout 으로 재현 가능해야 한다.
+
+- 본체: `curea-co/pullim` 의 `package.json`, `apps/web/package.json`, `apps/backend/package.json`
+- 본체 컨벤션: `curea-co/pullim` 의 `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md`
+- 5 도메인 컨벤션: `curea-co/pullim-{planner,Q,classbot,games,arcade}` 각 리포의 루트 `CLAUDE.md`
+- 공통 운영 룰: 별도 워크스페이스 외 메타 리포(`.pullim-meta`) — *본 plan 의 권위 출처 아님, 메모용*
+- 표류 결정 이력: 동(同) `.pullim-meta/DECISIONS.md` — *메모용*
+- planner BE 차용 plan: `curea-co/pullim-planner` 의 `proc/plan/2026-05-26_pullim-be-adoption.md`
+- games alignment plan: `curea-co/pullim-games` PR #108 (대상)
+- games 거버넌스: `curea-co/pullim-games` 의 루트 `AGENTS.md`, `proc/spec/09-기술-환경.md`
 
 ## 부록 B — 변경 이력
 
