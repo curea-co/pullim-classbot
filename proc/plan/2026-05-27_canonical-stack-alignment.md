@@ -24,6 +24,7 @@
 - planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 G4 (인프라 결정) 게이트 통과 후에만.
 - planner / Q / classbot 의 현행 scope-out (JWT / Redis / BullMQ / Design System / i18n / Sentry) — 본 문서가 정본 스택으로 적었더라도, 채택은 각 리포의 별도 spec 갱신 PR을 통해서만. 본 문서 자체로 채택 효력 없음.
 - classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
+- **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -92,7 +93,7 @@
 | 항목 | planner | Q | classbot | games | arcade |
 |---|---|---|---|---|---|
 | **레포** | `curea-co/pullim-planner` | `curea-co/pullim-Q` | `curea-co/pullim-classbot` | `curea-co/pullim-games` | `curea-co/pullim-arcade` |
-| **모노레포** | ✅ bun workspace + Turborepo | ✅ bun workspace + Turborepo | ❌ 단일 앱 (D-Lite 진행) | ❌ 단일 앱 (alignment PR #108 작성) | ✅ Turborepo 없음, 단일 앱 (D-Lite 머지) |
+| **모노레포** | ✅ bun workspace + Turborepo | ✅ bun workspace + Turborepo | ✅ **bun workspace 모노레포** (codex R4 — base `AGENTS.md`/`CLAUDE.md` 기준 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 확정. root `package.json` 에 `workspaces` + `bun@1.3.12`) | ❌ 단일 앱 (alignment PR #108 작성) | ✅ Turborepo 없음, 단일 앱 (D-Lite 머지) |
 | **패키지 매니저** | bun 1.3.12 | bun 1.3.12 | bun | bun | bun |
 | **Next.js** | 16 (apps/planner) | 16 (apps/q) | 16 | **15** (정본 ≠) | 16.2.4 |
 | **React** | 19 | 19 | 19 | 19 | 19.2.4 |
@@ -109,9 +110,9 @@
 | **인증** | Mock | Mock | (보안 구현 미정 — bcryptjs 부재) | (없음) | bcryptjs 3.0.3 (정본 ≠ bcrypt) |
 | **배포** | Vercel manual | Vercel manual | Vercel manual | Vercel manual | Vercel manual |
 | **포트 dev** | 3030 | 3031 | 3032 | 3033 | 3040 |
-| **권위 문서** | `input/docs-archive/08_플래너_핸드오프.md` | `input/docs-archive/*` | `input/docs-archive/07_클래스봇_핸드오프.md` | **`proc/spec/01~10`** (독립) | `proc/spec/` (작성 중) |
+| **권위 문서** | `input/docs-archive/08_플래너_핸드오프.md` | `input/docs-archive/*` | `input/docs-archive/07_풀림_클래스봇_핸드오프.md` (codex R4 — base `CLAUDE.md` 기준 정확한 파일명) | **`proc/spec/01~10`** (독립) | `proc/spec/` (작성 중) |
 | **proc 5번째** | knowhow | knowhow | knowhow | **audit** (독립) | knowhow |
-| **현재 진행** | Phase β PR #36 | D-Lite 머지 | D-Lite 진행 | alignment plan PR #108 | Phase 1 PR #2 머지 |
+| **현재 진행** | Phase β PR #36 | D-Lite 머지 | **bun workspace 모노레포 확정** (base 스냅샷 기준 — codex R4) | alignment plan PR #108 | Phase 1 PR #2 머지 |
 
 핵심 갭 (분류는 §4):
 - **5 도메인 전체 — pnpm/i18n/Sentry/Redis/BullMQ/AWS SDK 0%**
@@ -128,7 +129,7 @@
 | # | 영역 | 정본 | 5 도메인 평균 | 갭 크기 | 도메인별 차이 |
 |---|---|---|---|---|---|
 | G1 | 패키지 매니저 | pnpm 10.26.1 | bun 1.3.12 | **L** (lockfile/Dockerfile/workflow 동시 갱신) | 5 도메인 동일 — 5건 일괄 |
-| G2 | 모노레포 | Turborepo + apps/{web,backend} + packages/* | planner/Q/arcade 일부 / classbot·games 미완 | **M** | classbot/games 가 모노레포 전환 선행 필요 |
+| G2 | 모노레포 | Turborepo + apps/{web,backend} + packages/* | planner/Q/**classbot** bun workspace 보유 / games 미완 | **S** (classbot 제외) | **classbot 은 이미 bun workspace 모노레포** (codex R4 — 전환 불요). games 만 모노레포 전환 선행 필요 |
 | G3 | Next.js | 16.1.2 | 16 (games 만 15) | **S** (games 만 1 단계) | games — Next 15 → 16 |
 | G4 | BE 프레임워크 | NestJS 11 (common·config·database 표준 모듈) | planner/Q/classbot/arcade skeleton, games 부재 | **L** | games — BE 신설 결정 필요 |
 | G5 | ORM | TypeORM 0.3.28 + naming-strategies | classbot drizzle, 나머지 미적용 | **L** | classbot — **drizzle 은 갭 아님·현행 SOT** (codex R3): base `proc/spec/2026-05-18_be-api-design.md` 가 Drizzle config/schema/초기 migration 을 Ph1 완료 산출물로 고정하고 마이그레이션 정책도 `drizzle-kit migrate` 로 명시. TypeORM 전환은 spec 갱신 PR 선행 후에만 (§15 D-CB-ORM). 본 표의 "전환" 은 정본 모방 목표일 뿐 즉시 작업 아님 |
@@ -141,7 +142,7 @@
 | G12 | AWS SDK | client-s3 + client-ses + s3-presigned | 0건 | **M** | 사용처별 — 5 도메인 모두 즉시 필요한지 평가 후 |
 | G13 | 배포 | AWS ECS Fargate + ECR + Secrets Manager + CW Logs | Vercel manual 5건 | **XL** (DNS/SSL/모니터링 재구성) | 5건 모두 전환, AWS cluster 결정 §8 |
 | G14 | CI/CD | GitHub Actions → Docker → ECR → ECS update | Vercel 자동 비활성, manual | **L** | 5건 모두 신규 작성 |
-| G15 | 패키지 분리 | packages/{types,api-client,auth} + (본체엔 analytics/config/logging/remote-config/ui) | placeholder 3건 (planner/Q), classbot·games 부재 | **M** | 5건 모두 packages 6개로 정렬 |
+| G15 | 패키지 분리 | packages/{types,api-client,auth} + (본체엔 analytics/config/logging/remote-config/ui) | placeholder 3건 (planner/Q/**classbot**), games 부재 | **M** | classbot 은 **이미 `packages/{types,api-client,auth}` 3 placeholder 보유** (codex R4) → '신설' 아니라 '기존 3 확장/구현 + 신규 3'. games 만 packages 부재 |
 
 총 12+ 영역 갭. P0/P1/P2 분류는 §6.
 
@@ -204,7 +205,7 @@
 
 각 도메인이 어디서 출발해서 어디까지 가는지:
 
-| Phase | planner (Phase β 진행) | Q (D-Lite 머지) | classbot (D-Lite 진행) | games (alignment PR #108) | arcade (Phase 1 머지) |
+| Phase | planner (Phase β 진행) | Q (D-Lite 머지) | classbot (bun workspace 모노레포 확정) | games (alignment PR #108) | arcade (Phase 1 머지) |
 |---|---|---|---|---|---|
 | P0-1 pnpm | 신규 적용 | 신규 적용 | **보류** — classbot 은 bun workspace 고정(권위), 권위 문서 선개정 전 적용 금지 (§6 P0-1 단서) | alignment plan 의 Phase 0a 로 흡수 | 신규 적용 |
 | P0-2 ECS | 신규 적용 | 신규 적용 | 신규 적용 | BE 신설 + ECS 동시 (§8 결정) | 신규 적용 |
@@ -219,7 +220,7 @@
 | P2-1 Sentry | 신규 | 신규 | **제외/보류** — classbot `CLAUDE.md` 가 Sentry 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P2-1 단서) | 신규 | 신규 |
 | P2-2 AWS SDK | 리포트 PDF S3 + 이메일 알림 SES | 학습 자료 S3 | 봇 미디어 S3 + 알림 SES | (사용처 평가 후 — 게임 콘텐츠 이미지는 정적 호스팅으로 우선) | 사용처 평가 후 |
 | P2-3 Tiptap | 메모/회고 영역 가능성 | (미적용 후보) | **봇 빌더 핵심** — 우선 도입 | (미적용 — 게임은 인터랙션 위주) | (미적용) |
-| P2-4 packages 6개 | placeholder 3 → 실 구현 + 3 추가 | placeholder 3 → 실 구현 + 3 추가 | 모노레포 전환 후 packages 신설 | 모노레포 전환 후 packages 신설 | packages 신설 |
+| P2-4 packages 6개 | placeholder 3 → 실 구현 + 3 추가 | placeholder 3 → 실 구현 + 3 추가 | **기존 placeholder 3(`types,api-client,auth`) → 실 구현 + 3 추가** (codex R4 — classbot 은 이미 모노레포·packages 보유, 신설 아님) | 모노레포 전환 후 packages 신설 | packages 신설 |
 | P2-5 Next 15 → 16 | (해당 없음) | (해당 없음) | (해당 없음) | **단독 Phase** — 21 게임 회귀 audit (`proc/audit/`) 필수 | (해당 없음) |
 
 ---
