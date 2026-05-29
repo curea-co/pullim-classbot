@@ -1,5 +1,30 @@
 # 2026-05-27 — pullim-planner 정렬 plan (classbot 도메인 적응)
 
+**상태**: **PROPOSAL — 정렬 목표 문서. 실행 게이트 아님.**
+
+## 0. 권위 우선순위 (Authority Order) — 반드시 먼저 읽을 것
+
+본 plan 은 classbot 도메인의 **정렬 목표 제안서** 다. 실행 게이트로 채택된 적은 없으며 다음 우선순위로 해석한다:
+
+1. **루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배.
+2. **`proc/spec/`** — classbot 도메인 SOT (특히 `2026-05-18_be-api-design.md`). 본 plan 은 spec 변경 제안일 뿐.
+3. **이미 채택된 다른 plan** — 본 plan 이 충돌하면 패배.
+4. **본 plan** — PROPOSAL.
+
+**패배 사례** (codex R1~R7 누적 지적 흡수):
+- 본 plan 의 **현재 base 가정** (D-Lite 완료 / `apps/{classbot,backend}` 모노레포 등) — 실제 base 와 다르면 base 우선. 후속 PR 은 *현 시점 실제 워크스페이스* 를 다시 확인하고 진입.
+- **모노레포 전제·엔티티 26표·read endpoint 수** 등 정량 수치 — `proc/spec/` 의 권위 수치가 우선. 본 plan 의 표기 차이는 본 plan 측 오기로 간주.
+- **글로벌 파일(GA workflow, root `CLAUDE.md`) 수정** — 본 plan 만으로 승인 게이트 아님. 별도 spec/룰 PR 필요.
+- **Drizzle SOT 폐기 시점** — Phase γ entity 동등성 검증 통과 전에는 SOT 유지. 본 plan 의 "Phase α 폐기" 등 표기는 정렬 목표 (실행 시점이 아니라 종착점).
+- **BE entity 배치** (도메인 래퍼 안/밖) — 본 plan 내부 모순이 있다면 root `CLAUDE.md` §2 의 `apps/backend/src/modules/classbot/` 도메인 래퍼 규정이 우선.
+- **공유 타입 `BotTone` 정의** — 현재 소스가 SOT. 본 plan 의 다른 정의는 spec 변경 제안일 뿐.
+- **actor/RBAC/교사 IA** — 권위 spec 의 actor·RBAC·교사 IA 가 우선. 본 plan 의 학생·교사 단순화 표기는 정렬 목표 (실제 권위는 spec).
+- **`bun` 우회 `pnpm` 경로** — base 가이드 우선. pnpm 전환은 별도 인프라 결정 PR 통해서만.
+
+본 plan 의 머지는 **자동 실행 게이트를 열지 않는다**. 후속 마이그레이션 PR 은 spec 갱신 PR 을 통해서만 진입한다.
+
+---
+
 ## 목표
 
 이 리포(`pullim-classbot`)를 자매 리포 [`pullim-planner`](https://github.com/curea-co/pullim-planner) 와 동일한 **bun workspace mini-monorepo + NestJS BE + Container/Presenter FE** 패턴으로 정렬한다. planner가 PR #27(BE 차용 Phase α 머지) + PR #32(Container/Presenter 파일럿 머지) 까지 진행한 두 정렬 plan을 **classbot 도메인 특수성에 적응**시켜 단계화한 문서.
