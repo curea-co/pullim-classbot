@@ -11,7 +11,8 @@
 3. **이미 채택된 다른 plan** — 본 plan 이 충돌하면 패배.
 4. **본 plan** — PROPOSAL.
 
-**패배 사례** (codex R1~R14 누적 지적 흡수):
+**패배 사례** (codex R1~R15 누적 지적 흡수):
+- **Container/Presenter thin 판정** — `page.tsx` 줄 수가 아니라 route-local 로직 위치로 판단. `wellness/check-in`(form 166줄)·`grading/[id]`(detail 223줄)·`assignment/new`(form 577줄) 은 wrapper 가 얇아도 분리 대상 (§5 Phase ζ-2·η). 완료 기준: 학생 10·교사 9.
 - **Phase 수·명칭 정합** — 본 plan 은 8 Phase α~θ(+γ' 정리 PR). "6 Phase·7 단계·Phase 2s/2t/3s/3t·η-2" 등 표기는 오기 — FE 분리는 ζ(학생)/η(교사), mock 제거는 θ (§2·§5).
 - **`apps/classbot/AGENTS.md` 규칙 원천** — planner AGENTS.md 그대로 차용 금지. base 권위(`curea-co/pullim`·base spec) + 현재 소스에서 재도출 (§4.2).
 - **Phase β `common/` 차용 출처** — planner plan 이 아니라 `pullim` 본체/base spec 으로 검증된 항목만 채택. planner 특화 결정 직차용 금지 (§5 Phase β).
@@ -459,13 +460,15 @@ logic 비중 높은 4개부터:
 - `assignment/[id]/page.tsx` (112줄) + `result/page.tsx` (175줄) + `solve/page.tsx` (43줄, thin) → `AssignmentSolveContainer`/`AssignmentResultContainer` + 단일 Presenter 세트
 - `replay/[id]/page.tsx` (18줄, thin) — 분리 안 함
 - `wellness/page.tsx` (182줄) → `WellnessContainer` + `WellnessPresenter` (감정 체크인 widget 보유)
-- `wellness/check-in/page.tsx` (5줄, thin) — 분리 안 함
+- `wellness/check-in/page.tsx` (5줄 wrapper) → **분리 대상** (codex R15 — `page.tsx` 줄 수만 보면 thin 이지만 실제 상태·제출·사후 반응 로직은 route-local client form `apps/classbot/app/(student)/classbot/wellness/check-in/check-in-form.tsx` (166줄) 에 있음) → `CheckInContainer` + `CheckInPresenter` + `useCheckInForm` hook (form 로직 추출)
 - `me/report/page.tsx` (100줄) → `MeReportContainer` + `MeReportPresenter`
 - `onboarding/page.tsx` (147줄) → `OnboardingContainer` + `OnboardingPresenter`
 - `discover/page.tsx` (71줄, 80줄 미만) — **분리 임계치 미달**, 그대로 두되 mock import만 추후 **Phase θ** 에서 교체
 - `live/[botId]/page.tsx` (20줄, thin) — 분리 안 함
 
-- **완료 기준**: 학생 14 페이지 중 logic 보유 9개 모두 Container/Presenter 분리. `bun --filter @pullim-classbot/classbot test:e2e` (Playwright 7 spec) 회귀 0.
+> **⚠ thin 판정 기준 (codex R15)**: Container/Presenter 분해 대상은 `page.tsx` 줄 수가 아니라 **라우트의 실질 로직 위치**로 판단한다. `page.tsx` 가 얇아도 같은 라우트 폴더의 route-local client 파일(`*-form.tsx` 등)에 로직이 몰려 있으면 분리 대상이다 — 진입 시 각 라우트 폴더 내 sibling 파일까지 grep 확인.
+
+- **완료 기준**: 학생 14 라우트 중 **실질 로직 보유 10개**(위 9개 + `wellness/check-in` route-local form) 모두 Container/Presenter 분리. `bun --filter @pullim-classbot/classbot test:e2e` (Playwright 7 spec) 회귀 0.
 
 ### Phase η — FE Container/Presenter 재편 (교사) + builder feature 통합 (1 PR)
 
@@ -481,16 +484,16 @@ logic 비중 높은 4개부터:
 - `teacher/classbot/page.tsx` (288줄) → `TeacherBotListContainer` + `TeacherBotListPresenter`
 - `teacher/builder/page.tsx` (156줄) → `BuilderContainer` + `BuilderPresenter` + `useBuilderWizard` hook (`apps/classbot/components/builder/{builder-types.ts, step-content.tsx, step-indicator.tsx}` 흡수)
 - `teacher/grading/page.tsx` (147줄) → `TeacherGradingContainer` + `TeacherGradingPresenter`
-- `teacher/grading/[id]/page.tsx` (20줄, thin) — 분리 안 함
+- `teacher/grading/[id]/page.tsx` (20줄 wrapper) → **분리 대상** (codex R15 — 실질 로직은 route-local `apps/classbot/app/(teacher)/teacher/grading/[id]/grading-detail.tsx` (223줄): 점수 override 계산·승인 상태·위기 게이트 등 교사 최고 로직 밀도) → `GradingDetailContainer` + `GradingDetailPresenter` + `useGradingDetail` hook
 - `teacher/replay/page.tsx` (126줄) → `TeacherReplayListContainer` (학생 `classbot-replay` 의 widget 빌려옴 — cross-feature import 허용)
 - `teacher/replay/[id]/page.tsx` (181줄) → `TeacherReplayDetailContainer` + `TeacherReplayDetailPresenter`
 - `teacher/reports/page.tsx` (115줄) → `TeacherReportListContainer` + `TeacherReportListPresenter`
 - `teacher/reports/[id]/page.tsx` (138줄) → `TeacherReportDetailContainer` + `TeacherReportDetailPresenter`
-- `teacher/assignment/new/page.tsx` (5줄, thin) — 분리 안 함
+- `teacher/assignment/new/page.tsx` (5줄 wrapper) → **분리 대상** (codex R15 — 실질 로직은 route-local `apps/classbot/app/(teacher)/teacher/assignment/new/assignment-form.tsx` (577줄, 교사 화면 중 최대). base spec `14-teacher-assignment-workspace.md` 가 이 라우트를 교사 E2E 진입점으로 명시) → `AssignmentNewContainer` + `AssignmentNewPresenter` + `useAssignmentForm` hook
 
 - `apps/classbot/components/classbot/*` 28개 중 교사 라우트 의존 widget 전부 `apps/classbot/components/features/teacher-*/components/` 또는 `apps/classbot/components/features/classbot-*/components/` 로 이동
 - 빈 `apps/classbot/components/{classbot,builder}/` 디렉토리 제거
-- **완료 기준**: 교사 10 페이지 중 logic 보유 7개 분리. shell·ui·brand 그대로. Playwright 회귀 0.
+- **완료 기준**: 교사 10 라우트 중 **실질 로직 보유 9개** 분리 (기존 7개 + route-local 로직 보유 `grading/[id]`·`assignment/new` 2개 — codex R15). shell·ui·brand 그대로. Playwright 회귀 0.
 
 ### Phase θ — FE mock 제거 → `@pullim-classbot/api-client` 전환 (1~2 PR)
 
