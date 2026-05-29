@@ -15,14 +15,14 @@
 다음 우선순위로 해석한다 (위가 강함):
 
 1. **각 리포 루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배한다.
-   - **앱 레벨 문서 우선 (codex R9·R10 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다. 즉 **classbot 의 도메인-구체 규칙(금지/예외 포함)에서는 app-level 문서가 루트 문서보다 우선한다** (codex R10 — "루트 → 앱" 순이 아님). 루트 문서는 저장소 전역 규칙에, app-level 문서는 classbot 도메인 규칙에 각각 권위를 가지며, classbot 도메인 사안에서 둘이 충돌하면 **app-level 이 이긴다**. 본 문서가 둘 중 어느 것과도 충돌하면 패배. (단, 인용 시 mutable head 가 아니라 frozen `.codex-runtime/base-*` 스냅샷 경로로 고정 — 부록 A)
+   - **앱 레벨 문서 우선 (codex R9·R10·R11 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다 (도메인 사안에서 app-level 이 루트보다 우선). **⚠ 단 재현성 한계 (codex R11)**: 현재 frozen snapshot(`.codex-runtime/base-*`)에는 `apps/classbot/{AGENTS,CLAUDE}.md` 의 **immutable 사본이 없다**. 따라서 **본 plan 의 재현 가능한 authority 는 frozen 에 실제로 존재하는 `base-AGENTS.md`·`base-CLAUDE.md` + `base-input/proc/spec/*` 까지로 한정**한다. app-level 우선 규칙은 *base 문서가 그렇게 지시한다는 사실* 로만 기록하고, app-level 문서의 구체 내용을 권위로 인용해야 할 때는 **그 사본이 frozen snapshot 에 추가 고정된 이후**에만 한다 (그 전에는 mutable head 를 권위로 열지 말 것). 본 문서가 frozen 권위와 충돌하면 패배.
 2. **각 리포 `proc/spec/`** — 도메인 SOT. 본 문서는 spec 변경 제안일 뿐, spec 자체가 아니다.
 3. **각 리포 `proc/plan/2026-05-26_pullim-be-adoption.md` / `2026-05-26_container-presenter-adoption.md`** — 이미 채택된 BE/FE 정본 plan. 본 문서가 충돌하는 항목은 패배한다.
 4. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
 
 **구체 패배 사례** (현재 권위 우선 항목 — 본 문서가 다르게 적었더라도 무시):
 
-- planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 G4 (인프라 결정) 게이트 통과 후에만.
+- planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 **G3 (BE 게이트키퍼) 게이트 통과 후에만** (codex R11 — §12 단일 기준. 이전 "G4" 표기 정정).
 - classbot 의 frozen base 확정 금지/보류 항목 (codex R6 — 과장 금지): `.codex-runtime/base-CLAUDE.md` 가 **명시적으로 금지**하는 것은 `@pullim/design-system` import · i18n · Sentry 이고, **인증은 Ph8 보류**(`x-user-id` fallback) 다. **Redis/BullMQ 는 명시 금지 목록은 아니다** — 단, *그렇다고 classbot 에서 바로 진행 가능한 일반 작업도 아니다* (codex R8): frozen base 기준 classbot `apps/backend` 는 현재 health endpoint 만 있고, **새 도메인 모듈 추가 + `apps/backend/src/{common,config,database}/*` 편집은 모두 "사용자 명시 확인 필요"인 글로벌 작업**이다. 따라서 Redis/BullMQ 도입(큐 인프라·BE 모듈 신설)은 "금지는 아니나 사용자 확인 게이트 대상" 으로 다룬다. planner/Q 의 JWT/Redis/BullMQ 도입도 각 리포 spec 갱신 PR 을 통해서만 정본 채택. 본 문서 자체로 채택 효력 없음.
 - classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
 - **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
@@ -32,6 +32,7 @@
 - **classbot 게이트 강도·재현성 (codex R8)** — (i) Redis/BullMQ 는 명시 금지는 아니나 BE 모듈 신설 + `common/config/database` 편집이 "사용자 명시 확인 필요"이므로 "바로 진행 가능한 일반 작업" 아님(§0 위·G7). (ii) classbot P0-4 는 `prod-verify.yml`(고유 회귀 자산) 유지/동등 대체 + workflow 편집 사용자 승인 선행(§6 P0-4·매트릭스). (iii) 부록 A 의 리포 루트 `CLAUDE.md`/`AGENTS.md` 는 mutable head 참고용 — classbot 권위 인용은 frozen `.codex-runtime/base-*` 로 고정(부록 A 콜아웃).
 - **classbot 글로벌 작업 게이트 보강 (codex R9)** — (i) authority order 에 앱 레벨 문서(`apps/classbot/{AGENTS,CLAUDE}.md`) 우선 참조 추가(§0 1번 하위). (ii) P0-1 pnpm 은 룰 갱신뿐 아니라 root 파일(`package.json`·`turbo.json`·`tsconfig.base.json`·`docker-compose.yml`) 편집 사용자 승인 선행(§6 P0-1). (iii) P1-2 Redis/BullMQ 는 BE 모듈·common/config 경로를 건드리므로 classbot 별도 승인 게이트(§6 P1-2). (iv) P2-4 `packages/*` 변경은 글로벌 작업이라 classbot 사용자 승인 선행(§6 P2-4). 모두 frozen `base-CLAUDE.md` 글로벌 작업 분류 기준.
 - **app-level 우선순위·게이트 노출·보류 신호 정합 (codex R10)** — (i) classbot 도메인-구체 룰에서 **app-level 문서가 루트보다 우선**(§0 1번 하위 — "루트→앱 순" 아님). (ii) P1-2 per-domain 매트릭스 행에도 classbot 승인 게이트 노출(§7 매트릭스). (iii) §§8-10 의 인프라 결정 "결정 시점" 을 §15-A/§16 무기한 보류와 동일 톤으로 정정(즉시 결정 신호 제거).
+- **재현 가능 authority chain·게이트 단일화 (codex R11)** — (i) app-level 문서 사본이 frozen snapshot 에 없으므로 본 plan 의 재현 authority 는 frozen `base-AGENTS/CLAUDE` + `base-input/proc/spec/*` 로 한정(§0 1번 하위). (ii) §2 표는 비권위 proposal baseline — mutable head·`사용자 정본 표` 행은 재현 검증 불가로 명시, commit SHA 고정 또는 in-repo 치환 필요(§2 콜아웃). (iii) mock 한글 예외는 본 plan 이 직접 정의(mutable `apps/web/CLAUDE.md` 인용 제거 — §11 R-I18N). (iv) Gate↔Phase 단일 기준표: pnpm=G3 통일, G1 코드 트랙은 인프라 결정(§8/§9/§10)과 분리, 인프라 게이트는 §16 보류(§12).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -58,7 +59,12 @@
 
 본체 리포(`curea-co/pullim`)의 `package.json`, `apps/web/package.json`, `apps/backend/package.json` 을 본 문서 작성 시점(2026-05-27)에 정독한 **고정 스냅샷 관찰값**이다.
 
-> **⚠ authority chain 고정 (codex R6)**: 본 표는 외부 본체의 *최신* commit 이 아니라 **작성 시점 관찰값으로 고정**한다 — mutable 한 외부 상태를 권위처럼 따라가면 정본 스택이 시점마다 흔들린다. 본 리뷰에서 신뢰 가능한 authority 는 frozen base snapshot(`.codex-runtime/base-*`)뿐이며, 본체 스냅샷 인용은 *관찰값* 으로만 해석한다. 본체 의존성 버전을 실제 갱신할 때는 (a) 관찰한 본체 **commit SHA 를 본 표에 함께 고정 기록**하거나, (b) 이 리포 안의 고정 문서(`proc/spec/` 발췌)로 다시 적은 뒤 §2 를 정정한다. 후속 PR 이 "본체 최신 재확인" 만으로 권위를 끌어오는 것은 금지.
+> **⚠ authority chain 고정 (codex R6·R11)**: 본 표는 외부 본체의 *최신* commit 이 아니라 **작성 시점 관찰값으로 고정**한다 — mutable 한 외부 상태를 권위처럼 따라가면 정본 스택이 시점마다 흔들린다. 본 리뷰에서 신뢰 가능한 authority 는 frozen base snapshot(`.codex-runtime/base-*`)뿐이며, **본 표 전체는 *비권위 제안 기준선(proposal baseline)* 으로만 취급한다 — frozen snapshot 에 사본이 없어 현 리뷰 기준으로 재현 검증 불가**.
+>
+> **재현성 결손 명시 (codex R11)**:
+> - 본체 출처가 `apps/web/CLAUDE.md`·`apps/backend/package.json` 등 **mutable head 문서**인 행 — 후속 PR 이 같은 기준선을 재검증하려면 **관찰한 본체 commit SHA 를 본 표에 고정 기록**하거나, 필요한 발췌를 이 리포 안 고정 문서(`proc/spec/` 발췌)로 옮긴 뒤 인용해야 한다.
+> - 본체 출처가 **`사용자 정본 표`** 인 행(BE 캐시/큐·배포·CI/CD·AWS 리전·서비스명 패턴 등) — 이 리포 안에 고정 경로가 없어 **현 리뷰 규칙으로 검증 불가한 source**다. 해당 행을 기반으로 한 G7/G13/G14 판단도 같은 한계를 가진다. **이들은 사용자 제공값으로만 기록**하고, 실제 실행 기준으로 승격하려면 repo-relative 고정 문서로 치환하거나 §16 결정/spec 갱신을 거친다.
+> - 본체 의존성 버전을 실제 갱신할 때는 (a) commit SHA 고정 기록 또는 (b) 이 리포 고정 문서로 재기술 후 §2 정정. "본체 최신 재확인" 만으로 권위를 끌어오는 것은 금지.
 
 | 영역 | 정본 값 | 본체 출처 |
 |---|---|---|
@@ -290,7 +296,7 @@
 | R-VRC | P0-4 | Vercel → ECS: 도메인 cutover 시 DNS·SSL·모니터링 재구성 | H | maintenance window 사전 공지. Route53 alias TTL 단축 → ALB 전환 → TTL 복구 |
 | R-AUT | P1-1 | Mock → JWT: 토큰 발행/검증/refresh 흐름 신설, 기존 mock user 일관성 깨짐 | H | MockAuthProvider 인터페이스 유지 → JwtAuthProvider 구현으로 교체. `IAuthProvider` 추상화는 planner 가 packages/auth 에 이미 placeholder |
 | R-DS | P1-3 | shadcn → DS: UI 시각 회귀 (특히 games 의 toolset/spacing/border-radius 룰) | H | games 는 `bun run ui:audit` 4 viewport (320/390/768/1280) 머지 전 필수. critical overflow 0 까지 fix |
-| R-I18N | P1-4 | i18n 추출: 모든 텍스트 마이그레이션 — 시간 큼 (planner 28+, games 21 게임 + 셸) | H | 도메인별 별 PR. mock 데이터 한글 예외 컨벤션 (apps/web/CLAUDE.md 명시). `useTranslations` 검사 lint rule 도입 |
+| R-I18N | P1-4 | i18n 추출: 모든 텍스트 마이그레이션 — 시간 큼 (planner 28+, games 21 게임 + 셸) | H | 도메인별 별 PR. **mock 데이터 한글 예외 컨벤션** = *본 plan 이 직접 정하는 규칙* (codex R11 — mutable `apps/web/CLAUDE.md` 인용 제거): **mock 데이터 안의 한글 문자열은 i18n 추출 대상에서 제외**(UI 카피만 추출). `useTranslations` 검사 lint rule 도입. (classbot 은 §6 P1-4 대로 i18n 자체가 도입 금지) |
 | R-TQ | P1-5 | TanStack Query: 데이터 패칭 일괄 전환. classbot 만 보유 → version drift | M | classbot 5.100.1 → 정본 5.90.21 호환성 확인. queryKey 컨벤션 5 도메인 통일 |
 | R-DS-EXT | P1-3 | `@pullim/design-system` 외부 노출 정책: 본체팀 발행·버전·breaking change 정책 부재 | H | 본체팀과 별 합의 PR — `@pullim/design-system` GitHub release tag pin 정책 + semver + 5 도메인 향한 deprecation lead time. 본 plan §8/§9 와 동급 미해결 |
 | R-DRIZ | P0-3 | classbot drizzle → TypeORM: schema 재작성. 기존 drizzle migrations 폐기 | H | classbot drizzle 보유분 SQL dump → TypeORM entities 재생성 + migration 첫 generate. data preserving plan 필요 |
@@ -304,15 +310,19 @@
 
 ---
 
-## 12. 게이트키퍼 합의 포인트
+## 12. 게이트키퍼 합의 포인트 — Gate ↔ Phase 단일 기준 (codex R11)
 
-| Gate | 합의 시점 | 합의 대상 |
-|---|---|---|
-| **G1** | 본 plan 통과 + §8/§9/§10 결정 | 5 도메인 동시 마이그레이션 정책, 비용 |
-| **G3** (BE) | P0-2/3 결정 + P1-1·P1-2 시작 | AWS 토폴로지, RDS 옵션, JWT 흐름 설계, Redis/BullMQ |
-| **G4** (FE) | P1-3·P1-4·P1-5 시작 | DS 마이그레이션 베이스라인 (특히 games 시각 회귀), i18n 추출 정책, TanStack Query 컨벤션 |
+> **⚠ Gate↔Phase 매핑 통일 (codex R11)**: 앞선 서술이 pnpm 전환을 §0 에서 G4, N5 에서 G3 로 다르게 적은 모순을 아래 표로 **단일 기준 통일**한다. 또한 §8/§9/§10 인프라 결정은 §15-A/§16 에 의해 **무기한 보류**이므로, **G1 은 코드 전용 트랙(P0-1·P1 코드)의 진입 조건에서 인프라 결정(§8/§9/§10)을 분리**한다 — 인프라 결정 요구를 P0-1 진입 조건에 묶으면 코드 트랙이 영구히 못 열린다.
 
-각 Phase 시작 PR 에 합의 게이트키퍼 명시.
+| Gate | 합의 대상 | 여는 Phase | 시점 |
+|---|---|---|---|
+| **G1** (대표) | 5 도메인 동시 마이그레이션 정책, 비용 상한 *방향성* (구체 인프라 수치는 §16 보류) | 본 plan 합의 → 코드 트랙(P0-1, P1 코드) 진입 가능 | 본 plan 통과 시 (인프라 §8/§9/§10 결정과 *분리* — 그건 §16 보류) |
+| **G3** (BE) | **bun→pnpm 전환 정책**(루트 파일 변경 — N5 의 "게이트키퍼" 가 곧 G3), JWT 흐름 설계, Redis/BullMQ 도입 | P0-1(pnpm), P1-1, P1-2 | 각 Phase 시작 PR. classbot 은 §6 단서대로 추가 사용자 승인 게이트 |
+| **G4** (FE) | DS 마이그레이션 베이스라인(특히 games 시각 회귀), i18n 추출 정책, TanStack Query 컨벤션 | P1-3, P1-4, P1-5 | 각 Phase 시작 PR. classbot 은 DS/i18n 금지로 제외 |
+| **(인프라)** | AWS 토폴로지·RDS·출시 시퀀스·비용 (§8/§9/§10 = D-CLU/D-RDS/D-SEQ/D-COST) | P0-2, P0-3, P0-4, P0-5 | ⚠ **§16 무기한 보류 — 병합 토폴로지 확정 전까지 열지 않음** |
+
+- **pnpm 전환 게이트 통일**: §0(planner 예시)·N5 의 표기를 **G3(BE 게이트키퍼)** 으로 통일한다. (§0 의 "G4 게이트 통과 후" 표기는 본 §12 의 G3 기준으로 읽는다.)
+- 각 Phase 시작 PR 에 위 표의 합의 게이트키퍼 명시.
 
 ---
 
