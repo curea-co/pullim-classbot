@@ -3,8 +3,35 @@
 **작성일**: 2026-05-27
 **작성자**: PM (박승훈) + 컨트롤타워 AI
 **적용 대상**: `pullim-planner` / `pullim-Q` / `pullim-classbot` / `pullim-games` / `pullim-games-arcade`
-**상태**: Draft (G1/G3/G4 합의 대기 — §15)
+**상태**: **PROPOSAL — 합의·게이트 대기 중. 실행 문서 아님.**
 **완료 정의**: §1 목표 충족 후 PM 명시 시점에 archive 이관
+
+---
+
+## 0. 권위 우선순위 (Authority Order) — 반드시 먼저 읽을 것
+
+본 문서는 **5 도메인 공통 정본 스택 제안서** 다. 실행 기준으로 채택된 적은 없으며, 각 리포의 기존 권위 문서를 **덮어쓰지 않는다**.
+
+다음 우선순위로 해석한다 (위가 강함):
+
+1. **각 리포 루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배한다.
+2. **각 리포 `proc/spec/`** — 도메인 SOT. 본 문서는 spec 변경 제안일 뿐, spec 자체가 아니다.
+3. **각 리포 `proc/plan/2026-05-26_pullim-be-adoption.md` / `2026-05-26_container-presenter-adoption.md`** — 이미 채택된 BE/FE 정본 plan. 본 문서가 충돌하는 항목은 패배한다.
+4. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
+
+**구체 패배 사례** (현재 권위 우선 항목 — 본 문서가 다르게 적었더라도 무시):
+
+- planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 G4 (인프라 결정) 게이트 통과 후에만.
+- planner / Q / classbot 의 현행 scope-out (JWT / Redis / BullMQ / Design System / i18n / Sentry) — 본 문서가 정본 스택으로 적었더라도, 채택은 각 리포의 별도 spec 갱신 PR을 통해서만. 본 문서 자체로 채택 효력 없음.
+- classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
+- games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
+- arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
+
+**외부 절대 경로 참조 처리**:
+본문에 `/Users/curea/dev_git/pullim/…` 등 작성자 로컬 경로가 나오면, 해당 줄은 "본 문서 작성 시점의 정본 본체 스냅샷 관찰" 로만 해석한다. 후속 PR/spec 은 해당 경로를 의존하지 않으며, 정본 본체 변화는 commit hash 또는 `proc/spec/` 의 별도 spec 발췌를 통해서만 인용한다.
+
+**머지 효력**:
+본 문서가 머지되더라도 자동 실행 게이트가 열리지 않는다. 후속 alignment PR / 마이그레이션 PR 은 **본 문서가 아닌 spec 갱신**을 근거로만 진입한다.
 
 ---
 
