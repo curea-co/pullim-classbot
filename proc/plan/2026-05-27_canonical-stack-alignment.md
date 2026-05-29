@@ -27,6 +27,7 @@
 - **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
 - **classbot 인증·CI·prod DB (codex R5)** — (인증) G6 의 "5건 모두 JWT" 는 classbot 제외 — Ph8 결정 보류·`x-user-id` mock. (CI) P0-4 의 `actions/setup-pnpm` 강제는 classbot 비적용 — bun workspace 고정이므로 classbot CI 는 `setup-bun` 유지(워크플로만 pnpm 으로 바꾸면 패키지매니저와 모순). (prod DB) P0-3 의 classbot RDS 확정은 오기 — base spec 은 `Neon/Supabase/RDS` 중 Ph9 결정 보류. 모두 spec 결정·§16 보류와 정합.
 - **authority chain 재현성 (codex R6)** — (i) classbot 금지 목록 과장 금지: 금지는 DS/i18n/Sentry + 인증 Ph8 보류뿐, Redis/BullMQ 는 비금지(§0 위·G7). (ii) §2 정본 스택은 외부 본체 *최신* commit 이 아니라 frozen 관찰값으로 고정(§2 콜아웃). (iii) classbot 예외 근거는 mutable `apps/classbot/CLAUDE.md` 가 아니라 frozen `.codex-runtime/base-CLAUDE.md` 인용(§6). (iv) §15 인프라 결정 4건은 §16 보류와 정합되게 "보류 해제 조건" 으로 재작성. (v) 코덱스 정책은 로컬 메모리 경로 대신 본문 직접 기록(§16.4).
+- **실행·완료 판정 명확화 (codex R7)** — (i) P2-4 packages 는 "기존 공유 3(types/api-client/auth) 구현 + 신규 3(config/logging/ui) = 6" 으로 개수·목록 고정(§6 P2-4·G15). (ii) 완료 조건의 결정 이력은 외부 `.pullim-meta/DECISIONS.md` 가 아니라 이 리포 안 본 plan 본문(§15/§16)에 누적(§14). (iii) games BE(D-GM-BE)는 §16.2 대로 "옵션 B 자체 NestJS 결정 완료" 로 §15 와 통일(재결정 게이트 불요).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -146,7 +147,7 @@
 | G12 | AWS SDK | client-s3 + client-ses + s3-presigned | 0건 | **M** | 사용처별 — 5 도메인 모두 즉시 필요한지 평가 후 |
 | G13 | 배포 | AWS ECS Fargate + ECR + Secrets Manager + CW Logs | Vercel manual 5건 | **XL** (DNS/SSL/모니터링 재구성) | 5건 모두 전환, AWS cluster 결정 §8 |
 | G14 | CI/CD | GitHub Actions → Docker → ECR → ECS update | Vercel 자동 비활성, manual | **L** | 5건 모두 신규 작성 |
-| G15 | 패키지 분리 | packages/{types,api-client,auth} + (본체엔 analytics/config/logging/remote-config/ui) | placeholder 3건 (planner/Q/**classbot**), games 부재 | **M** | classbot 은 **이미 `packages/{types,api-client,auth}` 3 placeholder 보유** (codex R4) → '신설' 아니라 '기존 3 확장/구현 + 신규 3'. games 만 packages 부재 |
+| G15 | 패키지 분리 | packages/{types,api-client,auth} + 신규 3(config/logging/ui) = 6 (본체엔 analytics/remote-config/utils 도 존재) | placeholder 3건 (planner/Q/**classbot**), games 부재 | **M** | classbot 은 **이미 `packages/{types,api-client,auth}` 3 placeholder 보유** (codex R4) → '신설' 아니라 '기존 3 구현 + 신규 3(config/logging/ui) = 6' (P2-4 와 동일 정의). games 만 packages 부재 |
 
 총 12+ 영역 갭. P0/P1/P2 분류는 §6.
 
@@ -198,7 +199,7 @@
 | **P2-1** | Sentry 도입 | 5 도메인 (**classbot 제외/보류**) | `instrumentation.ts` + sentry.client/server/edge.config.ts, DSN Secret 관리<br>⚠ **classbot 단서 (codex R3)**: frozen base `.codex-runtime/base-CLAUDE.md` 는 Sentry 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
 | **P2-2** | AWS SDK (S3 / SES) 도입 | 사용처별 (classbot 봇 미디어, planner 리포트 PDF, Q 학습 자료 등) | presigned URL 패턴, SES verified sender |
 | **P2-3** | Tiptap 도입 | classbot builder, planner 메모 (필요 도메인만) | @tiptap/react + extensions |
-| **P2-4** | packages 6개 정렬 (analytics/config/logging/remote-config/ui/utils) | 5 도메인 각자 | placeholder → 실제 구현, types/api-client/auth 기존 3 + 신규 3 |
+| **P2-4** | packages 정렬 — **기존 공유 3 구현 + 신규 3 추가 = 총 6** (codex R7) | 5 도메인 각자 | **기존 placeholder 3** = `types`·`api-client`·`auth` (구현) **+ 신규 3** = `config`·`logging`·`ui` (추가) = **총 6**. 본체의 `analytics`·`remote-config`·`utils` 는 사용처 확정 도메인만 후속 추가(본 P2-4 의 6개 고정 범위 밖) |
 | **P2-5** | Next.js 15 → 16 (games 한정) | games | next major bump, app router 검증, 21 게임 회귀 |
 
 **총 Phase 수**: P0=5, P1=5, P2=5 → **15 Phase**
@@ -224,7 +225,7 @@
 | P2-1 Sentry | 신규 | 신규 | **제외/보류** — frozen base `.codex-runtime/base-CLAUDE.md` 가 Sentry 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P2-1 단서) | 신규 | 신규 |
 | P2-2 AWS SDK | 리포트 PDF S3 + 이메일 알림 SES | 학습 자료 S3 | 봇 미디어 S3 + 알림 SES | (사용처 평가 후 — 게임 콘텐츠 이미지는 정적 호스팅으로 우선) | 사용처 평가 후 |
 | P2-3 Tiptap | 메모/회고 영역 가능성 | (미적용 후보) | **봇 빌더 핵심** — 우선 도입 | (미적용 — 게임은 인터랙션 위주) | (미적용) |
-| P2-4 packages 6개 | placeholder 3 → 실 구현 + 3 추가 | placeholder 3 → 실 구현 + 3 추가 | **기존 placeholder 3(`types,api-client,auth`) → 실 구현 + 3 추가** (codex R4 — classbot 은 이미 모노레포·packages 보유, 신설 아님) | 모노레포 전환 후 packages 신설 | packages 신설 |
+| P2-4 packages (3 구현 + 신규 3 = 6) | placeholder 3 구현 + 신규 3(`config,logging,ui`) | placeholder 3 구현 + 신규 3(`config,logging,ui`) | **기존 placeholder 3(`types,api-client,auth`) 구현 + 신규 3(`config,logging,ui`) = 6** (codex R4·R7 — classbot 은 이미 모노레포·packages 보유, 신설 아님) | 모노레포 전환 후 packages 6개 신설 | packages 6개 신설 |
 | P2-5 Next 15 → 16 | (해당 없음) | (해당 없음) | (해당 없음) | **단독 Phase** — 21 게임 회귀 audit (`proc/audit/`) 필수 | (해당 없음) |
 
 ---
@@ -343,7 +344,7 @@
 
 - [ ] (각 도메인별 spec 갱신 PR 통과를 전제로) `packageManager` 가 `pnpm@10.26.1` — *classbot 은 §0·§6 P0-1 단서대로 권위 문서 선개정 전 적용 금지*
 - [ ] JWT 인증 / Redis / Sentry / `@pullim/design-system` / `messages/{ko,en}.json` / TanStack Query 는 **각 도메인 spec 이 채택을 확정한 도메인 한정** — classbot 은 현행 권위 문서가 DS/i18n/Sentry 도입 및 JWT 확정을 금지/보류하므로 spec 갱신 전 제외
-- [ ] §8/§9/§10 결정 사항이 본 plan 본문에 반영 + DECISIONS.md 결정 이력 누적
+- [ ] §8/§9/§10 결정 사항이 **본 plan 본문(§15/§16)에 직접 반영** (codex R7 — 결정 이력은 이 리포 안의 본 plan 문서에 누적한다. 외부 `.pullim-meta/DECISIONS.md` 는 메모용일 뿐 완료 판정 산출물 아님 — 재현 가능한 in-repo 경로만 완료 조건으로 인정). 별도 결정 로그가 필요하면 이 리포 내 `proc/plan/` 하위 고정 경로로 둔다
 - [ ] §11 모든 H 리스크 mitigation 적용 완료 또는 잔여 리스크 별 plan 으로 이관
 
 **B. 인프라 (P0-2/P0-3/P0-4) — §16 에 의해 무기한 보류, 완료 정의에서 분리**:
@@ -374,7 +375,7 @@
 |---|---|---|---|---|
 | **D-DS** | `@pullim/design-system` 외부 노출·발행·deprecation 정책 | 본체팀 + G4 | P1-3 시작 (classbot 제외) | GitHub release tag pin + semver + 5 도메인 deprecation lead time 1 sprint |
 | **D-CB-ORM** | classbot drizzle → TypeORM 전환 방식 (data migration) | G3 + classbot spec 갱신 선행 | 별 마이그레이션 plan | drizzle schema SQL dump → TypeORM entities 재생성 + 첫 migration generate |
-| **D-GM-BE** | games BE 신설 여부 (5 중 유일 BE 없음) | G1 + G3 | alignment plan #108 정합 | 신설 — 추후 진척·점수·랭킹·콘텐츠 메타 backend 후보. SPA 유지는 옵션 |
+| **D-GM-BE** | games BE 신설 여부 (5 중 유일 BE 없음) | **결정 완료** (§16.2) | alignment plan #108 정합 | **✅ 결정됨: 옵션 B = 자체 NestJS BE 신설** (codex R7 — §16.2 와 통일. 재결정 게이트 불요, alignment plan #108 정합 작업으로 바로 진행). 진척·점수·랭킹·콘텐츠 메타 backend |
 | **D-GM-N16** | games Next 15 → 16 시점 | G4 + games audit T5 | P2-5 | P1 완료 후 별 PR. 21 게임 회귀 audit 필수 |
 
 ---
