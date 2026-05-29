@@ -16,9 +16,10 @@
 
 1. **각 리포 루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배한다.
    - **앱 레벨 문서 우선 (codex R9·R10·R11 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다 (도메인 사안에서 app-level 이 루트보다 우선). **⚠ 단 재현성 한계 (codex R11)**: 현재 frozen snapshot(`.codex-runtime/base-*`)에는 `apps/classbot/{AGENTS,CLAUDE}.md` 의 **immutable 사본이 없다**. 따라서 **본 plan 의 재현 가능한 authority 는 frozen 에 실제로 존재하는 `base-AGENTS.md`·`base-CLAUDE.md` + `base-input/proc/spec/*` 까지로 한정**한다. app-level 우선 규칙은 *base 문서가 그렇게 지시한다는 사실* 로만 기록하고, app-level 문서의 구체 내용을 권위로 인용해야 할 때는 **그 사본이 frozen snapshot 에 추가 고정된 이후**에만 한다 (그 전에는 mutable head 를 권위로 열지 말 것). 본 문서가 frozen 권위와 충돌하면 패배.
-2. **각 리포 `proc/spec/`** — 도메인 SOT. 본 문서는 spec 변경 제안일 뿐, spec 자체가 아니다.
-3. **각 리포 `proc/plan/2026-05-26_pullim-be-adoption.md` / `2026-05-26_container-presenter-adoption.md`** — 이미 채택된 BE/FE 정본 plan. 본 문서가 충돌하는 항목은 패배한다.
-4. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
+2. **각 리포 `proc/spec/` + `input/docs-archive/`** — 도메인 SOT (codex R13 — classbot 은 특히 `input/docs-archive/07_풀림_클래스봇_핸드오프.md` 가 도메인 권위 문서: frozen `base-input/proc/spec/2026-05-18_be-api-design.md` 첫머리와 `base-CLAUDE.md` 가 둘 다 이를 classbot 권위로 지정). spec 만 읽고 handoff 와 충돌하는 판단을 하지 않도록 docs-archive 계층을 권위에 포함한다. 본 문서는 이들의 변경 제안일 뿐, 자체가 아니다.
+3. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
+
+> **plan 문서는 권위 계층 아님 (codex R13 — #82 R17 과 동일)**: `pullim-planner` 의 `proc/plan/*` (BE/FE 차용 plan 포함)이든 *이미 채택된 다른 plan* 이든, **plan 문서는 권위가 아니라 참고 문서**다. 권위는 위 1·2(루트 가이드·app-level 우선참조 + `proc/spec/`·`input/docs-archive/`)뿐.
 
 **구체 패배 사례** (현재 권위 우선 항목 — 본 문서가 다르게 적었더라도 무시):
 
@@ -34,6 +35,7 @@
 - **app-level 우선순위·게이트 노출·보류 신호 정합 (codex R10)** — (i) classbot 도메인-구체 룰에서 **app-level 문서가 루트보다 우선**(§0 1번 하위 — "루트→앱 순" 아님). (ii) P1-2 per-domain 매트릭스 행에도 classbot 승인 게이트 노출(§7 매트릭스). (iii) §§8-10 의 인프라 결정 "결정 시점" 을 §15-A/§16 무기한 보류와 동일 톤으로 정정(즉시 결정 신호 제거).
 - **재현 가능 authority chain·게이트 단일화 (codex R11)** — (i) app-level 문서 사본이 frozen snapshot 에 없으므로 본 plan 의 재현 authority 는 frozen `base-AGENTS/CLAUDE` + `base-input/proc/spec/*` 로 한정(§0 1번 하위). (ii) §2 표는 비권위 proposal baseline — mutable head·`사용자 정본 표` 행은 재현 검증 불가로 명시, commit SHA 고정 또는 in-repo 치환 필요(§2 콜아웃). (iii) mock 한글 예외는 본 plan 이 직접 정의(mutable `apps/web/CLAUDE.md` 인용 제거 — §11 R-I18N). (iv) Gate↔Phase 단일 기준표: pnpm=G3 통일, G1 코드 트랙은 인프라 결정(§8/§9/§10)과 분리, 인프라 게이트는 §16 보류(§12).
 - **비재현 입력 제거·결정 출처 고정 (codex R12)** — (i) §2 footer 의 "5 도메인 정합 기준선" 승격 제거 — frozen·SHA 확보 항목만 실행 기준선(§2 footer). (ii) §3 현재상태 매트릭스는 classbot 행만 frozen 재현 가능·실행 기준, 타 도메인 행은 참고값(§3 콜아웃). (iii) §16 D-CLU/D-RDS/D-SEQ·§16.4 코덱스 정책은 frozen base 파생 아닌 사용자 결정 — 본 §16(커밋 plan)이 재현 고정 출처, merge workflow 정책은 고정 경로 정책 문서로 승격 권고(§16 콜아웃·§16.4).
+- **authority 체인 완성·내부 정합 (codex R13)** — (i) 권위 2번에 `input/docs-archive/`(특히 `07_풀림_클래스봇_핸드오프.md`) 포함, plan 문서는 비권위로 격하(§0 2·3번). (ii) §3 classbot 행의 버전·패키지 값(`bun@1.3.12`·`drizzle 0.36.4`·TanStack `5.100.1`)은 frozen 아닌 head 관찰값으로 분리(§3 콜아웃). (iii) `proc/` 5번째 버킷 = `research`(knowhow 오기 정정 — §3 표). (iv) §6 P1 헤더 "P0 완료 후" = 코드 트랙(P0-1) 전제로 §12 와 정합. (v) §13 타 리포 PR 은 비-frozen 잠정 제안 — 확정 backlog 아님(§13 콜아웃).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -106,7 +108,7 @@
 
 각 도메인 `package.json` + `CLAUDE.md` 정독 결과 (**2026-05-27 작성 시점 스냅샷** — 후속 PR 은 *현 시점* 워크스페이스 재확인 필요):
 
-> **⚠ 재현성 한계 (codex R12)**: 본 리뷰 기준에서 권위·재현 가능한 것은 **`.codex-runtime/base-*` (classbot frozen snapshot) 뿐**이다. 따라서 본 표의 **classbot 행만 frozen 으로 재현 검증 가능**하고, **planner/Q/games/arcade 행은 이 리포 안에 immutable snapshot·commit SHA 가 없어 재현 검증 불가**한 *참고 관찰값* 이다. §4 갭 분석·§13 PR 계획은 **classbot 행만 실행 기준** 으로 쓰고, 타 도메인 행은 *참고* 로만 취급한다 — 타 도메인 현황을 실행 게이트 계산의 사실값으로 쓰려면 각 행의 근거 스냅샷(commit SHA)을 이 리포에 고정해야 한다. 그 전까지 타 도메인 행은 부록성 참고.
+> **⚠ 재현성 한계 (codex R12·R13)**: 본 리뷰 기준에서 권위·재현 가능한 것은 **`.codex-runtime/base-*` (classbot frozen snapshot) 뿐**이다. **classbot 행 중에서도 frozen 으로 재현되는 것은 base-CLAUDE/AGENTS·base spec 이 적은 사실(모노레포 구조·금지 항목·인증 Ph8 보류 등)뿐**이고, **세부 *버전·패키지명 값*(`bun@1.3.12`·`drizzle-orm 0.36.4`·`TanStack Query 5.100.1` 등)은 frozen base 에 없는 *head 관찰값*** 이다 (codex R13 — 별도 표기). 따라서 §4 갭 분석·§13 PR 계획에서 **authority-backed 입력으로 쓸 수 있는 것은 frozen 사실뿐**이고, 버전 값과 **planner/Q/games/arcade 행 전체**는 *참고 head 관찰값* — 실행 게이트 계산의 사실값으로 쓰려면 commit SHA 를 이 리포에 고정해야 한다. (아래 표에서 *head 관찰값* 인 버전·타 도메인 셀은 "(head)" 로 읽는다.)
 
 | 항목 | planner | Q | classbot | games | arcade |
 |---|---|---|---|---|---|
@@ -129,7 +131,7 @@
 | **배포** | Vercel manual | Vercel manual | Vercel manual | Vercel manual | Vercel manual |
 | **포트 dev** | 3030 | 3031 | 3032 | 3033 | 3040 |
 | **권위 문서** | `input/docs-archive/08_플래너_핸드오프.md` | `input/docs-archive/*` | `input/docs-archive/07_풀림_클래스봇_핸드오프.md` (codex R4 — base `CLAUDE.md` 기준 정확한 파일명) | **`proc/spec/01~10`** (독립) | `proc/spec/` (작성 중) |
-| **proc 5번째** | knowhow | knowhow | knowhow | **audit** (독립) | knowhow |
+| **proc 5번째** | research | research | **research** (codex R13 — frozen `base-CLAUDE.md` 모노레포 트리: `proc/` = `plan/spec/knowhow/archive/research` 순 → 5번째 = `research`. 이전 "knowhow" 표기는 오기) | **audit** (독립) | research |
 | **현재 진행** | Phase β PR #36 | D-Lite 머지 | **bun workspace 모노레포 확정** (base 스냅샷 기준 — codex R4) | alignment plan PR #108 | Phase 1 PR #2 머지 |
 
 핵심 갭 (분류는 §4):
@@ -195,7 +197,9 @@
 | **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 (**classbot CI 는 bun 유지**) | `.github/workflows/{ci.yml,deploy.yml}`: setup(도메인 패키지매니저 기준)·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update<br>⚠ **classbot 단서 (codex R5·R8)**: classbot 은 bun workspace 고정(권위)이고 P0-1 에서 pnpm 전환을 권위 문서 선개정 전까지 금지했으므로, classbot CI 워크플로의 setup 도 **`oven-sh/setup-bun` (bun 기준) 유지**한다. `actions/setup-pnpm` 강제는 pnpm 전환이 확정된 도메인 한정 — classbot 에 적용하면 패키지매니저(bun)와 워크플로(pnpm)가 모순됨. **또한 (codex R8) frozen base `CLAUDE.md` 는 `.github/workflows/prod-verify.yml` 을 classbot 고유 회귀 안전 자산으로 명시하고, workflow 편집 자체를 사용자 명시 확인 필요 작업으로 분류한다 — classbot 의 "Vercel workflow 폐기" 는 `prod-verify.yml` 까지 제거/훼손하는 것으로 해석 금지. classbot P0-4 의 선행 조건은 `prod-verify` 유지(또는 동등 회귀 자산 대체) + workflow 편집 사용자 승인 게이트.** *§16 에 의해 P0-4 자체가 무기한 보류이기도 함* |
 | **P0-5** | Secrets Manager + CloudWatch Logs + S3 + SES | 5 도메인 또는 공유 | env 추출·Secrets Manager rotation policy·로그 그룹·S3 버킷 정책·SES verified identity |
 
-### P1 — 코드 마이그레이션 (P0 완료 후)
+### P1 — 코드 마이그레이션 (P0-1 또는 코드 트랙 준비 완료 후 — codex R13: §12 와 정합)
+
+> (codex R13) §12 Gate↔Phase 표대로 **P1 코드 작업은 인프라(P0-2/3/4 — §16 무기한 보류)와 무관하게 코드 트랙 준비(P0-1 등) 완료 후 진입 가능**하다. "P0 완료 후" 를 "P0-2/3/4 인프라 완료 후" 로 읽으면 §12 와 충돌하므로, 여기 "P0 완료" 는 *코드 트랙 전제(P0-1 등)* 를 가리킨다.
 
 | Phase | 이름 | 대상 | 산출물 |
 |---|---|---|---|
@@ -330,6 +334,8 @@
 ---
 
 ## 13. PR 분할 제안 — 15+ PR
+
+> **⚠ 비권위 baseline 기반 — 확정 backlog 아님 (codex R13)**: 아래 PR 목록 중 **타 리포(planner/Q/games/arcade) 행은 §3 의 *비-frozen 참고 관찰값* 에 기반**하며 (§2 footer·§3 콜아웃), frozen SHA 가 없는 외부 리포 현황을 *확정 실행 backlog* 로 승격해서는 안 된다. 따라서 타 리포 PR 제목·순서·의존은 **잠정 제안(스케치)** 으로만 읽고, 실제 실행 전 각 리포의 현 시점 워크스페이스를 commit SHA 기준으로 재확인한다. **frozen 으로 재현 검증되는 실행 입력은 classbot 행뿐** — classbot PR 만 본 plan 기준으로 직접 진행 가능, 타 리포는 해당 리포 자체 plan/spec 으로 확정.
 
 | PR # | Phase | 도메인 | 제목 (안) | 의존 |
 |---|---|---|---|---|
