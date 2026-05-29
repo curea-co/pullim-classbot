@@ -15,7 +15,7 @@
 다음 우선순위로 해석한다 (위가 강함):
 
 1. **각 리포 루트 `AGENTS.md` / `CLAUDE.md`** — 현행 운영 규칙. 본 문서가 충돌하는 항목은 항상 패배한다.
-   - **앱 레벨 문서 우선 (codex R9·R10·R11 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다 (도메인 사안에서 app-level 이 루트보다 우선). **⚠ 단 재현성 한계 (codex R11)**: 현재 frozen snapshot(`.codex-runtime/base-*`)에는 `apps/classbot/{AGENTS,CLAUDE}.md` 의 **immutable 사본이 없다**. 따라서 **본 plan 의 재현 가능한 authority 는 frozen 에 실제로 존재하는 `base-AGENTS.md`·`base-CLAUDE.md` + `base-input/proc/spec/*` 까지로 한정**한다. app-level 우선 규칙은 *base 문서가 그렇게 지시한다는 사실* 로만 기록하고, app-level 문서의 구체 내용을 권위로 인용해야 할 때는 **그 사본이 frozen snapshot 에 추가 고정된 이후**에만 한다 (그 전에는 mutable head 를 권위로 열지 말 것). 본 문서가 frozen 권위와 충돌하면 패배.
+   - **앱 레벨 문서 우선 (codex R9·R10·R11·R15 — classbot)**: frozen `base-AGENTS.md`/`base-CLAUDE.md` 는 둘 다 classbot **도메인-구체 룰에서 `apps/classbot/AGENTS.md`·`apps/classbot/CLAUDE.md` 를 "우선 참조"** 하라고 명시한다 (도메인 사안에서 app-level 이 루트보다 우선). **재현 가능한 authority 범위 (codex R15)**: frozen snapshot 에 실제 존재하는 **`base-AGENTS.md`·`base-CLAUDE.md` + `base-input/proc/spec/*` + `base-input/input/docs-archive/*`(특히 `07_풀림_클래스봇_핸드오프.md`)** 까지다 — docs-archive handoff 는 frozen 안에 있고 base spec/CLAUDE 가 classbot SOT 로 지정하므로 **반드시 재현 authority 에 포함**한다(이전 R11 표기에서 누락됐던 것 정정). **⚠ 단** `apps/classbot/{AGENTS,CLAUDE}.md` 자체의 immutable 사본은 frozen 에 없으므로, app-level 문서의 *구체 내용* 을 권위로 인용할 때는 그 사본이 frozen 에 추가 고정된 이후에만 한다(그 전엔 mutable head 를 권위로 열지 말 것). 본 문서가 frozen 권위와 충돌하면 패배.
 2. **각 리포 `proc/spec/` + `input/docs-archive/`** — 도메인 SOT (codex R13 — classbot 은 특히 `input/docs-archive/07_풀림_클래스봇_핸드오프.md` 가 도메인 권위 문서: frozen `base-input/proc/spec/2026-05-18_be-api-design.md` 첫머리와 `base-CLAUDE.md` 가 둘 다 이를 classbot 권위로 지정). spec 만 읽고 handoff 와 충돌하는 판단을 하지 않도록 docs-archive 계층을 권위에 포함한다. 본 문서는 이들의 변경 제안일 뿐, 자체가 아니다.
 3. **본 문서** — PROPOSAL. §15 게이트(G1/G3/G4) 합의 + 각 리포의 spec 갱신 PR이 머지된 뒤에만 실행 게이트로 승격된다.
 
@@ -37,6 +37,7 @@
 - **비재현 입력 제거·결정 출처 고정 (codex R12)** — (i) §2 footer 의 "5 도메인 정합 기준선" 승격 제거 — frozen·SHA 확보 항목만 실행 기준선(§2 footer). (ii) §3 현재상태 매트릭스는 classbot 행만 frozen 재현 가능·실행 기준, 타 도메인 행은 참고값(§3 콜아웃). (iii) §16 D-CLU/D-RDS/D-SEQ·§16.4 코덱스 정책은 frozen base 파생 아닌 사용자 결정 — 본 §16(커밋 plan)이 재현 고정 출처, merge workflow 정책은 고정 경로 정책 문서로 승격 권고(§16 콜아웃·§16.4).
 - **authority 체인 완성·내부 정합 (codex R13)** — (i) 권위 2번에 `input/docs-archive/`(특히 `07_풀림_클래스봇_핸드오프.md`) 포함, plan 문서는 비권위로 격하(§0 2·3번). (ii) §3 classbot 행의 버전·패키지 값(`bun@1.3.12`·`drizzle 0.36.4`·TanStack `5.100.1`)은 frozen 아닌 head 관찰값으로 분리(§3 콜아웃). (iii) `proc/` 5번째 버킷 = `research`(knowhow 오기 정정 — §3 표). (iv) §6 P1 헤더 "P0 완료 후" = 코드 트랙(P0-1) 전제로 §12 와 정합. (v) §13 타 리포 PR 은 비-frozen 잠정 제안 — 확정 backlog 아님(§13 콜아웃).
 - **비검증 입력 비승격·plan≠authority 정합 (codex R14)** — (i) `사용자 정본 표` 기반 gap(G7·G12·G13·G14)은 "비검증 후보군" 으로 분리 — §6 필수 Phase·§13 backlog 승격 금지(§4 콜아웃). (ii) classbot drizzle→TypeORM 리스크(R-DRIZ)는 P0-3 활성 트랙 아님 — 별도 migration plan 으로 분리(§11). (iii) §16 사용자 결정·§16.4 코덱스 정책은 plan 본문을 authority 출처로 삼지 않고 별도 고정 decision 문서로 승격 후 참조(§16·§16.4 콜아웃 — §0 "plan 비권위" 와 정합).
+- **재현 authority·게이트 최종 정합 (codex R15)** — (i) 재현 authority 에 frozen `base-input/input/docs-archive/*`(`07_핸드오프`) 포함(§0 1번 하위 — R11 누락 정정). (ii) classbot 도 "본 plan 만으로 직접 진행" 아님 — frozen 권위 + 글로벌 작업 사용자 확인 충족 범위 한정(§13 콜아웃). (iii) 결정 로그는 `proc/plan/`(비권위) 아닌 `proc/spec/`·권위 decision 경로로 승격해야 완료 인정(§14). (iv) 인프라 보류 근거는 §16 텍스트가 아니라 *사용자 재확인 게이트* — decision 문서 정식 등재는 본 plan 범위 밖 후속 작업(§16 콜아웃).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -338,7 +339,7 @@
 
 ## 13. PR 분할 제안 — 15+ PR
 
-> **⚠ 비권위 baseline 기반 — 확정 backlog 아님 (codex R13)**: 아래 PR 목록 중 **타 리포(planner/Q/games/arcade) 행은 §3 의 *비-frozen 참고 관찰값* 에 기반**하며 (§2 footer·§3 콜아웃), frozen SHA 가 없는 외부 리포 현황을 *확정 실행 backlog* 로 승격해서는 안 된다. 따라서 타 리포 PR 제목·순서·의존은 **잠정 제안(스케치)** 으로만 읽고, 실제 실행 전 각 리포의 현 시점 워크스페이스를 commit SHA 기준으로 재확인한다. **frozen 으로 재현 검증되는 실행 입력은 classbot 행뿐** — classbot PR 만 본 plan 기준으로 직접 진행 가능, 타 리포는 해당 리포 자체 plan/spec 으로 확정.
+> **⚠ 비권위 baseline 기반 — 확정 backlog 아님 (codex R13)**: 아래 PR 목록 중 **타 리포(planner/Q/games/arcade) 행은 §3 의 *비-frozen 참고 관찰값* 에 기반**하며 (§2 footer·§3 콜아웃), frozen SHA 가 없는 외부 리포 현황을 *확정 실행 backlog* 로 승격해서는 안 된다. 따라서 타 리포 PR 제목·순서·의존은 **잠정 제안(스케치)** 으로만 읽고, 실제 실행 전 각 리포의 현 시점 워크스페이스를 commit SHA 기준으로 재확인한다. **frozen 으로 재현 검증되는 실행 입력은 classbot 행뿐**이다 — 타 리포는 해당 리포 자체 plan/spec 으로 확정. ⚠ **단 classbot 도 "본 plan 기준으로 바로 진행" 이 아니다** (codex R15): classbot 후속 PR 은 **frozen 권위(base-CLAUDE/AGENTS·spec·docs-archive) + 글로벌 작업 사용자 확인이 모두 충족된 범위에서만** 진행한다. base `CLAUDE.md` 가 root 파일·`.github/workflows/**`·`packages/*`·`apps/backend/src/{common,config,database}/*`·새 도메인 모듈 추가를 사용자 명시 확인 필요로 두므로, 이 범주는 본 plan 만으로 열리지 않는다. 본 plan 은 *제안* 일 뿐 classbot PR 의 단독 실행 근거가 아니다.
 
 | PR # | Phase | 도메인 | 제목 (안) | 의존 |
 |---|---|---|---|---|
@@ -370,7 +371,7 @@
 
 - [ ] (각 도메인별 spec 갱신 PR 통과를 전제로) `packageManager` 가 `pnpm@10.26.1` — *classbot 은 §0·§6 P0-1 단서대로 권위 문서 선개정 전 적용 금지*
 - [ ] JWT 인증 / Redis / Sentry / `@pullim/design-system` / `messages/{ko,en}.json` / TanStack Query 는 **각 도메인 spec 이 채택을 확정한 도메인 한정** — classbot 은 현행 권위 문서가 DS/i18n/Sentry 도입 및 JWT 확정을 금지/보류하므로 spec 갱신 전 제외
-- [ ] §8/§9/§10 결정 사항이 **본 plan 본문(§15/§16)에 직접 반영** (codex R7 — 결정 이력은 이 리포 안의 본 plan 문서에 누적한다. 외부 `.pullim-meta/DECISIONS.md` 는 메모용일 뿐 완료 판정 산출물 아님 — 재현 가능한 in-repo 경로만 완료 조건으로 인정). 별도 결정 로그가 필요하면 이 리포 내 `proc/plan/` 하위 고정 경로로 둔다
+- [ ] §8/§9/§10 결정 사항이 **권위 경로의 decision/spec 문서로 승격되어 반영** (codex R7·R15 — plan 문서(`proc/plan/`)는 권위 아니므로 결정 이력의 *완료 판정 출처* 가 될 수 없다(§0). 따라서 결정 로그는 **`proc/spec/` 또는 별도 권위 decision 경로**(예 `proc/decisions/`, 도입 시 권위 등재)로 승격하고, 본 plan §15/§16 은 그 문서를 *참조* 만 한다. 외부 `.pullim-meta/DECISIONS.md` 는 메모용일 뿐 완료 판정 산출물 아님). 권위 decision 문서가 아직 없으면 이 완료 항목은 미충족(부분 완료)으로 둔다
 - [ ] §11 모든 H 리스크 mitigation 적용 완료 또는 잔여 리스크 별 plan 으로 이관
 
 **B. 인프라 (P0-2/P0-3/P0-4) — §16 에 의해 무기한 보류, 완료 정의에서 분리**:
@@ -429,7 +430,9 @@
 
 ## §16 — 사용자 결정 (2026-05-27 후속) — 명시적 보류 사항
 
-> **⚠ 사용자 결정 — 별도 decision 문서로 승격 필요 (codex R12·R14)**: 아래 D-CLU/D-RDS/D-SEQ 보류와 §16.4 코덱스 정책은 **frozen base snapshot(`.codex-runtime/base-*`)에서 파생되지 않는 *사용자 직접 결정*** 이다 (채팅 맥락 기반). ⚠ **단 §0(권위 계층)이 "plan 문서는 권위 아님" 이라고 못박았으므로, 본 §16(= plan 문서) 을 결정의 *authority 고정 출처* 로 삼아서는 안 된다** (codex R14 — 그러면 머지 후 이 plan 이 frozen base 를 제치고 새 authority 처럼 동작). 따라서: 이 사용자 결정들은 **이 리포 내 별도 고정 decision 문서(예 `proc/decisions/2026-05-29_infra-merge-hold.md`)로 승격한 뒤, 본 §16 과 인프라 게이트(§8~§10·§14·§15)는 *그 문서를 참조*** 하도록 한다. 그 decision 문서가 생기기 전까지 §16 은 결정 내용의 *임시 메모* 일 뿐 authority 가 아니며, 후속 작업자는 인프라 보류를 plan 본문이 아니라 승격된 decision 문서/사용자 재확인으로 근거한다.
+> **⚠ 사용자 결정 — 근거는 "사용자 재확인", plan 본문 아님 (codex R12·R14·R15)**: 아래 D-CLU/D-RDS/D-SEQ 보류와 §16.4 코덱스 정책은 **frozen base snapshot 에서 파생되지 않는 *사용자 직접 결정*** 이다 (채팅 맥락 기반). §0(권위 계층)이 "plan 문서는 권위 아님" 이라고 못박았으므로 **본 §16(= plan 문서)은 결정의 authority 출처가 아니다**.
+>
+> **그래서 인프라 게이트(§8~§10·§14·§15)의 보류 근거는 "§16 텍스트" 가 아니라 *살아있는 사용자 결정(필요 시 재확인 가능)* 이다** (codex R15 — 이게 재현 가능한 근거: 후속 작업자는 인프라 트랙 진입 전 *사용자에게 보류 해제 여부를 재확인* 하면 된다). §16 은 그 사용자 결정의 *현재 스냅샷 메모* 일 뿐. ⚠ **본 PR 에는 별도 권위 decision 문서를 추가하지 않으므로**(이 PR 은 plan 문서 산출물), §14/§15 의 인프라 보류 항목은 **"사용자 재확인 게이트" 에 종속** — decision 문서가 권위 경로(`proc/spec/` 또는 도입될 `proc/decisions/`)에 정식 등재되기 전까지는 *plan 텍스트가 아니라 사용자 재확인* 이 보류의 근거다. (decision 문서 정식 도입은 본 plan 범위 밖의 후속 작업.)
 
 ### 16.1 진행 결정
 
