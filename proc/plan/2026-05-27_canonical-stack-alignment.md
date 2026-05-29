@@ -115,8 +115,8 @@
 
 핵심 갭 (분류는 §4):
 - **5 도메인 전체 — pnpm/i18n/Sentry/Redis/BullMQ/AWS SDK 0%**
-- **classbot — drizzle 채택**: 정본 TypeORM 과 ORM 충돌 (가장 큰 단일 이슈)
-- **classbot — bcryptjs ≠ bcrypt**: native bcrypt 로 전환 또는 본 plan 에서 예외 인정 결정 필요
+- **classbot — drizzle 채택**: 정본 TypeORM 과 *구조상* 차이 — 단, classbot 권위 spec(`proc/spec/2026-05-18_be-api-design.md`)이 Drizzle 을 Ph1 완료 SOT 로 고정하고 있으므로 **현행 SOT 를 뒤집는 전제가 아님**. TypeORM 정합은 spec 갱신 PR 선행 후 별 마이그레이션 plan 으로만 (§0·§15 D-CB-ORM)
+- **classbot — 인증 스택 미정**: classbot 의존성에 bcryptjs/bcrypt **둘 다 없음**. spec Ph8 인증 결정(NextAuth/lucia/자체) 전까지는 `x-user-id` mock 단계 — bcrypt 전환이 아니라 *인증 방식 자체가 미결정*. spec 결정 후에만 (§6 P1-1 단서). arcade 만 bcryptjs 3.0.3 보유
 - **games — Next.js 15**: 정본 16 과 한 단계 lag
 - **games — BE 없음**: 5 중 유일 (BE 신설 vs 영구 SPA 결정 필요)
 - **TanStack Query 보유는 classbot 만**: 정본 패턴이 아닌 채택임 (FE 데이터 계층 통합 시 일관성 확보 필요)
@@ -131,7 +131,7 @@
 | G2 | 모노레포 | Turborepo + apps/{web,backend} + packages/* | planner/Q/arcade 일부 / classbot·games 미완 | **M** | classbot/games 가 모노레포 전환 선행 필요 |
 | G3 | Next.js | 16.1.2 | 16 (games 만 15) | **S** (games 만 1 단계) | games — Next 15 → 16 |
 | G4 | BE 프레임워크 | NestJS 11 (common·config·database 표준 모듈) | planner/Q/classbot/arcade skeleton, games 부재 | **L** | games — BE 신설 결정 필요 |
-| G5 | ORM | TypeORM 0.3.28 + naming-strategies | classbot drizzle, 나머지 미적용 | **L** | classbot — drizzle → TypeORM 마이그레이션 |
+| G5 | ORM | TypeORM 0.3.28 + naming-strategies | classbot drizzle, 나머지 미적용 | **L** | classbot — **drizzle 은 갭 아님·현행 SOT** (codex R3): base `proc/spec/2026-05-18_be-api-design.md` 가 Drizzle config/schema/초기 migration 을 Ph1 완료 산출물로 고정하고 마이그레이션 정책도 `drizzle-kit migrate` 로 명시. TypeORM 전환은 spec 갱신 PR 선행 후에만 (§15 D-CB-ORM). 본 표의 "전환" 은 정본 모방 목표일 뿐 즉시 작업 아님 |
 | G6 | 인증 | Passport/JWT + bcrypt | Mock 4건, arcade bcryptjs, games 없음 | **L** | 5건 모두 JWT 도입 |
 | G7 | 캐시·큐 | Redis(ioredis) + BullMQ | 0건 | **L** | 5건 모두 신규 도입 |
 | G8 | FE DS | @pullim/design-system + DS 강제 import | shadcn 로컬 5건 | **L** | 5건 모두 마이그레이션 + 본체 DS 외부 노출 정책 확정 필요 |
@@ -170,7 +170,7 @@
 
 | Phase | 이름 | 대상 | 산출물 |
 |---|---|---|---|
-| **P0-1** | bun → pnpm 전환 | 5 도메인 일괄 | bun.lock 삭제·pnpm-lock.yaml 생성, `packageManager: "pnpm@10.26.1"`, scripts `bun --filter` → `pnpm -C` 또는 `pnpm --filter`, `predev`의 `bun run` → `pnpm`, Dockerfile pnpm 베이스, CI workflow pnpm/action-setup |
+| **P0-1** | bun → pnpm 전환 | 5 도메인 일괄 (**classbot 보류** — 아래 단서) | bun.lock 삭제·pnpm-lock.yaml 생성, `packageManager: "pnpm@10.26.1"`, scripts `bun --filter` → `pnpm -C` 또는 `pnpm --filter`, `predev`의 `bun run` → `pnpm`, Dockerfile pnpm 베이스, CI workflow pnpm/action-setup<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `AGENTS.md`/`CLAUDE.md` 와 실제 root `packageManager` 가 **bun(`bun@1.3.12`) workspace** 로 고정돼 있다. classbot 에서는 이 항목을 기본 완료조건이 아니라 **권위 문서 선개정(룰 갱신 PR) 머지 전에는 적용 금지**인 별도 의사결정으로 다룬다. 본 plan 머지만으로 classbot pnpm 전환 효력 없음 |
 | **P0-2** | AWS ECS Fargate 셋업 | 5 도메인 또는 공유 cluster | cluster·service·task definition·ALB·target group·security group. cluster 옵션은 §8 결정 후 |
 | **P0-3** | RDS PostgreSQL 셋업 | 5 도메인 또는 공유 RDS | RDS 인스턴스·VPC·subnet group·parameter group·migrations. RDS 옵션은 §9 결정 후 |
 | **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 | `.github/workflows/{ci.yml,deploy.yml}`: actions/setup-pnpm·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update |
@@ -180,17 +180,17 @@
 
 | Phase | 이름 | 대상 | 산출물 |
 |---|---|---|---|
-| **P1-1** | Passport/JWT 인증 도입 | 5 도메인 | MockAuth → @nestjs/passport + @nestjs/jwt, refresh token rotation, bcrypt password hashing. classbot·arcade 의 bcryptjs → bcrypt 전환 |
+| **P1-1** | Passport/JWT 인증 도입 | 5 도메인 (**classbot 보류** — 아래 단서) | MockAuth → @nestjs/passport + @nestjs/jwt, refresh token rotation, bcrypt password hashing. arcade 의 bcryptjs → bcrypt 전환<br>⚠ **classbot 단서 (codex R3)**: classbot 권위 spec(`proc/spec/2026-05-18_be-api-design.md`)은 인증 방식을 **Ph8 결정 보류**(NextAuth v5 / lucia-auth / 자체 중 미정)로 두고 현재는 `x-user-id` 헤더 폴백 mock 단계다. 또한 classbot 의존성에 **bcryptjs 자체가 없다**(전환 대상 아님). 따라서 classbot 에 Passport/JWT+bcrypt 를 확정 목표로 적지 않는다 — spec 의 인증 결정이 내려진 *이후에만* 적용 |
 | **P1-2** | Redis + BullMQ 도입 (BE) | 5 도메인 | ioredis connection, BullMQ queue 셋업, ElastiCache 또는 Redis container 모두 |
-| **P1-3** | shadcn 로컬 → @pullim/design-system 마이그레이션 (FE) | 5 도메인 | Button/Card/Dialog/Input/Tabs/Heading/Text/toast import 전환, lucide-react → @pullim/design-system/icons, sonner → @pullim/design-system. 도메인별 GitHub Action으로 release tag 핀 |
-| **P1-4** | next-intl 도입 (i18n) | 5 도메인 | `messages/{ko,en}.json` 단일 파일, `useTranslations()` / `getTranslations()` 적용, 하드코딩 텍스트 전수 추출. mock 데이터의 한글은 예외 |
+| **P1-3** | shadcn 로컬 → @pullim/design-system 마이그레이션 (FE) | 5 도메인 (**classbot 제외/보류**) | Button/Card/Dialog/Input/Tabs/Heading/Text/toast import 전환, lucide-react → @pullim/design-system/icons, sonner → @pullim/design-system. 도메인별 GitHub Action으로 release tag 핀<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 `@pullim/design-system` import 를 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 본 Phase 적용 대상에서 제외 — 본 plan 머지만으로 효력 없음 |
+| **P1-4** | next-intl 도입 (i18n) | 5 도메인 (**classbot 제외/보류**) | `messages/{ko,en}.json` 단일 파일, `useTranslations()` / `getTranslations()` 적용, 하드코딩 텍스트 전수 추출. mock 데이터의 한글은 예외<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 i18n 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
 | **P1-5** | TanStack Query 도입 (FE 서버 state) | 4 도메인 (classbot 제외 — 이미 보유) | QueryClient provider, hydration boundary, queryKey 컨벤션 |
 
 ### P2 — 추가 도입 (P1 완료 후, 도메인 필요도별)
 
 | Phase | 이름 | 대상 | 산출물 |
 |---|---|---|---|
-| **P2-1** | Sentry 도입 | 5 도메인 | `instrumentation.ts` + sentry.client/server/edge.config.ts, DSN Secret 관리 |
+| **P2-1** | Sentry 도입 | 5 도메인 (**classbot 제외/보류**) | `instrumentation.ts` + sentry.client/server/edge.config.ts, DSN Secret 관리<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `CLAUDE.md` 는 Sentry 도입을 **명시적으로 금지**한다. classbot 은 권위 문서 선개정 전까지 적용 대상 제외 |
 | **P2-2** | AWS SDK (S3 / SES) 도입 | 사용처별 (classbot 봇 미디어, planner 리포트 PDF, Q 학습 자료 등) | presigned URL 패턴, SES verified sender |
 | **P2-3** | Tiptap 도입 | classbot builder, planner 메모 (필요 도메인만) | @tiptap/react + extensions |
 | **P2-4** | packages 6개 정렬 (analytics/config/logging/remote-config/ui/utils) | 5 도메인 각자 | placeholder → 실제 구현, types/api-client/auth 기존 3 + 신규 3 |
@@ -206,17 +206,17 @@
 
 | Phase | planner (Phase β 진행) | Q (D-Lite 머지) | classbot (D-Lite 진행) | games (alignment PR #108) | arcade (Phase 1 머지) |
 |---|---|---|---|---|---|
-| P0-1 pnpm | 신규 적용 | 신규 적용 | D-Lite 모노레포 전환과 합쳐 1 PR | alignment plan 의 Phase 0a 로 흡수 | 신규 적용 |
+| P0-1 pnpm | 신규 적용 | 신규 적용 | **보류** — classbot 은 bun workspace 고정(권위), 권위 문서 선개정 전 적용 금지 (§6 P0-1 단서) | alignment plan 의 Phase 0a 로 흡수 | 신규 적용 |
 | P0-2 ECS | 신규 적용 | 신규 적용 | 신규 적용 | BE 신설 + ECS 동시 (§8 결정) | 신규 적용 |
 | P0-3 RDS | 기존 docker compose → RDS | 기존 docker compose → RDS | drizzle 분리 결정 + RDS | 신규 (BE 신설 시) | 기존 docker compose → RDS |
 | P0-4 CI/CD | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 + codex-review.yml 유지 | Vercel workflow 폐기 |
 | P0-5 Secrets·Logs·S3·SES | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 |
-| P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | bcryptjs → bcrypt + JWT | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
+| P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | **보류** — spec Ph8 인증 미정(현 `x-user-id` mock), bcryptjs 의존성 없음. spec 결정 후 적용 (§6 P1-1 단서) | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
 | P1-2 Redis·BullMQ | BE 신규 | BE 신규 | BE 신규 + drizzle 호환성 검토 | BE 신설 시 | BE 신규 |
-| P1-3 DS | shadcn 28+ 컴포넌트 마이그레이션 | shadcn 마이그레이션 | shadcn 마이그레이션 + sonner | shadcn (new-york/slate) → DS (시각 회귀 위험 — `bun run ui:audit` 4 viewport 필수) | shadcn 마이그레이션 |
-| P1-4 i18n | hard-coded 한글 추출 (planner-home/reports/manage/onboarding 28+ 컴포넌트) | hard-coded 한글 추출 (q/{infinity,talk,analysis,review}) | hard-coded 한글 추출 (classbot/builder 13 파일) | hard-coded 한글 추출 (21 게임 + 셸 + 메커니즘) — **mock 한글 데이터는 예외 컨벤션 적용** | placeholder 라 비용 작음 |
+| P1-3 DS | shadcn 28+ 컴포넌트 마이그레이션 | shadcn 마이그레이션 | **제외/보류** — classbot `CLAUDE.md` 가 DS import 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-3 단서) | shadcn (new-york/slate) → DS (시각 회귀 위험 — `bun run ui:audit` 4 viewport 필수) | shadcn 마이그레이션 |
+| P1-4 i18n | hard-coded 한글 추출 (planner-home/reports/manage/onboarding 28+ 컴포넌트) | hard-coded 한글 추출 (q/{infinity,talk,analysis,review}) | **제외/보류** — classbot `CLAUDE.md` 가 i18n 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P1-4 단서) | hard-coded 한글 추출 (21 게임 + 셸 + 메커니즘) — **mock 한글 데이터는 예외 컨벤션 적용** | placeholder 라 비용 작음 |
 | P1-5 TanStack Query | 신규 | 신규 | **이미 보유 (5.100.1)** — 정본 5.90.21 과 minor 호환 확인 | 신규 (BE 신설 시) | 신규 |
-| P2-1 Sentry | 신규 | 신규 | 신규 | 신규 | 신규 |
+| P2-1 Sentry | 신규 | 신규 | **제외/보류** — classbot `CLAUDE.md` 가 Sentry 도입 금지. 권위 문서 선개정 전 적용 금지 (§6 P2-1 단서) | 신규 | 신규 |
 | P2-2 AWS SDK | 리포트 PDF S3 + 이메일 알림 SES | 학습 자료 S3 | 봇 미디어 S3 + 알림 SES | (사용처 평가 후 — 게임 콘텐츠 이미지는 정적 호스팅으로 우선) | 사용처 평가 후 |
 | P2-3 Tiptap | 메모/회고 영역 가능성 | (미적용 후보) | **봇 빌더 핵심** — 우선 도입 | (미적용 — 게임은 인터랙션 위주) | (미적용) |
 | P2-4 packages 6개 | placeholder 3 → 실 구현 + 3 추가 | placeholder 3 → 실 구현 + 3 추가 | 모노레포 전환 후 packages 신설 | 모노레포 전환 후 packages 신설 | packages 신설 |
@@ -312,18 +312,18 @@
 |---|---|---|---|---|
 | 1 | P0-1 | planner | `chore(planner): bun → pnpm 10.26.1 전환` | — |
 | 2 | P0-1 | Q | `chore(q): bun → pnpm 10.26.1 전환` | PR1 회고 |
-| 3 | P0-1 | classbot | `chore(classbot): D-Lite 모노레포 + pnpm 동시 적용` | PR1 회고 |
+| 3 | P0-1 | classbot | **보류** — classbot 은 bun workspace 고정. pnpm 전환은 권위 문서 선개정 PR 머지 후에만 (§6 P0-1 단서) | classbot 룰 갱신 PR |
 | 4 | P0-1 | games | `chore(games): bun → pnpm + alignment Phase 0a 흡수` | PR1 회고 |
 | 5 | P0-1 | arcade | `chore(arcade): bun → pnpm 10.26.1` | PR1 회고 |
 | 6 | P0-2/3 | (인프라) | `infra: ECS cluster pullim-domains + RDS shared instance 셋업` | §8/§9 결정 후 |
 | 7 | P0-4 | 5 도메인 | `ci(<scope>): Vercel → Docker → ECR → ECS workflow` (5 PR) | PR6 |
 | 8 | P0-5 | 5 도메인 | `infra(<scope>): Secrets Manager + CloudWatch + S3 + SES` | PR6 |
-| 9 | P1-1 | 5 도메인 | `feat(<scope>): MockAuth → Passport/JWT 인증` (5 PR) | PR8 |
+| 9 | P1-1 | 5 도메인 (**classbot 보류**) | `feat(<scope>): MockAuth → Passport/JWT 인증` (classbot 은 spec Ph8 인증 결정 후 — §6 P1-1 단서) | PR8 |
 | 10 | P1-2 | 5 도메인 | `feat(<scope>): Redis + BullMQ 도입` (5 PR) | PR8 |
-| 11 | P1-3 | 5 도메인 | `refactor(<scope>): shadcn → @pullim/design-system 마이그레이션` (5 PR — games 는 4 viewport audit 첨부) | DS 외부 정책 합의 |
-| 12 | P1-4 | 5 도메인 | `feat(<scope>): next-intl ko/en 도입 + 텍스트 추출` (5 PR) | — |
+| 11 | P1-3 | 5 도메인 (**classbot 제외/보류**) | `refactor(<scope>): shadcn → @pullim/design-system 마이그레이션` (games 는 4 viewport audit 첨부 / classbot 은 `CLAUDE.md` DS 금지 — §6 P1-3 단서) | DS 외부 정책 합의 |
+| 12 | P1-4 | 5 도메인 (**classbot 제외/보류**) | `feat(<scope>): next-intl ko/en 도입 + 텍스트 추출` (classbot 은 `CLAUDE.md` i18n 금지 — §6 P1-4 단서) | — |
 | 13 | P1-5 | 4 도메인 | `feat(<scope>): TanStack Query 도입` (4 PR — classbot 제외) | — |
-| 14 | P2-1 | 5 도메인 | `feat(<scope>): Sentry instrumentation` (5 PR) | — |
+| 14 | P2-1 | 5 도메인 (**classbot 제외/보류**) | `feat(<scope>): Sentry instrumentation` (classbot 은 `CLAUDE.md` Sentry 금지 — §6 P2-1 단서) | — |
 | 15 | P2-* | 도메인별 | AWS SDK / Tiptap / packages / Next16 (games 단독) | — |
 
 총 **30+ 개별 PR** 예상 (5 도메인 × 6 Phase 기본 + 도메인별 별도).
@@ -332,15 +332,21 @@
 
 ## 14. 본 plan 완료 정의
 
-다음 모두 충족 시 `archive/` 이관 — PM 명시 시점에:
+> **⚠ 완료 정의 재정렬 (codex R3 — §16 보류 반영)**: 아래 체크리스트는 §16.2/16.3/16.5 의 **AWS ECS/RDS/P0-4 무기한 보류 결정**과 정합되도록 두 갈래로 나눈다. 인프라(P0-2/P0-3/P0-4) 항목은 *병합 토폴로지 확정 전까지 완료 정의에서 제외*하며, 그 전까지 본 plan 은 **인프라 부분을 닫지 않은 채** "구조 정합(이식성)" 만으로 부분 archive 가능하다. 즉 본 plan 은 보류 항목을 완료 조건으로 강제하지 않으므로, 후속 작업자가 충족 불가능한 체크리스트에 묶이지 않는다.
 
-- [ ] 5 도메인 `package.json` 의 `packageManager` 가 `pnpm@10.26.1`
-- [ ] 5 도메인 모두 ECS Fargate 에서 dev 서비스 운영 (`pullim-<domain>-{web,backend}-dev` 패턴)
-- [ ] 5 도메인 모두 GitHub Actions → ECR → ECS 파이프라인 통과
-- [ ] 5 도메인 모두 JWT 인증 + Redis 연결 + Sentry DSN 활성
-- [ ] 5 도메인 모두 `@pullim/design-system` 사용 + `messages/{ko,en}.json` 단일 파일 + TanStack Query QueryClient 활성
+**A. 구조·코드 정합 (병합 토폴로지와 무관 — 이식성 확보분)** — 다음 충족 + PM 명시 시점에 본 plan 의 *인프라 외 영역* archive 가능:
+
+- [ ] (각 도메인별 spec 갱신 PR 통과를 전제로) `packageManager` 가 `pnpm@10.26.1` — *classbot 은 §0·§6 P0-1 단서대로 권위 문서 선개정 전 적용 금지*
+- [ ] JWT 인증 / Redis / Sentry / `@pullim/design-system` / `messages/{ko,en}.json` / TanStack Query 는 **각 도메인 spec 이 채택을 확정한 도메인 한정** — classbot 은 현행 권위 문서가 DS/i18n/Sentry 도입 및 JWT 확정을 금지/보류하므로 spec 갱신 전 제외
 - [ ] §8/§9/§10 결정 사항이 본 plan 본문에 반영 + DECISIONS.md 결정 이력 누적
 - [ ] §11 모든 H 리스크 mitigation 적용 완료 또는 잔여 리스크 별 plan 으로 이관
+
+**B. 인프라 (P0-2/P0-3/P0-4) — §16 에 의해 무기한 보류, 완료 정의에서 분리**:
+
+- 아래 항목은 **§16.3 의 (a) 또는 (b) 조건**(프로젝트 병합 미진행 확정 또는 병합 토폴로지 확정) 이 충족된 *이후에만* 완료 정의로 승격된다. 그 전까지 본 plan 의 archive 조건에 **포함하지 않는다** (보류 항목을 충족 못 한다는 이유로 plan 이 영구 미완료로 묶이는 것을 방지):
+  - [ ] (보류) 해당 도메인 ECS Fargate dev 서비스 운영 (`pullim-<domain>-{web,backend}-dev` 패턴)
+  - [ ] (보류) GitHub Actions → ECR → ECS 파이프라인 통과
+- 보류 기간 동안 배포는 §16.5 대로 Vercel 임시/로컬 docker 검증으로 대체한다.
 
 ---
 
