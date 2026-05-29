@@ -22,12 +22,13 @@
 **구체 패배 사례** (현재 권위 우선 항목 — 본 문서가 다르게 적었더라도 무시):
 
 - planner 의 `bun` 워크스페이스 결정 (현행) vs 본 문서의 `pnpm` 제안 — planner 는 **계속 bun**, pnpm 전환은 G4 (인프라 결정) 게이트 통과 후에만.
-- classbot 의 frozen base 확정 금지/보류 항목 (codex R6 — 과장 금지): `.codex-runtime/base-CLAUDE.md` 가 **명시적으로 금지**하는 것은 `@pullim/design-system` import · i18n · Sentry 이고, **인증은 Ph8 보류**(`x-user-id` fallback) 다. **Redis/BullMQ 는 금지 목록이 아니다** — BE 도입 가능한 일반 작업이므로 "권위상 금지" 로 적지 않는다. planner/Q 의 JWT/Redis/BullMQ 도입 역시 각 리포 spec 갱신 PR 을 통해서만 정본 채택. 본 문서 자체로 채택 효력 없음.
+- classbot 의 frozen base 확정 금지/보류 항목 (codex R6 — 과장 금지): `.codex-runtime/base-CLAUDE.md` 가 **명시적으로 금지**하는 것은 `@pullim/design-system` import · i18n · Sentry 이고, **인증은 Ph8 보류**(`x-user-id` fallback) 다. **Redis/BullMQ 는 명시 금지 목록은 아니다** — 단, *그렇다고 classbot 에서 바로 진행 가능한 일반 작업도 아니다* (codex R8): frozen base 기준 classbot `apps/backend` 는 현재 health endpoint 만 있고, **새 도메인 모듈 추가 + `apps/backend/src/{common,config,database}/*` 편집은 모두 "사용자 명시 확인 필요"인 글로벌 작업**이다. 따라서 Redis/BullMQ 도입(큐 인프라·BE 모듈 신설)은 "금지는 아니나 사용자 확인 게이트 대상" 으로 다룬다. planner/Q 의 JWT/Redis/BullMQ 도입도 각 리포 spec 갱신 PR 을 통해서만 정본 채택. 본 문서 자체로 채택 효력 없음.
 - classbot 의 Drizzle 기반 현행 BE 로드맵 — 본 문서의 TypeORM 정본 항목은 G4 통과 후 별도 마이그레이션 plan 으로 처리. 즉시 전환 아님.
 - **classbot 현행 구조 (codex R4)** — base `AGENTS.md`/`CLAUDE.md` 기준 classbot 은 **이미 `apps/{classbot,backend}` + `packages/{types,api-client,auth}` 를 가진 bun workspace 모노레포**다. 본 문서의 "단일 앱"·"모노레포 전환 선행"·"packages 신설" 표기는 모두 오기 — G2/G15/P2-4 는 *전환·신설* 이 아니라 *기존 모노레포·placeholder 확장* 기준으로 읽는다. classbot 권위 핸드오프 파일명은 `input/docs-archive/07_풀림_클래스봇_핸드오프.md`.
 - **classbot 인증·CI·prod DB (codex R5)** — (인증) G6 의 "5건 모두 JWT" 는 classbot 제외 — Ph8 결정 보류·`x-user-id` mock. (CI) P0-4 의 `actions/setup-pnpm` 강제는 classbot 비적용 — bun workspace 고정이므로 classbot CI 는 `setup-bun` 유지(워크플로만 pnpm 으로 바꾸면 패키지매니저와 모순). (prod DB) P0-3 의 classbot RDS 확정은 오기 — base spec 은 `Neon/Supabase/RDS` 중 Ph9 결정 보류. 모두 spec 결정·§16 보류와 정합.
 - **authority chain 재현성 (codex R6)** — (i) classbot 금지 목록 과장 금지: 금지는 DS/i18n/Sentry + 인증 Ph8 보류뿐, Redis/BullMQ 는 비금지(§0 위·G7). (ii) §2 정본 스택은 외부 본체 *최신* commit 이 아니라 frozen 관찰값으로 고정(§2 콜아웃). (iii) classbot 예외 근거는 mutable `apps/classbot/CLAUDE.md` 가 아니라 frozen `.codex-runtime/base-CLAUDE.md` 인용(§6). (iv) §15 인프라 결정 4건은 §16 보류와 정합되게 "보류 해제 조건" 으로 재작성. (v) 코덱스 정책은 로컬 메모리 경로 대신 본문 직접 기록(§16.4).
 - **실행·완료 판정 명확화 (codex R7)** — (i) P2-4 packages 는 "기존 공유 3(types/api-client/auth) 구현 + 신규 3(config/logging/ui) = 6" 으로 개수·목록 고정(§6 P2-4·G15). (ii) 완료 조건의 결정 이력은 외부 `.pullim-meta/DECISIONS.md` 가 아니라 이 리포 안 본 plan 본문(§15/§16)에 누적(§14). (iii) games BE(D-GM-BE)는 §16.2 대로 "옵션 B 자체 NestJS 결정 완료" 로 §15 와 통일(재결정 게이트 불요).
+- **classbot 게이트 강도·재현성 (codex R8)** — (i) Redis/BullMQ 는 명시 금지는 아니나 BE 모듈 신설 + `common/config/database` 편집이 "사용자 명시 확인 필요"이므로 "바로 진행 가능한 일반 작업" 아님(§0 위·G7). (ii) classbot P0-4 는 `prod-verify.yml`(고유 회귀 자산) 유지/동등 대체 + workflow 편집 사용자 승인 선행(§6 P0-4·매트릭스). (iii) 부록 A 의 리포 루트 `CLAUDE.md`/`AGENTS.md` 는 mutable head 참고용 — classbot 권위 인용은 frozen `.codex-runtime/base-*` 로 고정(부록 A 콜아웃).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -179,7 +180,7 @@
 | **P0-1** | bun → pnpm 전환 | 5 도메인 일괄 (**classbot 보류** — 아래 단서) | bun.lock 삭제·pnpm-lock.yaml 생성, `packageManager: "pnpm@10.26.1"`, scripts `bun --filter` → `pnpm -C` 또는 `pnpm --filter`, `predev`의 `bun run` → `pnpm`, Dockerfile pnpm 베이스, CI workflow pnpm/action-setup<br>⚠ **classbot 단서 (codex R3)**: classbot 루트 `AGENTS.md`/`CLAUDE.md` 와 실제 root `packageManager` 가 **bun(`bun@1.3.12`) workspace** 로 고정돼 있다. classbot 에서는 이 항목을 기본 완료조건이 아니라 **권위 문서 선개정(룰 갱신 PR) 머지 전에는 적용 금지**인 별도 의사결정으로 다룬다. 본 plan 머지만으로 classbot pnpm 전환 효력 없음 |
 | **P0-2** | AWS ECS Fargate 셋업 | 5 도메인 또는 공유 cluster | cluster·service·task definition·ALB·target group·security group. cluster 옵션은 §8 결정 후 |
 | **P0-3** | RDS PostgreSQL 셋업 | 5 도메인 또는 공유 RDS | RDS 인스턴스·VPC·subnet group·parameter group·migrations. RDS 옵션은 §9 결정 후 |
-| **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 (**classbot CI 는 bun 유지**) | `.github/workflows/{ci.yml,deploy.yml}`: setup(도메인 패키지매니저 기준)·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update<br>⚠ **classbot 단서 (codex R5)**: classbot 은 bun workspace 고정(권위)이고 P0-1 에서 pnpm 전환을 권위 문서 선개정 전까지 금지했으므로, classbot CI 워크플로의 setup 도 **`oven-sh/setup-bun` (bun 기준) 유지**한다. `actions/setup-pnpm` 강제는 pnpm 전환이 확정된 도메인 한정 — classbot 에 적용하면 패키지매니저(bun)와 워크플로(pnpm)가 모순됨. *§16 에 의해 P0-4 자체가 무기한 보류이기도 함* |
+| **P0-4** | CI/CD 재작성 (Vercel 폐기 → Docker → ECR → ECS) | 5 도메인 각자 (**classbot CI 는 bun 유지**) | `.github/workflows/{ci.yml,deploy.yml}`: setup(도메인 패키지매니저 기준)·typecheck·lint·test → docker build → aws-actions/configure-aws-credentials → ECR push → ECS service update<br>⚠ **classbot 단서 (codex R5·R8)**: classbot 은 bun workspace 고정(권위)이고 P0-1 에서 pnpm 전환을 권위 문서 선개정 전까지 금지했으므로, classbot CI 워크플로의 setup 도 **`oven-sh/setup-bun` (bun 기준) 유지**한다. `actions/setup-pnpm` 강제는 pnpm 전환이 확정된 도메인 한정 — classbot 에 적용하면 패키지매니저(bun)와 워크플로(pnpm)가 모순됨. **또한 (codex R8) frozen base `CLAUDE.md` 는 `.github/workflows/prod-verify.yml` 을 classbot 고유 회귀 안전 자산으로 명시하고, workflow 편집 자체를 사용자 명시 확인 필요 작업으로 분류한다 — classbot 의 "Vercel workflow 폐기" 는 `prod-verify.yml` 까지 제거/훼손하는 것으로 해석 금지. classbot P0-4 의 선행 조건은 `prod-verify` 유지(또는 동등 회귀 자산 대체) + workflow 편집 사용자 승인 게이트.** *§16 에 의해 P0-4 자체가 무기한 보류이기도 함* |
 | **P0-5** | Secrets Manager + CloudWatch Logs + S3 + SES | 5 도메인 또는 공유 | env 추출·Secrets Manager rotation policy·로그 그룹·S3 버킷 정책·SES verified identity |
 
 ### P1 — 코드 마이그레이션 (P0 완료 후)
@@ -215,7 +216,7 @@
 | P0-1 pnpm | 신규 적용 | 신규 적용 | **보류** — classbot 은 bun workspace 고정(권위), 권위 문서 선개정 전 적용 금지 (§6 P0-1 단서) | alignment plan 의 Phase 0a 로 흡수 | 신규 적용 |
 | P0-2 ECS | 신규 적용 | 신규 적용 | 신규 적용 | BE 신설 + ECS 동시 (§8 결정) | 신규 적용 |
 | P0-3 RDS | 기존 docker compose → RDS | 기존 docker compose → RDS | **prod DB 결정 대기** (codex R5 — classbot base spec 은 prod DB 를 `Neon / Supabase / RDS` 중 Ph9 결정 보류로 둠. RDS 확정 아님. §16 P0-3 무기한 보류와도 정합) | 신규 (BE 신설 시) | 기존 docker compose → RDS |
-| P0-4 CI/CD | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 | Vercel workflow 폐기 + codex-review.yml 유지 | Vercel workflow 폐기 |
+| P0-4 CI/CD | Vercel workflow 폐기 | Vercel workflow 폐기 | **Vercel workflow 폐기 — 단 `prod-verify.yml` 유지/동등 대체 + workflow 편집 사용자 승인 선행** (codex R8 — classbot 고유 회귀 자산) | Vercel workflow 폐기 + codex-review.yml 유지 | Vercel workflow 폐기 |
 | P0-5 Secrets·Logs·S3·SES | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 | 신규 적용 |
 | P1-1 JWT | Phase γ 의 BE 도입 시점 | BE 본격 시점 | **보류** — spec Ph8 인증 미정(현 `x-user-id` mock), bcryptjs 의존성 없음. spec 결정 후 적용 (§6 P1-1 단서) | BE 신설 시 신규 | bcryptjs → bcrypt + JWT |
 | P1-2 Redis·BullMQ | BE 신규 | BE 신규 | BE 신규 + drizzle 호환성 검토 | BE 신설 시 | BE 신규 |
@@ -383,10 +384,12 @@
 ## 부록 A — 참고 경로 (리포 상대)
 
 > 모두 작성자 로컬 절대경로가 아닌 **리포 식별자 + 리포 내 상대경로** 로 기록. 후속 협업자가 GitHub UI 또는 동일 checkout 으로 재현 가능해야 한다.
+>
+> **⚠ mutable vs frozen 구분 (codex R8)**: 아래 리포 루트 `CLAUDE.md`/`AGENTS.md` 는 **mutable head 문서**(PR head 에서 바뀔 수 있음)라 *참고용* 일 뿐 권위 출처가 아니다. 본 리뷰의 **권위는 frozen snapshot `.codex-runtime/base-*` 뿐**이므로, classbot 관련 규칙·예외는 항상 `.codex-runtime/base-CLAUDE.md`·`.codex-runtime/base-AGENTS.md`·`.codex-runtime/base-input/proc/spec/...` 의 고정 경로를 인용한다. mutable head 문서를 권위로 따라가지 말 것.
 
-- 본체: `curea-co/pullim` 의 `package.json`, `apps/web/package.json`, `apps/backend/package.json`
-- 본체 컨벤션: `curea-co/pullim` 의 `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md`
-- 5 도메인 컨벤션: `curea-co/pullim-{planner,Q,classbot,games,arcade}` 각 리포의 루트 `CLAUDE.md`
+- 본체: `curea-co/pullim` 의 `package.json`, `apps/web/package.json`, `apps/backend/package.json` (*관찰용 스냅샷*)
+- 본체 컨벤션: `curea-co/pullim` 의 `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md` (*mutable 참고*)
+- 5 도메인 컨벤션 (*mutable 참고 — 권위 아님*): `curea-co/pullim-{planner,Q,classbot,games,arcade}` 각 리포의 루트 `CLAUDE.md`. **classbot 의 권위 인용은 mutable head 가 아니라 frozen `.codex-runtime/base-CLAUDE.md`·`.codex-runtime/base-AGENTS.md` 로 고정**
 - 공통 운영 룰: 별도 워크스페이스 외 메타 리포(`.pullim-meta`) — *본 plan 의 권위 출처 아님, 메모용*
 - 표류 결정 이력: 동(同) `.pullim-meta/DECISIONS.md` — *메모용*
 - planner BE 차용 plan: `curea-co/pullim-planner` 의 `proc/plan/2026-05-26_pullim-be-adoption.md`
