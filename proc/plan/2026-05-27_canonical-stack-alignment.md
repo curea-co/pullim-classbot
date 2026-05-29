@@ -36,6 +36,7 @@
 - **재현 가능 authority chain·게이트 단일화 (codex R11)** — (i) app-level 문서 사본이 frozen snapshot 에 없으므로 본 plan 의 재현 authority 는 frozen `base-AGENTS/CLAUDE` + `base-input/proc/spec/*` 로 한정(§0 1번 하위). (ii) §2 표는 비권위 proposal baseline — mutable head·`사용자 정본 표` 행은 재현 검증 불가로 명시, commit SHA 고정 또는 in-repo 치환 필요(§2 콜아웃). (iii) mock 한글 예외는 본 plan 이 직접 정의(mutable `apps/web/CLAUDE.md` 인용 제거 — §11 R-I18N). (iv) Gate↔Phase 단일 기준표: pnpm=G3 통일, G1 코드 트랙은 인프라 결정(§8/§9/§10)과 분리, 인프라 게이트는 §16 보류(§12).
 - **비재현 입력 제거·결정 출처 고정 (codex R12)** — (i) §2 footer 의 "5 도메인 정합 기준선" 승격 제거 — frozen·SHA 확보 항목만 실행 기준선(§2 footer). (ii) §3 현재상태 매트릭스는 classbot 행만 frozen 재현 가능·실행 기준, 타 도메인 행은 참고값(§3 콜아웃). (iii) §16 D-CLU/D-RDS/D-SEQ·§16.4 코덱스 정책은 frozen base 파생 아닌 사용자 결정 — 본 §16(커밋 plan)이 재현 고정 출처, merge workflow 정책은 고정 경로 정책 문서로 승격 권고(§16 콜아웃·§16.4).
 - **authority 체인 완성·내부 정합 (codex R13)** — (i) 권위 2번에 `input/docs-archive/`(특히 `07_풀림_클래스봇_핸드오프.md`) 포함, plan 문서는 비권위로 격하(§0 2·3번). (ii) §3 classbot 행의 버전·패키지 값(`bun@1.3.12`·`drizzle 0.36.4`·TanStack `5.100.1`)은 frozen 아닌 head 관찰값으로 분리(§3 콜아웃). (iii) `proc/` 5번째 버킷 = `research`(knowhow 오기 정정 — §3 표). (iv) §6 P1 헤더 "P0 완료 후" = 코드 트랙(P0-1) 전제로 §12 와 정합. (v) §13 타 리포 PR 은 비-frozen 잠정 제안 — 확정 backlog 아님(§13 콜아웃).
+- **비검증 입력 비승격·plan≠authority 정합 (codex R14)** — (i) `사용자 정본 표` 기반 gap(G7·G12·G13·G14)은 "비검증 후보군" 으로 분리 — §6 필수 Phase·§13 backlog 승격 금지(§4 콜아웃). (ii) classbot drizzle→TypeORM 리스크(R-DRIZ)는 P0-3 활성 트랙 아님 — 별도 migration plan 으로 분리(§11). (iii) §16 사용자 결정·§16.4 코덱스 정책은 plan 본문을 authority 출처로 삼지 않고 별도 고정 decision 문서로 승격 후 참조(§16·§16.4 콜아웃 — §0 "plan 비권위" 와 정합).
 - games 의 `proc/spec/01~10` 독립 거버넌스 / "다른 풀림 프로젝트 코드 참조 금지" 규칙 — 본 문서로 무효화되지 않는다. games 의 본 문서 채택은 games 의 spec 갱신을 통해서만.
 - arcade 의 부트스트랩 단계 — 본 문서의 5 도메인 동기 가정은 arcade 의 Phase 1 (mini-monorepo) 완료 전까지 적용 보류.
 
@@ -145,6 +146,8 @@
 ---
 
 ## 4. 갭 분석 (12 영역)
+
+> **⚠ 비검증 source 기반 gap 분리 (codex R14)**: 아래 gap 중 **`G7`(Redis/BullMQ)·`G12`(AWS SDK)·`G13`(배포 ECS/RDS)·`G14`(CI/CD)** 는 §2 의 *검증 불가 `사용자 정본 표`* 에 기반한다(§2 footer). 따라서 이들은 **확정 gap 이 아니라 "비검증 source 기반 후보군"** 이다 — 고정 경로 spec/decision 문서가 생기기 전까지 §6 필수 Phase·§13 실행 backlog 로 *승격하지 않는다*. (실제로도 G13/G14 의 ECS/RDS/CI 전환은 §16 무기한 보류 + classbot 은 §6 단서로 제외/보류 상태.) frozen 으로 검증되는 gap(G1·G2·G5·G6 등 base spec/CLAUDE 근거)만 실행 입력.
 
 | # | 영역 | 정본 | 5 도메인 평균 | 갭 크기 | 도메인별 차이 |
 |---|---|---|---|---|---|
@@ -306,7 +309,7 @@
 | R-I18N | P1-4 | i18n 추출: 모든 텍스트 마이그레이션 — 시간 큼 (planner 28+, games 21 게임 + 셸) | H | 도메인별 별 PR. **mock 데이터 한글 예외 컨벤션** = *본 plan 이 직접 정하는 규칙* (codex R11 — mutable `apps/web/CLAUDE.md` 인용 제거): **mock 데이터 안의 한글 문자열은 i18n 추출 대상에서 제외**(UI 카피만 추출). `useTranslations` 검사 lint rule 도입. (classbot 은 §6 P1-4 대로 i18n 자체가 도입 금지) |
 | R-TQ | P1-5 | TanStack Query: 데이터 패칭 일괄 전환. classbot 만 보유 → version drift | M | classbot 5.100.1 → 정본 5.90.21 호환성 확인. queryKey 컨벤션 5 도메인 통일 |
 | R-DS-EXT | P1-3 | `@pullim/design-system` 외부 노출 정책: 본체팀 발행·버전·breaking change 정책 부재 | H | 본체팀과 별 합의 PR — `@pullim/design-system` GitHub release tag pin 정책 + semver + 5 도메인 향한 deprecation lead time. 본 plan §8/§9 와 동급 미해결 |
-| R-DRIZ | P0-3 | classbot drizzle → TypeORM: schema 재작성. 기존 drizzle migrations 폐기 | H | classbot drizzle 보유분 SQL dump → TypeORM entities 재생성 + migration 첫 generate. data preserving plan 필요 |
+| R-DRIZ | **별도 migration plan (현재 plan 비활성 — codex R14)** | classbot drizzle → TypeORM: schema 재작성. 기존 drizzle migrations 폐기 | H | ⚠ **이 전환은 현재 plan 의 활성 Phase 가 아니다** — §0(28행)·§4 G5·§15-B(D-CB-ORM)에서 *현행 SOT 밖의 별도 마이그레이션 plan + spec 갱신 선행* 으로 분리했다. P0-3(RDS, §16 보류)와 같은 트랙으로 오해 금지. 전환 실행 시: drizzle SQL dump → TypeORM entities 재생성 + 첫 migration generate + data preserving plan (별 plan 에서) |
 | R-N15 | P2-5 | games Next 15 → 16: 21 게임 회귀 | M | major bump 별 PR. games §7 (`audit/` 트리거 T5 메이저 의존성) 자동 발동 |
 | R-AWS-COST | P0-2/3/5 | AWS 청구 폭증 (5 도메인 RDS+ECS+ALB+CloudWatch) | M | 옵션 B(RDS 공유) + 옵션 C(cluster 공유) 권장 §8/§9. CW Logs retention 7d, S3 lifecycle policy |
 | R-SECRETS | P0-5 | Secrets Manager: rotation 누락·DB password drift | M | terraform 또는 CDK 로 IaC. rotation lambda는 P0-5 후속 |
@@ -426,7 +429,7 @@
 
 ## §16 — 사용자 결정 (2026-05-27 후속) — 명시적 보류 사항
 
-> **⚠ 재현성 — 본 §16 이 결정의 고정 출처 (codex R12)**: 아래 D-CLU/D-RDS/D-SEQ 보류와 §16.4 코덱스 정책은 **frozen base snapshot(`.codex-runtime/base-*`)에서 파생되지 않는 *사용자 직접 결정*** 이다 (채팅 맥락 기반). 따라서 base snapshot 만 읽는 후속 리뷰어는 왜 P0-2/3/4 가 막혔는지 base 에서 재현할 수 없다 — **본 §16(이 리포에 커밋된 plan 문서) 자체가 이 결정들의 재현 가능한 고정 출처**다. 후속 작업자·리뷰어는 인프라 게이트(§8~§10·§14·§15)의 보류 근거로 *외부 채팅이 아니라 본 §16 의 해당 항목* 을 인용한다. (별도 immutable 결정 로그가 필요하면 이 리포 내 고정 경로 — 예 `proc/decisions/` — 로 승격 후 §16 에서 링크.)
+> **⚠ 사용자 결정 — 별도 decision 문서로 승격 필요 (codex R12·R14)**: 아래 D-CLU/D-RDS/D-SEQ 보류와 §16.4 코덱스 정책은 **frozen base snapshot(`.codex-runtime/base-*`)에서 파생되지 않는 *사용자 직접 결정*** 이다 (채팅 맥락 기반). ⚠ **단 §0(권위 계층)이 "plan 문서는 권위 아님" 이라고 못박았으므로, 본 §16(= plan 문서) 을 결정의 *authority 고정 출처* 로 삼아서는 안 된다** (codex R14 — 그러면 머지 후 이 plan 이 frozen base 를 제치고 새 authority 처럼 동작). 따라서: 이 사용자 결정들은 **이 리포 내 별도 고정 decision 문서(예 `proc/decisions/2026-05-29_infra-merge-hold.md`)로 승격한 뒤, 본 §16 과 인프라 게이트(§8~§10·§14·§15)는 *그 문서를 참조*** 하도록 한다. 그 decision 문서가 생기기 전까지 §16 은 결정 내용의 *임시 메모* 일 뿐 authority 가 아니며, 후속 작업자는 인프라 보류를 plan 본문이 아니라 승격된 decision 문서/사용자 재확인으로 근거한다.
 
 ### 16.1 진행 결정
 
@@ -468,6 +471,6 @@
 
 ### 16.4 코덱스 review 통과 정책 (확인)
 
-사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. (codex R6·R12 — 재현성: 본 정책은 frozen base 에 없는 *사용자 명시 운영 결정* 이며 본 §16.4(이 리포 커밋 문서)가 그 고정 출처다. ⚠ **단 이 정책은 저장소 전반 merge workflow 에 영향을 주므로**, 본 plan 본문에만 두면 frozen authority 만 보는 작업자와 어긋난다 — **재현 가능한 고정 경로의 정책 문서(예 이 리포 `proc/` 하위 또는 `.github/` 정책)로 승격한 뒤 본 §16.4 에서 참조**하는 것을 권고. 그 전까지 본 §16.4 가 임시 고정 출처. 외부 로컬 메모리 경로 인용은 제거됨 — 부록 A "repo-relative 경로만" 규칙과 정합.)
+사용자 직접 명시 (2026-05-27): **"코덱스 리뷰는 받아야지"** — close / 강제 머지 / 보류 모두 거부. **PR 머지는 코덱스 APPROVE 후에만**. (codex R6·R12·R14 — 재현성: 본 정책은 frozen base 에 없는 *사용자 명시 운영 결정* 이다. ⚠ **plan 문서는 authority 가 아니므로(§0) 본 §16.4 를 정책의 authority 출처로 삼지 않는다** — 이 정책은 저장소 전반 merge workflow 에 영향을 주므로, **재현 가능한 고정 경로의 정책 문서(예 이 리포 `.github/` 또는 `proc/decisions/`)로 승격한 뒤 본 §16.4 에서 참조**해야 한다. 그 전까지 본 §16.4 는 결정 내용의 *임시 메모* 일 뿐. 외부 로컬 메모리 경로 인용은 제거됨 — 부록 A "repo-relative 경로만" 규칙과 정합.)
 
 → 진행 중 3 alignment PR (#101, #82, #108) 처리는 별 사안 — 코덱스가 매 round 새 지적 발견 패턴이라 *어떤 정상 흐름이 가능한지* 사용자 명확화 필요 (close X · 강제 X · 보류 X 모두 잘못된 선택지로 인식).
