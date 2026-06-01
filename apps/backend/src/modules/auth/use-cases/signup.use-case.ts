@@ -57,7 +57,23 @@ export class SignupUseCase {
         password: hashedPassword,
         user,
       });
-      return this.userRepository.createWithProvider(user, provider, manager);
+      const created = await this.userRepository.createWithProvider(
+        user,
+        provider,
+        manager,
+      );
+
+      // 신원 단일화: 인증 사용자와 같은 id 로 도메인 users 행을 동일 트랜잭션에 생성한다.
+      // 로그인 사용자가 도메인의 주체(FK)가 되게 한다. admin 은 도메인 진입 주체가
+      // 아니라 행을 만들지 않는다(예약). student/teacher 만 프로비저닝.
+      if (created.role !== UserRole.ADMIN) {
+        await this.userRepository.provisionDomainUser(
+          { id: created.id, name: created.name, role: created.role },
+          manager,
+        );
+      }
+
+      return created;
     });
 
     const tokens = this.authService.generateTokens(savedUser);

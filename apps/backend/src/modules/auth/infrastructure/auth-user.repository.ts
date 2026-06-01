@@ -5,6 +5,7 @@ import { EntityManager, Repository } from "typeorm";
 import { MAX_LOGIN_ATTEMPTS } from "../../../common/constants/security.constant";
 import { AuthUser } from "../../../entities/auth-user.entity";
 import { AuthUserProvider } from "../../../entities/auth-user-provider.entity";
+import { UserRole } from "../../../entities/enums/user-role.enum";
 import { AuthUserRepositoryInterface } from "../interface/auth-user-repository.interface";
 
 /** TypeORM 기반 인증 사용자 저장소 구현. */
@@ -67,6 +68,25 @@ export class AuthUserRepository extends AuthUserRepositoryInterface {
     provider.user = savedUser;
     await manager.save(AuthUserProvider, provider);
     return savedUser;
+  }
+
+  /**
+   * 가입한 인증 사용자에 대응하는 도메인 `users` 행을 동일 id 로 프로비저닝한다.
+   * TypeORM 은 도메인 테이블을 소유하지 않으므로(비파괴) raw SQL 로 insert 하고,
+   * 같은 id 가 이미 있으면 멱등하게 무시한다(ON CONFLICT DO NOTHING).
+   * @param params - 도메인 사용자 id(=auth uuid)/이름/role(student|teacher)
+   * @param manager - signup 트랜잭션 매니저(원자성 보장)
+   */
+  async provisionDomainUser(
+    params: { id: string; name: string; role: UserRole },
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.query(
+      `INSERT INTO "users" ("id", "name", "role", "profile")
+       VALUES ($1, $2, $3, '{}'::jsonb)
+       ON CONFLICT ("id") DO NOTHING`,
+      [params.id, params.name, params.role],
+    );
   }
 
   /**

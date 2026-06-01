@@ -2,6 +2,7 @@ import { EntityManager } from "typeorm";
 
 import { AuthUser } from "../../../entities/auth-user.entity";
 import { AuthUserProvider } from "../../../entities/auth-user-provider.entity";
+import { UserRole } from "../../../entities/enums/user-role.enum";
 
 /**
  * 인증 사용자 저장소 인터페이스(추상). 구현체는 infrastructure 의 TypeORM Adapter.
@@ -41,6 +42,22 @@ export abstract class AuthUserRepositoryInterface {
     provider: AuthUserProvider,
     manager: EntityManager,
   ): Promise<AuthUser>;
+
+  /**
+   * 가입한 인증 사용자에 대응하는 **도메인 `users` 행**을 동일 id 로 프로비저닝한다.
+   *
+   * 신원 단일화: `auth_users.id`(uuid) 를 정본으로, classbot 도메인(Drizzle `users`,
+   * id text PK)에 같은 id 행을 만들어 로그인 사용자가 도메인 FK 주체가 되게 한다.
+   * TypeORM 은 도메인 테이블을 소유하지 않으므로(비파괴 제약) raw SQL 로 insert 한다.
+   * 같은 id 가 이미 있으면 멱등하게 무시한다(ON CONFLICT DO NOTHING).
+   *
+   * @param params - 도메인 사용자 id(=auth uuid)/이름/role
+   * @param manager - signup 트랜잭션 매니저(원자성 보장)
+   */
+  abstract provisionDomainUser(
+    params: { id: string; name: string; role: UserRole },
+    manager: EntityManager,
+  ): Promise<void>;
 
   /**
    * provider 의 실패 횟수를 원자적으로 증가시키고, 한도 도달 시 잠근다.
