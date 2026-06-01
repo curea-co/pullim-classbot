@@ -7,14 +7,15 @@ import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles, Clock } from 'lu
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
-import { classBots, classRoster, currentPersona } from '@/lib/mock';
+import { classBots } from '@/lib/mock';
+import { useRosterMe } from '@/lib/current-user';
 import { useAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const a = useAssignmentLookup(id);
-  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  const me = useRosterMe();
   const submission = useStudentSubmission(id, me.id);
   if (!a) {
     if (id.startsWith('as_user_')) {

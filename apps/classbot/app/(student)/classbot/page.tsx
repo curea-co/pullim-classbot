@@ -5,9 +5,9 @@ import {
   ArrowRight, Bell, ClipboardList, ClipboardCheck, MessageSquareText, Radio,
 } from 'lucide-react';
 import {
-  classRoster, currentPersona,
   getMyBots, type ClassBot, type StudentEnrollment,
 } from '@/lib/mock';
+import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -28,9 +28,10 @@ import { cn } from '@/lib/utils';
  *   4. 받은 과제 다 보기 CTA
  */
 export default function StudentClassbotPage() {
-  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  const me = useRosterMe();
   const myBots = getMyBots();
-  const myStudentId = `s${currentPersona.id ?? 1}`;
+  // per-student mock 조회 키 — 제출 기록(solve)과 동일하게 roster id 사용.
+  const myStudentId = me.id;
 
   const activeLive = useLiveStore(s => s.active);
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));

@@ -112,3 +112,21 @@
   - 학생1·학생2가 **서로 다른 domain user_id** 로 분리됨, 교사는 teacher role.
 - typecheck: BE `nest build` PASS, FE `tsc --noEmit` PASS.
 - 결과: **PASS** — 가입 시 신원 단일화(auth_users.id == users.id) 실DB 실증.
+
+### Phase 2 audit — 하드코딩 → 해석기 교체 (PASS)
+- 교체 위치(현재 사용자 식별을 `currentPersona`/`s${...}` → 해석기):
+  - `app/(student)/classbot/page.tsx` (홈, `useRosterMe`; `s${currentPersona.id}` 버그 제거 — sstudent_001 → roster id)
+  - `app/(student)/classbot/chat/page.tsx` (인사·아바타 이니셜·라이브 질문 → `useCurrentUser`)
+  - `app/(student)/classbot/wellness/page.tsx` (server, `resolveRosterMe(DEMO_FALLBACK)`)
+  - `app/(student)/classbot/wellness/check-in/check-in-form.tsx` (`useRosterMe`)
+  - `app/(student)/classbot/assignment/page.tsx` / `[id]/result/page.tsx` / `[id]/solve/solve-workspace.tsx` (`useRosterMe`; 제출 명의 일치)
+  - `app/(student)/classbot/me/report/page.tsx` (server, `resolveRosterMe(DEMO_FALLBACK)`)
+  - `components/shell/app-header.tsx` (프로필 이름 → `useCurrentUser`, 데모 메타만 persona 잔존)
+  - `components/classbot/grading-notification-card.tsx` (`useRosterMe`; sstudent_001 버그 제거)
+  - `components/classbot/live-overlay.tsx` (라이브 질문 명의 → `useCurrentUser`)
+- audit grep:
+  - `grep currentPersona app components` → 잔존은 **app-header 의 데모 표시 메타(streak/grade/school)** 와 주석뿐. 신원 용도 0.
+  - `student_001` 리터럴(mock/seed 외) → `lib/current-user.ts` 의 **의도된 데모 폴백**(주석/상수)뿐. 도메인 하드코딩 0.
+- typecheck PASS, lint 0 errors(기존 warning 만), build PASS.
+- 결과: **PASS** — 도메인 "현재 사용자"가 해석기(세션 우선·student_001 폴백) 단일 경로로 흐름. 부수효과로 기존 sstudent_001 매칭 버그 2건(home·grading-card) 해소.
+- 부기(정직): wellness/me-report 는 **server 컴포넌트**라 SSR 시점 세션 토큰(client localStorage) 접근 불가 → 데모 폴백 고정. 세션별 분기는 client 경로(home/chat/assignment/live/header)에서 동작. 도메인 users.name 조회 API 신설 시 세션 사용자 실명 표기로 승급 가능(현재는 email 로컬파트).

@@ -16,6 +16,7 @@ import { decodeAccessToken } from '@pullim-classbot/api-client/jwt';
 import type { UserRole } from '@pullim-classbot/types';
 
 import { useAuth } from '@/lib/auth/auth-context';
+import { classRoster, type ClassroomStudent } from '@/lib/mock/classbot';
 import { currentPersona } from '@/lib/mock/persona';
 
 /** 데모/비로그인 폴백 사용자 id — 도메인 seed 의 서연(student_001). */
@@ -96,4 +97,33 @@ export function getCurrentUserIdFromRequest(req: Request): {
 function displayNameFromEmail(email: string): string {
   const local = email.split('@')[0] ?? email;
   return local || email;
+}
+
+/** 데모 roster 의 "나"(서연) 행 — seed 의 s1 == student_001. */
+const DEMO_ROSTER_ME: ClassroomStudent =
+  classRoster.find((s) => s.name === currentPersona.name) ?? classRoster[0];
+
+/**
+ * 현재 사용자에 해당하는 **도메인 roster 행**을 해석한다.
+ *
+ * 도메인 화면 다수가 per-student 데이터를 mock `classRoster`(id `s1`..`s18`,
+ * seed 에서 s1→student_001)로 키잉한다. 그 읽기 경로를 깨지 않으면서 신원만
+ * 세션 기반으로 전환하기 위한 브리지:
+ *  - 세션/폴백 사용자 id 가 roster 에 있으면 그 행을(예: student_001 → 서연 s1),
+ *  - 없으면(신규 가입 uuid 등) 데모 "나"(서연) 행을 표시 데이터로 사용한다.
+ *
+ * 반환 행의 `id` 는 mock roster id 라서 도메인 mock 조회 키로만 쓴다.
+ * **쓰기 명의**(저장될 user_id)는 항상 `useCurrentUserId()`(세션 uuid)를 쓴다.
+ * @returns 현재 사용자의 roster 표시 행
+ */
+export function useRosterMe(): ClassroomStudent {
+  const { id } = useCurrentUser();
+  return resolveRosterMe(id);
+}
+
+/** id(세션 uuid 또는 student_001/sN)로 roster 행 해석 — 미스 시 데모(서연). */
+export function resolveRosterMe(userId: string): ClassroomStudent {
+  // seed 매핑: student_001 ↔ roster s1(서연). 그 외 uuid/sN 은 직접 매칭 시도.
+  if (userId === currentPersona.id) return DEMO_ROSTER_ME;
+  return classRoster.find((s) => s.id === userId) ?? DEMO_ROSTER_ME;
 }

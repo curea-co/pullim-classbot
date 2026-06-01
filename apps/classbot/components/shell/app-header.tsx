@@ -11,6 +11,7 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { currentPersona, currentTeacher } from '@/lib/mock';
+import { useCurrentUser } from '@/lib/current-user';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 
@@ -91,10 +92,20 @@ const ROLE_ENTRIES: Record<Role, { href: string; label: string; Icon: typeof Gra
 const ALL_ROLES: Role[] = ['student', 'teacher'];
 
 function ProfileMenu({ role }: { role: Role }) {
+  const me = useCurrentUser();
+  // 세션 사용자면 그 이름, 비로그인(데모)면 역할별 데모 페르소나 메타.
   const profile =
     role === 'student'
-      ? { name: currentPersona.name, sub: `${currentPersona.grade} · ${currentPersona.school}`, profileHref: '/classbot' }
-      : { name: `${currentTeacher.name} 선생님`, sub: currentTeacher.organization, profileHref: '/teacher' };
+      ? {
+          name: me.isAuthenticated ? me.name : currentPersona.name,
+          sub: `${currentPersona.grade} · ${currentPersona.school}`,
+          profileHref: '/classbot',
+        }
+      : {
+          name: me.isAuthenticated ? `${me.name} 선생님` : `${currentTeacher.name} 선생님`,
+          sub: currentTeacher.organization,
+          profileHref: '/teacher',
+        };
 
   // 현재 역할을 제외한 나머지 두 역할 — 메뉴에 평행 노출
   const otherEntries = ALL_ROLES.filter(r => r !== role).map(r => ({ role: r, ...ROLE_ENTRIES[r] }));

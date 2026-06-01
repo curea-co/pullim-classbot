@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Shield, Eye } from 'lucide-react';
 import {
-  scopeMeta, currentPersona,
+  scopeMeta,
   pickClassbotReply, type ReplyKey,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
+import { useCurrentUser } from '@/lib/current-user';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
@@ -148,12 +149,13 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
+  const me = useCurrentUser();
 
   // [07 § 4.6.1·4.6.3] 첫 인사 = 시간대 prefix + 봇 시그니처 인사 (mount 시 1회만 계산)
   const [turns, setTurns] = useState<Turn[]>(() => [{
     id: `t0_${bot.id}`,
     role: 'bot',
-    text: composeFirstGreeting(bot.greeting, currentPersona.name, bot.tone),
+    text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
     at: Date.now(),
   }]);
   const [pending, setPending] = useState(false);
@@ -392,7 +394,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             className="flex max-h-[520px] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
           >
             {turns.map((t, i) => (
-              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} />
+              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
             ))}
             {pending && <PendingBubble bot={bot} />}
           </div>
@@ -546,7 +548,7 @@ function DateDivider({ ts }: { ts: number }) {
   );
 }
 
-function RenderTurn({ turn, bot, prev }: { turn: Turn; bot: ClassBot; prev: Turn | undefined }) {
+function RenderTurn({ turn, bot, prev, meName }: { turn: Turn; bot: ClassBot; prev: Turn | undefined; meName: string }) {
   // 일자가 바뀌면 디바이더 노출 (첫 메시지도 포함)
   const showDivider = !prev
     || new Date(prev.at).toDateString() !== new Date(turn.at).toDateString();
@@ -560,12 +562,12 @@ function RenderTurn({ turn, bot, prev }: { turn: Turn; bot: ClassBot; prev: Turn
   return (
     <>
       {showDivider && <DateDivider ts={turn.at} />}
-      <Bubble turn={turn} bot={bot} continuation={isContinuation} />
+      <Bubble turn={turn} bot={bot} continuation={isContinuation} meName={meName} />
     </>
   );
 }
 
-function Bubble({ turn, bot, continuation = false }: { turn: Turn; bot: ClassBot; continuation?: boolean }) {
+function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: ClassBot; continuation?: boolean; meName: string }) {
   const isStudent = turn.role === 'student';
   const botSig = botSignature(bot);
   return (
@@ -582,7 +584,7 @@ function Bubble({ turn, bot, continuation = false }: { turn: Turn; bot: ClassBot
           )}
           style={isStudent ? undefined : { backgroundColor: botSig.hex }}
         >
-          {isStudent ? currentPersona.name[0] : bot.avatarEmoji}
+          {isStudent ? (meName[0] ?? '나') : bot.avatarEmoji}
         </div>
       )}
 
