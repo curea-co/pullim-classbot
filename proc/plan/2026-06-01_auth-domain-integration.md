@@ -129,4 +129,31 @@
   - `student_001` 리터럴(mock/seed 외) → `lib/current-user.ts` 의 **의도된 데모 폴백**(주석/상수)뿐. 도메인 하드코딩 0.
 - typecheck PASS, lint 0 errors(기존 warning 만), build PASS.
 - 결과: **PASS** — 도메인 "현재 사용자"가 해석기(세션 우선·student_001 폴백) 단일 경로로 흐름. 부수효과로 기존 sstudent_001 매칭 버그 2건(home·grading-card) 해소.
-- 부기(정직): wellness/me-report 는 **server 컴포넌트**라 SSR 시점 세션 토큰(client localStorage) 접근 불가 → 데모 폴백 고정. 세션별 분기는 client 경로(home/chat/assignment/live/header)에서 동작. 도메인 users.name 조회 API 신설 시 세션 사용자 실명 표기로 승급 가능(현재는 email 로컬파트).
+- 부기(정직): wellness/me-report 는 **server 컴포넌트**라 SSR 시점 세션 토큰(client) 접근 불가 → 데모 폴백 고정. 세션별 분기는 client 경로(home/chat/assignment/live/header)에서 동작. 도메인 users.name 조회 API 신설 시 세션 사용자 실명 표기로 승급 가능(현재는 email 로컬파트).
+- 토큰 저장 정정: tokenManager 는 localStorage 가 아니라 **SameSite=Lax 쿠키**(classbot_*)에 저장. 서버 write 경로는 `Authorization: Bearer` 헤더로 access 를 받는다.
+
+### Phase 3 audit — 쓰기 가드 + RBAC (PASS)
+- 변경(3a + 3b):
+  - **RBAC 라우팅**(3a): `components/features/auth/role-guard.tsx` — 로그인 세션 role≠라우트 그룹 role → 본인 홈 리다이렉트(비로그인 데모는 통과). `(student)`/`(teacher)` layout 배선. app-header: 역할 전환은 데모만 노출, 로그아웃은 세션이면 실제 signOut.
+  - **쓰기 thin-slice**(3b): `app/api/chat/route.ts` — 학생 메시지 영속화. 명의는 **JWT claim(sub)** 에서만(본문 studentId 무시). 미로그인 401. chat UI `send()` 가 로그인 시 본인 명의로 POST.
+  - **교사 전용 mutation**(3b): `app/api/teacher/bots/route.ts` — 봇 생성. 미로그인 401 / role≠teacher 403 / teacher 201(teacherId=세션 id). 명의는 claim 에서만.
+- 실DB 다유저·역할 테스트(BE :4032, FE dev :3032, DB 5434) — 신규 가입 학생A·학생B·교사A:
+  - **프로비저닝 bridge**: `auth_users LEFT JOIN users` 3건 모두 OK, role 일치(student/student/teacher).
+  - **쓰기 가드**: 미로그인 `POST /api/chat` → **401**.
+  - **명의 격리**: 학생A·학생B 가 같은 봇(cb_001)에 전송 → `chat_messages.student_id` **서로 다른 uuid 로 분리** 저장.
+    ```
+    b8014d13…(학생A) 학생A의 질문: 극값이 뭐예요?
+    f6273fef…(학생B) 학생B의 질문: 미분 다시 알려줘
+    ```
+  - **명의 위조 차단**: 학생A 토큰 + 본문 studentId=학생B → 저장 student_id = **학생A**(본문 무시). 위조 불가 실증.
+  - **교사 전용 RBAC**: `POST /api/teacher/bots` — 미로그인 401 / **학생 토큰 403(FORBIDDEN_ROLE)** / **교사 토큰 201**. 생성 봇 teacher_id = 교사A 세션 id, teacher_name=감사교사A.
+- grep: `student_001`(mock/seed/current-user 폴백 외) → **0**. per-user 쓰기(chat/teacher-bots)는 전부 `getCurrentUserIdFromRequest` 경유. mutation 가드 + 교사 전용 role 가드 적용.
+- typecheck PASS / lint 0 errors / BE build PASS / FE build PASS.
+- 결과: **PASS** — 로그인 사용자가 도메인 주체로서 **본인 명의로 분리 기록**되고, 교사 전용 기능은 교사만 통과함을 실DB 로 실증.
+
+---
+
+## 7. 완주 요약
+- Phase 1·2·3 전부 audit PASS, 로컬 커밋 완료(push/PR/merge 없음, games/arcade 미접근).
+- 신원 단일화(가입→도메인 user 동일 id) · 현재 사용자 해석기 전면 적용 · 쓰기 가드 + 학생/교사 RBAC 배선 + 실DB 다유저·역할 격리 실증.
+- 범위 밖(후속): 도메인 전 테이블 런타임 영속화(현재는 chat/teacher-bots thin-slice + 나머지 mock), server 컴포넌트(wellness/me-report) 세션 분기(쿠키 SSR 연동 시 승급), 도메인 users.name 조회로 세션 실명 표기.

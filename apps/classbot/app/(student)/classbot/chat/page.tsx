@@ -10,6 +10,7 @@ import {
   getMyBots, type ClassBot,
 } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
+import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
@@ -208,6 +209,12 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     const now = Date.now();
     setTurns(t => [...t, { id: `s${now}`, role: 'student', text: text.trim(), at: now }]);
     setPending(true);
+
+    // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
+    // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
+    if (me.isAuthenticated) {
+      void persistChatMessage(bot.id, text.trim());
+    }
 
     const reply = pickClassbotReply(text, bot.tone, forcedKey);
     setTimeout(() => {
@@ -479,6 +486,31 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       </section>
     </>
   );
+}
+
+/* ─── 채팅 영속화 (plan Phase 3 쓰기 thin-slice) ─── */
+
+/**
+ * 학생 메시지를 본인 명의로 서버에 저장한다(fire-and-forget).
+ * 명의는 서버가 JWT claim 에서 결정 — 클라이언트는 botId/text 만 보낸다.
+ * @param botId - 대상 봇 id
+ * @param text - 메시지 본문
+ */
+async function persistChatMessage(botId: string, text: string): Promise<void> {
+  try {
+    const accessToken = tokenManager.getAccessToken();
+    if (!accessToken) return;
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ botId, text }),
+    });
+  } catch {
+    // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
+  }
 }
 
 /* ─── 메시지 타입 dispatch ([08 § 15.1.3] 6종 카탈로그) ─── */
