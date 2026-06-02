@@ -5,10 +5,13 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
 import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
-import { currentPersona, classRoster, reports } from '@/lib/mock';
+import { reports } from '@/lib/mock';
+import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
 
 export default function MyReportPage() {
-  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  // 서버 컴포넌트 — 세션 토큰은 client(localStorage)에 있어 SSR 시점엔 데모 폴백.
+  // 신원은 해석기 경유(currentPersona 직접 참조 제거).
+  const me = resolveRosterMe(DEMO_FALLBACK_USER_ID);
 
   // 학부모 리포트가 있으면 그 KPI를 1인칭 톤으로 재가공
   const parentReport = reports.find(r => r.kind === 'parent') ?? reports[0];

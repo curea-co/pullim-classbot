@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Shield, Eye } from 'lucide-react';
 import {
-  scopeMeta, currentPersona,
+  scopeMeta,
   pickClassbotReply, type ReplyKey,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
+import { useCurrentUser } from '@/lib/current-user';
+import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
@@ -148,12 +150,13 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
+  const me = useCurrentUser();
 
   // [07 § 4.6.1·4.6.3] 첫 인사 = 시간대 prefix + 봇 시그니처 인사 (mount 시 1회만 계산)
   const [turns, setTurns] = useState<Turn[]>(() => [{
     id: `t0_${bot.id}`,
     role: 'bot',
-    text: composeFirstGreeting(bot.greeting, currentPersona.name, bot.tone),
+    text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
     at: Date.now(),
   }]);
   const [pending, setPending] = useState(false);
@@ -206,6 +209,12 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     const now = Date.now();
     setTurns(t => [...t, { id: `s${now}`, role: 'student', text: text.trim(), at: now }]);
     setPending(true);
+
+    // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
+    // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
+    if (me.isAuthenticated) {
+      void persistChatMessage(bot.id, text.trim());
+    }
 
     const reply = pickClassbotReply(text, bot.tone, forcedKey);
     setTimeout(() => {
@@ -392,7 +401,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             className="flex max-h-[520px] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
           >
             {turns.map((t, i) => (
-              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} />
+              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
             ))}
             {pending && <PendingBubble bot={bot} />}
           </div>
@@ -479,6 +488,31 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   );
 }
 
+/* ─── 채팅 영속화 (plan Phase 3 쓰기 thin-slice) ─── */
+
+/**
+ * 학생 메시지를 본인 명의로 서버에 저장한다(fire-and-forget).
+ * 명의는 서버가 JWT claim 에서 결정 — 클라이언트는 botId/text 만 보낸다.
+ * @param botId - 대상 봇 id
+ * @param text - 메시지 본문
+ */
+async function persistChatMessage(botId: string, text: string): Promise<void> {
+  try {
+    const accessToken = tokenManager.getAccessToken();
+    if (!accessToken) return;
+    await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ botId, text }),
+    });
+  } catch {
+    // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
+  }
+}
+
 /* ─── 메시지 타입 dispatch ([08 § 15.1.3] 6종 카탈로그) ─── */
 
 function buildRichBotTurn(id: string, text: string, at: number, forcedKey: ReplyKey | undefined, botId: string): Turn {
@@ -546,7 +580,7 @@ function DateDivider({ ts }: { ts: number }) {
   );
 }
 
-function RenderTurn({ turn, bot, prev }: { turn: Turn; bot: ClassBot; prev: Turn | undefined }) {
+function RenderTurn({ turn, bot, prev, meName }: { turn: Turn; bot: ClassBot; prev: Turn | undefined; meName: string }) {
   // 일자가 바뀌면 디바이더 노출 (첫 메시지도 포함)
   const showDivider = !prev
     || new Date(prev.at).toDateString() !== new Date(turn.at).toDateString();
@@ -560,12 +594,12 @@ function RenderTurn({ turn, bot, prev }: { turn: Turn; bot: ClassBot; prev: Turn
   return (
     <>
       {showDivider && <DateDivider ts={turn.at} />}
-      <Bubble turn={turn} bot={bot} continuation={isContinuation} />
+      <Bubble turn={turn} bot={bot} continuation={isContinuation} meName={meName} />
     </>
   );
 }
 
-function Bubble({ turn, bot, continuation = false }: { turn: Turn; bot: ClassBot; continuation?: boolean }) {
+function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: ClassBot; continuation?: boolean; meName: string }) {
   const isStudent = turn.role === 'student';
   const botSig = botSignature(bot);
   return (
@@ -582,7 +616,7 @@ function Bubble({ turn, bot, continuation = false }: { turn: Turn; bot: ClassBot
           )}
           style={isStudent ? undefined : { backgroundColor: botSig.hex }}
         >
-          {isStudent ? currentPersona.name[0] : bot.avatarEmoji}
+          {isStudent ? (meName[0] ?? '나') : bot.avatarEmoji}
         </div>
       )}
 

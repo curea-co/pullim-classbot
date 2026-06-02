@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ClipboardCheck, ArrowRight } from 'lucide-react';
-import { currentPersona } from '@/lib/mock';
+import { useRosterMe } from '@/lib/current-user';
 import { useAssignmentStore } from '@/lib/store/assignments';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils';
  */
 export function GradingNotificationCard() {
   const submissions = useAssignmentStore(s => s.submissions);
-  const myStudentId = `s${currentPersona.id ?? 1}`;
+  // 명의 = 현재 사용자(해석기). solve 제출과 동일한 roster id 로 매칭.
+  const myStudentId = useRosterMe().id;
   const recent = submissions
     .filter(s => s.studentId === myStudentId)
     .filter(s => Date.now() - new Date(s.submittedAt).getTime() < 5 * 60_000) // 최근 5분

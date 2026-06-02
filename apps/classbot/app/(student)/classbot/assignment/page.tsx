@@ -5,10 +5,10 @@ import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } fr
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import {
-  classRoster, currentPersona,
   type Assignment, type AssignmentMode,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
+import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments } from '@/lib/store/assignments';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
@@ -21,7 +21,7 @@ const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typ
 };
 
 export default function StudentAssignmentListPage() {
-  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  const me = useRosterMe();
   const assignments = useMergedAssignments(me.id);
   const myBots = getMyBots();
   const inProgress = assignments.filter(a => a.state === 'in-progress').length;

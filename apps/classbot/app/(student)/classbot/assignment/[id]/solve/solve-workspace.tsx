@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
-import { classRoster, currentPersona, type Assignment, type AssignmentQuestion } from '@/lib/mock';
+import { type Assignment, type AssignmentQuestion } from '@/lib/mock';
+import { useRosterMe } from '@/lib/current-user';
 import { useAssignmentStore, computeMockScore } from '@/lib/store/assignments';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +24,7 @@ export function SolveWorkspace({
   initialStep: number;
 }) {
   const router = useRouter();
+  const me = useRosterMe();
   const storageKey = `assignment-${assignment.id}`;
   const [step, setStep] = useState(initialStep);
   const [answers, setAnswers] = useState<Answers>({});
@@ -72,7 +74,7 @@ export function SolveWorkspace({
 
   function submit() {
     // 점수 mock 계산 + store 에 submission 기록 (교사 측 진행률 반영)
-    const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+    // 명의 = 현재 사용자(해석기). per-student mock 키는 roster id.
     const scorePercent = computeMockScore(questions, answers);
     useAssignmentStore.getState().recordSubmission({
       assignmentId: assignment.id,

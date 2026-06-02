@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { PullimLogo } from '@/components/brand/logo';
@@ -11,6 +12,8 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { currentPersona, currentTeacher } from '@/lib/mock';
+import { useCurrentUser } from '@/lib/current-user';
+import { useAuth } from '@/lib/auth/auth-context';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 
@@ -91,15 +94,36 @@ const ROLE_ENTRIES: Record<Role, { href: string; label: string; Icon: typeof Gra
 const ALL_ROLES: Role[] = ['student', 'teacher'];
 
 function ProfileMenu({ role }: { role: Role }) {
+  const me = useCurrentUser();
+  const { signOut } = useAuth();
+  const router = useRouter();
+  // 세션 사용자면 그 이름, 비로그인(데모)면 역할별 데모 페르소나 메타.
   const profile =
     role === 'student'
-      ? { name: currentPersona.name, sub: `${currentPersona.grade} · ${currentPersona.school}`, profileHref: '/classbot' }
-      : { name: `${currentTeacher.name} 선생님`, sub: currentTeacher.organization, profileHref: '/teacher' };
+      ? {
+          name: me.isAuthenticated ? me.name : currentPersona.name,
+          sub: `${currentPersona.grade} · ${currentPersona.school}`,
+          profileHref: '/classbot',
+        }
+      : {
+          name: me.isAuthenticated ? `${me.name} 선생님` : `${currentTeacher.name} 선생님`,
+          sub: currentTeacher.organization,
+          profileHref: '/teacher',
+        };
 
-  // 현재 역할을 제외한 나머지 두 역할 — 메뉴에 평행 노출
-  const otherEntries = ALL_ROLES.filter(r => r !== role).map(r => ({ role: r, ...ROLE_ENTRIES[r] }));
+  // 역할 전환은 **비로그인 데모에서만** 노출한다. 로그인 세션은 role 이 고정이고
+  // (RoleGuard 가 타 역할 라우트를 차단), 임의 전환은 RBAC 와 모순이므로 숨긴다.
+  const otherEntries = me.isAuthenticated
+    ? []
+    : ALL_ROLES.filter(r => r !== role).map(r => ({ role: r, ...ROLE_ENTRIES[r] }));
 
-  function handleLogout() {
+  async function handleLogout() {
+    if (me.isAuthenticated) {
+      await signOut();
+      toast.success('로그아웃되었습니다.');
+      router.push('/login');
+      return;
+    }
     toast.info('로그아웃 (데모)', {
       description: '데모 환경이라 실제 로그아웃은 동작하지 않아요.',
       duration: 3000,
@@ -141,7 +165,7 @@ function ProfileMenu({ role }: { role: Role }) {
             );
           })}
           <DropdownMenuItem
-            onClick={handleLogout}
+            onClick={() => void handleLogout()}
             variant="destructive"
             className="gap-1.5 px-2 py-1.5 text-sm"
           >
