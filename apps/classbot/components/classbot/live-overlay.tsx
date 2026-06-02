@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Radio, Mic, MessageCircle } from 'lucide-react';
-import { type ClassBot, getLiveContent, currentPersona } from '@/lib/mock';
+import { type ClassBot, getLiveContent } from '@/lib/mock';
+import { useCurrentUser } from '@/lib/current-user';
 import { useLiveStore, type PendingQuestion } from '@/lib/store/live';
 import { LiveQuizCard } from './live-quiz-card';
 import { cn } from '@/lib/utils';
@@ -146,7 +147,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
   const [text, setText] = useState('');
   const submit = useLiveStore(s => s.submitQuestion);
   const session = useLiveStore(s => s.active[botId]);
-  const studentName = currentPersona.name;
+  const studentName = useCurrentUser().name;
   const myQuestions = (session?.pendingQuestions ?? []).filter(q => q.studentName === studentName);
 
   function handleSubmit() {

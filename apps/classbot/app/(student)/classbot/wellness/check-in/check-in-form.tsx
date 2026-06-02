@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Check, Heart } from 'lucide-react';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
-import { classRoster, currentPersona, type EmotionMood } from '@/lib/mock';
+import { type EmotionMood } from '@/lib/mock';
 import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
+import { useRosterMe } from '@/lib/current-user';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -15,6 +16,7 @@ import { botSignature } from '@/lib/tokens/bot-signature';
  */
 export function CheckInForm() {
   const router = useRouter();
+  const me = useRosterMe();
   const [mood, setMood] = useState<EmotionMood | null>(null);
   const [intensityRange, setIntensityRange] = useState<[number, number]>([2, 4]);
   const [freeText, setFreeText] = useState('');
@@ -37,7 +39,6 @@ export function CheckInForm() {
 
   if (done) {
     // [13 § 3.3.4] 체크인 사후 봇 반응 — 가장 낮은 영역 담당 봇이 한 줄 + actionable CTA
-    const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
     const reaction = getCheckInReaction(me.id, mood);
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">

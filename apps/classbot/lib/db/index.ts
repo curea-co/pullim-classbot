@@ -45,5 +45,9 @@ export function getDb(): NodePgDatabase<typeof schema> {
   return db;
 }
 
-export const db = getDb();
+// NOTE: db 클라이언트는 **지연 초기화**한다(`getDb()` 를 요청 시점에 호출).
+// 모듈 로드 시 `export const db = getDb()` 로 즉시 Pool 을 만들면, Next.js 빌드의
+// "Collecting page data" 단계에서 route 모듈을 import 하는 것만으로 DATABASE_URL
+// 부재 시 빌드가 깨진다(CI). lazy 접근으로 빌드는 DB 없이 통과하고, 실제 연결은
+// 런타임 요청에서만 일어난다.
 export { schema };

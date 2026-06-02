@@ -5,14 +5,16 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
 import {
-  currentPersona, classRoster, getCheckInsForStudent, hasTodayCheckIn, moodMeta,
+  getCheckInsForStudent, hasTodayCheckIn, moodMeta,
 } from '@/lib/mock';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 
 export default function WellnessPage() {
-  const me = classRoster.find(s => s.name === currentPersona.name) ?? classRoster[0];
+  // 서버 컴포넌트 — 세션 토큰은 client 보관이라 SSR 시점엔 데모 폴백. 신원은 해석기 경유.
+  const me = resolveRosterMe(DEMO_FALLBACK_USER_ID);
   const checkIns = getCheckInsForStudent(me.id);
   const checkedToday = hasTodayCheckIn(me.id);
   // [13 § 3.3.3·9.3] 담당 봇 코멘트 — 가장 낮은 5지표 영역의 봇 자동 매칭

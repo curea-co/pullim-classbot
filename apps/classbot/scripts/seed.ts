@@ -17,7 +17,10 @@ loadEnv({ path: '.env' });
 
 import { sql } from 'drizzle-orm';
 
-import { db, getPool } from '../lib/db';
+import { getDb, getPool } from '../lib/db';
+
+// 시드는 실행 시점에 DATABASE_URL 이 설정돼 있어야 한다(런타임 연결).
+const db = getDb();
 import {
   assignmentQuestions,
   assignments,
