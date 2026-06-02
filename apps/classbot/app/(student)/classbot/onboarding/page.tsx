@@ -1,28 +1,31 @@
+'use client';
+
 import { GraduationCap, Shield, UserCircle, MessageCircle, Eye, AlarmClock, Check } from 'lucide-react';
 import { OnboardingTemplate } from '@/components/shell/onboarding-template';
 import { MockBrowser } from '@/components/shell/mock-browser';
 import { BotHeader } from '@/components/classbot/bot-header';
 import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
+import { DemoChat } from './demo-chat';
 
 export default function ClassbotOnboardingPage() {
   return (
     <OnboardingTemplate
       featureName="풀림 클래스봇"
       Icon={GraduationCap}
-      identity="우리 반 선생님이 직접 만든 AI 친구예요. ‘수학이 형’에게 물어본 건 선생님 화면에도 그대로 보여요."
+      identity="내 봇은 우리 선생님이 직접 만든 AI 친구예요. 언제 어디서든 수업 그대로 물어볼 수 있어요."
       estimatedMin={4}
-      finalHeading="이제 ‘수학이 형’한테 인사해 볼까요?"
+      finalHeading="이제 '수학이 형'한테 인사해 볼까요?"
       finalBody="이제 직접 사용해 보세요. 막히면 언제든 이 페이지로 돌아올 수 있어요."
       steps={[
         {
           Icon: UserCircle,
-          title: '내가 받은 봇은 우리 선생님이 만든 거예요',
+          title: '내가 받은 봇은 진짜 우리 선생님이 만든 거예요',
           description:
-            '‘수학이 형’은 김수학 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요.',
+            "‘수학이 형’은 김수학 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요. 다른 반 봇이랑 달라요.",
           bullets: [
-            '선생님이 봇 말투(친근·정중·엄격)도 미리 정해 둬요',
-            '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 둬요',
-            '봇은 선생님 이름으로 직접 말하지 않아요 (정확성·신뢰)',
+            '선생님이 직접 말투(친근·정중·엄격)도 미리 정해 둬요',
+            '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 뒀어요',
+            '네가 풀수록 봇도 점점 똑똑해져요',
           ],
           screenshot: (
             <MockBrowser dark label="봇 정체성">
@@ -32,22 +35,28 @@ export default function ClassbotOnboardingPage() {
         },
         {
           Icon: Shield,
-          title: '시간대마다 답할 수 있는 범위가 달라져요',
+          title: '우리 봇은 어디까지 알려줘? — 상황마다 달라요',
           description:
-            '시험 중에는 답을 막고, 자율학습 시간엔 자유롭게 물어볼 수 있어요. 선생님이 시간대별로 미리 정해 둬요.',
+            '시험 중엔 힌트도 막히고, 자율학습 시간엔 정답까지 알려줄 수 있어요. 선생님이 시간대별로 미리 정해 둬서 내가 바꿀 순 없어요.',
           signature: true,
           screenshot: (
-            <MockBrowser label="교사 설정 — Scope Guard">
+            <MockBrowser label="봇 안전 등급 — 교사 설정">
               <section className="bg-card space-y-2 rounded-lg p-3">
                 <header className="flex items-center gap-2">
                   <Shield className="text-pullim-blue-600 h-4 w-4" />
-                  <p className="text-pullim-slate-900 text-sm font-bold">Scope Guard</p>
+                  <p className="text-pullim-slate-900 text-sm font-bold">봇 안전 등급</p>
                   <span className="bg-pullim-blue-50 text-pullim-blue-700 ml-auto rounded-full px-2 py-0.5 font-mono text-[11px] font-bold">
-                    현재 L3
+                    지금: 개념까지만 (L3)
                   </span>
                 </header>
-                <ol className="grid grid-cols-5 gap-1" aria-label="Scope Guard 레벨 1~5">
-                  {[1, 2, 3, 4, 5].map(l => {
+                <ol className="grid grid-cols-5 gap-1" aria-label="안전 등급 1~5단계">
+                  {[
+                    { l: 1, label: '완전 차단' },
+                    { l: 2, label: '질문만' },
+                    { l: 3, label: '개념까지' },
+                    { l: 4, label: '단계 제시' },
+                    { l: 5, label: '정답 포함' },
+                  ].map(({ l, label }) => {
                     const isCurrent = l === 3;
                     return (
                       <li
@@ -64,18 +73,16 @@ export default function ClassbotOnboardingPage() {
                           {isCurrent && <Check aria-hidden className="h-2.5 w-2.5" />}
                           L{l}
                         </span>
-                        {isCurrent && (
-                          <span className="text-pullim-blue-700 text-[11px] font-semibold">
-                            현재
-                          </span>
-                        )}
+                        <span className={isCurrent ? 'text-pullim-blue-700 text-[10px]' : 'text-[10px]'}>
+                          {label}
+                        </span>
                       </li>
                     );
                   })}
                 </ol>
                 <p className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1 rounded p-1.5 text-[11px] leading-snug">
                   <AlarmClock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-                  <span>자동 스위치: 18:00–19:00 L4 · 19:00–22:00 L3 · 22:00 이후 L5</span>
+                  <span>자동 변경: 18:00–19:00 단계 제시 · 19:00–22:00 개념까지 · 22:00 이후 정답 포함</span>
                 </p>
               </section>
             </MockBrowser>
@@ -83,28 +90,24 @@ export default function ClassbotOnboardingPage() {
         },
         {
           Icon: MessageCircle,
-          title: '수업 중엔 함께 풀고, 끝나면 혼자 물어보세요',
+          title: '직접 봇에게 인사해 봐요 — 첫 손맛!',
           description:
-            '수업 시간엔 친구들과 같이 라이브 퀴즈를 풀고, 혼자 공부할 땐 봇에게 개념을 자유롭게 물어볼 수 있어요.',
-          cta: { label: '지금 봇에게 물어보기', href: '/classbot/chat' },
-          screenshot: (
-            <MockBrowser label="라이브 퀴즈 진행 중">
-              <LiveQuizCard />
-            </MockBrowser>
-          ),
+            '아래 입력창에 뭐든 써봐요. 실제로 대화하는 게 가장 빠른 설명이에요.',
+          demoSlot: <DemoChat />,
         },
         {
           Icon: Eye,
           title: '선생님이 다 보고 있어요 — 그게 좋은 점이에요',
           description:
-            '내가 봇에게 한 질문, 답변, 정답률까지 김수학 선생님 화면에 그대로 보여요. 시험 기간엔 자동으로 막혀요.',
+            '내가 봇에게 한 질문, 답변, 정답률까지 선생님 화면에 그대로 보여요. 덕분에 선생님이 내가 어디서 막히는지 바로 알 수 있어요.',
           bullets: [
             '내가 봇과 한 모든 활동은 기록돼요',
             '이름을 가린 채 봇이 더 똑똑해지는 데 쓰여요',
             '틀린 문제는 풀림 복습에 자동으로 모여요',
           ],
+          cta: { label: '지금 봇에게 물어보기', href: '/classbot/chat' },
           screenshot: (
-            <MockBrowser dark label="teacher/classbot — 라이브 피드">
+            <MockBrowser dark label="teacher/classbot — 실시간 피드">
               <ul className="space-y-1.5">
                 {[
                   { name: '서연', q: '극값과 극점이 다른 거예요?', shared: false, ago: '방금' },
