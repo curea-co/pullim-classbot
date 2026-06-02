@@ -54,3 +54,7 @@ export function isAccessTokenExpired(token: string, skewSeconds = 30): boolean {
   const nowSeconds = Math.floor(Date.now() / 1000);
   return payload.exp - skewSeconds <= nowSeconds;
 }
+
+// 서버 전용 서명 검증은 node:crypto 를 정적 import 하므로 별도 모듈(jwt-verify.ts)로
+// 분리한다(브라우저 번들에 node:crypto 가 섞이지 않도록). 그쪽에서 base64UrlDecode 재사용.
+export { base64UrlDecode };

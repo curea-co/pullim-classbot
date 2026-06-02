@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { chatMessages } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
 
@@ -61,7 +61,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   const id = `msg_${randomUUID()}`;
   try {
-    await db.insert(chatMessages).values({
+    await getDb().insert(chatMessages).values({
       id,
       botId,
       // 명의는 세션 claim 에서만 — 본문으로 받지 않는다(위조 방지).

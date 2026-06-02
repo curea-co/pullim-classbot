@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 
-import { db } from '@/lib/db';
+import { getDb } from '@/lib/db';
 import { classBots, users } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
 
@@ -81,6 +81,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       { status: 400 },
     );
   }
+
+  // db 연결은 런타임 요청 시점에만(빌드 시 import 만으로 연결되지 않도록 lazy).
+  const db = getDb();
 
   // teacherName 은 도메인 users 의 본인 이름(없으면 임시).
   const teacherRow = await db

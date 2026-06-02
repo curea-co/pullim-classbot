@@ -12,7 +12,7 @@
  * 서버(route handler)는 `getCurrentUserIdFromRequest(req)` 로 JWT 에서 id 를 얻는다.
  */
 
-import { decodeAccessToken } from '@pullim-classbot/api-client/jwt';
+import { verifyAccessToken } from '@pullim-classbot/api-client/jwt-verify';
 import type { UserRole } from '@pullim-classbot/types';
 
 import { useAuth } from '@/lib/auth/auth-context';
@@ -70,8 +70,15 @@ export function useCurrentUserId(): string {
 
 /**
  * 요청에서 현재 사용자 id 를 해석한다(서버 route handler 용).
- * `Authorization: Bearer <access>` 의 claim(sub)에서 id 를 얻고,
- * 토큰이 없으면 데모 폴백(student_001)으로 본다.
+ *
+ * `Authorization: Bearer <access>` 의 토큰을 **서명까지 검증**(HS256, BE 와 공유하는
+ * JWT_SECRET)한 뒤에만 claim(sub/role)을 신뢰한다. 디코드만 하면 공격자가 임의의
+ * sub/role 을 넣은 self-signed 토큰으로 타인 명의·교사 권한을 위조할 수 있으므로,
+ * 신원·역할 판정 경로는 반드시 서명 검증을 통과해야 한다.
+ *
+ * 토큰이 없거나·서명/만료/형식 검증에 실패하면 데모 폴백(student_001, 비인증)으로 본다.
+ * (쓰기 가드는 isAuthenticated=false 를 401 로 처리하므로 위조 토큰은 통과하지 못한다.)
+ *
  * @param req - Next.js Request
  * @returns { id, role, isAuthenticated }
  */
@@ -85,7 +92,9 @@ export function getCurrentUserIdFromRequest(req: Request): {
     ? header.slice('bearer '.length).trim()
     : null;
   if (token) {
-    const payload = decodeAccessToken(token);
+    // 서명 secret 미설정 시 검증 불가 → 토큰을 신뢰하지 않는다(폴백).
+    const secret = process.env.JWT_SECRET ?? '';
+    const payload = verifyAccessToken(token, secret);
     if (payload) {
       return { id: payload.sub, role: payload.role, isAuthenticated: true };
     }

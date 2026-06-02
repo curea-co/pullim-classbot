@@ -22,7 +22,7 @@ const select = jest.fn(() => ({
 }));
 
 jest.mock("@/lib/db", () => ({
-  db: { insert: () => insert(), select: () => select() },
+  getDb: () => ({ insert: () => insert(), select: () => select() }),
   schema: {},
 }));
 

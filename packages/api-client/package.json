@@ -21,6 +21,10 @@
     "./jwt": {
       "types": "./src/jwt.ts",
       "default": "./src/jwt.ts"
+    },
+    "./jwt-verify": {
+      "types": "./src/jwt-verify.ts",
+      "default": "./src/jwt-verify.ts"
     }
   },
   "type": "module",
