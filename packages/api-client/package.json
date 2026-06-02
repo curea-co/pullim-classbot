@@ -2,13 +2,29 @@
   "name": "@pullim-classbot/api-client",
   "version": "0.0.1",
   "private": true,
-  "description": "FE에서 BE 호출용 fetch 래퍼. classbot API 함수 추가 예정.",
+  "description": "FE에서 classbot BE(/api/auth/*) 호출용 fetch 래퍼 + 토큰 매니저.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./token-manager": {
+      "types": "./src/token-manager.ts",
+      "default": "./src/token-manager.ts"
+    },
+    "./auth-api": {
+      "types": "./src/auth-api.ts",
+      "default": "./src/auth-api.ts"
+    },
+    "./jwt": {
+      "types": "./src/jwt.ts",
+      "default": "./src/jwt.ts"
+    },
+    "./jwt-verify": {
+      "types": "./src/jwt-verify.ts",
+      "default": "./src/jwt-verify.ts"
     }
   },
   "type": "module",
