@@ -153,7 +153,7 @@ export default function ClassbotOnboardingPage() {
           ),
         },
       ]}
-      finalCta={{ label: '수학이 형과 대화 시작하기', href: '/classbot' }}
+      finalCta={{ label: '수학이 형과 대화 시작하기', href: '/classbot/chat' }}
     />
   );
 }
