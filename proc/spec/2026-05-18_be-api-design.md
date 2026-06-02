@@ -115,7 +115,7 @@
 - 모든 응답 `application/json; charset=utf-8`.
 - 성공: 데이터 그대로 (`{ id, ... }` 또는 `[ ... ]`). 별도 wrapper 없음.
 - 에러: `{ error: { code: 'NOT_FOUND'|'FORBIDDEN'|'VALIDATION', message: string } }` + 적절한 HTTP status.
-- 인증: `x-user-id` 헤더. 없으면 mock `student_001` 또는 `teacher_001`로 fallback (Ph8 전).
+- 인증: `x-user-id` 헤더. 없으면 mock `student_001` 또는 `teacher_001`로 fallback (Ph8 전 — 도메인 read/write 라우트 한정). **auth 라우트(`/auth/*`)는 Ph8 인도 완료로 JWT Bearer 기반이며, 매 요청 서명 검증한다 (§6.1).**
 - 시각: ISO-8601 UTC 문자열. mock의 "오늘 19:50" 같은 상대 라벨은 client에서 포맷.
 - 빈 컬렉션은 `[]`, 빈 객체는 `null` 또는 키 누락.
 
@@ -209,7 +209,7 @@
 | `GET /api/templates?kind=...` | 템플릿 마켓 | 🟢 |
 | `GET /api/me/templates` | 내가 올린 템플릿 | 🟢 |
 
-총 **~36 endpoints** (Ph3 read 약 18 + mutate 약 18). Ph7에서 FE의 `from '@/lib/mock'`을 fetch로 점진 교체.
+총 **~36 endpoints** (Ph3 read 약 18 + mutate 약 18). Ph7에서 FE의 `from '@/lib/mock'`을 fetch로 점진 교체. (auth 슬라이스가 fetch 데이터 레이어 — `packages/api-client` — 를 Ph7 일정보다 먼저 인도했다. §5 Ph7·§6.1 참조.)
 
 ---
 
@@ -223,16 +223,46 @@
 | **Ph4** | mutate (CRUD) | 봇/반/과제/감정 체크인 POST·PATCH. 트랜잭션 invariant 검증 | TBD |
 | **Ph5** | 상태 전이 + 집계 | 라이브 시작/종료, 리플레이 status 전이, replay 자동 생성 트리거 | TBD |
 | **Ph6** | 리포트 집계 | mock 함수 → SQL aggregate (정답률·웰빙 평균·KPI) | TBD |
-| **Ph7** | FE 교체 | `lib/mock` 의존 → `fetch('/api/...')` 점진 교체 | TBD |
-| **Ph8** | 인증 | NextAuth v5 / lucia-auth / 자체 — 결정 보류 | TBD |
+| **Ph7** | FE 교체 | `lib/mock` 의존 → `fetch('/api/...')` 점진 교체 | **데이터 레이어 조기 인도** (auth PR #89, 2026-06-02) — auth 슬라이스가 `packages/api-client`(`auth-fetch` 토큰 첨부 + 401 자동 refresh + `token-manager`) 기반을 먼저 깔았다. 나머지 도메인의 mock→fetch 교체는 여전히 TBD (auth 시점에 50개 파일이 아직 `@/lib/mock` import). |
+| **Ph8** | 인증 | ~~NextAuth v5 / lucia-auth / 자체 — 결정 보류~~ | **결정·인도 완료** (auth PR #88/#89, 2026-06-02) — 자체 구현(이메일/비밀번호 + JWT access/refresh). 상세 §6.1 참조. |
 | **Ph9** | prod DB | Neon / Supabase / RDS — 결정 보류 | TBD |
 
 ---
 
 ## 6. 결정 보류 / 미결 항목
 
-- **인증 (Ph8)**: NextAuth.js v5 vs lucia-auth vs 자체. mock은 `x-user-id` 헤더 폴백.
+- ~~**인증 (Ph8)**: NextAuth.js v5 vs lucia-auth vs 자체.~~ → **§6.1에서 해소** (자체 구현, auth PR #88/#89, 2026-06-02).
 - **prod DB (Ph9)**: Neon(serverless) / Supabase / RDS.
 - **chat 영속화**: Ph5에서 LLM gateway 결정 후 풀 어떻게 잡을지 정함. Ph1 시드에는 `chat_messages` 비어 있음.
 - **replay segments/transcript JSONB vs 별도 테이블**: JSONB로 시작. 한 리플레이 평균 50줄·5MB 미만이라 안전. 검색·집계 요구 생기면 분리.
-- **마이그레이션 정책**: dev/prod 동일하게 `drizzle-kit migrate`. prod release flow는 Ph9에서.
+- **마이그레이션 정책**: 도메인(Drizzle) 자산은 dev/prod 동일하게 `drizzle-kit migrate`. **단, auth는 TypeORM 마이그레이션으로 인도됨 — §6.2 공존 노트 참조.** prod release flow는 Ph9에서.
+
+---
+
+## 6.1 Ph8 인증 — 인도된 결정 (auth PR #88/#89, 2026-06-02)
+
+> 컨트롤타워가 **명시적으로 수용한 예외**: 인증 방식 확정이 Ph8 일정보다 먼저 일어났다.
+> 본 절은 새 범위를 발명하지 않고 **실제로 인도된 것만** 기록한다.
+
+**방식**: 자체 구현(NextAuth/lucia 미채택). 이메일/비밀번호 + JWT (access/refresh).
+
+- **별도 `auth_*` 테이블** — 도메인 `users`(Drizzle)와 충돌하지 않도록 `auth_` 프리픽스로 분리.
+  - `auth_users` (uuid PK, role `student`|`teacher`|`admin`, 살아있는 행 기준 email unique, soft delete).
+  - `auth_user_providers` (provider `email`|`kakao`|`naver`, 비밀번호 보관, `failed_login_count`/`locked_at`). 소셜(kakao/naver)은 enum에만 존재하고 동작은 GATED.
+  - `auth_revoked_tokens` (jti PK + `expires_at` 인덱스) — **토큰 블랙리스트를 Redis 대신 Postgres 테이블로 구현**.
+- **신원 단일화**: 가입 시 동일 트랜잭션에서 같은 id로 도메인 `users` 행을 프로비저닝(admin 제외) → 로그인 사용자가 도메인 FK 주체.
+
+**인도된 보안 자세** (코드 검증):
+- JWT 서명을 **매 요청 검증**(전역 `JwtAuthGuard`, `@Public()`만 우회).
+- **공개 회원가입은 admin 권한을 부여할 수 없음** — role은 서버 할당, 외부 입력으로 `admin` 요청 시 거부(`AUTH_ROLE_NOT_ALLOWED`). 공개 가입은 student/teacher만.
+- **refresh 회전(rotation) + 로그아웃 시 블랙리스트** — 사용된 refresh 토큰을 원자적으로 블랙리스트에 등록해 동시 요청 중복 사용 차단.
+
+**비고**: `x-user-id` 헤더 폴백(§3)은 도메인 read/write 라우트에 대해 Ph7 fetch 교체 전까지 잔존. 도메인 라우트의 JWT 가드 적용 범위 확장은 Ph7 진행과 함께 추후 정렬 대상.
+
+## 6.2 Drizzle(도메인) + TypeORM(auth) 마이그레이션 공존 — 정합 노트
+
+본 spec은 원래 마이그레이션을 `drizzle-kit migrate` 단일로 가정했으나, auth는 **TypeORM 마이그레이션**(`CreateAuthTables1748476800000`, `CREATE EXTENSION IF NOT EXISTS pgcrypto` 포함)으로 인도되어 현재 레포는 **Drizzle + TypeORM이 공존**한다.
+
+- **경계**: TypeORM 마이그레이션은 `auth_*` 네임스페이스만 다루며 **Drizzle 자산을 일절 건드리지 않는다**(마이그레이션 주석에 명시). 도메인 스키마는 계속 `drizzle-kit`이 SOT.
+- **근거**: auth는 NestJS(`apps/backend`) + TypeORM 본체 pullim 패턴에 정렬해 인도됨. `gen_random_uuid()`가 의존하는 `pgcrypto`를 마이그레이션이 멱등 보장.
+- **⚠ 후속 통합 플래그**: 두 마이그레이션 도구의 장기 공존은 의도된 최종 상태가 아니다. prod release flow(Ph9) 설계 시 **(a) 단일 도구로 통일할지, (b) auth↔도메인 `users` 신원 단일화를 스키마 레벨에서 어떻게 유지할지**를 함께 결정해야 한다. 본 노트는 결정이 아니라 미결 플래그로 남긴다.
