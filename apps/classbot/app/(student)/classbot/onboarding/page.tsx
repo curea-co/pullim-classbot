@@ -4,8 +4,17 @@ import { GraduationCap, Shield, UserCircle, MessageCircle, Eye, AlarmClock, Chec
 import { OnboardingTemplate } from '@/components/shell/onboarding-template';
 import { MockBrowser } from '@/components/shell/mock-browser';
 import { BotHeader } from '@/components/classbot/bot-header';
-import { LiveQuizCard } from '@/components/classbot/live-quiz-card';
 import { DemoChat } from './demo-chat';
+
+/**
+ * 데모 종료 후 "다음 단계"(선생님이 다 보고 있어요) 카드로 스크롤한다.
+ * OnboardingTemplate 이 단계를 스크롤 리스트로 렌더하므로, 다음 단계 CTA(`/classbot/chat`)
+ * 를 화면에 들여 후속 흐름을 연다. (04-ux-flow.md § 9.11.2)
+ */
+function scrollToNextStep() {
+  const nextCta = document.querySelector<HTMLElement>('a[href="/classbot/chat"]');
+  nextCta?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
 export default function ClassbotOnboardingPage() {
   return (
@@ -93,7 +102,7 @@ export default function ClassbotOnboardingPage() {
           title: '직접 봇에게 인사해 봐요 — 첫 손맛!',
           description:
             '아래 입력창에 뭐든 써봐요. 실제로 대화하는 게 가장 빠른 설명이에요.',
-          demoSlot: <DemoChat />,
+          demoSlot: <DemoChat onDone={scrollToNextStep} />,
         },
         {
           Icon: Eye,
