@@ -54,7 +54,9 @@ describe("LoginUseCase", () => {
   beforeEach(() => {
     const { user, emailProvider } = buildUserWithEmailProvider();
     authService = {
-      findEmailLoginUserOrFail: jest.fn().mockReturnValue({ user, emailProvider }),
+      findEmailLoginUserOrFail: jest
+        .fn()
+        .mockReturnValue({ user, emailProvider }),
       validateLoginPreConditions: jest.fn(),
       verifyPasswordOrFail: jest.fn().mockResolvedValue(undefined),
       generateTokens: jest
@@ -75,7 +77,9 @@ describe("LoginUseCase", () => {
   it("성공 시 실패카운트를 리셋하고 토큰을 반환한다", async () => {
     const result = await buildUseCase().execute(dto);
 
-    expect(userRepository.resetFailedLoginCount).toHaveBeenCalledWith("provider-1");
+    expect(userRepository.resetFailedLoginCount).toHaveBeenCalledWith(
+      "provider-1",
+    );
     expect(userRepository.incrementFailedLoginCount).not.toHaveBeenCalled();
     expect(result).toEqual({ accessToken: "AT", refreshToken: "RT" });
   });

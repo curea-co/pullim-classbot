@@ -39,6 +39,10 @@ export const ErrorMessages = {
     code: "AUTH_PASSWORD_MISMATCH",
     message: "비밀번호와 비밀번호 확인이 일치하지 않습니다.",
   },
+  AUTH_ROLE_NOT_ALLOWED: {
+    code: "AUTH_ROLE_NOT_ALLOWED",
+    message: "선택할 수 없는 역할입니다.",
+  },
 
   // USER
   USER_NOT_FOUND: {

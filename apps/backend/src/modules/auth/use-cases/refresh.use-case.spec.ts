@@ -36,7 +36,9 @@ describe("RefreshUseCase (rotation)", () => {
   it("기존 refresh 토큰을 블랙리스트에 올린 뒤 새 토큰 쌍을 발급한다(rotation)", async () => {
     const result = await buildUseCase().execute(buildUser(), "old-refresh");
 
-    expect(authService.blacklistTokenOrFail).toHaveBeenCalledWith("old-refresh");
+    expect(authService.blacklistTokenOrFail).toHaveBeenCalledWith(
+      "old-refresh",
+    );
     expect(result).toEqual({ accessToken: "AT2", refreshToken: "RT2" });
   });
 

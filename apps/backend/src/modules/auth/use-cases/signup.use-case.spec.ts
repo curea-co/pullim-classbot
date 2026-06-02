@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 
 import { AuthUser } from "../../../entities/auth-user.entity";
 import { UserRole } from "../../../entities/enums/user-role.enum";
@@ -12,8 +12,8 @@ import { SignupUseCase } from "./signup.use-case";
  */
 function fakeDataSource() {
   return {
-    transaction: jest.fn(
-      async (cb: (m: unknown) => Promise<unknown>) => cb({} as unknown),
+    transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) =>
+      cb({}),
     ),
   };
 }
@@ -26,14 +26,16 @@ function buildDto(overrides: Partial<SignupDto> = {}): SignupDto {
     passwordConfirm: "pw123456",
     role: UserRole.STUDENT,
     ...overrides,
-  } as SignupDto;
+  };
 }
 
 describe("SignupUseCase", () => {
-  let authService: jest.Mocked<Pick<
-    AuthService,
-    "validatePasswordConfirm" | "hashPassword" | "generateTokens"
-  >>;
+  let authService: jest.Mocked<
+    Pick<
+      AuthService,
+      "validatePasswordConfirm" | "hashPassword" | "generateTokens"
+    >
+  >;
   let userRepository: jest.Mocked<
     Pick<
       AuthUserRepositoryInterface,
@@ -68,7 +70,9 @@ describe("SignupUseCase", () => {
     userRepository.isEmailAvailable.mockResolvedValue(false);
     const useCase = buildUseCase();
 
-    await expect(useCase.execute(buildDto())).rejects.toThrow(ConflictException);
+    await expect(useCase.execute(buildDto())).rejects.toThrow(
+      ConflictException,
+    );
     expect(userRepository.createWithProvider).not.toHaveBeenCalled();
   });
 
@@ -114,17 +118,11 @@ describe("SignupUseCase", () => {
     );
   });
 
-  it("admin 은 도메인 user 를 프로비저닝하지 않는다(예약)", async () => {
-    const created = AuthUser.create({
-      name: "관리자",
-      email: "a@example.com",
-      role: UserRole.ADMIN,
-    });
-    created.id = "uuid-admin";
-    userRepository.createWithProvider.mockResolvedValue(created);
-
-    await buildUseCase().execute(buildDto({ role: UserRole.ADMIN }));
-
+  it("공개 회원가입에서 admin 역할 요청은 거부한다(권한 상승 차단)", async () => {
+    await expect(
+      buildUseCase().execute(buildDto({ role: UserRole.ADMIN })),
+    ).rejects.toThrow(BadRequestException);
+    expect(userRepository.createWithProvider).not.toHaveBeenCalled();
     expect(userRepository.provisionDomainUser).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,9 @@ export class CreateAuthTables1748476800000 implements MigrationInterface {
   name = "CreateAuthTables1748476800000";
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // gen_random_uuid() 는 pgcrypto 확장에 의존한다. fresh Postgres/CI 에서
+    // 첫 run 부터 깨지지 않도록 확장 존재를 명시적으로 보장한다(멱등).
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
     await queryRunner.query(`
       CREATE TYPE "auth_users_role_enum" AS ENUM ('student', 'teacher', 'admin')
     `);

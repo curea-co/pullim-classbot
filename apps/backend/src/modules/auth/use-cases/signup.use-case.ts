@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { ErrorMessages } from "../../../common/constants/error-messages.constant";
@@ -38,6 +42,14 @@ export class SignupUseCase {
   }> {
     this.authService.validatePasswordConfirm(dto.password, dto.passwordConfirm);
 
+    // admin 은 운영자용 예약(서버 내부 부여) 역할이다. 공개 회원가입에서
+    // 외부 입력으로 admin 을 받아들이면 권한 상승이 가능하므로 차단한다.
+    // student/teacher 만 공개 가입 대상.
+    const requestedRole = dto.role ?? UserRole.STUDENT;
+    if (requestedRole === UserRole.ADMIN) {
+      throw new BadRequestException(ErrorMessages.AUTH_ROLE_NOT_ALLOWED);
+    }
+
     const available = await this.userRepository.isEmailAvailable(dto.email);
     if (!available) {
       throw new ConflictException(ErrorMessages.USER_EMAIL_DUPLICATED);
@@ -49,7 +61,7 @@ export class SignupUseCase {
       const user = AuthUser.create({
         name: dto.name,
         email: dto.email,
-        role: dto.role ?? UserRole.STUDENT,
+        role: requestedRole,
       });
       const provider = AuthUserProvider.create({
         provider: AuthProvider.EMAIL,

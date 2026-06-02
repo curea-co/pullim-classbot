@@ -6,7 +6,6 @@ import {
 
 import { MAX_LOGIN_ATTEMPTS } from "../../../common/constants/security.constant";
 import { TokenProvider } from "../../../common/interfaces/token-provider.interface";
-import { hashText } from "../../../common/utils/crypto.util";
 import { AuthUser } from "../../../entities/auth-user.entity";
 import { AuthProvider } from "../../../entities/enums/auth-provider.enum";
 import { AuthUserProvider } from "../../../entities/auth-user-provider.entity";
@@ -28,18 +27,19 @@ const configServiceStub = {
 class InMemoryRevokedTokenRepository extends RevokedTokenRepositoryInterface {
   private readonly store = new Set<string>();
 
-  async revoke(jti: string): Promise<void> {
+  revoke(jti: string): Promise<void> {
     this.store.add(jti);
+    return Promise.resolve();
   }
 
-  async revokeOnce(jti: string): Promise<boolean> {
-    if (this.store.has(jti)) return false;
+  revokeOnce(jti: string): Promise<boolean> {
+    if (this.store.has(jti)) return Promise.resolve(false);
     this.store.add(jti);
-    return true;
+    return Promise.resolve(true);
   }
 
-  async isRevoked(jti: string): Promise<boolean> {
-    return this.store.has(jti);
+  isRevoked(jti: string): Promise<boolean> {
+    return Promise.resolve(this.store.has(jti));
   }
 }
 
@@ -107,7 +107,9 @@ describe("AuthService", () => {
   describe("validatePasswordConfirm", () => {
     it("비밀번호와 확인이 일치하면 통과한다", () => {
       const service = buildService(new InMemoryRevokedTokenRepository());
-      expect(() => service.validatePasswordConfirm("pw1234", "pw1234")).not.toThrow();
+      expect(() =>
+        service.validatePasswordConfirm("pw1234", "pw1234"),
+      ).not.toThrow();
     });
 
     it("불일치하면 BadRequestException 을 던진다", () => {
@@ -130,9 +132,9 @@ describe("AuthService", () => {
       const service = buildService(new InMemoryRevokedTokenRepository());
       const hash = await service.hashPassword("correct-horse");
       const provider = buildEmailProvider({ password: hash });
-      await expect(service.isPasswordMatch(provider, "correct-horse")).resolves.toBe(
-        true,
-      );
+      await expect(
+        service.isPasswordMatch(provider, "correct-horse"),
+      ).resolves.toBe(true);
     });
 
     it("틀린 비밀번호는 매치되지 않는다", async () => {
@@ -193,7 +195,10 @@ describe("AuthService", () => {
     it("틀린 비밀번호는 UnauthorizedException(로그인 실패)", async () => {
       const service = buildService(new InMemoryRevokedTokenRepository());
       const hash = await service.hashPassword("right");
-      const provider = buildEmailProvider({ password: hash, failedLoginCount: 0 });
+      const provider = buildEmailProvider({
+        password: hash,
+        failedLoginCount: 0,
+      });
       await expect(
         service.verifyPasswordOrFail(provider, "wrong"),
       ).rejects.toThrow(UnauthorizedException);
@@ -224,7 +229,10 @@ describe("AuthService", () => {
   describe("generateTokens", () => {
     it("access/refresh 쌍을 발급한다", () => {
       const provider = new FakeTokenProvider();
-      const service = buildService(new InMemoryRevokedTokenRepository(), provider);
+      const service = buildService(
+        new InMemoryRevokedTokenRepository(),
+        provider,
+      );
       const tokens = service.generateTokens(buildUser());
       expect(tokens.accessToken).toContain("access-user-1");
       expect(tokens.refreshToken).toContain("refresh-user-1");
