@@ -306,7 +306,7 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 
 ### 11.1 세션
 - Next.js 15+ App Router 기반
-- JWT or Server Action 기반 세션 (현재 미상세화 — 보안 점검 필요)
+- **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
 
 ### 11.2 라우트 보호
 - `(student)/*` — Learner 권한 필수

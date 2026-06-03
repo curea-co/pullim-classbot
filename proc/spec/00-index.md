@@ -55,3 +55,7 @@
   - **07-branding.md** — § 3.2 DON'T에 Scope/Tier 코드 금지 추가, § 4.6.1 봇별 시그니처 인사·§ 4.6.2 봇 5종 단일 진실원 표·§ 4.6.3 시간대별 인사, § 4.10 클래스봇 온보딩 학생 시선 카피, § 5.3 Scope L1~L5·Tier T1~T3 학생 노출 룰 신설, § 8 체크리스트 § 5.3 항목 추가
   - **04-ux-flow.md** — § 9 클래스봇 UX 패턴 신설 (홈 4블록 우선순위·봇 카드 정보 보강·봇 메타 카드 collapse·봇 스위처 칩·**모바일 키보드 visualViewport sticky Critical**·빠른 칩 동적 추천·입력바 첨부/음성·메시지 그루핑·첫 응답 personalization·LIVE/리플레이/16:9 썸네일·온보딩 인터랙티브 데모·브레드크럼 자동 dedupe·22개 항목 P0~P3 매핑 표)
   - **13-reports-and-emotion-checkin.md** — § 3.3.3 웰빙 허브에 담당 봇 코멘트 카드, § 3.3.4 체크인 사후 봇 반응, § 9.1.2 7일 막대 컬러 매핑, § 9.2 5지표 펼침 패턴, § 9.3 담당 봇 코멘트 카드 토큰, § 9.4 풀림 무드 이모지 셋(P3), § 9.5 신규 컴포넌트 2종 추가
+- **2026-06-02**: auth(이메일/비밀번호 + JWT) 머지 정합 — Ph7/Ph8 조기 인도 + TypeORM·Drizzle 마이그레이션 공존을 spec에 반영. 출처: auth PR #87(shared)/#88(BE)/#89(FE). **컨트롤타워가 수용한 예외**(Ph8 결정·Ph7 데이터 레이어가 일정보다 먼저 인도)를 문서 레벨에서 기록 — 사용자/G1 비준 대기. 4개 SPEC 갱신:
+  - **2026-05-18_be-api-design.md** — §5 Ph7(fetch 데이터 레이어 조기 인도)·Ph8(결정·인도 완료) 상태 갱신, §3 인증 컨벤션에 `/auth/*` JWT 명시, §6 결정보류 해소 표시, **§6.1 Ph8 인증 인도 결정**(자체 구현·`auth_*` 테이블·서명 매요청 검증·admin 부여 차단·refresh 회전+블랙리스트) + **§6.2 Drizzle+TypeORM 마이그레이션 공존 노트**(경계·근거·후속 통합 플래그) 신설
+  - **05-business-rules.md** — § 11.1 세션을 "JWT access/refresh 자체 구현"으로 구체화(미상세 placeholder 해소)
+  - **09-tech-stack.md** — § 14 데이터 저장에 auth 백엔드(NestJS+TypeORM) 인도 사실 + ORM 공존 행 + 토큰 블랙리스트 Redis→Postgres 비고 추가

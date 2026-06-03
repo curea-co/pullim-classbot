@@ -310,13 +310,14 @@ pnpm dev   # → http://localhost:3030
 
 ## 14. 데이터 저장 (계획)
 
-⚠️ 현재 백엔드 미구현, mock 데이터로 시연. 운영 시 후보:
+⚠️ 도메인 데이터는 여전히 mock 시연(Drizzle 스키마는 인프라만). **단, 인증 백엔드는 인도됨** — `apps/backend`(NestJS + TypeORM) + PostgreSQL `auth_*` 테이블. 운영 시 후보:
 
 | 영역 | 후보 |
 |------|------|
-| RDB | PostgreSQL (RDS, Supabase) |
+| RDB | PostgreSQL (RDS, Supabase) — auth 백엔드 인도 시점에 실 사용 |
+| ORM/마이그레이션 | **도메인: Drizzle(`drizzle-kit migrate`) · auth: TypeORM 마이그레이션 — 공존**. [be-api-design §6.2](2026-05-18_be-api-design.md) 정합 노트 참조 (후속 통합 플래그 있음) |
 | 벡터 DB | pgvector, Pinecone |
-| 캐시 | Redis |
+| 캐시 | Redis — *단, auth 토큰 블랙리스트는 Redis 대신 Postgres `auth_revoked_tokens` 테이블로 인도됨* |
 | 파일 | S3, Cloudflare R2 |
 
 ---
