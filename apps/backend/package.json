@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest --config jest.config.ts --passWithNoTests",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "seed:demo": "ts-node -P tsconfig.json src/database/seed-demo.ts",
     "migration:run": "bun run typeorm migration:run",
     "migration:revert": "bun run typeorm migration:revert",
     "migration:show": "bun run typeorm migration:show"
