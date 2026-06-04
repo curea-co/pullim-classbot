@@ -2,28 +2,54 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Play, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Play, AlertCircle, Inbox } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
-import { useAssignmentLookup } from '@/lib/store/assignments';
+import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
 import { cn } from '@/lib/utils';
 
+/**
+ * 학생 과제 상세 — Phase 7 Stage 2: `GET /api/assignments/[id]`(실DB·인증) 배선.
+ *
+ * 목록(`/api/assignments`)과 **같은 실DB 소스**를 본다 — 목록=실DB / 상세=mock 의
+ * split-brain(목록의 실DB 과제를 클릭하면 상세에서 404)을 제거한다. 미로그인은
+ * 로그인 게이트(D1 로그인월), 본인 명의 과제가 없으면 not-found 카드.
+ *
+ * 범위 밖(더 깊은 레이어): 문항(`getQuestionsByAssignment`)은 여전히 mock,
+ * 풀이 진행(solve/submit) 상태는 store. 교사 발사 과제의 실DB 반영(write)도 후속 슬라이스.
+ */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const a = useAssignmentLookup(id);
-  if (!a) {
-    // 신규 발사 직후 hydration 전엔 dispatched가 비어있을 수 있어 잠시 로딩 표시
-    if (id.startsWith('as_user_')) {
-      return (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중...</p>
-        </div>
-      );
-    }
-    notFound();
+  const { data: a, isLoading, isUnauthenticated, isNotFound, isError, refetch } =
+    useMyAssignment(id);
+
+  const back = (
+    <Link
+      href="/classbot/assignment"
+      className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+    >
+      <ArrowLeft className="h-3 w-3" />
+      받은 과제
+    </Link>
+  );
+
+  if (isUnauthenticated) {
+    return <div className="space-y-4">{back}<ReadLoginGate label="과제" /></div>;
   }
+  if (isNotFound) {
+    return <div className="space-y-4">{back}<AssignmentNotFoundCard /></div>;
+  }
+  if (isError) {
+    return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void refetch()} /></div>;
+  }
+  if (isLoading || !a) {
+    return <div className="space-y-4">{back}<AssignmentDetailSkeleton /></div>;
+  }
+
+  // 문항은 더 깊은 레이어(mock) — 시드 과제는 존재, 신규 DB 과제는 빈 배열로 안내.
   const questions = getQuestionsByAssignment(id);
 
   const isInProgress = a.state === 'in-progress';
@@ -40,13 +66,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/classbot/assignment"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        받은 과제
-      </Link>
+      {back}
 
       <AssignmentOverviewHeader assignment={a} />
 
@@ -107,6 +127,35 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       <FlywheelNote>
         쓰는 동안 자동으로 저장돼요. 마음 편히 풀어요. 제출하면 선생님 채점 큐로 흘러가요.
       </FlywheelNote>
+    </div>
+  );
+}
+
+/** 본인 명의 과제가 없을 때(404) — 목록으로 유도. */
+function AssignmentNotFoundCard() {
+  return (
+    <section className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-4 py-10 text-center">
+      <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 items-center justify-center rounded-xl">
+        <Inbox className="h-5 w-5" aria-hidden />
+      </span>
+      <p className="text-pullim-slate-900 text-sm font-bold">과제를 찾을 수 없어요</p>
+      <p className="text-pullim-slate-500 text-[11px]">받은 과제 목록에서 다시 확인해 주세요.</p>
+      <Link
+        href="/classbot/assignment"
+        className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-[12px] font-bold text-white transition-colors"
+      >
+        받은 과제로
+      </Link>
+    </section>
+  );
+}
+
+function AssignmentDetailSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <Skeleton className="h-32 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-14 w-full rounded-2xl" />
     </div>
   );
 }

@@ -23,8 +23,10 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { useAuth } from '@/lib/auth/auth-context';
-import { domainRead, UnauthorizedReadError } from '@/lib/api/read-fetch';
+import { domainRead, ReadError, UnauthorizedReadError } from '@/lib/api/read-fetch';
 import type {
+  AssignmentReadResponse,
+  AssignmentReadRow,
   AssignmentsReadResponse,
   BotsReadResponse,
 } from './types';
@@ -87,4 +89,56 @@ export function useMyAssignments(): StudentReadResult<AssignmentsReadResponse> {
     'assignments',
     '/api/assignments?audience=student',
   );
+}
+
+/** 단일 과제 읽기 결과 — 404(없음)를 별도 플래그로 노출한다. */
+export interface SingleAssignmentResult {
+  /** 과제 행(미인증·404·로딩 시 undefined). */
+  data: AssignmentReadRow | undefined;
+  isLoading: boolean;
+  isUnauthenticated: boolean;
+  /** 404 — 본인 명의 과제가 없음(상세 not-found 카드로 처리). */
+  isNotFound: boolean;
+  isError: boolean;
+  refetch: UseQueryResult<AssignmentReadResponse>['refetch'];
+}
+
+/**
+ * `GET /api/assignments/[id]` — 내 과제 단건.
+ *
+ * 상세면(`/classbot/assignment/[id]`)이 목록과 **같은 실DB 소스**를 보게 한다
+ * (목록=실DB / 상세=mock 의 split-brain·404 회귀 제거). 404 는 retry 하지 않고
+ * `isNotFound` 로 노출해 호출부가 not-found 카드를 그린다.
+ */
+export function useMyAssignment(id: string): SingleAssignmentResult {
+  const { user, isReady } = useAuth();
+  const isLoggedIn = isReady && Boolean(user);
+
+  const query = useQuery<AssignmentReadResponse>({
+    queryKey: ['student-read', 'assignment', id, user?.id ?? null],
+    queryFn: () =>
+      domainRead<AssignmentReadResponse>(`/api/assignments/${encodeURIComponent(id)}`),
+    enabled: isLoggedIn && Boolean(id),
+    retry: (failureCount, error) => {
+      // 401(로그인월)·404(없음)는 재시도 무의미 → 게이트/not-found 로 처리.
+      if (error instanceof UnauthorizedReadError) return false;
+      if (error instanceof ReadError && error.status === 404) return false;
+      return failureCount < 1;
+    },
+  });
+
+  const isUnauthenticated =
+    (isReady && !user) || query.error instanceof UnauthorizedReadError;
+  const isNotFound =
+    query.error instanceof ReadError && query.error.status === 404;
+
+  return {
+    data: query.data?.assignment,
+    isLoading: !isReady || (isLoggedIn && query.isPending),
+    isUnauthenticated,
+    isNotFound,
+    // 인증/404 이외의 실패(네트워크/5xx 등)만 일반 에러로 노출.
+    isError: query.isError && !isUnauthenticated && !isNotFound,
+    refetch: query.refetch,
+  };
 }

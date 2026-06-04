@@ -78,6 +78,11 @@ export interface AssignmentsReadResponse {
   assignments: AssignmentReadRow[];
 }
 
+/** `GET /api/assignments/[id]` 단건 응답 봉투. */
+export interface AssignmentReadResponse {
+  assignment: AssignmentReadRow;
+}
+
 /** `GET /api/grades` 응답 봉투. */
 export interface GradesReadResponse {
   grades: GradeReadRow[];
