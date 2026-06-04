@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 학생 읽기 3면 React Query 훅 — Phase 7 Stage 2 (bots / assignments / grades).
+ * 학생 읽기 React Query 훅 — Phase 7 Stage 2 (bots / assignments).
  *
  * 각 훅은 같은 오리진 읽기 라우트(`/api/*`)를 `domainRead`(인증 헤더 첨부)로 친다.
  * 인증 세션이 준비되고 로그인된 경우에만 fetch 한다(`enabled`):
@@ -27,7 +27,6 @@ import { domainRead, UnauthorizedReadError } from '@/lib/api/read-fetch';
 import type {
   AssignmentsReadResponse,
   BotsReadResponse,
-  GradesReadResponse,
 } from './types';
 
 /** 인증 게이트가 반영된 읽기 쿼리 결과. */
@@ -88,16 +87,4 @@ export function useMyAssignments(): StudentReadResult<AssignmentsReadResponse> {
     'assignments',
     '/api/assignments?audience=student',
   );
-}
-
-/**
- * `GET /api/grades` — 내 채점 이력.
- *
- * 권위 spec(§4.6) 경로는 `GET /api/students/{id}/grading-history` 이나, Stage 1(#92)이
- * main 에 인도한 실제 라우트는 self-scoped `/api/grades`(JWT sub 명의)다. FE 는 배포된
- * 라우트를 호출해야 하므로 `/api/grades` 를 쓴다. 경로 명칭 정합(authority 경로로 rename)
- * 은 BE 변경이라 별도 BE PR 범위.
- */
-export function useMyGrades(): StudentReadResult<GradesReadResponse> {
-  return useStudentRead<GradesReadResponse>('grades', '/api/grades');
 }

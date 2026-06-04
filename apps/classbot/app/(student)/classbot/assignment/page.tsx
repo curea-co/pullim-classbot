@@ -5,7 +5,6 @@ import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } fr
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
-import { MyGradesSection } from '@/components/classbot/my-grades-section';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
 import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
@@ -66,9 +65,6 @@ export default function StudentAssignmentListPage() {
         isError={isError}
         onRetry={() => void refetch()}
       />
-
-      {/* 내 채점 결과 — `GET /api/grades` 배선. 미인증 시 자체적으로 미노출. */}
-      {!isUnauthenticated && <MyGradesSection />}
     </div>
   );
 }
