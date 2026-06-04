@@ -4,12 +4,11 @@ import Link from 'next/link';
 import {
   ArrowRight, Bell, ClipboardList, ClipboardCheck, MessageSquareText, Radio,
 } from 'lucide-react';
-import { getMyBots } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
-import { useLiveStore } from '@/lib/store/live';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { MyBotsStrip } from '@/components/classbot/my-bots-strip';
+import { useMyBots } from '@/hooks/api/read/use-student-reads';
 import { cn } from '@/lib/utils';
 
 /**
@@ -17,6 +16,12 @@ import { cn } from '@/lib/utils';
  *
  * 첫 시선이 "오늘 얼마나 바쁜지" 압축 카운트로 떨어지도록
  * KPI header 한 줄을 최상단에 두고, 그 아래 V09 구조를 잇는다.
+ *
+ * Phase 7 Stage 2 배선: **봇/라이브 관련 파생값은 실API(`GET /api/bots`) 단일 소스**로
+ * 통일한다(strip 과 KPI/카드의 라이브 카운트·진입 링크가 어긋나지 않게). 라이브 여부는
+ * 봇 행의 `isLive` 컬럼으로 판정한다(실시간 live 세션 store 연동은 후속 live 슬라이스).
+ * 과제·채점·웰빙 한 마디 카운트는 봇/라이브와 무관한 별도 위젯이라 이 슬라이스 범위 밖
+ * (여전히 mock store) — 후속 슬라이스에서 각 읽기 API 로 전환한다.
  *
  * 구성:
  *   1. KPI header — "오늘 N개 새 알림" + 라이브/마감/한 마디 인라인 메타
@@ -26,12 +31,12 @@ import { cn } from '@/lib/utils';
  */
 export default function StudentClassbotPage() {
   const me = useRosterMe();
-  const myBots = getMyBots();
   // per-student mock 조회 키 — 제출 기록(solve)과 동일하게 roster id 사용.
   const myStudentId = me.id;
 
-  const activeLive = useLiveStore(s => s.active);
-  const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
+  // 봇/라이브 파생값의 단일 소스 — strip 과 동일한 `/api/bots`(React Query 가 dedupe).
+  const { data: botsData } = useMyBots();
+  const liveBots = (botsData?.bots ?? []).filter(b => b.isLive);
 
   const allAssignments = useMergedAssignments(me.id);
   const incompleteAssignments = allAssignments.filter(a => a.completedCount < a.questionCount);
@@ -70,7 +75,7 @@ export default function StudentClassbotPage() {
         gradedCount={recentGradedCount}
         wellnessUnread={wellnessUnread}
         liveCount={liveCount}
-        liveHref={liveBots[0] ? `/classbot/live/${liveBots[0].bot.id}` : '/classbot/replay'}
+        liveHref={liveBots[0] ? `/classbot/live/${liveBots[0].id}` : '/classbot/replay'}
       />
 
       {/* 4. 받은 과제 다 보기 CTA */}
