@@ -1,5 +1,5 @@
 import { Clock, Sparkles, Target, AlertCircle } from 'lucide-react';
-import type { Assignment } from '@/lib/mock';
+import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
@@ -18,7 +18,7 @@ const sourceMeta = {
  * 과제 개요 헤더 — 발송자·모드·D-day·메타.
  * spec 12 § 3.3.2.
  */
-export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assignment }) {
+export function AssignmentOverviewHeader({ assignment: a }: { assignment: AssignmentReadRow }) {
   const m = modeMeta[a.mode];
   const ModeIcon = m.icon;
   const isUrgent = a.dDay === '오늘' || a.dDay === 'D-1';
@@ -30,7 +30,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
         <div className="flex items-center gap-2 text-[10px]">
           <span className="text-pullim-slate-500 font-bold">
             <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
-            {a.assignedBy} · {a.assignedAt} 발사
+            {a.assignedBy} · {a.assignedAtLabel} 발사
           </span>
           <span className="text-pullim-slate-300">·</span>
           <span className="text-pullim-slate-500">{sourceMeta[a.source]}</span>

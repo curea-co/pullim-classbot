@@ -15,11 +15,12 @@ import type { AccessTokenPayload } from '@pullim-classbot/types';
 
 // ── getDb mock — 쿼리 빌더 체인을 추적 가능한 가짜로 대체 ──
 const whereSpy = jest.fn();
+// 조회 결과 행 — 테스트가 가변으로 바꿔 404(빈 배열) 등을 검증한다(jest factory 규칙상 `mock` 접두).
+let mockRows: unknown[] = [{ id: 'cb_001' }];
 
 jest.mock('@/lib/db', () => {
   // 체인: select().from().innerJoin?().where().orderBy?().limit?() → Promise(rows)
   const makeChain = () => {
-    const rows: unknown[] = [{ id: 'cb_001' }];
     const chain: Record<string, unknown> = {};
     const ret = () => chain;
     chain.select = ret;
@@ -31,8 +32,8 @@ jest.mock('@/lib/db', () => {
     };
     chain.orderBy = ret;
     chain.limit = ret;
-    // thenable — await 시 rows 반환
-    chain.then = (resolve: (v: unknown[]) => unknown) => resolve(rows);
+    // thenable — await 시 현재 mockRows 반환
+    chain.then = (resolve: (v: unknown[]) => unknown) => resolve(mockRows);
     return chain;
   };
   return { getDb: () => makeChain() };
@@ -40,6 +41,7 @@ jest.mock('@/lib/db', () => {
 
 import { GET as getBots } from '@/app/api/bots/route';
 import { GET as getAssignments } from '@/app/api/assignments/route';
+import { GET as getAssignmentById } from '@/app/api/assignments/[id]/route';
 import { GET as getGrades } from '@/app/api/grades/route';
 
 const SECRET = 'test-jwt-secret';
@@ -50,6 +52,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   whereSpy.mockClear();
+  mockRows = [{ id: 'cb_001' }];
 });
 
 function base64Url(input: string | Buffer): string {
@@ -100,5 +103,31 @@ describe.each([
     expect(res.status).toBe(200);
     // where 가 호출됐다 = 명의 필터를 거쳐 조회했다.
     expect(whereSpy).toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/assignments/[id]', () => {
+  const ctx = { params: Promise.resolve({ id: 'as_today' }) };
+
+  it('토큰이 없으면 401 (DB 조회 없음)', async () => {
+    const res = await getAssignmentById(new Request('http://localhost/api/x'), ctx);
+    expect(res.status).toBe(401);
+    expect(whereSpy).not.toHaveBeenCalled();
+  });
+
+  it('서명된 토큰 + 본인 명의 행 있으면 200 { assignment }', async () => {
+    const res = await getAssignmentById(studentReq(), ctx);
+    expect(res.status).toBe(200);
+    expect(whereSpy).toHaveBeenCalled();
+    const body = (await res.json()) as { assignment?: { id?: string } };
+    expect(body.assignment?.id).toBe('cb_001');
+  });
+
+  it('본인 명의 행이 없으면 404 (존재 노출 차단)', async () => {
+    mockRows = [];
+    const res = await getAssignmentById(studentReq(), ctx);
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('NOT_FOUND');
   });
 });
