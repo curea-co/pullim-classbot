@@ -1,10 +1,11 @@
 /**
- * 학생 읽기 4면 API 응답 행 타입 — Phase 7 Stage 2.
+ * 학생 읽기 3면 API 응답 행 타입 — Phase 7 Stage 2 (bots / assignments / grades).
  *
  * Stage 1(#92) 라우트 핸들러가 Drizzle 컬럼을 그대로 select 해 반환하므로,
  * 행 형태는 `lib/db/schema.ts` 의 컬럼과 1:1 이다(타임스탬프는 JSON 직렬화로 string).
- * mock 타입(`lib/mock`)과 컬럼명은 대체로 일치하나, mock 의 파생 필드
- * (`daysAgo` 등)는 API 에 없다 — 그런 파생은 소비부에서 date 로 계산한다.
+ * mock 타입(`lib/mock`)과 컬럼명은 대체로 일치한다.
+ *
+ * (웰빙 읽기 타입은 신원-소스 단일화·5지표 API 확장과 함께 후속 슬라이스에서 추가.)
  */
 
 /** `GET /api/bots` — enrollments ⋈ class_bots 한 행(봇 카드 + 반 메타). */
@@ -67,28 +68,6 @@ export interface GradeReadRow {
   maxScore: number;
 }
 
-/** `GET /api/wellness` 의 감정 체크인 한 행. */
-export interface EmotionCheckInReadRow {
-  id: string;
-  studentId: string;
-  /** ISO yyyy-mm-dd */
-  date: string;
-  mood: number;
-  intensity: number | null;
-  intensityRange: [number, number] | null;
-  freeText: string | null;
-  keywordFlag: 'suicidal' | 'depression' | 'bullying' | null;
-}
-
-/** `GET /api/wellness` 의 웰빙 스냅샷 한 행. */
-export interface WellbeingSnapshotReadRow {
-  studentId: string;
-  /** ISO yyyy-mm-dd */
-  date: string;
-  score: number;
-  flag: 'below-60-3days' | 'below-40-instant' | null;
-}
-
 /** `GET /api/bots` 응답 봉투. */
 export interface BotsReadResponse {
   bots: BotReadRow[];
@@ -102,10 +81,4 @@ export interface AssignmentsReadResponse {
 /** `GET /api/grades` 응답 봉투. */
 export interface GradesReadResponse {
   grades: GradeReadRow[];
-}
-
-/** `GET /api/wellness` 응답 봉투. */
-export interface WellnessReadResponse {
-  snapshots: WellbeingSnapshotReadRow[];
-  checkIns: EmotionCheckInReadRow[];
 }

@@ -1,8 +1,8 @@
 /**
  * 도메인 읽기 fetch — 같은 오리진(Next.js route handler)을 친다.
  *
- * Phase 7 Stage 2: 학생 읽기 4면(`/api/bots`·`/api/assignments`·`/api/grades`·
- * `/api/wellness`)을 mock 폴백 없이 **인증 + 실DB** 로 소비하기 위한 client fetch.
+ * Phase 7 Stage 2: 학생 읽기 3면(`/api/bots`·`/api/assignments`·`/api/grades`)을
+ * mock 폴백 없이 **인증 + 실DB** 로 소비하기 위한 client fetch.
  *
  * 왜 별도 헬퍼인가:
  *  - `@pullim-classbot/api-client` 의 `authRequest` 는 base URL 이 NestJS BE(:4032)라

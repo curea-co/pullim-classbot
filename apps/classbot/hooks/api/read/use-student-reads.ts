@@ -1,13 +1,23 @@
 'use client';
 
 /**
- * 학생 읽기 4면 React Query 훅 — Phase 7 Stage 2.
+ * 학생 읽기 3면 React Query 훅 — Phase 7 Stage 2 (bots / assignments / grades).
  *
  * 각 훅은 같은 오리진 읽기 라우트(`/api/*`)를 `domainRead`(인증 헤더 첨부)로 친다.
  * 인증 세션이 준비되고 로그인된 경우에만 fetch 한다(`enabled`):
  *  - 미로그인이면 쿼리를 비활성화하고 `isUnauthenticated=true` 로 호출부가 로그인
  *    게이트를 띄운다(mock 폴백 없음 — D1 로그인월).
  *  - 401(만료 등)은 `UnauthorizedReadError` 로 와서 retry 하지 않고 게이트로 처리한다.
+ *
+ * 권위 계약 정합(`proc/spec/2026-05-18_be-api-design.md` §4): 학생 시점 봇/과제 목록은
+ * spec 이 `?role=student` / `?audience=student` 분기를 정의하므로 그 쿼리를 명시해
+ * 보낸다(Stage 1 라우트는 JWT sub 로 자기 명의 격리하며 미사용 파라미터는 무시 →
+ * 현재 동작 불변 + 향후 spec-compliant 라우트와 전방 호환).
+ *
+ * NOTE(웰빙 제외): 웰빙 허브는 신원 소스 혼합(게이지/봇코멘트=mock roster vs 체크인=JWT
+ * sub) 회귀 우려 + 5지표·봇코멘트가 아직 DB/읽기 API 에 없어 이 PR 범위에서 제외했다.
+ * 후속 슬라이스에서 `/api/me/wellbeing`·`/api/me/emotion-checkins`(spec §4.7) 확장과
+ * 함께 단일 auth-scoped 소스로 배선한다.
  */
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
@@ -18,7 +28,6 @@ import type {
   AssignmentsReadResponse,
   BotsReadResponse,
   GradesReadResponse,
-  WellnessReadResponse,
 } from './types';
 
 /** 인증 게이트가 반영된 읽기 쿼리 결과. */
@@ -68,22 +77,27 @@ function useStudentRead<T>(key: string, path: string): StudentReadResult<T> {
   };
 }
 
-/** `GET /api/bots` — 내가 수강 중인 클래스봇. */
+/** `GET /api/bots?role=student` — 내가 수강 중인 클래스봇 (spec §4.2). */
 export function useMyBots(): StudentReadResult<BotsReadResponse> {
-  return useStudentRead<BotsReadResponse>('bots', '/api/bots');
+  return useStudentRead<BotsReadResponse>('bots', '/api/bots?role=student');
 }
 
-/** `GET /api/assignments` — 내게 배정된 과제. */
+/** `GET /api/assignments?audience=student` — 내게 배정된 과제 (spec §4.5). */
 export function useMyAssignments(): StudentReadResult<AssignmentsReadResponse> {
-  return useStudentRead<AssignmentsReadResponse>('assignments', '/api/assignments');
+  return useStudentRead<AssignmentsReadResponse>(
+    'assignments',
+    '/api/assignments?audience=student',
+  );
 }
 
-/** `GET /api/grades` — 내 채점 이력. */
+/**
+ * `GET /api/grades` — 내 채점 이력.
+ *
+ * 권위 spec(§4.6) 경로는 `GET /api/students/{id}/grading-history` 이나, Stage 1(#92)이
+ * main 에 인도한 실제 라우트는 self-scoped `/api/grades`(JWT sub 명의)다. FE 는 배포된
+ * 라우트를 호출해야 하므로 `/api/grades` 를 쓴다. 경로 명칭 정합(authority 경로로 rename)
+ * 은 BE 변경이라 별도 BE PR 범위.
+ */
 export function useMyGrades(): StudentReadResult<GradesReadResponse> {
   return useStudentRead<GradesReadResponse>('grades', '/api/grades');
-}
-
-/** `GET /api/wellness` — 내 웰빙 스냅샷 + 최근 감정 체크인. */
-export function useMyWellness(): StudentReadResult<WellnessReadResponse> {
-  return useStudentRead<WellnessReadResponse>('wellness', '/api/wellness');
 }
