@@ -7,8 +7,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { MyGradesSection } from '@/components/classbot/my-grades-section';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMyAssignments } from '@/hooks/api/read/use-student-reads';
-import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
+import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
@@ -21,23 +21,32 @@ const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typ
   'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
 };
 
-/** 그룹 표시용 봇 메타 — 과제 행에서 파생(봇 상세 API 는 Stage 2 후속 슬라이스). */
+/** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
+const FALLBACK_BOT_EMOJI = '🧑‍🏫';
+
+/** 그룹 표시용 봇 메타 — `/api/bots` 봇 행 + 과제 행 메타를 합쳐 파생. */
 interface GroupBot {
   id: string;
   subject: string;
-  /** 학생이 보는 발송자 이름 — 그룹 헤더 표시. */
+  /** 봇 아바타 이모지([08 § 15.6] 페르소나 식별) — `/api/bots` 우선, 미상 시 폴백. */
+  avatarEmoji: string;
+  /** 그룹 헤더 표시 이름 — 봇 이름(있으면) 또는 과제 발송자. */
   label: string;
 }
 
 /**
  * 학생 받은 과제 목록 — Phase 7 Stage 2: `GET /api/assignments`(실DB·인증) 배선.
  *
- * mock(`useMergedAssignments`/`getMyBots`) 제거. 로그인 세션 명의의 과제만 표시하며,
- * 미로그인은 로그인 게이트(D1 로그인월), 로딩/빈/에러 상태를 각각 처리한다.
- * 봇별 그룹핑은 과제 행의 `botId`/`assignedBy`/`subject` 로 파생한다.
+ * mock(`useMergedAssignments`/`getMyBots`) 제거. **전부 세션(JWT sub) 명의 실API** 만
+ * 쓰는 단일 신원 surface 다(봇 메타도 같은 sub-scoped `/api/bots` 조인 — 데모/mock 혼합
+ * 없음). 미로그인은 로그인 게이트(D1 로그인월), 로딩/빈/에러 상태를 각각 처리한다.
+ * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 `/api/bots` 행을
+ * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학이 형 · N개]` 패턴 유지).
  */
 export default function StudentAssignmentListPage() {
   const { data, isLoading, isUnauthenticated, isError, refetch } = useMyAssignments();
+  // 그룹 헤더 페르소나 조인용 — 같은 sub-scoped 소스. 봇 메타 미도착이어도 과제는 렌더.
+  const { data: botsData } = useMyBots();
 
   return (
     <div className="space-y-4">
@@ -51,6 +60,7 @@ export default function StudentAssignmentListPage() {
 
       <AssignmentListBody
         data={data}
+        bots={botsData?.bots ?? []}
         isLoading={isLoading}
         isUnauthenticated={isUnauthenticated}
         isError={isError}
@@ -64,9 +74,10 @@ export default function StudentAssignmentListPage() {
 }
 
 function AssignmentListBody({
-  data, isLoading, isUnauthenticated, isError, onRetry,
+  data, bots, isLoading, isUnauthenticated, isError, onRetry,
 }: {
   data: { assignments: AssignmentReadRow[] } | undefined;
+  bots: BotReadRow[];
   isLoading: boolean;
   isUnauthenticated: boolean;
   isError: boolean;
@@ -82,6 +93,9 @@ function AssignmentListBody({
   const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
   const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
 
+  // botId → 봇 행(페르소나 메타) 조인 맵.
+  const botById = new Map(bots.map(b => [b.id, b]));
+
   // 봇별 그룹핑 — 과제 행에 등장하는 botId 순서를 유지.
   const groups = new Map<string, { bot: GroupBot; items: AssignmentReadRow[] }>();
   for (const a of assignments) {
@@ -89,8 +103,14 @@ function AssignmentListBody({
     if (existing) {
       existing.items.push(a);
     } else {
+      const meta = botById.get(a.botId);
       groups.set(a.botId, {
-        bot: { id: a.botId, subject: a.subject, label: a.assignedBy },
+        bot: {
+          id: a.botId,
+          subject: meta?.subject ?? a.subject,
+          avatarEmoji: meta?.avatarEmoji ?? FALLBACK_BOT_EMOJI,
+          label: meta?.name ?? a.assignedBy,
+        },
         items: [a],
       });
     }
@@ -158,7 +178,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
           style={{ backgroundColor: groupHex }}
         >
-          🧑‍🏫
+          {bot.avatarEmoji}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
