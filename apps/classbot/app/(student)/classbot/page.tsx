@@ -4,15 +4,12 @@ import Link from 'next/link';
 import {
   ArrowRight, Bell, ClipboardList, ClipboardCheck, MessageSquareText, Radio,
 } from 'lucide-react';
-import {
-  getMyBots, type ClassBot, type StudentEnrollment,
-} from '@/lib/mock';
+import { getMyBots } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useLiveStore } from '@/lib/store/live';
-import { botSignature } from '@/lib/tokens/bot-signature';
-import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { MyBotsStrip } from '@/components/classbot/my-bots-strip';
 import { cn } from '@/lib/utils';
 
 /**
@@ -64,11 +61,8 @@ export default function StudentClassbotPage() {
         wellnessUnread={wellnessUnread}
       />
 
-      {/* 2. 내 클래스봇 — 가로 strip (정체성) */}
-      <MyBotsStrip
-        bots={myBots}
-        activeLive={activeLive}
-      />
+      {/* 2. 내 클래스봇 — 가로 strip (정체성). 실API(`GET /api/bots`) 배선. */}
+      <MyBotsStrip />
 
       {/* 3. 새로 온 것 — 2x2 카테고리 grid */}
       <NewItemsGrid
@@ -161,109 +155,6 @@ function KpiHeader({
         )}
       </div>
     </section>
-  );
-}
-
-/* ─── 내 클래스봇 가로 strip (V09 정체성) ─── */
-function MyBotsStrip({
-  bots,
-  activeLive,
-}: {
-  bots: { bot: ClassBot; enrollment: StudentEnrollment }[];
-  activeLive: Record<string, unknown>;
-}) {
-  // 5개 미만은 빈 슬롯으로 채워 strip 형태 유지
-  const slots = Array.from({ length: Math.max(5, bots.length) }, (_, i) => bots[i] ?? null);
-
-  return (
-    <section>
-      <header className="mb-2 flex items-end justify-between">
-        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
-          내 클래스봇
-        </h2>
-        <span className="text-pullim-slate-400 font-mono text-[10px]">
-          {bots.length}명
-        </span>
-      </header>
-      <ul className="grid grid-cols-5 gap-1.5">
-        {slots.map((slot, i) => {
-          if (!slot) return <EmptyBotSlot key={`empty-${i}`} />;
-          return (
-            <BotStripItem
-              key={slot.bot.id}
-              bot={slot.bot}
-              enrollment={slot.enrollment}
-              isLiveNow={Boolean(activeLive[slot.bot.id])}
-            />
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-function BotStripItem({
-  bot, isLiveNow,
-}: {
-  bot: ClassBot;
-  enrollment: StudentEnrollment;
-  isLiveNow: boolean;
-}) {
-  const sig = botSignature(bot);
-  const preview = getBotHomePreview(bot.id);
-  // 배지 — 라이브 최우선, 그 외 미리보기 시각이 "오늘"이면 mini dot
-  const hasNewToday = !isLiveNow && preview?.lastAt.startsWith('오늘');
-
-  return (
-    <li>
-      <Link
-        href={`/classbot/chat?bot=${bot.id}`}
-        className={cn(
-          'group flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition-all',
-          isLiveNow
-            ? 'border-pullim-danger/40 bg-pullim-danger/5'
-            : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40',
-        )}
-      >
-        <div className="relative">
-          <span
-            className={cn(
-              'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
-              isLiveNow && 'ring-pullim-lemon ring-2 pullim-anim-bot-breath',
-            )}
-            style={{ backgroundColor: sig.hex }}
-          >
-            {bot.avatarEmoji}
-          </span>
-          {isLiveNow && (
-            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-[9px] font-bold text-white">
-              <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
-              LV
-            </span>
-          )}
-          {hasNewToday && (
-            <span className="bg-pullim-blue-600 absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" />
-          )}
-        </div>
-        <div className="text-pullim-slate-900 line-clamp-1 w-full text-[11px] font-bold leading-tight">
-          {bot.name}
-        </div>
-      </Link>
-    </li>
-  );
-}
-
-function EmptyBotSlot() {
-  return (
-    <li>
-      <Link
-        href="/classbot/discover"
-        className="border-pullim-slate-200 text-pullim-slate-300 hover:border-pullim-blue-300 hover:text-pullim-blue-500 flex h-full min-h-[68px] flex-col items-center justify-center rounded-xl border border-dashed transition-colors"
-      >
-        <span className="text-lg leading-none">＋</span>
-        <span className="text-[10px] font-semibold mt-0.5">추가</span>
-      </Link>
-    </li>
   );
 }
 
