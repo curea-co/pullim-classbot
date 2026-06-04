@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { AlertCircle, Lock, RotateCw } from 'lucide-react';
 
 /**
@@ -10,6 +11,12 @@ import { AlertCircle, Lock, RotateCw } from 'lucide-react';
 
 /** 비로그인 — 로그인월(D1). mock 을 보여주지 않고 로그인으로 유도한다. */
 export function ReadLoginGate({ label = '내 정보' }: { label?: string }) {
+  // 현재 위치를 next 에 실어 보낸다 — auth-guard/login-form 의 `?next=` 복귀 계약 정합.
+  // 로그인 후 이 읽기 surface(예: /classbot/assignment)로 되돌아오게 한다.
+  const pathname = usePathname();
+  const loginHref = pathname
+    ? `/login?next=${encodeURIComponent(pathname)}`
+    : '/login';
   return (
     <section className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-4 py-10 text-center">
       <span className="bg-pullim-slate-200 text-pullim-slate-500 flex h-10 w-10 items-center justify-center rounded-xl">
@@ -18,7 +25,7 @@ export function ReadLoginGate({ label = '내 정보' }: { label?: string }) {
       <p className="text-pullim-slate-900 text-sm font-bold">로그인이 필요해요</p>
       <p className="text-pullim-slate-500 text-[11px]">{label}를 보려면 먼저 로그인해 주세요.</p>
       <Link
-        href="/login"
+        href={loginHref}
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-[12px] font-bold text-white transition-colors"
       >
         로그인하기
