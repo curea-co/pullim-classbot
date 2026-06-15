@@ -1,0 +1,221 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "풀림 클래스봇 풀림 클래스봇" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "풀림 클래스봇" [ref=e6]
+          - generic [ref=e16]: 풀림 클래스봇
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - img
+            - text: 17일째
+          - button "검색" [ref=e19]:
+            - img [ref=e20]
+          - button "알림" [ref=e23]:
+            - img [ref=e24]
+          - button "프로필 메뉴 열기" [ref=e28]: 서
+    - generic [ref=e29]:
+      - complementary [ref=e30]:
+        - navigation "학생 메뉴" [ref=e31]:
+          - list [ref=e32]:
+            - link "홈" [ref=e33] [cursor=pointer]:
+              - /url: /
+              - img [ref=e34]
+              - generic [ref=e37]: 홈
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "풀림 클래스봇" [ref=e41] [cursor=pointer]:
+                - /url: /classbot
+                - img [ref=e42]
+                - generic [ref=e45]: 풀림 클래스봇
+              - list [ref=e46]:
+                - listitem [ref=e47]:
+                  - link "홈" [ref=e48] [cursor=pointer]:
+                    - /url: /classbot
+                    - img [ref=e49]
+                    - generic [ref=e52]: 홈
+                - listitem [ref=e53]:
+                  - link "받은 과제" [ref=e54] [cursor=pointer]:
+                    - /url: /classbot/assignment
+                    - img [ref=e55]
+                    - generic [ref=e59]: 받은 과제
+                - listitem [ref=e60]:
+                  - link "봇 대화" [ref=e61] [cursor=pointer]:
+                    - /url: /classbot/chat
+                    - img [ref=e62]
+                    - generic [ref=e64]: 봇 대화
+                - listitem [ref=e65]:
+                  - link "내 웰빙" [ref=e66] [cursor=pointer]:
+                    - /url: /classbot/wellness
+                    - img [ref=e67]
+                    - generic [ref=e69]: 내 웰빙
+                - listitem [ref=e70]:
+                  - link "리플레이" [ref=e71] [cursor=pointer]:
+                    - /url: /classbot/replay
+                    - img [ref=e72]
+                    - generic [ref=e76]: 리플레이
+                - listitem [ref=e77]:
+                  - link "봇 찾기 준비 중" [disabled] [ref=e78]:
+                    - /url: "#"
+                    - img [ref=e79]
+                    - generic [ref=e82]: 봇 찾기
+                    - generic [ref=e83]:
+                      - img [ref=e84]
+                      - text: 준비 중
+                - listitem [ref=e87]:
+                  - link "소개하기" [ref=e88] [cursor=pointer]:
+                    - /url: /classbot/onboarding
+                    - img [ref=e89]
+                    - generic [ref=e91]: 소개하기
+      - main [ref=e92]:
+        - navigation "현재 위치" [ref=e95]:
+          - link "풀림 클래스봇" [ref=e97] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e98]:
+            - img [ref=e99]
+            - generic [ref=e101]: 봇 대화
+        - generic [ref=e104]:
+          - complementary [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]: 👩‍🏫
+              - generic [ref=e108]:
+                - generic [ref=e109]: 영어 누나
+                - generic [ref=e110]: 영어 · 고2
+            - navigation "내 클래스봇" [ref=e111]:
+              - list [ref=e112]:
+                - listitem [ref=e113]:
+                  - button "🧑‍🏫 수학이 형 라이브 진행 중" [ref=e114]:
+                    - generic [ref=e115]: 🧑‍🏫
+                    - generic [ref=e116]: 수학이 형
+                    - generic "라이브 진행 중" [ref=e117]
+                - listitem [ref=e118]:
+                  - button "👩‍🏫 영어 누나" [pressed] [ref=e119]:
+                    - generic [ref=e120]: 👩‍🏫
+                    - generic [ref=e121]: 영어 누나
+                - listitem [ref=e122]:
+                  - button "🧑‍🔬 과학 쌤" [ref=e123]:
+                    - generic [ref=e124]: 🧑‍🔬
+                    - generic [ref=e125]: 과학 쌤
+                - listitem [ref=e126]:
+                  - button "👩‍💼 국어 누나" [ref=e127]:
+                    - generic [ref=e128]: 👩‍💼
+                    - generic [ref=e129]: 국어 누나
+                - listitem [ref=e130]:
+                  - button "🧑‍🎓 사회 코치" [ref=e131]:
+                    - generic [ref=e132]: 🧑‍🎓
+                    - generic [ref=e133]: 사회 코치
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - img [ref=e136]
+                - generic [ref=e138]: 지금 봇 범위
+                - generic [ref=e139]: L4
+              - generic [ref=e140]: 교육 범위
+              - paragraph [ref=e141]: 모든 교과·학습 관련 주제
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e146]:
+                - link "클래스봇 홈으로" [ref=e147] [cursor=pointer]:
+                  - /url: /classbot
+                  - img [ref=e148]
+                - generic [ref=e150]: 👩‍🏫
+                - generic [ref=e151]:
+                  - generic [ref=e152]: 대치프리미엄 수학학원
+                  - heading "영어 누나 — 박영어 선생님의 디지털 분신" [level=1] [ref=e153]:
+                    - text: 영어 누나
+                    - generic [ref=e154]: — 박영어 선생님의 디지털 분신
+                  - generic [ref=e155]:
+                    - generic [ref=e156]: 영어 · 고2
+                    - generic [ref=e157]:
+                      - img [ref=e158]
+                      - generic [ref=e160]: 교육 범위
+                      - generic [ref=e161]: (L4)
+                    - generic [ref=e162]: 정중 톤
+                - button "봇 정보 접기" [expanded] [ref=e163]:
+                  - img [ref=e164]
+              - generic [ref=e166]:
+                - img [ref=e167]
+                - generic [ref=e170]:
+                  - strong [ref=e171]: 박영어 선생님
+                  - text: 이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.
+              - group [ref=e172]:
+                - generic "교육 범위 지금 봇 범위 — 모든 교과·학습 관련 주제 시간대별 자동 변동 ↗" [ref=e173] [cursor=pointer]:
+                  - generic [ref=e174]: 교육 범위
+                  - generic [ref=e175]: 지금 봇 범위 — 모든 교과·학습 관련 주제
+                  - generic [ref=e176]: 시간대별 자동 변동 ↗
+            - generic [ref=e177]:
+              - generic [ref=e178]:
+                - generic [ref=e179]: 봇과 대화
+                - generic [ref=e180]:
+                  - generic [ref=e181]:
+                    - img [ref=e183]
+                    - group "채팅 글자 크기" [ref=e186]:
+                      - button "작게" [ref=e187]
+                      - button "보통" [pressed] [ref=e188]
+                      - button "크게" [ref=e189]
+                  - generic [ref=e190]:
+                    - img [ref=e192]
+                    - group "채팅 글자 서체" [ref=e194]:
+                      - button "고딕" [pressed] [ref=e195]
+                      - button "명조" [ref=e196]
+                      - button "둥근" [ref=e197]
+              - generic [ref=e199]:
+                - generic [ref=e202]: 오늘, 6월 9일
+                - generic [ref=e204]:
+                  - generic [ref=e205]: 👩‍🏫
+                  - generic [ref=e206]:
+                    - generic [ref=e207]:
+                      - generic [ref=e208]: 영어 누나
+                      - generic [ref=e209]: · 오전 11:22
+                    - generic [ref=e210]: 점심 챙기셨어요?, 서연! 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. 오늘은 풀이 단계까지 잡아줄 수 있어요 (L4).
+              - generic [ref=e211]:
+                - generic [ref=e212]:
+                  - button "빈칸 추론 어떻게 풀어요?" [ref=e213]
+                  - button "오늘 수업 요약해줘요" [ref=e214]
+                  - button "수능까지 뭐 해야 해요?" [ref=e215]
+                - generic [ref=e216]:
+                  - button "첨부" [ref=e217]:
+                    - img [ref=e218]
+                  - button "음성 입력 (곧 열려요)" [ref=e219]:
+                    - img [ref=e220]
+                  - textbox "영어 누나에게 물어보세요…" [ref=e223]
+                  - button "질문 보내기" [disabled] [ref=e224]:
+                    - img [ref=e225]
+          - complementary [ref=e228]:
+            - generic [ref=e229]:
+              - generic [ref=e230]:
+                - img [ref=e232]
+                - heading "선생님" [level=2] [ref=e234]
+                - generic [ref=e235]: 새 항목 1
+              - list [ref=e236]:
+                - listitem [ref=e237]:
+                  - article [ref=e238]:
+                    - generic [ref=e239]:
+                      - generic [ref=e240]:
+                        - img [ref=e241]
+                        - text: 과제
+                      - generic "새 항목" [ref=e244]
+                      - generic [ref=e245]: 오늘 20:10
+                    - heading "빈칸 추론 7유형 — 접속사 논리 3제" [level=3] [ref=e246]
+                    - paragraph [ref=e247]: 수능 빈칸 7유형
+                    - generic [ref=e248]:
+                      - generic [ref=e249]:
+                        - img [ref=e250]
+                        - text: 모레 22:00 마감
+                      - generic [ref=e253]: 3문항
+                    - link "풀러 가기" [ref=e254] [cursor=pointer]:
+                      - /url: /classbot/assignment/as_eng_blank/solve?bot=cb_002
+                      - text: 풀러 가기
+                      - img [ref=e255]
+                - listitem [ref=e257]:
+                  - article [ref=e258]:
+                    - generic [ref=e259]:
+                      - generic [ref=e260]:
+                        - img [ref=e261]
+                        - text: 메시지
+                      - generic [ref=e263]: 오늘 19:55
+                    - generic [ref=e264]: 박영어 선생님
+                    - paragraph [ref=e265]: 오늘 양보 구문 예외 꼭 복습해요. therefore 뒤가 늘 결론은 아니에요.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e271] [cursor=pointer]:
+    - img [ref=e272]

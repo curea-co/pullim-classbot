@@ -1,0 +1,231 @@
+[      61ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3032/classbot/chat?bot=cb_003:0
+[     102ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3032/manifest.webmanifest:0
+[     108ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[     117ms] [ERROR] Manifest fetch from http://localhost:3032/manifest.webmanifest failed, code 404 @ http://localhost:3032/classbot/chat?bot=cb_003:0
+[     121ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[     165ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3032/manifest.webmanifest:0
+[     168ms] [ERROR] Manifest fetch from http://localhost:3032/manifest.webmanifest failed, code 404 @ http://localhost:3032/classbot/chat?bot=cb_003:0
+[   40350ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[   41262ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   42265ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   43266ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   44268ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   45269ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   50271ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   55273ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   60275ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   65277ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   70280ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   75285ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[   80288ms] [ERROR] WebSocket connection to 'ws://localhost:3032/_next/webpack-hmr?id=3dx2LVk2fjOVdkz2tCRka' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_client_0x~y7_g._.js:13299
+[  476978ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[  477041ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18307407ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18307448ms] [LOG] [Fast Refresh] done in 142ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18343007ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18343375ms] ReferenceError: ArrowLeft is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0y8d3~o._.js?id=%255Bproject%255D%252F.claude%252Fworktrees%252Fai-gateway%252Fapps%252Fclassbot%252Fapp%252F%2528student%2529%252Fclassbot%252Fchat%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:581:357)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushSyncWork$1 (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9230:86)
+    at Object.scheduleRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:299:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:384:38)
+    at applyUpdate (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:878:31)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:886:13
+[18343142ms] [LOG] [Fast Refresh] done in 230ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18343414ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18343583ms] [LOG] [Fast Refresh] done in 271ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18344198ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18344257ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18344507ms] ReferenceError: ArrowLeft is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0y8d3~o._.js:3963:357)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushPassiveEffects (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10008:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9724:13
+    at MessagePort.performWorkUntilDeadline (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:2647:64)
+[18344553ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18344561ms] [LOG] [Fast Refresh] done in 113ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350136ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350470ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350475ms] [LOG] [Fast Refresh] done in 393ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350636ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350659ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350833ms] ReferenceError: ChatProfileChip is not defined
+    at ClassbotChatPageInner (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_08mzo11._.js:3452:343)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushPassiveEffects (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10008:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9724:13
+    at MessagePort.performWorkUntilDeadline (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:2647:64)
+[18350887ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18350896ms] [LOG] [Fast Refresh] done in 109ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18390117ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18390252ms] [LOG] [Fast Refresh] done in 93ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18390474ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18390910ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18390934ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18391069ms] ReferenceError: railCollapsed is not defined
+    at ClassbotChatPageInner (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0d5~h~.._.js:3899:254)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushPassiveEffects (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10008:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9724:13
+    at MessagePort.performWorkUntilDeadline (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:2647:64)
+[18391114ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18391159ms] [LOG] [Fast Refresh] done in 146ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18397418ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18397478ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18397689ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18397695ms] [LOG] [Fast Refresh] done in 320ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18398056ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18398098ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18398307ms] ReferenceError: ArrowLeft is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0xc9ng1._.js:4502:357)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushPassiveEffects (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10008:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9724:13
+    at MessagePort.performWorkUntilDeadline (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:2647:64)
+[18398352ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18398367ms] [LOG] [Fast Refresh] done in 114ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432321ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432330ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432336ms] [LOG] [Fast Refresh] done in 103ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432442ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432455ms] [LOG] [Fast Refresh] done in 114ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432818ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18432835ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18465077ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18465124ms] ReferenceError: keyboardOpen is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0xc9ng1._.js?id=%255Bproject%255D%252F.claude%252Fworktrees%252Fai-gateway%252Fapps%252Fclassbot%252Fapp%252F%2528student%2529%252Fclassbot%252Fchat%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:554:9)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushSyncWork$1 (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9230:86)
+    at Object.scheduleRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:299:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:384:38)
+    at applyUpdate (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:878:31)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:886:13
+[18465109ms] [LOG] [Fast Refresh] done in 81ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18465234ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18465249ms] [LOG] [Fast Refresh] done in 116ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478031ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478039ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478136ms] ReferenceError: keyboardOpen is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0xc9ng1._.js?id=%255Bproject%255D%252F.claude%252Fworktrees%252Fai-gateway%252Fapps%252Fclassbot%252Fapp%252F%2528student%2529%252Fclassbot%252Fchat%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:553:9)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushSyncWork$1 (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9230:86)
+    at Object.scheduleRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:299:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:384:38)
+    at applyUpdate (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:878:31)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:886:13
+[18478102ms] [LOG] [Fast Refresh] done in 69ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478441ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478464ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478633ms] ReferenceError: keyboardOpen is not defined
+    at ChatPanel (http://localhost:3032/_next/static/chunks/_claude_worktrees_ai-gateway_apps_classbot_0xc9ng1._.js:4376:9)
+    at Object.react_stack_bottom_frame (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:15037:24)
+    at renderWithHooks (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6081:21)
+    at beginWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:965:74)
+    at performUnitOfWork (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9555:97)
+    at workLoopSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9449:40)
+    at renderRootSync (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10179:316)
+    at flushPassiveEffects (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:10008:13)
+    at http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_react-dom_09_l4z2._.js:9724:13
+    at MessagePort.performWorkUntilDeadline (http://localhost:3032/_next/static/chunks/0sqw_next_dist_compiled_0wqo~~-._.js:2647:64)
+[18478688ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18478689ms] [LOG] [Fast Refresh] done in 102ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18485336ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18485344ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18485357ms] [LOG] [Fast Refresh] done in 65ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18485677ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18485700ms] [LOG] [HMR] connected @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18730371ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[18730438ms] [LOG] [Fast Refresh] done in 167ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20165315ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20166028ms] [LOG] [Fast Refresh] done in 815ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20166828ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20167101ms] [LOG] [Fast Refresh] done in 375ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20167880ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20168225ms] [LOG] [Fast Refresh] done in 446ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20168728ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20168958ms] [LOG] [Fast Refresh] done in 332ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20254241ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20254297ms] [LOG] [Fast Refresh] done in 157ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20309142ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431
+[20309167ms] [LOG] [Fast Refresh] done in 97ms @ http://localhost:3032/_next/static/chunks/0sqw_next_dist_0xtjqzk._.js:2431

@@ -1,0 +1,358 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "풀림 클래스봇 풀림 클래스봇" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "풀림 클래스봇" [ref=e6]
+          - generic [ref=e16]: 풀림 클래스봇
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - img
+            - text: 17일째
+          - button "검색" [ref=e19]:
+            - img [ref=e20]
+          - button "알림" [ref=e23]:
+            - img [ref=e24]
+          - button "프로필 메뉴 열기" [ref=e28]: 서
+    - generic [ref=e29]:
+      - complementary [ref=e30]:
+        - navigation "학생 메뉴" [ref=e31]:
+          - list [ref=e32]:
+            - link "홈" [ref=e33] [cursor=pointer]:
+              - /url: /
+              - img [ref=e34]
+              - generic [ref=e37]: 홈
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "풀림 클래스봇" [ref=e41] [cursor=pointer]:
+                - /url: /classbot
+                - img [ref=e42]
+                - generic [ref=e45]: 풀림 클래스봇
+              - list [ref=e46]:
+                - listitem [ref=e47]:
+                  - link "홈" [ref=e48] [cursor=pointer]:
+                    - /url: /classbot
+                    - img [ref=e49]
+                    - generic [ref=e52]: 홈
+                - listitem [ref=e53]:
+                  - link "받은 과제" [ref=e54] [cursor=pointer]:
+                    - /url: /classbot/assignment
+                    - img [ref=e55]
+                    - generic [ref=e59]: 받은 과제
+                - listitem [ref=e60]:
+                  - link "봇 대화" [ref=e61] [cursor=pointer]:
+                    - /url: /classbot/chat
+                    - img [ref=e62]
+                    - generic [ref=e64]: 봇 대화
+                - listitem [ref=e65]:
+                  - link "내 웰빙" [ref=e66] [cursor=pointer]:
+                    - /url: /classbot/wellness
+                    - img [ref=e67]
+                    - generic [ref=e69]: 내 웰빙
+                - listitem [ref=e70]:
+                  - link "리플레이" [ref=e71] [cursor=pointer]:
+                    - /url: /classbot/replay
+                    - img [ref=e72]
+                    - generic [ref=e76]: 리플레이
+                - listitem [ref=e77]:
+                  - link "봇 찾기 준비 중" [disabled] [ref=e78]:
+                    - /url: "#"
+                    - img [ref=e79]
+                    - generic [ref=e82]: 봇 찾기
+                    - generic [ref=e83]:
+                      - img [ref=e84]
+                      - text: 준비 중
+                - listitem [ref=e87]:
+                  - link "소개하기" [ref=e88] [cursor=pointer]:
+                    - /url: /classbot/onboarding
+                    - img [ref=e89]
+                    - generic [ref=e91]: 소개하기
+      - main [ref=e92]:
+        - navigation "현재 위치" [ref=e95]:
+          - link "풀림 클래스봇" [ref=e97] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e98]:
+            - img [ref=e99]
+            - generic [ref=e101]: 봇 대화
+        - generic [ref=e104]:
+          - complementary [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]: 🧑‍🏫
+              - generic [ref=e108]:
+                - generic [ref=e109]: 수학이 형
+                - generic [ref=e110]: 수학Ⅱ · 고2
+            - navigation "내 클래스봇" [ref=e111]:
+              - list [ref=e112]:
+                - listitem [ref=e113]:
+                  - button "🧑‍🏫 수학이 형 라이브 진행 중" [pressed] [ref=e114]:
+                    - generic [ref=e115]: 🧑‍🏫
+                    - generic [ref=e116]: 수학이 형
+                    - generic "라이브 진행 중" [ref=e117]
+                - listitem [ref=e118]:
+                  - button "👩‍🏫 영어 누나" [ref=e119]:
+                    - generic [ref=e120]: 👩‍🏫
+                    - generic [ref=e121]: 영어 누나
+                - listitem [ref=e122]:
+                  - button "🧑‍🔬 과학 쌤" [ref=e123]:
+                    - generic [ref=e124]: 🧑‍🔬
+                    - generic [ref=e125]: 과학 쌤
+                - listitem [ref=e126]:
+                  - button "👩‍💼 국어 누나" [ref=e127]:
+                    - generic [ref=e128]: 👩‍💼
+                    - generic [ref=e129]: 국어 누나
+                - listitem [ref=e130]:
+                  - button "🧑‍🎓 사회 코치" [ref=e131]:
+                    - generic [ref=e132]: 🧑‍🎓
+                    - generic [ref=e133]: 사회 코치
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - img [ref=e136]
+                - generic [ref=e138]: 지금 봇 범위
+                - generic [ref=e139]: L3
+              - generic [ref=e140]: 교과 범위
+              - paragraph [ref=e141]: 과목 전체 범위 자유 대화 (기본값)
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e146]:
+                - link "클래스봇 홈으로" [ref=e147] [cursor=pointer]:
+                  - /url: /classbot
+                  - img [ref=e148]
+                - generic [ref=e150]: 🧑‍🏫
+                - generic [ref=e151]:
+                  - generic [ref=e152]: 대치프리미엄 수학학원
+                  - heading "수학이 형 — 김수학 선생님의 디지털 분신" [level=1] [ref=e153]:
+                    - text: 수학이 형
+                    - generic [ref=e154]: — 김수학 선생님의 디지털 분신
+                  - generic [ref=e155]:
+                    - generic [ref=e156]: 수학Ⅱ · 고2
+                    - generic [ref=e157]:
+                      - img [ref=e158]
+                      - generic [ref=e160]: 교과 범위
+                      - generic [ref=e161]: (L3)
+                    - generic [ref=e162]: 친근 톤
+                  - generic [ref=e163]:
+                    - generic [ref=e164]: LIVE
+                    - generic [ref=e166]: 5분 진행 중
+                    - generic [ref=e167]: · 스코프 자동 잠금
+                - button "봇 정보 접기" [expanded] [ref=e168]:
+                  - img [ref=e169]
+              - generic [ref=e171]:
+                - img [ref=e172]
+                - generic [ref=e175]:
+                  - strong [ref=e176]: 김수학 선생님
+                  - text: 이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.
+              - generic [ref=e177]:
+                - text: 🔒 라이브 정책 적용 중
+                - generic [ref=e178]:
+                  - text: — 교과 범위
+                  - generic [ref=e179]: (L3)
+                  - text: 으로 자동 잠금. 종료 후 평시 정책 복귀.
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - generic [ref=e182]: 봇과 대화
+                - generic [ref=e183]:
+                  - generic [ref=e184]:
+                    - img [ref=e186]
+                    - group "채팅 글자 크기" [ref=e189]:
+                      - button "작게" [ref=e190]
+                      - button "보통" [pressed] [ref=e191]
+                      - button "크게" [ref=e192]
+                  - generic [ref=e193]:
+                    - img [ref=e195]
+                    - group "채팅 글자 서체" [ref=e197]:
+                      - button "고딕" [pressed] [ref=e198]
+                      - button "명조" [ref=e199]
+                      - button "둥근" [ref=e200]
+              - paragraph [ref=e201]: 개념 질문은 여기서 — 라이브 모더레이션 큐는 아래쪽 “선생님에게 질문”, 퀴즈는 오른쪽 “선생님” 패널
+              - generic [ref=e203]:
+                - generic [ref=e206]: 오늘, 6월 9일
+                - generic [ref=e208]:
+                  - generic [ref=e209]: 🧑‍🏫
+                  - generic [ref=e210]:
+                    - generic [ref=e211]:
+                      - generic [ref=e212]: 수학이 형
+                      - generic [ref=e213]: · 오후 1:57
+                    - generic [ref=e214]: 점심은 챙겼어?, 서연! 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. 오늘은 개념 설명까지 도와줄 수 있어 (L3). 답은 직접 알려주진 않을 거지만, 길은 알려줄게.
+                - generic [ref=e359]:
+                  - generic [ref=e360]: 서
+                  - generic [ref=e361]:
+                    - generic [ref=e362]: 사인법칙이 뭐예요?
+                    - generic [ref=e363]: 오후 1:57
+                - generic [ref=e364]:
+                  - generic [ref=e365]: 🧑‍🏫
+                  - generic [ref=e366]:
+                    - generic [ref=e367]:
+                      - generic [ref=e368]: 수학이 형
+                      - generic [ref=e369]: · 오후 1:57
+                    - generic [ref=e371]:
+                      - paragraph [ref=e373]:
+                        - text: 사인법칙은 삼각형에서
+                        - mark [ref=e374]: 변과 마주 보는 각
+                        - text: 사이의 비율이 항상 일정하다는 규칙이야.
+                      - generic [ref=e376]:
+                        - generic [ref=e378]:
+                          - img [ref=e380]
+                          - generic [ref=e382]: 개념
+                        - generic [ref=e384]: 사인법칙 (Law of Sines)
+                        - paragraph [ref=e385]:
+                          - text: 삼각형 ABC에서 a/sinA = b/sinB = c/sinC =
+                          - mark [ref=e386]: 2R
+                          - text: (R은 외접원 반지름). 각 변을 마주 보는 각의 sin으로 나눈 값이 모두 같아.
+                      - generic [ref=e388]:
+                        - generic [ref=e389]: 핵심
+                        - list [ref=e390]:
+                          - listitem [ref=e391]:
+                            - generic [ref=e392]: "1"
+                            - generic [ref=e393]:
+                              - text: 변과
+                              - mark [ref=e394]: 마주 보는 각
+                              - text: 이 짝이야 — a ↔ A, b ↔ B, c ↔ C.
+                          - listitem [ref=e395]:
+                            - generic [ref=e396]: "2"
+                            - generic [ref=e397]:
+                              - mark [ref=e398]: 두 각 + 한 변
+                              - text: 이 주어지면 나머지 변을 바로 구할 수 있어.
+                          - listitem [ref=e399]:
+                            - generic [ref=e400]: "3"
+                            - generic [ref=e401]:
+                              - text: 비율의 공통값이
+                              - mark [ref=e402]: 외접원 지름 2R
+                              - text: 이라는 것도 같이 외워둬.
+                      - generic [ref=e404]:
+                        - generic [ref=e405]: 확인 질문
+                        - paragraph [ref=e406]: 두 각과 한 변을 알 때, 사인법칙으로 바로 구할 수 있는 건?
+                        - radiogroup "두 각과 한 변을 알 때, 사인법칙으로 바로 구할 수 있는 건?" [ref=e407]:
+                          - radio "나머지 변" [ref=e408]
+                          - radio "삼각형 넓이만" [ref=e409]
+                          - radio "아무것도 못 구함" [ref=e410]
+                      - figure "정리" [ref=e412]:
+                        - generic [ref=e414]:
+                          - generic [ref=e415]: “
+                          - generic [ref=e416]: 정리
+                        - blockquote [ref=e417]:
+                          - text: 한 줄 정리 — 변은
+                          - mark [ref=e418]: 마주 보는 각의 sin
+                          - text: 에 비례한다. a/sinA = b/sinB = c/sinC = 2R.
+              - generic [ref=e215]:
+                - generic [ref=e216]:
+                  - button "극값 어떻게 찾아요?" [ref=e217]
+                  - button "오늘 수업 요약해줘요" [ref=e218]
+                  - button "4월 학평 대비 뭐 해야 해요?" [ref=e219]
+                - generic [ref=e220]:
+                  - button "첨부" [ref=e221]:
+                    - img [ref=e222]
+                  - button "음성 입력 (곧 열려요)" [ref=e223]:
+                    - img [ref=e224]
+                  - textbox "수학이 형에게 물어보세요…" [active] [ref=e227]
+                  - button "질문 보내기" [disabled] [ref=e228]:
+                    - img [ref=e229]
+            - group [ref=e232]:
+              - generic "라이브 화면 — 슬라이드 · 자막 · 질문" [ref=e233] [cursor=pointer]:
+                - img [ref=e234]
+                - text: 라이브 화면 — 슬라이드 · 자막 · 질문
+                - img [ref=e240]
+              - generic [ref=e243]:
+                - generic [ref=e244]:
+                  - generic [ref=e245]:
+                    - generic [ref=e247]:
+                      - paragraph [ref=e248]: 슬라이드 12 / 30
+                      - paragraph [ref=e249]: 도함수 부호 변화
+                      - paragraph [ref=e250]: f'(x) = 0 → 부호 표 → 극값 판정
+                    - generic [ref=e251]: LIVE
+                  - generic [ref=e253]:
+                    - img [ref=e254]
+                    - generic [ref=e257]: 김수학 선생님 음성 ON
+                    - generic [ref=e258]: live · 음성+슬라이드
+                - generic [ref=e259]:
+                  - generic [ref=e260]:
+                    - img [ref=e261]
+                    - heading "실시간 자막" [level=2] [ref=e267]
+                    - generic [ref=e268]: STT · 1~3s 지연
+                  - generic [ref=e269]:
+                    - paragraph [ref=e270]: 오늘은 도함수 활용 중에서 극값 판정을 다뤄볼게요.
+                    - paragraph [ref=e419]: 먼저 f'(x) = 0인 x를 찾는 것부터 시작합니다.
+                    - paragraph [ref=e420]: 여기서 부호가 바뀌면 극값이고, 안 바뀌면 극값이 아니에요.
+                    - paragraph [ref=e421]: "[봇 정리] + → − 면 극대, − → + 면 극소."
+                    - paragraph [ref=e422]: 슬라이드 12를 봐주세요. 예시 함수가 있죠.
+                    - paragraph [ref=e423]: 여러분이 직접 부호 변화 표를 그려보세요. 3분 드립니다.
+                    - paragraph [ref=e424]: "[봇] 시간 안내 — 3분 타이머 시작."
+                    - paragraph [ref=e425]: 하윤 학생이 좋은 질문을 줬어요. 전체에 공유합니다.
+                    - paragraph [ref=e426]: "\"f'(x)=0이면 무조건 극값인가요?\" — 좋은 의문이죠."
+                    - paragraph [ref=e427]: 답은 No. 부호 변화가 핵심이에요.
+                - generic [ref=e271]:
+                  - generic [ref=e272]:
+                    - img [ref=e273]
+                    - heading "선생님에게 질문" [level=2] [ref=e275]
+                    - generic [ref=e276]: 서연 이름으로 전달돼요
+                  - generic [ref=e277]:
+                    - textbox "질문 입력" [ref=e278]:
+                      - /placeholder: 궁금한 점을 짧게 (최대 120자)
+                    - button "선생님에게 질문 보내기" [disabled] [ref=e279]:
+                      - img [ref=e280]
+                  - paragraph [ref=e283]: 교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
+          - complementary [ref=e284]:
+            - generic [ref=e285]:
+              - generic [ref=e286]:
+                - img [ref=e288]
+                - heading "선생님" [level=2] [ref=e290]
+                - generic [ref=e291]: 새 항목 2
+              - list [ref=e292]:
+                - listitem [ref=e293]:
+                  - article [ref=e294]:
+                    - generic [ref=e295]:
+                      - generic [ref=e296]:
+                        - img [ref=e297]
+                        - text: 퀴즈
+                      - generic "새 항목" [ref=e300]
+                      - generic [ref=e301]: 방금 전
+                    - heading "극댓값 + 극솟값의 합은?" [level=3] [ref=e302]
+                    - paragraph [ref=e303]: 미적분 III · 극값
+                    - generic [ref=e304]:
+                      - text: 진행 중
+                      - generic [ref=e306]: · 47초 남음
+                    - button "퀴즈 응시" [ref=e307]:
+                      - text: 퀴즈 응시
+                      - img [ref=e308]
+                - listitem [ref=e310]:
+                  - article [ref=e311]:
+                    - generic [ref=e312]:
+                      - generic [ref=e313]:
+                        - img [ref=e314]
+                        - text: 과제
+                      - generic "새 항목" [ref=e317]
+                      - generic [ref=e318]: 오늘 18:05
+                    - heading "극값 판정 — 부호 변화 표 연습" [level=3] [ref=e319]
+                    - paragraph [ref=e320]: 미적분 III · 도함수의 활용
+                    - generic [ref=e321]:
+                      - generic [ref=e322]:
+                        - img [ref=e323]
+                        - text: 내일 21:00 마감
+                      - generic [ref=e326]: 5문항
+                    - link "풀러 가기" [ref=e327] [cursor=pointer]:
+                      - /url: /classbot/assignment/as_prescription/solve?bot=cb_001
+                      - text: 풀러 가기
+                      - img [ref=e328]
+                - listitem [ref=e330]:
+                  - article [ref=e331]:
+                    - generic [ref=e332]:
+                      - generic [ref=e333]:
+                        - img [ref=e334]
+                        - text: 메시지
+                      - generic [ref=e336]: 오늘 17:40
+                    - generic [ref=e337]: 김수학 선생님
+                    - paragraph [ref=e338]: 서연아, 지난주 부호 변화 표 많이 늘었더라. 오늘 변곡점까지 한 번에 가보자. 막히면 바로 물어봐.
+                - listitem [ref=e339]:
+                  - article [ref=e340]:
+                    - generic [ref=e341]:
+                      - generic [ref=e342]:
+                        - img [ref=e343]
+                        - text: 안내
+                      - generic [ref=e345]: 어제
+                    - button "시험 기간 봇 운영 안내" [ref=e346]:
+                      - heading "시험 기간 봇 운영 안내" [level=3] [ref=e347]
+                      - img [ref=e348]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e355] [cursor=pointer]:
+    - img [ref=e356]
+  - alert [ref=e428]

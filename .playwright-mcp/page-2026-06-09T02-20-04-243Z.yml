@@ -1,0 +1,325 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "풀림 클래스봇 풀림 클래스봇" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "풀림 클래스봇" [ref=e6]
+          - generic [ref=e16]: 풀림 클래스봇
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - img
+            - text: 17일째
+          - button "검색" [ref=e19]:
+            - img [ref=e20]
+          - button "알림" [ref=e23]:
+            - img [ref=e24]
+          - button "프로필 메뉴 열기" [ref=e28]: 서
+    - generic [ref=e29]:
+      - complementary [ref=e30]:
+        - navigation "학생 메뉴" [ref=e31]:
+          - list [ref=e32]:
+            - link "홈" [ref=e33] [cursor=pointer]:
+              - /url: /
+              - img [ref=e34]
+              - generic [ref=e37]: 홈
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "풀림 클래스봇" [ref=e41] [cursor=pointer]:
+                - /url: /classbot
+                - img [ref=e42]
+                - generic [ref=e45]: 풀림 클래스봇
+              - list [ref=e46]:
+                - listitem [ref=e47]:
+                  - link "홈" [ref=e48] [cursor=pointer]:
+                    - /url: /classbot
+                    - img [ref=e49]
+                    - generic [ref=e52]: 홈
+                - listitem [ref=e53]:
+                  - link "받은 과제" [ref=e54] [cursor=pointer]:
+                    - /url: /classbot/assignment
+                    - img [ref=e55]
+                    - generic [ref=e59]: 받은 과제
+                - listitem [ref=e60]:
+                  - link "봇 대화" [ref=e61] [cursor=pointer]:
+                    - /url: /classbot/chat
+                    - img [ref=e62]
+                    - generic [ref=e64]: 봇 대화
+                - listitem [ref=e65]:
+                  - link "내 웰빙" [ref=e66] [cursor=pointer]:
+                    - /url: /classbot/wellness
+                    - img [ref=e67]
+                    - generic [ref=e69]: 내 웰빙
+                - listitem [ref=e70]:
+                  - link "리플레이" [ref=e71] [cursor=pointer]:
+                    - /url: /classbot/replay
+                    - img [ref=e72]
+                    - generic [ref=e76]: 리플레이
+                - listitem [ref=e77]:
+                  - link "봇 찾기 준비 중" [disabled] [ref=e78]:
+                    - /url: "#"
+                    - img [ref=e79]
+                    - generic [ref=e82]: 봇 찾기
+                    - generic [ref=e83]:
+                      - img [ref=e84]
+                      - text: 준비 중
+                - listitem [ref=e87]:
+                  - link "소개하기" [ref=e88] [cursor=pointer]:
+                    - /url: /classbot/onboarding
+                    - img [ref=e89]
+                    - generic [ref=e91]: 소개하기
+      - main [ref=e92]:
+        - navigation "현재 위치" [ref=e95]:
+          - link "풀림 클래스봇" [ref=e97] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e98]:
+            - img [ref=e99]
+            - generic [ref=e101]: 봇 대화
+        - generic [ref=e104]:
+          - complementary [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]: 🧑‍🏫
+              - generic [ref=e108]:
+                - generic [ref=e109]: 수학이 형
+                - generic [ref=e110]: 수학Ⅱ · 고2
+            - navigation "내 클래스봇" [ref=e111]:
+              - list [ref=e112]:
+                - listitem [ref=e113]:
+                  - button "🧑‍🏫 수학이 형 라이브 진행 중" [pressed] [ref=e114]:
+                    - generic [ref=e115]: 🧑‍🏫
+                    - generic [ref=e116]: 수학이 형
+                    - generic "라이브 진행 중" [ref=e117]
+                - listitem [ref=e118]:
+                  - button "👩‍🏫 영어 누나" [ref=e119]:
+                    - generic [ref=e120]: 👩‍🏫
+                    - generic [ref=e121]: 영어 누나
+                - listitem [ref=e122]:
+                  - button "🧑‍🔬 과학 쌤" [ref=e123]:
+                    - generic [ref=e124]: 🧑‍🔬
+                    - generic [ref=e125]: 과학 쌤
+                - listitem [ref=e126]:
+                  - button "👩‍💼 국어 누나" [ref=e127]:
+                    - generic [ref=e128]: 👩‍💼
+                    - generic [ref=e129]: 국어 누나
+                - listitem [ref=e130]:
+                  - button "🧑‍🎓 사회 코치" [ref=e131]:
+                    - generic [ref=e132]: 🧑‍🎓
+                    - generic [ref=e133]: 사회 코치
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - img [ref=e136]
+                - generic [ref=e138]: 지금 봇 범위
+                - generic [ref=e139]: L3
+              - generic [ref=e140]: 교과 범위
+              - paragraph [ref=e141]: 과목 전체 범위 자유 대화 (기본값)
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - link "클래스봇 홈으로" [ref=e146] [cursor=pointer]:
+                  - /url: /classbot
+                  - img [ref=e147]
+                - generic [ref=e149]: 🧑‍🏫
+                - generic [ref=e150]:
+                  - generic [ref=e151]: 대치프리미엄 수학학원
+                  - heading "수학이 형 — 김수학 선생님의 디지털 분신" [level=1] [ref=e152]:
+                    - text: 수학이 형
+                    - generic [ref=e153]: — 김수학 선생님의 디지털 분신
+                  - generic [ref=e154]:
+                    - generic [ref=e155]: 수학Ⅱ · 고2
+                    - generic [ref=e156]:
+                      - img [ref=e157]
+                      - generic [ref=e159]: 교과 범위
+                      - generic [ref=e160]: (L3)
+                    - generic [ref=e161]: 친근 톤
+                  - generic [ref=e162]:
+                    - generic [ref=e163]: LIVE
+                    - generic [ref=e165]: 5분 진행 중
+                    - generic [ref=e166]: · 스코프 자동 잠금
+                - button "봇 정보 접기" [expanded] [ref=e167]:
+                  - img [ref=e168]
+              - generic [ref=e170]:
+                - img [ref=e171]
+                - generic [ref=e174]:
+                  - strong [ref=e175]: 김수학 선생님
+                  - text: 이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.
+              - generic [ref=e176]:
+                - text: 🔒 라이브 정책 적용 중
+                - generic [ref=e177]:
+                  - text: — 교과 범위
+                  - generic [ref=e178]: (L3)
+                  - text: 으로 자동 잠금. 종료 후 평시 정책 복귀.
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - generic [ref=e182]:
+                  - generic [ref=e184]:
+                    - paragraph [ref=e185]: 슬라이드 12 / 30
+                    - paragraph [ref=e186]: 도함수 부호 변화
+                    - paragraph [ref=e187]: f'(x) = 0 → 부호 표 → 극값 판정
+                  - generic [ref=e188]: LIVE
+                - generic [ref=e190]:
+                  - img [ref=e191]
+                  - generic [ref=e194]: 김수학 선생님 음성 ON
+                  - generic [ref=e195]: live · 음성+슬라이드
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - img [ref=e198]
+                  - heading "실시간 자막" [level=2] [ref=e204]
+                  - generic [ref=e205]: STT · 1~3s 지연
+                - generic [ref=e206]:
+                  - paragraph [ref=e207]: 오늘은 도함수 활용 중에서 극값 판정을 다뤄볼게요.
+                  - paragraph [ref=e208]: 먼저 f'(x) = 0인 x를 찾는 것부터 시작합니다.
+                  - paragraph [ref=e209]: 여기서 부호가 바뀌면 극값이고, 안 바뀌면 극값이 아니에요.
+                  - paragraph [ref=e210]: "[봇 정리] + → − 면 극대, − → + 면 극소."
+                  - paragraph [ref=e211]: 슬라이드 12를 봐주세요. 예시 함수가 있죠.
+                  - paragraph [ref=e212]: 여러분이 직접 부호 변화 표를 그려보세요. 3분 드립니다.
+                  - paragraph [ref=e213]: "[봇] 시간 안내 — 3분 타이머 시작."
+                  - paragraph [ref=e214]: 하윤 학생이 좋은 질문을 줬어요. 전체에 공유합니다.
+                  - paragraph [ref=e215]: "\"f'(x)=0이면 무조건 극값인가요?\" — 좋은 의문이죠."
+                  - paragraph [ref=e216]: 답은 No. 부호 변화가 핵심이에요.
+              - generic [ref=e217]:
+                - generic [ref=e218]:
+                  - img [ref=e220]
+                  - generic [ref=e222]:
+                    - generic [ref=e223]: 지금 즉석 퀴즈
+                    - generic [ref=e224]: 11/14명 응답 · 79%
+                  - generic [ref=e225]:
+                    - img [ref=e226]
+                    - text: 0:47
+                - paragraph [ref=e229]: f(x) = x³ − 6x² + 9x + 1 의 극댓값과 극솟값의 합은?
+                - radiogroup "객관식 보기" [ref=e230]:
+                  - listitem [ref=e231]:
+                    - radio "① 1" [ref=e232]:
+                      - generic [ref=e233]:
+                        - generic [ref=e234]: ①
+                        - generic [ref=e235]: "1"
+                  - listitem [ref=e236]:
+                    - radio "② 5" [ref=e237]:
+                      - generic [ref=e238]:
+                        - generic [ref=e239]: ②
+                        - generic [ref=e240]: "5"
+                  - listitem [ref=e241]:
+                    - radio "③ 6" [ref=e242]:
+                      - generic [ref=e243]:
+                        - generic [ref=e244]: ③
+                        - generic [ref=e245]: "6"
+                  - listitem [ref=e246]:
+                    - radio "④ 8" [ref=e247]:
+                      - generic [ref=e248]:
+                        - generic [ref=e249]: ④
+                        - generic [ref=e250]: "8"
+                - button "제출하기" [disabled]
+              - generic [ref=e251]:
+                - generic [ref=e252]:
+                  - img [ref=e253]
+                  - heading "선생님에게 질문" [level=2] [ref=e255]
+                  - generic [ref=e256]: 서연 이름으로 전달돼요
+                - generic [ref=e257]:
+                  - textbox "질문 입력" [ref=e258]:
+                    - /placeholder: 궁금한 점을 짧게 (최대 120자)
+                  - button "선생님에게 질문 보내기" [disabled] [ref=e259]:
+                    - img [ref=e260]
+                - paragraph [ref=e263]: 교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
+            - generic [ref=e264]:
+              - generic [ref=e265]:
+                - generic [ref=e266]: 봇과 대화
+                - generic [ref=e267]:
+                  - generic [ref=e268]:
+                    - img [ref=e270]
+                    - group "채팅 글자 크기" [ref=e273]:
+                      - button "작게" [ref=e274]
+                      - button "보통" [pressed] [ref=e275]
+                      - button "크게" [ref=e276]
+                  - generic [ref=e277]:
+                    - img [ref=e279]
+                    - group "채팅 글자 서체" [ref=e281]:
+                      - button "고딕" [pressed] [ref=e282]
+                      - button "명조" [ref=e283]
+                      - button "둥근" [ref=e284]
+              - paragraph [ref=e285]: 개념 질문은 여기서 — 라이브 모더레이션 큐는 위쪽 “선생님에게 질문”
+              - generic [ref=e287]:
+                - generic [ref=e290]: 오늘, 6월 9일
+                - generic [ref=e292]:
+                  - generic [ref=e293]: 🧑‍🏫
+                  - generic [ref=e294]:
+                    - generic [ref=e295]:
+                      - generic [ref=e296]: 수학이 형
+                      - generic [ref=e297]: · 오전 11:20
+                    - generic [ref=e298]: 점심은 챙겼어?, 서연! 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. 오늘은 개념 설명까지 도와줄 수 있어 (L3). 답은 직접 알려주진 않을 거지만, 길은 알려줄게.
+              - generic [ref=e299]:
+                - generic [ref=e300]:
+                  - button "극값 어떻게 찾아요?" [ref=e301]
+                  - button "오늘 수업 요약해줘요" [ref=e302]
+                  - button "4월 학평 대비 뭐 해야 해요?" [ref=e303]
+                - generic [ref=e304]:
+                  - button "첨부" [ref=e305]:
+                    - img [ref=e306]
+                  - button "음성 입력 (곧 열려요)" [ref=e307]:
+                    - img [ref=e308]
+                  - textbox "수학이 형에게 물어보세요…" [ref=e311]
+                  - button "질문 보내기" [disabled] [ref=e312]:
+                    - img [ref=e313]
+          - complementary [ref=e316]:
+            - generic [ref=e317]:
+              - generic [ref=e318]:
+                - img [ref=e320]
+                - heading "선생님" [level=2] [ref=e322]
+                - generic [ref=e323]: 새 항목 2
+              - list [ref=e324]:
+                - listitem [ref=e325]:
+                  - article [ref=e326]:
+                    - generic [ref=e327]:
+                      - generic [ref=e328]:
+                        - img [ref=e329]
+                        - text: 퀴즈
+                      - generic "새 항목" [ref=e332]
+                      - generic [ref=e333]: 방금 전
+                    - heading "극댓값 + 극솟값의 합은?" [level=3] [ref=e334]
+                    - paragraph [ref=e335]: 미적분 III · 극값
+                    - generic [ref=e336]:
+                      - text: 진행 중
+                      - generic [ref=e338]: · 47초 남음
+                    - button "퀴즈 응시" [ref=e339]:
+                      - text: 퀴즈 응시
+                      - img [ref=e340]
+                - listitem [ref=e342]:
+                  - article [ref=e343]:
+                    - generic [ref=e344]:
+                      - generic [ref=e345]:
+                        - img [ref=e346]
+                        - text: 과제
+                      - generic "새 항목" [ref=e349]
+                      - generic [ref=e350]: 오늘 18:05
+                    - heading "극값 판정 — 부호 변화 표 연습" [level=3] [ref=e351]
+                    - paragraph [ref=e352]: 미적분 III · 도함수의 활용
+                    - generic [ref=e353]:
+                      - generic [ref=e354]:
+                        - img [ref=e355]
+                        - text: 내일 21:00 마감
+                      - generic [ref=e358]: 5문항
+                    - link "풀러 가기" [ref=e359] [cursor=pointer]:
+                      - /url: /classbot/assignment/as_prescription/solve?bot=cb_001
+                      - text: 풀러 가기
+                      - img [ref=e360]
+                - listitem [ref=e362]:
+                  - article [ref=e363]:
+                    - generic [ref=e364]:
+                      - generic [ref=e365]:
+                        - img [ref=e366]
+                        - text: 메시지
+                      - generic [ref=e368]: 오늘 17:40
+                    - generic [ref=e369]: 김수학 선생님
+                    - paragraph [ref=e370]: 서연아, 지난주 부호 변화 표 많이 늘었더라. 오늘 변곡점까지 한 번에 가보자. 막히면 바로 물어봐.
+                - listitem [ref=e371]:
+                  - article [ref=e372]:
+                    - generic [ref=e373]:
+                      - generic [ref=e374]:
+                        - img [ref=e375]
+                        - text: 안내
+                      - generic [ref=e377]: 어제
+                    - button "시험 기간 봇 운영 안내" [ref=e378]:
+                      - heading "시험 기간 봇 운영 안내" [level=3] [ref=e379]
+                      - img [ref=e380]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e387] [cursor=pointer]:
+    - img [ref=e388]
+  - alert [ref=e391]
