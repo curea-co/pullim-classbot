@@ -354,7 +354,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             ref={scrollRef}
             onScroll={handleScroll}
             data-slot="chat-scroll"
-            className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto p-4"
+            className="flex max-h-[calc(100dvh-14rem)] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
           >
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
