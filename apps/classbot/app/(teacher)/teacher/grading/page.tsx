@@ -5,8 +5,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { GradingRow } from '@/components/classbot/grading-row';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { FilterPills } from '@/components/classbot/filter-pills';
 import { gradingQueue, gradingStats, overriddenSample, type GradingItem } from '@/lib/mock';
-import { cn } from '@/lib/utils';
 
 type SearchParams = Promise<{ status?: string; type?: string }>;
 
@@ -70,8 +70,18 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
         <div className="space-y-2">
-          <FilterChips label="상태" base="status" current={statusFilter} options={statusFilters as readonly { value: string; label: string }[]} keep={`type=${typeFilter}`} />
-          <FilterChips label="타입" base="type"   current={typeFilter}   options={typeFilters as readonly { value: string; label: string }[]}   keep={`status=${statusFilter}`} />
+          <FilterPills
+            label="상태"
+            options={statusFilters}
+            current={statusFilter}
+            href={(v) => `/teacher/grading?status=${v}&type=${typeFilter}`}
+          />
+          <FilterPills
+            label="타입"
+            options={typeFilters}
+            current={typeFilter}
+            href={(v) => `/teacher/grading?type=${v}&status=${statusFilter}`}
+          />
         </div>
       </section>
 
@@ -98,37 +108,3 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
     </div>
   );
 }
-
-function FilterChips({
-  label, base, current, options, keep,
-}: {
-  label: string; base: string; current: string;
-  options: readonly { value: string; label: string }[];
-  keep: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-pullim-slate-400 w-10 shrink-0 text-[10px] font-bold tracking-wider uppercase">{label}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map(o => {
-          const isActive = current === o.value;
-          const href = `/teacher/grading?${base}=${o.value}&${keep}`;
-          return (
-            <Link
-              key={o.value} href={href}
-              className={cn(
-                'rounded-full px-3 py-1 text-[11px] font-bold transition-colors',
-                isActive
-                  ? 'bg-pullim-blue-600 text-white'
-                  : 'bg-pullim-slate-100 text-pullim-slate-600 hover:bg-pullim-slate-200',
-              )}
-            >
-              {o.label}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-

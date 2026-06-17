@@ -5,8 +5,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReportRow } from '@/components/classbot/report-row';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { FilterPills } from '@/components/classbot/filter-pills';
 import { reports, crisisAlerts, type ReportKind } from '@/lib/mock';
-import { cn } from '@/lib/utils';
 
 type SearchParams = Promise<{ kind?: string; status?: string }>;
 
@@ -55,25 +55,11 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
 
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {kindFilters.map(f => {
-            const isActive = kindFilter === f.value;
-            return (
-              <Link
-                key={f.value}
-                href={`/teacher/reports?kind=${f.value}`}
-                className={cn(
-                  'rounded-full px-3 py-1 text-[11px] font-bold transition-colors',
-                  isActive
-                    ? 'bg-pullim-blue-600 text-white'
-                    : 'bg-pullim-slate-100 text-pullim-slate-600 hover:bg-pullim-slate-200',
-                )}
-              >
-                {f.label}
-              </Link>
-            );
-          })}
-        </div>
+        <FilterPills
+          options={kindFilters}
+          current={kindFilter}
+          href={(v) => `/teacher/reports?kind=${v}`}
+        />
       </section>
 
       {/* 리포트 목록 */}
