@@ -18,6 +18,7 @@ import { botSignature } from '@/lib/tokens/bot-signature';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
+import { LiveBadge } from '@/components/classbot/live-badge';
 import { cn } from '@/lib/utils';
 
 /**
@@ -101,7 +102,7 @@ function ClassbotChatPageInner() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* 봇 선택 chip strip */}
       {myBots.length > 1 && (
         <section className="bg-card rounded-xl border p-2">
@@ -126,7 +127,7 @@ function ClassbotChatPageInner() {
                     <span className="text-base leading-none">{b.avatarEmoji}</span>
                     <span>{b.name}</span>
                     {isLiveNow && (
-                      <span className="bg-pullim-danger pullim-anim-live-pulse inline-block h-1.5 w-1.5 rounded-full" aria-label="라이브 진행 중" />
+                      <LiveBadge variant="dot" aria-label="라이브 진행 중" />
                     )}
                   </button>
                 </li>
@@ -384,7 +385,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
         </div>
       )}
 
-      <section className="bg-card flex flex-col rounded-2xl border mt-3">
+      <section className="bg-card flex flex-col rounded-2xl border flex-1 min-h-0">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2 text-[11px]">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
@@ -398,7 +399,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             ref={scrollRef}
             onScroll={handleScroll}
             data-slot="chat-scroll"
-            className="flex max-h-[520px] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
+            className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto p-4"
           >
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
