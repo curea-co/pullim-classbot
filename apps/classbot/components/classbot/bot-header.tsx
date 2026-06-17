@@ -1,4 +1,4 @@
-import { Sparkles, Shield } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { myClassBot, scopeMeta } from '@/lib/mock';
 import { BotIdentityCard } from './bot-identity-card';
 
@@ -31,15 +31,10 @@ export function BotHeader({
       density={compact ? 'compact' : 'comfortable'}
       headingLevel={headingLevel}
     >
-      {/* 봇 범위 배지 — 학생은 변경 불가, 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
-      <div className="bg-white/10 backdrop-blur mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs">
-        <Shield className="text-pullim-lemon h-3.5 w-3.5" />
-        <span className="font-semibold">{scope.label}</span>
-        <span className="font-mono text-[9px] text-white/55">({scope.short})</span>
-        <span className="text-white/60 ml-auto text-[10px]">
-          선생님이 설정 · {scope.allow}
-        </span>
-      </div>
+      {/* 봇 범위 허용값 메모 — BotIdentityCard 가 이미 배지를 렌더 */}
+      <p className="text-white/60 mt-2 text-[10px]">
+        선생님이 설정 · {scope.allow}
+      </p>
 
       {/* 라이브 수업 진행 상태 */}
       {bot.isLive && bot.currentLesson && (
