@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, AlertTriangle, MessageCircle, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { ContextRail } from '@/components/shell/context-rail';
 import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
 import { ParentMessagePreview } from '@/components/classbot/parent-message-preview';
 import { reports, classRoster, buildParentMessage } from '@/lib/mock';
@@ -104,35 +105,46 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
         />
       </section>
 
-      {/* 2-col: 학부모 미리보기 + 학생 추세 */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          {isParent && (
-            <ParentMessagePreview
-              initialMessage={buildParentMessage(report)}
-              status={report.status}
+      {/* 2-col: 리포트 본문 + 학생 추세 사이드 */}
+      <ContextRail
+        railWidth="md"
+        rail={student ? (
+          <>
+            {/* [13 § 3.3.2] 사이드 — 학생 7일 추세 mini chart. compact mode로 봇 CTA 자동 미노출. */}
+            <WellbeingGauge studentId={student.id} compact />
+            <section className="bg-pullim-slate-50 rounded-2xl p-4">
+              <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
+                <MessageCircle className="h-3 w-3" />
+                첨부된 1:1 면담 메모
+              </h4>
+              <p className="text-pullim-slate-500 mt-2 text-[11px] leading-relaxed">
+                채점 허브에서 작성된 메모는 학생 개인 리포트에 자동 첨부돼요.
+              </p>
+            </section>
+          </>
+        ) : undefined}
+      >
+        {/* 학부모 리포트: 학부모 메시지 미리보기 */}
+        {isParent && (
+          <ParentMessagePreview
+            initialMessage={buildParentMessage(report)}
+            status={report.status}
+          />
+        )}
+        {/* 비학부모 리포트: AI 리포트 본문 요약 */}
+        {!isParent && (
+          <section className="bg-card rounded-2xl border p-4">
+            <SectionHeading title="리포트 본문" description="AI 초안 — 필요하면 수정해주세요." />
+            <Label htmlFor="report-body" className="sr-only">리포트 본문 AI 초안</Label>
+            <Textarea
+              id="report-body"
+              defaultValue={report.summary}
+              rows={6}
+              className="rounded-xl text-sm leading-relaxed"
             />
-          )}
-        </div>
-
-        <aside className="space-y-4">
-          {student && (
-            <>
-              {/* [13 § 3.3.2] 사이드 — 학생 7일 추세 mini chart. compact mode로 봇 CTA 자동 미노출. */}
-              <WellbeingGauge studentId={student.id} compact />
-              <section className="bg-pullim-slate-50 rounded-2xl p-4">
-                <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
-                  <MessageCircle className="h-3 w-3" />
-                  첨부된 1:1 면담 메모
-                </h4>
-                <p className="text-pullim-slate-500 mt-2 text-[11px] leading-relaxed">
-                  채점 허브에서 작성된 메모는 학생 개인 리포트에 자동 첨부돼요.
-                </p>
-              </section>
-            </>
-          )}
-        </aside>
-      </div>
+          </section>
+        )}
+      </ContextRail>
     </div>
   );
 }
