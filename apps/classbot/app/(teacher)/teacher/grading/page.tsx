@@ -1,6 +1,5 @@
-import { ClipboardCheck, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { PageHeader } from '@/components/shell/page-header';
+import { ClipboardCheck } from 'lucide-react';
+import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { GradingRow } from '@/components/classbot/grading-row';
@@ -44,21 +43,15 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
   const todayApproved = allItems.filter(i => i.status === 'approved').length;
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      <Link
-        href="/teacher"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        교사 홈
-      </Link>
-
-      <PageHeader
-        eyebrow={{ icon: ClipboardCheck, text: '채점 허브' }}
-        title="AI 초안 검수"
-        description="선생님은 마지막 검수자예요. AI가 만든 초안을 보고 필요하면 직접 정해주세요."
-      />
-
+    <TeacherPageShell
+      backHref="/teacher"
+      backLabel="교사 홈"
+      header={{
+        eyebrow: { icon: ClipboardCheck, text: '채점 허브' },
+        title: 'AI 초안 검수',
+        description: '선생님은 마지막 검수자예요. AI가 만든 초안을 보고 필요하면 직접 정해주세요.',
+      }}
+    >
       {/* KPI */}
       <KpiStatBar cols={4}>
         <KpiStat label="대기" value={`${gradingStats.totalQueue}건`} tone="accent" />
@@ -105,6 +98,6 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       <FlywheelNote>
         교사 검수 변경률이 누적 <strong>{gradingStats.rubricLearningThreshold}%</strong>를 넘으면 루브릭이 학생 답과 어긋난다는 신호 — 자동으로 재학습 제안이 떠요.
       </FlywheelNote>
-    </div>
+    </TeacherPageShell>
   );
 }

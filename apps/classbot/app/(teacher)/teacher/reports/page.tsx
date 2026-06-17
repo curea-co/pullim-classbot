@@ -1,6 +1,5 @@
-import Link from 'next/link';
-import { ArrowLeft, BarChart3 } from 'lucide-react';
-import { PageHeader } from '@/components/shell/page-header';
+import { BarChart3 } from 'lucide-react';
+import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReportRow } from '@/components/classbot/report-row';
@@ -31,21 +30,15 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
   const activeCrises = crisisAlerts.filter(c => !c.resolved).length;
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      <Link
-        href="/teacher"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        교사 홈
-      </Link>
-
-      <PageHeader
-        eyebrow={{ icon: BarChart3, text: '리포트 센터' }}
-        title="6종 리포트"
-        description="자동 생성된 리포트를 검토하고 학부모께 발송해주세요."
-      />
-
+    <TeacherPageShell
+      backHref="/teacher"
+      backLabel="교사 홈"
+      header={{
+        eyebrow: { icon: BarChart3, text: '리포트 센터' },
+        title: '6종 리포트',
+        description: '자동 생성된 리포트를 검토하고 학부모께 발송해주세요.',
+      }}
+    >
       {/* KPI */}
       <KpiStatBar cols={3}>
         <KpiStat label="발송 대기" value={`${pendingCount}건`} tone="accent" />
@@ -85,7 +78,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       <FlywheelNote>
         승인된 리포트는 24시간 안에 카카오톡으로 자동 발송돼요. 학부모 열람률은 다음 주 KPI에 반영돼요.
       </FlywheelNote>
-    </div>
+    </TeacherPageShell>
   );
 }
 
