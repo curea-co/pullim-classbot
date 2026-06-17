@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { heatColor } from '@/lib/tokens/heat-color';
+import { Sparkbar } from '@/components/classbot/sparkbar';
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 type Speed = typeof SPEEDS[number];
@@ -491,14 +493,6 @@ function SpeakerBadge({
 
 /* ─── 집중도 히트맵 ─── */
 
-function heatColor(v: number): string {
-  if (v >= 90) return 'var(--color-pullim-heat-5)';
-  if (v >= 80) return 'var(--color-pullim-heat-4)';
-  if (v >= 70) return 'var(--color-pullim-heat-3)';
-  if (v >= 60) return 'var(--color-pullim-heat-2)';
-  return 'var(--color-pullim-heat-1)';
-}
-
 function FocusHeatmap({
   bins, currentBinIdx, totalMin, onSeek,
 }: {
@@ -514,25 +508,17 @@ function FocusHeatmap({
         <span className="text-pullim-slate-400 font-mono text-[10px]">0~100</span>
       </header>
 
-      <div className="flex h-14 items-end gap-0.5">
-        {bins.map((v, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => onSeek(i * 60)}
-            aria-label={`${i}분 (집중도 ${v})`}
-            className={cn(
-              'flex-1 rounded-sm transition-all hover:opacity-80 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-              i === currentBinIdx && 'ring-2 ring-pullim-lemon ring-offset-1',
-            )}
-            style={{
-              height: `${Math.max(8, v)}%`,
-              backgroundColor: heatColor(v),
-            }}
-            title={`${i}~${i + 1}분 · 집중도 ${v}/100`}
-          />
-        ))}
-      </div>
+      <Sparkbar
+        data={bins.map((v, i) => ({ value: v, title: `${i}~${i + 1}분 · 집중도 ${v}/100` }))}
+        fill={heatColor}
+        fillMode="css"
+        heightPx={56}
+        minPct={8}
+        gapClassName="gap-0.5"
+        onBarClick={(v, i) => onSeek(i * 60)}
+        barAriaLabel={(v, i) => `${i}분 (집중도 ${v})`}
+        activeIndex={currentBinIdx}
+      />
       <div className="text-pullim-slate-400 mt-1.5 flex justify-between font-mono text-[10px]">
         <span>0:00</span>
         <span>{formatReplayTime((totalMin * 60) / 2)}</span>
