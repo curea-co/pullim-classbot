@@ -11,6 +11,7 @@ import {
 import { SectionHeading } from '@/components/shell/section-heading';
 import { CrisisInterventionPanel } from '@/components/classbot/crisis-intervention-panel';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { cn } from '@/lib/utils';
 
 export default function TeacherHomePage() {
@@ -256,14 +257,8 @@ function QuickAction({
   );
   if (href) return <Link href={href} className={className}>{inner}</Link>;
   return (
-    <button
-      type="button"
-      disabled
-      aria-disabled="true"
-      title="준비 중 (v2)"
-      className={cn(className, 'opacity-60 cursor-not-allowed')}
-    >
+    <ComingSoonButton className={className}>
       {inner}
-    </button>
+    </ComingSoonButton>
   );
 }
