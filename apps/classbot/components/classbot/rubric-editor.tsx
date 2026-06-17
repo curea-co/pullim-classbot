@@ -47,7 +47,6 @@ export function RubricEditor({
 
       <ul className="space-y-3">
         {rubric.map((r, i) => {
-          const pct = (r.score / r.weight) * 100;
           return (
             <li key={r.criterion} className="bg-pullim-slate-50/50 rounded-lg p-3">
               <div className="flex items-center justify-between gap-2">

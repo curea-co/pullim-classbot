@@ -108,7 +108,7 @@ describe('ComingSoonButton', () => {
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
       // Lucide icon 은 svg 를 렌더; h-4 w-4 클래스 확인 (SVG className 은 SVGAnimatedString)
-      const classAttr = (svg?.className as any)?.baseVal || svg?.className;
+      const classAttr = (svg?.className as SVGAnimatedString)?.baseVal || svg?.className;
       expect(String(classAttr)).toContain('h-4');
       expect(String(classAttr)).toContain('w-4');
     });
