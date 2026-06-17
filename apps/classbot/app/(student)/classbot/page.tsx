@@ -253,7 +253,14 @@ function NewItemsGrid({
 }) {
   return (
     <section>
-      <SectionHeading title="새로 온 것" />
+      <SectionHeading
+        title="새로 온 것"
+        action={
+          <Link href="/classbot/replay" className="text-pullim-slate-500 hover:text-pullim-blue-600 text-xs font-semibold">
+            리플레이 →
+          </Link>
+        }
+      />
       <ul className="grid grid-cols-2 gap-2">
         <CategoryCell
           href="/classbot/assignment"
