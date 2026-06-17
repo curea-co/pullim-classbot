@@ -178,7 +178,7 @@ function MyBotsStrip({
         ))}
         <li>
           <Link
-            href="/discover"
+            href="/classbot/discover"
             className="border-pullim-slate-200 text-pullim-slate-300 hover:border-pullim-blue-300 hover:text-pullim-blue-500 flex h-full min-h-[68px] flex-col items-center justify-center rounded-xl border border-dashed transition-colors"
           >
             <span className="text-lg leading-none">＋</span>
