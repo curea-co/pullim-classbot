@@ -62,6 +62,11 @@ export function Sparkbar({
         const title = datum.title ?? (barAriaLabel ? barAriaLabel(value, i) : undefined);
 
         if (onBarClick) {
+          // Apply additional affordances only to the button branch
+          const buttonFillProps = fillMode === 'class'
+            ? { className: cn(fillProps.className, 'transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1') }
+            : { className: cn(fillProps.className, 'transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1'), style: fillProps.style };
+
           return (
             <button
               key={datum.key ?? i}
@@ -69,8 +74,8 @@ export function Sparkbar({
               onClick={() => onBarClick(value, i)}
               aria-label={barAriaLabel ? barAriaLabel(value, i) : undefined}
               title={title}
-              {...fillProps}
-              style={{ ...('style' in fillProps ? fillProps.style : {}), height: barHeight }}
+              {...buttonFillProps}
+              style={{ ...('style' in buttonFillProps ? buttonFillProps.style : {}), height: barHeight }}
             />
           );
         }
