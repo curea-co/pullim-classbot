@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Check, MessageSquare, FileText } 
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { RubricEditor } from '@/components/classbot/rubric-editor';
+import { ScoreDisplay } from '@/components/classbot/score-display';
 import { OverrideDeltaMeter } from '@/components/classbot/override-delta-meter';
 import { CrisisGate } from '@/components/classbot/crisis-gate';
 import { Button } from '@/components/ui/button';
@@ -133,9 +134,7 @@ export function GradingDetail({
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <div className="text-pullim-slate-300 text-[10px] font-bold tracking-wider uppercase">최종 점수</div>
-                <div className="font-mono text-2xl font-bold text-white">
-                  {finalScore}<span className="text-pullim-slate-400 text-base">/{item.maxScore}</span>
-                </div>
+                <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="inverse" />
               </div>
               <Button
                 type="button"
@@ -175,19 +174,13 @@ export function GradingDetail({
             ) : (
               <ul className="space-y-1.5">
                 {history.slice(0, 5).map((h, i) => {
-                  const pct = (h.score / h.maxScore) * 100;
                   return (
                     <li key={i} className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg p-2">
                       <div className="min-w-0 flex-1">
                         <div className="text-pullim-slate-700 truncate text-[11px] font-semibold">{h.assignmentTitle}</div>
                         <div className="text-pullim-slate-400 text-[10px]">{h.gradedAt}</div>
                       </div>
-                      <div className="font-mono text-xs font-bold">
-                        <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
-                          {h.score}
-                        </span>
-                        <span className="text-pullim-slate-400">/{h.maxScore}</span>
-                      </div>
+                      <ScoreDisplay score={h.score} max={h.maxScore} size="sm" tone="threshold" />
                     </li>
                   );
                 })}
