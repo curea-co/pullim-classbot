@@ -4,6 +4,7 @@ import { AppSidebar } from './app-sidebar';
 import { BottomNav } from './bottom-nav';
 import { Breadcrumb } from './breadcrumb';
 import type { Role } from './nav-config';
+import { RightRailAside, RightRailProvider } from './right-rail-context';
 
 type Props = {
   role: Role;
@@ -26,40 +27,45 @@ const CONTENT_MAX = 'mx-auto w-full max-w-[1280px]';
 
 export function AppShell({ role, children }: Props) {
   return (
-    <div className="bg-pullim-slate-50 flex h-screen flex-col">
-      <AppHeader role={role} />
+    <RightRailProvider>
+      <div className="bg-pullim-slate-50 flex h-screen flex-col">
+        <AppHeader role={role} />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* 사이드바 — 데스크탑 전체, 태블릿 축약 */}
-        <aside className="border-pullim-slate-200 bg-card hidden shrink-0 border-r md:flex md:w-16 md:flex-col lg:w-60">
-          <AppSidebar role={role} className="hidden lg:flex" />
-          <AppSidebar role={role} compact className="flex lg:hidden" />
-        </aside>
+        <div className="flex flex-1 overflow-hidden">
+          {/* 사이드바 — 데스크탑 전체, 태블릿 축약 */}
+          <aside className="border-pullim-slate-200 bg-card hidden shrink-0 border-r md:flex md:w-16 md:flex-col lg:w-60">
+            <AppSidebar role={role} className="hidden lg:flex" />
+            <AppSidebar role={role} compact className="flex lg:hidden" />
+          </aside>
 
-        {/* 본문 */}
-        <main className="flex-1 overflow-y-auto">
-          {/* 브레드크럼 — 모든 페이지 상단에 (사이드바 옆 본문 영역 기준 가운데 정렬) */}
-          <div className="bg-pullim-slate-50/80 border-b border-pullim-slate-200/70 sticky top-0 z-10 backdrop-blur-md">
-            <div className={`${CONTENT_MAX} flex h-9 items-center px-4 md:px-6 xl:px-8`}>
-              <Breadcrumb role={role} />
+          {/* 본문 */}
+          <main className="flex-1 overflow-y-auto">
+            {/* 브레드크럼 — 모든 페이지 상단에 (사이드바 옆 본문 영역 기준 가운데 정렬) */}
+            <div className="bg-pullim-slate-50/80 border-b border-pullim-slate-200/70 sticky top-0 z-10 backdrop-blur-md">
+              <div className={`${CONTENT_MAX} flex h-9 items-center px-4 md:px-6 xl:px-8`}>
+                <Breadcrumb role={role} />
+              </div>
             </div>
-          </div>
 
-          {/* 페이지 콘텐츠 — 1280px 캡, 모바일 padding 좁게 */}
-          <div
-            className={
-              role === 'student'
-                ? `${CONTENT_MAX} px-4 pt-4 pb-24 md:px-6 md:pb-10 xl:px-8`
-                : `${CONTENT_MAX} px-4 pt-4 pb-10 md:px-6 xl:px-8`
-            }
-          >
-            {children}
-          </div>
-        </main>
+            {/* 페이지 콘텐츠 — 1280px 캡, 모바일 padding 좁게 */}
+            <div
+              className={
+                role === 'student'
+                  ? `${CONTENT_MAX} px-4 pt-4 pb-24 md:px-6 md:pb-10 xl:px-8`
+                  : `${CONTENT_MAX} px-4 pt-4 pb-10 md:px-6 xl:px-8`
+              }
+            >
+              {children}
+            </div>
+          </main>
+
+          {/* 오른쪽 레일 — 페이지가 useSetRightRail 로 콘텐츠를 등록하면 나타남 */}
+          <RightRailAside />
+        </div>
+
+        {/* 학생 모바일 전용 */}
+        {role === 'student' && <BottomNav />}
       </div>
-
-      {/* 학생 모바일 전용 */}
-      {role === 'student' && <BottomNav />}
-    </div>
+    </RightRailProvider>
   );
 }
