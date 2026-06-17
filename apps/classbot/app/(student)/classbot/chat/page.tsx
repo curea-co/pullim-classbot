@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Shield, Eye } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye } from 'lucide-react';
 import {
   scopeMeta,
   pickClassbotReply, type ReplyKey,
@@ -19,6 +19,8 @@ import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
 import { LiveBadge } from '@/components/classbot/live-badge';
+import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
+import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
 /**
@@ -259,124 +261,77 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
   const isSendDisabled = pending || !value.trim();
 
+  // ── 데스크톱 우측 레일: 봇 정체성 + 범위/라이브 전체 정보 ──────────────
+  const railNode = useMemo(() => (
+    <BotIdentityCard
+      bot={bot}
+      density="comfortable"
+      headingLevel="h2"
+      showSignatureLiner
+      trailing={isLive ? <LiveBadge variant="pill" /> : undefined}
+    >
+      {/* watched-by-teacher — always visible */}
+      <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
+        <Eye className="text-pullim-lemon h-3 w-3" />
+        <span className="text-white/90"><strong className="text-pullim-lemon">{bot.teacherName}</strong>이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.</span>
+      </div>
+      {isLive ? (
+        /* live lock banner — rail only */
+        <div className="bg-pullim-lemon/15 border-pullim-lemon/40 mt-2 rounded-lg border px-3 py-1.5 text-[11px]">
+          <span className="text-pullim-lemon font-bold">🔒 라이브 정책 적용 중</span>
+          <span className="text-white/80 ml-1">— {scope.label} <span className="font-mono text-[10px] text-white/55">({scope.short})</span>으로 자동 잠금. 종료 후 평시 정책 복귀.</span>
+        </div>
+      ) : (
+        /* scope schedule — rail only */
+        <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
+          <summary className="cursor-pointer list-none flex items-center gap-1.5">
+            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 text-[10px] font-bold">{scope.label}</span>
+            <span className="text-white/90 font-semibold">지금 봇 범위 — {scope.allow}</span>
+            <span className="text-white/60 ml-auto text-[10px]">시간대별 자동 변동 ↗</span>
+          </summary>
+          <div className="text-white/80 mt-2 space-y-0.5 leading-relaxed">
+            <p>· 18:00~19:00 · 단계 힌트까지 <span className="font-mono text-[10px] text-white/55">(L4)</span></p>
+            <p>· 19:00~22:00 · 개념까지 <span className="font-mono text-[10px] text-white/55">(L3)</span> ← 현재 학원 시간</p>
+            <p>· 22:00 이후 · 답까지 <span className="font-mono text-[10px] text-white/55">(L5)</span> 자기학습</p>
+          </div>
+        </details>
+      )}
+      {isLive && <LiveHeaderMeta bot={bot} />}
+    </BotIdentityCard>
+  ), [bot, isLive, scope]);
+  useSetRightRail(railNode);
+
   return (
     <>
       {/*
-        봇 메타 헤더 — collapse 토글 ([04 § 9.3], [08 § 15.5]).
-        collapsed: 56px 정도, 아바타 + 이름 + 범위 라벨 + ⌃
-        expanded: 모든 메타 (조직·교사·톤·시청·범위 시간표·라이브 안내)
-        키보드 열림 시 자동 collapse (위 useEffect), 명시 토글로 expand.
-        ChatPanel은 key={bot.id}로 봇 전환 시 remount — M6 cross-fade ([08 § 15.2]).
+        모바일 전용 봇 메타 헤더 (lg 이상에서 숨김 — 데스크톱은 우측 레일 사용).
+        identity ONLY — scope/watched/live 는 레일에만 있어 Playwright strict mode 통과.
+        data-slot/data-collapsed 은 BotIdentityCard 가 data-* props 를 포워드하지 않으므로
+        wrapper <div> 에 직접 배치.
       */}
-      <header
+      <div
+        className="lg:hidden"
         data-slot="bot-meta-header"
         data-collapsed={headerCollapsed ? 'true' : 'false'}
-        className="from-pullim-slate-900 to-pullim-blue-900 pullim-anim-bot-switch relative overflow-hidden rounded-2xl bg-gradient-to-br p-3 text-white shadow-xl"
       >
-        {/* M6 시그니처 라이너 swipe — 봇 전환 시 좌→우 240ms */}
-        <span
-          aria-hidden
-          className="pullim-anim-liner-swipe absolute left-0 top-0 h-full w-1"
-          style={{ backgroundColor: botSig.hex }}
+        <BotIdentityCard
+          bot={bot}
+          density="compact"
+          headingLevel="h1"
+          collapsed={headerCollapsed}
+          showSignatureLiner
+          leading={
+            <Link href="/classbot" aria-label="클래스봇 홈으로" className="text-pullim-slate-300 hover:text-pullim-lemon inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          }
+          trailing={
+            <button type="button" onClick={() => setHeaderCollapsed(c => !c)} aria-label={headerCollapsed ? '봇 정보 펼치기' : '봇 정보 접기'} aria-expanded={!headerCollapsed} className="text-pullim-slate-300 hover:bg-white/10 hover:text-white inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+              {headerCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </button>
+          }
         />
-        <div className="flex items-center gap-2">
-          <Link
-            href="/classbot"
-            className="text-pullim-slate-400 hover:text-pullim-lemon inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
-            aria-label="클래스봇 홈으로"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-
-          <div
-            className={cn(
-              'pullim-anim-bot-breath pullim-anim-bot-blink flex shrink-0 items-center justify-center rounded-2xl ring-2 ring-white/15 transition-all',
-              headerCollapsed ? 'h-8 w-8 text-lg' : 'h-12 w-12 text-2xl',
-            )}
-            style={{ backgroundColor: botSig.hex }}
-          >
-            {bot.avatarEmoji}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            {!headerCollapsed && (
-              <div className="text-pullim-blue-200 text-[10px] font-bold tracking-wider uppercase">
-                {bot.organization}
-              </div>
-            )}
-            <h1 className="text-sm font-bold tracking-tight truncate">
-              {bot.name}
-              {!headerCollapsed && (
-                <span className="text-pullim-slate-400 text-xs font-normal"> — {bot.teacherName}의 디지털 분신</span>
-              )}
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-              {!headerCollapsed && (
-                <span className="bg-white/10 rounded-full px-2 py-0.5 font-bold">
-                  {bot.subject} · {bot.grade}
-                </span>
-              )}
-              {/* 범위 라벨 — 한글 우선, 코드는 괄호 ([07 § 5.3]) */}
-              <span className="bg-white/10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold">
-                <Shield className="text-pullim-lemon h-2.5 w-2.5" />
-                <span className="text-white/95">{scope.label}</span>
-                <span className="text-white/55 font-mono text-[9px]">({scope.short})</span>
-              </span>
-              {!headerCollapsed && (
-                <span className="bg-pullim-lemon/15 text-pullim-lemon border-pullim-lemon/30 rounded-full border px-2 py-0.5 font-bold">
-                  {bot.tone} 톤
-                </span>
-              )}
-            </div>
-            {!headerCollapsed && <LiveHeaderMeta bot={bot} />}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setHeaderCollapsed(c => !c)}
-            aria-label={headerCollapsed ? '봇 정보 펼치기' : '봇 정보 접기'}
-            aria-expanded={!headerCollapsed}
-            className="text-pullim-slate-300 hover:bg-white/10 hover:text-white inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          >
-            {headerCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </button>
-        </div>
-
-        {!headerCollapsed && (
-          <>
-            <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
-              <Eye className="text-pullim-lemon h-3 w-3" />
-              <span className="text-white/90">
-                <strong className="text-pullim-lemon">{bot.teacherName}</strong>이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.
-              </span>
-            </div>
-
-            {/* 현재 범위 + 시간대별 자동 스위치 안내 — 라이브 중엔 잠금 안내로 대체 */}
-            {!isLive && (
-              <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
-                <summary className="cursor-pointer list-none flex items-center gap-1.5">
-                  <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-                    {scope.label}
-                  </span>
-                  <span className="text-white/90 font-semibold">지금 봇 범위 — {scope.allow}</span>
-                  <span className="text-white/60 ml-auto text-[10px]">시간대별 자동 변동 ↗</span>
-                </summary>
-                <div className="text-white/80 mt-2 space-y-0.5 leading-relaxed">
-                  <p>· 18:00~19:00 · 단계 힌트까지 <span className="font-mono text-[10px] text-white/55">(L4)</span></p>
-                  <p>· 19:00~22:00 · 개념까지 <span className="font-mono text-[10px] text-white/55">(L3)</span> ← 현재 학원 시간</p>
-                  <p>· 22:00 이후 · 답까지 <span className="font-mono text-[10px] text-white/55">(L5)</span> 자기학습</p>
-                </div>
-              </details>
-            )}
-            {isLive && (
-              <div className="bg-pullim-lemon/15 border-pullim-lemon/40 mt-2 rounded-lg border px-3 py-1.5 text-[11px]">
-                <span className="text-pullim-lemon font-bold">🔒 라이브 정책 적용 중</span>
-                <span className="text-white/80 ml-1">— {scope.label} <span className="font-mono text-[10px] text-white/55">({scope.short})</span>으로 자동 잠금. 종료 후 평시 정책 복귀.</span>
-              </div>
-            )}
-          </>
-        )}
-      </header>
+      </div>
 
       {/* 라이브 진행 중인 봇이면 chat 위에 라이브 오버레이 — 슬라이드 · 자막 · 퀴즈 · 질문 큐 */}
       {isLive && (
