@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import BackLink from '@/components/classbot/back-link';
 import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
 import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -49,13 +50,7 @@ export default function StudentAssignmentListPage() {
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/classbot"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        클래스봇 홈
-      </Link>
+      <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <AssignmentListBody
         data={data}
