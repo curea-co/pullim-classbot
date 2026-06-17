@@ -1,30 +1,25 @@
 import { Compass, Lock, GraduationCap, Award, Globe } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import BackLink from '@/components/classbot/back-link';
+import { EmptyState } from '@/components/classbot/empty-state';
+import { SectionHeading } from '@/components/shell/section-heading';
 
 export default function ClassbotDiscoverPage() {
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
+      <BackLink href="/classbot">홈으로</BackLink>
       <PageHeader
         eyebrow={{ icon: Compass, text: '풀림 클래스봇' }}
         title="공식 봇 찾기"
         description="등록된 학원·학교 외에 풀림이 검수한 공식 클래스봇을 직접 추가할 수 있어요"
       />
 
-      {/* Locked future state */}
-      <section className="bg-pullim-slate-50 border-pullim-slate-200 rounded-2xl border-2 border-dashed p-8 text-center">
-        <span className="bg-pullim-slate-200 text-pullim-slate-500 mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl">
-          <Lock className="h-5 w-5" />
-        </span>
-        <h2 className="text-pullim-slate-900 text-base font-bold">v2에 만나요</h2>
-        <p className="text-pullim-slate-500 mx-auto mt-2 max-w-sm text-sm leading-relaxed">
-          현재 클래스봇은 선생님이 만들어 학생에게 배정하는 게 기본이에요. 학생이 직접 봇을 검색해서 등록하는 기능은 준비 중이에요.
-        </p>
-      </section>
+      <EmptyState icon={Lock} title="v2에 만나요" description="현재 클래스봇은 선생님이 만들어 배정하는 게 기본이에요. 학생이 직접 검색해 등록하는 기능은 준비 중이에요." size="lg" />
 
       {/* 어떤 봇이 올 예정 */}
       <section className="bg-card rounded-2xl border p-5">
-        <h3 className="text-pullim-slate-900 mb-3 text-sm font-bold">곧 만날 봇 종류</h3>
+        <SectionHeading title="곧 만날 봇 종류" />
         <ul className="space-y-3">
           <Future
             Icon={Award}
@@ -64,7 +59,7 @@ function Future({
       </span>
       <div className="min-w-0 flex-1">
         <div className="text-pullim-slate-900 text-sm font-bold">{title}</div>
-        <div className="text-pullim-slate-500 mt-0.5 text-[11px] leading-relaxed">{description}</div>
+        <div className="text-pullim-slate-500 mt-0.5 text-xs leading-relaxed">{description}</div>
       </div>
     </li>
   );
