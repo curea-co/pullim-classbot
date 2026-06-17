@@ -16,7 +16,7 @@ export function SectionHeading({ title, description, action, className }: Props)
           {title}
         </h2>
         {description && (
-          <p className="text-pullim-slate-500 mt-0.5 text-xs">{description}</p>
+          <p className="text-pullim-slate-500 mt-0.5 text-sm">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
