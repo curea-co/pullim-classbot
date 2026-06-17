@@ -18,24 +18,28 @@ export function Breadcrumb({ role }: { role: Role }) {
   if (trail.length <= 1) return null;
 
   return (
-    <nav aria-label="현재 위치" className="text-pullim-slate-500 flex flex-wrap items-center gap-1 text-xs">
-      {trail.map((node, i) => {
-        const isLast = i === trail.length - 1;
-        return (
-          <span key={`${node.label}-${i}`} className="inline-flex items-center gap-1">
-            {i > 0 && <ChevronRight className="text-pullim-slate-300 h-3 w-3" />}
-            {node.href && !isLast ? (
-              <Link href={node.href} className="hover:text-pullim-blue-600 hover:underline">
-                {node.label}
-              </Link>
-            ) : (
-              <span className={isLast ? 'text-pullim-slate-900 font-semibold' : ''}>
-                {node.label}
+    <div className="bg-pullim-slate-50/80 border-b border-pullim-slate-200/70 sticky top-0 z-10 backdrop-blur-md">
+      <div className="mx-auto flex h-9 w-full max-w-[1280px] items-center px-4 md:px-6 xl:px-8">
+        <nav aria-label="현재 위치" className="text-pullim-slate-500 flex flex-wrap items-center gap-1 text-xs">
+          {trail.map((node, i) => {
+            const isLast = i === trail.length - 1;
+            return (
+              <span key={`${node.label}-${i}`} className="inline-flex items-center gap-1">
+                {i > 0 && <ChevronRight className="text-pullim-slate-300 h-3 w-3" />}
+                {node.href && !isLast ? (
+                  <Link href={node.href} className="hover:text-pullim-blue-600 hover:underline">
+                    {node.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? 'text-pullim-slate-900 font-semibold' : ''}>
+                    {node.label}
+                  </span>
+                )}
               </span>
-            )}
-          </span>
-        );
-      })}
-    </nav>
+            );
+          })}
+        </nav>
+      </div>
+    </div>
   );
 }

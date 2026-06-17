@@ -40,12 +40,7 @@ export function AppShell({ role, children }: Props) {
 
           {/* 본문 */}
           <main className="flex-1 overflow-y-auto">
-            {/* 브레드크럼 — 모든 페이지 상단에 (사이드바 옆 본문 영역 기준 가운데 정렬) */}
-            <div className="bg-pullim-slate-50/80 border-b border-pullim-slate-200/70 sticky top-0 z-10 backdrop-blur-md">
-              <div className={`${CONTENT_MAX} flex h-9 items-center px-4 md:px-6 xl:px-8`}>
-                <Breadcrumb role={role} />
-              </div>
-            </div>
+            <Breadcrumb role={role} />
 
             {/* 페이지 콘텐츠 — 1280px 캡, 모바일 padding 좁게 */}
             <div
