@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Clock, Star, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import BackLink from '@/components/classbot/back-link';
 
 export type OnboardingStep = {
   Icon: LucideIcon;
@@ -80,7 +81,10 @@ export function OnboardingTemplate({
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* BackLink escape hatch */}
+      <BackLink href="/classbot">클래스봇 홈</BackLink>
+
       {/* sticky 진척 바 (P3-19 § 9.11.1) */}
       <StickyProgressBar
         Icon={Icon}
@@ -94,11 +98,10 @@ export function OnboardingTemplate({
       <header className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white shadow-xl sm:p-8">
         <div
           aria-hidden
-          className="absolute -top-20 -right-20 h-56 w-56 rounded-full opacity-30 blur-3xl"
-          style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+          className="absolute -top-20 -right-20 h-56 w-56 rounded-full opacity-30 blur-3xl glow-lemon"
         />
         <div className="relative">
-          <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider uppercase">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
             <span className="bg-white/15 inline-flex items-center gap-1 rounded-full px-2 py-0.5">
               <Icon className="h-3 w-3" />
               소개하기
@@ -131,8 +134,7 @@ export function OnboardingTemplate({
       <section className="from-pullim-blue-700 via-pullim-blue-600 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br px-6 py-8 text-center text-white shadow-xl sm:px-10 sm:py-12">
         <div
           aria-hidden
-          className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
-          style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+          className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full opacity-25 blur-3xl glow-lemon"
         />
         <div className="relative">
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{finalHeading}</h2>
@@ -310,7 +312,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
         {hasVisual && (
           <figure className={cn('relative min-w-0', isOdd && 'lg:order-1')} aria-label={step.demoSlot ? '인터랙티브 데모' : '화면 예시'}>
             {!step.demoSlot && (
-              <span className="border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-600 absolute -top-2 right-3 z-10 rounded-full border px-2 py-0.5 text-[11px] font-bold tracking-wide uppercase shadow-sm">
+              <span className="border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-600 absolute -top-2 right-3 z-10 rounded-full border px-2 py-0.5 text-xs font-bold tracking-wide uppercase shadow-sm">
                 예시
               </span>
             )}
