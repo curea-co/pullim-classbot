@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { GradingRow } from '@/components/classbot/grading-row';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { gradingQueue, gradingStats, overriddenSample, type GradingItem } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
@@ -59,14 +60,12 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       />
 
       {/* KPI */}
-      <section className="bg-card rounded-2xl border p-3">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Kpi label="대기" value={`${gradingStats.totalQueue}건`} accent />
-          <Kpi label="검토중" value={`${gradingStats.inReview}건`} />
-          <Kpi label="오늘 승인" value={`${todayApproved}건`} />
-          <Kpi label="평균 변경률" value={`${gradingStats.avgOverrideRate}%`} alert={gradingStats.avgOverrideRate >= 20} />
-        </ul>
-      </section>
+      <KpiStatBar cols={4}>
+        <KpiStat label="대기" value={`${gradingStats.totalQueue}건`} tone="accent" />
+        <KpiStat label="검토중" value={`${gradingStats.inReview}건`} />
+        <KpiStat label="오늘 승인" value={`${todayApproved}건`} />
+        <KpiStat label="평균 변경률" value={`${gradingStats.avgOverrideRate}%`} tone={gradingStats.avgOverrideRate >= 20 ? 'alert' : 'default'} />
+      </KpiStatBar>
 
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
@@ -133,15 +132,3 @@ function FilterChips({
   );
 }
 
-function Kpi({ label, value, accent, alert }: { label: string; value: string; accent?: boolean; alert?: boolean }) {
-  const valueClass =
-    alert  ? 'text-pullim-danger'
-    : accent ? 'text-pullim-blue-600'
-    : 'text-pullim-slate-900';
-  return (
-    <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[10px] font-semibold tracking-wider uppercase">{label}</div>
-      <div className={cn('mt-0.5 font-mono text-base font-bold', valueClass)}>{value}</div>
-    </li>
-  );
-}

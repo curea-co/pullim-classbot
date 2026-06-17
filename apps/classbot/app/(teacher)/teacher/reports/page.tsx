@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReportRow } from '@/components/classbot/report-row';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { reports, crisisAlerts, type ReportKind } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
@@ -46,13 +47,11 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       />
 
       {/* KPI */}
-      <section className="bg-card rounded-2xl border p-3">
-        <ul className="grid grid-cols-3 gap-3">
-          <Kpi label="발송 대기" value={`${pendingCount}건`} accent />
-          <Kpi label="초안" value={`${draftCount}건`} />
-          <Kpi label="위기 알림" value={`${activeCrises}건`} alert={activeCrises > 0} />
-        </ul>
-      </section>
+      <KpiStatBar cols={3}>
+        <KpiStat label="발송 대기" value={`${pendingCount}건`} tone="accent" />
+        <KpiStat label="초안" value={`${draftCount}건`} />
+        <KpiStat label="위기 알림" value={`${activeCrises}건`} tone={activeCrises > 0 ? 'alert' : 'default'} />
+      </KpiStatBar>
 
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
@@ -104,12 +103,3 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
   );
 }
 
-function Kpi({ label, value, accent, alert }: { label: string; value: string; accent?: boolean; alert?: boolean }) {
-  const valueClass = alert ? 'text-pullim-danger' : accent ? 'text-pullim-blue-600' : 'text-pullim-slate-900';
-  return (
-    <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[10px] font-semibold tracking-wider uppercase">{label}</div>
-      <div className={cn('mt-0.5 font-mono text-base font-bold', valueClass)}>{value}</div>
-    </li>
-  );
-}
