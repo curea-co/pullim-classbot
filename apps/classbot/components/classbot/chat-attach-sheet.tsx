@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { Camera, ImagePlus, PencilLine, ScanText, Mic, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
@@ -21,12 +21,8 @@ import { cn } from '@/lib/utils';
  * 실제 업로드/녹음은 v2 마일스톤.
  */
 export function ChatAttachSheet({ botName }: { botName: string }) {
-  const [openMessage, setOpenMessage] = useState<string | null>(null);
-
   function handlePick(label: string) {
-    setOpenMessage(`${label} — 곧 추가될 기능이에요. v2에서 만나요.`);
-    // 3초 후 자동 해제 (간단한 인라인 토스트)
-    setTimeout(() => setOpenMessage(null), 3000);
+    toast(`${label} — 곧 추가될 기능이에요. v2에서 만나요.`);
   }
 
   return (
@@ -59,15 +55,6 @@ export function ChatAttachSheet({ botName }: { botName: string }) {
           </ul>
         </SheetContent>
       </Sheet>
-
-      {openMessage && (
-        <div
-          role="status"
-          className="bg-pullim-slate-900 text-white pullim-anim-message-mount pointer-events-none fixed left-1/2 bottom-24 z-[60] -translate-x-1/2 rounded-full px-4 py-2 text-xs font-semibold shadow-lg"
-        >
-          {openMessage}
-        </div>
-      )}
     </>
   );
 }

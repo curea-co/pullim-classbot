@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   scopeMeta,
   pickClassbotReply, type ReplyKey,
@@ -168,7 +169,6 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 ReplyKey — 동적 빠른칩 추천에 사용
   const [lastBotReplyKey, setLastBotReplyKey] = useState<ReplyKey | undefined>();
-  const [notice, setNotice] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const stickyRef = useRef<boolean>(true);
@@ -410,10 +410,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
           <form onSubmit={handleSubmit} className="flex items-end gap-1.5">
             <ChatAttachSheet botName={bot.name} />
-            <ChatVoiceButton onNotify={msg => {
-              setNotice(msg);
-              setTimeout(() => setNotice(null), 3000);
-            }} />
+            <ChatVoiceButton onNotify={msg => toast(msg)} />
             <textarea
               ref={textareaRef}
               name="q"
@@ -434,10 +431,6 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
               <Send className="h-4 w-4" />
             </button>
           </form>
-
-          {notice && (
-            <p role="status" className="text-pullim-slate-500 text-center text-[11px]">{notice}</p>
-          )}
         </div>
       </section>
     </>
