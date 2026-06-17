@@ -36,7 +36,7 @@ const roleHomeHref: Record<Role, string> = {
  */
 export function AppHeader({ role }: { role: Role }) {
   return (
-    <header className="bg-card/85 sticky top-0 z-30 border-b backdrop-blur-md">
+    <header className="bg-card/90 supports-[backdrop-filter]:bg-card/75 sticky top-0 z-30 border-b backdrop-blur-md">
       <div className="flex h-14 items-center gap-2 px-3 md:px-4">
         {/* 모바일 햄버거 */}
         <MobileDrawer role={role} />
@@ -62,14 +62,14 @@ export function AppHeader({ role }: { role: Role }) {
           )}
           <button
             aria-label="검색"
-            className="hover:bg-pullim-slate-100 relative inline-flex h-9 w-9 items-center justify-center rounded-lg"
+            className="hover:bg-pullim-slate-100 relative inline-flex h-10 w-10 items-center justify-center rounded-xl"
             title="검색 (⌘ K)"
           >
             <Search className="h-5 w-5" />
           </button>
           <button
             aria-label="알림"
-            className="hover:bg-pullim-slate-100 relative inline-flex h-9 w-9 items-center justify-center rounded-lg"
+            className="hover:bg-pullim-slate-100 relative inline-flex h-10 w-10 items-center justify-center rounded-xl"
           >
             <Bell className="h-5 w-5" />
             <span className="bg-pullim-danger absolute top-1.5 right-1.5 inline-block h-2 w-2 rounded-full" />
