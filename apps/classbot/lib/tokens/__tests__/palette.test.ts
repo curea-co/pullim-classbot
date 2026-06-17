@@ -1,4 +1,5 @@
 import { palette } from '../palette';
+import { pullimBlue, pullimSemantic } from '../index';
 
 describe('palette canonical values (CUDS pullim × variant-B)', () => {
   it('primary ramp is the pullim hue-258 OKLCH ramp', () => {
@@ -23,4 +24,10 @@ describe('palette canonical values (CUDS pullim × variant-B)', () => {
     ];
     for (const v of colorVals) expect(v).toMatch(/^oklch\(/);
   });
+});
+
+it('index.ts derives from palette (single source)', () => {
+  expect(pullimBlue[600]).toBe(palette.primary[600]);
+  expect(pullimSemantic.success).toBe(palette.success[600]);
+  expect(pullimSemantic.warn).toBe(palette.warning[600]);
 });
