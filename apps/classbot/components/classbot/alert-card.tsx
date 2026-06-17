@@ -15,16 +15,19 @@ const toneMeta = {
     border: 'border-pullim-danger/30',
     bg: 'bg-pullim-danger-bg',
     titleColor: 'text-pullim-danger',
+    iconColor: 'text-pullim-danger',
   },
   warn: {
     border: 'border-pullim-warn/30',
     bg: 'bg-pullim-warn-bg',
     titleColor: 'text-pullim-warn',
+    iconColor: 'text-pullim-warn',
   },
   info: {
     border: 'border-pullim-blue-200',
     bg: 'bg-pullim-blue-50',
     titleColor: 'text-pullim-blue-600',
+    iconColor: 'text-pullim-blue-600',
   },
 } as const;
 
@@ -48,9 +51,9 @@ export function AlertCard({
     >
       {(Icon || title) && (
         <header className="mb-2 flex items-center gap-2">
-          {Icon && <Icon className="h-4 w-4" aria-hidden />}
+          {Icon && <Icon className={cn('h-4 w-4', meta.iconColor)} aria-hidden />}
           {title && (
-            <h3 className={cn('text-sm font-bold', meta.titleColor)}>
+            <h3 className={cn('text-[13px] font-bold', meta.titleColor)}>
               {title}
             </h3>
           )}

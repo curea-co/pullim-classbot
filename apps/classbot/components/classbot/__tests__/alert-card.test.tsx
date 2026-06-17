@@ -9,12 +9,14 @@ describe('AlertCard', () => {
   });
 
   it('renders title when provided', () => {
-    render(
+    const { container } = render(
       <AlertCard tone="danger" title="Warning">
         Content
       </AlertCard>
     );
-    expect(screen.getByText('Warning')).toBeInTheDocument();
+    const title = screen.getByText('Warning');
+    expect(title).toBeInTheDocument();
+    expect(title).toHaveClass('text-[13px]', 'font-bold');
   });
 
   it('renders icon when provided', () => {
@@ -25,6 +27,36 @@ describe('AlertCard', () => {
     );
     const svg = container.querySelector('svg');
     expect(svg).toBeInTheDocument();
+  });
+
+  it('applies danger tone color to icon', () => {
+    const { container } = render(
+      <AlertCard tone="danger" icon={AlertCircle}>
+        Content
+      </AlertCard>
+    );
+    const svg = container.querySelector('svg');
+    expect(svg).toHaveClass('text-pullim-danger');
+  });
+
+  it('applies warn tone color to icon', () => {
+    const { container } = render(
+      <AlertCard tone="warn" icon={AlertCircle}>
+        Content
+      </AlertCard>
+    );
+    const svg = container.querySelector('svg');
+    expect(svg).toHaveClass('text-pullim-warn');
+  });
+
+  it('applies info tone color to icon', () => {
+    const { container } = render(
+      <AlertCard tone="info" icon={AlertCircle}>
+        Content
+      </AlertCard>
+    );
+    const svg = container.querySelector('svg');
+    expect(svg).toHaveClass('text-pullim-blue-600');
   });
 
   it('applies danger tone styles', () => {
