@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { PullimLogo } from '@/components/brand/logo';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +99,9 @@ function ProfileMenu({ role }: { role: Role }) {
   const me = useCurrentUser();
   const { signOut } = useAuth();
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   // 세션 사용자면 그 이름, 비로그인(데모)면 역할별 데모 페르소나 메타.
   const profile =
     role === 'student'
@@ -164,6 +169,17 @@ function ProfileMenu({ role }: { role: Role }) {
               </DropdownMenuItem>
             );
           })}
+          <DropdownMenuItem
+            onClick={() => setTheme(mounted && resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="gap-1.5 px-2 py-1.5 text-sm"
+          >
+            {mounted && resolvedTheme === 'dark' ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+            {mounted && resolvedTheme === 'dark' ? '라이트 모드' : '다크 모드'}
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => void handleLogout()}
             variant="destructive"
