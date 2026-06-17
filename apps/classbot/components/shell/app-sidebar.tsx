@@ -8,6 +8,7 @@ import {
   type Role, type NavItem, type NavSubItem,
 } from './nav-config';
 import { cn } from '@/lib/utils';
+import { LiveBadge } from '@/components/classbot/live-badge';
 
 type Props = {
   role: Role;
@@ -219,16 +220,13 @@ function NavRow({
             </span>
           )}
           {item.badge !== undefined && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                item.badge === 'LIVE'
-                  ? 'bg-pullim-danger animate-pulse text-white'
-                  : 'bg-pullim-slate-100 text-pullim-slate-600',
-              )}
-            >
-              {item.badge}
-            </span>
+            item.badge === 'LIVE' ? (
+              <LiveBadge />
+            ) : (
+              <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
+                {item.badge}
+              </span>
+            )
           )}
         </>
       )}
