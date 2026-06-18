@@ -14,6 +14,9 @@ import { botSignature } from '@/lib/tokens/bot-signature';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/classbot/empty-state';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { SectionHeading } from '@/components/shell/section-heading';
 
 /**
  * 학생 홈 — V15 변형 (KPI header + V09 bot grid).
@@ -22,10 +25,9 @@ import { cn } from '@/lib/utils';
  * KPI header 한 줄을 최상단에 두고, 그 아래 V09 구조를 잇는다.
  *
  * 구성:
- *   1. KPI header — "오늘 N개 새 알림" + 라이브/마감/한 마디 인라인 메타
- *   2. 내 클래스봇 — 가로 5개 strip (정체성)
- *   3. 새로 온 것 — 2x2 카테고리 grid (과제·채점·한 마디·라이브)
- *   4. 받은 과제 다 보기 CTA
+ *   1. KPI header — "오늘 N개 새 알림" + KpiStatBar(라이브/마감/한 마디)
+ *   2. 2-col grid — 내 클래스봇(좌) + 새로 온 것(우)
+ *   3. 받은 과제 다 보기 CTA
  */
 export default function StudentClassbotPage() {
   const me = useRosterMe();
@@ -64,22 +66,25 @@ export default function StudentClassbotPage() {
         wellnessUnread={wellnessUnread}
       />
 
-      {/* 2. 내 클래스봇 — 가로 strip (정체성) */}
-      <MyBotsStrip
-        bots={myBots}
-        activeLive={activeLive}
-      />
+      {/* 2. 2-col grid — 내 클래스봇(좌) + 새로 온 것(우) */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {/* 내 클래스봇 — 가로 strip (정체성) */}
+        <MyBotsStrip
+          bots={myBots}
+          activeLive={activeLive}
+        />
 
-      {/* 3. 새로 온 것 — 2x2 카테고리 grid */}
-      <NewItemsGrid
-        assignmentCount={newAssignmentCount}
-        gradedCount={recentGradedCount}
-        wellnessUnread={wellnessUnread}
-        liveCount={liveCount}
-        liveHref={liveBots[0] ? `/classbot/live/${liveBots[0].bot.id}` : '/classbot/replay'}
-      />
+        {/* 새로 온 것 — 2x2 카테고리 grid */}
+        <NewItemsGrid
+          assignmentCount={newAssignmentCount}
+          gradedCount={recentGradedCount}
+          wellnessUnread={wellnessUnread}
+          liveCount={liveCount}
+          liveHref={liveBots[0] ? `/classbot/live/${liveBots[0].bot.id}` : '/classbot/replay'}
+        />
+      </section>
 
-      {/* 4. 받은 과제 다 보기 CTA */}
+      {/* 3. 받은 과제 다 보기 CTA */}
       <Link
         href="/classbot/assignment"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white flex items-center justify-between gap-2 rounded-2xl px-4 py-3.5 text-sm font-bold transition-colors shadow-pullim-sm"
@@ -88,7 +93,7 @@ export default function StudentClassbotPage() {
           <ClipboardList className="h-4 w-4" />
           받은 과제 다 보기
           {newAssignmentCount > 0 && (
-            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-2 py-0.5 font-mono text-[10px]">
+            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-2 py-0.5 font-mono text-xs">
               {newAssignmentCount}
             </span>
           )}
@@ -110,36 +115,25 @@ function KpiHeader({
 }) {
   if (totalNew === 0) {
     return (
-      <section className="bg-pullim-slate-50 border-pullim-slate-200 rounded-2xl border p-4">
-        <div className="text-pullim-slate-500 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
-          <Bell className="h-3 w-3" />
-          오늘 새 알림
-        </div>
-        <div className="text-pullim-slate-900 mt-1 text-2xl font-bold">
-          0<span className="text-pullim-slate-400 ml-1 text-sm font-semibold">개</span>
-        </div>
-        <p className="text-pullim-slate-500 mt-1 text-[11px]">
-          전부 따라잡았어요. 봇과 자유 대화로 한 발 더 가도 좋아요.
-        </p>
-      </section>
+      <EmptyState
+        tone="plain"
+        icon={Bell}
+        title="전부 따라잡았어요 🎉"
+        description="봇과 자유롭게 대화하며 한 발 더 나가볼까요?"
+        action={{ href: '/classbot/chat', label: '봇과 대화하기' }}
+      />
     );
   }
-
-  const metaParts: string[] = [];
-  if (liveCount > 0) metaParts.push(`라이브 ${liveCount}`);
-  if (urgentCount > 0) metaParts.push(`마감 ${urgentCount}`);
-  if (wellnessUnread > 0) metaParts.push(`한 마디 ${wellnessUnread}`);
 
   return (
     <section className="bg-pullim-blue-700 text-white relative overflow-hidden rounded-2xl p-4 shadow-pullim-sm">
       {/* lemon glow */}
       <div
         aria-hidden
-        className="absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+        className="glow-lemon absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
       />
       <div className="relative">
-        <div className="text-pullim-blue-100 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
+        <div className="text-pullim-blue-100 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
           <Bell className="h-3 w-3" />
           오늘 새 알림
         </div>
@@ -149,16 +143,11 @@ function KpiHeader({
           </span>
           <span className="text-white/80 text-sm font-semibold">개</span>
         </div>
-        {metaParts.length > 0 && (
-          <p className="text-pullim-blue-100 mt-2 text-[12px] font-semibold">
-            {metaParts.map((p, i) => (
-              <span key={p}>
-                {i > 0 && <span className="text-pullim-blue-300 mx-1.5">·</span>}
-                {p}
-              </span>
-            ))}
-          </p>
-        )}
+        <KpiStatBar cols={3} className="mt-3 border-white/10 bg-white/10 text-white">
+          <KpiStat label="라이브" value={String(liveCount)} tone="alert" />
+          <KpiStat label="마감" value={String(urgentCount)} tone="alert" />
+          <KpiStat label="한 마디" value={String(wellnessUnread)} tone="accent" />
+        </KpiStatBar>
       </div>
     </section>
   );
@@ -172,31 +161,30 @@ function MyBotsStrip({
   bots: { bot: ClassBot; enrollment: StudentEnrollment }[];
   activeLive: Record<string, unknown>;
 }) {
-  // 5개 미만은 빈 슬롯으로 채워 strip 형태 유지
-  const slots = Array.from({ length: Math.max(5, bots.length) }, (_, i) => bots[i] ?? null);
-
   return (
     <section>
-      <header className="mb-2 flex items-end justify-between">
-        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
-          내 클래스봇
-        </h2>
-        <span className="text-pullim-slate-400 font-mono text-[10px]">
-          {bots.length}명
-        </span>
-      </header>
-      <ul className="grid grid-cols-5 gap-1.5">
-        {slots.map((slot, i) => {
-          if (!slot) return <EmptyBotSlot key={`empty-${i}`} />;
-          return (
-            <BotStripItem
-              key={slot.bot.id}
-              bot={slot.bot}
-              enrollment={slot.enrollment}
-              isLiveNow={Boolean(activeLive[slot.bot.id])}
-            />
-          );
-        })}
+      <SectionHeading
+        title="내 클래스봇"
+        action={<span className="text-pullim-slate-500 text-xs font-bold">{bots.length}명</span>}
+      />
+      <ul className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-3 xl:grid-cols-4 gap-1.5">
+        {bots.map((slot) => (
+          <BotStripItem
+            key={slot.bot.id}
+            bot={slot.bot}
+            enrollment={slot.enrollment}
+            isLiveNow={Boolean(activeLive[slot.bot.id])}
+          />
+        ))}
+        <li>
+          <Link
+            href="/classbot/discover"
+            className="border-pullim-slate-200 text-pullim-slate-300 hover:border-pullim-blue-300 hover:text-pullim-blue-500 flex h-full min-h-[68px] flex-col items-center justify-center rounded-xl border border-dashed transition-colors"
+          >
+            <span className="text-lg leading-none">＋</span>
+            <span className="text-xs font-semibold mt-0.5">추가</span>
+          </Link>
+        </li>
       </ul>
     </section>
   );
@@ -236,7 +224,7 @@ function BotStripItem({
             {bot.avatarEmoji}
           </span>
           {isLiveNow && (
-            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-[9px] font-bold text-white">
+            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-[10px] font-bold text-white">
               <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
               LV
             </span>
@@ -245,23 +233,9 @@ function BotStripItem({
             <span className="bg-pullim-blue-600 absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" />
           )}
         </div>
-        <div className="text-pullim-slate-900 line-clamp-1 w-full text-[11px] font-bold leading-tight">
+        <div className="text-pullim-slate-900 line-clamp-1 w-full text-xs font-bold leading-tight">
           {bot.name}
         </div>
-      </Link>
-    </li>
-  );
-}
-
-function EmptyBotSlot() {
-  return (
-    <li>
-      <Link
-        href="/classbot/discover"
-        className="border-pullim-slate-200 text-pullim-slate-300 hover:border-pullim-blue-300 hover:text-pullim-blue-500 flex h-full min-h-[68px] flex-col items-center justify-center rounded-xl border border-dashed transition-colors"
-      >
-        <span className="text-lg leading-none">＋</span>
-        <span className="text-[10px] font-semibold mt-0.5">추가</span>
       </Link>
     </li>
   );
@@ -279,11 +253,14 @@ function NewItemsGrid({
 }) {
   return (
     <section>
-      <header className="mb-2">
-        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">
-          새로 온 것
-        </h2>
-      </header>
+      <SectionHeading
+        title="새로 온 것"
+        action={
+          <Link href="/classbot/replay" className="text-pullim-slate-500 hover:text-pullim-blue-600 text-xs font-semibold">
+            리플레이 →
+          </Link>
+        }
+      />
       <ul className="grid grid-cols-2 gap-2">
         <CategoryCell
           href="/classbot/assignment"
@@ -297,7 +274,7 @@ function NewItemsGrid({
           icon={ClipboardCheck}
           label="채점"
           count={gradedCount}
-          tone="green"
+          tone="blue"
         />
         <CategoryCell
           href="/classbot/wellness"
@@ -326,13 +303,12 @@ function CategoryCell({
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   count: number;
-  tone: 'blue' | 'green' | 'lemon' | 'red';
+  tone: 'blue' | 'lemon' | 'red';
   pulse?: boolean;
 }) {
   const hasNew = count > 0;
   const toneClasses = {
     blue:  { iconBg: 'bg-pullim-blue-50 text-pullim-blue-700',     countText: 'text-pullim-blue-700'   },
-    green: { iconBg: 'bg-emerald-50 text-emerald-700',             countText: 'text-emerald-700'      },
     lemon: { iconBg: 'bg-pullim-lemon/30 text-pullim-lemon-ink',   countText: 'text-pullim-lemon-ink' },
     red:   { iconBg: 'bg-pullim-danger/10 text-pullim-danger',     countText: 'text-pullim-danger'    },
   }[tone];
@@ -357,7 +333,7 @@ function CategoryCell({
           <Icon className={cn('h-5 w-5', pulse && 'pullim-anim-live-pulse')} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-pullim-slate-700 text-[11px] font-semibold uppercase tracking-wider">
+          <div className="text-pullim-slate-700 text-xs font-semibold uppercase tracking-wider">
             {label}
           </div>
           <div className={cn(
@@ -365,7 +341,7 @@ function CategoryCell({
             hasNew ? toneClasses.countText : 'text-pullim-slate-400',
           )}>
             {count}
-            <span className="text-pullim-slate-400 ml-1 text-[11px] font-semibold">건</span>
+            <span className="text-pullim-slate-400 ml-1 text-xs font-semibold">건</span>
           </div>
         </div>
         {hasNew && (

@@ -245,6 +245,10 @@
   --sidebar-ring: oklch(0.730 0.131 258);
 }
 
+@utility glow-lemon {
+  background: radial-gradient(circle, var(--color-pullim-lemon), transparent 70%);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
