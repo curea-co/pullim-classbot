@@ -118,7 +118,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       </Link>
 
       <PageHeader
-        eyebrow={{ icon: Sparkles, text: '제출 완료', tone: 'success' }}
+        eyebrow={{ icon: Sparkles, text: '제출 완료', tone: 'blue' }}
         title={<>수고했어요 <Heart className="text-pullim-blue-500 inline h-5 w-5" /></>}
         description={`${a.title} · ${bot?.name ?? a.assignedBy}`}
       />
