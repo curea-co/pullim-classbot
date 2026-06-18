@@ -131,33 +131,36 @@ export function Step2Voice({ form, setForm }: Props) {
             {(['tts1','tts2','tts3','tts4','tts5'] as const).map(p => {
               const meta = voicePresetMeta[p];
               return (
-                <RadioCard
-                  key={p}
-                  active={form.voicePreset === p}
-                  onSelect={() => setForm({ ...form, voicePreset: p })}
-                  title={meta.label}
-                  description={meta.description}
-                  icon={
-                    <span className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded-full',
-                      form.voicePreset === p ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100',
-                    )}>
-                      <Mic className="h-3.5 w-3.5" aria-hidden />
-                    </span>
-                  }
-                  trailing={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={e => { e.stopPropagation(); toast.info('샘플 재생 (데모)'); }}
-                      aria-label={`${meta.label} 샘플 재생`}
-                      className="text-pullim-blue-600 hover:bg-pullim-blue-50 text-[10px] font-bold"
-                    >
-                      ▶ 샘플
-                    </Button>
-                  }
-                />
+                // sample trigger is an absolute sibling, NOT RadioCard's `trailing`
+                // slot — that would nest a <button> inside RadioCard's role=radio
+                // <button> (invalid HTML).
+                <div key={p} className="relative">
+                  <RadioCard
+                    active={form.voicePreset === p}
+                    onSelect={() => setForm({ ...form, voicePreset: p })}
+                    title={meta.label}
+                    description={meta.description}
+                    className="pr-20"
+                    icon={
+                      <span className={cn(
+                        'flex h-7 w-7 items-center justify-center rounded-full',
+                        form.voicePreset === p ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100',
+                      )}>
+                        <Mic className="h-3.5 w-3.5" aria-hidden />
+                      </span>
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={e => { e.stopPropagation(); toast.info('샘플 재생 (데모)'); }}
+                    aria-label={`${meta.label} 샘플 재생`}
+                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold"
+                  >
+                    ▶ 샘플
+                  </Button>
+                </div>
               );
             })}
           </RadioCardGroup>
