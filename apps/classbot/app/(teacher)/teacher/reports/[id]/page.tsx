@@ -4,6 +4,7 @@ import { ArrowLeft, AlertTriangle, MessageCircle, FileText } from 'lucide-react'
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
+import { AlertCard } from '@/components/classbot/alert-card';
 import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
 import { ParentMessagePreview } from '@/components/classbot/parent-message-preview';
 import { reports, classRoster, buildParentMessage } from '@/lib/mock';
@@ -47,12 +48,8 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
 
       {/* 위기 신호 */}
       {hasAlerts && (
-        <section className="border-pullim-danger/30 bg-pullim-danger-bg rounded-2xl border p-4">
-          <header className="mb-2 flex items-center gap-2">
-            <AlertTriangle className="text-pullim-danger h-4 w-4" />
-            <h3 className="text-pullim-danger text-sm font-bold">위기 신호 {report.alerts?.length}건</h3>
-          </header>
-          <ul className="text-pullim-slate-700 space-y-1 text-[12px] leading-relaxed">
+        <AlertCard tone="danger" icon={AlertTriangle} title={`위기 신호 ${report.alerts?.length}건`}>
+          <ul className="space-y-1">
             {report.alerts?.map((a, i) => <li key={i}>• {a}</li>)}
           </ul>
           <div className="mt-3 flex gap-2">
@@ -62,7 +59,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
               disabled
               aria-disabled="true"
               title="준비 중 (v2 — 1:1 상담)"
-              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 text-white opacity-60 cursor-not-allowed"
+              className="bg-pullim-danger text-white hover:bg-pullim-danger/90 opacity-60 cursor-not-allowed"
             >
               <MessageCircle />
               1:1 상담 시작 (v2)
@@ -79,7 +76,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
               Wee센터 연결 (v2)
             </Button>
           </div>
-        </section>
+        </AlertCard>
       )}
 
       {/* KPI */}
@@ -108,19 +105,16 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
       {/* 2-col: 리포트 본문 + 학생 추세 사이드 */}
       <ContextRail
         railWidth="md"
+        stickyRail
         rail={student ? (
           <>
             {/* [13 § 3.3.2] 사이드 — 학생 7일 추세 mini chart. compact mode로 봇 CTA 자동 미노출. */}
             <WellbeingGauge studentId={student.id} compact />
-            <section className="bg-pullim-slate-50 rounded-2xl p-4">
-              <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
-                <MessageCircle className="h-3 w-3" />
-                첨부된 1:1 면담 메모
-              </h4>
-              <p className="text-pullim-slate-500 mt-2 text-[11px] leading-relaxed">
+            <AlertCard tone="info" icon={MessageCircle} title="첨부된 1:1 면담 메모">
+              <p className="leading-relaxed">
                 채점 허브에서 작성된 메모는 학생 개인 리포트에 자동 첨부돼요.
               </p>
-            </section>
+            </AlertCard>
           </>
         ) : undefined}
       >

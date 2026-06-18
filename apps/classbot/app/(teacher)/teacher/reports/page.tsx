@@ -5,6 +5,7 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReportRow } from '@/components/classbot/report-row';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPills } from '@/components/classbot/filter-pills';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { reports, crisisAlerts, type ReportKind } from '@/lib/mock';
 
 type SearchParams = Promise<{ kind?: string; status?: string }>;
@@ -59,9 +60,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       <section className="bg-card rounded-2xl border p-4">
         <SectionHeading title={`리포트 ${filtered.length}건`} description="위기 신호 있는 항목이 우선 정렬돼요." />
         {filtered.length === 0 ? (
-          <p className="text-pullim-slate-500 py-12 text-center text-sm">
-            아직 생성된 리포트가 없어요. 매일 19:50 자동 생성돼요.
-          </p>
+          <EmptyState icon={BarChart3} title="아직 생성된 리포트가 없어요" description="매일 19:50 자동 생성돼요." size="md" />
         ) : (
           <ul className="space-y-2">
             {filtered

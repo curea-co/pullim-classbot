@@ -7,6 +7,8 @@ import { getTeacherReplays, classBots, type Replay, type ReplayStatus } from '@/
 import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { cn } from '@/lib/utils';
+import BackLink from '@/components/classbot/back-link';
+import { EmptyState } from '@/components/classbot/empty-state';
 
 type StatusFilter = 'all' | ReplayStatus;
 
@@ -45,6 +47,7 @@ export default function TeacherReplayListPage() {
 
   return (
     <div className="space-y-4">
+      <BackLink href="/teacher">교사 홈</BackLink>
       <PageHeader
         eyebrow={{ icon: History, text: '풀림 교사' }}
         title="수업 리플레이"
@@ -81,9 +84,7 @@ export default function TeacherReplayListPage() {
       <ul className="space-y-2">
         {filtered.map(r => <TeacherReplayCard key={r.id} replay={r} />)}
         {filtered.length === 0 && (
-          <li className="bg-card text-pullim-slate-500 rounded-xl border p-6 text-center text-sm">
-            이 상태의 리플레이가 없어요.
-          </li>
+          <li><EmptyState icon={History} title="이 상태의 리플레이가 없어요." size="md" /></li>
         )}
       </ul>
     </div>

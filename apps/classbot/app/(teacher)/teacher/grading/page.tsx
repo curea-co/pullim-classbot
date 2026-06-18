@@ -5,6 +5,7 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { GradingRow } from '@/components/classbot/grading-row';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPills } from '@/components/classbot/filter-pills';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { gradingQueue, gradingStats, overriddenSample, type GradingItem } from '@/lib/mock';
 
 type SearchParams = Promise<{ status?: string; type?: string }>;
@@ -85,9 +86,12 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
           description="AI 신뢰도 낮은 순 — 신경 쓸 학생부터 보여요."
         />
         {sorted.length === 0 ? (
-          <p className="text-pullim-slate-500 py-12 text-center text-sm">
-            검수할 채점이 없어요. 학생들이 새로 제출하면 여기에 쌓여요.
-          </p>
+          <EmptyState
+            icon={ClipboardCheck}
+            title="검수할 채점이 없어요"
+            description="학생들이 새로 제출하면 여기에 쌓여요."
+            size="md"
+          />
         ) : (
           <ul className="space-y-2">
             {sorted.map(item => <GradingRow key={item.id} item={item} />)}
