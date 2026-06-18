@@ -5,10 +5,13 @@ import Link from 'next/link';
 import { ArrowLeft, ChevronLeft, ChevronRight, Check, MessageSquare, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { ContextRail } from '@/components/shell/context-rail';
 import { RubricEditor } from '@/components/classbot/rubric-editor';
 import { ScoreDisplay } from '@/components/classbot/score-display';
 import { OverrideDeltaMeter } from '@/components/classbot/override-delta-meter';
 import { CrisisGate } from '@/components/classbot/crisis-gate';
+import { AlertCard } from '@/components/classbot/alert-card';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
@@ -89,78 +92,10 @@ export function GradingDetail({
       {isCrisis && <CrisisGate studentName={item.studentName} />}
 
       {/* 메인 2-col */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          {/* 학생 응답 */}
-          <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="학생 응답" description="원본 그대로 노출됩니다." />
-            <div className="bg-pullim-slate-50 rounded-xl p-4">
-              <p className="text-pullim-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
-                {item.responsePreview}
-              </p>
-            </div>
-          </section>
-
-          {/* 루브릭 */}
-          <RubricEditor
-            initialRubric={item.rubric}
-            onChange={(_next, total) => {
-              const ratio = total / 100;
-              setFinalScore(Math.round(item.maxScore * ratio));
-            }}
-          />
-
-          {/* 코멘트 편집 */}
-          <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading
-              title="AI 초안 코멘트"
-              description="필요하면 직접 수정하거나 한 줄 더해주세요."
-            />
-            <Textarea
-              value={finalComment}
-              onChange={(e) => setFinalComment(e.target.value)}
-              rows={4}
-              maxLength={500}
-              aria-label="AI 초안 코멘트"
-              className="rounded-xl text-sm leading-relaxed"
-            />
-            <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
-              {finalComment.length}/500
-            </div>
-          </section>
-
-          {/* 액션 바 */}
-          <section className="bg-pullim-slate-900 sticky bottom-4 rounded-2xl p-3 shadow-pullim-md">
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <div className="text-pullim-slate-300 text-[10px] font-bold tracking-wider uppercase">최종 점수</div>
-                <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="inverse" />
-              </div>
-              <Button
-                type="button"
-                size="lg"
-                onClick={handleApprove}
-                disabled={isApproved || finalScore !== item.draftScore}
-                className="bg-pullim-slate-700 hover:bg-pullim-slate-600 text-white"
-              >
-                그대로 승인
-              </Button>
-              <Button
-                type="button"
-                variant="pullim-lemon"
-                size="lg"
-                onClick={handleApproveWithEdit}
-                disabled={isApproved}
-              >
-                <Check />
-                수정 후 승인
-              </Button>
-            </div>
-          </section>
-        </div>
-
-        {/* 사이드 */}
-        <aside className="space-y-4">
+      <ContextRail
+        railWidth="lg"
+        stickyRail
+        rail={<>
           <OverrideDeltaMeter currentDelta={overrideDelta} />
 
           {/* 학생 최근 5회 이력 */}
@@ -170,7 +105,7 @@ export function GradingDetail({
               description={`${item.studentName} 학생의 추세`}
             />
             {history.length === 0 ? (
-              <p className="text-pullim-slate-400 text-[11px]">이력 없음</p>
+              <EmptyState title="이력 없음" size="sm" tone="plain" />
             ) : (
               <ul className="space-y-1.5">
                 {history.slice(0, 5).map((h, i) => {
@@ -189,12 +124,8 @@ export function GradingDetail({
           </section>
 
           {/* 면담 메모 안내 */}
-          <section className="bg-pullim-slate-50 rounded-2xl p-4">
-            <h4 className="text-pullim-slate-900 inline-flex items-center gap-1 text-xs font-bold">
-              <MessageSquare className="h-3 w-3" />
-              1:1 면담 메모
-            </h4>
-            <p className="text-pullim-slate-500 mt-1 text-[11px] leading-relaxed">
+          <AlertCard tone="info" icon={MessageSquare} title="1:1 면담 메모">
+            <p className="text-pullim-slate-500 text-[11px] leading-relaxed">
               여기서 작성한 메모는 학생 개인 리포트에 자동 첨부돼 학생에게 부드러운 형태로 전달돼요.
             </p>
             <Button
@@ -208,9 +139,76 @@ export function GradingDetail({
             >
               메모 작성하기
             </Button>
-          </section>
-        </aside>
-      </div>
+          </AlertCard>
+        </>}
+      >
+        {/* 학생 응답 */}
+        <section className="bg-card rounded-2xl border p-4">
+          <SectionHeading title="학생 응답" description="원본 그대로 노출됩니다." />
+          <div className="bg-pullim-slate-50 rounded-xl p-4">
+            <p className="text-pullim-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+              {item.responsePreview}
+            </p>
+          </div>
+        </section>
+
+        {/* 루브릭 */}
+        <RubricEditor
+          initialRubric={item.rubric}
+          onChange={(_next, total) => {
+            const ratio = total / 100;
+            setFinalScore(Math.round(item.maxScore * ratio));
+          }}
+        />
+
+        {/* 코멘트 편집 */}
+        <section className="bg-card rounded-2xl border p-4">
+          <SectionHeading
+            title="AI 초안 코멘트"
+            description="필요하면 직접 수정하거나 한 줄 더해주세요."
+          />
+          <Textarea
+            value={finalComment}
+            onChange={(e) => setFinalComment(e.target.value)}
+            rows={4}
+            maxLength={500}
+            aria-label="AI 초안 코멘트"
+            className="rounded-xl text-sm leading-relaxed"
+          />
+          <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
+            {finalComment.length}/500
+          </div>
+        </section>
+
+        {/* 액션 바 */}
+        <section className="bg-card border sticky bottom-4 rounded-2xl p-3 shadow-pullim-md">
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">최종 점수</div>
+              <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="threshold" />
+            </div>
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleApprove}
+              disabled={isApproved || finalScore !== item.draftScore}
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-800"
+            >
+              그대로 승인
+            </Button>
+            <Button
+              type="button"
+              variant="pullim-lemon"
+              size="lg"
+              onClick={handleApproveWithEdit}
+              disabled={isApproved}
+            >
+              <Check />
+              수정 후 승인
+            </Button>
+          </div>
+        </section>
+      </ContextRail>
     </div>
   );
 }
