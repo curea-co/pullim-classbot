@@ -10,6 +10,9 @@ import { StudentRoster } from '@/components/classbot/student-roster';
 import { LiveFeedPanel } from '@/components/classbot/live-feed-panel';
 import { QuizLauncher } from '@/components/classbot/quiz-launcher';
 import { LiveBroadcastControls } from '@/components/classbot/live-broadcast-controls';
+import { AlertCard } from '@/components/classbot/alert-card';
+import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { myClassBot, studentAssignments, classRoster, type Assignment } from '@/lib/mock';
 import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
 import { PageHeader } from '@/components/shell/page-header';
@@ -49,30 +52,23 @@ export default function TeacherClassbotPage() {
 
       {/* 메인 3-pane (lg+) — 학생 명단 / 라이브 피드 / 퀴즈 */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_320px]">
-        <div className="min-h-[480px]">
+        <div>
           <StudentRoster />
         </div>
-        <div className="min-h-[480px]">
+        <div>
           <LiveFeedPanel />
         </div>
         <div className="space-y-4">
           <QuizLauncher />
-          <aside className="bg-pullim-slate-900 text-pullim-slate-200 rounded-2xl p-4 text-xs leading-relaxed">
-            <strong className="text-pullim-lemon flex items-center gap-1.5"><AlertTriangle className="h-4 w-4" aria-hidden /> 위기 신호 알림</strong>
-            <ul className="mt-1.5 space-y-1 text-pullim-slate-300">
-              <li>• <strong className="text-white">예은</strong> — 22분 무응답 + 웰빙 급락</li>
-              <li>• <strong className="text-white">도현</strong> — 감정 체크인 3일 연속 “힘듦”</li>
+          <AlertCard tone="danger" icon={AlertTriangle} title="위기 신호 알림">
+            <ul className="space-y-1 text-xs">
+              <li><strong>예은</strong>{' — '}22분 무응답 + 웰빙 급락</li>
+              <li><strong>도현</strong>{' — '}감정 체크인 3일 연속 힘듦</li>
             </ul>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="준비 중 (v2 — Wee센터 연계)"
-              className="bg-pullim-lemon text-pullim-lemon-ink mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold opacity-60 cursor-not-allowed"
-            >
+            <ComingSoonButton note="Wee센터 연계" className="mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold">
               1:1 상담 시작 / Wee센터 연결 (v2)
-            </button>
-          </aside>
+            </ComingSoonButton>
+          </AlertCard>
         </div>
       </div>
 
@@ -121,13 +117,7 @@ function DispatchedAssignments() {
         }
       />
       {assignments.length === 0 ? (
-        <div className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center">
-          <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-9 w-9 items-center justify-center rounded-lg">
-            <Inbox className="h-4 w-4" aria-hidden />
-          </span>
-          <p className="text-pullim-slate-900 text-sm font-bold">아직 발사한 과제가 없어요</p>
-          <p className="text-pullim-slate-500 text-[11px]">위의 [+ 새 과제] 버튼으로 첫 과제를 만들어 보세요.</p>
-        </div>
+        <EmptyState icon={Inbox} title="아직 발사한 과제가 없어요" action={{ href: '/teacher/assignment/new', label: '새 과제 발사' }} />
       ) : (
         <ul className="space-y-2">
           {assignments.map(a => <DispatchedRow key={a.id} assignment={a} />)}
@@ -199,16 +189,9 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          title="준비 중 (v2 — 같은 과제 재발사)"
-          className="text-pullim-blue-600 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg opacity-60 cursor-not-allowed"
-          aria-label="다시 발사 (준비 중)"
-        >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        <ComingSoonButton icon={Send} note="같은 과제 재발사" className="text-pullim-blue-600 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+          다시 발사
+        </ComingSoonButton>
       </div>
     </li>
   );
@@ -285,4 +268,3 @@ function EnrollmentToggleSection() {
     </section>
   );
 }
-
