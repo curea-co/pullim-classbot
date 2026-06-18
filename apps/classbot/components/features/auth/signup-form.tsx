@@ -3,10 +3,11 @@
 import { type FormEvent, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { GraduationCap, UserRound } from 'lucide-react';
+import { AlertCircle, GraduationCap, UserRound } from 'lucide-react';
 import { homePathForRole } from '@pullim-classbot/auth';
 import type { SelectableRole } from '@pullim-classbot/types';
 
+import { AlertCard } from '@/components/classbot/alert-card';
 import { AuthCard } from '@/components/features/auth/auth-card';
 import { GatedSocialButtons } from '@/components/features/auth/gated-buttons';
 import { useSignup } from '@/hooks/api/auth';
@@ -192,9 +193,9 @@ export function SignupForm() {
         </div>
 
         {apiError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {apiError}
-          </p>
+          <AlertCard tone="danger" icon={AlertCircle}>
+            <span role="alert">{apiError}</span>
+          </AlertCard>
         ) : null}
 
         <Button

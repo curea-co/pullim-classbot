@@ -11,6 +11,9 @@ import { GatedSocialButtons } from '@/components/features/auth/gated-buttons';
 import { useLogin } from '@/hooks/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import { isSafeNextPath } from '@/lib/auth/safe-next';
+import { AlertCircle } from 'lucide-react';
+
+import { AlertCard } from '@/components/classbot/alert-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,9 +120,9 @@ export function LoginForm() {
         </div>
 
         {apiError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {apiError}
-          </p>
+          <AlertCard tone="danger" icon={AlertCircle}>
+            <span role="alert">{apiError}</span>
+          </AlertCard>
         ) : null}
 
         <Button
