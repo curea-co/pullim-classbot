@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Mail, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 
 /**
  * 학부모 카카오 BIZ MESSAGE 미리보기 + 발송 워크플로.
@@ -48,16 +49,9 @@ export function ParentMessagePreview({ initialMessage, status }: { initialMessag
 
       {!sent && (
         <div className="mt-3 flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled
-            aria-disabled="true"
-            title="준비 중 (v2 — 발송 보류 큐)"
-            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 opacity-60 cursor-not-allowed"
-          >
+          <ComingSoonButton asButton variant="secondary" note="발송 보류 큐" className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700">
             보류
-          </Button>
+          </ComingSoonButton>
           <Button
             type="button"
             size="lg"

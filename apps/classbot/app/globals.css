@@ -174,6 +174,38 @@
 
   /* visualViewport 키보드 offset (P0-1 ─ JS가 동적으로 갱신) */
   --keyboard-offset: 0px;
+
+  /* CUDS 차트 토큰 — 풀림 팔레트 매핑 */
+  /* 8색 카테고리 팔레트 */
+  --chart-cat-1: var(--color-pullim-blue-600);
+  --chart-cat-2: var(--color-pullim-blue-400);
+  --chart-cat-3: var(--color-bot-science);
+  --chart-cat-4: var(--color-pullim-success);
+  --chart-cat-5: var(--color-bot-korean);
+  --chart-cat-6: var(--color-pullim-lemon);
+  --chart-cat-7: var(--color-bot-english);
+  --chart-cat-8: var(--color-pullim-info);
+
+  /* 히트맵 — 강도 5단계 */
+  --surface-sunken: var(--color-pullim-slate-100);
+  --color-primary-100: var(--color-pullim-blue-100);
+  --color-primary-300: var(--color-pullim-blue-300);
+  --color-primary-500: var(--color-pullim-blue-500);
+  --color-primary-700: var(--color-pullim-blue-700);
+
+  /* 불릿 차트 — 인텐트 컬러 */
+  --color-action-primary: var(--color-pullim-blue-600);
+  --color-success-500: var(--color-pullim-success);
+  --color-warning-500: var(--color-pullim-warn);
+  --color-danger-500: var(--color-pullim-danger);
+
+  /* 차트 공유 텍스트·보더 */
+  --text-primary: var(--foreground);
+  --text-secondary: var(--color-pullim-slate-600);
+  --text-tertiary: var(--color-pullim-slate-500);
+  --border-subtle: var(--border);
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
 }
 
 .dark {

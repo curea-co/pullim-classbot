@@ -13,6 +13,7 @@ import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { cn } from '@/lib/utils';
 
 export default function ClassbotReplayListPage() {
@@ -73,30 +74,20 @@ export default function ClassbotReplayListPage() {
       {/* 봇 필터 chip */}
       {botFilters.length > 1 && (
         <section className="bg-card rounded-xl border p-2">
-          <ul className="flex gap-1.5 overflow-x-auto">
-            <li className="shrink-0">
-              <FilterChip
-                active={filterBotId === 'all'}
-                onClick={() => setFilterBotId('all')}
-                label="전체"
-                count={allReplays.length}
-              />
-            </li>
-            {botFilters.map(b => {
-              const count = allReplays.filter(r => r.botId === b.id).length;
-              return (
-                <li key={b.id} className="shrink-0">
-                  <FilterChip
-                    active={filterBotId === b.id}
-                    onClick={() => setFilterBotId(b.id)}
-                    label={b.name}
-                    emoji={b.avatarEmoji}
-                    count={count}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          <FilterPillButtons
+            shape="tab"
+            current={filterBotId}
+            onSelect={setFilterBotId}
+            options={[
+              { value: 'all', label: '전체', count: allReplays.length },
+              ...botFilters.map(b => ({
+                value: b.id,
+                label: b.avatarEmoji ? `${b.avatarEmoji} ${b.name}` : b.name,
+                count: allReplays.filter(r => r.botId === b.id).length,
+              })),
+            ]}
+            className="overflow-x-auto flex-nowrap"
+          />
         </section>
       )}
 
@@ -138,31 +129,6 @@ export default function ClassbotReplayListPage() {
         다시 본 구간은 <strong>풀림 복습</strong>의 망각 곡선 큐에 자동 추가되고, 틀린 퀴즈는 <strong>오답정복</strong>으로 흘러가요.
       </FlywheelNote>
     </div>
-  );
-}
-
-function FilterChip({
-  active, onClick, label, emoji, count,
-}: { active: boolean; onClick: () => void; label: string; emoji?: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors',
-        active
-          ? 'bg-pullim-blue-600 text-white'
-          : 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100',
-      )}
-    >
-      {emoji && <span className="text-base leading-none">{emoji}</span>}
-      <span>{label}</span>
-      <span className={cn(
-        'rounded-full px-1.5 py-0.5 font-mono text-[10px]',
-        active ? 'bg-white/20' : 'bg-pullim-slate-200 text-pullim-slate-600',
-      )}>{count}</span>
-    </button>
   );
 }
 

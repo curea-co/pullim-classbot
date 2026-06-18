@@ -10,6 +10,8 @@ import {
 } from '@/lib/mock';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { CrisisInterventionPanel } from '@/components/classbot/crisis-intervention-panel';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { cn } from '@/lib/utils';
 
 export default function TeacherHomePage() {
@@ -45,16 +47,14 @@ export default function TeacherHomePage() {
       />
 
       {/* KPI 6종 */}
-      <section className="bg-card rounded-2xl border p-3">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Kpi label="오늘 수업" value={`${upcomingLessons.filter(l => l.status !== 'ended').length}건`} />
-          <Kpi label="활성 학생" value={`${classKpis.liveStudents}/${classKpis.totalStudents}`} />
-          <Kpi label="평균 정답률" value={`${classKpis.avgAccuracy}%`} accent />
-          <Kpi label="질문 (1H)" value={`${classKpis.questionsLastHour}건`} />
-          <Kpi label="채점 대기" value={`${pendingItems[0].count}건`} />
-          <Kpi label="위기 알림" value={`${classKpis.burnoutAlerts}명`} alert={classKpis.burnoutAlerts > 0} />
-        </ul>
-      </section>
+      <KpiStatBar cols={6}>
+        <KpiStat label="오늘 수업" value={`${upcomingLessons.filter(l => l.status !== 'ended').length}건`} />
+        <KpiStat label="활성 학생" value={`${classKpis.liveStudents}/${classKpis.totalStudents}`} />
+        <KpiStat label="평균 정답률" value={`${classKpis.avgAccuracy}%`} tone="accent" />
+        <KpiStat label="질문 (1H)" value={`${classKpis.questionsLastHour}건`} />
+        <KpiStat label="채점 대기" value={`${pendingItems[0].count}건`} />
+        <KpiStat label="위기 알림" value={`${classKpis.burnoutAlerts}명`} tone={classKpis.burnoutAlerts > 0 ? 'alert' : 'default'} />
+      </KpiStatBar>
 
       {/* 메인 2-col */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -234,24 +234,6 @@ export default function TeacherHomePage() {
   );
 }
 
-function Kpi({
-  label, value, accent, alert,
-}: {
-  label: string; value: string; accent?: boolean; alert?: boolean;
-}) {
-  const valueClass =
-    accent ? 'text-pullim-blue-600'
-    : alert ? 'text-pullim-danger'
-    : 'text-pullim-slate-900';
-  return (
-    <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[10px] font-semibold tracking-wider uppercase">
-        {label}
-      </div>
-      <div className={`mt-0.5 font-mono text-base font-bold ${valueClass}`}>{value}</div>
-    </li>
-  );
-}
 
 function QuickAction({
   Icon, label, description, color, href,
@@ -275,14 +257,8 @@ function QuickAction({
   );
   if (href) return <Link href={href} className={className}>{inner}</Link>;
   return (
-    <button
-      type="button"
-      disabled
-      aria-disabled="true"
-      title="준비 중 (v2)"
-      className={cn(className, 'opacity-60 cursor-not-allowed')}
-    >
+    <ComingSoonButton className={className}>
       {inner}
-    </button>
+    </ComingSoonButton>
   );
 }

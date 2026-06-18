@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { GradingItem } from '@/lib/mock';
 import { Slider } from '@/components/ui/slider';
-import { cn } from '@/lib/utils';
+import { ScoreDisplay } from '@/components/classbot/score-display';
 
 type RubricItem = GradingItem['rubric'][number];
 
@@ -41,13 +41,12 @@ export function RubricEditor({
         </div>
         <div className="text-right">
           <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">최종</div>
-          <div className="text-pullim-blue-600 font-mono text-xl font-bold">{totalPct}<span className="text-pullim-slate-400 text-sm">/100</span></div>
+          <ScoreDisplay score={totalPct} max={100} size="lg" tone="fixed-accent" />
         </div>
       </header>
 
       <ul className="space-y-3">
         {rubric.map((r, i) => {
-          const pct = (r.score / r.weight) * 100;
           return (
             <li key={r.criterion} className="bg-pullim-slate-50/50 rounded-lg p-3">
               <div className="flex items-center justify-between gap-2">
@@ -61,12 +60,7 @@ export function RubricEditor({
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="font-mono text-sm font-bold">
-                    <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
-                      {r.score}
-                    </span>
-                    <span className="text-pullim-slate-400">/{r.weight}</span>
-                  </div>
+                  <ScoreDisplay score={r.score} max={r.weight} size="md" tone="threshold" />
                 </div>
               </div>
               <Slider

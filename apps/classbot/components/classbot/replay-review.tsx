@@ -16,6 +16,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { heatColor } from '@/lib/tokens/heat-color';
+import { Sparkbar } from '@/components/classbot/sparkbar';
 
 const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; color: string; icon: LucideIcon }> = {
   'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
@@ -371,29 +373,19 @@ function SegmentsPreview({ replay }: { replay: Replay }) {
 }
 
 /* ─── 집중도 미리보기 ─── */
-function heatColor(v: number): string {
-  if (v >= 90) return 'var(--color-pullim-heat-5)';
-  if (v >= 80) return 'var(--color-pullim-heat-4)';
-  if (v >= 70) return 'var(--color-pullim-heat-3)';
-  if (v >= 60) return 'var(--color-pullim-heat-2)';
-  return 'var(--color-pullim-heat-1)';
-}
-
 function FocusHeatmapPreview({ bins }: { bins: number[] }) {
   if (bins.length === 0) return null;
   return (
     <section className="bg-card rounded-2xl border p-4">
       <SectionHeading title="반 집중도" description={`1분 단위 · 학생도 같은 데이터 봄`} />
-      <div className="flex h-12 items-end gap-0.5">
-        {bins.map((v, i) => (
-          <div
-            key={i}
-            className="flex-1 rounded-sm"
-            style={{ height: `${Math.max(8, v)}%`, backgroundColor: heatColor(v) }}
-            title={`${i}분: ${v}/100`}
-          />
-        ))}
-      </div>
+      <Sparkbar
+        data={bins.map((v, i) => ({ value: v, title: `${i}분: ${v}/100` }))}
+        fill={heatColor}
+        fillMode="css"
+        heightPx={48}
+        minPct={8}
+        gapClassName="gap-0.5"
+      />
       <div className="text-pullim-slate-400 mt-1.5 flex justify-between font-mono text-[10px]">
         <span>0:00</span>
         <span>{formatReplayTime((bins.length * 60) / 2)}</span>

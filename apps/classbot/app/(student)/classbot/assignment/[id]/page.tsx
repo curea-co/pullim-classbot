@@ -4,6 +4,7 @@ import { use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Play, AlertCircle, Inbox } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
+import { AlertCard } from '@/components/classbot/alert-card';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,17 +73,13 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
 
       {/* 시험 모드 경고 */}
       {isExam && !isSubmitted && (
-        <section className="border-pullim-danger/30 bg-pullim-danger-bg rounded-2xl border p-4">
-          <header className="mb-2 flex items-center gap-2">
-            <AlertCircle className="text-pullim-danger h-4 w-4" />
-            <h3 className="text-pullim-danger text-sm font-bold">시작 전 확인</h3>
-          </header>
-          <ul className="text-pullim-slate-700 space-y-1 text-[11px] leading-relaxed">
+        <AlertCard tone="danger" icon={AlertCircle} title="시작 전 확인">
+          <ul className="space-y-1">
             <li>• 시작하면 봇이 잠겨요. 시험 도중 도움을 받을 수 없어요.</li>
             <li>• 시간도 멈출 수 없어요. 60분 카운트다운이 자동으로 시작돼요.</li>
             <li>• 외부 탭으로 전환하면 카운트가 기록돼요.</li>
           </ul>
-        </section>
+        </AlertCard>
       )}
 
       {/* 문항 미리보기 */}

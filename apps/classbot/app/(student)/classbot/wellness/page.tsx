@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Heart, MessageCircle, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
 import {
   getCheckInsForStudent, hasTodayCheckIn, moodMeta,
@@ -22,13 +23,7 @@ export default function WellnessPage() {
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/classbot"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        클래스봇 홈
-      </Link>
+      <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <PageHeader
         eyebrow={{ icon: Heart, text: '내 웰빙' }}

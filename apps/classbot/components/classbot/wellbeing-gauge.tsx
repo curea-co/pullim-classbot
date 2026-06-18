@@ -7,6 +7,7 @@ import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
+import { Sparkbar } from '@/components/classbot/sparkbar';
 
 /**
  * 웰빙 지수 게이지 + 7일 추세 + 5지표 펼침.
@@ -68,20 +69,15 @@ export function WellbeingGauge({
             {tone.label}
           </span>
         </header>
-        <div className="flex h-8 items-end gap-0.5" aria-label="최근 7일 웰빙 추세">
-          {trend.map((t) => {
-            const h = Math.max(4, (t.score / 100) * 32);
-            const c = scoreTone(t.score).bar;
-            return (
-              <div
-                key={t.daysAgo}
-                className={cn('w-full rounded-sm', c)}
-                style={{ height: `${h}px` }}
-                title={`${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}`}
-              />
-            );
-          })}
-        </div>
+        <Sparkbar
+          data={trend.map((t) => ({ value: t.score, key: t.daysAgo, title: `${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}` }))}
+          fill={(v) => scoreTone(v).bar}
+          fillMode="class"
+          heightPx={32}
+          minBarPx={4}
+          gapClassName="gap-0.5"
+          aria-label="최근 7일 웰빙 추세"
+        />
       </section>
     );
   }
@@ -151,20 +147,15 @@ export function WellbeingGauge({
       {/* 7일 추세 — 새 컬러 매핑 ([13 § 9.1.2]) */}
       <div className="mt-3">
         <div className="text-pullim-slate-500 mb-1 text-[11px] font-bold tracking-wider uppercase">최근 7일</div>
-        <div className="flex h-12 items-end gap-1">
-          {trend.map((t) => {
-            const h = Math.max(8, (t.score / 100) * 48);
-            const c = scoreTone(t.score).bar;
-            return (
-              <div
-                key={t.daysAgo}
-                className={cn('w-full rounded-sm', c)}
-                style={{ height: `${h}px` }}
-                title={`${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}`}
-              />
-            );
-          })}
-        </div>
+        <Sparkbar
+          data={trend.map((t) => ({ value: t.score, key: t.daysAgo, title: `${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}` }))}
+          fill={(v) => scoreTone(v).bar}
+          fillMode="class"
+          heightPx={48}
+          minBarPx={8}
+          gapClassName="gap-1"
+          aria-label="최근 7일 웰빙 추세"
+        />
         <div className="text-pullim-slate-500 mt-1 flex justify-between text-[11px]">
           <span>7일 전</span>
           <span>오늘</span>

@@ -1,11 +1,11 @@
-import Link from 'next/link';
-import { ArrowLeft, BarChart3 } from 'lucide-react';
-import { PageHeader } from '@/components/shell/page-header';
+import { BarChart3 } from 'lucide-react';
+import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ReportRow } from '@/components/classbot/report-row';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
+import { FilterPills } from '@/components/classbot/filter-pills';
 import { reports, crisisAlerts, type ReportKind } from '@/lib/mock';
-import { cn } from '@/lib/utils';
 
 type SearchParams = Promise<{ kind?: string; status?: string }>;
 
@@ -30,51 +30,29 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
   const activeCrises = crisisAlerts.filter(c => !c.resolved).length;
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      <Link
-        href="/teacher"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        교사 홈
-      </Link>
-
-      <PageHeader
-        eyebrow={{ icon: BarChart3, text: '리포트 센터' }}
-        title="6종 리포트"
-        description="자동 생성된 리포트를 검토하고 학부모께 발송해주세요."
-      />
-
+    <TeacherPageShell
+      backHref="/teacher"
+      backLabel="교사 홈"
+      header={{
+        eyebrow: { icon: BarChart3, text: '리포트 센터' },
+        title: '6종 리포트',
+        description: '자동 생성된 리포트를 검토하고 학부모께 발송해주세요.',
+      }}
+    >
       {/* KPI */}
-      <section className="bg-card rounded-2xl border p-3">
-        <ul className="grid grid-cols-3 gap-3">
-          <Kpi label="발송 대기" value={`${pendingCount}건`} accent />
-          <Kpi label="초안" value={`${draftCount}건`} />
-          <Kpi label="위기 알림" value={`${activeCrises}건`} alert={activeCrises > 0} />
-        </ul>
-      </section>
+      <KpiStatBar cols={3}>
+        <KpiStat label="발송 대기" value={`${pendingCount}건`} tone="accent" />
+        <KpiStat label="초안" value={`${draftCount}건`} />
+        <KpiStat label="위기 알림" value={`${activeCrises}건`} tone={activeCrises > 0 ? 'alert' : 'default'} />
+      </KpiStatBar>
 
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {kindFilters.map(f => {
-            const isActive = kindFilter === f.value;
-            return (
-              <Link
-                key={f.value}
-                href={`/teacher/reports?kind=${f.value}`}
-                className={cn(
-                  'rounded-full px-3 py-1 text-[11px] font-bold transition-colors',
-                  isActive
-                    ? 'bg-pullim-blue-600 text-white'
-                    : 'bg-pullim-slate-100 text-pullim-slate-600 hover:bg-pullim-slate-200',
-                )}
-              >
-                {f.label}
-              </Link>
-            );
-          })}
-        </div>
+        <FilterPills
+          options={kindFilters}
+          current={kindFilter}
+          href={(v) => `/teacher/reports?kind=${v}`}
+        />
       </section>
 
       {/* 리포트 목록 */}
@@ -100,16 +78,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       <FlywheelNote>
         승인된 리포트는 24시간 안에 카카오톡으로 자동 발송돼요. 학부모 열람률은 다음 주 KPI에 반영돼요.
       </FlywheelNote>
-    </div>
+    </TeacherPageShell>
   );
 }
 
-function Kpi({ label, value, accent, alert }: { label: string; value: string; accent?: boolean; alert?: boolean }) {
-  const valueClass = alert ? 'text-pullim-danger' : accent ? 'text-pullim-blue-600' : 'text-pullim-slate-900';
-  return (
-    <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[10px] font-semibold tracking-wider uppercase">{label}</div>
-      <div className={cn('mt-0.5 font-mono text-base font-bold', valueClass)}>{value}</div>
-    </li>
-  );
-}

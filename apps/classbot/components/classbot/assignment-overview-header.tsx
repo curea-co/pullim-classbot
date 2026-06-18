@@ -1,5 +1,6 @@
-import { Clock, Sparkles, Target, AlertCircle } from 'lucide-react';
+import { Clock, Target, AlertCircle, Sparkles } from 'lucide-react';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import { BotNote } from '@/components/classbot/bot-note';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
@@ -54,13 +55,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
         </p>
 
         {a.reasonHint && (
-          <div className="border-pullim-blue-200 bg-pullim-blue-50/50 mt-3 rounded-lg border p-3">
-            <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">
-              <Sparkles className="-mt-0.5 mr-0.5 inline h-3 w-3" />
-              봇 한 마디
-            </div>
-            <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">{a.reasonHint}</p>
-          </div>
+          <BotNote>{a.reasonHint}</BotNote>
         )}
       </div>
     </section>
