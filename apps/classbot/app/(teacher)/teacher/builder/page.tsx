@@ -97,7 +97,7 @@ export default function BotBuilderPage() {
           </div>
         </header>
 
-        <div className="min-h-[280px]">
+        <div className="max-w-2xl mx-auto min-h-[40vh]">
           {currentStep === 1 && <Step1Identity form={form} setForm={setForm} />}
           {currentStep === 2 && <Step2Voice form={form} setForm={setForm} />}
           {currentStep === 3 && <Step3Materials form={form} setForm={setForm} />}
@@ -108,7 +108,7 @@ export default function BotBuilderPage() {
           {currentStep === 8 && <Step8Deploy form={form} setForm={setForm} />}
         </div>
 
-        {/* 푸터 — 이전/다음 (Step 8은 step 내부에 배포 버튼) */}
+        {/* 푸터 — 이전/다음 (Step 8은 step 내부 하단 배포하기 CTA) */}
         <footer className="mt-5 flex items-center justify-between border-t pt-4">
           <button
             type="button"

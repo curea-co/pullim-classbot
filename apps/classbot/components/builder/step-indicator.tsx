@@ -16,13 +16,49 @@ type Props = {
 };
 
 /**
- * 8단계 위저드 진행 표시 — 데스크탑 가로, 모바일 세로 압축.
- * 완료 단계는 체크, 현재 단계는 강조, 미완 단계는 흐림.
+ * 8단계 위저드 진행 표시.
+ * 모바일(< sm): 단계 N/8 + 현재 레이블 + 8-세그먼트 슬림 트랙.
+ * 데스크탑(sm+): 완전한 레이블 그리드.
  */
 export function StepIndicator({ steps, current, onJump }: Props) {
+  const currentStep = steps.find(s => s.num === current);
+  const total = steps.length;
+
   return (
     <nav aria-label="봇 빌더 진행" className="bg-card overflow-hidden rounded-2xl border">
-      <ol className="grid grid-cols-4 sm:grid-cols-8 divide-pullim-slate-100 divide-x">
+      {/* ── 모바일 컴팩트 뷰 (< sm) ── */}
+      <div className="sm:hidden px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-pullim-slate-500 font-mono font-bold">
+            단계 {current} / {total}
+          </span>
+          <span className="text-pullim-blue-700 font-bold">
+            {currentStep?.label}
+          </span>
+        </div>
+        {/* 8-세그먼트 슬림 트랙 */}
+        <div className="flex gap-1" role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total} aria-label={`${current}단계 / ${total}단계 진행`}>
+          {steps.map(s => (
+            <button
+              key={s.num}
+              type="button"
+              onClick={() => onJump(s.num)}
+              aria-label={`${s.num}단계 ${s.label}으로 이동`}
+              className={cn(
+                'h-1.5 flex-1 rounded-full transition-colors',
+                s.num < current
+                  ? 'bg-pullim-blue-400'
+                  : s.num === current
+                  ? 'bg-pullim-blue-600'
+                  : 'bg-pullim-slate-200',
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── 데스크탑 전체 그리드 (sm+) ── */}
+      <ol className="hidden sm:grid grid-cols-8 divide-pullim-slate-100 divide-x">
         {steps.map(s => {
           const isActive = s.num === current;
           const isDone = s.num < current;

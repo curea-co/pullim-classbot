@@ -16,6 +16,7 @@ import { RequiredMark } from '@/components/shell/required-mark';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioCard, RadioCardGroup } from '@/components/classbot/radio-card';
 
 type Props = {
   form: BuilderForm;
@@ -72,31 +73,22 @@ export function Step1Identity({ form, setForm }: Props) {
 
       <div>
         <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">캐릭터 톤</Label>
-        <div role="radiogroup" aria-label="캐릭터 톤" className="grid grid-cols-3 gap-2">
+        <RadioCardGroup ariaLabel="캐릭터 톤" cols={3}>
           {(['formal', 'friendly', 'spartan'] as const).map(t => {
             const meta = toneMeta[t];
-            const active = form.tone === t;
+            const Icon = meta.Icon;
             return (
-              <button
+              <RadioCard
                 key={t}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setForm({ ...form, tone: t })}
-                className={cn(
-                  'flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                  active
-                    ? 'border-pullim-blue-500 bg-pullim-blue-50'
-                    : 'border-pullim-slate-200 hover:border-pullim-slate-400',
-                )}
-              >
-                <meta.Icon className="text-pullim-blue-600 h-5 w-5" aria-hidden />
-                <span className="text-pullim-slate-900 text-sm font-bold">{meta.label}</span>
-                <span className="text-pullim-slate-500 text-[10px] leading-snug">{meta.description}</span>
-              </button>
+                active={form.tone === t}
+                onSelect={() => setForm({ ...form, tone: t })}
+                title={meta.label}
+                description={meta.description}
+                icon={<Icon className="h-5 w-5 text-pullim-blue-600" />}
+              />
             );
           })}
-        </div>
+        </RadioCardGroup>
       </div>
     </div>
   );
@@ -116,82 +108,59 @@ export function Step2Voice({ form, setForm }: Props) {
 
       <div>
         <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">선택 방식</Label>
-        <div role="radiogroup" aria-label="음성 선택 방식" className="grid grid-cols-2 gap-2">
-          {(['preset', 'clone'] as const).map(m => {
-            const active = form.voiceMode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setForm({ ...form, voiceMode: m })}
-                className={cn(
-                  'inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-2 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                  active ? 'border-pullim-blue-500 bg-pullim-blue-50 font-bold' : 'border-pullim-slate-200',
-                )}
-              >
-                {m === 'preset' ? (
-                  <>
-                    <Music className="h-3.5 w-3.5" aria-hidden />
-                    TTS 프리셋
-                  </>
-                ) : (
-                  <>
-                    <Mic className="h-3.5 w-3.5" aria-hidden />
-                    내 음성 복제
-                  </>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <RadioCardGroup ariaLabel="음성 선택 방식" cols={2}>
+          <RadioCard
+            active={form.voiceMode === 'preset'}
+            onSelect={() => setForm({ ...form, voiceMode: 'preset' })}
+            title={<span className="inline-flex items-center gap-1.5"><Music className="h-3.5 w-3.5" aria-hidden />TTS 프리셋</span>}
+            size="sm"
+          />
+          <RadioCard
+            active={form.voiceMode === 'clone'}
+            onSelect={() => setForm({ ...form, voiceMode: 'clone' })}
+            title={<span className="inline-flex items-center gap-1.5"><Mic className="h-3.5 w-3.5" aria-hidden />내 음성 복제</span>}
+            size="sm"
+          />
+        </RadioCardGroup>
       </div>
 
       {form.voiceMode === 'preset' ? (
         <div>
           <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">TTS 프리셋 (5종)</Label>
-          <ul role="radiogroup" aria-label="TTS 프리셋" className="space-y-1.5">
+          <RadioCardGroup ariaLabel="TTS 프리셋" layout="list">
             {(['tts1','tts2','tts3','tts4','tts5'] as const).map(p => {
               const meta = voicePresetMeta[p];
-              const active = form.voicePreset === p;
               return (
-                <li key={p} className="relative">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setForm({ ...form, voicePreset: p })}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-lg border px-3 py-2 pr-16 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                      active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
-                    )}
-                  >
+                <RadioCard
+                  key={p}
+                  active={form.voicePreset === p}
+                  onSelect={() => setForm({ ...form, voicePreset: p })}
+                  title={meta.label}
+                  description={meta.description}
+                  icon={
                     <span className={cn(
                       'flex h-7 w-7 items-center justify-center rounded-full',
-                      active ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100',
+                      form.voicePreset === p ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100',
                     )}>
                       <Mic className="h-3.5 w-3.5" aria-hidden />
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-pullim-slate-900 text-sm font-bold">{meta.label}</div>
-                      <div className="text-pullim-slate-500 text-[10px]">{meta.description}</div>
-                    </div>
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => toast.info('샘플 재생 (데모)')}
-                    aria-label={`${meta.label} 샘플 재생`}
-                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute top-1/2 right-2 -translate-y-1/2 text-[10px] font-bold"
-                  >
-                    ▶ 샘플
-                  </Button>
-                </li>
+                  }
+                  trailing={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={e => { e.stopPropagation(); toast.info('샘플 재생 (데모)'); }}
+                      aria-label={`${meta.label} 샘플 재생`}
+                      className="text-pullim-blue-600 hover:bg-pullim-blue-50 text-[10px] font-bold"
+                    >
+                      ▶ 샘플
+                    </Button>
+                  }
+                />
               );
             })}
-          </ul>
+          </RadioCardGroup>
         </div>
       ) : (
         <div className="bg-pullim-slate-50 rounded-lg p-4 text-center">
@@ -299,29 +268,22 @@ export function Step4Style({ form, setForm }: Props) {
       <p className="text-pullim-slate-600 text-xs">
         봇의 기본 응답 전략. 단원·시간대별로 시스템이 자동 전환할 수도 있어요.
       </p>
-      <div role="radiogroup" aria-label="교수 스타일" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <RadioCardGroup ariaLabel="교수 스타일" cols={2}>
         {(['lecture', 'discussion', 'problem', 'mixed'] as const).map(s => {
           const meta = teachingStyleMeta[s];
-          const active = form.teachingStyle === s;
+          const Icon = meta.Icon;
           return (
-            <button
+            <RadioCard
               key={s}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setForm({ ...form, teachingStyle: s })}
-              className={cn(
-                'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200 hover:border-pullim-slate-400',
-              )}
-            >
-              <meta.Icon className="text-pullim-blue-600 h-6 w-6" aria-hidden />
-              <span className="text-pullim-slate-900 text-sm font-bold">{meta.label}</span>
-              <span className="text-pullim-slate-600 text-[11px] leading-relaxed">{meta.description}</span>
-            </button>
+              active={form.teachingStyle === s}
+              onSelect={() => setForm({ ...form, teachingStyle: s })}
+              title={meta.label}
+              description={meta.description}
+              icon={<Icon className="h-5 w-5 text-pullim-blue-600" />}
+            />
           );
         })}
-      </div>
+      </RadioCardGroup>
     </div>
   );
 }
@@ -332,40 +294,29 @@ export function Step5Scope({ form, setForm }: Props) {
     <div className="space-y-4">
       <div>
         <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">기본 Scope 단계</Label>
-        <ul role="radiogroup" aria-label="기본 Scope 단계" className="space-y-1.5">
+        <RadioCardGroup ariaLabel="기본 Scope 단계" layout="list">
           {([1,2,3,4,5] as const).map(l => {
             const meta = scopeMeta[l];
-            const active = form.scopeDefault === l;
             return (
-              <li key={l}>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setForm({ ...form, scopeDefault: l })}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg border-2 p-2.5 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                    active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'flex h-7 w-9 shrink-0 items-center justify-center rounded font-mono text-[11px] font-bold',
-                      active ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100 text-pullim-slate-700',
-                    )}
-                  >
+              <RadioCard
+                key={l}
+                active={form.scopeDefault === l}
+                onSelect={() => setForm({ ...form, scopeDefault: l })}
+                title={meta.label}
+                description={meta.allow}
+                icon={
+                  <span className={cn(
+                    'flex h-7 w-9 items-center justify-center rounded font-mono text-[11px] font-bold',
+                    form.scopeDefault === l ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100 text-pullim-slate-700',
+                  )}>
                     {meta.short}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-pullim-slate-900 text-sm font-bold">{meta.label}</div>
-                    <div className="text-pullim-slate-500 text-[11px]">{meta.allow}</div>
-                  </div>
-                  {l === 3 && <Shield className="text-pullim-blue-500 h-4 w-4" />}
-                </button>
-              </li>
+                }
+                trailing={l === 3 ? <Shield className="text-pullim-blue-500 h-4 w-4" /> : undefined}
+              />
             );
           })}
-        </ul>
+        </RadioCardGroup>
         <p className="text-pullim-slate-400 mt-2 text-[10px]">L3 (교과 범위) 가 일반 수업의 추천 기본값</p>
       </div>
 
@@ -445,28 +396,20 @@ export function Step6Eval({ form, setForm }: Props) {
 
       <div>
         <Label className="text-pullim-slate-700 mb-2 block text-xs font-bold">오답 피드백 스타일</Label>
-        <div role="radiogroup" aria-label="오답 피드백 스타일" className="grid grid-cols-3 gap-2">
+        <RadioCardGroup ariaLabel="오답 피드백 스타일" cols={3}>
           {(['guide','direct','hybrid'] as const).map(s => {
             const meta = feedbackStyleMeta[s];
-            const active = form.feedbackStyle === s;
             return (
-              <button
+              <RadioCard
                 key={s}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setForm({ ...form, feedbackStyle: s })}
-                className={cn(
-                  'rounded-lg border-2 p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                  active ? 'border-pullim-blue-500 bg-pullim-blue-50' : 'border-pullim-slate-200',
-                )}
-              >
-                <div className="text-pullim-slate-900 text-sm font-bold">{meta.label}</div>
-                <div className="text-pullim-slate-500 mt-0.5 text-[10px] leading-snug">{meta.description}</div>
-              </button>
+                active={form.feedbackStyle === s}
+                onSelect={() => setForm({ ...form, feedbackStyle: s })}
+                title={meta.label}
+                description={meta.description}
+              />
             );
           })}
-        </div>
+        </RadioCardGroup>
       </div>
     </div>
   );
@@ -633,7 +576,7 @@ export function Step8Deploy({ form, setForm }: Props) {
       </section>
 
       <section className="bg-pullim-slate-900 rounded-xl p-4 text-white">
-        <div className="text-pullim-lemon flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
+        <div className="text-pullim-blue-300 flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
           <Sparkles className="h-3 w-3" />
           최종 확인
         </div>
@@ -644,28 +587,29 @@ export function Step8Deploy({ form, setForm }: Props) {
           <li>· Scope L{form.scopeDefault}{form.scopeAutoSwitch && ' (자동 스위치)'}</li>
           <li>· {form.classrooms.length}개 반 배포 예정</li>
         </ul>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => toast.info('드래프트 저장 (데모)')}
-            className="bg-white/10 text-white hover:bg-white/20"
-          >
-            <Copy />
-            드래프트 저장
-          </Button>
-          <Button
-            type="button"
-            variant="pullim-lemon"
-            size="sm"
-            onClick={deploy}
-          >
-            <Rocket aria-hidden />
-            배포하기
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => toast.info('드래프트 저장 (데모)')}
+          className="mt-3 bg-white/10 text-white hover:bg-white/20 w-full"
+        >
+          <Copy />
+          드래프트 저장
+        </Button>
       </section>
+
+      {/* 배포하기 — Step 8 하단 명확한 primary CTA */}
+      <Button
+        type="button"
+        variant="pullim-lemon"
+        size="lg"
+        onClick={deploy}
+        className="w-full"
+      >
+        <Rocket aria-hidden />
+        배포하기
+      </Button>
     </div>
   );
 }
