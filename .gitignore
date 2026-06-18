@@ -71,3 +71,6 @@ apps/*/output/screen-captures/
 
 # 로컬 Postgres 컨테이너 볼륨 (docker-compose.yml)
 /.docker/
+
+# Playwright-MCP debug artifacts
+.playwright-mcp/
