@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Check, Heart } from 'lucide-react';
+import { ArrowRight, Check, Heart } from 'lucide-react';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
+import BackLink from '@/components/classbot/back-link';
+import { Textarea } from '@/components/ui/textarea';
 import { type EmotionMood } from '@/lib/mock';
 import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
 import { useRosterMe } from '@/lib/current-user';
@@ -103,13 +105,7 @@ export function CheckInForm() {
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/classbot/wellness"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        웰빙 허브
-      </Link>
+      <BackLink href="/classbot/wellness">웰빙 허브</BackLink>
 
       <header>
         <div className="text-pullim-blue-600 inline-flex items-center gap-1 text-xs font-bold tracking-wider uppercase">
@@ -132,12 +128,12 @@ export function CheckInForm() {
       {mood !== null && (
         <section className="bg-card rounded-2xl border p-4">
           <h3 className="text-pullim-slate-900 text-xs font-bold">오늘 어떤 일이 있었어요? (선택)</h3>
-          <textarea
+          <Textarea
             value={freeText}
             onChange={(e) => setFreeText(e.target.value.slice(0, 200))}
             rows={3}
             placeholder="한 줄로 적어주세요. 비워두고 넘어가도 괜찮아요."
-            className="border-pullim-slate-200 focus:border-pullim-blue-500 mt-2 w-full rounded-xl border p-3 text-sm leading-relaxed outline-none"
+            className="mt-2 text-sm leading-relaxed"
           />
           <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
             {freeText.length}/200
