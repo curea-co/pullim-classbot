@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {
   ArrowRight, Bot, Plus, Zap, ClipboardCheck, BarChart3, Radio,
-  Clock, AlertTriangle, Heart, LayoutDashboard, MessageCircle,
+  Clock, LayoutDashboard, MessageCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import {
@@ -12,6 +12,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { CrisisInterventionPanel } from '@/components/classbot/crisis-intervention-panel';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { cn } from '@/lib/utils';
 
 export default function TeacherHomePage() {
@@ -27,14 +28,13 @@ export default function TeacherHomePage() {
         description={`${currentTeacher.organization} · 활성 봇 ${currentTeacher.activeBots}개 · 학생 ${currentTeacher.totalStudents}명`}
         action={
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled
-              className="bg-pullim-slate-900 text-pullim-slate-300 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold opacity-70 cursor-not-allowed"
+            <Link
+              href="/teacher/builder"
+              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 text-white inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold"
             >
               <Plus className="h-4 w-4" />
               새 클래스봇
-            </button>
+            </Link>
             <Link
               href="/teacher/classbot"
               className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white shadow-pullim-sm"
@@ -60,7 +60,7 @@ export default function TeacherHomePage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* 운영 중 봇 — 2col 점유 */}
         <section className="bg-card relative overflow-hidden rounded-2xl border lg:col-span-2">
-          <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-pullim-blue-500 via-pullim-danger to-pullim-lemon" aria-hidden />
+          <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-pullim-blue-500 via-pullim-blue-700 to-pullim-danger" aria-hidden />
           <div className="p-5">
             <div className="mb-3 flex items-center gap-2">
               <span className="bg-pullim-danger inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
@@ -139,30 +139,34 @@ export default function TeacherHomePage() {
               </Link>
             }
           />
-          <ul className="space-y-2">
-            {recentQuestions.map(q => (
-              <li key={q.id} className="bg-pullim-slate-50 rounded-lg p-2.5">
-                <div className="flex items-center gap-1.5 text-[10px]">
-                  <span className="bg-pullim-blue-600 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white">
-                    {q.studentName[0]}
-                  </span>
-                  <span className="text-pullim-slate-700 font-semibold">{q.studentName}</span>
-                  <span className="text-pullim-slate-400">·</span>
-                  <span className="text-pullim-slate-500 font-mono">{q.agoMin === 0 ? '방금' : `${q.agoMin}분 전`}</span>
-                  {q.shared && (
-                    <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold">
-                      전체 공유됨
+          {recentQuestions.length === 0 ? (
+            <EmptyState tone="plain" size="sm" title="최근 질문이 없어요" />
+          ) : (
+            <ul className="space-y-2">
+              {recentQuestions.map(q => (
+                <li key={q.id} className="bg-pullim-slate-50 rounded-lg p-2.5">
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span className="bg-pullim-blue-600 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white">
+                      {q.studentName[0]}
                     </span>
-                  )}
-                </div>
-                <p className="text-pullim-slate-900 mt-1 text-sm font-semibold">{q.question}</p>
-                <p className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-1 text-[11px]">
-                  <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
-                  <span className="line-clamp-1">{q.botAnswerPreview}</span>
-                </p>
-              </li>
-            ))}
-          </ul>
+                    <span className="text-pullim-slate-700 font-semibold">{q.studentName}</span>
+                    <span className="text-pullim-slate-400">·</span>
+                    <span className="text-pullim-slate-500 font-mono">{q.agoMin === 0 ? '방금' : `${q.agoMin}분 전`}</span>
+                    {q.shared && (
+                      <span className="bg-pullim-blue-100 text-pullim-blue-700 ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold">
+                        전체 공유됨
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-pullim-slate-900 mt-1 text-sm font-semibold">{q.question}</p>
+                  <p className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-1 text-[11px]">
+                    <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="line-clamp-1">{q.botAnswerPreview}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="bg-card rounded-2xl border p-5">
@@ -170,35 +174,39 @@ export default function TeacherHomePage() {
             title="다가오는 수업"
             description="오늘·내일·이번 주"
           />
-          <ul className="space-y-2.5">
-            {upcomingLessons.map(l => (
-              <li key={l.id} className={cn(
-                'rounded-lg border p-3',
-                l.status === 'live' ? 'border-pullim-danger/30 bg-pullim-danger/5' : 'border-pullim-slate-200',
-              )}>
-                <div className="flex items-center gap-2">
-                  <span className="text-pullim-slate-500 font-mono text-xs font-bold">
-                    {l.start}
-                  </span>
-                  {l.status === 'live' && (
-                    <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white">
-                      <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
-                      LIVE
+          {upcomingLessons.length === 0 ? (
+            <EmptyState tone="plain" size="sm" title="예정된 수업이 없어요" />
+          ) : (
+            <ul className="space-y-2.5">
+              {upcomingLessons.map(l => (
+                <li key={l.id} className={cn(
+                  'rounded-lg border p-3',
+                  l.status === 'live' ? 'border-pullim-danger/30 bg-pullim-danger/5' : 'border-pullim-slate-200',
+                )}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-pullim-slate-500 font-mono text-xs font-bold">
+                      {l.start}
                     </span>
-                  )}
-                  <span className="text-pullim-slate-400 ml-auto text-[10px]">
-                    준비도 {Math.round(l.prepReady * 100)}%
-                  </span>
-                </div>
-                <div className="text-pullim-slate-900 mt-1 text-sm font-bold">
-                  {l.title}
-                </div>
-                <div className="text-pullim-slate-500 text-[11px]">
-                  {l.chapter} · {l.botName} · {l.studentCount}명
-                </div>
-              </li>
-            ))}
-          </ul>
+                    {l.status === 'live' && (
+                      <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white">
+                        <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
+                        LIVE
+                      </span>
+                    )}
+                    <span className="text-pullim-slate-400 ml-auto text-[10px]">
+                      준비도 {Math.round(l.prepReady * 100)}%
+                    </span>
+                  </div>
+                  <div className="text-pullim-slate-900 mt-1 text-sm font-bold">
+                    {l.title}
+                  </div>
+                  <div className="text-pullim-slate-500 text-[11px]">
+                    {l.chapter} · {l.botName} · {l.studentCount}명
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
