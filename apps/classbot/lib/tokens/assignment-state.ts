@@ -14,6 +14,7 @@
  */
 
 import type { Assignment } from '@/lib/mock';
+import { palette } from './palette';
 
 export type AssignmentVisualState =
   | 'in-progress'
@@ -54,7 +55,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'exam',
       progressClass: 'bg-pullim-slate-900',
-      linerHex: '#0F1A3A',
+      linerHex: palette.gray[950],
       dDayChipClass: 'bg-pullim-slate-900 text-pullim-lemon',
       dDayLabel: a.dDay,
       semanticLabel: '시험',
@@ -64,7 +65,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'wrong-conquest',
       progressClass: 'bg-pullim-lemon',
-      linerHex: '#E6FF4C',
+      linerHex: palette.lemon.base,
       dDayChipClass: 'bg-pullim-lemon text-pullim-lemon-ink',
       dDayLabel: a.dDay,
       semanticLabel: '오답정복',
@@ -77,7 +78,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'complete',
       progressClass: 'bg-pullim-success',
-      linerHex: '#0E8C56',
+      linerHex: palette.success[600],
       dDayChipClass: 'bg-pullim-success-bg text-pullim-success',
       dDayLabel: '완료',
       semanticLabel: '완료',
@@ -89,7 +90,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'overdue',
       progressClass: 'bg-pullim-danger',
-      linerHex: '#C03B3F',
+      linerHex: palette.danger[600],
       dDayChipClass: 'bg-pullim-danger-bg text-pullim-danger',
       dDayLabel: a.dDay,
       semanticLabel: '지연',
@@ -102,7 +103,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'overdue',
       progressClass: 'bg-pullim-danger',
-      linerHex: '#C03B3F',
+      linerHex: palette.danger[600],
       dDayChipClass: 'bg-pullim-danger-bg text-pullim-danger',
       dDayLabel: a.dDay,
       semanticLabel: '지연',
@@ -112,7 +113,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     return {
       state: 'urgent',
       progressClass: 'bg-pullim-warn',
-      linerHex: '#D97706',
+      linerHex: palette.warning[600],
       dDayChipClass: 'bg-pullim-warn-bg text-pullim-warn',
       dDayLabel: parsed.value === 0 ? '오늘' : '내일',
       semanticLabel: '마감 임박',
@@ -123,7 +124,7 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
   return {
     state: 'in-progress',
     progressClass: 'bg-pullim-blue-600',
-    linerHex: '#EEF3FF',
+    linerHex: palette.primary[50],
     dDayChipClass: 'bg-pullim-slate-100 text-pullim-slate-600',
     dDayLabel: a.dDay,
     semanticLabel: '진행 중',

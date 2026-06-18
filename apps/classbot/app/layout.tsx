@@ -1,13 +1,21 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import './globals.css';
 
-// Pretendard는 globals.css의 CDN @import로 로드 (한글 가변폰트).
-// 영문 모노스페이스는 next/font로 자체 호스팅.
+// Pretendard — 한글 가변폰트, next/font/local 자체 호스팅 (CDN render-blocking 제거).
+const pretendard = localFont({
+  src: './fonts/PretendardVariable.woff2',
+  variable: '--font-pretendard',
+  weight: '45 920',
+  display: 'swap',
+});
+
+// 영문 모노스페이스는 next/font/google으로 자체 호스팅.
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
@@ -54,7 +62,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0362DA',
+  themeColor: '#0362DA', // = pullim primary seed (#0362DA)
 };
 
 export default function RootLayout({
@@ -63,7 +71,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
-      className={`${geistMono.variable} h-full antialiased`}
+      className={`${pretendard.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-full font-sans">

@@ -1,80 +1,45 @@
 /**
  * 풀림 디자인 토큰 — 런타임 (차트·동적 스타일·이벤트 색상 등)
- * CSS 변수와 같은 값을 export. globals.css와 동기화 유지 필수.
+ * 모든 색은 palette.ts 에서 파생 — hex/literal 중복 복사 금지.
  * 정적 스타일은 Tailwind 클래스(bg-pullim-blue-500 등)를 우선 사용.
  */
 
-export const pullimBlue = {
-  50:  '#EEF3FF',
-  100: '#DCE6FF',
-  200: '#B8CDFF',
-  300: '#8BAEFF',
-  400: '#5A8BFF',
-  500: '#3B6FF6',
-  600: '#2854D8',
-  700: '#1D3FA8',
-  800: '#152E7A',
-  900: '#0E1F54',
-  950: '#070F2C',
-} as const;
+import { palette } from './palette';
 
-export const pullimSlate = {
-  0:   '#FFFFFF',
-  25:  '#FBFCFE',
-  50:  '#F5F7FB',
-  100: '#EDF0F5',
-  200: '#DDE2EC',
-  300: '#C4CBDA',
-  400: '#97A0B4',
-  500: '#6B7489',
-  600: '#4A536A',
-  700: '#343B50',
-  800: '#20263A',
-  900: '#121627',
-  950: '#080B18',
-} as const;
+export const pullimBlue = palette.primary;
 
-/**
- * 시맨틱 색.
- * - danger: 위험·삭제·시험 모드 시그니처. 화면에 노출되는 유일한 시맨틱 hue.
- * - success/warn: deprecated (2026-05-12). 토큰은 1차 보존하지만 신규 사용 금지 — 정답·완료는 pullimBlue로, 주의는 pullimBlue[700] 또는 pullimSlate[500] + 아이콘 명시로 대체.
- *   spec § 1.3 / proc/plan/2026-05-12_color-palette-narrowing.md 참고.
- */
+export const pullimSlate = palette.gray;
+
+/** 시맨틱 색 (CUDS values — success/warn 복원됨, 2026-05-12 deprecated 해제). */
 export const pullimSemantic = {
-  /** @deprecated 2026-05-12 — pullimBlue[500/600]으로 대체 */
-  success:   '#12B26B',
-  /** @deprecated 2026-05-12 */
-  successBg: '#E6F7EE',
-  /** @deprecated 2026-05-12 — pullimBlue[700] 또는 pullimSlate[500]로 대체 */
-  warn:      '#F59E0B',
-  /** @deprecated 2026-05-12 */
-  warnBg:    '#FEF3DB',
-  danger:    '#E5484D',
-  dangerBg:  '#FCE9EA',
+  success:   palette.success[600],
+  successBg: palette.success[50],
+  warn:      palette.warning[600],
+  warnBg:    palette.warning[50],
+  danger:    palette.danger[600],
+  dangerBg:  palette.danger[50],
 } as const;
 
 /** IRT 난이도 5단계 (1=매우쉬움, 5=매우어려움) */
 export const pullimIrtLevel = [
-  '#E5EEFF', // 1
-  '#A9C4FF', // 2
-  '#5A8BFF', // 3
-  '#2854D8', // 4
-  '#152E7A', // 5
+  palette.primary[100], // 1
+  palette.primary[300], // 2
+  palette.primary[500], // 3
+  palette.primary[700], // 4
+  palette.primary[900], // 5
 ] as const;
 
 /** 학습 히트맵 6단계 (0=미학습, 5=완전정복) */
 export const pullimHeat = [
-  '#F0F3F9', // 0
-  '#D9E5FB', // 1
-  '#A9C4FF', // 2
-  '#5A8BFF', // 3
-  '#2854D8', // 4
-  '#0E1F54', // 5
+  palette.gray[100],    // 0
+  palette.primary[100], // 1
+  palette.primary[300], // 2
+  palette.primary[500], // 3
+  palette.primary[700], // 4
+  palette.primary[900], // 5
 ] as const;
 
-export const pullimRadius = {
-  xs: 4, sm: 6, md: 10, lg: 14, xl: 20, pill: 9999,
-} as const;
+export const pullimRadius = palette.radius;
 
 export const pullimShadow = {
   xs:   '0 1px 2px rgba(18, 22, 39, 0.04)',
@@ -85,30 +50,26 @@ export const pullimShadow = {
 } as const;
 
 /** 풀림 레몬 — 강조 CTA·스트릭·완료 인증 (플래너 핸드오프 12.1) */
-export const pullimLemon = {
-  base: '#E6FF4C',
-  soft: '#F5FFB8',
-  ink:  '#5C6B0A',
-} as const;
+export const pullimLemon = palette.lemon;
 
 /** Recharts 기본 팔레트 (브랜드 블루 변주) */
 export const pullimChartColors = [
-  pullimBlue[500],
-  pullimBlue[400],
-  pullimBlue[600],
-  pullimBlue[300],
-  pullimBlue[700],
-  pullimBlue[200],
+  palette.primary[600],
+  palette.primary[400],
+  palette.primary[700],
+  palette.primary[300],
+  palette.primary[500],
+  palette.primary[200],
 ] as const;
 
-/** 과목별 컬러 — 블루 명도 변주로 통일 (2026-05-12 색 스펙트럼 축소). */
+/** 과목별 컬러 — 블루 명도 변주로 통일. */
 export const pullimSubjectColors = {
-  korean:  pullimBlue[700],   // 국어
-  math:    pullimBlue[500],   // 수학
-  english: pullimBlue[400],   // 영어
-  science: pullimBlue[600],   // 과학
-  social:  pullimBlue[300],   // 사회
-  history: pullimBlue[800],   // 한국사
+  korean:  palette.primary[700],
+  math:    palette.primary[500],
+  english: palette.primary[400],
+  science: palette.primary[600],
+  social:  palette.primary[300],
+  history: palette.primary[800],
 } as const;
 
 export type PullimIrtLevel = 1 | 2 | 3 | 4 | 5;
