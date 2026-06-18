@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Play, AlertCircle, Inbox } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
 import { AlertCard } from '@/components/classbot/alert-card';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { ContextRail } from '@/components/shell/context-rail';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
 import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
 
 /**
@@ -41,7 +44,17 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     return <div className="space-y-4">{back}<ReadLoginGate label="과제" /></div>;
   }
   if (isNotFound) {
-    return <div className="space-y-4">{back}<AssignmentNotFoundCard /></div>;
+    return (
+      <div className="space-y-4">
+        {back}
+        <EmptyState
+          icon={Inbox}
+          title="과제를 찾을 수 없어요"
+          description="받은 과제 목록에서 다시 확인해 주세요."
+          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+        />
+      </div>
+    );
   }
   if (isError) {
     return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void refetch()} /></div>;
@@ -65,47 +78,8 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     : isInProgress ? `이어서 풀기 (${a.completedCount + 1}/${a.questionCount})`
     : '지금 시작하기';
 
-  return (
-    <div className="space-y-4">
-      {back}
-
-      <AssignmentOverviewHeader assignment={a} />
-
-      {/* 시험 모드 경고 */}
-      {isExam && !isSubmitted && (
-        <AlertCard tone="danger" icon={AlertCircle} title="시작 전 확인">
-          <ul className="space-y-1">
-            <li>• 시작하면 봇이 잠겨요. 시험 도중 도움을 받을 수 없어요.</li>
-            <li>• 시간도 멈출 수 없어요. 60분 카운트다운이 자동으로 시작돼요.</li>
-            <li>• 외부 탭으로 전환하면 카운트가 기록돼요.</li>
-          </ul>
-        </AlertCard>
-      )}
-
-      {/* 문항 미리보기 */}
-      <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-900 text-sm font-bold">문항 구성</h3>
-        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
-          {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
-        </p>
-        {questions.length === 0 ? (
-          <p className="text-pullim-slate-400 mt-3 text-[11px]">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
-        ) : (
-          <ul className="mt-3 space-y-1">
-            {questions.map(q => (
-              <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-[11px]">
-                <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
-                  {q.order}
-                </span>
-                <span className="text-pullim-slate-400 font-mono text-[11px] uppercase">{q.type}</span>
-                <span className="truncate">{q.prompt}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* CTA */}
+  const rail = (
+    <div className="max-lg:sticky max-lg:bottom-2 max-lg:z-10 space-y-3">
       <Link
         href={ctaHref}
         data-testid="assignment-start-cta"
@@ -126,24 +100,56 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       </FlywheelNote>
     </div>
   );
-}
 
-/** 본인 명의 과제가 없을 때(404) — 목록으로 유도. */
-function AssignmentNotFoundCard() {
   return (
-    <section className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-4 py-10 text-center">
-      <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 items-center justify-center rounded-xl">
-        <Inbox className="h-5 w-5" aria-hidden />
-      </span>
-      <p className="text-pullim-slate-900 text-sm font-bold">과제를 찾을 수 없어요</p>
-      <p className="text-pullim-slate-500 text-[11px]">받은 과제 목록에서 다시 확인해 주세요.</p>
-      <Link
-        href="/classbot/assignment"
-        className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-[12px] font-bold text-white transition-colors"
-      >
-        받은 과제로
-      </Link>
-    </section>
+    <div className="space-y-4">
+      {back}
+
+      <ContextRail railWidth="md" stickyRail rail={rail}>
+        <AssignmentOverviewHeader assignment={a} />
+
+        {/* 시험 모드 경고 */}
+        {isExam && !isSubmitted && (
+          <AlertCard tone="danger" icon={AlertCircle} title="시작 전 확인">
+            <ul className="space-y-1">
+              <li>• 시작하면 봇이 잠겨요. 시험 도중 도움을 받을 수 없어요.</li>
+              <li>• 시간도 멈출 수 없어요. 60분 카운트다운이 자동으로 시작돼요.</li>
+              <li>• 외부 탭으로 전환하면 카운트가 기록돼요.</li>
+            </ul>
+          </AlertCard>
+        )}
+
+        {/* 문항 미리보기 */}
+        <section className="bg-card rounded-2xl border p-4">
+          <h3 className="text-pullim-slate-900 text-sm font-bold">문항 구성</h3>
+          <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+            {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
+          </p>
+          {questions.length === 0 ? (
+            <p className="text-pullim-slate-400 mt-3 text-[11px]">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
+          ) : (
+            <ul className="mt-3 space-y-1">
+              {questions.map(q => {
+                const meta = questionTypeMeta[q.type as keyof typeof questionTypeMeta];
+                const TypeIcon = meta?.icon;
+                return (
+                  <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-[11px]">
+                    <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
+                      {q.order}
+                    </span>
+                    <span className="text-pullim-slate-400 font-mono text-[11px] inline-flex items-center gap-0.5">
+                      {TypeIcon && <TypeIcon className="h-3 w-3" aria-hidden />}
+                      {meta?.label ?? q.type}
+                    </span>
+                    <span className="truncate">{q.prompt}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </ContextRail>
+    </div>
   );
 }
 
