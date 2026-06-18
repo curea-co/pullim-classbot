@@ -8,6 +8,8 @@ import {
   ArrowLeft, Send, Save, Eye, AlertCircle, Sparkles, Target,
   CheckCircle2, Users, Calendar, BookOpen, Shield,
 } from 'lucide-react';
+import { AlertCard } from '@/components/classbot/alert-card';
+import { BotNote } from '@/components/classbot/bot-note';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
@@ -301,10 +303,7 @@ export function AssignmentForm() {
                   <option key={u.id} value={u.id}>{u.fullPath}</option>
                 ))}
               </select>
-              <p className="text-pullim-slate-500 mt-1 text-[10px]">
-                <BookOpen className="-mt-0.5 mr-0.5 inline h-3 w-3" />
-                선택 단원의 RAG 인덱스에서 자동 추출돼요.
-              </p>
+              <BotNote icon={BookOpen} className="mt-1">선택 단원의 RAG 인덱스에서 자동 추출돼요.</BotNote>
             </Field>
 
             <Field label="문항 수" htmlFor="af-qcount">
@@ -419,12 +418,8 @@ export function AssignmentForm() {
 
         {/* 시험 모드 추가 */}
         {mode === 'exam' && (
-          <section className="border-pullim-danger/30 bg-pullim-danger-bg rounded-2xl border p-4">
-            <SectionHeading
-              title={<span className="inline-flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> 시험 모드 설정</span>}
-              description="발사 후 봇이 자동 잠기고 시간이 측정돼요"
-            />
-
+          <AlertCard tone="danger" icon={Shield} title="시험 모드 설정">
+            <p className="text-pullim-slate-500 mb-3 text-[11px]">발사 후 봇이 자동 잠기고 시간이 측정돼요</p>
             <div className="space-y-3">
               <Field label="시간 제한 (분)" htmlFor="af-time">
                 <div className="flex items-center gap-3">
@@ -446,12 +441,9 @@ export function AssignmentForm() {
                 </div>
               </Field>
 
-              <div className="bg-white/50 rounded-lg p-2 text-[11px]">
-                <Shield className="-mt-0.5 mr-0.5 inline h-3 w-3" />
-                <strong>Scope L1 자동</strong> — 발사 후엔 변경할 수 없어요.
-              </div>
+              <BotNote icon={Shield}>Scope L1 자동 — 발사 후엔 변경할 수 없어요.</BotNote>
             </div>
-          </section>
+          </AlertCard>
         )}
       </div>
 
