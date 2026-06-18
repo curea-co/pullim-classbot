@@ -9,6 +9,8 @@ import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { ReplayReviewActions } from '@/components/classbot/replay-review-actions';
 import { cn } from '@/lib/utils';
+import { ContextRail } from '@/components/shell/context-rail';
+import { BotNote } from '@/components/classbot/bot-note';
 
 type Params = { id: string };
 
@@ -128,32 +130,14 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
         <section className="bg-card rounded-2xl border p-5 text-center">
           <Sparkles className="text-pullim-blue-400 mx-auto h-8 w-8 animate-pulse" />
           <p className="text-pullim-slate-700 mt-3 text-sm font-bold">AI 처리 중</p>
-          <p className="text-pullim-slate-500 mt-1 text-xs">
-            처리 완료 시 검수 대기 상태로 자동 전환돼요.
-          </p>
+          <BotNote icon={Sparkles}>처리 완료 시 검수 대기 상태로 자동 전환돼요.</BotNote>
         </section>
       )}
 
       {data.status !== 'processing' && (
-        <>
-          <section className="bg-card rounded-2xl border p-4">
-            <header className="mb-2 flex items-center justify-between">
-              <h2 className="text-pullim-slate-900 text-sm font-bold">이 수업 핵심 3개</h2>
-              <span className="text-pullim-slate-400 text-[10px]">AI 추출 — 검수 단계에서 편집 가능</span>
-            </header>
-            <ol className="space-y-2">
-              {data.keyTakeaways.map((t, i) => (
-                <li key={i} className="bg-pullim-slate-50 flex items-start gap-2 rounded-lg p-3 text-sm">
-                  <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                    {i + 1}
-                  </span>
-                  <span className="text-pullim-slate-700">{t}</span>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          {data.segments.length > 0 && (
+        <ContextRail
+          railWidth="sm"
+          rail={data.segments.length > 0 ? (
             <section className="bg-card rounded-2xl border p-4">
               <header className="mb-2">
                 <h2 className="text-pullim-slate-900 text-sm font-bold">세그먼트 ({data.segments.length}개)</h2>
@@ -171,8 +155,25 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
                 )}
               </ul>
             </section>
-          )}
-        </>
+          ) : undefined}
+        >
+          <section className="bg-card rounded-2xl border p-4">
+            <header className="mb-2 flex items-center justify-between">
+              <h2 className="text-pullim-slate-900 text-sm font-bold">이 수업 핵심 3개</h2>
+              <span className="text-pullim-slate-400 text-[10px]">AI 추출 — 검수 단계에서 편집 가능</span>
+            </header>
+            <ol className="space-y-2">
+              {data.keyTakeaways.map((t, i) => (
+                <li key={i} className="bg-pullim-slate-50 flex items-start gap-2 rounded-lg p-3 text-sm">
+                  <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                    {i + 1}
+                  </span>
+                  <span className="text-pullim-slate-700">{t}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </ContextRail>
       )}
 
       <ReplayReviewActions replay={replayForActions} />
