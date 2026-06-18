@@ -75,7 +75,16 @@ export function RadioCard({
   size = 'md',
   className,
 }: RadioCardProps) {
-  const isLucideIcon = typeof icon === 'function';
+  // icon may be a component *type* (plain function OR a forwardRef/memo object,
+  // e.g. a Lucide icon) or an already-rendered element. isValidElement is the
+  // reliable discriminator — `typeof icon === 'function'` is false for the
+  // forwardRef objects most icon libraries ship.
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) return icon;
+    const IconComp = icon as React.ComponentType<{ className?: string }>;
+    return <IconComp className="h-5 w-5" />;
+  };
 
   return (
     <button
@@ -94,17 +103,7 @@ export function RadioCard({
       )}
     >
       <div className="flex items-start gap-3">
-        {icon && (
-          <div className="flex-shrink-0 pt-0.5">
-            {isLucideIcon ? (
-              React.createElement(icon as React.ComponentType<{ className: string }>, {
-                className: 'h-5 w-5',
-              })
-            ) : (
-              <div>{icon}</div>
-            )}
-          </div>
-        )}
+        {icon && <div className="flex-shrink-0 pt-0.5">{renderIcon()}</div>}
 
         <div className="flex-1 min-w-0">
           <div className="text-sm font-bold">{title}</div>

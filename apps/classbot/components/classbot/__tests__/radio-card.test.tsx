@@ -137,6 +137,25 @@ describe('RadioCard', () => {
     expect(icon).toHaveClass('h-5', 'w-5');
   });
 
+  it('renders a forwardRef icon component (e.g. Lucide) passed as a type', () => {
+    // Lucide icons are forwardRef objects, NOT plain functions — `typeof === "function"` is false.
+    const ForwardRefIcon = React.forwardRef<SVGSVGElement, { className?: string }>(
+      ({ className }, ref) => <svg ref={ref} data-testid="fref-icon" className={className} />,
+    );
+    ForwardRefIcon.displayName = 'ForwardRefIcon';
+    render(
+      <RadioCard
+        active={false}
+        onSelect={() => {}}
+        title="Title"
+        icon={ForwardRefIcon}
+      />,
+    );
+    const icon = screen.getByTestId('fref-icon');
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveClass('h-5', 'w-5');
+  });
+
   it('renders ReactNode icon when icon is not a function', () => {
     render(
       <RadioCard
