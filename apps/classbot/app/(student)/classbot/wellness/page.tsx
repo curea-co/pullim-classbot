@@ -3,8 +3,10 @@ import { ArrowRight, Heart, MessageCircle, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
+import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
+import { EmptyState } from '@/components/classbot/empty-state';
 import {
   getCheckInsForStudent, hasTodayCheckIn, moodMeta,
 } from '@/lib/mock';
@@ -21,45 +23,9 @@ export default function WellnessPage() {
   // [13 § 3.3.3·9.3] 담당 봇 코멘트 — 가장 낮은 5지표 영역의 봇 자동 매칭
   const botComment = getWellnessBotComment(me.id);
 
-  return (
-    <div className="space-y-4">
-      <BackLink href="/classbot">클래스봇 홈</BackLink>
-
-      <PageHeader
-        eyebrow={{ icon: Heart, text: '내 웰빙' }}
-        title="오늘 어땠어요?"
-        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
-      />
-
-      {/* 오늘 체크인 CTA */}
-      <Link
-        href="/classbot/wellness/check-in"
-        className={cn(
-          'flex items-center gap-3 rounded-2xl p-4 transition-colors',
-          checkedToday
-            ? 'bg-pullim-blue-50 hover:bg-pullim-blue-100 border-pullim-blue-200 border'
-            : 'bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white',
-        )}
-      >
-        <span className={cn(
-          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl',
-          checkedToday ? 'bg-pullim-blue-100' : 'bg-white/15',
-        )}>
-          {checkedToday ? '✅' : '💭'}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
-            {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
-          </div>
-          <div className={cn('text-[11px]', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
-            {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
-          </div>
-        </div>
-        <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-blue-700' : 'text-white')} />
-      </Link>
-
-      <WellbeingGauge studentId={me.id} />
-
+  /* ── RAIL ──────────────────────────────────────────────── */
+  const rail = (
+    <>
       {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3] 좌측 라이너 4px + 아바타 + 이름 + 시간 + 시그니처 ghost CTA */}
       {botComment && (() => {
         const sig = botSignature(botComment.bot);
@@ -101,42 +67,6 @@ export default function WellnessPage() {
         );
       })()}
 
-      {/* 주간 감정 그래프 */}
-      <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
-        {checkIns.length === 0 ? (
-          <p className="text-pullim-slate-400 py-6 text-center text-[11px]">
-            아직 기록이 없어요. 오늘부터 시작해봐요.
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {checkIns.map(c => {
-              const m = moodMeta[c.mood];
-              return (
-                <li key={c.id} className="bg-pullim-slate-50/50 flex items-center gap-3 rounded-lg p-2">
-                  <span className="text-xl leading-none">{m.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-pullim-slate-900 text-xs font-bold">
-                      {c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`} · {m.label}
-                    </div>
-                    {c.freeText && (
-                      <div className="text-pullim-slate-500 mt-0.5 truncate text-[11px]">
-                        &ldquo;{c.freeText}&rdquo;
-                      </div>
-                    )}
-                  </div>
-                  {c.intensity && (
-                    <span className="text-pullim-slate-400 font-mono text-[10px]">
-                      강도 {c.intensity}/5
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}
       {me.wellbeing < 60 && (
         <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
@@ -170,6 +100,93 @@ export default function WellnessPage() {
         </div>
         <ArrowRight className="text-pullim-slate-500 h-4 w-4" />
       </Link>
+    </>
+  );
+
+  /* ── MAIN ───────────────────────────────────────────────── */
+  const main = (
+    <>
+      {/* 오늘 체크인 CTA (hero) + WellbeingGauge — side-by-side on lg */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,360px)]">
+        {/* CTA hero */}
+        <Link
+          href="/classbot/wellness/check-in"
+          className={cn(
+            'flex items-center gap-3 rounded-2xl p-4 transition-colors',
+            checkedToday
+              ? 'bg-pullim-blue-50 hover:bg-pullim-blue-100 border-pullim-blue-200 border'
+              : 'bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white',
+          )}
+        >
+          <span className={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl',
+            checkedToday ? 'bg-pullim-blue-100' : 'bg-white/15',
+          )}>
+            {checkedToday ? '✅' : '💭'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
+              {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
+            </div>
+            <div className={cn('text-[11px]', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
+              {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
+            </div>
+          </div>
+          <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-blue-700' : 'text-white')} />
+        </Link>
+
+        <WellbeingGauge studentId={me.id} />
+      </div>
+
+      {/* 주간 감정 그래프 */}
+      <section className="bg-card rounded-2xl border p-4">
+        <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
+        {checkIns.length === 0 ? (
+          <EmptyState tone="plain" title="아직 기록이 없어요" size="sm" />
+        ) : (
+          <ul className="space-y-1">
+            {checkIns.map(c => {
+              const m = moodMeta[c.mood];
+              return (
+                <li key={c.id} className="bg-pullim-slate-50/50 flex items-center gap-3 rounded-lg p-2">
+                  <span className="text-xl leading-none">{m.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-pullim-slate-900 text-xs font-bold">
+                      {c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`} · {m.label}
+                    </div>
+                    {c.freeText && (
+                      <div className="text-pullim-slate-500 mt-0.5 truncate text-[11px]">
+                        &ldquo;{c.freeText}&rdquo;
+                      </div>
+                    )}
+                  </div>
+                  {c.intensity && (
+                    <span className="text-pullim-slate-400 font-mono text-[10px]">
+                      강도 {c.intensity}/5
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <BackLink href="/classbot">클래스봇 홈</BackLink>
+
+      <PageHeader
+        eyebrow={{ icon: Heart, text: '내 웰빙' }}
+        title="오늘 어땠어요?"
+        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
+      />
+
+      <ContextRail railWidth="md" stickyRail rail={rail}>
+        {main}
+      </ContextRail>
 
       <FlywheelNote>
         매일 30초 체크인이 쌓이면 봇이 더 정확하게 도와줄 수 있어요. 부담 없이 편하게.

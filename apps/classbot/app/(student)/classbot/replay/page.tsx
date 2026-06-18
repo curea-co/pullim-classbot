@@ -15,6 +15,7 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/classbot/empty-state';
 
 export default function ClassbotReplayListPage() {
   const allReplays = useMemo(() => getSentReplays(), []);
@@ -33,7 +34,6 @@ export default function ClassbotReplayListPage() {
   }, [allReplays]);
 
   const latest = replays[0];
-  const others = replays.slice(1);
 
   // "이어 보기" 후보 — 진도 1초~끝 사이
   const inProgress = replays.find(
@@ -64,7 +64,10 @@ export default function ClassbotReplayListPage() {
                 <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
                   {r.chapter} · {r.startedAt}~{r.endedAt} · {r.durationMin}분 · {r.participantCount}명 참여
                 </div>
-                <div className="text-pullim-blue-600 mt-1.5 text-[11px] font-bold">📩 선생님이 방금 발송했어요 — 상세 player는 v1 backend 후 제공</div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-pullim-blue-600">
+                  📩 선생님이 방금 발송했어요
+                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold">준비 중</span>
+                </div>
               </li>
             ))}
           </ul>
@@ -93,28 +96,26 @@ export default function ClassbotReplayListPage() {
 
       {/* 빈 상태 */}
       {replays.length === 0 && (
-        <p className="bg-card text-pullim-slate-400 rounded-xl border p-8 text-center text-sm">
-          이 봇의 리플레이가 아직 없어요
-        </p>
+        <EmptyState icon={History} title="이 봇의 리플레이가 아직 없어요" tone="neutral" />
       )}
 
-      {/* 이어 보기 hero */}
-      {inProgress && <ContinueWatching replay={inProgress} />}
+      {/* 단일 hero — 이어 보기가 있으면 ContinueWatching만, 없으면 LatestHero */}
+      {inProgress
+        ? <ContinueWatching replay={inProgress} />
+        : latest && <LatestHero replay={latest} />}
 
-      {/* 가장 최근 hero (이어 보기와 다를 때만) */}
-      {latest && (!inProgress || inProgress.id !== latest.id) && (
-        <LatestHero replay={latest} />
-      )}
-
-      {/* 목록 */}
-      {others.length > 0 && (
+      {/* 목록 — 이어 보기가 있으면 latest도 일반 행으로 포함 */}
+      {replays.length > 0 && (
         <section>
           <SectionHeading
             title="전체 수업"
             description={`${replays.length}개 · 본인 활동 구간만 재생`}
           />
           <ul className="space-y-2">
-            {others.map(r => <ReplayRow key={r.id} replay={r} />)}
+            {(inProgress
+              ? replays
+              : replays.slice(1)
+            ).map(r => <ReplayRow key={r.id} replay={r} />)}
           </ul>
         </section>
       )}
