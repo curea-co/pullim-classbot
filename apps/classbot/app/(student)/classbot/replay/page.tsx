@@ -96,7 +96,7 @@ export default function ClassbotReplayListPage() {
 
       {/* 빈 상태 */}
       {replays.length === 0 && (
-        <EmptyState icon={History} title="이 봇의 리플레이가 아직 없어요" tone="plain" />
+        <EmptyState icon={History} title="이 봇의 리플레이가 아직 없어요" tone="neutral" />
       )}
 
       {/* 단일 hero — 이어 보기가 있으면 ContinueWatching만, 없으면 LatestHero */}
