@@ -14,10 +14,10 @@ import { useSignup } from '@/hooks/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import { isSafeNextPath } from '@/lib/auth/safe-next';
 import { isValidEmail, isValidPassword } from '@/lib/auth/validation';
+import { RadioCard, RadioCardGroup } from '@/components/classbot/radio-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 
 const ROLE_OPTIONS: { value: SelectableRole; label: string; hint: string; icon: typeof UserRound }[] = [
   { value: 'teacher', label: '교사', hint: '수업·과제를 만들어요', icon: GraduationCap },
@@ -100,33 +100,18 @@ export function SignupForm() {
       }
     >
       <form className="grid gap-4" onSubmit={handleSubmit} noValidate>
-        <fieldset className="grid gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium">역할</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {ROLE_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
-              const selected = role === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setRole(opt.value)}
-                  className={cn(
-                    'flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
-                    selected
-                      ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
-                      : 'border-border bg-background hover:bg-muted',
-                  )}
-                >
-                  <Icon className="size-4" />
-                  <span className="text-sm font-medium">{opt.label}</span>
-                  <span className="text-xs text-muted-foreground">{opt.hint}</span>
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        <RadioCardGroup label="역할" ariaLabel="역할 선택" cols={2}>
+          {ROLE_OPTIONS.map((opt) => (
+            <RadioCard
+              key={opt.value}
+              active={role === opt.value}
+              onSelect={() => { setRole(opt.value); setApiError(null); }}
+              icon={opt.icon}
+              title={opt.label}
+              description={opt.hint}
+            />
+          ))}
+        </RadioCardGroup>
 
         <div className="grid gap-1.5">
           <Label htmlFor="name">이름</Label>
