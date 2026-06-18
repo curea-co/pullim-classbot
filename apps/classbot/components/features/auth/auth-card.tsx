@@ -24,7 +24,7 @@ interface AuthCardProps {
  */
 export function AuthCard({ title, description, children, footer, className }: AuthCardProps) {
   return (
-    <Card className={cn('w-full max-w-sm', className)}>
+    <Card className={cn('w-full max-w-md', className)}>
       <CardHeader className="items-center gap-3 text-center">
         <PullimLogo size={28} />
         <div className="grid gap-1">
