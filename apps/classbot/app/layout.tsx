@@ -4,6 +4,7 @@ import localFont from 'next/font/local';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import './globals.css';
 
@@ -75,12 +76,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-full font-sans">
-        <QueryProvider>
-          <AuthProvider>
-            <TooltipProvider delay={120}>{children}</TooltipProvider>
-          </AuthProvider>
-        </QueryProvider>
-        <Toaster position="top-center" closeButton richColors />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          <QueryProvider>
+            <AuthProvider>
+              <TooltipProvider delay={120}>{children}</TooltipProvider>
+            </AuthProvider>
+          </QueryProvider>
+          <Toaster position="top-center" closeButton richColors />
+        </ThemeProvider>
       </body>
     </html>
   );

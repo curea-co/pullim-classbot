@@ -8,6 +8,7 @@ import {
   type Role, type NavItem, type NavSubItem,
 } from './nav-config';
 import { cn } from '@/lib/utils';
+import { LiveBadge } from '@/components/classbot/live-badge';
 
 type Props = {
   role: Role;
@@ -202,7 +203,7 @@ function NavRow({
         'group flex items-center gap-2 rounded-lg text-sm font-medium transition-colors',
         compact ? 'h-11 w-full justify-center' : 'min-h-11 px-2 py-2',
         active
-          ? 'bg-pullim-blue-50 text-pullim-blue-700'
+          ? 'bg-pullim-blue-50 text-pullim-blue-700 relative before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-pullim-blue-600'
           : item.locked
           ? 'text-pullim-slate-400 hover:bg-pullim-slate-50 cursor-not-allowed'
           : 'text-pullim-slate-700 hover:bg-pullim-slate-100 hover:text-pullim-slate-900',
@@ -219,16 +220,13 @@ function NavRow({
             </span>
           )}
           {item.badge !== undefined && (
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                item.badge === 'LIVE'
-                  ? 'bg-pullim-danger animate-pulse text-white'
-                  : 'bg-pullim-slate-100 text-pullim-slate-600',
-              )}
-            >
-              {item.badge}
-            </span>
+            item.badge === 'LIVE' ? (
+              <LiveBadge />
+            ) : (
+              <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
+                {item.badge}
+              </span>
+            )
           )}
         </>
       )}
@@ -273,7 +271,7 @@ function SubNavRow({
           'group flex items-center gap-2 rounded-lg text-xs font-medium transition-colors',
           compact ? 'h-10 w-full justify-center' : 'min-h-10 px-2 py-2',
           active
-            ? 'bg-pullim-blue-600 text-white shadow-pullim-sm'
+            ? 'bg-pullim-blue-50 text-pullim-blue-700 relative before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-pullim-blue-600'
             : sub.locked
             ? 'text-pullim-slate-400 hover:bg-pullim-slate-50 cursor-not-allowed'
             : 'text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900',
@@ -287,9 +285,7 @@ function SubNavRow({
               <span
                 className={cn(
                   'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold',
-                  active
-                    ? 'bg-white/15 text-white/80'
-                    : 'bg-pullim-slate-100 text-pullim-slate-500',
+                  'bg-pullim-slate-100 text-pullim-slate-500',
                 )}
               >
                 <Lock aria-hidden className="h-2.5 w-2.5" />

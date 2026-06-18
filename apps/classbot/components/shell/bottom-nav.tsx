@@ -15,7 +15,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="학생 메인 네비게이션"
-      className="bg-background/95 sticky bottom-0 z-30 border-t backdrop-blur-md md:hidden"
+      className="bg-background/95 sticky bottom-0 z-30 border-t backdrop-blur-md md:hidden pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="grid grid-cols-5">
         {studentBottomTabs.map(item => {
@@ -31,12 +31,13 @@ export function BottomNav() {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
+                  'relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
                   active
                     ? 'text-pullim-blue-600'
                     : 'text-pullim-slate-500 hover:text-pullim-slate-800',
                 )}
               >
+                {active && <span aria-hidden className="bg-pullim-blue-600 absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full" />}
                 <Icon className={cn('h-5 w-5', active && 'stroke-[2.4]')} />
                 <span>{item.label}</span>
               </Link>

@@ -21,9 +21,9 @@ type Props = {
 
 const toneClass = {
   blue:    'text-pullim-blue-600',
-  warn:    'text-pullim-blue-700',
+  warn:    'text-pullim-warn',
   danger:  'text-pullim-danger',
-  success: 'text-pullim-blue-500',
+  success: 'text-pullim-success',
 } as const;
 
 /**
@@ -52,7 +52,7 @@ export function PageHeader({ eyebrow, title, description, action, className }: P
           {title}
         </h1>
         {description && (
-          <p className="text-pullim-slate-500 mt-0.5 text-xs">{description}</p>
+          <p className="text-pullim-slate-500 mt-0.5 text-sm">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
