@@ -1,6 +1,7 @@
 import { Clock, Target, AlertCircle, Sparkles } from 'lucide-react';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { BotNote } from '@/components/classbot/bot-note';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { cn } from '@/lib/utils';
 
 const modeMeta = {
@@ -44,11 +45,11 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
         <h1 className="text-pullim-slate-900 mt-2 text-xl font-bold tracking-tight">{a.title}</h1>
         <p className="text-pullim-slate-500 mt-1 text-xs">{a.scope}</p>
 
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <Meta label="문항" value={`${a.questionCount}문항`} />
-          <Meta label="난이도" value={a.difficulty} />
-          <Meta label="D-day" value={a.dDay} alert={isUrgent} />
-        </div>
+        <KpiStatBar cols={3}>
+          <KpiStat label="문항" value={`${a.questionCount}문항`} />
+          <KpiStat label="난이도" value={a.difficulty} />
+          <KpiStat label="D-day" value={a.dDay} tone={isUrgent ? 'alert' : 'default'} />
+        </KpiStatBar>
 
         <p className="text-pullim-slate-400 mt-3 text-[10px]">
           {m.tone} · 마감 {a.dueLabel}
@@ -62,13 +63,3 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
   );
 }
 
-function Meta({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
-  return (
-    <div className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 text-[11px] font-bold tracking-wider uppercase">{label}</div>
-      <div className={cn('font-mono text-sm font-bold', alert ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
-        {value}
-      </div>
-    </div>
-  );
-}

@@ -7,6 +7,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import BackLink from '@/components/classbot/back-link';
+import { EmptyState } from '@/components/classbot/empty-state';
+import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
 import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -49,7 +51,7 @@ export default function StudentAssignmentListPage() {
   const { data: botsData } = useMyBots();
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <AssignmentListBody
@@ -113,21 +115,18 @@ function AssignmentListBody({
       <PageHeader
         eyebrow={{ icon: Target, text: '받은 과제' }}
         title={<>받은 과제 <span className="text-pullim-blue-600">{assignments.length}</span>건</>}
-        description={`진행 중 ${inProgress}건 · 대기 ${todo}건 · ${completed}/${totalQuestions}문항 진행`}
       />
+
+      <KpiStatBar cols={3}>
+        <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
+        <KpiStat label="대기" value={`${todo}건`} tone="default" />
+        <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
+      </KpiStatBar>
 
       <SectionHeading title="모든 과제" description="봇별로 묶어 정렬됐어요. 새로 받은 과제가 위에 와요." />
 
       {assignments.length === 0 ? (
-        <div className="bg-pullim-slate-50 border-pullim-slate-200 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-4 py-10 text-center">
-          <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 items-center justify-center rounded-xl">
-            <Inbox className="h-5 w-5" aria-hidden />
-          </span>
-          <p className="text-pullim-slate-900 text-sm font-bold">아직 받은 과제가 없어요</p>
-          <p className="text-pullim-slate-500 text-[11px]">
-            선생님이 새 과제를 발사하면 여기에 표시돼요.
-          </p>
-        </div>
+        <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 발사하면 여기에 표시돼요." />
       ) : (
         <div className="space-y-4">
           {grouped.map(({ bot, items }) => (
@@ -203,7 +202,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
           </div>
         </div>
       </header>
-      <ul className="space-y-2">
+      <ul className="grid gap-2 sm:grid-cols-2">
         {items.map(a => <AssignmentCard key={a.id} assignment={a} />)}
       </ul>
     </section>
@@ -222,8 +221,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
     <li>
       <Link
         href={`/classbot/assignment/${a.id}`}
-        className="bg-card hover:bg-pullim-slate-50/50 group block rounded-2xl border border-l-[4px] p-4 transition-colors"
-        style={{ borderLeftColor: visual.linerHex }}
+        className="bg-card hover:bg-pullim-slate-50/50 group block h-full rounded-2xl border p-4 transition-colors"
       >
         <div className="flex items-start gap-3">
           <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white', m.color)}>
