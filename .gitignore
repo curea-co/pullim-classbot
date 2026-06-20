@@ -74,3 +74,7 @@ apps/*/output/screen-captures/
 
 # Playwright-MCP debug artifacts
 .playwright-mcp/
+
+# Claude Code / superpowers git worktrees — never commit (a stray gitlink here
+# with no .gitmodules entry breaks `git submodule` in CI checkout)
+.claude/worktrees/
