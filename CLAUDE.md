@@ -15,6 +15,17 @@
 - **한 PR = 한 계층/한 단위.** 공유 타입·패키지 변경은 그것을 쓰는 FE/BE PR보다 **먼저** 별도 PR로 올린다.
 - 부득이 FE/BE를 한 PR에 묶어야 하는 예외는 **사용자 명시 승인 후에만** 허용한다.
 
+## ⛔ 최상위 규칙 — 모든 PR은 `dev`를 거쳐 `main`으로 간다 (MUST)
+
+> **이 항목은 본 리포의 최상위 규칙이다. `main` 직접 PR을 금지한다.**
+
+- **브랜치 플로우는 `feature/* → dev → main` 으로 고정한다.**
+  - 작업 브랜치(`feat/*`, `fix/*`, `ci/*`, `docs/*` 등)의 PR은 **base 를 `dev` 로** 올린다. **절대 `main` 을 직접 base 로 삼지 않는다.**
+  - `main` 으로의 머지는 **`dev → main` 승격(promotion) PR** 형태로만 이뤄진다.
+- **이유**: `main` = prod(`classbot.pullim.ai`, 외부 공개) 배포 소스. `dev` = preview(`dev-classbot.pullim.ai`, 외부 차단) 배포 소스. 변경은 먼저 dev preview 에서 검증된 뒤에야 prod 로 승격되어야 한다.
+- 기존 "FE/BE 섞지 말고 단위로 쪼갠다" 규칙은 그대로 유효하다 — **단위 분리 PR 각각이 `dev` 를 base 로** 올라간다.
+- 핫픽스 등 부득이 `main` 직접 PR 이 필요한 예외는 **사용자 명시 승인 후에만** 허용한다.
+
 ## 1. 모노레포 구조
 
 ```
@@ -111,7 +122,7 @@ bun --filter @pullim-classbot/backend <script>
 
 `apps/classbot/tests/e2e/*` + `.github/workflows/prod-verify.yml` 은 production 회귀 자동화 자산:
 - main push / KST 08:00 일일 schedule / 수동 dispatch 세 경로
-- https://pullim-classbot.vercel.app 의 HTML `<meta name="x-build-sha">` 가 commit SHA 와 일치할 때까지 polling 후 Playwright 7 spec 실행
+- https://classbot.pullim.ai (prod) 의 HTML `<meta name="x-build-sha">` 가 commit SHA 와 일치할 때까지 polling 후 Playwright 7 spec 실행
 - 색·chat·slider 회귀 자동 검출
 
 작업 시 깨지 말 것:
