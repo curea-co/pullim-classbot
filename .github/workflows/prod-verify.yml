@@ -36,8 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PROD_URL: https://pullim-classbot.vercel.app
-      PLAYWRIGHT_BASE_URL: https://pullim-classbot.vercel.app
+      PROD_URL: https://classbot.pullim.ai
+      PLAYWRIGHT_BASE_URL: https://classbot.pullim.ai
       PROD_CAPTURE: '1'
       # 루트 packageManager (`bun@1.3.12`) 및 ci.yml 과 일치시킴 — `latest` 사용 시
       # Bun 업데이트만으로 lockfile 해석 / workspace 동작이 비결정적으로 깨질 수 있음
