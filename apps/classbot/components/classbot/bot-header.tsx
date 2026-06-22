@@ -32,7 +32,7 @@ export function BotHeader({
       headingLevel={headingLevel}
     >
       {/* 봇 범위 허용값 메모 — BotIdentityCard 가 이미 배지를 렌더 */}
-      <p className="text-white/60 mt-2 text-[10px]">
+      <p className="text-white/60 mt-2 text-micro">
         선생님이 설정 · {scope.allow}
       </p>
 

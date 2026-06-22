@@ -129,22 +129,22 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         {/* 문항 미리보기 */}
         <section className="bg-card rounded-2xl border p-4">
           <h3 className="text-pullim-slate-900 text-sm font-bold">문항 구성</h3>
-          <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+          <p className="text-pullim-slate-500 mt-0.5 text-2xs">
             {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
           </p>
           {questions.length === 0 ? (
-            <p className="text-pullim-slate-400 mt-3 text-[11px]">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
+            <p className="text-pullim-slate-400 mt-3 text-2xs">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
           ) : (
             <ul className="mt-3 space-y-1">
               {questions.map(q => {
                 const meta = questionTypeMeta[q.type as keyof typeof questionTypeMeta];
                 const TypeIcon = meta?.icon;
                 return (
-                  <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-[11px]">
-                    <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
+                  <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-2xs">
+                    <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
                       {q.order}
                     </span>
-                    <span className="text-pullim-slate-400 font-mono text-[11px] inline-flex items-center gap-0.5">
+                    <span className="text-pullim-slate-400 font-mono text-2xs inline-flex items-center gap-0.5">
                       {TypeIcon && <TypeIcon className="h-3 w-3" aria-hidden />}
                       {meta?.label ?? q.type}
                     </span>

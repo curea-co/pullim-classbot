@@ -39,7 +39,7 @@ export function Step1Identity({ form, setForm }: Props) {
           placeholder="예: 수학이 형 · 영어 박쌤"
           className="h-10 text-sm"
         />
-        <p className="text-pullim-slate-400 mt-1 text-[10px]">학생이 부를 이름. 친근할수록 학생 참여 ↑</p>
+        <p className="text-pullim-slate-400 mt-1 text-micro">학생이 부를 이름. 친근할수록 학생 참여 ↑</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -156,7 +156,7 @@ export function Step2Voice({ form, setForm }: Props) {
                     size="xs"
                     onClick={e => { e.stopPropagation(); toast.info('샘플 재생 (데모)'); }}
                     aria-label={`${meta.label} 샘플 재생`}
-                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold"
+                    className="text-pullim-blue-600 hover:bg-pullim-blue-50 absolute right-3 top-1/2 -translate-y-1/2 text-micro font-bold"
                   >
                     ▶ 샘플
                   </Button>
@@ -169,7 +169,7 @@ export function Step2Voice({ form, setForm }: Props) {
         <div className="bg-pullim-slate-50 rounded-lg p-4 text-center">
           <Mic className="text-pullim-slate-400 mx-auto h-10 w-10" />
           <p className="text-pullim-slate-700 mt-2 text-sm font-bold">음성 샘플 업로드</p>
-          <p className="text-pullim-slate-500 text-[11px]">2~5분 분량 권장 · WAV/MP3 · 최대 100MB</p>
+          <p className="text-pullim-slate-500 text-2xs">2~5분 분량 권장 · WAV/MP3 · 최대 100MB</p>
           <Button
             type="button"
             variant="pullim"
@@ -205,7 +205,7 @@ export function Step3Materials({ form, setForm }: Props) {
         <p className="text-pullim-slate-700 mt-2 text-sm font-bold">
           파일을 끌어다 놓거나 클릭해서 업로드
         </p>
-        <p className="text-pullim-slate-500 text-[11px]">
+        <p className="text-pullim-slate-500 text-2xs">
           PPT · PDF · 손글씨 노트 · 수업 녹화 (.mp4)
         </p>
         <Button
@@ -238,7 +238,7 @@ export function Step3Materials({ form, setForm }: Props) {
                 <Icon className="text-pullim-blue-600 h-4 w-4 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="text-pullim-slate-900 truncate text-xs font-semibold">{f.name}</div>
-                  <div className="text-pullim-slate-500 font-mono text-[10px]">{f.size}</div>
+                  <div className="text-pullim-slate-500 font-mono text-micro">{f.size}</div>
                 </div>
                 <Button
                   type="button"
@@ -256,7 +256,7 @@ export function Step3Materials({ form, setForm }: Props) {
         </ul>
       </div>
 
-      <div className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1.5 rounded-lg p-2.5 text-[11px]">
+      <div className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1.5 rounded-lg p-2.5 text-2xs">
         <Hourglass className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>업로드 후 RAG 인덱스 생성에 약 2~5분 소요. 인덱스 완료 후 봇 응답에 자료가 반영됩니다.</span>
       </div>
@@ -309,7 +309,7 @@ export function Step5Scope({ form, setForm }: Props) {
                 description={meta.allow}
                 icon={
                   <span className={cn(
-                    'flex h-7 w-9 items-center justify-center rounded font-mono text-[11px] font-bold',
+                    'flex h-7 w-9 items-center justify-center rounded font-mono text-2xs font-bold',
                     form.scopeDefault === l ? 'bg-pullim-blue-600 text-white' : 'bg-pullim-slate-100 text-pullim-slate-700',
                   )}>
                     {meta.short}
@@ -320,7 +320,7 @@ export function Step5Scope({ form, setForm }: Props) {
             );
           })}
         </RadioCardGroup>
-        <p className="text-pullim-slate-400 mt-2 text-[10px]">L3 (교과 범위) 가 일반 수업의 추천 기본값</p>
+        <p className="text-pullim-slate-400 mt-2 text-micro">L3 (교과 범위) 가 일반 수업의 추천 기본값</p>
       </div>
 
       <label className="bg-pullim-slate-50 flex items-center gap-2.5 rounded-lg p-3 text-sm cursor-pointer">
@@ -332,7 +332,7 @@ export function Step5Scope({ form, setForm }: Props) {
         />
         <div className="flex-1">
           <div className="text-pullim-slate-900 font-bold">시간대별 자동 스위치</div>
-          <div className="text-pullim-slate-500 text-[11px]">
+          <div className="text-pullim-slate-500 text-2xs">
             18:00~19:00 자동 L4 · 19:00~22:00 L3 · 22:00 이후 L5 (자기주도)
           </div>
         </div>
@@ -470,7 +470,7 @@ function SafetyToggle({
       />
       <div>
         <div className="text-pullim-slate-900 text-sm font-bold">{label}</div>
-        <div className="text-pullim-slate-500 mt-0.5 text-[11px]">{description}</div>
+        <div className="text-pullim-slate-500 mt-0.5 text-2xs">{description}</div>
       </div>
       {checked && <Check className="text-pullim-blue-600 ml-auto h-4 w-4 shrink-0" />}
     </label>
@@ -512,13 +512,13 @@ export function Step8Deploy({ form, setForm }: Props) {
         <div className="bg-pullim-slate-50 rounded-lg p-3 space-y-2">
           {testReply ? (
             <div className="bg-pullim-blue-50 text-pullim-slate-800 rounded-lg p-2.5 text-xs leading-relaxed">
-              <strong className="text-pullim-blue-700 mb-1 block text-[10px] font-bold tracking-wider uppercase">
+              <strong className="text-pullim-blue-700 mb-1 block text-micro font-bold tracking-wider uppercase">
                 {form.name || '새 봇'} ({toneMeta[form.tone].label})
               </strong>
               {testReply}
             </div>
           ) : (
-            <p className="text-pullim-slate-400 py-4 text-center text-[11px] italic">
+            <p className="text-pullim-slate-400 py-4 text-center text-2xs italic">
               아래에 질문을 입력해 봇 응답을 미리 확인해보세요
             </p>
           )}
@@ -550,7 +550,7 @@ export function Step8Deploy({ form, setForm }: Props) {
       <section>
         <h3 className="text-pullim-slate-900 mb-2 text-sm font-bold">
           배포할 반 선택<RequiredMark />
-          <span className="text-pullim-slate-400 ml-1 text-[10px] font-normal">(1개 이상)</span>
+          <span className="text-pullim-slate-400 ml-1 text-micro font-normal">(1개 이상)</span>
         </h3>
         <ul className="space-y-1.5">
           {['고2-A반', '고2-B반', '고1-종합반', '재수반'].map(c => {
@@ -579,11 +579,11 @@ export function Step8Deploy({ form, setForm }: Props) {
       </section>
 
       <section className="bg-pullim-slate-900 rounded-xl p-4 text-white">
-        <div className="text-pullim-blue-300 flex items-center gap-1 text-[10px] font-bold tracking-wider uppercase">
+        <div className="text-pullim-blue-300 flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
           <Sparkles className="h-3 w-3" />
           최종 확인
         </div>
-        <ul className="text-pullim-slate-300 mt-2 space-y-0.5 text-[11px]">
+        <ul className="text-pullim-slate-300 mt-2 space-y-0.5 text-2xs">
           <li>· 이름: <strong className="text-white">{form.name || '미입력'}</strong></li>
           <li>· {form.subject} · {form.grade} · {toneMeta[form.tone].label} 톤</li>
           <li>· 교안 {form.files.length}개 · {teachingStyleMeta[form.teachingStyle].label}</li>

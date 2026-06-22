@@ -46,7 +46,7 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
       <div className={cn(
-        'inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase',
+        'inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase',
         onDark ? 'text-white/70' : 'text-pullim-slate-500',
       )}>
         {Icon && <Icon className="h-3 w-3" />}

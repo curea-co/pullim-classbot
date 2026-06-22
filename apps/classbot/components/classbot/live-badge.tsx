@@ -10,7 +10,7 @@ export interface LiveBadgeProps {
 }
 
 export function LiveBadge({ variant = 'pill', size = 'xs', children, className, ...rest }: LiveBadgeProps) {
-  const textSize = size === 'sm' ? 'text-[11px]' : 'text-[10px]';
+  const textSize = size === 'sm' ? 'text-2xs' : 'text-micro';
   if (variant === 'dot') {
     return (
       <span

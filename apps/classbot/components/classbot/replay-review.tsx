@@ -133,7 +133,7 @@ function ProcessingPane() {
       <div className="flex items-center gap-3">
         <Loader2 className="text-pullim-lemon h-6 w-6 animate-spin" />
         <div>
-          <div className="text-pullim-lemon text-[10px] font-bold tracking-wider uppercase">
+          <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
             AI 처리 중
           </div>
           <h2 className="mt-0.5 text-base font-bold">트랜스크립트 + 핵심 메시지 + 집중도 추출</h2>
@@ -195,7 +195,7 @@ function KeyTakeawaysEditor({
       <ul className="space-y-2.5">
         {takeaways.map((t, i) => (
           <li key={i} className="flex items-start gap-2">
-            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-micro font-bold">
               {i + 1}
             </span>
             <Textarea
@@ -223,7 +223,7 @@ function KeyTakeawaysReadOnly({ takeaways }: { takeaways: string[] }) {
       <ol className="space-y-1.5 text-sm">
         {takeaways.map((t, i) => (
           <li key={i} className="text-pullim-slate-700 flex items-start gap-2 leading-relaxed">
-            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold">
+            <span className="bg-pullim-blue-50 text-pullim-blue-700 mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-micro font-bold">
               {i + 1}
             </span>
             {t}
@@ -245,11 +245,11 @@ function TranscriptVisibility({
       <header className="border-pullim-slate-100 flex items-center justify-between border-b p-4">
         <div>
           <h2 className="text-pullim-slate-900 text-sm font-bold">트랜스크립트 — 학생 노출 선택</h2>
-          <p className="text-pullim-slate-500 text-[11px]">
+          <p className="text-pullim-slate-500 text-2xs">
             기본 모두 노출. 가리고 싶은 라인을 눌러서 비공개로.
           </p>
         </div>
-        <span className="text-pullim-slate-400 text-[10px] font-mono">
+        <span className="text-pullim-slate-400 text-micro font-mono">
           {replay.transcript.length - hiddenLines.size}/{replay.transcript.length} 노출
         </span>
       </header>
@@ -268,7 +268,7 @@ function TranscriptVisibility({
                   hidden ? 'bg-pullim-slate-50/60 hover:bg-pullim-slate-100' : 'hover:bg-pullim-blue-50/30',
                 )}
               >
-                <div className="flex items-center gap-1.5 text-[10px]">
+                <div className="flex items-center gap-1.5 text-micro">
                   <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                   <span className={cn(
                     'rounded-full px-1.5 py-0.5 font-bold',
@@ -316,14 +316,14 @@ function TranscriptReadOnly({
     <section className="bg-card rounded-2xl border">
       <header className="border-pullim-slate-100 border-b p-4">
         <h2 className="text-pullim-slate-900 text-sm font-bold">학생 발송된 트랜스크립트</h2>
-        <p className="text-pullim-slate-500 text-[11px]">
+        <p className="text-pullim-slate-500 text-2xs">
           {visible.length}/{replay.transcript.length} 라인 노출됨
         </p>
       </header>
       <ul className="divide-pullim-slate-100 max-h-[400px] divide-y overflow-y-auto">
         {visible.map((line, i) => (
           <li key={i} className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 text-[10px]">
+            <div className="flex items-center gap-1.5 text-micro">
               <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 font-bold',
@@ -361,7 +361,7 @@ function SegmentsPreview({ replay }: { replay: Replay }) {
               </span>
               <span className="text-pullim-slate-500 font-mono font-bold">{seg.at}</span>
               <span className="text-pullim-slate-700 flex-1 truncate">{seg.label}</span>
-              <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', meta.color, 'text-white')}>
+              <span className={cn('rounded-full px-2 py-0.5 text-micro font-bold', meta.color, 'text-white')}>
                 {meta.label}
               </span>
             </li>
@@ -386,7 +386,7 @@ function FocusHeatmapPreview({ bins }: { bins: number[] }) {
         minPct={8}
         gapClassName="gap-0.5"
       />
-      <div className="text-pullim-slate-400 mt-1.5 flex justify-between font-mono text-[10px]">
+      <div className="text-pullim-slate-400 mt-1.5 flex justify-between font-mono text-micro">
         <span>0:00</span>
         <span>{formatReplayTime((bins.length * 60) / 2)}</span>
         <span>{formatReplayTime(bins.length * 60)}</span>
@@ -431,13 +431,13 @@ function Stat({
 }) {
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </div>
       <div className={cn('mt-0.5 font-mono text-base font-bold', accent ? 'text-pullim-blue-600' : 'text-pullim-slate-900')}>
         {value}
-        {sub && <span className="text-pullim-slate-400 ml-1 text-[10px]">{sub}</span>}
+        {sub && <span className="text-pullim-slate-400 ml-1 text-micro">{sub}</span>}
       </div>
     </li>
   );
@@ -454,7 +454,7 @@ function ApproveBar({
   return (
     <div className="bg-pullim-slate-900 sticky bottom-3 z-10 rounded-2xl p-4 text-white shadow-xl lg:flex lg:items-center lg:gap-4">
       <div className="flex-1">
-        <div className="text-pullim-lemon text-[10px] font-bold tracking-wider uppercase">
+        <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
           학생 발송 준비
         </div>
         <p className="text-sm">

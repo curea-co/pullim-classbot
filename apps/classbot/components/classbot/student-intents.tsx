@@ -57,7 +57,7 @@ export function StudentIntents() {
                   {intent.description}
                 </div>
                 {!allowed && (
-                  <div className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-0.5 text-[10px] font-semibold">
+                  <div className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-0.5 text-micro font-semibold">
                     <Lock className="h-2.5 w-2.5" />
                     선생님이 권한을 {required.short}({required.label})로 올려야 사용 가능
                   </div>

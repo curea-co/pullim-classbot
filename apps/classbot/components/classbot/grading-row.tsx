@@ -43,11 +43,11 @@ export function GradingRow({ item }: { item: GradingItem }) {
           {/* 1행: 학생명 + 상태 + 위기 신호 */}
           <div className="flex items-center gap-2">
             <span className="text-pullim-slate-900 truncate text-sm font-bold">{item.studentName}</span>
-            <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-bold', status.color)}>
+            <span className={cn('rounded-full px-1.5 py-0.5 text-micro font-bold', status.color)}>
               {status.label}
             </span>
             {isCrisis && (
-              <span title="응답 빈약·감정 키워드" className="text-pullim-danger inline-flex items-center gap-0.5 text-[10px] font-bold">
+              <span title="응답 빈약·감정 키워드" className="text-pullim-danger inline-flex items-center gap-0.5 text-micro font-bold">
                 <AlertCircle className="h-3 w-3" />
                 신경 쓸 신호
               </span>
@@ -56,7 +56,7 @@ export function GradingRow({ item }: { item: GradingItem }) {
           </div>
 
           {/* 2행: 과제명 + 타입 */}
-          <div className="text-pullim-slate-600 mt-1 flex items-center gap-1.5 text-[11px]">
+          <div className="text-pullim-slate-600 mt-1 flex items-center gap-1.5 text-2xs">
             <TypeIcon className="h-3 w-3 shrink-0" />
             <span>{t.label}</span>
             <span className="text-pullim-slate-300">·</span>
@@ -68,7 +68,7 @@ export function GradingRow({ item }: { item: GradingItem }) {
           {/* 3행: AI 초안 점수 + 신뢰도 바 */}
           <div className="mt-2 flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-pullim-slate-400 text-[10px] font-semibold uppercase tracking-wider">AI 초안</span>
+              <span className="text-pullim-slate-400 text-micro font-semibold uppercase tracking-wider">AI 초안</span>
               <span className="font-mono text-sm font-bold">
                 <span className={cn(pct >= 80 ? 'text-pullim-blue-700' : pct >= 60 ? 'text-pullim-blue-500' : 'text-pullim-slate-500')}>
                   {item.draftScore}
@@ -77,18 +77,18 @@ export function GradingRow({ item }: { item: GradingItem }) {
               </span>
             </div>
             <div className="flex flex-1 items-center gap-1.5">
-              <span className="text-pullim-slate-400 text-[10px]">신뢰도</span>
+              <span className="text-pullim-slate-400 text-micro">신뢰도</span>
               <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
                 <div
                   className={cn('h-full rounded-full', isLowConfidence ? 'bg-pullim-slate-400' : 'bg-pullim-blue-500')}
                   style={{ width: `${item.aiConfidence}%` }}
                 />
               </div>
-              <span className={cn('font-mono text-[10px] font-bold', isLowConfidence ? 'text-pullim-slate-500' : 'text-pullim-slate-500')}>
+              <span className={cn('font-mono text-micro font-bold', isLowConfidence ? 'text-pullim-slate-500' : 'text-pullim-slate-500')}>
                 {item.aiConfidence}%
               </span>
-              <span className="text-pullim-slate-300 font-mono text-[10px]">·</span>
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded px-1 font-mono text-[11px] font-bold">
+              <span className="text-pullim-slate-300 font-mono text-micro">·</span>
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded px-1 font-mono text-2xs font-bold">
                 {item.tier}
               </span>
             </div>

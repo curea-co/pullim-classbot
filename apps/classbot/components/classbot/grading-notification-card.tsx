@@ -31,13 +31,13 @@ export function GradingNotificationCard() {
         <ClipboardCheck className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-pullim-blue-700 text-[10px] font-bold uppercase tracking-wider">
+        <div className="text-pullim-blue-700 text-micro font-bold uppercase tracking-wider">
           채점 완료 {recent.length > 1 ? `${recent.length}건` : ''}
         </div>
         <div className="text-pullim-slate-900 text-sm font-bold">
           방금 푼 과제 결과 — {latest.scorePercent}점
         </div>
-        <div className="text-pullim-blue-600 mt-0.5 text-[11px]">
+        <div className="text-pullim-blue-600 mt-0.5 text-2xs">
           {latest.scorePercent >= 80 ? '잘했어요!' : latest.scorePercent >= 60 ? '한 발 더!' : '천천히 다시 봐요'}
         </div>
       </div>

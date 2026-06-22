@@ -224,7 +224,7 @@ function BotStripItem({
             {bot.avatarEmoji}
           </span>
           {isLiveNow && (
-            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-[10px] font-bold text-white">
+            <span className="bg-pullim-danger absolute -top-1 -right-1 inline-flex h-4 items-center gap-0.5 rounded-full px-1 text-micro font-bold text-white">
               <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
               LV
             </span>

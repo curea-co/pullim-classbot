@@ -81,7 +81,7 @@ function AttachOption({
             )}
           >
             <Icon className="h-6 w-6" />
-            <span className="text-[11px] font-semibold">{label}</span>
+            <span className="text-2xs font-semibold">{label}</span>
           </button>
         }
       />
@@ -96,7 +96,7 @@ function AttachClose() {
         render={
           <button
             type="button"
-            className="bg-pullim-slate-100 text-pullim-slate-500 hover:bg-pullim-slate-200 flex h-24 w-full items-center justify-center rounded-2xl text-[11px] font-semibold transition-colors"
+            className="bg-pullim-slate-100 text-pullim-slate-500 hover:bg-pullim-slate-200 flex h-24 w-full items-center justify-center rounded-2xl text-2xs font-semibold transition-colors"
           >
             닫기
           </button>

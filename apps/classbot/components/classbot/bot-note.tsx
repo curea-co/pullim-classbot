@@ -12,7 +12,7 @@ export function BotNote({ children, icon: Icon = Sparkles, className }: BotNoteP
   return (
     <div
       className={cn(
-        'text-pullim-blue-700 bg-pullim-blue-50/60 rounded-lg px-3 py-2 text-[11px] leading-relaxed',
+        'text-pullim-blue-700 bg-pullim-blue-50/60 rounded-lg px-3 py-2 text-2xs leading-relaxed',
         className
       )}
     >

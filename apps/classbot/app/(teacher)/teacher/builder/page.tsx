@@ -85,7 +85,7 @@ export default function BotBuilderPage() {
             <StepIcon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">
+            <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">
               Step {currentStep} / 8
             </div>
             <h2 className="text-pullim-slate-900 mt-0.5 text-lg font-bold tracking-tight">
@@ -125,7 +125,7 @@ export default function BotBuilderPage() {
             이전
           </button>
 
-          <div className="text-pullim-slate-400 hidden sm:block text-[10px] font-mono">
+          <div className="text-pullim-slate-400 hidden sm:block text-micro font-mono">
             {currentStep}/8 — {stepInfo.label}
           </div>
 
@@ -139,7 +139,7 @@ export default function BotBuilderPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <span className="text-pullim-slate-500 text-[11px] font-semibold">
+            <span className="text-pullim-slate-500 text-2xs font-semibold">
               ↑ 위 [배포하기] 클릭으로 완료
             </span>
           )}

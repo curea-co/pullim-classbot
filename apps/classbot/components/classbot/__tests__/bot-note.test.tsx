@@ -31,7 +31,7 @@ describe('BotNote', () => {
       'rounded-lg',
       'px-3',
       'py-2',
-      'text-[11px]',
+      'text-2xs',
       'leading-relaxed'
     );
   });

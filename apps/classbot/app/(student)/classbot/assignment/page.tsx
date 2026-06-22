@@ -194,11 +194,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
               {bot.label}
             </h3>
             {bot.subject && (
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-micro font-semibold">
                 {bot.subject}
               </span>
             )}
-            <span className="text-pullim-slate-500 ml-auto shrink-0 text-[10px] font-semibold">
+            <span className="text-pullim-slate-500 ml-auto shrink-0 text-micro font-semibold">
               {items.length}개
             </span>
           </div>
@@ -209,7 +209,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
                 style={{ width: `${progress}%`, backgroundColor: groupHex }}
               />
             </div>
-            <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+            <span className="text-pullim-slate-500 font-mono text-micro font-bold">
               {completedQ}/{totalQ}문항
             </span>
           </div>
@@ -241,7 +241,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-[10px]">
+            <div className="flex items-center gap-2 text-micro">
               <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
@@ -255,7 +255,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
             </div>
 
             <div className="text-pullim-slate-900 mt-1 text-sm font-bold">{a.title}</div>
-            <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+            <div className="text-pullim-slate-500 mt-0.5 text-2xs">
               {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
             </div>
 
@@ -267,16 +267,16 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <span className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+              <span className="text-pullim-slate-500 font-mono text-micro font-bold">
                 {a.completedCount}/{a.questionCount}
               </span>
-              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold">
                 {visual.semanticLabel}
               </span>
             </div>
 
             {a.reasonHint && (
-              <p className="text-pullim-blue-700 mt-2 text-[11px] leading-relaxed">
+              <p className="text-pullim-blue-700 mt-2 text-2xs leading-relaxed">
                 <Sparkles className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {a.reasonHint}
               </p>

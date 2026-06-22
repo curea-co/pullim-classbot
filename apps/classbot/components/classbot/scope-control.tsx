@@ -21,11 +21,11 @@ export function ScopeControl() {
         <Shield className="text-pullim-blue-600 h-4 w-4" />
         <div className="flex-1">
           <h2 className="text-pullim-slate-900 text-sm font-bold">Scope Guard</h2>
-          <p className="text-pullim-slate-500 text-[11px]">
+          <p className="text-pullim-slate-500 text-2xs">
             봇이 답할 수 있는 범위 · 변경 시 감사 로그에 기록
           </p>
         </div>
-        <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold">
+        <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-2 py-0.5 font-mono text-micro font-bold">
           현재 {scopeMeta[scope].short}
         </span>
       </header>
@@ -55,7 +55,7 @@ export function ScopeControl() {
                 {m.short}
               </div>
               <div className={cn(
-                'text-[11px] font-bold',
+                'text-2xs font-bold',
                 active ? 'text-pullim-slate-900' : 'text-pullim-slate-700',
               )}>
                 {m.label}
@@ -65,12 +65,12 @@ export function ScopeControl() {
         })}
       </div>
 
-      <p className="text-pullim-slate-500 mt-2.5 text-[11px] leading-relaxed">
+      <p className="text-pullim-slate-500 mt-2.5 text-2xs leading-relaxed">
         <strong className="text-pullim-slate-700">{scopeMeta[scope].label}</strong> ·
         {' '}{scopeMeta[scope].allow}
       </p>
 
-      <div className="bg-pullim-blue-50 text-pullim-blue-700 mt-2.5 flex items-start gap-1.5 rounded-lg p-2 text-[10px] leading-snug">
+      <div className="bg-pullim-blue-50 text-pullim-blue-700 mt-2.5 flex items-start gap-1.5 rounded-lg p-2 text-micro leading-snug">
         <AlarmClock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         <span><strong>자동 스위치</strong>: 18:00–19:00 자동 L4(단계 힌트), 19:00–22:00 L3(개념), 22:00 이후 L5(답)</span>
       </div>

@@ -24,7 +24,7 @@ export function EmotionEmojiPicker({
     <div className="space-y-4">
       <div>
         <h3 className="text-pullim-slate-900 text-sm font-bold">오늘 어땠어요?</h3>
-        <p className="text-pullim-slate-500 mt-0.5 text-[11px]">하나만 골라주세요.</p>
+        <p className="text-pullim-slate-500 mt-0.5 text-2xs">하나만 골라주세요.</p>
 
         <div role="radiogroup" aria-label="오늘 기분" className="mt-3 grid grid-cols-4 gap-2">
           {moods.map(m => {
@@ -51,7 +51,7 @@ export function EmotionEmojiPicker({
               >
                 <span className="text-2xl leading-none">{meta.emoji}</span>
                 <span className={cn(
-                  'text-[10px] font-bold',
+                  'text-micro font-bold',
                   active ? 'text-pullim-slate-900' : 'text-pullim-slate-500',
                 )}>
                   {meta.label}
@@ -66,7 +66,7 @@ export function EmotionEmojiPicker({
         <div data-testid="intensity-range-block">
           <div className="flex items-center justify-between">
             <h3 className="text-pullim-slate-900 text-xs font-bold">강도 범위 (선택)</h3>
-            <span className="text-pullim-slate-500 font-mono text-[11px]" data-testid="intensity-range-readout">{low}~{high}/5</span>
+            <span className="text-pullim-slate-500 font-mono text-2xs" data-testid="intensity-range-readout">{low}~{high}/5</span>
           </div>
           <Slider
             min={1}
@@ -81,11 +81,11 @@ export function EmotionEmojiPicker({
             aria-label="감정 강도 범위"
             className="mt-2"
           />
-          <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-[11px]">
+          <div className="text-pullim-slate-400 mt-0.5 flex justify-between text-2xs">
             <span>살짝</span>
             <span>많이</span>
           </div>
-          <p className="text-pullim-slate-400 mt-1 text-[10px]">하루 동안 변동 폭을 적어주세요. 두 점을 따로 움직일 수 있어요.</p>
+          <p className="text-pullim-slate-400 mt-1 text-micro">하루 동안 변동 폭을 적어주세요. 두 점을 따로 움직일 수 있어요.</p>
         </div>
       )}
     </div>
