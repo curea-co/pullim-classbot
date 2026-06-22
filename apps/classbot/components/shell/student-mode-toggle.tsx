@@ -22,7 +22,8 @@ export function StudentModeToggle({ className }: { className?: string }) {
             aria-selected={active}
             onClick={() => setMode(m.key)}
             className={cn(
-              'rounded-pill px-3 py-1.5 text-xs font-bold transition-colors min-h-9',
+              'rounded-pill px-3 py-1.5 text-xs font-bold transition-colors min-h-11',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50',
               active ? 'bg-card text-pullim-blue-700 shadow-pullim-xs' : 'text-pullim-slate-500 hover:text-pullim-slate-700',
             )}
           >
