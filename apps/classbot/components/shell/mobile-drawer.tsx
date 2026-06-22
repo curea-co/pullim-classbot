@@ -5,7 +5,7 @@ import { Menu } from 'lucide-react';
 import {
   Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader,
 } from '@/components/ui/sheet';
-import { PullimLogo } from '@/components/brand/logo';
+import { ClassbotMark } from '@/components/brand/classbot-mark';
 import { AppSidebar } from './app-sidebar';
 import { RoleSwitcher } from './role-switcher';
 import type { Role } from './nav-config';
@@ -28,7 +28,8 @@ export function MobileDrawer({ role }: { role: Role }) {
       <SheetContent side="left" className="w-72 p-0 flex flex-col">
         <SheetHeader className="border-b p-4">
           <SheetTitle className="flex items-center gap-2">
-            <PullimLogo size={22} />
+            <ClassbotMark size={22} />
+            <span className="text-pullim-slate-900 text-sm font-bold tracking-tight">풀림</span>
             <span className="text-pullim-slate-400 text-[10px] font-bold uppercase">
               {role === 'student' ? '클래스봇' : '교사'}
             </span>

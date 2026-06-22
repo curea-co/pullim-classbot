@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
-import { PullimLogo } from '@/components/brand/logo';
+import { ClassbotMark } from '@/components/brand/classbot-mark';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
@@ -45,7 +45,8 @@ export function AppHeader({ role }: { role: Role }) {
 
         {/* 로고 (스터디/교사/보호자 라벨 통합) */}
         <Link href={roleHomeHref[role]} className="flex items-center gap-1.5 shrink-0">
-          <PullimLogo size={22} />
+          <ClassbotMark size={24} />
+          <span className="text-pullim-slate-900 text-sm font-bold tracking-tight">풀림</span>
           <span className="text-pullim-slate-400 hidden text-[10px] font-bold uppercase md:inline">
             {roleLogoLabel[role]}
           </span>

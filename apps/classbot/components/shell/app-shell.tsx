@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { AppHeader } from './app-header';
-import { AppSidebar } from './app-sidebar';
+import { AppSidebarRail } from './app-sidebar-rail';
 import { BottomNav } from './bottom-nav';
 import { Breadcrumb } from './breadcrumb';
 import type { Role } from './nav-config';
@@ -32,11 +32,8 @@ export function AppShell({ role, children }: Props) {
         <AppHeader role={role} />
 
         <div className="flex flex-1 overflow-hidden">
-          {/* 사이드바 — 데스크탑 전체, 태블릿 축약 */}
-          <aside className="border-pullim-slate-200 bg-card hidden shrink-0 border-r md:flex md:w-16 md:flex-col lg:w-60">
-            <AppSidebar role={role} className="hidden lg:flex" />
-            <AppSidebar role={role} compact className="flex lg:hidden" />
-          </aside>
+          {/* 사이드바 — 데스크탑 전체/아이콘 토글, 태블릿 축약 */}
+          <AppSidebarRail role={role} />
 
           {/* 본문 */}
           <main className="flex-1 overflow-y-auto">
