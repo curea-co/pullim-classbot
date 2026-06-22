@@ -18,7 +18,7 @@ export function ChatStudyRail({ bot }: { bot: ClassBot }) {
   return (
     <div className="space-y-5">
       {/* 봇 맥락 한 줄 */}
-      <div className="text-pullim-slate-500 text-[11px] font-semibold">
+      <div className="text-pullim-slate-500 text-2xs font-semibold">
         {bot.subject}{bot.currentLesson?.chapter ? ` · ${bot.currentLesson.chapter}` : ''}
       </div>
 
@@ -45,10 +45,10 @@ export function ChatStudyRail({ bot }: { bot: ClassBot }) {
                 className="group bg-card hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 block rounded-xl border p-3 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-md px-1.5 py-0.5 font-mono text-micro font-bold">
                     {q.problemNumber}
                   </span>
-                  <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                  <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-1.5 py-0.5 text-micro font-semibold">
                     난이도 {q.difficulty}
                   </span>
                   <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 ml-auto h-3.5 w-3.5 transition-colors" />

@@ -115,6 +115,8 @@
 
   /* 풀림 DS 8-step 타입 스케일 — caption→display1 */
   /* Tailwind text-{name} utility reads --text-{name} (size) + --text-{name}--line-height */
+  --text-micro: 0.625rem;  --text-micro--line-height: 0.875rem; /* fine-print 10/14 — badges/eyebrows */
+  --text-2xs:   0.6875rem; --text-2xs--line-height:   0.9375rem;/* micro-meta 11/15 */
   --text-xs:   0.75rem;   --text-xs--line-height:   1rem;      /* caption  12/16 */
   --text-sm:   0.875rem;  --text-sm--line-height:   1.375rem;  /* body     14/22 */
   --text-base: 1rem;      --text-base--line-height: 1.5rem;    /* bodyLg   16/24 */
@@ -267,6 +269,13 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  /* R6 — universal keyboard focus ring. Catches controls with no focus style;
+     uses outline (non-clipping) in the DS brand blue. Components may override. */
+  :focus-visible {
+    outline: 2px solid var(--color-pullim-blue-400);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
   body {
     @apply bg-background text-foreground antialiased;

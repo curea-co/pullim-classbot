@@ -71,10 +71,10 @@ export function CheckInForm() {
                   <span className="text-pullim-slate-400 font-mono font-normal">· {submittedAt || '방금'}</span>
                 </div>
               </div>
-              <p className="text-pullim-slate-700 mt-2 text-[13px] leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
+              <p className="text-pullim-slate-700 mt-2 text-sm leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
               <Link
                 href={reaction.ctaHref}
-                className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-pullim-slate-50"
+                className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
                 style={{ borderColor: sig.inkLight, color: sig.inkLight }}
               >
                 {reaction.ctaLabel}
@@ -135,7 +135,7 @@ export function CheckInForm() {
             placeholder="한 줄로 적어주세요. 비워두고 넘어가도 괜찮아요."
             className="mt-2 text-sm leading-relaxed"
           />
-          <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
+          <div className="text-pullim-slate-400 mt-1 text-right text-micro font-mono">
             {freeText.length}/200
           </div>
         </section>

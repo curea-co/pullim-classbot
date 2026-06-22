@@ -78,7 +78,7 @@ export function GradingDetail({
           {prevId ? (
             <Link
               href={`/teacher/grading/${prevId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
             >
               <ChevronLeft className="h-3 w-3" /> 이전 학생
             </Link>
@@ -86,7 +86,7 @@ export function GradingDetail({
           {nextId ? (
             <Link
               href={`/teacher/grading/${nextId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
             >
               다음 학생 <ChevronRight className="h-3 w-3" />
             </Link>
@@ -131,8 +131,8 @@ export function GradingDetail({
                   return (
                     <li key={i} className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg p-2">
                       <div className="min-w-0 flex-1">
-                        <div className="text-pullim-slate-700 truncate text-[11px] font-semibold">{h.assignmentTitle}</div>
-                        <div className="text-pullim-slate-400 text-[10px]">{h.gradedAt}</div>
+                        <div className="text-pullim-slate-700 truncate text-2xs font-semibold">{h.assignmentTitle}</div>
+                        <div className="text-pullim-slate-400 text-micro">{h.gradedAt}</div>
                       </div>
                       <ScoreDisplay score={h.score} max={h.maxScore} size="sm" tone="threshold" />
                     </li>
@@ -144,7 +144,7 @@ export function GradingDetail({
 
           {/* 면담 메모 안내 */}
           <AlertCard tone="info" icon={MessageSquare} title="1:1 면담 메모">
-            <p className="text-pullim-slate-500 text-[11px] leading-relaxed">
+            <p className="text-pullim-slate-500 text-2xs leading-relaxed">
               여기서 작성한 메모는 학생 개인 리포트에 자동 첨부돼 학생에게 부드러운 형태로 전달돼요.
             </p>
             <Button
@@ -193,7 +193,7 @@ export function GradingDetail({
             aria-label="AI 초안 코멘트"
             className="rounded-xl text-sm leading-relaxed"
           />
-          <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
+          <div className="text-pullim-slate-400 mt-1 text-right text-micro font-mono">
             {finalComment.length}/500
           </div>
         </section>
@@ -202,7 +202,7 @@ export function GradingDetail({
         <section className="bg-card border sticky bottom-4 rounded-2xl p-3 shadow-pullim-md">
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">최종 점수</div>
+              <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">최종 점수</div>
               <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="threshold" />
             </div>
             <Button

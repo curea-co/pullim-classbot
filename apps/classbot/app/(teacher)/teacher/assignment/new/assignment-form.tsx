@@ -181,7 +181,7 @@ export function AssignmentForm() {
           <ArrowLeft className="h-3 w-3" />
           취소
         </Link>
-        <span className="text-pullim-slate-400 font-mono text-[10px]">진행도 {progress}/5</span>
+        <span className="text-pullim-slate-400 font-mono text-micro">진행도 {progress}/5</span>
       </div>
 
       <PageHeader
@@ -227,7 +227,7 @@ export function AssignmentForm() {
                 className="h-10 text-sm"
               />
               {title !== '' && !titleValid && (
-                <p id="af-title-err" className="text-pullim-danger mt-1 text-[10px]">제목은 5~50자 사이여야 해요.</p>
+                <p id="af-title-err" className="text-pullim-danger mt-1 text-micro">제목은 5~50자 사이여야 해요.</p>
               )}
             </Field>
 
@@ -252,7 +252,7 @@ export function AssignmentForm() {
                       )}
                     >
                       <div className="text-pullim-slate-900 text-xs font-bold">{meta.label}</div>
-                      <div className="text-pullim-slate-500 mt-0.5 text-[10px] leading-tight">{meta.description}</div>
+                      <div className="text-pullim-slate-500 mt-0.5 text-micro leading-tight">{meta.description}</div>
                     </button>
                   );
                 })}
@@ -371,7 +371,7 @@ export function AssignmentForm() {
             })}
           </div>
           {!targetValid && (
-            <p className="text-pullim-danger mt-2 text-[10px]">최소 1명을 선택해주세요.</p>
+            <p className="text-pullim-danger mt-2 text-micro">최소 1명을 선택해주세요.</p>
           )}
         </section>
 
@@ -394,12 +394,12 @@ export function AssignmentForm() {
                 aria-describedby={!dueValid ? 'af-due-err' : 'af-due-hint'}
                 className="h-10 text-sm"
               />
-              <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-[10px]">
+              <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-micro">
                 <Calendar className="-mt-0.5 mr-0.5 inline h-3 w-3" />
                 {formatDueLabel(dueIso)} ({computeDDay(dueIso)})
               </p>
               {!dueValid && (
-                <p id="af-due-err" className="text-pullim-danger mt-1 text-[10px]">미래 시각으로 설정해주세요.</p>
+                <p id="af-due-err" className="text-pullim-danger mt-1 text-micro">미래 시각으로 설정해주세요.</p>
               )}
             </Field>
 
@@ -419,7 +419,7 @@ export function AssignmentForm() {
         {/* 시험 모드 추가 */}
         {mode === 'exam' && (
           <AlertCard tone="danger" icon={Shield} title="시험 모드 설정">
-            <p className="text-pullim-slate-500 mb-3 text-[11px]">발사 후 봇이 자동 잠기고 시간이 측정돼요</p>
+            <p className="text-pullim-slate-500 mb-3 text-2xs">발사 후 봇이 자동 잠기고 시간이 측정돼요</p>
             <div className="space-y-3">
               <Field label="시간 제한 (분)" htmlFor="af-time">
                 <div className="flex items-center gap-3">
@@ -508,7 +508,7 @@ function Field({
         className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold"
       >
         <span>{label}</span>
-        {hint && <span className="text-pullim-slate-400 font-mono text-[10px]">{hint}</span>}
+        {hint && <span className="text-pullim-slate-400 font-mono text-micro">{hint}</span>}
       </Label>
       {children}
     </div>
@@ -536,7 +536,7 @@ function PreviewModal({
         <p className="text-pullim-slate-500 mt-1 text-xs">{targetCount}명 학생 홈에 등장</p>
 
         <div className={cn('mt-4 rounded-2xl border-2 p-4', meta.color)}>
-          <div className="flex items-center gap-2 text-[10px]">
+          <div className="flex items-center gap-2 text-micro">
             <span className="bg-pullim-slate-900 text-white rounded-full px-2 py-0.5 font-bold uppercase tracking-wider">
               {meta.label}
             </span>
@@ -544,11 +544,11 @@ function PreviewModal({
           </div>
           <h4 className="text-pullim-slate-900 mt-2 text-base font-bold">{assignment.title}</h4>
           <p className="text-pullim-slate-600 mt-0.5 text-xs">{assignment.scope}</p>
-          <p className="text-pullim-slate-500 mt-1 text-[11px]">
+          <p className="text-pullim-slate-500 mt-1 text-2xs">
             {assignment.questionCount}문항 · 난이도 {assignment.difficulty} · {bot.name}
           </p>
           {assignment.reasonHint && (
-            <p className="bg-white mt-2 rounded-lg p-2 text-[11px]">
+            <p className="bg-white mt-2 rounded-lg p-2 text-2xs">
               <Sparkles className="text-pullim-blue-600 -mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
               {assignment.reasonHint}
             </p>

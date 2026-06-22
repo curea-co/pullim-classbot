@@ -65,7 +65,7 @@ export default function TeacherClassbotPage() {
               <li><strong>예은</strong>{' — '}22분 무응답 + 웰빙 급락</li>
               <li><strong>도현</strong>{' — '}감정 체크인 3일 연속 힘듦</li>
             </ul>
-            <ComingSoonButton note="Wee센터 연계" className="mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold">
+            <ComingSoonButton note="Wee센터 연계" className="mt-3 w-full rounded-lg py-1.5 text-2xs font-bold">
               1:1 상담 시작 / Wee센터 연결 (v2)
             </ComingSoonButton>
           </AlertCard>
@@ -147,7 +147,7 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px]">
+          <div className="flex items-center gap-1.5 text-micro">
             <span className="text-pullim-slate-500 font-bold">
               <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
               {a.assignedAt} 발사
@@ -167,7 +167,7 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
             </span>
           </div>
           <div className="text-pullim-slate-900 mt-1 text-sm font-bold">{a.title}</div>
-          <div className="text-pullim-slate-500 mt-0.5 text-[11px]">
+          <div className="text-pullim-slate-500 mt-0.5 text-2xs">
             {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
           </div>
 
@@ -179,11 +179,11 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span data-testid={`progress-${a.id}`} className="text-pullim-slate-500 font-mono text-[10px] font-bold">
+            <span data-testid={`progress-${a.id}`} className="text-pullim-slate-500 font-mono text-micro font-bold">
               {completedCount}/{a.questionCount}
             </span>
             {displayAccuracy != null && (
-              <span className={cn('font-mono text-[10px] font-bold', displayAccuracy >= 70 ? 'text-pullim-blue-700' : 'text-pullim-slate-500')}>
+              <span className={cn('font-mono text-micro font-bold', displayAccuracy >= 70 ? 'text-pullim-blue-700' : 'text-pullim-slate-500')}>
                 {displayAccuracy}%
               </span>
             )}
@@ -208,7 +208,7 @@ function DeployedBanner() {
         <Rocket className="h-4 w-4" />
         <strong className="text-sm">방금 배포된 봇: {deployed}</strong>
       </div>
-      <p className="text-pullim-blue-700 mt-1 text-[11px]">
+      <p className="text-pullim-blue-700 mt-1 text-2xs">
         선택한 반에 활성화됨 (데모). 아래 운영 화면이 새 봇 기준으로 갱신될 예정 — v1 backend 연결 후 실 반영.
       </p>
     </section>
@@ -236,7 +236,7 @@ function EnrollmentToggleSection() {
         title="등록 학생 관리"
         description={`${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
         action={
-          <span className="text-pullim-slate-400 text-[10px]">데모 — 새로고침 시 초기화</span>
+          <span className="text-pullim-slate-400 text-micro">데모 — 새로고침 시 초기화</span>
         }
       />
       <ul className="mt-2 grid grid-cols-2 gap-1.5 lg:grid-cols-3">

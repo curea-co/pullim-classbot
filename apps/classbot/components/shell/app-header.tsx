@@ -47,7 +47,7 @@ export function AppHeader({ role }: { role: Role }) {
         <Link href={roleHomeHref[role]} className="flex items-center gap-1.5 shrink-0">
           <ClassbotMark size={24} />
           <span className="text-pullim-slate-900 text-sm font-bold tracking-tight">풀림</span>
-          <span className="text-pullim-slate-400 hidden text-[10px] font-bold uppercase md:inline">
+          <span className="text-pullim-slate-400 hidden text-micro font-bold uppercase md:inline">
             {roleLogoLabel[role]}
           </span>
         </Link>
@@ -149,7 +149,7 @@ function ProfileMenu({ role }: { role: Role }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="px-2 py-1.5">
             <div className="text-pullim-slate-900 text-sm font-bold">{profile.name}</div>
-            <div className="text-pullim-slate-500 text-[11px] font-normal">{profile.sub}</div>
+            <div className="text-pullim-slate-500 text-2xs font-normal">{profile.sub}</div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

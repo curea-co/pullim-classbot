@@ -23,7 +23,7 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
         <TrendingUp className={cn('h-4 w-4', isOver ? 'text-pullim-blue-700' : 'text-pullim-blue-600')} />
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-sm font-bold">변경률 누적</h3>
-          <p className="text-pullim-slate-500 text-[11px]">
+          <p className="text-pullim-slate-500 text-2xs">
             최근 30일 평균 — {threshold}% 넘으면 루브릭이 학생 답과 어긋난다는 신호예요.
           </p>
         </div>
@@ -31,7 +31,7 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
           <div className={cn('font-mono text-lg font-bold', isOver ? 'text-pullim-blue-700' : 'text-pullim-slate-900')}>
             {cumulative}%
           </div>
-          <div className="text-pullim-slate-400 text-[11px]">/ 임계 {threshold}%</div>
+          <div className="text-pullim-slate-400 text-2xs">/ 임계 {threshold}%</div>
         </div>
       </header>
 
@@ -43,7 +43,7 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
       </div>
 
       {currentDelta > 0 && (
-        <p className="text-pullim-slate-500 mt-2 text-[11px]">
+        <p className="text-pullim-slate-500 mt-2 text-2xs">
           이번 검수 변경률 <span className="font-mono font-bold">{currentDelta}%</span>
           {currentDelta >= threshold && <span className="text-pullim-blue-700 font-bold"> · 단독으로도 임계 초과</span>}
         </p>
@@ -52,7 +52,7 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
       {isOver && (
         <button
           type="button"
-          className="bg-pullim-blue-700 hover:bg-pullim-blue-800 mt-3 w-full rounded-lg py-1.5 text-[11px] font-bold text-white"
+          className="bg-pullim-blue-700 hover:bg-pullim-blue-800 mt-3 w-full rounded-lg py-1.5 text-2xs font-bold text-white"
         >
           루브릭 재학습 제안 보기
         </button>

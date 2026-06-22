@@ -109,7 +109,7 @@ export function SolveWorkspace({
   return (
     <div className="mx-auto max-w-2xl space-y-3">
       {/* 컨텍스트 바 */}
-      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-[10px] text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
+      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-micro text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
         <Link
           href={`/classbot/assignment/${assignment.id}`}
           className="text-pullim-slate-300 hover:text-white inline-flex items-center gap-1"
@@ -143,7 +143,7 @@ export function SolveWorkspace({
       {/* 문제 */}
       <section className="bg-card rounded-2xl border p-4">
         <div className="flex items-center gap-1.5">
-          <span className="bg-pullim-blue-100 text-pullim-blue-700 font-mono inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold">
+          <span className="bg-pullim-blue-100 text-pullim-blue-700 font-mono inline-flex h-6 w-6 items-center justify-center rounded-full text-micro font-bold">
             {q.order}
           </span>
           <div className="flex items-center gap-1">
@@ -153,7 +153,7 @@ export function SolveWorkspace({
               return (
                 <>
                   {Icon && <Icon className="h-3 w-3 text-pullim-slate-400" />}
-                  <span className="text-pullim-slate-400 text-[11px] font-bold tracking-wider">
+                  <span className="text-pullim-slate-400 text-2xs font-bold tracking-wider">
                     {meta?.label ?? q.type}
                   </span>
                 </>
@@ -168,7 +168,7 @@ export function SolveWorkspace({
 
       {/* 답안 입력 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">내 답안</h3>
+        <h3 className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">내 답안</h3>
         {q.type === 'mc' && q.options ? (
           <ul role="radiogroup" aria-label="객관식 선택지" className="mt-2 grid grid-cols-1 gap-2">
             {q.options.map((opt, i) => {

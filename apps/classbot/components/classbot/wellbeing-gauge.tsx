@@ -64,8 +64,8 @@ export function WellbeingGauge({
         <header className="mb-2 flex items-center gap-2">
           <Heart className={cn('h-3 w-3', tone.text)} />
           <span className={cn('font-mono text-sm font-bold', tone.text)}>{score}</span>
-          <span className="text-pullim-slate-400 text-[11px]">/100</span>
-          <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold', tone.chipBg, tone.chipText)}>
+          <span className="text-pullim-slate-400 text-2xs">/100</span>
+          <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold', tone.chipBg, tone.chipText)}>
             {tone.label}
           </span>
         </header>
@@ -108,9 +108,9 @@ export function WellbeingGauge({
           <Heart className={cn('h-4 w-4', tone.text)} />
           <div className="flex-1">
             <h3 className="text-pullim-slate-900 text-sm font-bold">웰빙 지수</h3>
-            <p className="text-pullim-slate-500 text-[11px]">5지표 가중 평균 · 0~100</p>
+            <p className="text-pullim-slate-500 text-2xs">5지표 가중 평균 · 0~100</p>
           </div>
-          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold', tone.chipBg, tone.chipText)}>
+          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-bold', tone.chipBg, tone.chipText)}>
             {tone.label}
           </span>
         </header>
@@ -118,7 +118,7 @@ export function WellbeingGauge({
         <div className="flex items-end gap-2">
           <div className={cn('font-mono text-4xl font-bold', tone.text)}>{score}</div>
           <div className="text-pullim-slate-500 mb-1.5 text-sm">/ 100</div>
-          <span className="text-pullim-slate-500 ml-auto inline-flex h-8 items-center gap-1 rounded-full px-2 text-[11px] font-semibold">
+          <span className="text-pullim-slate-500 ml-auto inline-flex h-8 items-center gap-1 rounded-full px-2 text-2xs font-semibold">
             5지표 {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </span>
         </div>
@@ -146,7 +146,7 @@ export function WellbeingGauge({
 
       {/* 7일 추세 — 새 컬러 매핑 ([13 § 9.1.2]) */}
       <div className="mt-3">
-        <div className="text-pullim-slate-500 mb-1 text-[11px] font-bold tracking-wider uppercase">최근 7일</div>
+        <div className="text-pullim-slate-500 mb-1 text-2xs font-bold tracking-wider uppercase">최근 7일</div>
         <Sparkbar
           data={trend.map((t) => ({ value: t.score, key: t.daysAgo, title: `${t.daysAgo === 0 ? '오늘' : `${t.daysAgo}일 전`}: ${t.score}` }))}
           fill={(v) => scoreTone(v).bar}
@@ -156,7 +156,7 @@ export function WellbeingGauge({
           gapClassName="gap-1"
           aria-label="최근 7일 웰빙 추세"
         />
-        <div className="text-pullim-slate-500 mt-1 flex justify-between text-[11px]">
+        <div className="text-pullim-slate-500 mt-1 flex justify-between text-2xs">
           <span>7일 전</span>
           <span>오늘</span>
         </div>
@@ -164,7 +164,7 @@ export function WellbeingGauge({
 
       {today.flag && (
         <div className="border-pullim-danger/30 bg-pullim-danger-bg mt-3 rounded-lg border p-2">
-          <p className="text-pullim-danger text-[11px] font-bold">
+          <p className="text-pullim-danger text-2xs font-bold">
             {today.flag === 'below-60-3days' ? '3일 연속 임계 미달 — 교사에게 알림 갔어요.' : '즉시 알림 — 선생님이 곧 연락해요.'}
           </p>
         </div>
@@ -225,7 +225,7 @@ function ComponentBreakdown({
   const c = snapshot.components;
   if (!c) {
     return (
-      <div className="bg-pullim-slate-50 mt-3 rounded-lg p-3 text-[11px] text-pullim-slate-500">
+      <div className="bg-pullim-slate-50 mt-3 rounded-lg p-3 text-2xs text-pullim-slate-500">
         오늘 분해 데이터를 준비 중이에요. 곧 보일 거예요.
       </div>
     );
@@ -248,7 +248,7 @@ function ComponentBreakdown({
           const v = c[it.key];
           const tone = scoreTone(v);
           return (
-            <li key={it.key} className="flex items-center gap-2 text-[11px]">
+            <li key={it.key} className="flex items-center gap-2 text-2xs">
               <span className="text-pullim-slate-700 w-10 shrink-0 font-semibold">{it.label}</span>
               <div className="bg-pullim-slate-200 relative h-1.5 flex-1 overflow-hidden rounded-full">
                 <div
@@ -264,7 +264,7 @@ function ComponentBreakdown({
       <div className="border-t border-pullim-slate-200 pt-2">
         {botInsight && insightSig ? (
           <div className="flex flex-col gap-2">
-            <p className="text-pullim-slate-700 text-[11px] leading-relaxed">
+            <p className="text-pullim-slate-700 text-2xs leading-relaxed">
               <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
               {audience === 'student-self' ? (
                 // [13 § 3.3.5] 본인 주간 리포트 1인칭 톤 — "봇이 본 나의 한 주" 형식. § 8.3 완화 표현.
@@ -276,7 +276,7 @@ function ComponentBreakdown({
             </p>
             <Link
               href={botInsight.ctaHref}
-              className="inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-[11px] font-bold transition-colors hover:bg-white"
+              className="inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-2xs font-bold transition-colors hover:bg-white"
               style={{ borderColor: insightSig.inkLight, color: insightSig.inkLight }}
             >
               {botInsight.ctaLabel}
@@ -285,12 +285,12 @@ function ComponentBreakdown({
           </div>
         ) : audience === 'student-self' ? (
           // student-self fallback (botInsight 합성 실패 시) — 1인칭 톤
-          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
+          <p className="text-pullim-slate-600 text-2xs leading-relaxed">
             🌱 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.
           </p>
         ) : (
           // student-chat fallback (botInsight 합성 실패 시) — § 8.3 완화 표현
-          <p className="text-pullim-slate-600 text-[11px] leading-relaxed">
+          <p className="text-pullim-slate-600 text-2xs leading-relaxed">
             💡 이번 주 {lowest.label} 신경 쓸 부분이에요. 짧은 세션부터 다시 가볼까요?
           </p>
         )}

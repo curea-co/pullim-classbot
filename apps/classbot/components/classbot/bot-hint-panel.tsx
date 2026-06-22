@@ -30,11 +30,11 @@ function ExamLocked() {
     <section className="bg-pullim-slate-900 text-pullim-slate-200 flex flex-col items-center justify-center rounded-2xl p-6 text-center">
       <Lock className="text-pullim-lemon mb-2 h-8 w-8" />
       <h3 className="text-sm font-bold text-white">봇이 잠긴 시간이에요</h3>
-      <p className="mt-1 text-[11px] leading-relaxed">
+      <p className="mt-1 text-2xs leading-relaxed">
         지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
       {/* 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
-      <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-bold">
+      <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-micro font-bold">
         <span className="text-pullim-lemon">시험 모드</span>
         <span className="text-pullim-slate-400 font-mono text-[9px]">(L1)</span>
       </div>
@@ -55,12 +55,12 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">단계별 힌트만 줄 수 있어요 <span className="font-mono text-[9px] text-pullim-slate-400">(L4)</span></p>
+          <p className="text-pullim-slate-500 text-micro">단계별 힌트만 줄 수 있어요 <span className="font-mono text-[9px] text-pullim-slate-400">(L4)</span></p>
         </div>
       </header>
 
       {hints.length === 0 ? (
-        <p className="text-pullim-slate-500 py-6 text-center text-[11px]">
+        <p className="text-pullim-slate-500 py-6 text-center text-2xs">
           이 문항은 힌트 없이 풀어봐요.
         </p>
       ) : (
@@ -68,10 +68,10 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           <ul className="space-y-2">
             {hints.slice(0, revealed).map((h, i) => (
               <li key={i} className="bg-pullim-blue-50 rounded-lg p-2.5">
-                <div className="text-pullim-blue-700 mb-1 inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[11px] font-bold tracking-wider uppercase">
+                <div className="text-pullim-blue-700 mb-1 inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-2xs font-bold tracking-wider uppercase">
                   {i + 1}단계 · {labels[i]}
                 </div>
-                <p className="text-pullim-slate-700 text-[11px] leading-relaxed">{h}</p>
+                <p className="text-pullim-slate-700 text-2xs leading-relaxed">{h}</p>
               </li>
             ))}
           </ul>
@@ -95,7 +95,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           )}
 
           {revealed === hints.length && (
-            <p className="text-pullim-slate-400 mt-3 text-center text-[10px]">
+            <p className="text-pullim-slate-400 mt-3 text-center text-micro">
               다 본 다음에 다시 처음부터 풀어봐요.
             </p>
           )}
@@ -114,17 +114,17 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-[10px]">이번엔 잡아내봐요 <span className="font-mono text-[9px] text-pullim-slate-400">(L5)</span></p>
+          <p className="text-pullim-slate-500 text-micro">이번엔 잡아내봐요 <span className="font-mono text-[9px] text-pullim-slate-400">(L5)</span></p>
         </div>
       </header>
 
       {question.modelAnswer ? (
         <div className="bg-pullim-blue-50 rounded-lg p-3">
-          <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">기준 응답</div>
-          <p className="text-pullim-slate-700 mt-1 text-[11px] leading-relaxed">{question.modelAnswer}</p>
+          <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">기준 응답</div>
+          <p className="text-pullim-slate-700 mt-1 text-2xs leading-relaxed">{question.modelAnswer}</p>
         </div>
       ) : (
-        <p className="text-pullim-slate-500 py-6 text-center text-[11px]">
+        <p className="text-pullim-slate-500 py-6 text-center text-2xs">
           이 문항은 해설 준비 중이에요.
         </p>
       )}

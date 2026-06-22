@@ -35,12 +35,12 @@ export function RubricEditor({
       <header className="mb-3 flex items-end justify-between">
         <div>
           <h3 className="text-pullim-slate-900 text-sm font-bold">루브릭 검수</h3>
-          <p className="text-pullim-slate-500 text-[11px]">
+          <p className="text-pullim-slate-500 text-2xs">
             항목별 점수를 보고 필요하면 조정해주세요. (가중치 합 {weightSum}%)
           </p>
         </div>
         <div className="text-right">
-          <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">최종</div>
+          <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">최종</div>
           <ScoreDisplay score={totalPct} max={100} size="lg" tone="fixed-accent" />
         </div>
       </header>
@@ -53,9 +53,9 @@ export function RubricEditor({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-pullim-slate-900 text-xs font-bold">{r.criterion}</span>
-                    <span className="text-pullim-slate-400 font-mono text-[10px]">가중 {r.weight}%</span>
+                    <span className="text-pullim-slate-400 font-mono text-micro">가중 {r.weight}%</span>
                   </div>
-                  <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+                  <p className="text-pullim-slate-500 mt-0.5 text-2xs">
                     <span className="text-pullim-slate-400 font-bold">AI 사유:</span> {r.reason}
                   </p>
                 </div>

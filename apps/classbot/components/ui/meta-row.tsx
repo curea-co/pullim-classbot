@@ -38,8 +38,8 @@ export function MetaRow({
     tone === 'dark' ? 'text-pullim-slate-500' : 'text-pullim-slate-400';
   const sepCls =
     tone === 'dark' ? 'text-pullim-slate-700' : 'text-pullim-slate-300';
-  const primarySize = size === 'sm' ? 'text-xs' : 'text-[11px]';
-  const secondarySize = size === 'sm' ? 'text-[11px]' : 'text-[10px]';
+  const primarySize = size === 'sm' ? 'text-xs' : 'text-2xs';
+  const secondarySize = size === 'sm' ? 'text-2xs' : 'text-micro';
 
   if (separator === 'break' || !secondary) {
     return (

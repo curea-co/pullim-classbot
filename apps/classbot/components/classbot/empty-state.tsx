@@ -61,7 +61,7 @@ export function EmptyState({
   );
 
   const actionClass =
-    'bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-[12px] font-bold text-white transition-colors';
+    'bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-bold text-white transition-colors';
 
   // Determine action element
   let actionEl: ReactNode = null;
@@ -86,7 +86,7 @@ export function EmptyState({
       <div className={wrapperClass}>
         <p className="text-pullim-slate-500 text-sm font-bold">{title}</p>
         {description && (
-          <p className="text-pullim-slate-500 text-[11px]">{description}</p>
+          <p className="text-pullim-slate-500 text-2xs">{description}</p>
         )}
         {actionEl}
       </div>
@@ -102,7 +102,7 @@ export function EmptyState({
       )}
       <p className="text-pullim-slate-900 text-sm font-bold">{title}</p>
       {description && (
-        <p className="text-pullim-slate-500 text-[11px]">{description}</p>
+        <p className="text-pullim-slate-500 text-2xs">{description}</p>
       )}
       {actionEl}
     </section>

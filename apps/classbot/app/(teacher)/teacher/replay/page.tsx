@@ -70,7 +70,7 @@ export default function TeacherReplayListPage() {
               >
                 {s === 'all' ? '전체' : STATUS_META[s].label}
                 <span className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-mono',
+                  'rounded-full px-1.5 py-0.5 text-micro font-mono',
                   filter === s ? 'bg-white/20' : 'bg-pullim-slate-100',
                 )}>
                   {counts[s]}
@@ -109,13 +109,13 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-pullim-slate-500 truncate text-xs">{replay.botName} · {replay.classroom}</span>
-              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold', meta.tone)}>
+              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold', meta.tone)}>
                 <Icon className="h-3 w-3" />
                 {meta.label}
               </span>
             </div>
             <h3 className="text-pullim-slate-900 mt-0.5 truncate text-sm font-bold">{replay.title}</h3>
-            <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">
               {replay.chapter} · {replay.startedAt}~ · {replay.durationMin}분 · {replay.participantCount}명 참여
             </p>
           </div>

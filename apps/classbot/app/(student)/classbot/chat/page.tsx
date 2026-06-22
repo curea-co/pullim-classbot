@@ -255,28 +255,28 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       trailing={isLive ? <LiveBadge variant="pill" /> : undefined}
     >
       {/* watched-by-teacher — always visible */}
-      <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
+      <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs backdrop-blur">
         <Eye className="text-pullim-lemon h-3 w-3" />
         <span className="text-white/90"><strong className="text-pullim-lemon">{bot.teacherName}</strong>이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.</span>
       </div>
       {isLive ? (
         /* live lock banner — rail only */
-        <div className="bg-pullim-lemon/15 border-pullim-lemon/40 mt-2 rounded-lg border px-3 py-1.5 text-[11px]">
+        <div className="bg-pullim-lemon/15 border-pullim-lemon/40 mt-2 rounded-lg border px-3 py-1.5 text-2xs">
           <span className="text-pullim-lemon font-bold">🔒 라이브 정책 적용 중</span>
-          <span className="text-white/80 ml-1">— {scope.label} <span className="font-mono text-[10px] text-white/55">({scope.short})</span>으로 자동 잠금. 종료 후 평시 정책 복귀.</span>
+          <span className="text-white/80 ml-1">— {scope.label} <span className="font-mono text-micro text-white/55">({scope.short})</span>으로 자동 잠금. 종료 후 평시 정책 복귀.</span>
         </div>
       ) : (
         /* scope schedule — rail only */
-        <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-[11px] backdrop-blur">
+        <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-2xs backdrop-blur">
           <summary className="cursor-pointer list-none flex items-center gap-1.5">
-            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 text-[10px] font-bold">{scope.label}</span>
+            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 text-micro font-bold">{scope.label}</span>
             <span className="text-white/90 font-semibold">지금 봇 범위 — {scope.allow}</span>
-            <span className="text-white/60 ml-auto text-[10px]">시간대별 자동 변동 ↗</span>
+            <span className="text-white/60 ml-auto text-micro">시간대별 자동 변동 ↗</span>
           </summary>
           <div className="text-white/80 mt-2 space-y-0.5 leading-relaxed">
-            <p>· 18:00~19:00 · 단계 힌트까지 <span className="font-mono text-[10px] text-white/55">(L4)</span></p>
-            <p>· 19:00~22:00 · 개념까지 <span className="font-mono text-[10px] text-white/55">(L3)</span> ← 현재 학원 시간</p>
-            <p>· 22:00 이후 · 답까지 <span className="font-mono text-[10px] text-white/55">(L5)</span> 자기학습</p>
+            <p>· 18:00~19:00 · 단계 힌트까지 <span className="font-mono text-micro text-white/55">(L4)</span></p>
+            <p>· 19:00~22:00 · 개념까지 <span className="font-mono text-micro text-white/55">(L3)</span> ← 현재 학원 시간</p>
+            <p>· 22:00 이후 · 답까지 <span className="font-mono text-micro text-white/55">(L5)</span> 자기학습</p>
           </div>
         </details>
       )}
@@ -334,7 +334,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       )}
 
       <section className="bg-card flex flex-col rounded-2xl border flex-1 min-h-0">
-        <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2 text-[11px]">
+        <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2 text-2xs">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
             <span className="text-pullim-slate-400 ml-auto">
@@ -394,7 +394,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
                   borderLeftColor: botSig.hex,
                   animationDelay: `${i * 60}ms`,
                 }}
-                className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 pullim-anim-message-mount border-l-2 disabled:opacity-50 inline-flex items-center gap-1 rounded-r-full rounded-l px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 pullim-anim-message-mount border-l-2 disabled:opacity-50 inline-flex items-center gap-1 rounded-r-full rounded-l px-2.5 py-1 text-2xs font-semibold transition-colors"
               >
                 {p.text}
               </button>
@@ -515,7 +515,7 @@ function formatTime(ts: number): string {
 
 function DateDivider({ ts }: { ts: number }) {
   return (
-    <div className="text-pullim-slate-500 my-4 flex items-center justify-center gap-2 text-[11px] font-semibold">
+    <div className="text-pullim-slate-500 my-4 flex items-center justify-center gap-2 text-2xs font-semibold">
       <span className="bg-pullim-slate-100 h-px flex-1 max-w-[60px]" />
       <span>{formatDayLabel(ts)}</span>
       <span className="bg-pullim-slate-100 h-px flex-1 max-w-[60px]" />
@@ -565,14 +565,14 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 
       <div className={cn('max-w-[82%]', isStudent && 'flex flex-col items-end')}>
         {!isStudent && !continuation && (
-          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-[10px] font-bold">
+          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-micro font-bold">
             <span>{bot.name}</span>
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
         <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} />
         {isStudent && (
-          <div className="text-pullim-slate-400 mt-1 text-[10px]">{formatTime(turn.at)}</div>
+          <div className="text-pullim-slate-400 mt-1 text-micro">{formatTime(turn.at)}</div>
         )}
       </div>
     </div>
@@ -607,12 +607,12 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
         <ol className="space-y-2 border-t border-pullim-slate-100 pt-2">
           {steps.map(s => (
             <li key={s.num} className="flex gap-2">
-              <span className="bg-pullim-blue-50 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold">{s.num}</span>
+              <span className="bg-pullim-blue-50 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-2xs font-bold">{s.num}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-pullim-slate-900 text-[12px] font-bold">{s.label}</div>
-                <div className="text-pullim-slate-600 mt-0.5 text-[12px]">{s.body}</div>
+                <div className="text-pullim-slate-900 text-xs font-bold">{s.label}</div>
+                <div className="text-pullim-slate-600 mt-0.5 text-xs">{s.body}</div>
                 {s.formula && (
-                  <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-[11px]">
+                  <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-2xs">
                     {s.formula}
                   </code>
                 )}
@@ -631,13 +631,13 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
       <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-2')} style={{ borderLeftColor: '#E6FF4C' }}>
         <p>{turn.text}</p>
         <div className="bg-pullim-slate-50 flex items-center gap-2.5 rounded-lg p-2.5">
-          <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-[11px] font-bold">
+          <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold">
             {problemNumber}
           </span>
-          <div className="min-w-0 flex-1 text-[12px] font-semibold text-pullim-slate-800">{title}</div>
+          <div className="min-w-0 flex-1 text-xs font-semibold text-pullim-slate-800">{title}</div>
           <Link
             href={ctaHref}
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-2xs font-bold text-white"
           >
             {ctaLabel} →
           </Link>
@@ -665,7 +665,7 @@ function PendingBubble({ bot }: { bot: ClassBot }) {
         {bot.avatarEmoji}
       </div>
       <div>
-        <div className="text-pullim-slate-700 mb-1 text-[10px] font-bold">{bot.name}</div>
+        <div className="text-pullim-slate-700 mb-1 text-micro font-bold">{bot.name}</div>
         <div
           className="bg-card border-pullim-slate-100 relative overflow-hidden rounded-2xl rounded-tl-sm border border-l-[3px] px-4 py-3"
           style={{ borderLeftColor: botSig.hex }}

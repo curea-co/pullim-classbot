@@ -36,7 +36,7 @@ export function QuizLauncher() {
         <header className="mb-3 flex items-center gap-2">
           <Zap className="text-pullim-blue-600 h-4 w-4" />
           <h2 className="text-pullim-slate-900 text-sm font-bold flex-1">즉석 퀴즈</h2>
-          <span className="text-pullim-slate-400 text-[10px] font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
+          <span className="text-pullim-slate-400 text-micro font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
         </header>
 
         <p className="text-pullim-slate-700 text-xs leading-snug font-medium">{q.question}</p>
@@ -46,7 +46,7 @@ export function QuizLauncher() {
           {q.options.map((opt, i) => {
             const isAnswer = i === q.answerIndex;
             return (
-              <li key={i} className="text-[11px]">
+              <li key={i} className="text-2xs">
                 <div className="mb-0.5 flex items-center justify-between">
                   <span className={isAnswer ? 'text-pullim-blue-700 font-bold' : 'text-pullim-slate-600'}>
                     {['①','②','③','④'][i]} {opt} {isAnswer && '✓'}
@@ -64,7 +64,7 @@ export function QuizLauncher() {
           })}
         </ul>
 
-        <div className="mt-3 grid grid-cols-3 gap-1.5 text-[10px]">
+        <div className="mt-3 grid grid-cols-3 gap-1.5 text-micro">
           <button
             type="button"
             onClick={() => setOpen(true)}

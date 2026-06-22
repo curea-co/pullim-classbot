@@ -53,7 +53,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
           형
         </span>
         <span className="font-bold text-white">{BOT_NAME}</span>
-        <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold">
+        <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-2 py-0.5 text-micro font-bold">
           데모
         </span>
       </div>
@@ -62,7 +62,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
       <div className="flex min-h-[96px] flex-col gap-2 overflow-y-auto p-3">
         {/* 봇 첫 인사 */}
         <div className="flex items-end gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-[11px] font-bold text-white">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-2xs font-bold text-white">
             형
           </span>
           <div className="bg-pullim-slate-100 text-pullim-slate-800 max-w-[80%] rounded-2xl rounded-bl-none px-3 py-2 leading-snug">
@@ -82,7 +82,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
         {/* 타이핑 인디케이터 */}
         {state === 'typing' && (
           <div className="flex items-end gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-[11px] font-bold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-2xs font-bold text-white">
               형
             </span>
             <div className="bg-pullim-slate-100 flex items-center gap-1 rounded-2xl rounded-bl-none px-3 py-2">
@@ -100,7 +100,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
         {/* 봇 응답 */}
         {state === 'responded' || state === 'done' ? (
           <div className="flex items-end gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-[11px] font-bold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600 text-2xs font-bold text-white">
               형
             </span>
             <div className="bg-pullim-slate-100 text-pullim-slate-800 max-w-[80%] rounded-2xl rounded-bl-none px-3 py-2 leading-snug">

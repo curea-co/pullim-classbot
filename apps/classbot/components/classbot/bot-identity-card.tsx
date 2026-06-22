@@ -68,7 +68,7 @@ export function BotIdentityCard({
             {bot.avatarEmoji}
           </div>
           {bot.isLive && (
-            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase">
+            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs font-bold uppercase">
               <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
               LIVE
             </span>
@@ -79,7 +79,7 @@ export function BotIdentityCard({
         <div className="min-w-0 flex-1">
           {/* org eyebrow — collapsed 시 숨김 */}
           {!collapsed && (
-            <div className="text-pullim-blue-200 text-[10px] font-semibold tracking-wider uppercase">
+            <div className="text-pullim-blue-200 text-micro font-semibold tracking-wider uppercase">
               클래스봇 · {bot.organization}
             </div>
           )}

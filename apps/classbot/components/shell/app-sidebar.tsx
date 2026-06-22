@@ -155,7 +155,7 @@ function FullNav({
         return (
           <div key={group.label}>
             {showLabel && (
-              <div className="text-pullim-slate-400 px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
+              <div className="text-pullim-slate-400 px-2 py-1 text-micro font-bold tracking-wider uppercase">
                 {group.label}
               </div>
             )}
@@ -214,7 +214,7 @@ function NavRow({
         <>
           <span className="flex-1 truncate">{item.label}</span>
           {item.locked && (
-            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold">
+            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-bold">
               <Lock aria-hidden className="h-2.5 w-2.5" />
               준비 중
             </span>
@@ -223,7 +223,7 @@ function NavRow({
             item.badge === 'LIVE' ? (
               <LiveBadge />
             ) : (
-              <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
+              <span className={cn('rounded-full px-1.5 py-0.5 text-micro font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
                 {item.badge}
               </span>
             )
@@ -284,7 +284,7 @@ function SubNavRow({
             {sub.locked && (
               <span
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold',
+                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-bold',
                   'bg-pullim-slate-100 text-pullim-slate-500',
                 )}
               >

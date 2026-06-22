@@ -34,7 +34,7 @@ export function StudentRoster() {
       <header className="border-pullim-slate-200 flex items-center justify-between border-b p-4">
         <div>
           <h2 className="text-pullim-slate-900 text-sm font-bold">학생 명단</h2>
-          <p className="text-pullim-slate-500 text-[11px]">
+          <p className="text-pullim-slate-500 text-2xs">
             14/18명 참여 · 활동 히트맵: 지난 30분
           </p>
         </div>
@@ -88,7 +88,7 @@ function RosterRow({ student: s }: { student: ClassroomStudent }) {
             </span>
           )}
         </div>
-        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-[10px]">
+        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-micro">
           <MessageCircle className="h-2.5 w-2.5" />
           <span>{s.botQuestions}질문</span>
           <span>·</span>

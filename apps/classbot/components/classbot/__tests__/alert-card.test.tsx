@@ -16,7 +16,7 @@ describe('AlertCard', () => {
     );
     const title = screen.getByText('Warning');
     expect(title).toBeInTheDocument();
-    expect(title).toHaveClass('text-[13px]', 'font-bold');
+    expect(title).toHaveClass('text-sm', 'font-bold');
   });
 
   it('renders icon when provided', () => {

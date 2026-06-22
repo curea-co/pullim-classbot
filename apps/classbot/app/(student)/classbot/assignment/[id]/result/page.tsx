@@ -77,7 +77,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
   const scoreCard = isExam ? (
     <section className="bg-pullim-slate-900 text-white rounded-2xl p-5">
-      <div className="text-pullim-lemon text-[10px] font-bold tracking-wider uppercase">
+      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
         <Clock className="-mt-0.5 mr-0.5 inline h-3 w-3" />
         시험 완료
       </div>
@@ -90,25 +90,25 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     <section className="bg-card rounded-2xl border p-5">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">자동 채점</div>
+          <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">자동 채점</div>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
-          <p className="text-pullim-slate-500 mt-0.5 text-[10px]">객관식·단답·수치는 즉시</p>
+          <p className="text-pullim-slate-500 mt-0.5 text-micro">객관식·단답·수치는 즉시</p>
         </div>
         {submission ? (
           <div>
-            <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">내 점수</div>
+            <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">내 점수</div>
             <div data-testid="result-score" className="mt-1">
               <ScoreDisplay score={submission.scorePercent} max={100} size="xl" tone="threshold" />
             </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-[10px]">자동 채점 mock 추정</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-micro">자동 채점 mock 추정</p>
           </div>
         ) : essayCount > 0 ? (
           <div>
-            <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">검수 대기</div>
+            <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">검수 대기</div>
             <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
               {essayCount}<span className="text-pullim-slate-400 text-base">문항</span>
             </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-[10px]">선생님이 곧 봐줄 거예요</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-micro">선생님이 곧 봐줄 거예요</p>
           </div>
         ) : null}
       </div>
@@ -161,14 +161,14 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
             <SectionHeading title="봇 한 마디" description={bot?.name ?? apiRow.assignedBy} />
             <div className="space-y-2">
               <div className="bg-pullim-blue-50 rounded-lg p-3">
-                <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">오늘 잘한 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-[12px] leading-relaxed">
+                <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">오늘 잘한 점</div>
+                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
                   중간에 막혔을 때 힌트 1단계만 보고 다시 풀어낸 점 — 그게 진짜 실력이에요.
                 </p>
               </div>
               <div className="bg-pullim-slate-50 rounded-lg p-3">
-                <div className="text-pullim-slate-700 text-[10px] font-bold tracking-wider uppercase">다음에 신경 쓸 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-[12px] leading-relaxed">
+                <div className="text-pullim-slate-700 text-micro font-bold tracking-wider uppercase">다음에 신경 쓸 점</div>
+                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
                   부호 변화 표를 그리는 단계에서 자주 막혔어요. 같은 패턴 5문항이 자동으로 처방됐어요.
                 </p>
               </div>
@@ -186,18 +186,18 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                 return (
                   <li key={q.id} className="bg-pullim-slate-50/50 rounded-lg p-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
+                      <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
                         {q.order}
                       </span>
                       <span className="text-pullim-slate-700 truncate text-xs font-bold">{q.prompt}</span>
                       {meta && (
-                        <span className="text-pullim-slate-400 ml-auto shrink-0 text-[10px]">
+                        <span className="text-pullim-slate-400 ml-auto shrink-0 text-micro">
                           {meta.label}
                         </span>
                       )}
                     </div>
                     {q.modelAnswer && (
-                      <p className="text-pullim-slate-500 mt-1.5 text-[11px] leading-relaxed">
+                      <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
                         <span className="text-pullim-slate-400 font-bold">기준 응답: </span>
                         {q.modelAnswer}
                       </p>

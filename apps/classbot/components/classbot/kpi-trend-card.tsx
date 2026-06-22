@@ -20,7 +20,7 @@ export function KpiTrendCard({ kpi }: { kpi: Kpi }) {
     : 'text-pullim-slate-900';
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg p-3">
-      <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">
         {kpi.label}
       </div>
       <div className={cn('mt-1 flex items-center gap-1.5 font-mono text-base font-bold', valueClass)}>
