@@ -3,7 +3,7 @@
 import { type FormEvent, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertCircle, GraduationCap, UserRound } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, GraduationCap, UserRound } from 'lucide-react';
 import { homePathForRole } from '@pullim-classbot/auth';
 import type { SelectableRole } from '@pullim-classbot/types';
 
@@ -37,6 +37,7 @@ export function SignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
   const [role, setRole] = useState<SelectableRole>('teacher');
   const [apiError, setApiError] = useState<string | null>(null);
 
@@ -147,34 +148,58 @@ export function SignupForm() {
 
         <div className="grid gap-1.5">
           <Label htmlFor="password">비밀번호</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="영문·숫자·특수문자 포함 8자 이상"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setApiError(null);
-            }}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPasswords ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="영문·숫자·특수문자 포함 8자 이상"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setApiError(null);
+              }}
+              required
+              className="pr-11"
+            />
+            <button
+              type="button"
+              aria-label={showPasswords ? '비밀번호 숨기기' : '비밀번호 표시'}
+              onClick={() => setShowPasswords((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-r-md"
+              tabIndex={0}
+            >
+              {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-1.5">
           <Label htmlFor="passwordConfirm">비밀번호 확인</Label>
-          <Input
-            id="passwordConfirm"
-            type="password"
-            autoComplete="new-password"
-            placeholder="비밀번호 재입력"
-            value={passwordConfirm}
-            onChange={(e) => {
-              setPasswordConfirm(e.target.value);
-              setApiError(null);
-            }}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="passwordConfirm"
+              type={showPasswords ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="비밀번호 재입력"
+              value={passwordConfirm}
+              onChange={(e) => {
+                setPasswordConfirm(e.target.value);
+                setApiError(null);
+              }}
+              required
+              className="pr-11"
+            />
+            <button
+              type="button"
+              aria-label={showPasswords ? '비밀번호 숨기기' : '비밀번호 표시'}
+              onClick={() => setShowPasswords((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-r-md"
+              tabIndex={0}
+            >
+              {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         {apiError ? (
