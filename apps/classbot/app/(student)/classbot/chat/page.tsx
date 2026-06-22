@@ -21,6 +21,7 @@ import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay'
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
 import { LiveBadge } from '@/components/classbot/live-badge';
 import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
+import { ChatStudyRail } from '@/components/classbot/chat-study-rail';
 import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
@@ -261,7 +262,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
   const isSendDisabled = pending || !value.trim();
 
-  // ── 데스크톱 우측 레일: 봇 정체성 + 범위/라이브 전체 정보 ──────────────
+  // ── 데스크톱 좌측 프로필 레일: 봇 정체성 + 범위/라이브 전체 정보 ──────────────
   const railNode = useMemo(() => (
     <BotIdentityCard
       bot={bot}
@@ -299,10 +300,19 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       {isLive && <LiveHeaderMeta bot={bot} />}
     </BotIdentityCard>
   ), [bot, isLive, scope]);
-  useSetRightRail(railNode);
+
+  // ── 데스크톱 우측 레일: 퀴즈 + 학습 가이드 (핵심 개념 카드) ──────────────
+  const studyRail = useMemo(() => <ChatStudyRail bot={bot} />, [bot]);
+  useSetRightRail(studyRail);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 gap-3">
+      {/* 좌측 — 봇 프로필 레일 (데스크톱 전용) */}
+      <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto lg:flex">
+        {railNode}
+      </aside>
+      {/* 중앙 — 모바일 헤더 + 라이브 오버레이 + 채팅 */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       {/*
         모바일 전용 봇 메타 헤더 (lg 이상에서 숨김 — 데스크톱은 우측 레일 사용).
         identity ONLY — scope/watched/live 는 레일에만 있어 Playwright strict mode 통과.
@@ -433,7 +443,8 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
           </form>
         </div>
       </section>
-    </>
+      </div>
+    </div>
   );
 }
 
