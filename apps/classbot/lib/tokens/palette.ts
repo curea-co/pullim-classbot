@@ -1,27 +1,43 @@
 /**
- * 풀림 클래스봇 단일 토큰 소스 (CUDS pullim × variant-B).
- * 권위: curea-design-system packages/tokens/themes/{_base,variant-b, brands/pullim}.
+ * 풀림 클래스봇 단일 토큰 소스 (Pullim DS hex).
+ * 권위: Pullim Design System — hex-authored canonical values.
  * globals.css @theme 는 이 값을 1:1 미러링한다 (palette.test.ts 가 canonical 잠금).
  * 인라인/차트 등 JS 소비자는 여기서 import — hex 직접 작성 금지.
  */
 export const palette = {
   primary: {
-    50: 'oklch(0.972 0.024 258)', 100: 'oklch(0.940 0.039 258)', 200: 'oklch(0.890 0.069 258)',
-    300: 'oklch(0.820 0.108 258)', 400: 'oklch(0.730 0.154 258)', 500: 'oklch(0.640 0.189 258)',
-    600: 'oklch(0.524 0.197 258)', 700: 'oklch(0.474 0.181 258)', 800: 'oklch(0.414 0.154 258)',
-    900: 'oklch(0.364 0.118 258)', 950: 'oklch(0.264 0.083 258)',
+    50:  '#EEF3FF',
+    100: '#DCE6FF',
+    200: '#B8CDFF',
+    300: '#8BAEFF',
+    400: '#5A8BFF',
+    500: '#3B6FF6',
+    600: '#2854D8',
+    700: '#1D3FA8',
+    800: '#142C73',
+    900: '#070F2C',
+    950: '#050A1E',
   },
   gray: {
-    0: 'oklch(1 0 0)', 25: 'oklch(0.991 0.001 286)', 50: 'oklch(0.985 0 0)', 100: 'oklch(0.967 0.001 286)',
-    200: 'oklch(0.920 0.003 286)', 300: 'oklch(0.871 0.006 286)', 400: 'oklch(0.705 0.010 286)',
-    500: 'oklch(0.552 0.013 286)', 600: 'oklch(0.442 0.015 286)', 700: 'oklch(0.370 0.014 286)',
-    800: 'oklch(0.274 0.012 286)', 900: 'oklch(0.213 0.010 286)', 950: 'oklch(0.141 0.008 286)',
+    0:   '#FFFFFF',
+    25:  '#FAFBFD',
+    50:  '#F5F7FB',
+    100: '#EDF0F5',
+    200: '#DDE2EC',
+    300: '#B7BDCD',
+    400: '#97A0B4',
+    500: '#6B7489',
+    600: '#4A536A',
+    700: '#2B3245',
+    800: '#1E2435',
+    900: '#121627',
+    950: '#0B0E1A',
   },
-  success: { 50: 'oklch(0.965 0.024 158)', 500: 'oklch(0.696 0.170 162)', 600: 'oklch(0.596 0.145 163)', 900: 'oklch(0.332 0.077 168)' },
-  warning: { 50: 'oklch(0.987 0.026 102)', 500: 'oklch(0.795 0.184 86)', 600: 'oklch(0.681 0.162 76)', 900: 'oklch(0.421 0.095 58)' },
-  danger:  { 50: 'oklch(0.971 0.013 17)',  500: 'oklch(0.637 0.237 25)', 600: 'oklch(0.577 0.245 27)', 900: 'oklch(0.396 0.141 25)' },
-  info:    { 50: 'oklch(0.977 0.014 234)', 500: 'oklch(0.685 0.169 237)', 600: 'oklch(0.588 0.158 241)', 900: 'oklch(0.379 0.146 265)' },
-  lemon: { base: 'oklch(0.967 0.197 116)', soft: 'oklch(0.985 0.090 116)', ink: 'oklch(0.520 0.110 116)' },
+  success: { 50: '#E6F8EF', 500: '#12B26B', 600: '#0E8C56', 900: '#0A5235' },
+  warning: { 50: '#FFF7E6', 500: '#F2C879', 600: '#D97706', 900: '#7A4A12' },
+  danger:  { 50: '#FDECEC', 500: '#E5484D', 600: '#C03B3F', 900: '#7A2528' },
+  info:    { 50: '#EEF3FF', 500: '#3B6FF6', 600: '#2854D8', 900: '#070F2C' },
+  lemon: { base: '#E6FF4C', soft: '#F4FFB8', ink: '#5C6B0A' },
   botSig: {
     math:    { hex: 'oklch(0.967 0.197 116)', inkLight: 'oklch(0.520 0.110 116)' },
     english: { hex: 'oklch(0.720 0.170 28)',  inkLight: 'oklch(0.520 0.150 28)' },
@@ -29,10 +45,10 @@ export const palette = {
     korean:  { hex: 'oklch(0.620 0.220 286)', inkLight: 'oklch(0.470 0.170 286)' },
     social:  { hex: 'oklch(0.680 0.160 55)',  inkLight: 'oklch(0.500 0.120 55)' },
   },
-  radius: { xs: 6, sm: 8, md: 16, lg: 16, xl: 20, '2xl': 28, full: 9999 },
-  space: { 0: 0, 1: 2, 2: 4, 3: 6, 4: 8, 5: 12, 6: 16, 7: 20, 8: 24, 9: 32, 10: 40, 11: 48, 12: 64 },
-  text: { '2xs': 11, xs: 12, sm: 13, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 30, '4xl': 36, '5xl': 48 },
-  motion: { instant: 100, fast: 200, normal: 400, slow: 500, easeStandard: 'cubic-bezier(0.2,0,0,1)', easeEmphasized: 'cubic-bezier(0.3,0,0,1)' },
+  radius: { sm: 8, md: 14, lg: 20, pill: 9999 },
+  space: { 0: 0, 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48, 16: 64 },
+  text: { caption: 12, body: 14, bodyLg: 16, title3: 18, title2: 20, title1: 24, display2: 28, display1: 32 },
+  motion: { fast: 120, base: 200, slow: 320, easeStandard: 'cubic-bezier(0.4,0,0.2,1)', easeEmphasized: 'cubic-bezier(0.2,0.8,0.2,1)' },
 } as const;
 
 export type Palette = typeof palette;
