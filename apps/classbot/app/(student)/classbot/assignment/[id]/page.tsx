@@ -8,10 +8,12 @@ import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
-import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
 import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { useAssignmentLookup } from '@/lib/store/assignments';
+import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
 
@@ -27,8 +29,16 @@ import { cn } from '@/lib/utils';
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: a, isLoading, isUnauthenticated, isNotFound, isError, refetch } =
-    useMyAssignment(id);
+  const api = useMyAssignment(id);
+  // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)에서 lookup.
+  // 인증 사용자는 Phase7 실API 경로 그대로. 목록의 데모 폴백과 짝을 이룬다.
+  const localA = useAssignmentLookup(id);
+  const demo = api.isUnauthenticated;
+  const a = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
+  const isLoading = demo ? false : api.isLoading;
+  const isNotFound = demo ? !localA : api.isNotFound;
+  const isError = demo ? false : api.isError;
+  const refetch = api.refetch;
 
   const back = (
     <Link
@@ -40,9 +50,6 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     </Link>
   );
 
-  if (isUnauthenticated) {
-    return <div className="space-y-4">{back}<ReadLoginGate label="과제" /></div>;
-  }
   if (isNotFound) {
     return (
       <div className="space-y-4">
