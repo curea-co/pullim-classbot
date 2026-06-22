@@ -18,6 +18,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { useAuth } from '@/lib/auth/auth-context';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { StudentModeToggle } from './student-mode-toggle';
 
 const roleLogoLabel: Record<Role, string> = {
   student: '클래스봇',
@@ -51,6 +52,10 @@ export function AppHeader({ role }: { role: Role }) {
             {roleLogoLabel[role]}
           </span>
         </Link>
+
+        {role === 'student' && (
+          <StudentModeToggle className="ml-1 hidden sm:inline-flex" />
+        )}
 
         {/* 우측 액션 — 5요소 한도 (Layer 1 §14.1) */}
         <div className="ml-auto flex items-center gap-1">
