@@ -53,7 +53,7 @@ export function GradingDetail({
     return scoreChanged || commentChanged || rubricChanged;
   }, [finalScore, finalComment, rubricTotal, item]);
 
-  const isCrisis = item.responsePreview.length < 25 || /모르겠|어려워|힘들/.test(item.responsePreview);
+  const isCrisis = (item.type === 'essay' && item.responsePreview.length < 25) || /모르겠|어려워|힘들/.test(item.responsePreview);
 
   function handleApprove() {
     setIsApproved(true);
