@@ -1,6 +1,5 @@
 import { Compass, Lock, GraduationCap, Award, Globe } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -15,7 +14,7 @@ export default function ClassbotDiscoverPage() {
         description="등록된 학원·학교 외에 풀림이 검수한 공식 클래스봇을 직접 추가할 수 있어요"
       />
 
-      <EmptyState icon={Lock} title="v2에 만나요" description="현재 클래스봇은 선생님이 만들어 배정하는 게 기본이에요. 학생이 직접 검색해 등록하는 기능은 준비 중이에요." size="lg" />
+      <EmptyState icon={Lock} title="v2에 만나요" description="현재 클래스봇은 선생님이 만들어 배정하는 게 기본이에요. 학생이 직접 검색해 등록하는 기능은 준비 중이에요." size="lg" action={{ href: '/classbot', label: '선생님이 배정한 봇 보러 가기' }} />
 
       {/* 어떤 봇이 올 예정 */}
       <section className="bg-card rounded-2xl border p-5">
@@ -39,9 +38,6 @@ export default function ClassbotDiscoverPage() {
         </ul>
       </section>
 
-      <FlywheelNote>
-        지금은 <strong>선생님이 배정한 봇</strong>만 사이드바에 등장해요. 봇 마켓이 열리면 학생이 직접 추가한 봇도 함께 표시될 예정이에요.
-      </FlywheelNote>
     </div>
   );
 }
