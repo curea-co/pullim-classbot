@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { PullimLogo } from '@/components/brand/logo';
+import { ClassbotMark } from '@/components/brand/classbot-mark';
 import {
   Card,
   CardContent,
@@ -26,7 +26,7 @@ export function AuthCard({ title, description, children, footer, className }: Au
   return (
     <Card className={cn('w-full max-w-md', className)}>
       <CardHeader className="items-center gap-3 text-center">
-        <PullimLogo size={28} />
+        <ClassbotMark size={32} />
         <div className="grid gap-1">
           <CardTitle className="text-lg">{title}</CardTitle>
           {description ? <CardDescription>{description}</CardDescription> : null}
