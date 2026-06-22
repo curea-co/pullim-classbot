@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { useStudentMode } from '@/lib/store/student-mode';
+import { SelfHomePlaceholder } from '@/components/classbot/self-home-placeholder';
 
 /**
  * 학생 홈 — V15 변형 (KPI header + V09 bot grid).
@@ -30,21 +32,23 @@ import { SectionHeading } from '@/components/shell/section-heading';
  *   3. 받은 과제 다 보기 CTA
  */
 export default function StudentClassbotPage() {
-  const me = useRosterMe();
+  // ── hooks (ALL unconditional — Rules of Hooks) ──────────────────────────────
+  const { mode } = useStudentMode();  // hook 1 — must be first
+  const me = useRosterMe();           // hook 2
   const myBots = getMyBots();
   // per-student mock 조회 키 — 제출 기록(solve)과 동일하게 roster id 사용.
   const myStudentId = me.id;
 
-  const activeLive = useLiveStore(s => s.active);
+  const activeLive = useLiveStore(s => s.active);  // hook 3
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
-  const allAssignments = useMergedAssignments(me.id);
+  const allAssignments = useMergedAssignments(me.id);  // hook 4
   const incompleteAssignments = allAssignments.filter(a => a.completedCount < a.questionCount);
   const urgentCount = allAssignments.filter(
     a => a.completedCount < a.questionCount && (a.dDay === '오늘' || a.dDay === 'D-1'),
   ).length;
 
-  const submissions = useAssignmentStore(s => s.submissions);
+  const submissions = useAssignmentStore(s => s.submissions);  // hook 5
   const recentGradedCount = submissions
     .filter(s => s.studentId === myStudentId)
     .filter(s => Date.now() - new Date(s.submittedAt).getTime() < 5 * 60_000).length;
@@ -56,6 +60,10 @@ export default function StudentClassbotPage() {
   const liveCount = liveBots.length;
   const totalNew = newAssignmentCount + liveCount + recentGradedCount + wellnessUnread;
 
+  // ── self mode: all hooks have run; now branch on render ────────────────────
+  if (mode === 'self') return <SelfHomePlaceholder />;
+
+  // ── class mode: existing home unchanged below ──────────────────────────────
   return (
     <div className="space-y-4">
       {/* 1. KPI Header — 첫 시선 압축 카운트 */}
