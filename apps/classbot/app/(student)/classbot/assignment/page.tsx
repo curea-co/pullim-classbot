@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
@@ -11,6 +12,9 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
 import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
+import { useMergedAssignments } from '@/lib/store/assignments';
+import { useRosterMe } from '@/lib/current-user';
+import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
@@ -46,20 +50,29 @@ interface GroupBot {
  * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학이 형 · N개]` 패턴 유지).
  */
 export default function StudentAssignmentListPage() {
+  const me = useRosterMe();
   const { data, isLoading, isUnauthenticated, isError, refetch } = useMyAssignments();
   // 그룹 헤더 페르소나 조인용 — 같은 sub-scoped 소스. 봇 메타 미도착이어도 과제는 렌더.
   const { data: botsData } = useMyBots();
+
+  // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)를 보여준다.
+  // 인증 사용자는 Phase7 실API 경로 그대로 유지. 데모/e2e 의 발사→수령 흐름이 동작.
+  const merged = useMergedAssignments(me.id);
+  const demoData = useMemo(
+    () => ({ assignments: merged.map(assignmentToReadRow) }),
+    [merged],
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <AssignmentListBody
-        data={data}
+        data={isUnauthenticated ? demoData : data}
         bots={botsData?.bots ?? []}
-        isLoading={isLoading}
-        isUnauthenticated={isUnauthenticated}
-        isError={isError}
+        isLoading={isUnauthenticated ? false : isLoading}
+        isUnauthenticated={false}
+        isError={isUnauthenticated ? false : isError}
         onRetry={() => void refetch()}
       />
     </div>
