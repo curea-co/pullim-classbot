@@ -32,5 +32,5 @@ it('liner colors come from palette (no magic hex)', () => {
   expect(getAssignmentVisual(base({ state: 'overdue' })).linerHex).toBe(palette.danger[600]);
   expect(getAssignmentVisual(base({ dDay: '오늘' })).linerHex).toBe(palette.warning[600]);
   expect(getAssignmentVisual(base({})).linerHex).toBe(palette.primary[50]);
-  expect(getAssignmentVisual(base({})).linerHex).toMatch(/^oklch\(/);
+  expect(getAssignmentVisual(base({})).linerHex).toMatch(/^#[0-9A-Fa-f]{6}$/);
 });
