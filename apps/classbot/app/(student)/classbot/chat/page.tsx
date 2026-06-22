@@ -26,13 +26,12 @@ import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
 /**
- * 메시지 타입 6종 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
+ * 메시지 타입 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
  * - text: 기본 버블
  * - problem-card: 라임 좌측 라이너 + 문제번호 + "풀러 가기" CTA (과제·퀴즈 인라인)
  * - explain-step: 1️⃣2️⃣3️⃣ 단계 indent + 수식 mono (단계별 풀이)
- * - reference-link / image / audio: 스캐폴드 — v2에서 본격 구현
  */
-type MessageKind = 'text' | 'problem-card' | 'explain-step' | 'reference-link' | 'image' | 'audio';
+type MessageKind = 'text' | 'problem-card' | 'explain-step';
 
 type Turn = {
   id: string;
@@ -43,7 +42,7 @@ type Turn = {
   /** 메시지 타입 (기본 text) */
   kind?: MessageKind;
   /** 타입별 payload */
-  payload?: ProblemCardPayload | ExplainStepPayload | ReferenceLinkPayload | ImagePayload | AudioPayload;
+  payload?: ProblemCardPayload | ExplainStepPayload;
 };
 
 type ProblemCardPayload = {
@@ -57,22 +56,6 @@ type ExplainStepPayload = {
   steps: { num: number; label: string; body: string; formula?: string }[];
 };
 
-type ReferenceLinkPayload = {
-  domain: string;
-  title: string;
-  summary: string;
-  thumbUrl?: string;
-};
-
-type ImagePayload = {
-  url: string;
-  alt: string;
-};
-
-type AudioPayload = {
-  url: string;
-  durationSec: number;
-};
 
 export default function ClassbotChatPage() {
   return (
@@ -473,7 +456,7 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
   }
 }
 
-/* ─── 메시지 타입 dispatch ([08 § 15.1.3] 6종 카탈로그) ─── */
+/* ─── 메시지 타입 dispatch ([08 § 15.1.3]) ─── */
 
 function buildRichBotTurn(id: string, text: string, at: number, forcedKey: ReplyKey | undefined, botId: string): Turn {
   // 시연용 — forcedKey 기반으로 다른 타입 매핑. v2에서 LLM tool-calling으로 대체.
@@ -596,7 +579,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
   );
 }
 
-/* ─── 메시지 본문 6종 dispatch ([08 § 15.1.3]) ─── */
+/* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
 function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: boolean; botLinerHex: string }) {
   const baseBubbleClass = cn(
     'rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',
@@ -659,41 +642,6 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
             {ctaLabel} →
           </Link>
         </div>
-      </div>
-    );
-  }
-
-  // image / reference-link / audio — 스캐폴드 (v2)
-  if (turn.kind === 'image' && turn.payload && 'url' in turn.payload && 'alt' in turn.payload) {
-    return (
-      <div className={cn(baseBubbleClass, 'overflow-hidden p-0')} style={linerStyle}>
-        <img src={(turn.payload as ImagePayload).url} alt={(turn.payload as ImagePayload).alt} className="block w-full" />
-        {turn.text && <p className="px-3.5 py-2">{turn.text}</p>}
-      </div>
-    );
-  }
-  if (turn.kind === 'reference-link' && turn.payload && 'domain' in turn.payload) {
-    const { domain, title, summary, thumbUrl } = turn.payload as ReferenceLinkPayload;
-    return (
-      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-2')} style={linerStyle}>
-        <p>{turn.text}</p>
-        <div className="bg-pullim-slate-50 flex gap-2 rounded-lg p-2">
-          {thumbUrl && <img src={thumbUrl} alt="" className="aspect-video w-24 rounded object-cover" />}
-          <div className="min-w-0 flex-1">
-            <div className="text-pullim-slate-400 text-[10px]">{domain}</div>
-            <div className="text-pullim-slate-900 text-[12px] font-bold">{title}</div>
-            <p className="text-pullim-slate-500 mt-0.5 line-clamp-1 text-[11px]">{summary}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (turn.kind === 'audio' && turn.payload && 'durationSec' in turn.payload) {
-    return (
-      <div className={cn(baseBubbleClass, 'flex items-center gap-2 px-3.5 py-3')} style={linerStyle}>
-        <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-7 w-7 items-center justify-center rounded-full text-[11px]">▶</span>
-        <div className="min-w-0 flex-1 text-[12px] text-pullim-slate-700">{turn.text}</div>
-        <span className="text-pullim-slate-400 font-mono text-[10px]">{(turn.payload as AudioPayload).durationSec}s</span>
       </div>
     );
   }
