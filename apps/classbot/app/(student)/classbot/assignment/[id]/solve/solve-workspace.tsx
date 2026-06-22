@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
 import { type Assignment, type AssignmentQuestion } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
@@ -57,8 +58,23 @@ export function SolveWorkspace({
     return () => window.clearTimeout(id);
   }, [answers, step, storageKey]);
 
-  const q = questions[step - 1];
-  const isLast = step === questions.length;
+  // Guard: zero-question assignment
+  if (questions.length === 0) {
+    return (
+      <div className="mx-auto max-w-2xl py-16">
+        <EmptyState
+          title="문항을 준비 중이에요"
+          description="선생님이 아직 문항을 추가하지 않았어요. 잠시 후 다시 확인해 주세요."
+          action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제로 돌아가기' }}
+        />
+      </div>
+    );
+  }
+
+  // Clamp step into [1, questions.length] so stale ?step= deep links can't index out of range
+  const safeStep = Math.min(Math.max(step, 1), questions.length);
+  const q = questions[safeStep - 1];
+  const isLast = safeStep === questions.length;
   const isExam = assignment.mode === 'exam';
   const current = answers[q.id] ?? '';
 
@@ -67,7 +83,7 @@ export function SolveWorkspace({
   }
 
   function go(delta: number) {
-    const next = step + delta;
+    const next = safeStep + delta;
     if (next < 1 || next > questions.length) return;
     setStep(next);
     setShowBotPanel(false);
@@ -104,7 +120,7 @@ export function SolveWorkspace({
         <span className="text-pullim-slate-500">·</span>
         <span className="text-pullim-slate-300 font-bold">{assignment.title}</span>
         <span className="text-pullim-slate-500">·</span>
-        <span className="text-pullim-lemon font-mono font-bold">{step}/{questions.length}</span>
+        <span className="text-pullim-lemon font-mono font-bold">{safeStep}/{questions.length}</span>
         <div className="ml-auto flex items-center gap-2">
           {savedAt && (
             <span className="text-pullim-slate-400 inline-flex items-center gap-0.5 font-mono">
@@ -120,7 +136,7 @@ export function SolveWorkspace({
       <div className="bg-pullim-slate-200 h-1 overflow-hidden rounded-full">
         <div
           className={cn('h-full rounded-full transition-all', isExam ? 'bg-pullim-danger' : 'bg-pullim-blue-500')}
-          style={{ width: `${(step / questions.length) * 100}%` }}
+          style={{ width: `${(safeStep / questions.length) * 100}%` }}
         />
       </div>
 
@@ -212,7 +228,7 @@ export function SolveWorkspace({
           variant="secondary"
           size="lg"
           onClick={() => go(-1)}
-          disabled={step === 1}
+          disabled={safeStep === 1}
           className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700"
         >
           <ArrowLeft />

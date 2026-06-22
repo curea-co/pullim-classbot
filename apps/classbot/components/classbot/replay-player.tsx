@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, Play, Pause, RotateCcw, RotateCw, Volume2, Bookmark, BookmarkPlus,
+  ArrowLeft, Play, Pause, RotateCcw, RotateCw, Bookmark, BookmarkPlus,
   Send, History, Lightbulb, Target, MessageCircle, Eye, Lock,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,7 +15,6 @@ import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { heatColor } from '@/lib/tokens/heat-color';
 import { Sparkbar } from '@/components/classbot/sparkbar';
@@ -347,7 +346,6 @@ function PlayerSurface({
             ))}
           </div>
 
-          <Volume2 aria-hidden className="text-white/40 ml-2 h-4 w-4" />
         </div>
 
         {/* 자막 — 현재 라인 */}

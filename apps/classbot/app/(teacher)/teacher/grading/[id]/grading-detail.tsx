@@ -17,6 +17,11 @@ import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
+/** Initial rubric total (sum of per-item scores, 0-100 pct basis). */
+function initialRubricTotal(item: GradingItem): number {
+  return item.rubric.reduce((s, r) => s + r.score, 0);
+}
+
 export function GradingDetail({
   item, history, prevId, nextId,
 }: {
@@ -25,16 +30,30 @@ export function GradingDetail({
   prevId: string | null;
   nextId: string | null;
 }) {
-  const [finalScore, setFinalScore] = useState(item.draftScore);
   const [finalComment, setFinalComment] = useState(item.draftComment);
+  const [rubricTotal, setRubricTotal] = useState(() => initialRubricTotal(item));
   const [isApproved, setIsApproved] = useState(item.status === 'approved' || item.status === 'overridden');
+
+  /** Derived — not stored — recomputed only when rubricTotal changes. */
+  const finalScore = useMemo(
+    () => Math.round(item.maxScore * rubricTotal / 100),
+    [item.maxScore, rubricTotal],
+  );
 
   const overrideDelta = useMemo(() => {
     const scoreDelta = Math.abs(item.draftScore - finalScore) / item.maxScore * 100;
     return Math.round(scoreDelta);
   }, [item.draftScore, item.maxScore, finalScore]);
 
-  const isCrisis = item.responsePreview.length < 25 || /모르겠|어려워|힘들/.test(item.responsePreview);
+  /** dirty = any value diverges from the original AI draft. */
+  const dirty = useMemo(() => {
+    const scoreChanged = finalScore !== item.draftScore;
+    const commentChanged = finalComment !== item.draftComment;
+    const rubricChanged = rubricTotal !== initialRubricTotal(item);
+    return scoreChanged || commentChanged || rubricChanged;
+  }, [finalScore, finalComment, rubricTotal, item]);
+
+  const isCrisis = (item.type === 'essay' && item.responsePreview.length < 25) || /모르겠|어려워|힘들/.test(item.responsePreview);
 
   function handleApprove() {
     setIsApproved(true);
@@ -156,8 +175,7 @@ export function GradingDetail({
         <RubricEditor
           initialRubric={item.rubric}
           onChange={(_next, total) => {
-            const ratio = total / 100;
-            setFinalScore(Math.round(item.maxScore * ratio));
+            setRubricTotal(total);
           }}
         />
 
@@ -191,7 +209,7 @@ export function GradingDetail({
               type="button"
               size="lg"
               onClick={handleApprove}
-              disabled={isApproved || finalScore !== item.draftScore}
+              disabled={isApproved || dirty}
               className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-800"
             >
               그대로 승인
@@ -201,7 +219,7 @@ export function GradingDetail({
               variant="pullim-lemon"
               size="lg"
               onClick={handleApproveWithEdit}
-              disabled={isApproved}
+              disabled={isApproved || !dirty}
             >
               <Check />
               수정 후 승인

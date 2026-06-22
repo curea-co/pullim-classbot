@@ -144,9 +144,9 @@ function KpiHeader({
           <span className="text-white/80 text-sm font-semibold">개</span>
         </div>
         <KpiStatBar cols={3} className="mt-3 border-white/10 bg-white/10 text-white">
-          <KpiStat label="라이브" value={String(liveCount)} tone="alert" />
-          <KpiStat label="마감" value={String(urgentCount)} tone="alert" />
-          <KpiStat label="한 마디" value={String(wellnessUnread)} tone="accent" />
+          <KpiStat label="라이브" value={String(liveCount)} tone="alert" onDark />
+          <KpiStat label="마감" value={String(urgentCount)} tone="alert" onDark />
+          <KpiStat label="한 마디" value={String(wellnessUnread)} tone="accent" onDark />
         </KpiStatBar>
       </div>
     </section>
