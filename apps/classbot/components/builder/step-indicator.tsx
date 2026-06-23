@@ -76,7 +76,7 @@ export function StepIndicator({ steps, current, onJump }: Props) {
               >
                 <span
                   className={cn(
-                    'flex h-7 w-7 items-center justify-center rounded-full font-mono text-[11px] font-bold transition-colors',
+                    'flex h-7 w-7 items-center justify-center rounded-full font-mono text-2xs font-bold transition-colors',
                     isDone && 'bg-pullim-blue-400 text-white',
                     isActive && 'bg-pullim-blue-600 text-white',
                     !isDone && !isActive && 'bg-pullim-slate-100 text-pullim-slate-500',
@@ -86,7 +86,7 @@ export function StepIndicator({ steps, current, onJump }: Props) {
                 </span>
                 <span
                   className={cn(
-                    'flex items-center gap-0.5 text-[10px] font-bold leading-tight',
+                    'flex items-center gap-0.5 text-micro font-bold leading-tight',
                     isActive ? 'text-pullim-blue-700' : isDone ? 'text-pullim-slate-700' : 'text-pullim-slate-400',
                   )}
                 >

@@ -54,7 +54,7 @@ export default function ClassbotOnboardingPage() {
                 <header className="flex items-center gap-2">
                   <Shield className="text-pullim-blue-600 h-4 w-4" />
                   <p className="text-pullim-slate-900 text-sm font-bold">봇 안전 등급</p>
-                  <span className="bg-pullim-blue-50 text-pullim-blue-700 ml-auto rounded-full px-2 py-0.5 font-mono text-[11px] font-bold">
+                  <span className="bg-pullim-blue-50 text-pullim-blue-700 ml-auto rounded-full px-2 py-0.5 font-mono text-2xs font-bold">
                     지금: 개념까지만 (L3)
                   </span>
                 </header>
@@ -72,7 +72,7 @@ export default function ClassbotOnboardingPage() {
                         key={l}
                         aria-current={isCurrent ? 'true' : undefined}
                         className={
-                          'flex flex-col items-center gap-0.5 rounded border-2 p-1 text-center text-[11px] font-bold ' +
+                          'flex flex-col items-center gap-0.5 rounded border-2 p-1 text-center text-2xs font-bold ' +
                           (isCurrent
                             ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
                             : 'border-pullim-slate-200 text-pullim-slate-500')
@@ -82,14 +82,14 @@ export default function ClassbotOnboardingPage() {
                           {isCurrent && <Check aria-hidden className="h-2.5 w-2.5" />}
                           L{l}
                         </span>
-                        <span className={isCurrent ? 'text-pullim-blue-700 text-[10px]' : 'text-[10px]'}>
+                        <span className={isCurrent ? 'text-pullim-blue-700 text-micro' : 'text-micro'}>
                           {label}
                         </span>
                       </li>
                     );
                   })}
                 </ol>
-                <p className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1 rounded p-1.5 text-[11px] leading-snug">
+                <p className="bg-pullim-blue-50 text-pullim-blue-700 flex items-start gap-1 rounded p-1.5 text-2xs leading-snug">
                   <AlarmClock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
                   <span>자동 변경: 18:00–19:00 단계 제시 · 19:00–22:00 개념까지 · 22:00 이후 정답 포함</span>
                 </p>
@@ -132,20 +132,20 @@ export default function ClassbotOnboardingPage() {
                         : 'bg-pullim-slate-900 border-pullim-slate-800')
                     }
                   >
-                    <div className="flex items-center gap-1 text-[11px]">
-                      <span className="bg-pullim-blue-600 inline-flex h-4 w-4 items-center justify-center rounded-full text-[11px] font-bold">
+                    <div className="flex items-center gap-1 text-2xs">
+                      <span className="bg-pullim-blue-600 inline-flex h-4 w-4 items-center justify-center rounded-full text-2xs font-bold">
                         {q.name[0]}
                       </span>
                       <span className="font-semibold">{q.name}</span>
                       <span className="text-pullim-slate-400">·</span>
                       <span className="text-pullim-slate-400 font-mono">{q.ago}</span>
                       {q.shared && (
-                        <span className="bg-pullim-lemon-ink text-pullim-lemon ml-auto rounded-full px-1 py-0.5 text-[11px] font-bold">
+                        <span className="bg-pullim-lemon-ink text-pullim-lemon ml-auto rounded-full px-1 py-0.5 text-2xs font-bold">
                           공유됨
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[11px] font-semibold">{q.q}</p>
+                    <p className="mt-0.5 text-2xs font-semibold">{q.q}</p>
                   </li>
                 ))}
               </ul>

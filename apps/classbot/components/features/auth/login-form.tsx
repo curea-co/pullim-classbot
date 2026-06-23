@@ -11,7 +11,7 @@ import { GatedSocialButtons } from '@/components/features/auth/gated-buttons';
 import { useLogin } from '@/hooks/api/auth';
 import { useAuth } from '@/lib/auth/auth-context';
 import { isSafeNextPath } from '@/lib/auth/safe-next';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ export function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const loginMutation = useLogin();
@@ -104,19 +105,40 @@ export function LoginForm() {
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="password">비밀번호</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setApiError(null);
-            }}
-            required
-          />
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">비밀번호</Label>
+            <span
+              title="준비 중"
+              aria-disabled="true"
+              className="text-xs text-muted-foreground cursor-not-allowed select-none"
+            >
+              비밀번호를 잊으셨나요?
+            </span>
+          </div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setApiError(null);
+              }}
+              required
+              className="pr-11"
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 표시'}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center justify-center w-11 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-r-md"
+              tabIndex={0}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         {apiError ? (

@@ -7,14 +7,45 @@
  * 3) 시간/상황 기반: 새벽·심야 진입 → 웰빙 칩 prepend
  */
 
-import type { ClassbotQuickPrompt, ReplyKey } from './chat';
+import type { ClassbotQuickPrompt, QuickReplyKey } from './chat';
 import type { ClassBot } from './classbot';
 
 /**
- * ReplyKey별 후속 질문 (봇이 그 주제 응답한 직후 학생이 자주 묻는 후속).
- * 각 ReplyKey는 1~3개의 후속 칩을 정의.
+ * 봇 주도 가이드 수업 — 기본 흐름칩 (개념 → 예제 → 퀴즈 → 다음 개념).
+ * 각 칩은 서로 다른 리치 답변(구조화 메시지)을 생성한다.
  */
-const FOLLOWUPS_BY_REPLY: Partial<Record<ReplyKey, ClassbotQuickPrompt[]>> = {
+export const LESSON_FLOW: ClassbotQuickPrompt[] = [
+  { text: '개념 더보기', expectedReplyKey: 'lesson_concept' },
+  { text: '예제 풀어줘', expectedReplyKey: 'lesson_example' },
+  { text: '퀴즈 내줘', expectedReplyKey: 'lesson_quiz' },
+  { text: '다음 개념 →', expectedReplyKey: 'lesson_next' },
+];
+
+/**
+ * 흐름키/응답키별 후속 칩 — 봇 발화 직후 자연스러운 다음 단계.
+ * 각 후속 칩도 서로 다른 답변으로 이어진다.
+ */
+const FOLLOWUPS_BY_REPLY: Partial<Record<QuickReplyKey, ClassbotQuickPrompt[]>> = {
+  lesson_concept: [
+    { text: '예제 풀어줘', expectedReplyKey: 'lesson_example' },
+    { text: '퀴즈 내줘',   expectedReplyKey: 'lesson_quiz' },
+    { text: '다음 개념 →', expectedReplyKey: 'lesson_next' },
+  ],
+  lesson_example: [
+    { text: '퀴즈 내줘',   expectedReplyKey: 'lesson_quiz' },
+    { text: '개념 더보기', expectedReplyKey: 'lesson_concept' },
+    { text: '다음 개념 →', expectedReplyKey: 'lesson_next' },
+  ],
+  lesson_quiz: [
+    { text: '다음 개념 →', expectedReplyKey: 'lesson_next' },
+    { text: '오늘 정리',   expectedReplyKey: 'today_summary' },
+    { text: '시험 대비',   expectedReplyKey: 'exam_prep' },
+  ],
+  lesson_next: [
+    { text: '개념 더보기', expectedReplyKey: 'lesson_concept' },
+    { text: '예제 풀어줘', expectedReplyKey: 'lesson_example' },
+    { text: '퀴즈 내줘',   expectedReplyKey: 'lesson_quiz' },
+  ],
   extremum: [
     { text: '극값 예제 더 보여줘', expectedReplyKey: 'today_summary' },
     { text: '부호 변화 표 그리기', expectedReplyKey: 'extremum' },
@@ -63,8 +94,8 @@ export type DynamicReplyContext = {
   bot: ClassBot;
   /** 메시지 turn 수 (봇 인사 1건 포함) */
   turnCount: number;
-  /** 직전 봇 발화의 ReplyKey (forcedKey로 호출된 경우만 알 수 있음) */
-  lastBotReplyKey?: ReplyKey;
+  /** 직전 봇 발화의 응답키 (forcedKey로 호출된 경우만 알 수 있음) */
+  lastBotReplyKey?: QuickReplyKey;
   /** 현재 시각 (기본: new Date()) — 테스트 주입 가능 */
   now?: Date;
 };
@@ -75,10 +106,12 @@ export type DynamicReplyContext = {
  * 우선순위:
  *   - 야간(22:00~01:59)일 때 항상 첫 칩으로 웰빙 chip prepend
  *   - lastBotReplyKey가 있고 후속 정의되어 있으면 그것 사용
- *   - 그 외에는 봇 정적 quickPrompts
+ *   - 그 외에는 봇 주도 가이드 수업 흐름칩(개념→예제→퀴즈→다음 개념)
+ *
+ * `bot` 은 야간 웰빙 분기 등 향후 봇별 분기를 위해 유지(현재 흐름칩은 봇 공통).
  */
 export function getDynamicQuickReplies(ctx: DynamicReplyContext): ClassbotQuickPrompt[] {
-  const { bot, turnCount, lastBotReplyKey, now = new Date() } = ctx;
+  const { turnCount, lastBotReplyKey, now = new Date() } = ctx;
   const hour = now.getHours();
   const isLateNight = hour >= 22 || hour <= 1;
 
@@ -87,8 +120,8 @@ export function getDynamicQuickReplies(ctx: DynamicReplyContext): ClassbotQuickP
   if (turnCount > 1 && lastBotReplyKey && FOLLOWUPS_BY_REPLY[lastBotReplyKey]) {
     base = FOLLOWUPS_BY_REPLY[lastBotReplyKey]!;
   } else {
-    // 대화 시작 시 봇 정적 quickPrompts (앞 3개만 — 4번째 "저 잘하고 있는…"은 reassurance와 중복)
-    base = bot.quickPrompts.slice(0, 3);
+    // 대화 시작 — 봇이 이끄는 수업 흐름칩
+    base = LESSON_FLOW;
   }
 
   if (isLateNight) {
@@ -96,5 +129,5 @@ export function getDynamicQuickReplies(ctx: DynamicReplyContext): ClassbotQuickP
     const filtered = base.filter(c => c.text !== WELLBEING_NIGHT_CHIP.text);
     return [WELLBEING_NIGHT_CHIP, ...filtered].slice(0, 4);
   }
-  return base.slice(0, 3);
+  return base.slice(0, 4);
 }

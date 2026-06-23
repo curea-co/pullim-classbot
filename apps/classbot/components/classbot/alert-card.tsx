@@ -43,7 +43,7 @@ export function AlertCard({
   return (
     <section
       className={cn(
-        'rounded-2xl border p-4',
+        'rounded-2xl border p-5',
         meta.border,
         meta.bg,
         className
@@ -53,13 +53,13 @@ export function AlertCard({
         <header className="mb-2 flex items-center gap-2">
           {Icon && <Icon className={cn('h-4 w-4', meta.iconColor)} aria-hidden />}
           {title && (
-            <h3 className={cn('text-[13px] font-bold', meta.titleColor)}>
+            <h3 className={cn('text-sm font-bold', meta.titleColor)}>
               {title}
             </h3>
           )}
         </header>
       )}
-      <div className="text-pullim-slate-700 text-[12px] leading-relaxed">
+      <div className="text-pullim-slate-700 text-xs leading-relaxed">
         {children}
       </div>
     </section>

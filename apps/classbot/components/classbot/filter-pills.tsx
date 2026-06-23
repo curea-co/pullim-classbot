@@ -29,7 +29,7 @@ export function FilterPills<V extends string = string>({
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {label && (
-        <span className="text-pullim-slate-400 w-10 shrink-0 text-[10px] font-bold tracking-wider uppercase">
+        <span className="text-pullim-slate-400 w-10 shrink-0 text-micro font-bold tracking-wider uppercase">
           {label}
         </span>
       )}
@@ -41,7 +41,7 @@ export function FilterPills<V extends string = string>({
               key={o.value}
               href={href(o.value)}
               className={cn(
-                'rounded-full px-3 py-1 text-[11px] font-bold transition-colors',
+                'rounded-full py-[7px] px-[12px] text-2xs font-bold transition-colors',
                 isActive
                   ? 'bg-pullim-blue-600 text-white'
                   : 'bg-pullim-slate-100 text-pullim-slate-600 hover:bg-pullim-slate-200',
@@ -87,7 +87,7 @@ export function FilterPillButtons<V extends string = string>({
               'inline-flex items-center gap-1.5 font-bold transition-colors',
               shape === 'tab'
                 ? 'rounded-lg px-3 py-1.5 text-xs'
-                : 'rounded-full px-3 py-1 text-[11px]',
+                : 'rounded-full py-[7px] px-[12px] text-2xs',
               isActive
                 ? 'bg-pullim-blue-600 text-white'
                 : 'text-pullim-slate-600 hover:bg-pullim-slate-100',
@@ -97,7 +97,7 @@ export function FilterPillButtons<V extends string = string>({
             {o.count !== undefined && (
               <span
                 className={cn(
-                  'rounded-full px-1.5 py-0.5 text-[10px] font-mono',
+                  'rounded-full px-1.5 py-0.5 text-micro font-mono',
                   isActive ? 'bg-white/20' : 'bg-pullim-slate-100',
                 )}
               >

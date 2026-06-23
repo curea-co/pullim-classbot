@@ -25,12 +25,12 @@ test.describe('모바일 viewport 검증', () => {
     const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
     const page = await context.newPage();
     await page.goto(BASE + '/classbot');
-    // 내 클래스봇 헤더 보임
-    await expect(page.getByText('내 클래스봇')).toBeVisible();
-    // V15 home — BotChip이 `?bot=...` query 포함한 chat link 노출. prefix 매칭으로 변경.
+    // 내 튜터 헤더 보임 (홈 재구성: 내 클래스봇 → 내 튜터)
+    await expect(page.getByText('내 튜터')).toBeVisible();
+    // 튜터 카드 + 이어서 하기/오늘 할 일 핵심 CTA — chat & assignment link prefix 매칭.
     const main = page.getByRole('main');
     await expect(main.locator('a[href^="/classbot/chat"]').last()).toBeVisible();
-    await expect(main.locator('a[href^="/classbot/replay"]').last()).toBeVisible();
+    await expect(main.locator('a[href^="/classbot/assignment"]').last()).toBeVisible();
     await context.close();
   });
 

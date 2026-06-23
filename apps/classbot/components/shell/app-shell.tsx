@@ -23,7 +23,7 @@ type Props = {
  * - max-width: 1280px — 4K·울트라와이드에서 콘텐츠 과확장 방지
  * - min-width: 320px (body) — 초소형 모바일에서 레이아웃 붕괴 방지
  */
-const CONTENT_MAX = 'mx-auto w-full max-w-[1280px]';
+const CONTENT_MAX = 'w-full max-w-[1280px]';
 
 export function AppShell({ role, children }: Props) {
   return (

@@ -48,16 +48,16 @@ export default function WellnessPage() {
                   <span className="text-pullim-slate-400 font-normal">· {botComment.generatedAt}</span>
                 </div>
                 {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
-                <p className="text-pullim-slate-500 text-[11px]">{botComment.weakArea}이 이번 주 신경 쓸 부분이에요</p>
+                <p className="text-pullim-slate-500 text-2xs">{botComment.weakArea}이 이번 주 신경 쓸 부분이에요</p>
               </div>
               <Sparkles className="text-pullim-slate-300 h-3 w-3" />
             </header>
-            <p className="text-pullim-slate-700 mt-1 text-[13px] leading-relaxed">
+            <p className="text-pullim-slate-700 mt-1 text-sm leading-relaxed">
               &ldquo;{botComment.text}&rdquo;
             </p>
             <Link
               href={botComment.ctaHref}
-              className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-[11px] font-bold transition-colors hover:bg-pullim-slate-50"
+              className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
               style={{ borderColor: sig.inkLight, color: sig.inkLight }}
             >
               {botComment.ctaLabel}
@@ -74,13 +74,13 @@ export default function WellnessPage() {
             <Heart className="h-3.5 w-3.5" />
             선생님이 곁에 있어요
           </h3>
-          <p className="text-pullim-slate-300 mt-2 text-[12px] leading-relaxed">
+          <p className="text-pullim-slate-300 mt-2 text-xs leading-relaxed">
             이번 주 좀 무거웠어요. 혼자 끌어안지 않아도 돼요. 봇이든 선생님이든 언제든 말 걸어주세요.
           </p>
           <div className="mt-3 flex gap-2">
             <Link
               href="/classbot/chat"
-              className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-bold"
+              className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-2xs font-bold"
             >
               <MessageCircle className="h-3 w-3" />
               봇과 대화
@@ -96,7 +96,7 @@ export default function WellnessPage() {
       >
         <div>
           <div className="text-pullim-slate-900 text-sm font-bold">이번 주의 나</div>
-          <div className="text-pullim-slate-500 text-[11px]">내 주간 리포트 보기</div>
+          <div className="text-pullim-slate-500 text-2xs">내 주간 리포트 보기</div>
         </div>
         <ArrowRight className="text-pullim-slate-500 h-4 w-4" />
       </Link>
@@ -128,7 +128,7 @@ export default function WellnessPage() {
             <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
               {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
             </div>
-            <div className={cn('text-[11px]', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
+            <div className={cn('text-2xs', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
               {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
             </div>
           </div>
@@ -155,13 +155,13 @@ export default function WellnessPage() {
                       {c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`} · {m.label}
                     </div>
                     {c.freeText && (
-                      <div className="text-pullim-slate-500 mt-0.5 truncate text-[11px]">
+                      <div className="text-pullim-slate-500 mt-0.5 truncate text-2xs">
                         &ldquo;{c.freeText}&rdquo;
                       </div>
                     )}
                   </div>
                   {c.intensity && (
-                    <span className="text-pullim-slate-400 font-mono text-[10px]">
+                    <span className="text-pullim-slate-400 font-mono text-micro">
                       강도 {c.intensity}/5
                     </span>
                   )}

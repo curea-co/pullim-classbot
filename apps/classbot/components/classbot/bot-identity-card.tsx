@@ -2,6 +2,7 @@ import { Shield } from 'lucide-react';
 import type { ClassBot } from '@/lib/mock';
 import { scopeMeta } from '@/lib/mock';
 import { botSignature } from '@/lib/tokens/bot-signature';
+import { Chip } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
 
 export interface BotIdentityCardProps {
@@ -68,7 +69,7 @@ export function BotIdentityCard({
             {bot.avatarEmoji}
           </div>
           {bot.isLive && (
-            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase">
+            <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs font-bold uppercase">
               <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
               LIVE
             </span>
@@ -79,7 +80,7 @@ export function BotIdentityCard({
         <div className="min-w-0 flex-1">
           {/* org eyebrow — collapsed 시 숨김 */}
           {!collapsed && (
-            <div className="text-pullim-blue-200 text-[10px] font-semibold tracking-wider uppercase">
+            <div className="text-pullim-blue-200 text-micro font-semibold tracking-wider uppercase">
               클래스봇 · {bot.organization}
             </div>
           )}
@@ -113,15 +114,9 @@ export function BotIdentityCard({
         <>
           {/* 과목·학년 chip */}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="bg-white/10 rounded-full px-2.5 py-0.5 text-xs font-medium">
-              {bot.subject}
-            </span>
-            <span className="bg-white/10 rounded-full px-2.5 py-0.5 text-xs font-medium">
-              {bot.grade}
-            </span>
-            <span className="bg-white/10 rounded-full px-2.5 py-0.5 text-xs font-medium">
-              {bot.tone}
-            </span>
+            <Chip tone="invert">{bot.subject}</Chip>
+            <Chip tone="invert">{bot.grade}</Chip>
+            <Chip tone="invert">{bot.tone}</Chip>
           </div>
 
           {/* children */}

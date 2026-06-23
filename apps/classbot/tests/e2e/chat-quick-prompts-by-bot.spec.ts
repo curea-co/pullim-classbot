@@ -1,69 +1,95 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * chat quickPrompts 봇별 분리 검증 (2026-05-13 / 2026-05-14 cb_004 / 2026-05-18 cb_005 확장).
+ * 봇 주도 가이드 수업 — 빠른칩(흐름 내비) 검증 (2026-06-23 재구성).
  *
- * 봇 chip 전환 시 quick prompt 4개 텍스트가 봇 과목에 맞게 바뀌어야 함.
- * - cb_001 수학이 형 → "극값 어떻게 찾아요?"
- * - cb_002 영어 누나 → "빈칸 추론 어떻게 풀어요?"
- * - cb_003 과학 쌤   → "전기회로 어디부터?"
- * - cb_004 국어 누나 → "비문학 주제 어떻게 잡아요?"
- * - cb_005 사회 코치 → "시사 이슈 어떻게 분석해요?"
+ * 빠른칩이 과목 입문 질문이 아니라 수업 흐름(개념 → 예제 → 퀴즈 → 다음 개념)으로 바뀌었고,
+ * 각 칩은 서로 다른 리치 답변(개념 카드 / 예제 단계 / 인라인 퀴즈)을 생성한다.
  *
- * 추가로 quickPrompt 클릭 시 expectedReplyKey가 forcedKey로 들어가
- * 봇 톤+과목에 맞는 reply가 나오는지(자유 질문 키워드 매칭과 무관) 검증.
+ * 시간대 의존(야간 웰빙 칩 prepend) 회피를 위해 항상 노출되는 앞 3칩만 초기 단언.
  */
 
-test.describe('chat quickPrompts 봇별 변화', () => {
-  test('cb_001 → cb_002 → cb_003 → cb_004 → cb_005 전환 시 과목별 prompt 노출', async ({ page }) => {
+test.describe('가이드 수업 흐름칩', () => {
+  test('cb_001 — 흐름칩 노출 + 칩별 서로 다른 답변', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
+    const chat = page.locator('[data-slot="chat-scroll"]');
 
-    // cb_001 (수학이 형) — 기본 선택
-    await expect(page.getByRole('button', { name: '극값 어떻게 찾아요?' })).toBeVisible();
+    // 기본 흐름칩 (개념/예제/퀴즈 — 야간 웰빙 prepend 와 무관하게 항상 노출)
+    await expect(page.getByRole('button', { name: '개념 더보기' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '예제 풀어줘' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '퀴즈 내줘' })).toBeVisible();
 
-    // cb_002 (영어 누나) 클릭 → 영어 prompt
-    await page.getByRole('button', { name: /영어 누나/ }).click();
-    await expect(page.getByRole('button', { name: '빈칸 추론 어떻게 풀어요?' })).toBeVisible();
-    // 수학 prompt 사라짐
-    await expect(page.getByRole('button', { name: '극값 어떻게 찾아요?' })).toHaveCount(0);
+    // 개념 더보기 → 개념 카드 (자세히 보기 모달 진입점은 챗 버블 전용 텍스트)
+    await page.getByRole('button', { name: '개념 더보기' }).click();
+    await expect(chat.getByText('자세히 보기 (학습 팁·예제 문항) →')).toBeVisible({ timeout: 3000 });
 
-    // cb_003 (과학 쌤) 클릭 → 과학 prompt
-    await page.getByRole('button', { name: /과학 쌤/ }).click();
-    await expect(page.getByRole('button', { name: '전기회로 어디부터?' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '빈칸 추론 어떻게 풀어요?' })).toHaveCount(0);
+    // 예제 풀어줘 → 예제 단계 카드 (제목은 챗 버블 전용)
+    await page.getByRole('button', { name: '예제 풀어줘' }).click();
+    await expect(chat.getByText(/극값 구하기/)).toBeVisible({ timeout: 3000 });
 
-    // cb_004 (국어 누나) 클릭 → 국어 prompt
-    await page.getByRole('button', { name: /국어 누나/ }).click();
-    await expect(page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '전기회로 어디부터?' })).toHaveCount(0);
+    // 퀴즈 내줘 → 인라인 퀴즈 (문항 + 제출하기 버튼)
+    await page.getByRole('button', { name: '퀴즈 내줘' }).click();
+    await expect(chat.getByText(/극댓값은\?/)).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('button', { name: '제출하기' })).toBeVisible();
 
-    // cb_005 (사회 코치) 클릭 → 사회 prompt
-    await page.getByRole('button', { name: /사회 코치/ }).click();
-    await expect(page.getByRole('button', { name: '시사 이슈 어떻게 분석해요?' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' })).toHaveCount(0);
+    // 퀴즈 후속칩 — 다음 개념 → 다른 개념 카드로 진행
+    await page.getByRole('button', { name: '다음 개념 →' }).click();
+    await expect(chat.getByText('다음 개념 가보자').first()).toBeVisible({ timeout: 3000 });
   });
 
-  test('quickPrompt 클릭 → 봇 톤+과목에 맞는 reply 노출', async ({ page }) => {
+  test('인라인 퀴즈 제출 → 정답/해설 노출', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
+    const chat = page.locator('[data-slot="chat-scroll"]');
 
-    // cb_002 영어 누나 → "빈칸 추론" 클릭 → 정중 톤 영어 답변
+    await page.getByRole('button', { name: '퀴즈 내줘' }).click();
+    await expect(page.getByRole('button', { name: '제출하기' })).toBeVisible({ timeout: 3000 });
+
+    // 보기 선택 후 제출 → 결과/해설 노출
+    await chat.getByRole('radio').first().click();
+    await page.getByRole('button', { name: '제출하기' }).click();
+    await expect(chat.getByText(/정답이에요|다시 볼까요/)).toBeVisible({ timeout: 2000 });
+  });
+
+  test('인라인 퀴즈 — 힌트 사다리(scope 제한) + 오답 처방', async ({ page }) => {
+    await page.goto('/classbot/chat', { waitUntil: 'networkidle' }); // cb_001 = scope L3
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
+    const chat = page.locator('[data-slot="chat-scroll"]');
+
+    await page.getByRole('button', { name: '퀴즈 내줘' }).click();
+    await expect(page.getByRole('button', { name: '제출하기' })).toBeVisible({ timeout: 3000 });
+
+    // 힌트 사다리 — L3 봇은 1개까지만
+    await chat.getByRole('button', { name: /힌트 보기/ }).click();
+    await expect(chat.getByText(/힌트 1 ·/)).toBeVisible();
+    await expect(chat.getByText(/힌트 1개까지/)).toBeVisible(); // scope(L3) 제한 안내
+
+    // 오답(② −2) 제출 → 처방(함정 설명 + 처방 버튼)
+    await chat.getByRole('radio').nth(1).click();
+    await page.getByRole('button', { name: '제출하기' }).click();
+    await expect(chat.getByText(/극솟값/)).toBeVisible({ timeout: 2000 }); // distractor 피드백
+    await expect(chat.getByRole('button', { name: /개념 다시 보기/ })).toBeVisible();
+    await expect(chat.getByRole('button', { name: /다시 풀기/ })).toBeVisible();
+
+    // 처방: 개념 다시 보기 → 챗에 개념 상세 주입(이동 없음)
+    await chat.getByRole('button', { name: /개념 다시 보기/ }).click();
+    await expect(chat.getByText('💡 학습 팁')).toBeVisible({ timeout: 2000 });
+  });
+
+  test('봇별로 흐름 답변이 과목에 맞게 다르다', async ({ page }) => {
+    await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
+    const chat = page.locator('[data-slot="chat-scroll"]');
+
+    // cb_002 영어 누나 — 예제는 빈칸 관련
     await page.getByRole('button', { name: /영어 누나/ }).click();
-    await page.getByRole('button', { name: '빈칸 추론 어떻게 풀어요?' }).click();
-    await expect(page.getByText(/빈칸 추론은 글의 흐름을 먼저 잡아야 해요/)).toBeVisible({ timeout: 3000 });
+    await page.getByRole('button', { name: '예제 풀어줘' }).click();
+    await expect(chat.getByText(/빈칸 잡기/)).toBeVisible({ timeout: 3000 });
 
-    // cb_003 과학 쌤 → "전기회로" 클릭 → 스파르타 톤 과학 답변
+    // cb_003 과학 쌤 — 퀴즈는 합성저항
     await page.getByRole('button', { name: /과학 쌤/ }).click();
-    await page.getByRole('button', { name: '전기회로 어디부터?' }).click();
-    await expect(page.getByText(/옴의 법칙 V=IR부터 외워라/)).toBeVisible({ timeout: 3000 });
-
-    // cb_004 국어 누나 → "비문학 주제" 클릭 → 차분 톤 국어 답변
-    await page.getByRole('button', { name: /국어 누나/ }).click();
-    await page.getByRole('button', { name: '비문학 주제 어떻게 잡아요?' }).click();
-    await expect(page.getByText(/비문학 주제 추론은 단락 단위 요약으로 시작합니다/)).toBeVisible({ timeout: 3000 });
-
-    // cb_005 사회 코치 → "시사 이슈" 클릭 → 열정 톤 사회 답변
-    await page.getByRole('button', { name: /사회 코치/ }).click();
-    await page.getByRole('button', { name: '시사 이슈 어떻게 분석해요?' }).click();
-    await expect(page.getByText(/입장 \/ 근거/)).toBeVisible({ timeout: 3000 });
+    await page.getByRole('button', { name: '퀴즈 내줘' }).click();
+    await expect(chat.getByText(/합성저항/)).toBeVisible({ timeout: 3000 });
   });
 });

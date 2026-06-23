@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { AppSidebar } from './app-sidebar';
 import type { Role } from './nav-config';
 import { useSidebarStore } from '@/lib/store/sidebar';
@@ -22,7 +22,7 @@ export function AppSidebarRail({ role }: { role: Role }) {
   return (
     <aside
       className={cn(
-        'border-pullim-slate-200 bg-card hidden shrink-0 flex-col border-r transition-[width] duration-200 md:flex md:w-16',
+        'border-pullim-slate-200 bg-card hidden shrink-0 flex-col border-r transition-[width] duration-[260ms] [transition-timing-function:var(--ease-emphasis)] md:flex md:w-16',
         collapsed ? 'lg:w-16' : 'lg:w-60',
       )}
     >
@@ -32,19 +32,30 @@ export function AppSidebarRail({ role }: { role: Role }) {
       <AppSidebar role={role} compact className={cn('flex-1', collapsed ? 'flex' : 'flex lg:hidden')} />
 
       {/* 접기/펼치기 토글 — lg 전용 (md는 고정 아이콘 모드) */}
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-        aria-pressed={collapsed}
-        className={cn(
-          'border-pullim-slate-200 text-pullim-slate-500 hover:bg-pullim-slate-100 hover:text-pullim-slate-800 hidden shrink-0 items-center gap-2 border-t px-3 py-2.5 text-xs font-semibold transition-colors lg:flex',
-          collapsed ? 'justify-center' : 'justify-start',
-        )}
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        {!collapsed && <span>접기</span>}
-      </button>
+      <div className="border-pullim-slate-200 hidden shrink-0 border-t p-2 lg:block">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+          aria-pressed={collapsed}
+          className={cn(
+            'group text-pullim-slate-500 hover:bg-pullim-slate-100 hover:text-pullim-slate-800 active:bg-pullim-slate-200/60 flex h-11 w-full items-center rounded-full text-xs font-semibold transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-500/60',
+            collapsed ? 'justify-center px-0' : 'justify-start gap-2 px-3.5',
+          )}
+        >
+          <ChevronLeft
+            aria-hidden
+            className="pullim-chevron h-4 w-4 shrink-0"
+            data-collapsed={collapsed}
+          />
+          {!collapsed && (
+            <span key="label" className="pullim-anim-label-in truncate">
+              접기
+            </span>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

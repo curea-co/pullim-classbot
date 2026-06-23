@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import {
-  navForRole, findActiveSection, studentHomeItem, studentDomains,
+  navForRole, findActiveSection, studentDomains,
   type Role, type NavItem, type NavSubItem,
 } from './nav-config';
 import { cn } from '@/lib/utils';
@@ -76,20 +76,7 @@ function StudentSidebar({
       aria-label="학생 메뉴"
       className={cn('flex flex-col overflow-y-auto py-3', compact ? 'px-1.5' : 'px-2', className)}
     >
-      {/* 1. 홈 — 별도 구분 */}
-      <ul className="space-y-0.5">
-        <NavRow
-          item={studentHomeItem}
-          pathname={pathname}
-          onNavigate={onNavigate}
-          compact={compact}
-        />
-      </ul>
-
-      {/* divider */}
-      <div className={cn('my-3 border-t border-pullim-slate-200', compact && 'mx-1')} />
-
-      {/* 2. 6 도메인 — 활성 도메인 아래에 children 인덴트로 펼침 */}
+      {/* 클래스봇 단일 도메인 — 도메인 헤더 + children(홈/받은 과제/…) 펼침 */}
       <ul className="space-y-0.5">
         {studentDomains.map(domain => {
           const isActive = activeSection?.href === domain.href;
@@ -107,7 +94,7 @@ function StudentSidebar({
                 <ul
                   className={cn(
                     'mt-0.5 space-y-0.5',
-                    compact ? 'ml-0' : 'ml-3 border-l border-pullim-slate-200 pl-2',
+                    compact ? 'ml-0' : 'ml-4 border-l border-pullim-slate-200 pl-3',
                   )}
                 >
                   {domain.children.map(sub => (
@@ -155,7 +142,7 @@ function FullNav({
         return (
           <div key={group.label}>
             {showLabel && (
-              <div className="text-pullim-slate-400 px-2 py-1 text-[10px] font-bold tracking-wider uppercase">
+              <div className="text-pullim-slate-400 px-2 py-1 text-micro font-bold tracking-wider uppercase">
                 {group.label}
               </div>
             )}
@@ -200,21 +187,25 @@ function NavRow({
       aria-disabled={item.locked || undefined}
       title={compact ? item.label : item.description}
       className={cn(
-        'group flex items-center gap-2 rounded-lg text-sm font-medium transition-colors',
-        compact ? 'h-11 w-full justify-center' : 'min-h-11 px-2 py-2',
+        'group relative flex items-center rounded-md text-sm font-medium transition-colors',
+        compact ? 'h-11 w-full justify-center gap-2.5' : 'min-h-11 gap-2.5 px-2.5 py-2',
         active
-          ? 'bg-pullim-blue-50 text-pullim-blue-700 relative before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-pullim-blue-600'
+          ? cn(
+              'bg-pullim-blue-50 text-pullim-blue-700',
+              !compact &&
+                'before:absolute before:left-1 before:inset-y-2 before:w-[3px] before:rounded-full before:bg-pullim-blue-600',
+            )
           : item.locked
           ? 'text-pullim-slate-400 hover:bg-pullim-slate-50 cursor-not-allowed'
-          : 'text-pullim-slate-700 hover:bg-pullim-slate-100 hover:text-pullim-slate-900',
+          : 'text-pullim-slate-700 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 active:bg-pullim-slate-200/60',
       )}
     >
       <Icon className={cn('h-4 w-4 shrink-0', active && 'stroke-[2.4]')} />
       {!compact && (
         <>
-          <span className="flex-1 truncate">{item.label}</span>
+          <span className={cn('flex-1 truncate', active && 'font-semibold')}>{item.label}</span>
           {item.locked && (
-            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold">
+            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-bold">
               <Lock aria-hidden className="h-2.5 w-2.5" />
               준비 중
             </span>
@@ -223,7 +214,7 @@ function NavRow({
             item.badge === 'LIVE' ? (
               <LiveBadge />
             ) : (
-              <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
+              <span className={cn('rounded-full px-1.5 py-0.5 text-micro font-bold bg-pullim-slate-100 text-pullim-slate-600')}>
                 {item.badge}
               </span>
             )
@@ -268,23 +259,27 @@ function SubNavRow({
         aria-disabled={sub.locked || undefined}
         title={compact ? sub.label : sub.description}
         className={cn(
-          'group flex items-center gap-2 rounded-lg text-xs font-medium transition-colors',
-          compact ? 'h-10 w-full justify-center' : 'min-h-10 px-2 py-2',
+          'group relative flex items-center rounded-md text-xs font-medium transition-colors',
+          compact ? 'h-10 w-full justify-center gap-2.5' : 'min-h-10 gap-2.5 px-2.5 py-2',
           active
-            ? 'bg-pullim-blue-50 text-pullim-blue-700 relative before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-pullim-blue-600'
+            ? cn(
+                'bg-pullim-blue-50 text-pullim-blue-700',
+                !compact &&
+                  'before:absolute before:left-1 before:inset-y-2 before:w-[3px] before:rounded-full before:bg-pullim-blue-600',
+              )
             : sub.locked
             ? 'text-pullim-slate-400 hover:bg-pullim-slate-50 cursor-not-allowed'
-            : 'text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900',
+            : 'text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 active:bg-pullim-slate-200/60',
         )}
       >
         {Icon && <Icon className={cn('h-3.5 w-3.5 shrink-0', active && 'stroke-[2.4]')} />}
         {!compact && (
           <>
-            <span className="flex-1 truncate">{sub.label}</span>
+            <span className={cn('flex-1 truncate', active && 'font-semibold')}>{sub.label}</span>
             {sub.locked && (
               <span
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-bold',
+                  'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-bold',
                   'bg-pullim-slate-100 text-pullim-slate-500',
                 )}
               >

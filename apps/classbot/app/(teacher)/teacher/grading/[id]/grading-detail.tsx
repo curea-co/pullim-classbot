@@ -17,6 +17,11 @@ import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
+/** Initial rubric total (sum of per-item scores, 0-100 pct basis). */
+function initialRubricTotal(item: GradingItem): number {
+  return item.rubric.reduce((s, r) => s + r.score, 0);
+}
+
 export function GradingDetail({
   item, history, prevId, nextId,
 }: {
@@ -25,16 +30,30 @@ export function GradingDetail({
   prevId: string | null;
   nextId: string | null;
 }) {
-  const [finalScore, setFinalScore] = useState(item.draftScore);
   const [finalComment, setFinalComment] = useState(item.draftComment);
+  const [rubricTotal, setRubricTotal] = useState(() => initialRubricTotal(item));
   const [isApproved, setIsApproved] = useState(item.status === 'approved' || item.status === 'overridden');
+
+  /** Derived — not stored — recomputed only when rubricTotal changes. */
+  const finalScore = useMemo(
+    () => Math.round(item.maxScore * rubricTotal / 100),
+    [item.maxScore, rubricTotal],
+  );
 
   const overrideDelta = useMemo(() => {
     const scoreDelta = Math.abs(item.draftScore - finalScore) / item.maxScore * 100;
     return Math.round(scoreDelta);
   }, [item.draftScore, item.maxScore, finalScore]);
 
-  const isCrisis = item.responsePreview.length < 25 || /모르겠|어려워|힘들/.test(item.responsePreview);
+  /** dirty = any value diverges from the original AI draft. */
+  const dirty = useMemo(() => {
+    const scoreChanged = finalScore !== item.draftScore;
+    const commentChanged = finalComment !== item.draftComment;
+    const rubricChanged = rubricTotal !== initialRubricTotal(item);
+    return scoreChanged || commentChanged || rubricChanged;
+  }, [finalScore, finalComment, rubricTotal, item]);
+
+  const isCrisis = (item.type === 'essay' && item.responsePreview.length < 25) || /모르겠|어려워|힘들/.test(item.responsePreview);
 
   function handleApprove() {
     setIsApproved(true);
@@ -59,7 +78,7 @@ export function GradingDetail({
           {prevId ? (
             <Link
               href={`/teacher/grading/${prevId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
             >
               <ChevronLeft className="h-3 w-3" /> 이전 학생
             </Link>
@@ -67,7 +86,7 @@ export function GradingDetail({
           {nextId ? (
             <Link
               href={`/teacher/grading/${nextId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
             >
               다음 학생 <ChevronRight className="h-3 w-3" />
             </Link>
@@ -112,8 +131,8 @@ export function GradingDetail({
                   return (
                     <li key={i} className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg p-2">
                       <div className="min-w-0 flex-1">
-                        <div className="text-pullim-slate-700 truncate text-[11px] font-semibold">{h.assignmentTitle}</div>
-                        <div className="text-pullim-slate-400 text-[10px]">{h.gradedAt}</div>
+                        <div className="text-pullim-slate-700 truncate text-2xs font-semibold">{h.assignmentTitle}</div>
+                        <div className="text-pullim-slate-400 text-micro">{h.gradedAt}</div>
                       </div>
                       <ScoreDisplay score={h.score} max={h.maxScore} size="sm" tone="threshold" />
                     </li>
@@ -125,7 +144,7 @@ export function GradingDetail({
 
           {/* 면담 메모 안내 */}
           <AlertCard tone="info" icon={MessageSquare} title="1:1 면담 메모">
-            <p className="text-pullim-slate-500 text-[11px] leading-relaxed">
+            <p className="text-pullim-slate-500 text-2xs leading-relaxed">
               여기서 작성한 메모는 학생 개인 리포트에 자동 첨부돼 학생에게 부드러운 형태로 전달돼요.
             </p>
             <Button
@@ -156,8 +175,7 @@ export function GradingDetail({
         <RubricEditor
           initialRubric={item.rubric}
           onChange={(_next, total) => {
-            const ratio = total / 100;
-            setFinalScore(Math.round(item.maxScore * ratio));
+            setRubricTotal(total);
           }}
         />
 
@@ -175,7 +193,7 @@ export function GradingDetail({
             aria-label="AI 초안 코멘트"
             className="rounded-xl text-sm leading-relaxed"
           />
-          <div className="text-pullim-slate-400 mt-1 text-right text-[10px] font-mono">
+          <div className="text-pullim-slate-400 mt-1 text-right text-micro font-mono">
             {finalComment.length}/500
           </div>
         </section>
@@ -184,14 +202,14 @@ export function GradingDetail({
         <section className="bg-card border sticky bottom-4 rounded-2xl p-3 shadow-pullim-md">
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">최종 점수</div>
+              <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">최종 점수</div>
               <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="threshold" />
             </div>
             <Button
               type="button"
               size="lg"
               onClick={handleApprove}
-              disabled={isApproved || finalScore !== item.draftScore}
+              disabled={isApproved || dirty}
               className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-800"
             >
               그대로 승인
@@ -201,7 +219,7 @@ export function GradingDetail({
               variant="pullim-lemon"
               size="lg"
               onClick={handleApproveWithEdit}
-              disabled={isApproved}
+              disabled={isApproved || !dirty}
             >
               <Check />
               수정 후 승인

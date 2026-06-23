@@ -8,10 +8,12 @@ import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
-import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
 import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { useAssignmentLookup } from '@/lib/store/assignments';
+import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
 
@@ -27,8 +29,16 @@ import { cn } from '@/lib/utils';
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { data: a, isLoading, isUnauthenticated, isNotFound, isError, refetch } =
-    useMyAssignment(id);
+  const api = useMyAssignment(id);
+  // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)에서 lookup.
+  // 인증 사용자는 Phase7 실API 경로 그대로. 목록의 데모 폴백과 짝을 이룬다.
+  const localA = useAssignmentLookup(id);
+  const demo = api.isUnauthenticated;
+  const a = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
+  const isLoading = demo ? false : api.isLoading;
+  const isNotFound = demo ? !localA : api.isNotFound;
+  const isError = demo ? false : api.isError;
+  const refetch = api.refetch;
 
   const back = (
     <Link
@@ -40,9 +50,6 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     </Link>
   );
 
-  if (isUnauthenticated) {
-    return <div className="space-y-4">{back}<ReadLoginGate label="과제" /></div>;
-  }
   if (isNotFound) {
     return (
       <div className="space-y-4">
@@ -122,22 +129,22 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         {/* 문항 미리보기 */}
         <section className="bg-card rounded-2xl border p-4">
           <h3 className="text-pullim-slate-900 text-sm font-bold">문항 구성</h3>
-          <p className="text-pullim-slate-500 mt-0.5 text-[11px]">
+          <p className="text-pullim-slate-500 mt-0.5 text-2xs">
             {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
           </p>
           {questions.length === 0 ? (
-            <p className="text-pullim-slate-400 mt-3 text-[11px]">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
+            <p className="text-pullim-slate-400 mt-3 text-2xs">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
           ) : (
             <ul className="mt-3 space-y-1">
               {questions.map(q => {
                 const meta = questionTypeMeta[q.type as keyof typeof questionTypeMeta];
                 const TypeIcon = meta?.icon;
                 return (
-                  <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-[11px]">
-                    <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
+                  <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-2xs">
+                    <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
                       {q.order}
                     </span>
-                    <span className="text-pullim-slate-400 font-mono text-[11px] inline-flex items-center gap-0.5">
+                    <span className="text-pullim-slate-400 font-mono text-2xs inline-flex items-center gap-0.5">
                       {TypeIcon && <TypeIcon className="h-3 w-3" aria-hidden />}
                       {meta?.label ?? q.type}
                     </span>

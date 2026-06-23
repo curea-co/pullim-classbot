@@ -2,45 +2,82 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles, Clock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Heart, MessageCircle, Sparkles, Clock, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ScoreDisplay } from '@/components/classbot/score-display';
+import { EmptyState } from '@/components/classbot/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { classBots } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
 import { useAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
+import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
 import type { QuestionType } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const a = useAssignmentLookup(id);
+
+  // 상세 페이지와 같은 dual-source 해석 — 인증 사용자는 실API, 미인증은 로컬 스토어 폴백.
+  const api = useMyAssignment(id);
+  const localA = useAssignmentLookup(id);
+  const demo = api.isUnauthenticated;
+  const apiRow = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
+  const isLoading = demo ? false : api.isLoading;
+  const isNotFound = demo ? !localA : api.isNotFound;
+
   const me = useRosterMe();
   const submission = useStudentSubmission(id, me.id);
-  if (!a) {
-    if (id.startsWith('as_user_')) {
-      return (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <p className="text-pullim-slate-500 text-sm">결과를 불러오는 중...</p>
-        </div>
-      );
-    }
-    notFound();
-  }
-  const questions = getQuestionsForAssignment(a);
-  const bot = classBots.find(b => b.id === a.botId);
 
-  const isExam = a.mode === 'exam';
+  const back = (
+    <Link
+      href="/classbot/assignment"
+      className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+    >
+      <ArrowLeft className="h-3 w-3" />
+      받은 과제
+    </Link>
+  );
+
+  if (isLoading || (!apiRow && !isNotFound)) {
+    return (
+      <div className="space-y-4">
+        {back}
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-14 w-full rounded-2xl" />
+      </div>
+    );
+  }
+  if (isNotFound || !apiRow) {
+    return (
+      <div className="space-y-4">
+        {back}
+        <EmptyState
+          icon={Inbox}
+          title="과제를 찾을 수 없어요"
+          description="받은 과제 목록에서 다시 확인해 주세요."
+          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+        />
+      </div>
+    );
+  }
+
+  // 문항은 로컬 스토어(mock 레이어) — localA 가 있으면 그대로, 없으면 빈 배열.
+  const questions = localA ? getQuestionsForAssignment(localA) : [];
+  const bot = classBots.find(b => b.id === apiRow.botId);
+
+  const isExam = apiRow.mode === 'exam';
   const autoGraded = questions.filter(q => q.type === 'mc' || q.type === 'short' || q.type === 'numeric').length;
   const essayCount = questions.filter(q => q.type === 'essay').length;
 
   const scoreCard = isExam ? (
     <section className="bg-pullim-slate-900 text-white rounded-2xl p-5">
-      <div className="text-pullim-lemon text-[10px] font-bold tracking-wider uppercase">
+      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
         <Clock className="-mt-0.5 mr-0.5 inline h-3 w-3" />
         시험 완료
       </div>
@@ -53,25 +90,25 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     <section className="bg-card rounded-2xl border p-5">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">자동 채점</div>
+          <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">자동 채점</div>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
-          <p className="text-pullim-slate-500 mt-0.5 text-[10px]">객관식·단답·수치는 즉시</p>
+          <p className="text-pullim-slate-500 mt-0.5 text-micro">객관식·단답·수치는 즉시</p>
         </div>
         {submission ? (
           <div>
-            <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">내 점수</div>
+            <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">내 점수</div>
             <div data-testid="result-score" className="mt-1">
               <ScoreDisplay score={submission.scorePercent} max={100} size="xl" tone="threshold" />
             </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-[10px]">자동 채점 mock 추정</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-micro">자동 채점 mock 추정</p>
           </div>
         ) : essayCount > 0 ? (
           <div>
-            <div className="text-pullim-slate-400 text-[10px] font-bold tracking-wider uppercase">검수 대기</div>
+            <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">검수 대기</div>
             <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
               {essayCount}<span className="text-pullim-slate-400 text-base">문항</span>
             </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-[10px]">선생님이 곧 봐줄 거예요</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-micro">선생님이 곧 봐줄 거예요</p>
           </div>
         ) : null}
       </div>
@@ -109,35 +146,29 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/classbot/assignment"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        받은 과제
-      </Link>
+      {back}
 
       <PageHeader
         eyebrow={{ icon: Sparkles, text: '제출 완료', tone: 'blue' }}
         title={<>수고했어요 <Heart className="text-pullim-blue-500 inline h-5 w-5" /></>}
-        description={`${a.title} · ${bot?.name ?? a.assignedBy}`}
+        description={`${apiRow.title} · ${bot?.name ?? apiRow.assignedBy}`}
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* 봇 피드백 — 시험 외 */}
         {!isExam && (
           <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="봇 한 마디" description={bot?.name ?? a.assignedBy} />
+            <SectionHeading title="봇 한 마디" description={bot?.name ?? apiRow.assignedBy} />
             <div className="space-y-2">
               <div className="bg-pullim-blue-50 rounded-lg p-3">
-                <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">오늘 잘한 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-[12px] leading-relaxed">
+                <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">오늘 잘한 점</div>
+                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
                   중간에 막혔을 때 힌트 1단계만 보고 다시 풀어낸 점 — 그게 진짜 실력이에요.
                 </p>
               </div>
               <div className="bg-pullim-slate-50 rounded-lg p-3">
-                <div className="text-pullim-slate-700 text-[10px] font-bold tracking-wider uppercase">다음에 신경 쓸 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-[12px] leading-relaxed">
+                <div className="text-pullim-slate-700 text-micro font-bold tracking-wider uppercase">다음에 신경 쓸 점</div>
+                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
                   부호 변화 표를 그리는 단계에서 자주 막혔어요. 같은 패턴 5문항이 자동으로 처방됐어요.
                 </p>
               </div>
@@ -155,18 +186,18 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                 return (
                   <li key={q.id} className="bg-pullim-slate-50/50 rounded-lg p-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold">
+                      <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
                         {q.order}
                       </span>
                       <span className="text-pullim-slate-700 truncate text-xs font-bold">{q.prompt}</span>
                       {meta && (
-                        <span className="text-pullim-slate-400 ml-auto shrink-0 text-[10px]">
+                        <span className="text-pullim-slate-400 ml-auto shrink-0 text-micro">
                           {meta.label}
                         </span>
                       )}
                     </div>
                     {q.modelAnswer && (
-                      <p className="text-pullim-slate-500 mt-1.5 text-[11px] leading-relaxed">
+                      <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
                         <span className="text-pullim-slate-400 font-bold">기준 응답: </span>
                         {q.modelAnswer}
                       </p>

@@ -38,7 +38,7 @@ export function LiveQuizCard() {
           <Zap className="h-3.5 w-3.5" />
         </span>
         <div className="flex-1">
-          <div className="text-pullim-blue-700 text-[10px] font-bold tracking-wider uppercase">
+          <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">
             지금 즉석 퀴즈
           </div>
           <div className="text-pullim-slate-900 text-xs font-bold">

@@ -146,12 +146,12 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
                 {data.segments.slice(0, 6).map((s, i) => (
                   <li key={i} className="text-pullim-slate-600 flex items-center gap-2 text-xs">
                     <span className="text-pullim-slate-400 font-mono">{s.at}</span>
-                    <span className="text-pullim-slate-500 text-[10px] uppercase font-bold">{s.type}</span>
+                    <span className="text-pullim-slate-500 text-micro uppercase font-bold">{s.type}</span>
                     <span className="truncate">{s.label}</span>
                   </li>
                 ))}
                 {data.segments.length > 6 && (
-                  <li className="text-pullim-slate-400 text-[11px]">… 외 {data.segments.length - 6}개</li>
+                  <li className="text-pullim-slate-400 text-2xs">… 외 {data.segments.length - 6}개</li>
                 )}
               </ul>
             </section>
@@ -160,7 +160,7 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
           <section className="bg-card rounded-2xl border p-4">
             <header className="mb-2 flex items-center justify-between">
               <h2 className="text-pullim-slate-900 text-sm font-bold">이 수업 핵심 3개</h2>
-              <span className="text-pullim-slate-400 text-[10px]">AI 추출 — 검수 단계에서 편집 가능</span>
+              <span className="text-pullim-slate-400 text-micro">AI 추출 — 검수 단계에서 편집 가능</span>
             </header>
             <ol className="space-y-2">
               {data.keyTakeaways.map((t, i) => (

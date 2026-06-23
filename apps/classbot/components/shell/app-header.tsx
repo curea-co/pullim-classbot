@@ -18,6 +18,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { useAuth } from '@/lib/auth/auth-context';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { StudentModeToggle } from './student-mode-toggle';
 
 const roleLogoLabel: Record<Role, string> = {
   student: '클래스봇',
@@ -39,21 +40,33 @@ const roleHomeHref: Record<Role, string> = {
 export function AppHeader({ role }: { role: Role }) {
   return (
     <header className="bg-card/90 supports-[backdrop-filter]:bg-card/75 sticky top-0 z-30 border-b backdrop-blur-md">
-      <div className="flex h-14 items-center gap-2 px-3 md:px-4">
-        {/* 모바일 햄버거 */}
-        <MobileDrawer role={role} />
+      <div className="flex h-16 items-center gap-2 px-3 md:h-[72px] md:gap-3 md:px-6">
+        {/* LEFT — 햄버거(모바일) + 브랜드 */}
+        <div className="flex flex-1 items-center gap-2 md:gap-3">
+          <MobileDrawer role={role} />
 
-        {/* 로고 (스터디/교사/보호자 라벨 통합) */}
-        <Link href={roleHomeHref[role]} className="flex items-center gap-1.5 shrink-0">
-          <ClassbotMark size={24} />
-          <span className="text-pullim-slate-900 text-sm font-bold tracking-tight">풀림</span>
-          <span className="text-pullim-slate-400 hidden text-[10px] font-bold uppercase md:inline">
-            {roleLogoLabel[role]}
-          </span>
-        </Link>
+          {/* 로고 (스터디/교사/보호자 라벨 통합) */}
+          <Link
+            href={roleHomeHref[role]}
+            className="flex items-center gap-1.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          >
+            <ClassbotMark size={32} />
+            <span className="text-pullim-slate-900 text-base font-bold tracking-tight">풀림</span>
+            <span className="text-pullim-slate-400 hidden text-2xs font-bold uppercase md:inline">
+              {roleLogoLabel[role]}
+            </span>
+          </Link>
+        </div>
 
-        {/* 우측 액션 — 5요소 한도 (Layer 1 §14.1) */}
-        <div className="ml-auto flex items-center gap-1">
+        {/* CENTER — 학습 모드 토글 */}
+        {role === 'student' && (
+          <div className="flex shrink-0 items-center justify-center">
+            <StudentModeToggle />
+          </div>
+        )}
+
+        {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
+        <div className="flex flex-1 items-center justify-end gap-1">
           {role === 'student' && (
             <Badge
               variant="secondary"
@@ -65,17 +78,18 @@ export function AppHeader({ role }: { role: Role }) {
           )}
           <button
             aria-label="검색"
-            className="hover:bg-pullim-slate-100 relative inline-flex h-10 w-10 items-center justify-center rounded-xl"
-            title="검색 (⌘ K)"
+            aria-disabled="true"
+            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+            title="준비 중"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-[22px] w-[22px]" />
           </button>
           <button
-            aria-label="알림"
-            className="hover:bg-pullim-slate-100 relative inline-flex h-10 w-10 items-center justify-center rounded-xl"
+            aria-label="알림 — 준비 중"
+            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+            title="준비 중"
           >
-            <Bell className="h-5 w-5" />
-            <span className="bg-pullim-danger absolute top-1.5 right-1.5 inline-block h-2 w-2 rounded-full" />
+            <Bell className="h-[22px] w-[22px]" />
           </button>
           <ProfileMenu role={role} />
         </div>
@@ -140,7 +154,7 @@ function ProfileMenu({ role }: { role: Role }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="프로필 메뉴 열기"
-        className="bg-pullim-blue-600 hover:bg-pullim-blue-700 hover:ring-pullim-blue-200 ml-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white transition-all hover:ring-2 focus-visible:ring-pullim-blue-300 focus-visible:ring-2 outline-none"
+        className="bg-pullim-blue-600 hover:bg-pullim-blue-700 hover:ring-pullim-blue-200 ml-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white transition-all hover:ring-2 focus-visible:ring-pullim-blue-300 focus-visible:ring-2 outline-none"
       >
         {profile.name[0]}
       </DropdownMenuTrigger>
@@ -148,7 +162,7 @@ function ProfileMenu({ role }: { role: Role }) {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="px-2 py-1.5">
             <div className="text-pullim-slate-900 text-sm font-bold">{profile.name}</div>
-            <div className="text-pullim-slate-500 text-[11px] font-normal">{profile.sub}</div>
+            <div className="text-pullim-slate-500 text-2xs font-normal">{profile.sub}</div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

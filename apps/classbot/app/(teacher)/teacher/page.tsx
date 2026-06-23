@@ -63,7 +63,7 @@ export default function TeacherHomePage() {
           <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-pullim-blue-500 via-pullim-blue-700 to-pullim-danger" aria-hidden />
           <div className="p-5">
             <div className="mb-3 flex items-center gap-2">
-              <span className="bg-pullim-danger inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+              <span className="bg-pullim-danger inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold tracking-wider text-white uppercase">
                 <span className="bg-white inline-block h-1.5 w-1.5 animate-pulse rounded-full" />
                 LIVE
               </span>
@@ -83,7 +83,7 @@ export default function TeacherHomePage() {
                 <p className="text-pullim-slate-500 text-xs">
                   {myClassBot.subject} · {myClassBot.grade} · {myClassBot.enrolledCount}명 등록
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                <div className="mt-2 flex flex-wrap gap-1.5 text-micro">
                   <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-2 py-0.5 font-bold">
                     Scope {scope.short} · {scope.label}
                   </span>
@@ -102,13 +102,13 @@ export default function TeacherHomePage() {
 
             {myClassBot.currentLesson && (
               <div className="bg-pullim-slate-50 mt-3 rounded-xl p-3">
-                <div className="text-pullim-slate-500 text-[10px] font-bold tracking-wider uppercase">
+                <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">
                   지금 수업
                 </div>
                 <div className="text-pullim-slate-900 mt-0.5 text-sm font-bold">
                   {myClassBot.currentLesson.title}
                 </div>
-                <div className="text-pullim-slate-500 mt-0.5 flex items-center gap-3 text-[11px]">
+                <div className="text-pullim-slate-500 mt-0.5 flex items-center gap-3 text-2xs">
                   <span>
                     <Clock className="mr-0.5 -mt-0.5 inline h-3 w-3" />
                     {myClassBot.currentLesson.startedAt} 시작
@@ -145,21 +145,21 @@ export default function TeacherHomePage() {
             <ul className="space-y-2">
               {recentQuestions.map(q => (
                 <li key={q.id} className="bg-pullim-slate-50 rounded-lg p-2.5">
-                  <div className="flex items-center gap-1.5 text-[10px]">
-                    <span className="bg-pullim-blue-600 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white">
+                  <div className="flex items-center gap-1.5 text-micro">
+                    <span className="bg-pullim-blue-600 flex h-5 w-5 items-center justify-center rounded-full text-micro font-bold text-white">
                       {q.studentName[0]}
                     </span>
                     <span className="text-pullim-slate-700 font-semibold">{q.studentName}</span>
                     <span className="text-pullim-slate-400">·</span>
                     <span className="text-pullim-slate-500 font-mono">{q.agoMin === 0 ? '방금' : `${q.agoMin}분 전`}</span>
                     {q.shared && (
-                      <span className="bg-pullim-blue-100 text-pullim-blue-700 ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-bold">
+                      <span className="bg-pullim-blue-100 text-pullim-blue-700 ml-auto rounded-full px-1.5 py-0.5 text-2xs font-bold">
                         전체 공유됨
                       </span>
                     )}
                   </div>
                   <p className="text-pullim-slate-900 mt-1 text-sm font-semibold">{q.question}</p>
-                  <p className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-1 text-[11px]">
+                  <p className="text-pullim-slate-500 mt-0.5 inline-flex items-center gap-1 text-2xs">
                     <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
                     <span className="line-clamp-1">{q.botAnswerPreview}</span>
                   </p>
@@ -188,19 +188,19 @@ export default function TeacherHomePage() {
                       {l.start}
                     </span>
                     {l.status === 'live' && (
-                      <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold text-white">
+                      <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs font-bold text-white">
                         <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
                         LIVE
                       </span>
                     )}
-                    <span className="text-pullim-slate-400 ml-auto text-[10px]">
+                    <span className="text-pullim-slate-400 ml-auto text-micro">
                       준비도 {Math.round(l.prepReady * 100)}%
                     </span>
                   </div>
                   <div className="text-pullim-slate-900 mt-1 text-sm font-bold">
                     {l.title}
                   </div>
-                  <div className="text-pullim-slate-500 text-[11px]">
+                  <div className="text-pullim-slate-500 text-2xs">
                     {l.chapter} · {l.botName} · {l.studentCount}명
                   </div>
                 </li>
@@ -260,7 +260,7 @@ function QuickAction({
     <>
       <Icon className="h-5 w-5" />
       <div className="text-sm font-bold">{label}</div>
-      <div className="text-[11px] opacity-80">{description}</div>
+      <div className="text-2xs opacity-80">{description}</div>
     </>
   );
   if (href) return <Link href={href} className={className}>{inner}</Link>;

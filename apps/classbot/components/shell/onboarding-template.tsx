@@ -182,7 +182,7 @@ function StickyProgressBar({
       <span className="bg-pullim-blue-600 flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
         <Icon className="h-3.5 w-3.5 text-white" />
       </span>
-      <span className="text-pullim-slate-700 hidden text-[13px] font-semibold sm:block">
+      <span className="text-pullim-slate-700 hidden text-sm font-semibold sm:block">
         {featureName}
       </span>
 
@@ -202,7 +202,7 @@ function StickyProgressBar({
       </div>
 
       {/* 단계 텍스트 */}
-      <span className="text-pullim-slate-600 text-[12px] font-mono">
+      <span className="text-pullim-slate-600 text-xs font-mono">
         {activeStep > 0 ? `${activeStep}/${total}` : `0/${total}`}
       </span>
 
@@ -215,7 +215,7 @@ function StickyProgressBar({
       </div>
 
       {/* 예상 시간 */}
-      <span className="text-pullim-slate-400 inline-flex items-center gap-1 text-[11px]">
+      <span className="text-pullim-slate-400 inline-flex items-center gap-1 text-2xs">
         <Clock className="h-3 w-3" />
         {estimatedMin}분
       </span>
@@ -275,7 +275,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
                 {step.title}
               </h2>
               {step.signature && (
-                <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold">
+                <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold">
                   <Star className="h-2.5 w-2.5 fill-current" aria-hidden />
                   시그니처
                 </span>

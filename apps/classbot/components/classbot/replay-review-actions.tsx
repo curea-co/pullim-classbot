@@ -75,7 +75,7 @@ export function ReplayReviewActions({ replay }: { replay: Replay }) {
           <button
             type="button"
             onClick={startEdit}
-            className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-[11px] font-bold"
+            className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-2xs font-bold"
           >
             <Edit3 className="h-3 w-3" />
             편집
@@ -113,7 +113,7 @@ export function ReplayReviewActions({ replay }: { replay: Replay }) {
             <button
               type="button"
               onClick={() => setDraft(prev => [...prev, ''])}
-              className="text-pullim-blue-600 hover:text-pullim-blue-700 text-[11px] font-bold"
+              className="text-pullim-blue-600 hover:text-pullim-blue-700 text-2xs font-bold"
             >
               + 메시지 추가
             </button>

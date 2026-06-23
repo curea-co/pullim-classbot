@@ -43,7 +43,7 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
           style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
         />
         <div className="relative">
-          <h2 className="text-pullim-lemon text-[10px] font-bold tracking-wider uppercase">
+          <h2 className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
             이 섹션의 정체성
           </h2>
           <p className="mt-1.5 text-base font-semibold leading-relaxed text-white xl:text-lg">
@@ -55,7 +55,7 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
               <li key={v.label} className="bg-white/10 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-center gap-1.5">
                   <v.Icon aria-hidden className="text-pullim-lemon h-4 w-4" />
-                  <span className="text-pullim-blue-100 text-[10px] font-bold tracking-wider uppercase">
+                  <span className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
                     {v.label}
                   </span>
                 </div>
@@ -109,7 +109,7 @@ function SubRouteCard({ sub }: { sub: SubRoute }) {
           </span>
         )}
       </div>
-      <p className="text-pullim-slate-500 mt-0.5 line-clamp-2 text-[11px] leading-snug">
+      <p className="text-pullim-slate-500 mt-0.5 line-clamp-2 text-2xs leading-snug">
         {sub.description}
       </p>
     </>

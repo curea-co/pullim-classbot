@@ -12,7 +12,7 @@ export function CrisisGate({ studentName }: { studentName: string }) {
         <Heart className="text-pullim-danger h-4 w-4" />
         <h3 className="text-pullim-danger text-sm font-bold">신경 쓸 신호가 있어요</h3>
       </header>
-      <p className="text-pullim-slate-700 text-[12px] leading-relaxed">
+      <p className="text-pullim-slate-700 text-xs leading-relaxed">
         {studentName} 학생의 응답에 학습 부담·감정 시그널이 보여요. 점수를 정하기 전에 한 번 더 봐주세요.
       </p>
       <div className="mt-3 flex gap-2">
