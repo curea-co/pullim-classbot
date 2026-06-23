@@ -1,9 +1,9 @@
 import { renderHook, act } from '@testing-library/react';
-import { useSelfLearningStore, useIsEnrolled, useEnrolledTutors } from '../self-learning';
+import { useSelfLearningStore, useIsEnrolled, useEnrolledTutors, useGoals, useIsGoal, useStreak } from '../self-learning';
 import { officialTutors } from '@/lib/mock/classbot-official';
 
 const A = officialTutors[0].id;
-beforeEach(() => useSelfLearningStore.setState({ enrollments: [] }));
+beforeEach(() => useSelfLearningStore.setState({ enrollments: [], goals: [], streak: { count: 0, lastStudyDate: null } }));
 
 it('enroll adds once (idempotent) and unenroll removes', () => {
   act(() => { useSelfLearningStore.getState().enroll(A); useSelfLearningStore.getState().enroll(A); });
@@ -17,4 +17,27 @@ it('useIsEnrolled + useEnrolledTutors reflect the store', () => {
   act(() => useSelfLearningStore.getState().enroll(A));
   const { result: tutors } = renderHook(() => useEnrolledTutors());
   expect(tutors.current.map(t => t.id)).toContain(A);
+});
+
+const T = officialTutors[0]; const U0 = T.curriculum[0].id;
+
+it('addGoal is idempotent on (tutor,unit); removeGoal removes', () => {
+  useSelfLearningStore.setState({ goals: [], streak: { count: 0, lastStudyDate: null } });
+  const s = () => useSelfLearningStore.getState();
+  act(() => { s().addGoal(T.id, U0); s().addGoal(T.id, U0); });
+  expect(s().goals.filter(g => g.tutorId === T.id && g.unitId === U0)).toHaveLength(1);
+  act(() => s().removeGoal(T.id, U0));
+  expect(s().goals).toHaveLength(0);
+});
+it('recordStudyToday: increments on consecutive days, resets after a gap', () => {
+  useSelfLearningStore.setState({ goals: [], streak: { count: 0, lastStudyDate: null } });
+  const s = () => useSelfLearningStore.getState();
+  act(() => s().recordStudyToday('2026-06-23'));
+  expect(s().streak).toEqual({ count: 1, lastStudyDate: '2026-06-23' });
+  act(() => s().recordStudyToday('2026-06-23'));            // same day → no change
+  expect(s().streak.count).toBe(1);
+  act(() => s().recordStudyToday('2026-06-24'));            // next day → +1
+  expect(s().streak.count).toBe(2);
+  act(() => s().recordStudyToday('2026-06-27'));            // gap → reset to 1
+  expect(s().streak.count).toBe(1);
 });
