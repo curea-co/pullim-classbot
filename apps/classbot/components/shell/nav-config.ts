@@ -46,7 +46,7 @@ export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능' },
   { href: '/classbot/wellness',   label: '내 웰빙',     icon: Heart,         description: '오늘 기분 체크인 + 본인 리포트' },
   { href: '/classbot/replay',     label: '리플레이',    icon: History,       description: '지난 수업 다시 보기 — 봇별 필터' },
-  { href: '/classbot/discover',   label: '봇 찾기',     icon: Compass,       description: '공식 봇 마켓 — 자발 등록', locked: true },
+  { href: '/classbot/discover',   label: '봇 찾기',     icon: Compass,       description: '공식 봇 마켓 — 자발 등록' },
   { href: '/classbot/onboarding', label: '소개하기',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
 

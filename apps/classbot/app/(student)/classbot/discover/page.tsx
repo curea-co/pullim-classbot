@@ -1,24 +1,34 @@
-import { Compass, Lock, GraduationCap, Award, Globe } from 'lucide-react';
+'use client';
+
+import { Compass, GraduationCap, Award, Globe } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import BackLink from '@/components/classbot/back-link';
-import { EmptyState } from '@/components/classbot/empty-state';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { TutorMarketCard } from '@/components/classbot/tutor-market-card';
+import { getOfficialTutors } from '@/lib/mock/classbot-official';
 
 export default function ClassbotDiscoverPage() {
+  const tutors = getOfficialTutors();
+
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <BackLink href="/classbot">홈으로</BackLink>
       <PageHeader
         eyebrow={{ icon: Compass, text: '풀림 클래스봇' }}
-        title="공식 봇 찾기"
-        description="등록된 학원·학교 외에 풀림이 검수한 공식 클래스봇을 직접 추가할 수 있어요"
+        title="공식 튜터 마켓"
+        description="튜터를 골라 자기주도 학습을 시작하세요 — 선생님 배정 없이 바로 등록할 수 있어요"
       />
 
-      <EmptyState icon={Lock} title="v2에 만나요" description="현재 클래스봇은 선생님이 만들어 배정하는 게 기본이에요. 학생이 직접 검색해 등록하는 기능은 준비 중이에요." size="lg" action={{ href: '/classbot', label: '선생님이 배정한 봇 보러 가기' }} />
+      <section className="space-y-3">
+        <SectionHeading title="과목 튜터" />
+        {tutors.map((t) => (
+          <TutorMarketCard key={t.id} tutor={t} />
+        ))}
+      </section>
 
-      {/* 어떤 봇이 올 예정 */}
+      {/* 곧 만날 봇 */}
       <section className="bg-card rounded-2xl border p-5">
-        <SectionHeading title="곧 만날 봇 종류" />
+        <SectionHeading title="곧 만날 봇" />
         <ul className="space-y-3">
           <Future
             Icon={Award}
@@ -37,16 +47,18 @@ export default function ClassbotDiscoverPage() {
           />
         </ul>
       </section>
-
     </div>
   );
 }
 
 function Future({
-  Icon, title, description,
+  Icon,
+  title,
+  description,
 }: {
   Icon: React.ComponentType<{ className?: string }>;
-  title: string; description: string;
+  title: string;
+  description: string;
 }) {
   return (
     <li className="bg-pullim-slate-50/50 flex items-start gap-3 rounded-xl p-3">
