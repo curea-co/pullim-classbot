@@ -11,7 +11,7 @@ export function MyTutorCard({ tutor }: { tutor: OfficialTutor }) {
   return (
     <Link
       href={`/classbot/learn/${tutor.id}`}
-      className="bg-card flex items-center gap-3 rounded-2xl border border-l-4 border-transparent min-h-11 p-3 shadow-pullim-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 hover:bg-pullim-slate-50 transition-colors"
+      className="bg-card flex items-center gap-3 rounded-2xl border border-l-4 border-transparent min-h-11 p-4 shadow-pullim-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 hover:bg-pullim-slate-50 transition-colors"
       style={{ borderLeftColor: sig.hex }}
     >
       <span className="bg-pullim-slate-100 grid h-11 w-11 shrink-0 place-items-center rounded-full text-2xl">

@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Chip } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
 import { heatColor } from '@/lib/tokens/heat-color';
 import { Sparkbar } from '@/components/classbot/sparkbar';
@@ -355,9 +356,9 @@ function PlayerSurface({
               <span className="bg-pullim-lemon h-1 w-1 rounded-full" />
               {currentLine.speaker} 발언 중
               {currentLine.shared && (
-                <span className="bg-pullim-lemon/20 text-pullim-lemon ml-1 rounded-full px-1.5 py-0.5 text-2xs font-bold">
+                <Chip tone="lemon" className="ml-1">
                   전체 공유
-                </span>
+                </Chip>
               )}
             </div>
             <p className="text-sm leading-relaxed text-white/95">{currentLine.text}</p>
@@ -454,9 +455,9 @@ function TranscriptStream({
                 <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                 <SpeakerBadge speaker={line.speaker} ownedByMe={line.ownedByMe} />
                 {line.shared && (
-                  <span className="bg-pullim-lemon/20 text-pullim-lemon-ink rounded-full px-1.5 py-0.5 font-bold">
+                  <Chip tone="lemon">
                     전체 공유
-                  </span>
+                  </Chip>
                 )}
                 {isCurrent && (
                   <span className="text-pullim-lemon-ink ml-auto inline-flex items-center gap-0.5 font-bold">

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Flame } from 'lucide-react';
 import { currentPersona } from '@/lib/mock';
 import type { Assignment } from '@/lib/mock';
+import { Chip } from '@/components/ui/chip';
 
 const DAYS_KO = ['월', '화', '수', '목', '금', '토', '일'] as const;
 
@@ -40,10 +41,10 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
             {name}님, 오늘도 화이팅
           </h1>
           {/* Streak pill — lemon on navy */}
-          <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold">
+          <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
             <Flame className="h-3 w-3" aria-hidden />
             {streakDays}일째
-          </span>
+          </Chip>
         </div>
 
         {/* 이어서 하기 CTA */}
@@ -61,9 +62,9 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-2 py-0.5 text-xs font-bold">
+              <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
                 {nextAction.dDay}
-              </span>
+              </Chip>
               <ArrowRight className="h-4 w-4 text-white/60" aria-hidden />
             </div>
           </Link>

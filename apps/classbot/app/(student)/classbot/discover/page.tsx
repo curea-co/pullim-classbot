@@ -11,7 +11,7 @@ export default function ClassbotDiscoverPage() {
   const tutors = getOfficialTutors();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="space-y-5">
       <BackLink href="/classbot">홈으로</BackLink>
       <PageHeader
         eyebrow={{ icon: Compass, text: '풀림 클래스봇' }}

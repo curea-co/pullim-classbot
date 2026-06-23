@@ -43,7 +43,7 @@ export function AlertCard({
   return (
     <section
       className={cn(
-        'rounded-2xl border p-4',
+        'rounded-2xl border p-5',
         meta.border,
         meta.bg,
         className

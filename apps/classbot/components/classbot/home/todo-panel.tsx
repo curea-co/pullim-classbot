@@ -3,15 +3,16 @@
 import Link from 'next/link';
 import { ArrowRight, Radio } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { Chip, type ChipProps } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
 import type { Assignment, ClassBot, StudentEnrollment } from '@/lib/mock';
 
 type BotSlot = { bot: ClassBot; enrollment: StudentEnrollment };
 
-function dDayChipClass(dDay: string): string {
-  if (dDay === '오늘') return 'bg-pullim-danger/10 text-pullim-danger';
-  if (dDay === 'D-1') return 'bg-pullim-blue-100 text-pullim-blue-700';
-  return 'bg-pullim-slate-100 text-pullim-slate-600';
+function dDayChipTone(dDay: string): NonNullable<ChipProps['tone']> {
+  if (dDay === '오늘') return 'danger';
+  if (dDay === 'D-1') return 'info';
+  return 'neutral';
 }
 
 export function TodoPanel({
@@ -71,14 +72,9 @@ export function TodoPanel({
                     {a.title}
                   </span>
                 </div>
-                <span
-                  className={cn(
-                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-bold',
-                    dDayChipClass(a.dDay),
-                  )}
-                >
+                <Chip tone={dDayChipTone(a.dDay)}>
                   {a.dDay}
-                </span>
+                </Chip>
                 <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" aria-hidden />
               </Link>
             </li>
