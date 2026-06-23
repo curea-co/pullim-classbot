@@ -16,7 +16,7 @@ import {
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
 } from '@/lib/mock/classbot-lesson';
 import { RichText } from '@/components/classbot/rich-text';
-import { ConceptModal } from '@/components/classbot/concept-modal';
+import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
@@ -40,14 +40,15 @@ import { cn } from '@/lib/utils';
  * - problem-card: 좌측 라이너 + 문제번호 + "풀러 가기" CTA
  * - explain-step: 단계 indent + 수식 mono (단계별 풀이)
  * - lesson-intro: 봇 주도 수업 오프너 (오늘의 개념 + 💡 핵심)
- * - concept: 개념 카드 (요약·핵심요소·자세히 보기 모달)
+ * - concept: 개념 카드 (요약·핵심요소·자세히 보기 → 챗 상세)
+ * - concept-detail: 개념 상세 (학습 팁·핵심 요소·예제 문항) — 챗 버블
  * - example: 예제 단계 카드 (제목 + steps)
  * - quiz: 인라인 객관식 퀴즈 (정답·해설)
  * - summary: 오늘 정리 카드
  */
 type MessageKind =
   | 'text' | 'problem-card' | 'explain-step'
-  | 'lesson-intro' | 'concept' | 'example' | 'quiz' | 'summary';
+  | 'lesson-intro' | 'concept' | 'concept-detail' | 'example' | 'quiz' | 'summary';
 
 type Turn = {
   id: string;
@@ -234,6 +235,18 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       setShowNewMessageBanner(true);
     }
   }, [turns, pending]);
+
+  // 수업 액션 소비 — 인라인 런처/우측 레일/챗 버블 dispatch를 대화에 주입(이동 없음)
+  const lessonRequest = useLessonActionStore(s => s.request);
+  const clearLessonRequest = useLessonActionStore(s => s.clear);
+  useEffect(() => {
+    if (!lessonRequest || lessonRequest.botId !== bot.id) return;
+    stickyRef.current = true; // 주입 시 항상 따라 내려가도록
+    const at = Date.now();
+    const turn = buildLessonActionTurn(`la${lessonRequest.nonce}`, at, lessonRequest, lesson, conceptIdxRef);
+    if (turn) setTurns(t => [...t, turn]);
+    clearLessonRequest();
+  }, [lessonRequest, bot.id, lesson, clearLessonRequest]);
 
   function send(text: string, forcedKey?: QuickReplyKey) {
     if (!text.trim() || pending) return;
@@ -593,6 +606,63 @@ function buildLessonTurn(
   };
 }
 
+function conceptTurn(id: string, at: number, c: LessonConcept, lead: string): Turn {
+  return {
+    id, role: 'bot', at,
+    text: `${lead} — **${c.title}**`,
+    kind: 'concept',
+    payload: { concept: c } satisfies ConceptPayload,
+  };
+}
+
+/** 수업 액션(스토어 dispatch) → 대화 주입용 구조화 메시지 */
+function buildLessonActionTurn(
+  id: string,
+  at: number,
+  req: LessonRequest,
+  lesson: BotLesson,
+  idxRef: { current: number },
+): Turn | null {
+  const concepts = lesson.concepts;
+  const findIdx = (cid?: string) => {
+    const i = concepts.findIndex(c => c.id === cid);
+    return i >= 0 ? i : idxRef.current;
+  };
+  switch (req.type) {
+    case 'next': {
+      idxRef.current = (idxRef.current + 1) % Math.max(1, concepts.length);
+      return conceptTurn(id, at, concepts[idxRef.current] ?? concepts[0], '다음 개념 가보자');
+    }
+    case 'concept': {
+      idxRef.current = findIdx(req.conceptId);
+      return conceptTurn(id, at, concepts[idxRef.current] ?? concepts[0], '이 개념 보자');
+    }
+    case 'concept-detail': {
+      const c = concepts[findIdx(req.conceptId)] ?? concepts[0];
+      return {
+        id, role: 'bot', at,
+        text: `**${c.title}** 자세히 볼게.`,
+        kind: 'concept-detail',
+        payload: { concept: c } satisfies ConceptPayload,
+      };
+    }
+    case 'example':
+      return {
+        id, role: 'bot', at,
+        text: '예제로 같이 적용해보자.',
+        kind: 'example',
+        payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
+      };
+    case 'quiz':
+      return {
+        id, role: 'bot', at,
+        text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
+        kind: 'quiz',
+        payload: { quiz: lesson.quiz } satisfies QuizPayload,
+      };
+  }
+}
+
 /* ─── 메시지 렌더 + 그루핑 디바이더 ([04 § 9.8]) ─── */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -674,7 +744,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
-        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} />
+        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} botId={bot.id} />
         {isStudent && (
           <div className="text-pullim-slate-400 mt-1 text-xs">{formatTime(turn.at)}</div>
         )}
@@ -684,7 +754,8 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 }
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
-function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: boolean; botLinerHex: string }) {
+function MessageBody({ turn, isStudent, botLinerHex, botId }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string }) {
+  const dispatchLesson = useLessonActionStore(s => s.dispatch);
   // 버블 — 봇은 옅은 회색 + 또렷한 보더 + 시그니처 좌측 라이너, 본문 15px (가독성)
   const baseBubbleClass = cn(
     'rounded-2xl text-[17px] leading-relaxed',
@@ -748,17 +819,76 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
               ))}
             </ul>
           )}
-          <ConceptModal
-            concept={concept}
-            trigger={
-              <button
-                type="button"
-                className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-sm font-bold"
-              >
-                자세히 보기 (학습 팁·예제 문항) →
-              </button>
-            }
-          />
+          <button
+            type="button"
+            onClick={() => dispatchLesson(botId, 'concept-detail', concept.id)}
+            className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-sm font-bold"
+          >
+            자세히 보기 (학습 팁·예제 문항) →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // concept-detail — 개념 상세(학습 팁·핵심 요소·예제 문항)를 챗 버블로
+  if (turn.kind === 'concept-detail' && turn.payload && 'concept' in turn.payload) {
+    const { concept } = turn.payload;
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-3')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <div className="bg-card border-pullim-slate-200 space-y-3 rounded-xl border p-3">
+          <RichText text={concept.detail} />
+          {concept.formula && (
+            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1.5 font-mono text-sm">
+              {concept.formula}
+            </code>
+          )}
+          {concept.tips.length > 0 && (
+            <div>
+              <div className="text-pullim-blue-700 mb-1.5 text-sm font-bold">💡 학습 팁</div>
+              <ul className="space-y-1.5">
+                {concept.tips.map((t, i) => (
+                  <li key={i} className="bg-pullim-blue-50/60 text-pullim-slate-800 flex gap-2 rounded-lg px-3 py-2 text-[15px]">
+                    <span className="text-pullim-blue-600 shrink-0 font-bold">✓</span>
+                    <span className="min-w-0 flex-1">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {concept.coreElements.length > 0 && (
+            <div>
+              <div className="text-pullim-slate-600 mb-1.5 text-sm font-bold">핵심 요소</div>
+              <ul className="flex flex-wrap gap-1.5">
+                {concept.coreElements.map((el, i) => (
+                  <li key={i} className="bg-pullim-slate-100 text-pullim-slate-700 rounded-full px-2.5 py-1 text-sm font-semibold">
+                    {el}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {concept.sampleQuestions.length > 0 && (
+            <div>
+              <div className="text-pullim-slate-600 mb-1.5 text-sm font-bold">예제 문항</div>
+              <ol className="space-y-2">
+                {concept.sampleQuestions.map((s, i) => (
+                  <li key={i} className="bg-pullim-slate-50 rounded-lg p-2.5">
+                    <p className="text-pullim-slate-900 text-[15px] font-semibold">
+                      <span className="text-pullim-blue-600 mr-1 font-mono">Q{i + 1}.</span>
+                      {s.q}
+                    </p>
+                    {s.a && (
+                      <p className="text-pullim-slate-600 mt-1 text-sm">
+                        <span className="text-pullim-blue-700 font-bold">정답 ·</span> {s.a}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
       </div>
     );

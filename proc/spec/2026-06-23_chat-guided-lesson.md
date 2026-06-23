@@ -102,6 +102,15 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 신규: `lib/mock/classbot-lesson.ts`, `components/classbot/concept-modal.tsx`, `components/classbot/rich-text.tsx`(+테스트).
 수정: `app/(student)/classbot/chat/page.tsx`, `lib/mock/chat.ts`, `lib/mock/classbot-dynamic-replies.ts`, `lib/mock/classbot-study.ts`, `components/classbot/chat-study-inline.tsx`, `components/classbot/chat-study-rail.tsx`, `tests/e2e/chat-quick-prompts-by-bot.spec.ts`.
 
+## 10-1. 후속 — "모든 학습을 챗에" (chat-first, 2026-06-23)
+
+초기 출시 방향: 학습의 모든 동작을 챗 안에서 끝낸다(페이지 이동·모달 0).
+
+- **lesson-action 스토어**(`lib/store/lesson-action.ts`): 인라인 런처/우측 레일(챗과 분리된 트리)/챗 버블 어디서든 `dispatch(botId, type, conceptId?)` → 현재 봇 `ChatPanel`이 소비해 대화에 메시지 주입.
+- **모달 제거**: `ConceptModal` 삭제. 개념 상세(학습 팁·핵심 요소·예제 문항)는 `concept-detail` 메시지 kind 로 **챗 버블** 렌더.
+- **네비게이션 제거**: 인라인 학습카드/우측 레일의 `/classbot/assignment` 링크 → 누르면 챗에 개념/인라인 퀴즈 주입(이동 없음). "전체 과제 풀러 가기" CTA 제거.
+- 폰트 전반 확대(버블 17px 등) + 자동 하단 추적을 즉시 스크롤로 견고화(긴 콘텐츠에서 smooth 중 sticky 꺼짐 회귀 수정).
+
 ## 11. 비목표 (YAGNI)
 
 - 실제 LLM 연동(여전히 mock·deterministic). v2에서 tool-calling 대체.

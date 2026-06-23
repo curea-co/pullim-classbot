@@ -1,15 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { Sparkles, BookOpen, ListChecks, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, BookOpen, ListChecks, ChevronDown, ChevronUp, MessageSquarePlus } from 'lucide-react';
 import type { ClassBot } from '@/lib/mock';
 import { getBotLesson } from '@/lib/mock/classbot-lesson';
-import { ConceptModal } from './concept-modal';
+import { useLessonActionStore } from '@/lib/store/lesson-action';
 
 /**
- * 챗에 내장되는 학습 카드 — 핵심 개념(학습 가이드) + 연습 퀴즈를 대화 흐름 상단에 노출.
- * 개념 항목을 누르면 상세 모달(핵심 개념·학습 팁·핵심 요소·예제 문항)이 열린다.
+ * 챗 상단 수업 런처 — 페이지 이동/모달 없이 모든 학습을 챗에 녹인다.
+ * 개념·연습 퀴즈를 누르면 우측 레일/챗 어디서든 동일하게 대화에 내용이 이어진다.
  *
  * 색: /classbot/chat 은 color-palette 스캔 대상 → green/amber 금지. blue/slate 만 사용.
  */
@@ -17,6 +16,7 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
   const lesson = getBotLesson(bot.id);
   const concepts = lesson.concepts;
   const quizzes = lesson.practiceQuizzes;
+  const dispatch = useLessonActionStore(s => s.dispatch);
   const [open, setOpen] = useState(true);
 
   return (
@@ -40,9 +40,7 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
           </div>
           <div className="text-pullim-slate-900 truncate text-base font-bold">{lesson.topic}</div>
         </div>
-        <span className="text-pullim-slate-500 hidden shrink-0 text-xs sm:inline">
-          개념 {concepts.length} · 퀴즈 {quizzes.length}
-        </span>
+        <span className="text-pullim-slate-500 hidden shrink-0 text-xs sm:inline">눌러서 대화로</span>
         {open ? (
           <ChevronUp className="text-pullim-slate-500 h-5 w-5 shrink-0" />
         ) : (
@@ -52,44 +50,40 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
 
       {open && (
         <div className="space-y-4 px-4 pb-4">
-          {/* 핵심 개념 — 클릭 시 상세 모달 */}
+          {/* 핵심 개념 — 누르면 챗에 개념 주입 */}
           <div>
             <div className="text-pullim-slate-600 mb-2 flex items-center gap-1.5 text-xs font-bold">
               <BookOpen className="text-pullim-blue-600 h-4 w-4" />
               핵심 개념
-              <span className="text-pullim-slate-400 font-normal">· 눌러서 자세히</span>
+              <span className="text-pullim-slate-400 font-normal">· 눌러서 대화로 이어가기</span>
             </div>
             <ul className="grid gap-2 sm:grid-cols-2">
               {concepts.map((c, i) => (
                 <li key={c.id}>
-                  <ConceptModal
-                    concept={c}
-                    trigger={
-                      <button
-                        type="button"
-                        className="group bg-white border-pullim-slate-200 border-l-pullim-blue-400 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 w-full rounded-xl border border-l-[3px] p-3 text-left transition-colors"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                            {i + 1}
-                          </span>
-                          <p className="text-pullim-slate-900 min-w-0 flex-1 truncate text-[15px] font-bold">
-                            {c.title}
-                          </p>
-                          <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
-                        </div>
-                        <p className="text-pullim-slate-600 mt-1 line-clamp-2 text-sm leading-relaxed">
-                          {c.summary}
-                        </p>
-                      </button>
-                    }
-                  />
+                  <button
+                    type="button"
+                    onClick={() => dispatch(bot.id, 'concept', c.id)}
+                    className="group bg-white border-pullim-slate-200 border-l-pullim-blue-400 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 w-full rounded-xl border border-l-[3px] p-3 text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <p className="text-pullim-slate-900 min-w-0 flex-1 truncate text-[15px] font-bold">
+                        {c.title}
+                      </p>
+                      <MessageSquarePlus className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
+                    </div>
+                    <p className="text-pullim-slate-600 mt-1 line-clamp-2 text-sm leading-relaxed">
+                      {c.summary}
+                    </p>
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* 연습 퀴즈 */}
+          {/* 연습 퀴즈 — 누르면 챗에 인라인 퀴즈 주입 (페이지 이동 없음) */}
           <div>
             <div className="text-pullim-slate-600 mb-2 flex items-center gap-1.5 text-xs font-bold">
               <ListChecks className="text-pullim-blue-600 h-4 w-4" />
@@ -98,9 +92,10 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
             <ul className="space-y-2">
               {quizzes.map(q => (
                 <li key={q.id}>
-                  <Link
-                    href="/classbot/assignment"
-                    className="group bg-white border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 flex items-center gap-2 rounded-xl border p-3 transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => dispatch(bot.id, 'quiz')}
+                    className="group bg-white border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 flex w-full items-center gap-2 rounded-xl border p-3 text-left transition-colors"
                   >
                     <span className="bg-pullim-blue-100 text-pullim-blue-700 shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold">
                       {q.problemNumber}
@@ -111,20 +106,12 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
                     <span className="bg-pullim-slate-100 text-pullim-slate-600 shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold">
                       난이도 {q.difficulty}
                     </span>
-                    <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
-                  </Link>
+                    <MessageSquarePlus className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
-
-          <Link
-            href="/classbot/assignment"
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 flex items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition-colors"
-          >
-            전체 학습 과제 풀러 가기
-            <ArrowRight className="h-4 w-4" />
-          </Link>
         </div>
       )}
     </section>
