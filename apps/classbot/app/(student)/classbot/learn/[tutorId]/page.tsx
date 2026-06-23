@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { use, useEffect } from 'react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
 import { useSelfLearningStore } from '@/lib/store/self-learning';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -11,8 +10,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { CurriculumUnitCard } from '@/components/classbot/curriculum-unit-card';
 
-export default function LearnPage() {
-  const { tutorId } = useParams<{ tutorId: string }>();
+export default function LearnPage({ params }: { params: Promise<{ tutorId: string }> }) {
+  const { tutorId } = use(params);
   const tutor = getOfficialTutor(tutorId);
 
   const recordStudyToday = useSelfLearningStore((s) => s.recordStudyToday);
