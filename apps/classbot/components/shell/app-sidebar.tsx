@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import {
-  navForRole, findActiveSection, studentHomeItem, studentDomains,
+  navForRole, findActiveSection, studentDomains,
   type Role, type NavItem, type NavSubItem,
 } from './nav-config';
 import { cn } from '@/lib/utils';
@@ -76,20 +76,7 @@ function StudentSidebar({
       aria-label="학생 메뉴"
       className={cn('flex flex-col overflow-y-auto py-3', compact ? 'px-1.5' : 'px-2', className)}
     >
-      {/* 1. 홈 — 별도 구분 */}
-      <ul className="space-y-0.5">
-        <NavRow
-          item={studentHomeItem}
-          pathname={pathname}
-          onNavigate={onNavigate}
-          compact={compact}
-        />
-      </ul>
-
-      {/* divider */}
-      <div className={cn('my-3 border-t border-pullim-slate-200', compact && 'mx-1')} />
-
-      {/* 2. 6 도메인 — 활성 도메인 아래에 children 인덴트로 펼침 */}
+      {/* 클래스봇 단일 도메인 — 도메인 헤더 + children(홈/받은 과제/…) 펼침 */}
       <ul className="space-y-0.5">
         {studentDomains.map(domain => {
           const isActive = activeSection?.href === domain.href;

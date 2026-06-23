@@ -16,6 +16,8 @@ export type Persona = {
   preferredStudyTime: '아침' | '오후' | '저녁' | '심야';
   joinedAt: string;
   streakDays: number;
+  /** 최근 7일 학습 강도 (월→일, 0=없음 · 1=조금 · 2=보통 · 3=많음) — 홈 성장 패널/히어로 주간 바 */
+  weeklyActivity: [number, number, number, number, number, number, number];
 };
 
 export type SubjectKey = 'korean' | 'math' | 'english' | 'science' | 'social' | 'history';
@@ -42,6 +44,7 @@ export const currentPersona: Persona = {
   preferredStudyTime: '저녁',
   joinedAt: '2026-01-12',
   streakDays: 17,
+  weeklyActivity: [2, 3, 1, 3, 2, 0, 2],  // 월→일 — 이번 주 5/7일 학습
 };
 
 /** 오늘 기준 D-day (음수면 종료) */
