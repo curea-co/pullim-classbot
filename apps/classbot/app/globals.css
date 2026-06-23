@@ -115,16 +115,16 @@
 
   /* 풀림 DS 8-step 타입 스케일 — caption→display1 */
   /* Tailwind text-{name} utility reads --text-{name} (size) + --text-{name}--line-height */
-  --text-micro: 0.625rem;  --text-micro--line-height: 0.875rem; /* fine-print 10/14 — badges/eyebrows */
-  --text-2xs:   0.6875rem; --text-2xs--line-height:   0.9375rem;/* micro-meta 11/15 */
-  --text-xs:   0.75rem;   --text-xs--line-height:   1rem;      /* caption  12/16 */
-  --text-sm:   0.875rem;  --text-sm--line-height:   1.375rem;  /* body     14/22 */
-  --text-base: 1rem;      --text-base--line-height: 1.5rem;    /* bodyLg   16/24 */
-  --text-lg:   1.125rem;  --text-lg--line-height:   1.625rem;  /* title3   18/26 */
-  --text-xl:   1.25rem;   --text-xl--line-height:   1.75rem;   /* title2   20/28 */
-  --text-2xl:  1.5rem;    --text-2xl--line-height:  2rem;      /* title1   24/32 */
-  --text-3xl:  1.75rem;   --text-3xl--line-height:  2.25rem;   /* display2 28/36 */
-  --text-4xl:  2rem;      --text-4xl--line-height:  2.5rem;    /* display1 32/40 */
+  --text-micro: 0.6875rem; --text-micro--line-height: 1rem;       /* v2 fine-print 11/16 — badges/eyebrows */
+  --text-2xs:   0.75rem;   --text-2xs--line-height:   1.0625rem;  /* v2 micro-meta 12/17 */
+  --text-xs:   0.8125rem;  --text-xs--line-height:   1.125rem;    /* v2 caption  13/18 */
+  --text-sm:   0.9375rem;  --text-sm--line-height:   1.5rem;      /* v2 body     15/24 */
+  --text-base: 1rem;       --text-base--line-height: 1.625rem;    /* v2 bodyLg   16/26 */
+  --text-lg:   1.125rem;   --text-lg--line-height:   1.75rem;     /* v2 title3   18/28 */
+  --text-xl:   1.3125rem;  --text-xl--line-height:   1.875rem;    /* v2 title2   21/30 */
+  --text-2xl:  1.5625rem;  --text-2xl--line-height:  2.125rem;    /* v2 title1   25/34 */
+  --text-3xl:  1.875rem;   --text-3xl--line-height:  2.375rem;    /* v2 display2 30/38 */
+  --text-4xl:  2.125rem;   --text-4xl--line-height:  2.625rem;    /* v2 display1 34/42 */
 }
 
 :root {
@@ -221,8 +221,6 @@
   --text-secondary: var(--color-pullim-slate-600);
   --text-tertiary: var(--color-pullim-slate-500);
   --border-subtle: var(--border);
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
 }
 
 .dark {
@@ -281,9 +279,9 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'ss06' 1, 'tnum' 1;
     letter-spacing: -0.011em;
-    /* DS body — 14/22 모바일 기본 */
-    font-size: 0.875rem;
-    line-height: 1.375rem;
+    /* DS body v2 — 15/24 모바일 기본 (학생 가독성 floor 상향) */
+    font-size: 0.9375rem;
+    line-height: 1.5rem;
     /* 디스플레이 깨짐 방지 — 320px 미만에서는 가로 스크롤 */
     min-width: 320px;
     /* 한국어 본문 — 단어 중간 줄바꿈 방지(어절 단위 줄바꿈) */
@@ -292,9 +290,9 @@
   }
   @media (min-width: 768px) {
     body {
-      /* DS bodyLg — 16/24 md 이상 */
+      /* DS bodyLg v2 — 16/26 md 이상 */
       font-size: 1rem;
-      line-height: 1.5rem;
+      line-height: 1.625rem;
     }
   }
   html {
@@ -390,6 +388,24 @@
   transform-origin: left;
 }
 
+/* 사이드바 collapse — 라벨 in/out + chevron 회전 (DS overhaul foundation) */
+@keyframes pullim-label-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.pullim-anim-label-in {
+  animation: pullim-label-in var(--duration-base) var(--ease-emphasis) both;
+}
+
+.pullim-chevron {
+  transition: transform var(--duration-base) var(--ease-emphasis);
+}
+
+.pullim-chevron[data-collapsed="true"] {
+  transform: rotate(180deg);
+}
+
 /* 모션 감소 ([08 § 10.3]) — 무한 loop은 정지, mount는 opacity-only 120ms */
 @media (prefers-reduced-motion: reduce) {
   .pullim-anim-live-pulse,
@@ -401,8 +417,12 @@
   .pullim-anim-message-mount,
   .pullim-anim-bot-switch,
   .pullim-anim-liner-swipe,
-  .pullim-anim-wave-bar {
+  .pullim-anim-wave-bar,
+  .pullim-anim-label-in {
     animation: pullim-message-mount-reduced var(--duration-fast) linear both;
+  }
+  .pullim-chevron {
+    transition: none;
   }
 }
 
