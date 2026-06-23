@@ -18,10 +18,14 @@ test.describe('학생 라이브 진입점 — chat 통합 IA (F1)', () => {
 
     await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);
 
+    // 2단 재구성: 라이브는 컴팩트 바로 접혀 있다 → 펼쳐서 4영역 확인
+    await page.getByRole('button', { name: '라이브 수업 펼치기' }).click();
+
     // 라이브 오버레이 4영역 + 봇 채팅 모두 한 화면에
     await expect(page.getByRole('heading', { name: '실시간 자막' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '선생님에게 질문' })).toBeVisible();
     await expect(page.getByText('지금 즉석 퀴즈')).toBeVisible();
+    // 라이브 정책 배너는 우측 프로필 레일에 상시 노출
     await expect(page.getByText(/라이브 정책 적용 중/)).toBeVisible();
     // 봇 채팅도 함께 보임
     await expect(page.getByText('봇과 대화', { exact: true })).toBeVisible();
@@ -34,6 +38,9 @@ test.describe('학생 라이브 진입점 — chat 통합 IA (F1)', () => {
 
   test('학생 질문 submit → pending 상태', async ({ page }) => {
     await page.goto(BASE + '/classbot/chat?bot=cb_001', { waitUntil: 'networkidle' });
+
+    // 라이브 컴팩트 바 펼치기 → 선생님 질문 입력 노출
+    await page.getByRole('button', { name: '라이브 수업 펼치기' }).click();
 
     const input = page.getByLabel('질문 입력');
     await input.fill('극값이 변곡점이 될 수도 있나요?');

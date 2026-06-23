@@ -27,11 +27,10 @@ test.describe('chat scroll sticky-to-bottom', () => {
       await page.waitForTimeout(1100);
     }
 
-    // 2) 현재 최하단 sticky 상태 확인 — scrollHeight ≈ scrollTop + clientHeight
-    const isAtBottom = await scrollEl.evaluate(el => {
-      return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    });
-    expect(isAtBottom).toBe(true);
+    // 2) 최하단 sticky 상태 확인 — smooth 스크롤 정착까지 poll (콘텐츠 높이에 무관하게 견고)
+    await expect
+      .poll(() => scrollEl.evaluate(el => el.scrollHeight - el.scrollTop - el.clientHeight < 80), { timeout: 2000 })
+      .toBe(true);
 
     // 3) 스크롤 최상단으로 이동 (sticky 해제)
     await scrollEl.evaluate(el => el.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }));
