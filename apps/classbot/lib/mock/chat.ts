@@ -14,9 +14,23 @@ export type ReplyKey =
   | 'exam_prep'
   | 'reassurance';
 
+/**
+ * 봇 주도 가이드 수업 흐름키 — 빠른칩이 수업 내비 역할을 한다.
+ * 이 키들은 pickClassbotReply(문자열 응답) 가 아니라, getBotLesson 데이터로
+ * 구조화 메시지(개념/예제/퀴즈/다음)를 페이지에서 직접 생성한다.
+ */
+export type LessonFlowKey =
+  | 'lesson_concept'  // 개념 더보기
+  | 'lesson_example'  // 예제 풀어줘
+  | 'lesson_quiz'     // 퀴즈 내줘
+  | 'lesson_next';    // 다음 개념
+
+/** 빠른칩이 기대하는 응답 키 — 일반 응답 + 수업 흐름 */
+export type QuickReplyKey = ReplyKey | LessonFlowKey;
+
 export type ClassbotQuickPrompt = {
   text: string;
-  expectedReplyKey: ReplyKey;
+  expectedReplyKey: QuickReplyKey;
 };
 
 /** cb_001 수학이 형 — 친근 톤 (반말) */

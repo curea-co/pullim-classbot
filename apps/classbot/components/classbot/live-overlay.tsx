@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Radio, Mic, MessageCircle } from 'lucide-react';
+import { Send, Radio, Mic, MessageCircle, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { type ClassBot, getLiveContent } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
 import { useLiveStore, type PendingQuestion } from '@/lib/store/live';
@@ -9,21 +9,84 @@ import { LiveQuizCard } from './live-quiz-card';
 import { cn } from '@/lib/utils';
 
 /**
- * 라이브 진행 중인 봇의 채팅 페이지 위에 얹히는 오버레이.
- * - 슬라이드 + 실시간 자막 + 즉석 퀴즈 + 질문 큐
- * - 챗봇 대화는 하단에 그대로 유지 (개념 질문은 봇에게 직접도 가능)
- * - 라이브 비활성이면 null 반환 → 일반 chat 모드
+ * 라이브 컴팩트 바 — 챗 상단에 얇게 얹히는 접이식 라이브 요약 ([04 § 9.x] 챗 우선 레이아웃).
+ * - 기본 접힘: LIVE 뱃지 · 슬라이드 위치 · 실시간 자막 한 줄 ticker 만 노출해 챗을 위로 끌어올린다.
+ * - 펼치면 슬라이드·자막 전체·즉석 퀴즈·선생님 질문 패널이 모두 보인다 (중첩 스크롤 없이 패널 내부 스크롤).
  */
-export function LiveOverlay({ bot }: { bot: ClassBot }) {
+export function LiveCompactBar({ bot }: { bot: ClassBot }) {
   const session = useLiveStore(s => s.active[bot.id]);
+  const [expanded, setExpanded] = useState(false);
+  const content = getLiveContent(bot.id);
   if (!session) return null;
+
   return (
-    <div className="space-y-3">
-      <SlideAudioArea botId={bot.id} currentSlide={session.currentSlide} />
-      <TranscriptStream botId={bot.id} startedAt={session.startedAt} />
-      <LiveQuizCard />
-      <StudentQuestionPanel botId={bot.id} />
+    <div
+      className="border-pullim-slate-100 border-b"
+      data-slot="live-compact-bar"
+      data-expanded={expanded ? 'true' : 'false'}
+    >
+      {/* 요약 행 — 항상 노출 */}
+      <div className="flex items-center gap-2 px-3 py-2">
+        <span className="bg-pullim-danger inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-micro font-bold tracking-wider text-white uppercase">
+          <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+          LIVE
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-pullim-slate-900 truncate text-2xs font-bold">
+            {content ? `슬라이드 ${session.currentSlide}/${content.slideTotal} · ${content.slideTitle}` : '라이브 진행 중'}
+          </div>
+          <LiveCaptionTicker botId={bot.id} startedAt={session.startedAt} />
+        </div>
+        <span className="bg-pullim-blue-50 text-pullim-blue-700 hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold sm:inline-flex">
+          <Zap className="h-3 w-3" />
+          즉석 퀴즈
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          aria-expanded={expanded}
+          aria-controls="live-expanded-panel"
+          className="text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-2xs font-bold transition-colors"
+        >
+          {expanded ? '접기' : '라이브 수업 펼치기'}
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      {/* 펼침 패널 — 슬라이드·자막·즉석 퀴즈·선생님 질문 전체 */}
+      {expanded && (
+        <div
+          id="live-expanded-panel"
+          className="bg-pullim-slate-50/50 max-h-[55vh] space-y-3 overflow-y-auto p-3"
+        >
+          <SlideAudioArea botId={bot.id} currentSlide={session.currentSlide} />
+          <TranscriptStream botId={bot.id} startedAt={session.startedAt} />
+          <LiveQuizCard />
+          <StudentQuestionPanel botId={bot.id} />
+        </div>
+      )}
     </div>
+  );
+}
+
+/** 컴팩트 바용 — 최신 자막 한 줄 ticker (2초 간격 갱신) */
+function LiveCaptionTicker({ botId, startedAt }: { botId: string; startedAt: string }) {
+  const content = getLiveContent(botId);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(id);
+  }, []);
+  if (!content) return null;
+  const elapsedSec = now === null ? 0 : Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  const visible = content.transcript.filter(t => t.atSec <= elapsedSec);
+  const last = visible[visible.length - 1];
+  return (
+    <p className="text-pullim-slate-500 truncate text-micro">
+      <Radio className="text-pullim-danger mr-1 inline-block h-2.5 w-2.5 align-[-1px]" aria-hidden />
+      {last ? last.text : '자막 대기 중… (선생님 발화 시작 곧)'}
+    </p>
   );
 }
 

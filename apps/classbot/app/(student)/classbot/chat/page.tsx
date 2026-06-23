@@ -3,13 +3,20 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye, Sparkles, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   scopeMeta,
   pickClassbotReply, type ReplyKey,
+  type QuickReplyKey, type LessonFlowKey,
   getMyBots, type ClassBot,
 } from '@/lib/mock';
+import {
+  getBotLesson,
+  type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
+} from '@/lib/mock/classbot-lesson';
+import { RichText } from '@/components/classbot/rich-text';
+import { ConceptModal } from '@/components/classbot/concept-modal';
 import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
@@ -18,21 +25,29 @@ import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
-import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay';
+import { LiveCompactBar, LiveHeaderMeta } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
 import { LiveBadge } from '@/components/classbot/live-badge';
 import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
 import { ChatStudyRail } from '@/components/classbot/chat-study-rail';
+import { ChatStudyInline } from '@/components/classbot/chat-study-inline';
 import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
 /**
  * 메시지 타입 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
- * - text: 기본 버블
- * - problem-card: 라임 좌측 라이너 + 문제번호 + "풀러 가기" CTA (과제·퀴즈 인라인)
- * - explain-step: 1️⃣2️⃣3️⃣ 단계 indent + 수식 mono (단계별 풀이)
+ * - text: 기본 버블 (RichText 렌더)
+ * - problem-card: 좌측 라이너 + 문제번호 + "풀러 가기" CTA
+ * - explain-step: 단계 indent + 수식 mono (단계별 풀이)
+ * - lesson-intro: 봇 주도 수업 오프너 (오늘의 개념 + 💡 핵심)
+ * - concept: 개념 카드 (요약·핵심요소·자세히 보기 모달)
+ * - example: 예제 단계 카드 (제목 + steps)
+ * - quiz: 인라인 객관식 퀴즈 (정답·해설)
+ * - summary: 오늘 정리 카드
  */
-type MessageKind = 'text' | 'problem-card' | 'explain-step';
+type MessageKind =
+  | 'text' | 'problem-card' | 'explain-step'
+  | 'lesson-intro' | 'concept' | 'example' | 'quiz' | 'summary';
 
 type Turn = {
   id: string;
@@ -43,7 +58,8 @@ type Turn = {
   /** 메시지 타입 (기본 text) */
   kind?: MessageKind;
   /** 타입별 payload */
-  payload?: ProblemCardPayload | ExplainStepPayload;
+  payload?: ProblemCardPayload | ExplainStepPayload
+    | LessonIntroPayload | ConceptPayload | ExamplePayload | QuizPayload;
 };
 
 type ProblemCardPayload = {
@@ -56,6 +72,11 @@ type ProblemCardPayload = {
 type ExplainStepPayload = {
   steps: { num: number; label: string; body: string; formula?: string }[];
 };
+
+type LessonIntroPayload = { topic: string; keyCallout: string };
+type ConceptPayload = { concept: LessonConcept };
+type ExamplePayload = { title: string; steps: LessonStep[] };
+type QuizPayload = { quiz: LessonQuiz };
 
 
 export default function ClassbotChatPage() {
@@ -91,7 +112,9 @@ function ClassbotChatPageInner() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    // lg+: 페이지에 확정 높이를 줘 flex 체인을 복구 → 챗 섹션이 남은 높이를 정확히 채우고
+    // main(중앙) 스크롤바가 생기지 않는다. 모바일은 h-full + 스크롤 max-h 휴리스틱 유지.
+    <div className="flex h-full min-h-0 flex-col gap-3 lg:h-[calc(100dvh-11rem)]">
       {/* 봇 선택 chip strip */}
       {myBots.length > 1 && (
         <section className="bg-card rounded-xl border p-2">
@@ -141,20 +164,37 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
+  // 봇 주도 가이드 수업 데이터 (단일 출처)
+  const lesson = useMemo(() => getBotLesson(bot.id), [bot.id]);
 
-  // [07 § 4.6.1·4.6.3] 첫 인사 = 시간대 prefix + 봇 시그니처 인사 (mount 시 1회만 계산)
-  const [turns, setTurns] = useState<Turn[]>(() => [{
-    id: `t0_${bot.id}`,
-    role: 'bot',
-    text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
-    at: Date.now(),
-  }]);
+  // [07 § 4.6.1·4.6.3] 첫 인사 + 봇 주도 수업 오프너 (mount 시 1회만 계산)
+  const [turns, setTurns] = useState<Turn[]>(() => {
+    const now = Date.now();
+    return [
+      {
+        id: `t0_${bot.id}`,
+        role: 'bot',
+        text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
+        at: now,
+      },
+      {
+        id: `t1_${bot.id}`,
+        role: 'bot',
+        text: lesson.intro,
+        at: now + 1,
+        kind: 'lesson-intro',
+        payload: { topic: lesson.topic, keyCallout: lesson.keyCallout } satisfies LessonIntroPayload,
+      },
+    ];
+  });
   const [pending, setPending] = useState(false);
   const [value, setValue] = useState('');
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  // [04 § 9.6] 직전 봇 발화 ReplyKey — 동적 빠른칩 추천에 사용
-  const [lastBotReplyKey, setLastBotReplyKey] = useState<ReplyKey | undefined>();
+  // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
+  const [lastBotReplyKey, setLastBotReplyKey] = useState<QuickReplyKey | undefined>();
+  // 봇 주도 수업 — "다음 개념" 순환 인덱스 (렌더에 직접 쓰이지 않아 ref)
+  const conceptIdxRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const stickyRef = useRef<boolean>(true);
@@ -193,7 +233,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     }
   }, [turns, pending]);
 
-  function send(text: string, forcedKey?: ReplyKey) {
+  function send(text: string, forcedKey?: QuickReplyKey) {
     if (!text.trim() || pending) return;
     const now = Date.now();
     setTurns(t => [...t, { id: `s${now}`, role: 'student', text: text.trim(), at: now }]);
@@ -205,11 +245,13 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       void persistChatMessage(bot.id, text.trim());
     }
 
-    const reply = pickClassbotReply(text, bot.tone, forcedKey);
     setTimeout(() => {
       const at = Date.now();
-      // [08 § 15.1.3] 시연용 메시지 타입 mapping — forcedKey 기반
-      const richTurn = buildRichBotTurn(`b${at}`, reply, at, forcedKey, bot.id);
+      const richTurn = isLessonFlowKey(forcedKey)
+        // 봇 주도 수업 흐름 — getBotLesson 데이터로 구조화 메시지 생성
+        ? buildLessonTurn(`b${at}`, at, forcedKey, lesson, conceptIdxRef)
+        // 일반 응답 — 톤별 문자열 + 레거시 메시지 타입 매핑
+        : buildRichBotTurn(`b${at}`, pickClassbotReply(text, bot.tone, forcedKey), at, forcedKey, bot.id);
       setTurns(t => [...t, richTurn]);
       // [04 § 9.6] forcedKey가 있을 때만 후속 칩 추천 가능 (free text는 키 미지정)
       setLastBotReplyKey(forcedKey);
@@ -286,18 +328,18 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     </BotIdentityCard>
   ), [bot, isLive, scope]);
 
-  // ── 데스크톱 우측 레일: 퀴즈 + 학습 가이드 (핵심 개념 카드) ──────────────
-  const studyRail = useMemo(() => <ChatStudyRail bot={bot} />, [bot]);
-  useSetRightRail(studyRail);
+  // ── 데스크톱 우측 레일 (2단 레이아웃): 봇 프로필 + 퀴즈 + 학습 가이드 ──────────
+  // 기존 좌측 프로필 레일을 우측으로 합쳐 2단으로 만든다. 챗이 좌측 전체 폭을 차지.
+  const rightRail = useMemo(() => (
+    <div className="space-y-4 p-3">
+      {railNode}
+      <ChatStudyRail bot={bot} />
+    </div>
+  ), [railNode, bot]);
+  useSetRightRail(rightRail);
 
   return (
-    <div className="flex min-h-0 flex-1 gap-3">
-      {/* 좌측 — 봇 프로필 레일 (데스크톱 전용) */}
-      <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto lg:flex">
-        {railNode}
-      </aside>
-      {/* 중앙 — 모바일 헤더 + 라이브 오버레이 + 채팅 */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/*
         모바일 전용 봇 메타 헤더 (lg 이상에서 숨김 — 데스크톱은 우측 레일 사용).
         identity ONLY — scope/watched/live 는 레일에만 있어 Playwright strict mode 통과.
@@ -328,29 +370,33 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
         />
       </div>
 
-      {/* 라이브 진행 중인 봇이면 chat 위에 라이브 오버레이 — 슬라이드 · 자막 · 퀴즈 · 질문 큐 */}
-      {isLive && (
-        <div className="mt-3">
-          <LiveOverlay bot={bot} />
-        </div>
-      )}
-
-      <section className="bg-card flex flex-col rounded-2xl border flex-1 min-h-0">
+      {/*
+        챗 메인 — 2단 레이아웃에서 좌측 전체 폭을 차지한다.
+        라이브 봇이면 헤더 바로 아래에 컴팩트 라이브 바를 얹어 챗을 위로 끌어올리고,
+        섹션 내부 단일 스크롤(flex-1)로 중앙 중첩 스크롤바를 제거한다.
+      */}
+      <section className="bg-card flex flex-1 min-h-0 flex-col rounded-2xl border">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2 text-2xs">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
             <span className="text-pullim-slate-400 ml-auto">
-              개념 질문은 여기서 — 라이브 모더레이션 큐는 위쪽 “선생님에게 질문”
+              개념 질문은 여기서 — 라이브 모더레이션 큐는 “라이브 수업 펼치기 → 선생님에게 질문”
             </span>
           )}
         </header>
-        <div className="relative">
+
+        {/* 라이브 진행 중이면 — 컴팩트 바 (펼치면 슬라이드·자막·즉석 퀴즈·질문) */}
+        {isLive && <LiveCompactBar bot={bot} />}
+
+        <div className="relative flex min-h-0 flex-1 flex-col">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
             data-slot="chat-scroll"
-            className="flex max-h-[calc(100dvh-14rem)] min-h-[360px] flex-col gap-3 overflow-y-auto p-4"
+            className="flex max-h-[calc(100dvh-14rem)] min-h-[360px] flex-col gap-3 overflow-y-auto p-4 lg:max-h-none lg:min-h-0 lg:flex-1"
           >
+            {/* 챗에 내장된 학습 가이드 + 연습 퀴즈 (학습 요소 강화) */}
+            <ChatStudyInline bot={bot} />
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
             ))}
@@ -428,7 +474,6 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
           </form>
         </div>
       </section>
-      </div>
     </div>
   );
 }
@@ -487,8 +532,61 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
       } satisfies ProblemCardPayload,
     };
   }
+  // 오늘 정리 — 레슨 summary 카드
+  if (forcedKey === 'today_summary') {
+    return { id, role: 'bot', at, text: getBotLesson(botId).summary, kind: 'summary' };
+  }
   // 기본 — text 버블
   return { id, role: 'bot', at, text, kind: 'text' };
+}
+
+/* ─── 봇 주도 가이드 수업 — 흐름키 → 구조화 메시지 ─── */
+
+const LESSON_FLOW_KEYS: ReadonlySet<string> = new Set([
+  'lesson_concept', 'lesson_example', 'lesson_quiz', 'lesson_next',
+]);
+
+function isLessonFlowKey(k?: QuickReplyKey): k is LessonFlowKey {
+  return k !== undefined && LESSON_FLOW_KEYS.has(k);
+}
+
+/** 흐름키로 getBotLesson 데이터를 구조화 메시지로 변환. "다음 개념"은 idxRef 순환. */
+function buildLessonTurn(
+  id: string,
+  at: number,
+  key: LessonFlowKey,
+  lesson: BotLesson,
+  idxRef: { current: number },
+): Turn {
+  const concepts = lesson.concepts;
+  if (key === 'lesson_next') {
+    idxRef.current = (idxRef.current + 1) % Math.max(1, concepts.length);
+  }
+  if (key === 'lesson_concept' || key === 'lesson_next') {
+    const c = concepts[idxRef.current] ?? concepts[0];
+    const lead = key === 'lesson_next' ? '다음 개념 가보자' : '이 개념부터 보자';
+    return {
+      id, role: 'bot', at,
+      text: `${lead} — **${c.title}**`,
+      kind: 'concept',
+      payload: { concept: c } satisfies ConceptPayload,
+    };
+  }
+  if (key === 'lesson_example') {
+    return {
+      id, role: 'bot', at,
+      text: '예제로 같이 적용해보자.',
+      kind: 'example',
+      payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
+    };
+  }
+  // lesson_quiz
+  return {
+    id, role: 'bot', at,
+    text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
+    kind: 'quiz',
+    payload: { quiz: lesson.quiz } satisfies QuizPayload,
+  };
 }
 
 /* ─── 메시지 렌더 + 그루핑 디바이더 ([04 § 9.8]) ─── */
@@ -548,16 +646,16 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
   const isStudent = turn.role === 'student';
   const botSig = botSignature(bot);
   return (
-    <div className={cn('pullim-anim-message-mount flex gap-2', isStudent && 'flex-row-reverse')}>
+    <div className={cn('pullim-anim-message-mount flex gap-2.5', isStudent && 'flex-row-reverse')}>
       {continuation ? (
-        // 연속 발화 — 아바타 자리 들여쓰기만 (32px 가량)
-        <span aria-hidden className="h-7 w-7 shrink-0" />
+        // 연속 발화 — 아바타 자리 들여쓰기만
+        <span aria-hidden className="h-8 w-8 shrink-0" />
       ) : (
         <div
           aria-hidden
           className={cn(
-            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-            isStudent ? 'bg-pullim-slate-200 text-pullim-slate-700 text-xs font-bold' : 'text-base',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+            isStudent ? 'bg-pullim-slate-200 text-pullim-slate-700 text-sm font-bold' : 'text-lg',
           )}
           style={isStudent ? undefined : { backgroundColor: botSig.hex }}
         >
@@ -565,16 +663,16 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
         </div>
       )}
 
-      <div className={cn('max-w-[82%]', isStudent && 'flex flex-col items-end')}>
+      <div className={cn('max-w-[88%] sm:max-w-[80%]', isStudent && 'flex flex-col items-end')}>
         {!isStudent && !continuation && (
-          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-micro font-bold">
+          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-xs font-bold">
             <span>{bot.name}</span>
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
         <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} />
         {isStudent && (
-          <div className="text-pullim-slate-400 mt-1 text-micro">{formatTime(turn.at)}</div>
+          <div className="text-pullim-slate-400 mt-1 text-2xs">{formatTime(turn.at)}</div>
         )}
       </div>
     </div>
@@ -583,63 +681,152 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
 function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: boolean; botLinerHex: string }) {
+  // 버블 — 봇은 옅은 회색 + 또렷한 보더 + 시그니처 좌측 라이너, 본문 15px (가독성)
   const baseBubbleClass = cn(
-    'rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',
+    'rounded-2xl text-[15px] leading-relaxed',
     isStudent
-      ? 'bg-pullim-blue-600 text-white rounded-tr-sm px-3.5 py-2.5'
-      : 'bg-card border-pullim-slate-100 border border-l-[3px] text-pullim-slate-800 rounded-tl-sm',
+      ? 'bg-pullim-blue-600 text-white rounded-tr-sm px-4 py-3 whitespace-pre-wrap'
+      : 'bg-pullim-slate-50 border-pullim-slate-200 border border-l-[3px] text-pullim-slate-800 rounded-tl-sm',
   );
   const linerStyle = isStudent ? undefined : { borderLeftColor: botLinerHex };
 
-  // 사용자 메시지는 항상 text — 다른 타입은 봇 전용
-  if (isStudent || !turn.kind || turn.kind === 'text') {
+  // 학생 메시지 — 평문
+  if (isStudent) {
+    return <div className={baseBubbleClass}>{turn.text}</div>;
+  }
+
+  // 봇 기본 텍스트 — 리치 텍스트 렌더
+  if (!turn.kind || turn.kind === 'text') {
     return (
-      <div className={cn(baseBubbleClass, !isStudent && 'px-3.5 py-2.5')} style={linerStyle}>
-        {turn.text}
+      <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+        <RichText text={turn.text} />
       </div>
     );
   }
 
-  // explain-step — 1️⃣2️⃣3️⃣ 단계 (수식 mono)
-  if (turn.kind === 'explain-step' && turn.payload && 'steps' in turn.payload) {
-    const { steps } = turn.payload;
+  // lesson-intro — 봇 주도 수업 오프너
+  if (turn.kind === 'lesson-intro' && turn.payload && 'topic' in turn.payload) {
+    const { topic, keyCallout } = turn.payload;
     return (
-      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-3')} style={linerStyle}>
-        <p>{turn.text}</p>
-        <ol className="space-y-2 border-t border-pullim-slate-100 pt-2">
-          {steps.map(s => (
-            <li key={s.num} className="flex gap-2">
-              <span className="bg-pullim-blue-50 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-2xs font-bold">{s.num}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-pullim-slate-900 text-xs font-bold">{s.label}</div>
-                <div className="text-pullim-slate-600 mt-0.5 text-xs">{s.body}</div>
-                {s.formula && (
-                  <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-2xs">
-                    {s.formula}
-                  </code>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <div className="text-pullim-blue-700 inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
+          <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · {topic}
+        </div>
+        <RichText text={turn.text} />
+        <div className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2 text-sm">
+          <span className="mr-1">💡</span>
+          <RichTextInline text={keyCallout} />
+        </div>
       </div>
     );
   }
 
-  // problem-card — lime 좌측 라이너 + 문제번호 큰 숫자 + CTA
+  // concept — 개념 카드 (요약 + 핵심요소 + 자세히 보기 모달)
+  if (turn.kind === 'concept' && turn.payload && 'concept' in turn.payload) {
+    const { concept } = turn.payload;
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <div className="bg-card border-pullim-slate-200 space-y-2 rounded-xl border p-3">
+          <p className="text-pullim-slate-900 text-sm font-bold">{concept.title}</p>
+          <p className="text-pullim-slate-600 text-sm leading-relaxed">{concept.summary}</p>
+          {concept.formula && (
+            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1 font-mono text-xs">
+              {concept.formula}
+            </code>
+          )}
+          {concept.coreElements.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5">
+              {concept.coreElements.map((el, i) => (
+                <li key={i} className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-2 py-0.5 text-xs font-semibold">
+                  {el}
+                </li>
+              ))}
+            </ul>
+          )}
+          <ConceptModal
+            concept={concept}
+            trigger={
+              <button
+                type="button"
+                className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-xs font-bold"
+              >
+                자세히 보기 (학습 팁·예제 문항) →
+              </button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // example / explain-step — 단계 풀이 카드
+  if ((turn.kind === 'example' || turn.kind === 'explain-step') && turn.payload && 'steps' in turn.payload) {
+    const steps = turn.payload.steps;
+    const exampleTitle = turn.kind === 'example' && 'title' in turn.payload ? turn.payload.title : undefined;
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
+          {exampleTitle && (
+            <p className="text-pullim-slate-900 mb-2 text-sm font-bold">{exampleTitle}</p>
+          )}
+          <ol className="space-y-2.5">
+            {steps.map(s => (
+              <li key={s.num} className="flex gap-2.5">
+                <span className="bg-pullim-blue-600 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
+                  {s.num}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-pullim-slate-900 text-sm font-bold">{s.label}</div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-sm leading-relaxed">{s.body}</div>
+                  {s.formula && (
+                    <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
+                      {s.formula}
+                    </code>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  // quiz — 인라인 객관식 퀴즈
+  if (turn.kind === 'quiz' && turn.payload && 'quiz' in turn.payload) {
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <InlineQuiz quiz={turn.payload.quiz} />
+      </div>
+    );
+  }
+
+  // summary — 오늘 정리 카드
+  if (turn.kind === 'summary') {
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+        <RichText text={turn.text} />
+      </div>
+    );
+  }
+
+  // problem-card — 좌측 라이너 + 문제번호 + CTA
   if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
     const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
     return (
-      <div className={cn(baseBubbleClass, 'px-3.5 py-3 space-y-2')} style={{ borderLeftColor: '#E6FF4C' }}>
-        <p>{turn.text}</p>
-        <div className="bg-pullim-slate-50 flex items-center gap-2.5 rounded-lg p-2.5">
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: '#E6FF4C' }}>
+        <RichText text={turn.text} />
+        <div className="bg-card border-pullim-slate-200 flex items-center gap-2.5 rounded-lg border p-2.5">
           <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold">
             {problemNumber}
           </span>
-          <div className="min-w-0 flex-1 text-xs font-semibold text-pullim-slate-800">{title}</div>
+          <div className="text-pullim-slate-800 min-w-0 flex-1 text-sm font-semibold">{title}</div>
           <Link
             href={ctaHref}
-            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-2xs font-bold text-white"
+            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-bold text-white"
           >
             {ctaLabel} →
           </Link>
@@ -648,10 +835,72 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
     );
   }
 
-  // fallback — 미지원 타입은 text 처리
+  // fallback — 미지원 타입은 리치 텍스트 처리
   return (
-    <div className={cn(baseBubbleClass, 'px-3.5 py-2.5')} style={linerStyle}>
-      {turn.text}
+    <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+      <RichText text={turn.text} />
+    </div>
+  );
+}
+
+/** 한 줄용 인라인 리치텍스트 (블록 래핑 없이) */
+function RichTextInline({ text }: { text: string }) {
+  return <RichText text={text} className="space-y-0" />;
+}
+
+/** 대화 내장 객관식 퀴즈 — 선택·제출·정답/해설 (LiveQuizCard 패턴, blue/danger) */
+function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
+  const [selected, setSelected] = useState<number | undefined>();
+  const [submitted, setSubmitted] = useState(false);
+  const correct = submitted && selected === quiz.answerIndex;
+
+  return (
+    <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
+      <p className="text-pullim-slate-900 text-sm font-bold">{quiz.question}</p>
+      <ol role="radiogroup" aria-label="객관식 보기" className="mt-2.5 space-y-1.5">
+        {quiz.options.map((opt, i) => {
+          const isSelected = selected === i;
+          const isCorrect = submitted && i === quiz.answerIndex;
+          const isWrong = submitted && isSelected && i !== quiz.answerIndex;
+          return (
+            <li key={i}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                disabled={submitted}
+                onClick={() => setSelected(i)}
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-sm font-semibold transition-colors',
+                  isCorrect && 'border-pullim-blue-600 bg-pullim-blue-50 text-pullim-blue-700',
+                  isWrong && 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger',
+                  !submitted && isSelected && 'border-pullim-blue-500 bg-pullim-blue-50',
+                  !submitted && !isSelected && 'border-pullim-slate-200 bg-white hover:border-pullim-slate-400',
+                )}
+              >
+                <span className="font-mono">{['①', '②', '③', '④', '⑤'][i] ?? i + 1}</span>
+                <span className="min-w-0 flex-1">{opt}</span>
+                {isCorrect && <Check className="h-4 w-4 shrink-0" />}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {!submitted ? (
+        <button
+          type="button"
+          disabled={selected === undefined}
+          onClick={() => setSubmitted(true)}
+          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+        >
+          제출하기
+        </button>
+      ) : (
+        <div className="bg-pullim-slate-50 mt-2.5 rounded-lg p-3 text-sm">
+          <p className="text-pullim-slate-900 font-bold">{correct ? '🎉 정답이에요!' : '아쉽지만 다시 볼까요?'}</p>
+          <p className="text-pullim-slate-600 mt-1 leading-relaxed">{quiz.explain}</p>
+        </div>
+      )}
     </div>
   );
 }
