@@ -61,7 +61,7 @@ export function SolveWorkspace({
   // Guard: zero-question assignment
   if (questions.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl py-16">
+      <div className="max-w-2xl py-16">
         <EmptyState
           title="문항을 준비 중이에요"
           description="선생님이 아직 문항을 추가하지 않았어요. 잠시 후 다시 확인해 주세요."
@@ -107,7 +107,7 @@ export function SolveWorkspace({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3">
+    <div className="max-w-2xl space-y-3">
       {/* 컨텍스트 바 */}
       <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-micro text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
         <Link

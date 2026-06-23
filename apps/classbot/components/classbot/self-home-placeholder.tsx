@@ -6,6 +6,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useEnrolledTutors, useStreak, useTodayOneThing } from '@/lib/store/self-learning';
 import { MyTutorCard } from '@/components/classbot/my-tutor-card';
+import { Chip } from '@/components/ui/chip';
 
 /** 자기주도 모드 홈 — PR3: 오늘의 한 가지 + streak 추가. */
 export function SelfHomePlaceholder() {
@@ -27,14 +28,14 @@ export function SelfHomePlaceholder() {
         <div className="space-y-3">
           {/* Streak badge */}
           {streak.count > 0 ? (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-pullim-lemon-soft px-3 py-1 text-xs font-semibold text-pullim-lemon-ink">
+            <Chip tone="lemon">
               <Flame className="h-3.5 w-3.5" />
               {streak.count}일째
-            </div>
+            </Chip>
           ) : (
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-pullim-slate-100 px-3 py-1 text-xs font-medium text-pullim-slate-500">
+            <Chip tone="neutral">
               오늘 시작해요
-            </div>
+            </Chip>
           )}
 
           {/* 오늘의 한 가지 card */}

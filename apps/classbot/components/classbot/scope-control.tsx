@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Shield, AlarmClock } from 'lucide-react';
 import { type ScopeLevel, scopeMeta, myClassBot } from '@/lib/mock';
+import { Chip } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
 
 const levels: ScopeLevel[] = [1, 2, 3, 4, 5];
@@ -25,9 +26,9 @@ export function ScopeControl() {
             봇이 답할 수 있는 범위 · 변경 시 감사 로그에 기록
           </p>
         </div>
-        <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-2 py-0.5 font-mono text-micro font-bold">
+        <Chip tone="info" className="font-mono">
           현재 {scopeMeta[scope].short}
-        </span>
+        </Chip>
       </header>
 
       <div role="radiogroup" aria-label="Scope Guard 단계" className="flex gap-1.5">

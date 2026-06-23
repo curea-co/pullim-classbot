@@ -108,7 +108,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
         <button
           type="button"
           onClick={handleEnd}
-          className="bg-white/10 hover:bg-white/20 text-white ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+          className="bg-white/10 hover:bg-white/20 text-white ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold whitespace-nowrap"
         >
           <StopCircle className="h-3.5 w-3.5" />
           수업 종료

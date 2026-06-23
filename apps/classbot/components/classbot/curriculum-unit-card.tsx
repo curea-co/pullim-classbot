@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useIsGoal, useIsUnitDone, useSelfLearningStore } from '@/lib/store/self-learning';
 import type { TutorUnit } from '@/lib/mock/classbot-official';
 import { LearningPath } from '@/components/classbot/learning-path';
+import { Chip } from '@/components/ui/chip';
 
 export function CurriculumUnitCard({
   tutorId,
@@ -27,7 +28,7 @@ export function CurriculumUnitCard({
   }
 
   return (
-    <div className="rounded-2xl border border-pullim-slate-100 bg-white p-4 shadow-sm space-y-3">
+    <div className="rounded-2xl border border-pullim-slate-100 bg-white p-5 shadow-pullim-sm space-y-3">
       {/* Header row: order badge + title + done badge + goal toggle */}
       <div className="flex items-center gap-3">
         {/* Order badge */}
@@ -45,13 +46,10 @@ export function CurriculumUnitCard({
 
         {/* Done badge */}
         {isDone && (
-          <span
-            className="flex shrink-0 items-center gap-1 rounded-full bg-pullim-success-bg px-2.5 py-1 text-xs font-bold text-pullim-success"
-            aria-label="학습 완료"
-          >
+          <Chip tone="info" aria-label="학습 완료">
             <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
             완료
-          </span>
+          </Chip>
         )}
 
         {/* Goal toggle */}

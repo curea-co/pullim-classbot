@@ -64,7 +64,7 @@ export default function StudentAssignmentListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <AssignmentListBody

@@ -41,7 +41,7 @@ export function FilterPills<V extends string = string>({
               key={o.value}
               href={href(o.value)}
               className={cn(
-                'rounded-full px-3 py-1 text-2xs font-bold transition-colors',
+                'rounded-full py-[7px] px-[12px] text-2xs font-bold transition-colors',
                 isActive
                   ? 'bg-pullim-blue-600 text-white'
                   : 'bg-pullim-slate-100 text-pullim-slate-600 hover:bg-pullim-slate-200',
@@ -87,7 +87,7 @@ export function FilterPillButtons<V extends string = string>({
               'inline-flex items-center gap-1.5 font-bold transition-colors',
               shape === 'tab'
                 ? 'rounded-lg px-3 py-1.5 text-xs'
-                : 'rounded-full px-3 py-1 text-2xs',
+                : 'rounded-full py-[7px] px-[12px] text-2xs',
               isActive
                 ? 'bg-pullim-blue-600 text-white'
                 : 'text-pullim-slate-600 hover:bg-pullim-slate-100',

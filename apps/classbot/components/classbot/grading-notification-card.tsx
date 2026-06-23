@@ -25,7 +25,7 @@ export function GradingNotificationCard() {
   return (
     <Link
       href={`/classbot/assignment/${latest.assignmentId}/result`}
-      className="group bg-pullim-blue-50 hover:bg-pullim-blue-100 border-pullim-blue-200 flex items-center gap-3 rounded-2xl border p-3 transition-colors"
+      className="group bg-pullim-blue-50 hover:bg-pullim-blue-100 border-pullim-blue-200 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
     >
       <span className="bg-pullim-blue-600 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white">
         <ClipboardCheck className="h-5 w-5" />
