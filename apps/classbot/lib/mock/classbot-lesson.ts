@@ -424,7 +424,7 @@ const LESSONS: Record<string, BotLesson> = {
 
   // ── cb_005 사회 코치 · 열정 반말 · 현대사회 쟁점 ──────────────────────────
   cb_005: {
-    topic: '시사 쟁점 분석',
+    topic: '현대사회 쟁점 분석',
     intro:
       '오늘은 **시사 쟁점 분석**이야! 입장이랑 근거, 두 축으로 쪼개면 끝나.\n' +
       '아래 칩으로 **개념 → 예제 → 퀴즈** 출발 👇',
@@ -473,11 +473,11 @@ const LESSONS: Record<string, BotLesson> = {
       },
     ],
     example: {
-      title: '최저임금 인상 쟁점 분석',
+      title: '환경 보전 vs 개발 쟁점 분석',
       steps: [
-        { num: 1, label: '입장 분리', body: '찬성(노동계): 생계 보장 / 반대(경영계): 고용 부담.' },
-        { num: 2, label: '근거 태깅', body: '"임금↑로 소비↑" [사실 추정], "기업 부담 크다" [가치판단].' },
-        { num: 3, label: '매트릭스', body: '경제·고용·형평성 기준으로 두 입장 근거를 표에 배치.' },
+        { num: 1, label: '입장 분리', body: '환경 보전 측: 생태계 보호 / 개발 측: 일자리·경제 성장.' },
+        { num: 2, label: '근거 태깅', body: '"개발로 고용 1만 명↑" [사실 추정], "자연은 지켜야 한다" [가치판단].' },
+        { num: 3, label: '매트릭스', body: '경제·환경·형평성 기준으로 두 입장 근거를 표에 배치.' },
         { num: 4, label: '결론', body: '근거가 사실로 더 받쳐지는 쪽이 설득력 있어.' },
       ],
     },
@@ -488,11 +488,11 @@ const LESSONS: Record<string, BotLesson> = {
       explain: '먼저 입장을 누가·무엇을·왜로 분리해야 근거 평가와 비교가 가능해.',
     },
     practiceQuizzes: [
-      { id: 'q1', problemNumber: 'C-02', title: '수요·공급 곡선의 이동', difficulty: '중' },
+      { id: 'q1', problemNumber: 'C-02', title: '쟁점 — 입장·근거 분리', difficulty: '중' },
       { id: 'q2', problemNumber: 'C-03', title: '쟁점 — 사실 vs 가치판단', difficulty: '상' },
     ],
     summary:
-      '오늘 **시사 쟁점 분석** 정리야 👇\n' +
+      '오늘 **현대사회 쟁점 분석** 정리야 👇\n' +
       '① **입장 분리** — 누가·무엇을·왜\n' +
       '② 근거를 **사실 vs 가치판단**으로 태깅\n' +
       '③ **쟁점 매트릭스**로 두 입장 동시 비교\n' +

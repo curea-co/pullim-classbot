@@ -521,12 +521,14 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
     };
   }
   if (forcedKey === 'exam_prep') {
+    // 봇 과목에 맞는 연습 문제로 안내 (하드코딩 X — 레슨 데이터에서)
+    const pq = getBotLesson(botId).practiceQuizzes[0];
     return {
       id, role: 'bot', at, text,
       kind: 'problem-card',
       payload: {
-        problemNumber: 'Q-12',
-        title: '극값 판정 — 부호 변화 표 5문항',
+        problemNumber: pq.problemNumber,
+        title: pq.title,
         ctaLabel: '풀러 가기',
         ctaHref: `/classbot/assignment/as_prescription/solve?bot=${botId}`,
       } satisfies ProblemCardPayload,
