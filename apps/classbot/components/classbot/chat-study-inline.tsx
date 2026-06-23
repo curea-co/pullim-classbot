@@ -38,7 +38,7 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
           <div className="text-pullim-blue-700 text-xs font-bold tracking-wide uppercase">
             오늘의 학습 가이드
           </div>
-          <div className="text-pullim-slate-900 truncate text-sm font-bold">{lesson.topic}</div>
+          <div className="text-pullim-slate-900 truncate text-base font-bold">{lesson.topic}</div>
         </div>
         <span className="text-pullim-slate-500 hidden shrink-0 text-xs sm:inline">
           개념 {concepts.length} · 퀴즈 {quizzes.length}
@@ -73,12 +73,12 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
                           <span className="bg-pullim-blue-100 text-pullim-blue-700 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold">
                             {i + 1}
                           </span>
-                          <p className="text-pullim-slate-900 min-w-0 flex-1 truncate text-sm font-bold">
+                          <p className="text-pullim-slate-900 min-w-0 flex-1 truncate text-[15px] font-bold">
                             {c.title}
                           </p>
                           <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
                         </div>
-                        <p className="text-pullim-slate-600 mt-1 line-clamp-2 text-xs leading-relaxed">
+                        <p className="text-pullim-slate-600 mt-1 line-clamp-2 text-sm leading-relaxed">
                           {c.summary}
                         </p>
                       </button>
@@ -105,7 +105,7 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
                     <span className="bg-pullim-blue-100 text-pullim-blue-700 shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold">
                       {q.problemNumber}
                     </span>
-                    <span className="text-pullim-slate-800 min-w-0 flex-1 truncate text-sm font-bold">
+                    <span className="text-pullim-slate-800 min-w-0 flex-1 truncate text-[15px] font-bold">
                       {q.title}
                     </span>
                     <span className="bg-pullim-slate-100 text-pullim-slate-600 shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold">

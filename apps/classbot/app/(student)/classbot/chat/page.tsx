@@ -227,7 +227,9 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
   useEffect(() => {
     if (stickyRef.current) {
-      scrollToBottom('smooth');
+      // 즉시 스크롤 — smooth는 긴 콘텐츠에서 애니메이션 도중 onScroll이 sticky를 꺼
+      // 자동 추적이 끊긴다. 새 메시지는 바로 바닥에 붙인다.
+      scrollToBottom('auto');
     } else {
       setShowNewMessageBanner(true);
     }
@@ -376,7 +378,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
         섹션 내부 단일 스크롤(flex-1)로 중앙 중첩 스크롤바를 제거한다.
       */}
       <section className="bg-card flex flex-1 min-h-0 flex-col rounded-2xl border">
-        <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2 text-2xs">
+        <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
             <span className="text-pullim-slate-400 ml-auto">
@@ -442,7 +444,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
                   borderLeftColor: botSig.hex,
                   animationDelay: `${i * 60}ms`,
                 }}
-                className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 pullim-anim-message-mount border-l-2 disabled:opacity-50 inline-flex items-center gap-1 rounded-r-full rounded-l px-2.5 py-1 text-2xs font-semibold transition-colors"
+                className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 pullim-anim-message-mount border-l-2 disabled:opacity-50 inline-flex items-center gap-1 rounded-r-full rounded-l px-3 py-1.5 text-sm font-semibold transition-colors"
               >
                 {p.text}
               </button>
@@ -461,7 +463,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
               onKeyDown={handleKeyDown}
               placeholder={`${bot.name}에게 물어보세요…`}
               style={{ maxHeight: `${TEXTAREA_MAX_PX}px` }}
-              className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 flex-1 resize-none rounded-2xl border px-3.5 py-2 text-sm leading-relaxed outline-none"
+              className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 flex-1 resize-none rounded-2xl border px-3.5 py-2.5 text-base leading-relaxed outline-none"
             />
             <button
               type="submit"
@@ -667,14 +669,14 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 
       <div className={cn('max-w-[88%] sm:max-w-[80%]', isStudent && 'flex flex-col items-end')}>
         {!isStudent && !continuation && (
-          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-xs font-bold">
+          <div className="text-pullim-slate-700 mb-1 flex items-baseline gap-1.5 text-sm font-bold">
             <span>{bot.name}</span>
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
         <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} />
         {isStudent && (
-          <div className="text-pullim-slate-400 mt-1 text-2xs">{formatTime(turn.at)}</div>
+          <div className="text-pullim-slate-400 mt-1 text-xs">{formatTime(turn.at)}</div>
         )}
       </div>
     </div>
@@ -685,7 +687,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: boolean; botLinerHex: string }) {
   // 버블 — 봇은 옅은 회색 + 또렷한 보더 + 시그니처 좌측 라이너, 본문 15px (가독성)
   const baseBubbleClass = cn(
-    'rounded-2xl text-[15px] leading-relaxed',
+    'rounded-2xl text-[17px] leading-relaxed',
     isStudent
       ? 'bg-pullim-blue-600 text-white rounded-tr-sm px-4 py-3 whitespace-pre-wrap'
       : 'bg-pullim-slate-50 border-pullim-slate-200 border border-l-[3px] text-pullim-slate-800 rounded-tl-sm',
@@ -715,7 +717,7 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
           <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · {topic}
         </div>
         <RichText text={turn.text} />
-        <div className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2 text-sm">
+        <div className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2.5 text-base">
           <span className="mr-1">💡</span>
           <RichTextInline text={keyCallout} />
         </div>
@@ -730,8 +732,8 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 space-y-2 rounded-xl border p-3">
-          <p className="text-pullim-slate-900 text-sm font-bold">{concept.title}</p>
-          <p className="text-pullim-slate-600 text-sm leading-relaxed">{concept.summary}</p>
+          <p className="text-pullim-slate-900 text-base font-bold">{concept.title}</p>
+          <p className="text-pullim-slate-600 text-[15px] leading-relaxed">{concept.summary}</p>
           {concept.formula && (
             <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1 font-mono text-xs">
               {concept.formula}
@@ -751,7 +753,7 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
             trigger={
               <button
                 type="button"
-                className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-xs font-bold"
+                className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-sm font-bold"
               >
                 자세히 보기 (학습 팁·예제 문항) →
               </button>
@@ -771,17 +773,17 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
           {exampleTitle && (
-            <p className="text-pullim-slate-900 mb-2 text-sm font-bold">{exampleTitle}</p>
+            <p className="text-pullim-slate-900 mb-2 text-base font-bold">{exampleTitle}</p>
           )}
           <ol className="space-y-2.5">
             {steps.map(s => (
               <li key={s.num} className="flex gap-2.5">
-                <span className="bg-pullim-blue-600 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
+                <span className="bg-pullim-blue-600 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white">
                   {s.num}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-pullim-slate-900 text-sm font-bold">{s.label}</div>
-                  <div className="text-pullim-slate-600 mt-0.5 text-sm leading-relaxed">{s.body}</div>
+                  <div className="text-pullim-slate-900 text-[15px] font-bold">{s.label}</div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{s.body}</div>
                   {s.formula && (
                     <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
                       {s.formula}
@@ -825,7 +827,7 @@ function MessageBody({ turn, isStudent, botLinerHex }: { turn: Turn; isStudent: 
           <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold">
             {problemNumber}
           </span>
-          <div className="text-pullim-slate-800 min-w-0 flex-1 text-sm font-semibold">{title}</div>
+          <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
           <Link
             href={ctaHref}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-bold text-white"
@@ -858,7 +860,7 @@ function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      <p className="text-pullim-slate-900 text-sm font-bold">{quiz.question}</p>
+      <p className="text-pullim-slate-900 text-base font-bold">{quiz.question}</p>
       <ol role="radiogroup" aria-label="객관식 보기" className="mt-2.5 space-y-1.5">
         {quiz.options.map((opt, i) => {
           const isSelected = selected === i;
@@ -873,7 +875,7 @@ function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
                 disabled={submitted}
                 onClick={() => setSelected(i)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-sm font-semibold transition-colors',
+                  'flex w-full items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-left text-[15px] font-semibold transition-colors',
                   isCorrect && 'border-pullim-blue-600 bg-pullim-blue-50 text-pullim-blue-700',
                   isWrong && 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger',
                   !submitted && isSelected && 'border-pullim-blue-500 bg-pullim-blue-50',
@@ -893,12 +895,12 @@ function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
           type="button"
           disabled={selected === undefined}
           onClick={() => setSubmitted(true)}
-          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2 text-sm font-bold text-white transition-colors"
+          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
           제출하기
         </button>
       ) : (
-        <div className="bg-pullim-slate-50 mt-2.5 rounded-lg p-3 text-sm">
+        <div className="bg-pullim-slate-50 mt-2.5 rounded-lg p-3 text-[15px]">
           <p className="text-pullim-slate-900 font-bold">{correct ? '🎉 정답이에요!' : '아쉽지만 다시 볼까요?'}</p>
           <p className="text-pullim-slate-600 mt-1 leading-relaxed">{quiz.explain}</p>
         </div>
@@ -918,7 +920,7 @@ function PendingBubble({ bot }: { bot: ClassBot }) {
         {bot.avatarEmoji}
       </div>
       <div>
-        <div className="text-pullim-slate-700 mb-1 text-micro font-bold">{bot.name}</div>
+        <div className="text-pullim-slate-700 mb-1 text-sm font-bold">{bot.name}</div>
         <div
           className="bg-card border-pullim-slate-100 relative overflow-hidden rounded-2xl rounded-tl-sm border border-l-[3px] px-4 py-3"
           style={{ borderLeftColor: botSig.hex }}

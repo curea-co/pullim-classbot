@@ -32,12 +32,12 @@ export function LiveCompactBar({ bot }: { bot: ClassBot }) {
           LIVE
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-pullim-slate-900 truncate text-2xs font-bold">
+          <div className="text-pullim-slate-900 truncate text-sm font-bold">
             {content ? `슬라이드 ${session.currentSlide}/${content.slideTotal} · ${content.slideTitle}` : '라이브 진행 중'}
           </div>
           <LiveCaptionTicker botId={bot.id} startedAt={session.startedAt} />
         </div>
-        <span className="bg-pullim-blue-50 text-pullim-blue-700 hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold sm:inline-flex">
+        <span className="bg-pullim-blue-50 text-pullim-blue-700 hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold sm:inline-flex">
           <Zap className="h-3 w-3" />
           즉석 퀴즈
         </span>
@@ -46,7 +46,7 @@ export function LiveCompactBar({ bot }: { bot: ClassBot }) {
           onClick={() => setExpanded(e => !e)}
           aria-expanded={expanded}
           aria-controls="live-expanded-panel"
-          className="text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-2xs font-bold transition-colors"
+          className="text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-sm font-bold transition-colors"
         >
           {expanded ? '접기' : '라이브 수업 펼치기'}
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -83,8 +83,8 @@ function LiveCaptionTicker({ botId, startedAt }: { botId: string; startedAt: str
   const visible = content.transcript.filter(t => t.atSec <= elapsedSec);
   const last = visible[visible.length - 1];
   return (
-    <p className="text-pullim-slate-500 truncate text-micro">
-      <Radio className="text-pullim-danger mr-1 inline-block h-2.5 w-2.5 align-[-1px]" aria-hidden />
+    <p className="text-pullim-slate-500 truncate text-xs">
+      <Radio className="text-pullim-danger mr-1 inline-block h-3 w-3 align-[-2px]" aria-hidden />
       {last ? last.text : '자막 대기 중… (선생님 발화 시작 곧)'}
     </p>
   );
