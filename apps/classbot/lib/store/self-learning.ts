@@ -22,15 +22,27 @@ export type Streak = {
   lastStudyDate: string | null;
 };
 
+export type LoopStep = 'concept' | 'practice' | 'check';
+
+export type UnitProgress = {
+  tutorId: string;
+  unitId: string;
+  concept: boolean;
+  practice: boolean;
+  check: boolean;
+};
+
 interface SelfLearningStore {
   enrollments: SelfEnrollment[];
   goals: LearningGoal[];
   streak: Streak;
+  unitProgress: UnitProgress[];
   enroll: (tutorId: string) => void;
   unenroll: (tutorId: string) => void;
   addGoal: (tutorId: string, unitId: string) => void;
   removeGoal: (tutorId: string, unitId: string) => void;
   recordStudyToday: (today?: string) => void;
+  completeStep: (tutorId: string, unitId: string, step: LoopStep, today?: string) => void;
 }
 
 export const useSelfLearningStore = create<SelfLearningStore>()(
@@ -39,6 +51,7 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
       enrollments: [],
       goals: [],
       streak: { count: 0, lastStudyDate: null },
+      unitProgress: [],
 
       enroll: (tutorId) => {
         const already = get().enrollments.some((e) => e.tutorId === tutorId);
@@ -91,6 +104,26 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
           },
         });
       },
+
+      completeStep: (tutorId, unitId, step, today?) => {
+        set((s) => {
+          const existing = s.unitProgress.find(
+            (p) => p.tutorId === tutorId && p.unitId === unitId,
+          );
+          const updated: UnitProgress = existing
+            ? { ...existing, [step]: true }
+            : { tutorId, unitId, concept: false, practice: false, check: false, [step]: true };
+          const unitProgress = existing
+            ? s.unitProgress.map((p) =>
+                p.tutorId === tutorId && p.unitId === unitId ? updated : p,
+              )
+            : [...s.unitProgress, updated];
+          return { unitProgress };
+        });
+        if (step === 'check') {
+          get().recordStudyToday(today);
+        }
+      },
     }),
     { name: 'pullim-self-learning' },
   ),
@@ -142,4 +175,25 @@ export function useTodayOneThing(): { tutor: OfficialTutor; unit: TutorUnit } | 
     return { tutor, unit };
   }
   return null;
+}
+
+export function useUnitProgress(tutorId: string, unitId: string): UnitProgress {
+  const unitProgress = useSelfLearningStore((s) => s.unitProgress);
+  return (
+    unitProgress.find((p) => p.tutorId === tutorId && p.unitId === unitId) ?? {
+      tutorId,
+      unitId,
+      concept: false,
+      practice: false,
+      check: false,
+    }
+  );
+}
+
+export function useIsUnitDone(tutorId: string, unitId: string): boolean {
+  const unitProgress = useSelfLearningStore((s) => s.unitProgress);
+  return (
+    unitProgress.find((p) => p.tutorId === tutorId && p.unitId === unitId)
+      ?.check ?? false
+  );
 }

@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { useSelfLearningStore, useIsEnrolled, useEnrolledTutors, useGoals, useIsGoal, useStreak } from '../self-learning';
+import { useSelfLearningStore, useIsEnrolled, useEnrolledTutors, useGoals, useIsGoal, useStreak, useUnitProgress } from '../self-learning';
 import { officialTutors } from '@/lib/mock/classbot-official';
 
 const A = officialTutors[0].id;
@@ -39,5 +39,16 @@ it('recordStudyToday: increments on consecutive days, resets after a gap', () =>
   act(() => s().recordStudyToday('2026-06-24'));            // next day → +1
   expect(s().streak.count).toBe(2);
   act(() => s().recordStudyToday('2026-06-27'));            // gap → reset to 1
+  expect(s().streak.count).toBe(1);
+});
+
+const TID='ot_001', UID='u_test';
+it('completeStep marks steps; completing check bumps streak + marks done', () => {
+  useSelfLearningStore.setState({ unitProgress: [], streak: { count: 0, lastStudyDate: null } });
+  const s = () => useSelfLearningStore.getState();
+  act(() => s().completeStep(TID, UID, 'concept'));
+  expect(s().unitProgress[0]).toMatchObject({ tutorId: TID, unitId: UID, concept: true, practice: false, check: false });
+  act(() => s().completeStep(TID, UID, 'check', '2026-06-23')); // check → streak bump
+  expect(s().unitProgress[0].check).toBe(true);
   expect(s().streak.count).toBe(1);
 });
