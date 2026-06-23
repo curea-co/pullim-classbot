@@ -744,7 +744,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
-        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} botId={bot.id} />
+        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} botId={bot.id} scope={bot.scope} />
         {isStudent && (
           <div className="text-pullim-slate-400 mt-1 text-xs">{formatTime(turn.at)}</div>
         )}
@@ -754,7 +754,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 }
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
-function MessageBody({ turn, isStudent, botLinerHex, botId }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string }) {
+function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
   // 버블 — 봇은 옅은 회색 + 또렷한 보더 + 시그니처 좌측 라이너, 본문 15px (가독성)
   const baseBubbleClass = cn(
@@ -928,12 +928,12 @@ function MessageBody({ turn, isStudent, botLinerHex, botId }: { turn: Turn; isSt
     );
   }
 
-  // quiz — 인라인 객관식 퀴즈
+  // quiz — 인라인 객관식 퀴즈 (힌트 사다리 + 오답 처방)
   if (turn.kind === 'quiz' && turn.payload && 'quiz' in turn.payload) {
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
-        <InlineQuiz quiz={turn.payload.quiz} />
+        <InlineQuiz quiz={turn.payload.quiz} botId={botId} scope={scope} />
       </div>
     );
   }
@@ -982,11 +982,26 @@ function RichTextInline({ text }: { text: string }) {
   return <RichText text={text} className="space-y-0" />;
 }
 
-/** 대화 내장 객관식 퀴즈 — 선택·제출·정답/해설 (LiveQuizCard 패턴, blue/danger) */
-function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
+/**
+ * 대화 내장 객관식 퀴즈 — 단계적 힌트 사다리 + 오답 처방.
+ * - 힌트: 봇 scope L레벨이 공개 깊이 제한 (L3=1 / L4=2 / L5=전부). "답은 직접" 페르소나.
+ * - 오답: 그 보기가 왜 함정인지(distractor 피드백) + 처방(개념 다시 보기=챗 주입 / 다시 풀기).
+ * 색 규약: blue/slate + 위험빨강만 (green/amber 금지).
+ */
+function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; scope: number }) {
+  const dispatchLesson = useLessonActionStore(s => s.dispatch);
   const [selected, setSelected] = useState<number | undefined>();
   const [submitted, setSubmitted] = useState(false);
+  const [hintCount, setHintCount] = useState(0);
   const correct = submitted && selected === quiz.answerIndex;
+  // scope L레벨 → 힌트 공개 깊이 (L3 개념까지=1, L4 단계까지=2, L5 답까지=전부)
+  const maxHints = scope >= 5 ? quiz.hints.length : Math.min(scope >= 4 ? 2 : 1, quiz.hints.length);
+
+  function reset() {
+    setSelected(undefined);
+    setSubmitted(false);
+    setHintCount(0);
+  }
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
@@ -1020,6 +1035,37 @@ function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
           );
         })}
       </ol>
+
+      {/* 단계적 힌트 사다리 (제출 전) */}
+      {!submitted && quiz.hints.length > 0 && (
+        <div className="mt-2.5 space-y-1.5">
+          {quiz.hints.slice(0, hintCount).map((h, i) => (
+            <div
+              key={i}
+              className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2 text-[15px] leading-relaxed"
+            >
+              <span className="text-pullim-blue-700 font-bold">힌트 {i + 1} · </span>
+              {h}
+            </div>
+          ))}
+          {hintCount < maxHints ? (
+            <button
+              type="button"
+              onClick={() => setHintCount(c => c + 1)}
+              className="border-pullim-blue-200 text-pullim-blue-700 hover:bg-pullim-blue-50 inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-1.5 text-sm font-bold transition-colors"
+            >
+              💡 {hintCount === 0 ? '힌트 보기' : '힌트 더 보기'} ({hintCount}/{maxHints})
+            </button>
+          ) : (
+            <p className="text-pullim-slate-400 text-xs">
+              {scope >= 5
+                ? '힌트를 다 봤어. 이제 직접 골라봐!'
+                : `지금은 힌트 ${maxHints}개까지 (L${scope}) — 나머지는 직접 도전!`}
+            </p>
+          )}
+        </div>
+      )}
+
       {!submitted ? (
         <button
           type="button"
@@ -1030,9 +1076,53 @@ function InlineQuiz({ quiz }: { quiz: LessonQuiz }) {
           제출하기
         </button>
       ) : (
-        <div className="bg-pullim-slate-50 mt-2.5 rounded-lg p-3 text-[15px]">
-          <p className="text-pullim-slate-900 font-bold">{correct ? '🎉 정답이에요!' : '아쉽지만 다시 볼까요?'}</p>
-          <p className="text-pullim-slate-600 mt-1 leading-relaxed">{quiz.explain}</p>
+        <div className="mt-2.5 space-y-2">
+          {/* 판정 + 처방 피드백 */}
+          {correct ? (
+            <div className="bg-pullim-blue-50 rounded-lg p-3 text-[15px]">
+              <p className="text-pullim-blue-700 font-bold">🎉 정답이에요!</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.explain}</p>
+            </div>
+          ) : (
+            <div className="bg-pullim-danger-bg rounded-lg p-3 text-[15px]">
+              <p className="text-pullim-danger font-bold">아쉽지만 다시 볼까요?</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.optionFeedback[selected ?? 0]}</p>
+              <p className="text-pullim-slate-600 mt-1.5 text-sm leading-relaxed">
+                <span className="text-pullim-blue-700 font-bold">정답 · </span>
+                {quiz.explain}
+              </p>
+            </div>
+          )}
+          {/* 처방 액션 */}
+          <div className="flex flex-wrap gap-1.5">
+            {!correct && quiz.relatedConceptId && (
+              <button
+                type="button"
+                onClick={() => dispatchLesson(botId, 'concept-detail', quiz.relatedConceptId)}
+                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold text-white transition-colors"
+              >
+                📘 개념 다시 보기
+              </button>
+            )}
+            {!correct && (
+              <button
+                type="button"
+                onClick={reset}
+                className="bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors"
+              >
+                ↻ 다시 풀기
+              </button>
+            )}
+            {correct && (
+              <button
+                type="button"
+                onClick={() => dispatchLesson(botId, 'next')}
+                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold text-white transition-colors"
+              >
+                다음 개념 →
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

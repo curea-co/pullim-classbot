@@ -111,6 +111,14 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 - **네비게이션 제거**: 인라인 학습카드/우측 레일의 `/classbot/assignment` 링크 → 누르면 챗에 개념/인라인 퀴즈 주입(이동 없음). "전체 과제 풀러 가기" CTA 제거.
 - 폰트 전반 확대(버블 17px 등) + 자동 하단 추적을 즉시 스크롤로 견고화(긴 콘텐츠에서 smooth 중 sticky 꺼짐 회귀 수정).
 
+## 10-2. 후속 — 힌트 사다리 + 오답 처방형 퀴즈 (2026-06-23)
+
+교육 강화 — 인라인 퀴즈를 스캐폴딩·형성평가로 확장.
+
+- `LessonQuiz` 확장: `hints[]`(방향→단계→거의답), `optionFeedback[]`(보기별 오답 처방), `relatedConceptId`.
+- **단계적 힌트 사다리**: 제출 전 "힌트" 버튼이 한 단계씩 공개. 봇 `scope` L레벨이 공개 깊이 제한 — L3=1 / L4=2 / L5=전부. "답은 직접, 길은 알려준다" 페르소나 + scope 시스템과 결합.
+- **오답 처방**: 틀린 보기가 왜 함정인지(distractor 피드백) + 처방 액션 — "개념 다시 보기"(lesson-action 으로 개념 상세를 챗에 주입) / "다시 풀기"(리셋). 정답 시 "다음 개념 →".
+
 ## 11. 비목표 (YAGNI)
 
 - 실제 LLM 연동(여전히 mock·deterministic). v2에서 tool-calling 대체.

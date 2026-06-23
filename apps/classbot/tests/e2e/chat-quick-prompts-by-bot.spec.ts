@@ -52,6 +52,31 @@ test.describe('가이드 수업 흐름칩', () => {
     await expect(chat.getByText(/정답이에요|다시 볼까요/)).toBeVisible({ timeout: 2000 });
   });
 
+  test('인라인 퀴즈 — 힌트 사다리(scope 제한) + 오답 처방', async ({ page }) => {
+    await page.goto('/classbot/chat', { waitUntil: 'networkidle' }); // cb_001 = scope L3
+    await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
+    const chat = page.locator('[data-slot="chat-scroll"]');
+
+    await page.getByRole('button', { name: '퀴즈 내줘' }).click();
+    await expect(page.getByRole('button', { name: '제출하기' })).toBeVisible({ timeout: 3000 });
+
+    // 힌트 사다리 — L3 봇은 1개까지만
+    await chat.getByRole('button', { name: /힌트 보기/ }).click();
+    await expect(chat.getByText(/힌트 1 ·/)).toBeVisible();
+    await expect(chat.getByText(/힌트 1개까지/)).toBeVisible(); // scope(L3) 제한 안내
+
+    // 오답(② −2) 제출 → 처방(함정 설명 + 처방 버튼)
+    await chat.getByRole('radio').nth(1).click();
+    await page.getByRole('button', { name: '제출하기' }).click();
+    await expect(chat.getByText(/극솟값/)).toBeVisible({ timeout: 2000 }); // distractor 피드백
+    await expect(chat.getByRole('button', { name: /개념 다시 보기/ })).toBeVisible();
+    await expect(chat.getByRole('button', { name: /다시 풀기/ })).toBeVisible();
+
+    // 처방: 개념 다시 보기 → 챗에 개념 상세 주입(이동 없음)
+    await chat.getByRole('button', { name: /개념 다시 보기/ }).click();
+    await expect(chat.getByText('💡 학습 팁')).toBeVisible({ timeout: 2000 });
+  });
+
   test('봇별로 흐름 답변이 과목에 맞게 다르다', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });

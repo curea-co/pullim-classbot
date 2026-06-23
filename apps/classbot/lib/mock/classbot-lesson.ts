@@ -39,6 +39,12 @@ export interface LessonQuiz {
   options: string[];
   answerIndex: number;
   explain: string;
+  /** 단계적 힌트 (방향 → 단계 → 거의 답). 봇 scope L레벨이 공개 깊이를 제한 */
+  hints: string[];
+  /** 보기별 오답 처방 — 그 보기가 왜 함정인지(정답 인덱스는 확인 메시지) */
+  optionFeedback: string[];
+  /** 오답 시 다시 볼 개념 id (처방 연결) */
+  relatedConceptId?: string;
 }
 
 /** 연습 퀴즈(레일·인라인 카드용) — 과제 라우트로 연결 */
@@ -157,6 +163,18 @@ const LESSONS: Record<string, BotLesson> = {
       options: ['2', '−2', '0', '극값 없음'],
       answerIndex: 0,
       explain: "x=−1 에서 부호가 +→− 로 바뀌어 극대. f(−1) = −1+3 = 2 야.",
+      hints: [
+        "먼저 f'(x)=3x²−3 을 구해서 임계점(f'=0)부터 찾아.",
+        '임계점 x=±1 중에서 부호가 +→− 로 바뀌는 x가 극대야.',
+        'x=−1 이 극대 지점 — 거기에 f(−1) 을 대입하면 답이 나와.',
+      ],
+      optionFeedback: [
+        '정답! x=−1에서 극대, f(−1)=2.',
+        "−2는 극솟값(x=1)이야. 문제는 극'댓'값 — 극대/극소를 구분하자.",
+        "0은 f'(x)=0의 해(x)를 그대로 답으로 쓴 실수야. 극값은 그 x에서의 f값이야.",
+        '부호가 +→−, −→+ 로 실제 바뀌니 극값이 있어. y=x³(안 바뀜)과 헷갈리지 마.',
+      ],
+      relatedConceptId: 'c2',
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'Q-12', title: '접선의 방정식 구하기', difficulty: '중' },
@@ -249,6 +267,18 @@ const LESSONS: Record<string, BotLesson> = {
       options: ['앞 문장과 같은 방향', '앞 문장과 반대 방향', '앞 문장의 예시', '관계 없음'],
       answerIndex: 1,
       explain: 'however 는 역접 연결어라 앞 문장과 **반대 방향**의 내용이 와요.',
+      hints: [
+        'However 가 어떤 종류의 연결어인지부터 떠올려봐요.',
+        '역접 연결어는 앞뒤 내용의 방향을 바꿔요.',
+        '그러니 빈칸은 앞 문장과 정반대 방향이에요.',
+      ],
+      optionFeedback: [
+        '역접인데 같은 방향을 고르면 안 돼요. however 뒤는 흐름이 꺾여요.',
+        '정답! however = 역접 → 앞 문장과 반대 방향.',
+        '예시 신호는 for example 류예요. however 는 예시가 아니라 역접이에요.',
+        '연결어는 항상 방향 단서를 줘요. however 는 분명한 역접이에요.',
+      ],
+      relatedConceptId: 'c2',
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'B-07', title: '빈칸 추론 — 연결어 단서', difficulty: '중' },
@@ -333,6 +363,18 @@ const LESSONS: Record<string, BotLesson> = {
       options: ['1.2Ω', '5Ω', '6Ω', '2.5Ω'],
       answerIndex: 1,
       explain: '직렬은 그냥 더한다. 2 + 3 = 5Ω.',
+      hints: [
+        '직렬이다. 직렬 합성저항 공식부터 떠올려라.',
+        '직렬은 더한다 — R = R₁ + R₂.',
+        '2 + 3 을 계산해라.',
+      ],
+      optionFeedback: [
+        '1.2Ω 는 병렬 계산(6/5)이다. 문제는 직렬이다.',
+        '정답! 직렬은 합 — 2+3=5Ω.',
+        '6Ω 은 곱(2×3)이다. 직렬은 합이지 곱이 아니다.',
+        '2.5 는 평균이다. 직렬은 더하기다.',
+      ],
+      relatedConceptId: 'c2',
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'S-03', title: '전기회로 — 직렬·병렬 저항', difficulty: '중' },
@@ -409,6 +451,18 @@ const LESSONS: Record<string, BotLesson> = {
       options: ['모든 문장을 정독', '첫·끝 문단 1줄 요약 비교', '제목만 보기', '선택지부터 읽기'],
       answerIndex: 1,
       explain: '첫 문단과 끝 문단을 각각 1줄로 요약해 방향을 비교하면 주제가 빠르게 드러나요.',
+      hints: [
+        '글 전체의 방향은 어디에 가장 잘 드러날까요?',
+        '첫 문단과 끝 문단을 각각 한 줄로 줄여보세요.',
+        '두 요약의 방향을 비교하면 주제가 보여요.',
+      ],
+      optionFeedback: [
+        '정독은 시간이 너무 들어요. 구조부터 잡는 게 빨라요.',
+        '정답! 첫·끝 문단 요약 비교가 가장 빠른 길이에요.',
+        '제목이 없거나 모호한 지문도 많아요. 본문 요약이 더 확실해요.',
+        '선택지부터 보면 함정에 끌려가요. 본문 구조가 먼저예요.',
+      ],
+      relatedConceptId: 'c1',
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'K-05', title: '비문학 — 주제·구조 파악', difficulty: '중' },
@@ -486,6 +540,18 @@ const LESSONS: Record<string, BotLesson> = {
       options: ['결론부터 내기', '입장을 누가·뭘·왜로 분리', '감정으로 판단', '한쪽만 보기'],
       answerIndex: 1,
       explain: '먼저 입장을 누가·무엇을·왜로 분리해야 근거 평가와 비교가 가능해.',
+      hints: [
+        '쟁점엔 보통 입장이 둘 이상이야. 거기서 출발해.',
+        "각 입장을 '누가·무엇을·왜'로 쪼개봐.",
+        '입장 분리가 1단계 — 그래야 근거 비교가 돼.',
+      ],
+      optionFeedback: [
+        '결론부터 내면 편향돼. 입장·근거를 본 다음이 순서야.',
+        '정답! 입장 분리(누가·뭘·왜)가 1단계야.',
+        '감정 판단은 분석이 아니야. 사실·근거로 봐야 해.',
+        '한쪽만 보면 쟁점이 안 보여. 양쪽 입장을 같이 놓아야 해.',
+      ],
+      relatedConceptId: 'c1',
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'C-02', title: '쟁점 — 입장·근거 분리', difficulty: '중' },
@@ -524,6 +590,18 @@ const FALLBACK: BotLesson = {
     options: ['개념 이해', '예제 적용', '복습 필요', '모두 해당'],
     answerIndex: 3,
     explain: '개념 이해 → 예제 적용 → 복습까지가 한 사이클이에요.',
+    hints: [
+      '학습은 한 단계로 끝나지 않아요.',
+      '개념 → 예제 → 복습으로 이어져요.',
+      '셋 다 필요해요.',
+    ],
+    optionFeedback: [
+      '개념만으론 부족해요. 적용·복습까지 가야 해요.',
+      '적용만으론 부족해요. 개념·복습도 함께예요.',
+      '복습만으론 부족해요. 개념·적용이 먼저예요.',
+      '정답! 개념·예제·복습이 한 사이클이에요.',
+    ],
+    relatedConceptId: 'c1',
   },
   practiceQuizzes: [{ id: 'q1', problemNumber: 'Q-01', title: '기초 개념 점검', difficulty: '하' }],
   summary: '오늘 학습을 정리했어요. 내일도 이어가요!',
