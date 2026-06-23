@@ -1,7 +1,8 @@
 'use client';
 
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useIsGoal, useSelfLearningStore } from '@/lib/store/self-learning';
+import { useIsGoal, useIsUnitDone, useSelfLearningStore } from '@/lib/store/self-learning';
 import type { TutorUnit } from '@/lib/mock/classbot-official';
 import { LearningPath } from '@/components/classbot/learning-path';
 
@@ -13,6 +14,7 @@ export function CurriculumUnitCard({
   unit: TutorUnit;
 }) {
   const isGoal = useIsGoal(tutorId, unit.id);
+  const isDone = useIsUnitDone(tutorId, unit.id);
   const addGoal = useSelfLearningStore((s) => s.addGoal);
   const removeGoal = useSelfLearningStore((s) => s.removeGoal);
 
@@ -26,7 +28,7 @@ export function CurriculumUnitCard({
 
   return (
     <div className="rounded-2xl border border-pullim-slate-100 bg-white p-4 shadow-sm space-y-3">
-      {/* Header row: order badge + title + goal toggle */}
+      {/* Header row: order badge + title + done badge + goal toggle */}
       <div className="flex items-center gap-3">
         {/* Order badge */}
         <span
@@ -40,6 +42,17 @@ export function CurriculumUnitCard({
         <span className="flex-1 text-sm font-semibold text-pullim-slate-900 leading-snug">
           {unit.title}
         </span>
+
+        {/* Done badge */}
+        {isDone && (
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full bg-pullim-success-bg px-2.5 py-1 text-xs font-bold text-pullim-success"
+            aria-label="학습 완료"
+          >
+            <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
+            완료
+          </span>
+        )}
 
         {/* Goal toggle */}
         <button
@@ -58,7 +71,7 @@ export function CurriculumUnitCard({
         </button>
       </div>
 
-      {/* Learning path scaffold */}
+      {/* Learning path */}
       <LearningPath tutorId={tutorId} unit={unit} />
     </div>
   );
