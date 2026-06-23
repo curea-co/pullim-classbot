@@ -33,7 +33,7 @@ export const officialTutors: OfficialTutor[] = [
       '안녕하세요. 풀림 공식 수학 튜터입니다. ' +
       '개념부터 심화 문제까지 단계적으로 안내해 드립니다. ' +
       '어떤 단원이 막히는지 구체적으로 알려주시면, 원리부터 차근히 짚어 드릴게요. ' +
-      '모든 교과·학습 관련 질문에 답할 수 있습니다 (L4).',
+      '모든 교과·학습 관련 질문에 답할 수 있습니다.',
     quickPrompts: [
       { text: '이차함수 그래프 어떻게 그려요?', expectedReplyKey: 'extremum' },
       { text: '오늘 배운 개념 정리해줘요',       expectedReplyKey: 'today_summary' },
@@ -66,7 +66,7 @@ export const officialTutors: OfficialTutor[] = [
       '안녕하세요, 풀림 공식 영어 튜터입니다. ' +
       '독해·문법·어휘부터 수능 유형별 풀이 전략까지 체계적으로 도와드립니다. ' +
       '궁금한 지문이나 유형이 있으면 편하게 가져와 주세요. ' +
-      '모든 학습 관련 질문에 성실히 답해 드릴게요 (L4).',
+      '모든 학습 관련 질문에 성실히 답해 드릴게요.',
     quickPrompts: [
       { text: '빈칸 추론 유형 어떻게 풀어요?', expectedReplyKey: 'blank_inference' },
       { text: '오늘 학습 내용 요약해줘요',       expectedReplyKey: 'today_summary' },
@@ -98,7 +98,7 @@ export const officialTutors: OfficialTutor[] = [
       '안녕! 풀림 공식 과학 튜터야. ' +
       '물리·화학·생명·지구과학 모두 커버해. ' +
       '개념이 헷갈리면 바로 물어봐 — 실생활 예시랑 같이 확 뚫어줄게. ' +
-      '모든 교과·학습 관련 질문 다 받아 (L4).',
+      '모든 교과·학습 관련 질문 다 받아.',
     quickPrompts: [
       { text: '전기회로 원리 처음부터 알려줘', expectedReplyKey: 'circuit' },
       { text: '오늘 배운 내용 정리해줘',       expectedReplyKey: 'today_summary' },
