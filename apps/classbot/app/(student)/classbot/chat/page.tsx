@@ -16,6 +16,7 @@ import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
+import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveOverlay, LiveHeaderMeta } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
@@ -69,7 +70,8 @@ function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
-  const myBots = useMemo(() => getMyBots().map(b => b.bot), []);
+  const enrolledTutors = useEnrolledTutors();
+  const myBots = useMemo(() => [...getMyBots().map(b => b.bot), ...enrolledTutors], [enrolledTutors]);
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
