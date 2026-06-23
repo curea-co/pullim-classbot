@@ -142,37 +142,38 @@ export function QuizRunner({
         </ul>
       </section>
 
-      {/* 해설 (채점 후 표시) */}
-      {checked && (
-        <section
-          className={cn(
-            'rounded-2xl border p-4',
-            isCorrect
-              ? 'border-pullim-success/30 bg-pullim-success-bg'
-              : 'border-pullim-danger/30 bg-pullim-danger-bg',
-          )}
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-1.5 mb-1.5">
-            {isCorrect ? (
-              <CheckCircle2 className="h-4 w-4 text-pullim-success shrink-0" />
-            ) : (
-              <XCircle className="h-4 w-4 text-pullim-danger shrink-0" />
+      {/* 해설 (채점 후 표시) — aria-live region은 항상 DOM에 존재해야 SR이 변경을 감지 */}
+      <div role="status" aria-live="polite" aria-atomic="true">
+        {checked && (
+          <section
+            className={cn(
+              'rounded-2xl border p-4',
+              isCorrect
+                ? 'border-pullim-success/30 bg-pullim-success-bg'
+                : 'border-pullim-danger/30 bg-pullim-danger-bg',
             )}
-            <span
-              className={cn(
-                'text-sm font-bold',
-                isCorrect ? 'text-pullim-success' : 'text-pullim-danger',
+          >
+            <div className="flex items-center gap-1.5 mb-1.5">
+              {isCorrect ? (
+                <CheckCircle2 className="h-4 w-4 text-pullim-success shrink-0" />
+              ) : (
+                <XCircle className="h-4 w-4 text-pullim-danger shrink-0" />
               )}
-            >
-              {isCorrect ? '정답이에요!' : '아쉽지만 틀렸어요.'}
-            </span>
-          </div>
-          <p className="text-pullim-slate-700 text-sm leading-relaxed">
-            {question.explanation}
-          </p>
-        </section>
-      )}
+              <span
+                className={cn(
+                  'text-sm font-bold',
+                  isCorrect ? 'text-pullim-success' : 'text-pullim-danger',
+                )}
+              >
+                {isCorrect ? '정답이에요!' : '아쉽지만 틀렸어요.'}
+              </span>
+            </div>
+            <p className="text-pullim-slate-700 text-sm leading-relaxed">
+              {question.explanation}
+            </p>
+          </section>
+        )}
+      </div>
 
       {/* 하단 액션 */}
       <div className="flex gap-2">
