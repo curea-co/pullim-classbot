@@ -21,27 +21,31 @@ function isActive(href: string, pathname: string, matchPrefix?: string[]): boole
   return pathname.startsWith(href + "/");
 }
 
+/** '/' 은 /classbot 로 redirect → 같은 목적지로 취급해 홈 중복 제거 */
+const normHref = (href: string): string => (href === "/" ? "/classbot" : href);
+
 export function railSectionsForRole(role: Role, pathname: string): RailSection[] {
   const groups = navForRole(role);
   return groups.map((g) => {
     const items: RailItem[] = [];
-    for (const item of g.items) {
-      const Icon = item.icon;
+    const seen = new Set<string>();
+    const push = (it: { label: string; href: string; icon?: React.ComponentType<{ className?: string }>; matchPrefix?: string[] }) => {
+      const key = normHref(it.href);
+      if (seen.has(key)) return; // 중복 목적지(예: 홈 '/' vs '/classbot') 제거
+      seen.add(key);
       items.push({
-        label: item.label,
-        href: item.href,
-        icon: Icon ? React.createElement(Icon, { className: "h-[19px] w-[19px]" }) : undefined,
-        active: isActive(item.href, pathname, item.matchPrefix),
+        label: it.label,
+        href: it.href,
+        icon: it.icon ? React.createElement(it.icon, { className: "h-[19px] w-[19px]" }) : undefined,
+        active: isActive(it.href, pathname, it.matchPrefix),
       });
-      // flatten a domain's children in after it
-      for (const child of item.children ?? []) {
-        const CIcon = child.icon;
-        items.push({
-          label: child.label,
-          href: child.href,
-          icon: CIcon ? React.createElement(CIcon, { className: "h-[19px] w-[19px]" }) : undefined,
-          active: isActive(child.href, pathname),
-        });
+    };
+    for (const item of g.items) {
+      // children 있는 도메인은 그룹 컨테이너 — 부모 행은 생략하고 children 만 평탄화
+      if (item.children?.length) {
+        for (const child of item.children) push(child);
+      } else {
+        push(item);
       }
     }
     return { head: g.label || ROLE_LABEL[role], items };
