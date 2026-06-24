@@ -1,63 +1,63 @@
-import type { ReactNode } from 'react';
-import { AppHeader } from './app-header';
-import { AppSidebarRail } from './app-sidebar-rail';
-import { BottomNav } from './bottom-nav';
-import { Breadcrumb } from './breadcrumb';
-import type { Role } from './nav-config';
-import { RightRailAside, RightRailProvider } from './right-rail-context';
+"use client";
 
-type Props = {
-  role: Role;
-  children: ReactNode;
-};
+import { useEffect, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/cn";
+import { DashboardShell } from "@/components/ui/dashboard-shell";
+import { OsRail } from "@/components/ui/os-rail";
+import { OsTabbar } from "@/components/ui/os-tabbar";
+import { AppBrand, AppHeaderActions } from "./app-header";
+import { Breadcrumb } from "./breadcrumb";
+import { railSectionsForRole, tabItems } from "./nav-adapter";
+import type { Role } from "./nav-config";
 
-/**
- * 통합 앱 shell — 학생/교사 동일 골격.
- *
- * 반응형:
- * - 모바일 (xs/sm): 헤더(햄버거) + 본문 + 학생만 하단 탭/FAB
- * - 태블릿 (md): 헤더 + 사이드바(축약) + 본문
- * - 데스크탑 (lg+): 헤더 + 사이드바(전체) + 본문 (검색·D-day 등 노출)
- *
- * 콘텐츠 폭 제약:
- * - max-width: 1280px — 4K·울트라와이드에서 콘텐츠 과확장 방지
- * - min-width: 320px (body) — 초소형 모바일에서 레이아웃 붕괴 방지
- */
-const CONTENT_MAX = 'w-full max-w-[1280px]';
+export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
 
-export function AppShell({ role, children }: Props) {
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("puds-rail-collapsed") === "1");
+  }, []);
+
+  const toggleCollapsed = () =>
+    setCollapsed((v) => {
+      localStorage.setItem("puds-rail-collapsed", v ? "0" : "1");
+      return !v;
+    });
+
+  const sections = railSectionsForRole(role, pathname);
+  const rail = (
+    <div
+      className={cn(
+        "flex flex-col gap-2 py-3",
+        collapsed ? "w-[68px]" : "w-[var(--rail-w,248px)]",
+      )}
+    >
+      {sections.map((s, i) => (
+        <OsRail
+          key={s.head + i}
+          head={s.head}
+          items={s.items}
+          collapsed={collapsed}
+          linkComponent={Link}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <RightRailProvider>
-      <div className="bg-pullim-slate-50 flex h-screen flex-col">
-        <AppHeader role={role} />
-
-        <div className="flex flex-1 overflow-hidden">
-          {/* 사이드바 — 데스크탑 전체/아이콘 토글, 태블릿 축약 */}
-          <AppSidebarRail role={role} />
-
-          {/* 본문 */}
-          <main className="flex-1 overflow-y-auto">
-            <Breadcrumb role={role} />
-
-            {/* 페이지 콘텐츠 — 1280px 캡, 모바일 padding 좁게 */}
-            <div
-              className={
-                role === 'student'
-                  ? `${CONTENT_MAX} px-4 pt-4 pb-24 md:px-6 md:pb-10 xl:px-8`
-                  : `${CONTENT_MAX} px-4 pt-4 pb-10 md:px-6 xl:px-8`
-              }
-            >
-              {children}
-            </div>
-          </main>
-
-          {/* 오른쪽 레일 — 페이지가 useSetRightRail 로 콘텐츠를 등록하면 나타남 */}
-          <RightRailAside />
-        </div>
-
-        {/* 학생 모바일 전용 */}
-        {role === 'student' && <BottomNav />}
-      </div>
-    </RightRailProvider>
+    <DashboardShell
+      brand={<AppBrand role={role} />}
+      actions={<AppHeaderActions role={role} />}
+      rail={rail}
+      tabbar={role === "student" ? <OsTabbar items={tabItems(pathname)} linkComponent={Link} /> : undefined}
+      linkComponent={Link}
+      collapsed={collapsed}
+      onToggleCollapsed={toggleCollapsed}
+    >
+      <Breadcrumb role={role} />
+      {children}
+    </DashboardShell>
   );
 }

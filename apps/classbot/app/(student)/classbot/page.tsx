@@ -7,6 +7,7 @@ import { useLiveStore } from '@/lib/store/live';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useStudentMode } from '@/lib/store/student-mode';
 import { SelfHomePlaceholder } from '@/components/classbot/self-home-placeholder';
+import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
 import {
   LearningHero,
   TutorShowcase,
@@ -35,9 +36,9 @@ export default function StudentClassbotPage() {
   // ── derived data ───────────────────────────────────────────────────────────
   const myBots = getMyBots();
 
-  // self mode, 또는 교사 배정 봇이 없는 신규 사용자 → 환영/온보딩 홈
-  // (all hooks have run above; safe to branch on render)
-  if (mode === 'self' || myBots.length === 0) return <SelfHomePlaceholder />;
+  // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
+  if (mode === 'class' && myBots.length === 0) return <TeacherClassHome />;
+  if (mode === 'self') return <SelfHomePlaceholder />;
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
   // Incomplete assignments — sorted urgent first
