@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useClassEnrollmentStore } from './class-enrollment';
+import { useStoresHydrated } from './use-hydrated';
 
 export type StudentMode = 'class' | 'self';
 
@@ -27,13 +27,13 @@ export const useStudentModeStore = create<StudentModeStore>()(
  * 빈 초기 상태로 평가된다(localStorage 미반영). 그 시점의 `mode`는 신뢰할 수 없으므로,
  * 소비부는 `hydrated`가 true가 된 뒤에만 모드 기반 분기를 렌더해야 한다 — 그렇지 않으면
  * 이미 참여한 학생이 잠깐 `self`/빈 `TeacherClassHome`을 봤다가 바뀌는 플래시·하이드레이션 불일치가 난다.
+ * `useStoresHydrated`는 단순 mount가 아니라 두 스토어의 실제 `persist.hasHydrated()` 완료를 본다.
  */
 export function useStudentMode(): { mode: StudentMode; setMode: (m: StudentMode) => void; toggle: () => void; hydrated: boolean } {
   const stored = useStudentModeStore((s) => s.mode);
   const setMode = useStudentModeStore((s) => s.setMode);
   const enrollmentCount = useClassEnrollmentStore((s) => s.enrollments.length);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { setHydrated(true); }, []);
+  const hydrated = useStoresHydrated(useStudentModeStore, useClassEnrollmentStore);
   const mode: StudentMode = stored ?? (enrollmentCount > 0 ? 'class' : 'self');
   const toggle = () => setMode(mode === 'class' ? 'self' : 'class');
   return { mode, setMode, toggle, hydrated };

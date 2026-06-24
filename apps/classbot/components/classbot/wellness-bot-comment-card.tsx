@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
-import { useMyClassBots } from '@/lib/store/class-enrollment';
+import { useModeBots } from '@/lib/store/mode-bots';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -15,8 +15,8 @@ import { botSignature } from '@/lib/tokens/bot-signature';
  * 봇이 없으면(미참여) 렌더하지 않는다.
  */
 export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
-  const myClassBots = useMyClassBots();
-  const botComment = getWellnessBotComment(studentId, myClassBots.map(b => b.bot));
+  const modeBots = useModeBots();
+  const botComment = getWellnessBotComment(studentId, modeBots);
   if (!botComment) return null;
 
   const sig = botSignature(botComment.bot);

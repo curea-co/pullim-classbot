@@ -10,7 +10,7 @@ import {
   type QuickReplyKey, type LessonFlowKey,
   type ClassBot,
 } from '@/lib/mock';
-import { useMyClassBots } from '@/lib/store/class-enrollment';
+import { useModeBots } from '@/lib/store/mode-bots';
 import {
   getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
@@ -23,7 +23,6 @@ import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveCompactBar } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
@@ -91,12 +90,8 @@ function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
-  const enrolledTutors = useEnrolledTutors();
-  const classBotsEnrolled = useMyClassBots();
-  const myBots = useMemo(
-    () => [...classBotsEnrolled.map(b => b.bot), ...enrolledTutors],
-    [classBotsEnrolled, enrolledTutors],
-  );
+  // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
+  const myBots = useModeBots();
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
