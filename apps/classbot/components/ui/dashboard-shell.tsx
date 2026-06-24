@@ -1,6 +1,8 @@
+"use client";
 import * as React from "react";
 import { cn } from "@/lib/cn";
 import { OsTabbar, type TabbarItem } from "./os-tabbar";
+import { RailCollapseProvider } from "./rail-collapse-context";
 
 export type BrandProp =
   | React.ReactNode
@@ -10,16 +12,13 @@ export interface DashboardShellProps {
   brand: BrandProp;
   switcher?: React.ReactNode;
   actions?: React.ReactNode;
-  /** Left navigation. Pass a labelled <nav> (e.g. OsRail) for landmark accessibility. */
   rail?: React.ReactNode;
   tabbar?: TabbarItem[] | React.ReactNode;
-  /** Sidebar collapsed (icon-only) state. */
+  /** Controlled collapsed state. Omit (with onToggleCollapsed) to let the shell self-manage + persist. */
   collapsed?: boolean;
-  /** Toggle handler — renders a floating collapse button on the sidebar divider. */
+  /** Controlled toggle handler. If omitted, the shell self-manages collapse internally. */
   onToggleCollapsed?: () => void;
-  /** Content landmark element. Use "div" when consumer pages render their own <main>. */
   as?: "main" | "div";
-  /** Link element for the brand (e.g. next/link's Link). Defaults to "a". */
   linkComponent?: React.ElementType;
   children: React.ReactNode;
   className?: string;
@@ -54,34 +53,54 @@ export function DashboardShell({
   actions,
   rail,
   tabbar,
-  collapsed = false,
+  collapsed: collapsedProp,
   onToggleCollapsed,
   as = "main",
   linkComponent = "a",
   children,
   className,
 }: DashboardShellProps) {
+  const controlled = onToggleCollapsed !== undefined;
+  const [internal, setInternal] = React.useState(false);
+  React.useEffect(() => {
+    if (controlled) return;
+    try {
+      setInternal(localStorage.getItem("puds-rail-collapsed") === "1");
+    } catch {
+      /* ignore */
+    }
+  }, [controlled]);
+  const collapsed = controlled ? !!collapsedProp : internal;
+  const toggle = controlled
+    ? onToggleCollapsed!
+    : () =>
+        setInternal((v) => {
+          try {
+            localStorage.setItem("puds-rail-collapsed", v ? "0" : "1");
+          } catch {
+            /* ignore */
+          }
+          return !v;
+        });
   const tabbarNode = Array.isArray(tabbar) ? <OsTabbar items={tabbar} linkComponent={linkComponent} /> : tabbar;
   const Content = as;
   return (
-    <div className={cn("min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]", className)}>
-      <header className="sticky top-0 z-40 flex h-[60px] items-center gap-4 border-b border-[var(--border-default)] bg-[var(--surface-raised)] px-4">
-        <Brand brand={brand} linkComponent={linkComponent} />
-        {switcher}
-        <div className="flex-1" />
-        {actions}
-      </header>
-      <div className="mx-auto flex w-full max-w-[1400px]">
-        {rail && (
-          <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
-            {/* relative wrapper so the toggle button sticks WITH the sticky aside (not the page),
-                and right-0 keeps it on the divider as the rail width changes on collapse. */}
-            <div className="relative h-full w-max">
-              <div className="h-full overflow-y-auto">{rail}</div>
-              {onToggleCollapsed && (
+    <RailCollapseProvider collapsed={collapsed}>
+      <div className={cn("min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]", className)}>
+        <header className="sticky top-0 z-40 flex h-[60px] items-center gap-4 border-b border-[var(--border-default)] bg-[var(--surface-raised)] px-4">
+          <Brand brand={brand} linkComponent={linkComponent} />
+          {switcher}
+          <div className="flex-1" />
+          {actions}
+        </header>
+        <div className="mx-auto flex w-full max-w-[1400px]">
+          {rail && (
+            <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
+              <div className="relative h-full w-max">
+                <div className="h-full overflow-y-auto">{rail}</div>
                 <button
                   type="button"
-                  onClick={onToggleCollapsed}
+                  onClick={toggle}
                   aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
                   aria-expanded={!collapsed}
                   className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
@@ -101,13 +120,13 @@ export function DashboardShell({
                     <path d="m15 6-6 6 6 6" />
                   </svg>
                 </button>
-              )}
-            </div>
-          </aside>
-        )}
-        <Content className="min-w-0 flex-1 px-6 py-8 pb-24 md:pb-8">{children}</Content>
+              </div>
+            </aside>
+          )}
+          <Content className="min-w-0 flex-1 px-6 py-8 pb-24 md:pb-8">{children}</Content>
+        </div>
+        {tabbarNode}
       </div>
-      {tabbarNode}
-    </div>
+    </RailCollapseProvider>
   );
 }
