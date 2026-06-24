@@ -1,9 +1,9 @@
 'use client';
 
-import { getMyBots } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useLiveStore } from '@/lib/store/live';
+import { useMyClassBots, useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useStudentMode } from '@/lib/store/student-mode';
 import { SelfHomePlaceholder } from '@/components/classbot/self-home-placeholder';
@@ -32,9 +32,8 @@ export default function StudentClassbotPage() {
   const activeLive = useLiveStore(s => s.active);         // hook 3
   const allAssignments = useMergedAssignments(me.id);     // hook 4
   const submissions = useAssignmentStore(s => s.submissions); // hook 5
-
-  // ── derived data ───────────────────────────────────────────────────────────
-  const myBots = getMyBots();
+  const myBots = useMyClassBots();                        // hook 6 — 참여 코드로 join된 교사 클래스 (reactive)
+  const leaveClass = useClassEnrollmentStore(s => s.leave); // hook 7
 
   // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
   if (mode === 'class' && myBots.length === 0) return <TeacherClassHome />;
@@ -74,6 +73,17 @@ export default function StudentClassbotPage() {
 
       {/* 4. WellnessNudge — optional */}
       {wellnessComment && <WellnessNudge comment={wellnessComment} />}
+
+      {/* 5. 클래스 나가기 — 참여 상태 초기화 (데모 반복용) */}
+      <div className="pt-2 text-center">
+        <button
+          type="button"
+          onClick={() => myBots.forEach(b => leaveClass(b.bot.id))}
+          className="min-h-11 rounded px-3 text-xs font-medium text-pullim-slate-400 underline-offset-2 hover:text-pullim-slate-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
+        >
+          클래스 나가기
+        </button>
+      </div>
     </div>
   );
 }

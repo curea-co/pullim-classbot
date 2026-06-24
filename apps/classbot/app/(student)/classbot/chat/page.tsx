@@ -8,8 +8,9 @@ import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
   type QuickReplyKey, type LessonFlowKey,
-  getMyBots, type ClassBot,
+  type ClassBot,
 } from '@/lib/mock';
+import { useMyClassBots } from '@/lib/store/class-enrollment';
 import {
   getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
@@ -91,7 +92,11 @@ function ClassbotChatPageInner() {
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
   const enrolledTutors = useEnrolledTutors();
-  const myBots = useMemo(() => [...getMyBots().map(b => b.bot), ...enrolledTutors], [enrolledTutors]);
+  const classBotsEnrolled = useMyClassBots();
+  const myBots = useMemo(
+    () => [...classBotsEnrolled.map(b => b.bot), ...enrolledTutors],
+    [classBotsEnrolled, enrolledTutors],
+  );
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
