@@ -27,9 +27,10 @@ test.describe('chat scroll sticky-to-bottom', () => {
       await page.waitForTimeout(1100);
     }
 
-    // 2) 최하단 sticky 상태 확인 — smooth 스크롤 정착까지 poll (콘텐츠 높이에 무관하게 견고)
+    // 2) 최하단 sticky 상태 확인 — 콜드 prod(폰트·에셋 첫 로드)에서 레이아웃 정착이
+    //    늦을 수 있어 poll 타임아웃을 넉넉히(8s). 조건 충족 즉시 통과하므로 평소엔 즉시 끝남.
     await expect
-      .poll(() => scrollEl.evaluate(el => el.scrollHeight - el.scrollTop - el.clientHeight < 80), { timeout: 2000 })
+      .poll(() => scrollEl.evaluate(el => el.scrollHeight - el.scrollTop - el.clientHeight < 80), { timeout: 8000 })
       .toBe(true);
 
     // 3) 스크롤 최상단으로 이동 (sticky 해제)
