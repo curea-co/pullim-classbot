@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
@@ -11,6 +11,7 @@ import {
   type ClassBot,
 } from '@/lib/mock';
 import { useModeBots } from '@/lib/store/mode-bots';
+import { useStudentMode } from '@/lib/store/student-mode';
 import {
   getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
@@ -91,6 +92,7 @@ function ClassbotChatPageInner() {
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
   // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
+  const { mode, hydrated } = useStudentMode();
   const myBots = useModeBots();
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
@@ -110,16 +112,34 @@ function ClassbotChatPageInner() {
     router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
   }
 
-  // 등록한 튜터가 없으면(신규 사용자) 대화할 봇이 없음 → 봇 마켓 유도 (크래시 방지)
+  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  if (!hydrated) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
+      </div>
+    );
+  }
+
+  // 대화할 봇이 없을 때 — 모드별로 다른 빈 상태 (spec: self 전용 surface를 class 모드에 노출 금지)
   if (!bot) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
-        <EmptyState
-          icon={Compass}
-          title="아직 등록한 튜터가 없어요"
-          description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-          action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
-        />
+        {mode === 'class' ? (
+          <EmptyState
+            icon={GraduationCap}
+            title="아직 참여한 클래스가 없어요"
+            description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
+            action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+          />
+        ) : (
+          <EmptyState
+            icon={Compass}
+            title="아직 등록한 튜터가 없어요"
+            description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
+            action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+          />
+        )}
       </div>
     );
   }
