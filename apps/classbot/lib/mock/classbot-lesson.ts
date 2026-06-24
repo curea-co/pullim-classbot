@@ -607,8 +607,20 @@ const FALLBACK: BotLesson = {
   summary: '오늘 학습을 정리했어요. 내일도 이어가요!',
 };
 
+/**
+ * 공식 튜터(봇 마켓 등록 대상)를 과목 정합 리치 수업에 매핑.
+ * 가이드 수업 콘텐츠는 cb_*(과목별) 키에 작성돼 있어, 같은 과목의 공식 튜터를 별칭한다.
+ * ot_001 수학 마스터 → cb_001 극값 판정 / ot_002 영어 → cb_002 빈칸 추론 / ot_003 과학 → cb_003 전기회로.
+ */
+const TUTOR_LESSON_ALIAS: Record<string, string> = {
+  ot_001: 'cb_001',
+  ot_002: 'cb_002',
+  ot_003: 'cb_003',
+};
+
 export function getBotLesson(botId: string): BotLesson {
-  return LESSONS[botId] ?? FALLBACK;
+  const key = TUTOR_LESSON_ALIAS[botId] ?? botId;
+  return LESSONS[key] ?? FALLBACK;
 }
 
 /** 우측 레일·인라인 카드용 — 개념에서 파생한 학습 가이드 */
