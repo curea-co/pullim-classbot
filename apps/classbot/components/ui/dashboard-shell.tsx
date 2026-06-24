@@ -60,7 +60,8 @@ export function DashboardShell({
   children,
   className,
 }: DashboardShellProps) {
-  const controlled = onToggleCollapsed !== undefined;
+  // Controlled when `collapsed` is provided (standard value-driven control); the handler is optional.
+  const controlled = collapsedProp !== undefined;
   const [internal, setInternal] = React.useState(false);
   React.useEffect(() => {
     if (controlled) return;
@@ -72,7 +73,7 @@ export function DashboardShell({
   }, [controlled]);
   const collapsed = controlled ? !!collapsedProp : internal;
   const toggle = controlled
-    ? onToggleCollapsed!
+    ? (onToggleCollapsed ?? (() => {}))
     : () =>
         setInternal((v) => {
           try {

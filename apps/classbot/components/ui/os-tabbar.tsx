@@ -21,7 +21,7 @@ export function OsTabbar({ items, linkComponent = "a", className }: OsTabbarProp
     <nav
       aria-label="모바일 탭 메뉴"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex justify-start gap-1 border-t border-[var(--border-default)] bg-[var(--surface-raised)] px-2 pb-[env(safe-area-inset-bottom)] md:hidden",
+        "fixed inset-x-0 bottom-0 z-50 flex justify-start gap-1 overflow-x-auto border-t border-[var(--border-default)] bg-[var(--surface-raised)] px-2 pb-[env(safe-area-inset-bottom)] md:hidden",
         className,
       )}
     >
