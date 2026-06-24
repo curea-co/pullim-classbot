@@ -81,7 +81,7 @@ export function TeacherClassHero({ name }: { name?: string }) {
         </button>
       </div>
       <p className="mt-2 text-xs text-pullim-slate-500">
-        링크·QR로 참여하는 기능은 준비 중이에요. 지금은 선생님께 받은 참여 코드를 입력해 주세요.
+        선생님께 받은 참여 코드를 입력하면 클래스에 연결돼요.
       </p>
     </section>
   );

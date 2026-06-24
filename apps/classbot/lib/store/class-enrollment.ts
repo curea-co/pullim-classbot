@@ -52,16 +52,31 @@ export function useClassEnrollments(): StudentEnrollment[] {
   return useClassEnrollmentStore((s) => s.enrollments);
 }
 
-/**
- * enrollment → classBots 카탈로그 브릿지 (reactive).
- * 정적 `getMyBots()`의 store 기반 대체 — join/leave 시 소비 컴포넌트가 re-render된다.
- */
-export function useMyClassBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
-  const enrollments = useClassEnrollmentStore((s) => s.enrollments);
+/** enrollment[] → classBots 카탈로그 브릿지 (순수). */
+function bridge(
+  enrollments: StudentEnrollment[],
+): { bot: ClassBot; enrollment: StudentEnrollment }[] {
   return enrollments
     .map((enrollment) => {
       const bot = classBots.find((b) => b.id === enrollment.botId);
       return bot ? { bot, enrollment } : null;
     })
     .filter((x): x is { bot: ClassBot; enrollment: StudentEnrollment } => x !== null);
+}
+
+/**
+ * enrollment → classBots 카탈로그 브릿지 (reactive).
+ * 정적 `getMyBots()`의 store 기반 대체 — join/leave 시 소비 컴포넌트가 re-render된다.
+ */
+export function useMyClassBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
+  const enrollments = useClassEnrollmentStore((s) => s.enrollments);
+  return bridge(enrollments);
+}
+
+/**
+ * 비-React 컨텍스트(mock 함수, 서버 컴포넌트 등)에서 현재 참여 봇 조회 — reactive 아님.
+ * 호출 시점의 store 스냅샷을 읽는다. enrollment 권위를 화면 전체에서 일관되게 쓰기 위한 게터.
+ */
+export function getEnrolledClassBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
+  return bridge(useClassEnrollmentStore.getState().enrollments);
 }

@@ -40,8 +40,13 @@ export default function StudentClassbotPage() {
   if (mode === 'self') return <SelfHomePlaceholder />;
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
-  // Incomplete assignments — sorted urgent first
+  // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
+  // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
+  const enrolledBotIds = new Set(myBots.map(b => b.bot.id));
+
+  // Incomplete assignments — enrolled 범위 + sorted urgent first
   const incompleteAssignments = allAssignments
+    .filter(a => enrolledBotIds.has(a.botId))
     .filter(a => a.completedCount < a.questionCount)
     .sort((a, b) => {
       const order = (d: string) => d === '오늘' ? 0 : d === 'D-1' ? 1 : 2;

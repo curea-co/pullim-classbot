@@ -3,7 +3,8 @@
  * 권위: [13 § 3.3.3·9.3](proc/spec/13-reports-and-emotion-checkin.md) — 가장 점수 낮은 영역의 담당 봇이 한 줄 코멘트 + actionable CTA.
  */
 
-import { getMyBots, getWellbeingTrend, type EmotionMood, type ClassBot } from './classbot';
+import { getWellbeingTrend, type EmotionMood, type ClassBot } from './classbot';
+import { getEnrolledClassBots } from '@/lib/store/class-enrollment';
 
 export type WellnessBotComment = {
   bot: ClassBot;
@@ -90,9 +91,9 @@ export function getWellnessBotComment(studentId: string, bots?: ClassBot[]): Wel
 
   // 추출본 mock — 단일 학생(서연) 가정, studentId는 v2 대비 인자 보존
   void studentId;
-  // bots는 호출부(reactive useMyClassBots)에서 주입 — 미전달 시 정적 getMyBots()로 폴백.
-  // 참여 코드 join 으로 생긴 enrollment가 웰빙 카드에도 반영되도록 단일 데이터 소스 유지.
-  const myBots = bots ?? getMyBots().map(b => b.bot);
+  // 봇 소스 = enrollment 권위(class-enrollment 스토어). 홈은 reactive bots를 주입하고,
+  // 그 외 호출부(웰빙 페이지·게이지 등)는 store 스냅샷으로 폴백 → 모든 화면이 join/나가기를 동일하게 반영.
+  const myBots = bots ?? getEnrolledClassBots().map(b => b.bot);
   // 시연용 봇별 subject로 매칭 — 없으면 첫 봇 fallback
   const bot =
     myBots.find(b => {
