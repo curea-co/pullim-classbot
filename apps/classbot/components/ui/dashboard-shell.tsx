@@ -61,7 +61,7 @@ export function DashboardShell({
   children,
   className,
 }: DashboardShellProps) {
-  const tabbarNode = Array.isArray(tabbar) ? <OsTabbar items={tabbar} /> : tabbar;
+  const tabbarNode = Array.isArray(tabbar) ? <OsTabbar items={tabbar} linkComponent={linkComponent} /> : tabbar;
   const Content = as;
   return (
     <div className={cn("min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]", className)}>
@@ -71,38 +71,39 @@ export function DashboardShell({
         <div className="flex-1" />
         {actions}
       </header>
-      <div className="relative mx-auto flex w-full max-w-[1400px]">
+      <div className="mx-auto flex w-full max-w-[1400px]">
         {rail && (
-          <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 overflow-y-auto border-r border-[var(--border-subtle)] md:block">
-            {rail}
+          <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
+            {/* relative wrapper so the toggle button sticks WITH the sticky aside (not the page),
+                and right-0 keeps it on the divider as the rail width changes on collapse. */}
+            <div className="relative h-full w-max">
+              <div className="h-full overflow-y-auto">{rail}</div>
+              {onToggleCollapsed && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapsed}
+                  aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+                  aria-expanded={!collapsed}
+                  className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                  >
+                    <path d="m15 6-6 6 6 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </aside>
-        )}
-        {rail && onToggleCollapsed && (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-            aria-expanded={!collapsed}
-            className={cn(
-              "absolute top-5 z-30 hidden h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-[left,color,border-color] duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex",
-              collapsed ? "left-[68px]" : "left-64",
-            )}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className={cn("transition-transform duration-200", collapsed && "rotate-180")}
-            >
-              <path d="m15 6-6 6 6 6" />
-            </svg>
-          </button>
         )}
         <Content className="min-w-0 flex-1 px-6 py-8 pb-24 md:pb-8">{children}</Content>
       </div>
