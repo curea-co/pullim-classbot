@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useModeBots } from '@/lib/store/mode-bots';
+import { useStudentMode } from '@/lib/store/student-mode';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -15,8 +16,10 @@ import { botSignature } from '@/lib/tokens/bot-signature';
  * 봇이 없으면(미참여) 렌더하지 않는다.
  */
 export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
+  // hydration 전에는 모드/봇이 빈 상태 → 잘못된/누락 코멘트 대신 미렌더(자연스러운 등장).
+  const { hydrated } = useStudentMode();
   const modeBots = useModeBots();
-  const botComment = getWellnessBotComment(studentId, modeBots);
+  const botComment = hydrated ? getWellnessBotComment(studentId, modeBots) : null;
   if (!botComment) return null;
 
   const sig = botSignature(botComment.bot);
