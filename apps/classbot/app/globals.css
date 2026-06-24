@@ -205,24 +205,6 @@
   --chart-cat-7: var(--color-bot-english);
   --chart-cat-8: var(--color-pullim-info);
 
-  /* 히트맵 — 강도 5단계 */
-  --surface-sunken: var(--color-pullim-slate-100);
-  --color-primary-100: var(--color-pullim-blue-100);
-  --color-primary-300: var(--color-pullim-blue-300);
-  --color-primary-500: var(--color-pullim-blue-500);
-  --color-primary-700: var(--color-pullim-blue-700);
-
-  /* 불릿 차트 — 인텐트 컬러 */
-  --color-action-primary: var(--color-pullim-blue-600);
-  --color-success-500: var(--color-pullim-success);
-  --color-warning-500: var(--color-pullim-warn);
-  --color-danger-500: var(--color-pullim-danger);
-
-  /* 차트 공유 텍스트·보더 */
-  --text-primary: var(--foreground);
-  --text-secondary: var(--color-pullim-slate-600);
-  --text-tertiary: var(--color-pullim-slate-500);
-  --border-subtle: var(--border);
 }
 
 .dark {
