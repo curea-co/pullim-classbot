@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { currentPersona, currentTeacher } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
+import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
@@ -67,15 +68,7 @@ export function AppHeader({ role }: { role: Role }) {
 
         {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
         <div className="flex flex-1 items-center justify-end gap-1">
-          {role === 'student' && (
-            <Badge
-              variant="secondary"
-              className="bg-pullim-blue-50 text-pullim-blue-700 border-pullim-blue-100 hidden gap-1 sm:inline-flex"
-            >
-              <Flame className="h-3.5 w-3.5" />
-              {currentPersona.streakDays}일째
-            </Badge>
-          )}
+          {role === 'student' && <StudentStreakBadge />}
           <button
             aria-label="검색"
             aria-disabled="true"
@@ -95,6 +88,21 @@ export function AppHeader({ role }: { role: Role }) {
         </div>
       </div>
     </header>
+  );
+}
+
+/** 학생 스트릭 뱃지 — 실제 self-learning 스트릭. 0일(신규)이면 숨김(데모 시드 제거). */
+function StudentStreakBadge() {
+  const streak = useStreak();
+  if (streak.count <= 0) return null;
+  return (
+    <Badge
+      variant="secondary"
+      className="bg-pullim-blue-50 text-pullim-blue-700 border-pullim-blue-100 hidden gap-1 sm:inline-flex"
+    >
+      <Flame className="h-3.5 w-3.5" />
+      {streak.count}일째
+    </Badge>
   );
 }
 
