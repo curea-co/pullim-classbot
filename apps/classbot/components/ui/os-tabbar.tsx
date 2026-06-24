@@ -18,7 +18,8 @@ export function OsTabbar({ items, className }: OsTabbarProps) {
     <nav
       aria-label="모바일 탭 메뉴"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex border-t border-[var(--border-default)] bg-[var(--surface-raised)] pb-[env(safe-area-inset-bottom)]",
+        // 좌측 정렬 — 탭을 풀폭 분산(flex-1) 대신 왼쪽부터 패킹
+        "fixed inset-x-0 bottom-0 z-50 flex justify-start gap-1 border-t border-[var(--border-default)] bg-[var(--surface-raised)] px-2 pb-[env(safe-area-inset-bottom)]",
         className,
       )}
     >
@@ -28,7 +29,7 @@ export function OsTabbar({ items, className }: OsTabbarProps) {
           href={item.href}
           aria-current={item.active ? "page" : undefined}
           className={cn(
-            "flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium text-[var(--text-tertiary)] transition-colors",
+            "flex w-[68px] shrink-0 flex-col items-center gap-1 py-2 text-[11px] font-medium text-[var(--text-tertiary)] transition-colors",
             "[&_svg]:h-[22px] [&_svg]:w-[22px]",
             item.active && "text-[var(--color-action-primary)]",
           )}
