@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./tokens/_base.css";
+@import "./tokens/pullim-os.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -128,27 +130,27 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: var(--radius-md);
 
-  /* 라이트 테마 — 풀림 매핑 */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.213 0.010 286);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.213 0.010 286);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.213 0.010 286);
-  --primary: oklch(0.524 0.197 258);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.967 0.001 286);
-  --secondary-foreground: oklch(0.274 0.012 286);
-  --muted: oklch(0.985 0 0);
-  --muted-foreground: oklch(0.552 0.013 286);
-  --accent: oklch(0.972 0.024 258);
-  --accent-foreground: oklch(0.474 0.181 258);
-  --destructive: oklch(0.637 0.237 25);
-  --border: oklch(0.920 0.003 286);
-  --input: oklch(0.920 0.003 286);
-  --ring: oklch(0.524 0.197 258);
+  /* 라이트 테마 — PUDS pullim-os 매핑 */
+  --background: var(--surface-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--color-primary-600);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-sunken);
+  --secondary-foreground: var(--text-secondary);
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--text-tertiary);
+  --accent: var(--color-action-secondary);
+  --accent-foreground: var(--color-primary-700);
+  --destructive: var(--color-danger-500);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--focus-ring-color);
 
   /* 차트 — primary-{600,400,700,300,200} */
   --chart-1: oklch(0.524 0.197 258);
@@ -203,24 +205,6 @@
   --chart-cat-7: var(--color-bot-english);
   --chart-cat-8: var(--color-pullim-info);
 
-  /* 히트맵 — 강도 5단계 */
-  --surface-sunken: var(--color-pullim-slate-100);
-  --color-primary-100: var(--color-pullim-blue-100);
-  --color-primary-300: var(--color-pullim-blue-300);
-  --color-primary-500: var(--color-pullim-blue-500);
-  --color-primary-700: var(--color-pullim-blue-700);
-
-  /* 불릿 차트 — 인텐트 컬러 */
-  --color-action-primary: var(--color-pullim-blue-600);
-  --color-success-500: var(--color-pullim-success);
-  --color-warning-500: var(--color-pullim-warn);
-  --color-danger-500: var(--color-pullim-danger);
-
-  /* 차트 공유 텍스트·보더 */
-  --text-primary: var(--foreground);
-  --text-secondary: var(--color-pullim-slate-600);
-  --text-tertiary: var(--color-pullim-slate-500);
-  --border-subtle: var(--border);
 }
 
 .dark {

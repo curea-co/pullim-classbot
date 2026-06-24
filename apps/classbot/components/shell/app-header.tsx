@@ -31,6 +31,57 @@ const roleHomeHref: Record<Role, string> = {
   teacher: '/teacher',
 };
 
+/** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */
+export function AppBrand({ role }: { role: Role }) {
+  return (
+    <Link
+      href={roleHomeHref[role]}
+      className="flex items-center gap-1.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+    >
+      <ClassbotMark size={32} />
+      <span className="text-pullim-slate-900 text-base font-bold tracking-tight">풀림</span>
+      <span className="text-pullim-slate-400 hidden text-2xs font-bold uppercase md:inline">
+        {roleLogoLabel[role]}
+      </span>
+    </Link>
+  );
+}
+
+/** 헤더 액션 영역 — 학습 모드 토글(학생) + 스트릭 + 검색 + 알림 + 프로필. */
+export function AppHeaderActions({ role }: { role: Role }) {
+  return (
+    <>
+      {/* CENTER — 학습 모드 토글 */}
+      {role === 'student' && (
+        <div className="flex shrink-0 items-center justify-center">
+          <StudentModeToggle />
+        </div>
+      )}
+
+      {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
+      <div className="flex flex-1 items-center justify-end gap-1">
+        {role === 'student' && <StudentStreakBadge />}
+        <button
+          aria-label="검색"
+          aria-disabled="true"
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          title="준비 중"
+        >
+          <Search className="h-[22px] w-[22px]" />
+        </button>
+        <button
+          aria-label="알림 — 준비 중"
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          title="준비 중"
+        >
+          <Bell className="h-[22px] w-[22px]" />
+        </button>
+        <ProfileMenu role={role} />
+      </div>
+    </>
+  );
+}
+
 /**
  * 통합 상단 헤더 — 모든 화면 공유.
  * 좌: 햄버거(모바일) + 로고
@@ -45,47 +96,10 @@ export function AppHeader({ role }: { role: Role }) {
         {/* LEFT — 햄버거(모바일) + 브랜드 */}
         <div className="flex flex-1 items-center gap-2 md:gap-3">
           <MobileDrawer role={role} />
-
-          {/* 로고 (스터디/교사/보호자 라벨 통합) */}
-          <Link
-            href={roleHomeHref[role]}
-            className="flex items-center gap-1.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
-          >
-            <ClassbotMark size={32} />
-            <span className="text-pullim-slate-900 text-base font-bold tracking-tight">풀림</span>
-            <span className="text-pullim-slate-400 hidden text-2xs font-bold uppercase md:inline">
-              {roleLogoLabel[role]}
-            </span>
-          </Link>
+          <AppBrand role={role} />
         </div>
 
-        {/* CENTER — 학습 모드 토글 */}
-        {role === 'student' && (
-          <div className="flex shrink-0 items-center justify-center">
-            <StudentModeToggle />
-          </div>
-        )}
-
-        {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
-        <div className="flex flex-1 items-center justify-end gap-1">
-          {role === 'student' && <StudentStreakBadge />}
-          <button
-            aria-label="검색"
-            aria-disabled="true"
-            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
-            title="준비 중"
-          >
-            <Search className="h-[22px] w-[22px]" />
-          </button>
-          <button
-            aria-label="알림 — 준비 중"
-            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
-            title="준비 중"
-          >
-            <Bell className="h-[22px] w-[22px]" />
-          </button>
-          <ProfileMenu role={role} />
-        </div>
+        <AppHeaderActions role={role} />
       </div>
     </header>
   );
