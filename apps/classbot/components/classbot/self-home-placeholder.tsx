@@ -1,28 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, Compass, Flame, Sparkles } from 'lucide-react';
+import { BookOpen, Compass, Flame } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { EmptyState } from '@/components/classbot/empty-state';
-import { useEnrolledTutors, useStreak, useTodayOneThing } from '@/lib/store/self-learning';
+import { useEnrolledTutors, useStreak, useTodayOneThing, useGoals } from '@/lib/store/self-learning';
 import { MyTutorCard } from '@/components/classbot/my-tutor-card';
+import { WelcomeHero } from '@/components/classbot/home/welcome-hero';
+import { OnboardingChecklist } from '@/components/classbot/home/onboarding-checklist';
+import { useCurrentUser } from '@/lib/current-user';
 import { Chip } from '@/components/ui/chip';
 
-/** 자기주도 모드 홈 — PR3: 오늘의 한 가지 + streak 추가. */
+/**
+ * 자기주도 모드 홈 = 출시 신규 사용자 기본 홈.
+ * 환영 hero + 시작 가이드(온보딩) + 내 튜터(없으면 봇 마켓 유도).
+ */
 export function SelfHomePlaceholder() {
   const tutors = useEnrolledTutors();
   const streak = useStreak();
+  const goals = useGoals();
   const one = useTodayOneThing();
+  const me = useCurrentUser();
 
   return (
-    <div className="space-y-4">
-      <section className="bg-pullim-blue-700 text-white relative overflow-hidden rounded-2xl p-4 shadow-pullim-sm">
-        <div className="text-pullim-blue-100 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
-          <Sparkles className="h-3 w-3" /> 자기주도 학습
-        </div>
-        <h2 className="mt-1 text-xl font-bold">내 속도로, 내 목표로</h2>
-        <p className="text-white/80 mt-1 text-sm">공식 튜터를 골라 개념부터 점검까지 스스로 학습해요.</p>
-      </section>
+    <div className="space-y-5">
+      <WelcomeHero name={me.isAuthenticated ? me.name : undefined} hasTutors={tutors.length > 0} />
+
+      <OnboardingChecklist
+        enrolled={tutors.length > 0}
+        hasGoal={goals.length > 0}
+        studied={streak.count > 0}
+        firstTutorId={tutors[0]?.id}
+      />
 
       {tutors.length > 0 && (
         <div className="space-y-3">
