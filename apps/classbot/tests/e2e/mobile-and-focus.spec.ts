@@ -12,12 +12,12 @@ import { test, expect, devices } from '@playwright/test';
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 test.describe('모바일 viewport 검증', () => {
-  test('iPhone SE (375px) — 교사 라이브 수업 종료 CTA 노출', async ({ browser }) => {
+  test('iPhone SE (375px) — 교사 라이브 시작 CTA 노출', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     await page.goto(BASE + '/teacher/classbot');
-    // 짧은 라벨 ("수업 종료") 가 모바일에서 보여야 함
-    await expect(page.getByText('수업 종료', { exact: true })).toBeVisible();
+    // 신규(라이브 비활성) 교사 — "라이브 시작" CTA 가 모바일에서 보여야 함
+    await expect(page.getByText('라이브 시작', { exact: true })).toBeVisible();
     await context.close();
   });
 
@@ -27,10 +27,9 @@ test.describe('모바일 viewport 검증', () => {
     await page.goto(BASE + '/classbot');
     // 내 튜터 헤더 보임 (홈 재구성: 내 클래스봇 → 내 튜터)
     await expect(page.getByText('내 튜터')).toBeVisible();
-    // 튜터 카드 + 이어서 하기/오늘 할 일 핵심 CTA — chat & assignment link prefix 매칭.
+    // 신규 빈 상태 홈 — 봇 마켓(튜터 찾기) 핵심 CTA (discover 링크 prefix 매칭)
     const main = page.getByRole('main');
-    await expect(main.locator('a[href^="/classbot/chat"]').last()).toBeVisible();
-    await expect(main.locator('a[href^="/classbot/assignment"]').last()).toBeVisible();
+    await expect(main.locator('a[href^="/classbot/discover"]').last()).toBeVisible();
     await context.close();
   });
 
