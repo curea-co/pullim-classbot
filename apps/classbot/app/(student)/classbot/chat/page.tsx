@@ -99,12 +99,21 @@ function ClassbotChatPageInner() {
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
   const activeLive = useLiveStore(s => s.active);
 
-  // ?bot= 쿼리와 selectedBotId 동기화 — 외부 링크가 봇 지정 시 반영
+  // selectedBotId / ?bot= 정규화
   useEffect(() => {
+    // 1) 외부 링크가 유효한 봇을 지정 → 반영
     if (botParam && botParam !== selectedBotId && myBots.some(b => b.id === botParam)) {
       setSelectedBotId(botParam);
+      return;
     }
-  }, [botParam, myBots, selectedBotId]);
+    // 2) 모드 전환·나가기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
+    //    (보이는 봇 = myBots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
+    if (myBots.length > 0 && !myBots.some(b => b.id === selectedBotId)) {
+      const next = myBots[0].id;
+      setSelectedBotId(next);
+      if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
+    }
+  }, [botParam, myBots, selectedBotId, router]);
 
   function handleBotChange(nextId: string) {
     setSelectedBotId(nextId);
