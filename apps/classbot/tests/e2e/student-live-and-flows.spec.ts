@@ -1,71 +1,41 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * 2026-05-18 플로우 감사 후속 회귀 — 9 플로우 갭 해소 후 핵심 path.
+ * 출시 IA — 신규 사용자 빈 상태 → 봇 마켓 등록 플로우 + 교사 핵심 path.
+ * (2026-06-24 재작성: 데모 시드 제거로 학생 라이브/스코프 테스트를 마켓 등록 플로우로 교체)
  */
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
-test.describe('학생 라이브 진입점 — chat 통합 IA (F1)', () => {
-  test('학생 홈 LIVE 카드 → /classbot/chat?bot=cb_001 진입 + 라이브 오버레이', async ({ page }) => {
+test.describe('신규 사용자 빈 상태 → 봇 마켓 등록 (출시 IA)', () => {
+  test('빈 홈 — 환영 + 시작 가이드 + 봇 마켓 유도', async ({ page }) => {
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
-    // V15 home — LIVE 카드는 사라지고 BotChip이 LIVE 봇을 ring + LV 뱃지로 표시.
-    // BotChip link("수학이 형" 이름) 클릭 → /classbot/chat?bot=cb_001 진입.
-    const liveCta = page.getByRole('link', { name: /수학이 형/ }).first();
-    await expect(liveCta).toBeVisible();
-    await liveCta.click();
+    await expect(page.getByText('환영해요')).toBeVisible();
+    await expect(page.getByText('시작 가이드')).toBeVisible();
+    await expect(page.getByText('아직 등록한 튜터가 없어요')).toBeVisible();
+  });
 
-    await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);
+  test('봇 마켓 등록 → 홈 내 튜터 반영', async ({ page }) => {
+    await page.goto(BASE + '/classbot/discover', { waitUntil: 'networkidle' });
+    await expect(page.getByText('공식 튜터 마켓')).toBeVisible();
 
-    // 2단 재구성: 라이브는 컴팩트 바로 접혀 있다 → 펼쳐서 4영역 확인
-    await page.getByRole('button', { name: '라이브 수업 펼치기' }).click();
+    await page.getByRole('button', { name: '등록', exact: true }).first().click();
+    await expect(page.getByRole('button', { name: '등록됨' }).first()).toBeVisible();
 
-    // 라이브 오버레이 4영역 + 봇 채팅 모두 한 화면에
-    await expect(page.getByRole('heading', { name: '실시간 자막' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '선생님에게 질문' })).toBeVisible();
-    await expect(page.getByText('지금 즉석 퀴즈')).toBeVisible();
-    // 라이브 정책 배너는 우측 프로필 레일에 상시 노출
-    await expect(page.getByText(/라이브 정책 적용 중/)).toBeVisible();
-    // 봇 채팅도 함께 보임
-    await expect(page.getByText('봇과 대화', { exact: true })).toBeVisible();
+    // 홈에 반영 — 빈 상태 사라짐
+    await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
+    await expect(page.getByText('아직 등록한 튜터가 없어요')).toHaveCount(0);
   });
 
   test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
     await page.goto(BASE + '/classbot/live/cb_001', { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);
   });
-
-  test('학생 질문 submit → pending 상태', async ({ page }) => {
-    await page.goto(BASE + '/classbot/chat?bot=cb_001', { waitUntil: 'networkidle' });
-
-    // 라이브 컴팩트 바 펼치기 → 선생님 질문 입력 노출
-    await page.getByRole('button', { name: '라이브 수업 펼치기' }).click();
-
-    const input = page.getByLabel('질문 입력');
-    await input.fill('극값이 변곡점이 될 수도 있나요?');
-    await page.getByRole('button', { name: '선생님에게 질문 보내기', exact: true }).click();
-
-    // pending 상태 표시
-    await expect(page.getByText(/교사 검토 중/)).toBeVisible();
-  });
-});
-
-test.describe('교사 리플레이 라우트 + 검수 발송 (F2, B9)', () => {
-  test('/teacher/replay 목록 + 검수 대기 카드 → 상세 진입', async ({ page }) => {
-    await page.goto(BASE + '/teacher/replay', { waitUntil: 'networkidle' });
-
-    await expect(page.getByRole('heading', { name: '수업 리플레이' })).toBeVisible();
-    // rp_005 review status
-    await page.getByRole('link', { name: /평균값 정리/ }).click();
-    await expect(page).toHaveURL(/\/teacher\/replay\/rp_005/);
-    await expect(page.getByText('핵심 메시지 검수')).toBeVisible();
-    await expect(page.getByRole('button', { name: /승인.*학생 발송/ })).toBeVisible();
-  });
 });
 
 test.describe('즉석 퀴즈 store 동기화 (F4, B8)', () => {
-  test('교사 퀴즈 발사 모달 — 입력 검증 + 학생 LiveQuizCard 갱신 잠재성', async ({ page }) => {
+  test('교사 퀴즈 발사 모달 — 입력 검증', async ({ page }) => {
     await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
 
     // 새 퀴즈 모달 열기
@@ -94,20 +64,5 @@ test.describe('위기 학생 상세 모달 (F5, B10)', () => {
     await page.getByRole('button', { name: /도현/ }).click();
     await expect(page.getByRole('dialog', { name: /도현 학생책/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /1:1 채팅 시작/ })).toBeVisible();
-  });
-});
-
-test.describe('학생 chat scope chip + 자동 스위치 안내 (B4)', () => {
-  test('비라이브 봇 chat 헤더에 scope details disclosure', async ({ page }) => {
-    // cb_002는 라이브 비활성 — scope details 표시
-    await page.goto(BASE + '/classbot/chat?bot=cb_002', { waitUntil: 'networkidle' });
-
-    await expect(page.getByText(/지금 봇 범위/)).toBeVisible();
-  });
-
-  test('라이브 봇 chat은 scope details 대신 라이브 정책 배너', async ({ page }) => {
-    await page.goto(BASE + '/classbot/chat?bot=cb_001', { waitUntil: 'networkidle' });
-
-    await expect(page.getByText(/라이브 정책 적용 중/)).toBeVisible();
   });
 });

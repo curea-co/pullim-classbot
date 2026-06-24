@@ -1,47 +1,27 @@
 import { test, expect } from '@playwright/test';
+import { enrollFirstTutor } from './helpers';
 
 /**
- * chat 인삿말 봇 데이터 단일 출처 검증 (2026-05-13 / 2026-05-14 cb_004 / 2026-05-18 cb_005 확장).
+ * 신규 사용자 챗 진입 (출시 빈 상태 기준, 2026-06-24 재작성).
  *
- * - chat/page.tsx에서 `bot.id === ...` 하드코딩 분기 제거됨
- * - 봇 chip 5개(cb_001 친근 / cb_002 정중 / cb_003 스파르타 / cb_004 차분 / cb_005 열정) 전환 시
- *   인삿말이 각 봇의 `greeting` 필드 톤으로 자연스럽게 바뀌어야 함
- * - key={bot.id}로 ChatPanel remount되면서 첫 메시지가 새 봇의 greeting으로 교체됨
+ * 출시 기준 신규 사용자는 등록 튜터가 없다 → 챗은 빈 가드(봇 마켓 유도).
+ * 봇 마켓에서 공식 튜터를 등록하면 챗이 열리고 봇 첫 인사 + 가이드 흐름칩이 노출된다.
  */
-
-test.describe('chat 인삿말 봇별 변화', () => {
-  test('cb_001 친근 → cb_002 정중 → cb_003 스파르타 → cb_004 차분 → cb_005 열정 전환', async ({ page }) => {
+test.describe('신규 사용자 챗 진입', () => {
+  test('등록 전 — 빈 가드(봇 마켓 유도)', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
-    // Suspense fallback("불러오는 중…") 이후 ChatPanel hydration 완료까지 대기.
-    // #65 머지 후 prod 빌드에서 networkidle + 기본 5s 안에 fallback이 사라지지 않는 회귀.
+    await expect(page.getByText('아직 등록한 튜터가 없어요')).toBeVisible();
+    await expect(page.getByRole('link', { name: '봇 마켓 둘러보기' })).toBeVisible();
+  });
+
+  test('등록 후 — 봇 대화 + 가이드 흐름칩', async ({ page }) => {
+    await enrollFirstTutor(page);
+    await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
 
-    // cb_001 (수학이 형, 친근 반말) — 기본 선택
-    await expect(page.getByText(/수학이 형이야/)).toBeVisible();
-
-    // cb_002 영어 누나 클릭 → 정중 존댓말 인삿말
-    await page.getByRole('button', { name: /영어 누나/ }).click();
-    await expect(page.getByText(/영어 누나예요/)).toBeVisible();
-    await expect(page.getByText(/잡아줄 수 있어요/)).toBeVisible();
-
-    // cb_003 과학 쌤 클릭 → 스파르타 단호반말
-    await page.getByRole('button', { name: /과학 쌤/ }).click();
-    await expect(page.getByText(/과학 쌤이다/)).toBeVisible();
-    await expect(page.getByText(/답은 직접 풀어/)).toBeVisible();
-
-    // cb_004 국어 누나 클릭 → 차분 분석적 존댓말
-    await page.getByRole('button', { name: /국어 누나/ }).click();
-    await expect(page.getByText(/국어 누나예요/)).toBeVisible();
-    await expect(page.getByText(/단계별로 같이 풀어드릴게요/)).toBeVisible();
-
-    // cb_005 사회 코치 클릭 → 열정 반말 (에너지·동기부여)
-    await page.getByRole('button', { name: /사회 코치/ }).click();
-    await expect(page.getByText(/사회 코치야/)).toBeVisible();
-    await expect(page.getByText(/가보자/)).toBeVisible();
-
-    // cb_001 수학이 형 다시 클릭 → 친근 반말 복귀
-    await page.getByRole('button', { name: /수학이 형/ }).click();
-    await expect(page.getByText(/수학이 형이야/)).toBeVisible();
-    await expect(page.getByText(/길은 알려줄게/)).toBeVisible();
+    await expect(page.getByText('봇과 대화', { exact: true })).toBeVisible();
+    // 봇 주도 수업 오프너 흐름칩
+    await expect(page.getByRole('button', { name: '개념 더보기' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '퀴즈 내줘' })).toBeVisible();
   });
 });
