@@ -27,3 +27,8 @@ it('setMode overrides the default and toggle flips the resolved mode', () => {
   act(() => result.current.setMode('class')); rerender();
   expect(result.current.mode).toBe('class');
 });
+
+it('reports hydrated=true after mount (persist 분기 게이팅용)', () => {
+  const { result } = renderHook(() => useStudentMode());
+  expect(result.current.hydrated).toBe(true);
+});

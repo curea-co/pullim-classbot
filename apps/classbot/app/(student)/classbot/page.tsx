@@ -27,13 +27,17 @@ import {
  */
 export default function StudentClassbotPage() {
   // ── hooks (ALL unconditional — Rules of Hooks) ──────────────────────────────
-  const { mode } = useStudentMode();                      // hook 1 — must be first
+  const { mode, hydrated } = useStudentMode();            // hook 1 — must be first
   const me = useRosterMe();                               // hook 2
   const activeLive = useLiveStore(s => s.active);         // hook 3
   const allAssignments = useMergedAssignments(me.id);     // hook 4
   const submissions = useAssignmentStore(s => s.submissions); // hook 5
   const myBots = useMyClassBots();                        // hook 6 — 참여 코드로 join된 교사 클래스 (reactive)
   const leaveClass = useClassEnrollmentStore(s => s.leave); // hook 7
+
+  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 분기를 신뢰할 수 없다.
+  // hydration 완료 전까지 스켈레톤을 그려 SSR·첫 페인트 불일치와 모드 전환 플래시를 막는다.
+  if (!hydrated) return <HomeSkeleton />;
 
   // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
   if (mode === 'class' && myBots.length === 0) return <TeacherClassHome />;
@@ -103,6 +107,20 @@ export default function StudentClassbotPage() {
             </li>
           ))}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+/** persist hydration 전 플레이스홀더 — 모드 분기 확정 전 레이아웃 유지(플래시 방지). */
+function HomeSkeleton() {
+  return (
+    <div className="space-y-5" aria-hidden="true">
+      <div className="h-40 animate-pulse rounded-2xl bg-pullim-slate-100" />
+      <div className="h-24 animate-pulse rounded-2xl bg-pullim-slate-100" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="h-32 animate-pulse rounded-2xl bg-pullim-slate-100" />
+        <div className="h-32 animate-pulse rounded-2xl bg-pullim-slate-100" />
       </div>
     </div>
   );

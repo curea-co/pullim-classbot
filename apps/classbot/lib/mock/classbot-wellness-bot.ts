@@ -4,7 +4,6 @@
  */
 
 import { getWellbeingTrend, type EmotionMood, type ClassBot } from './classbot';
-import { getEnrolledClassBots } from '@/lib/store/class-enrollment';
 
 export type WellnessBotComment = {
   bot: ClassBot;
@@ -91,9 +90,10 @@ export function getWellnessBotComment(studentId: string, bots?: ClassBot[]): Wel
 
   // 추출본 mock — 단일 학생(서연) 가정, studentId는 v2 대비 인자 보존
   void studentId;
-  // 봇 소스 = enrollment 권위(class-enrollment 스토어). 홈은 reactive bots를 주입하고,
-  // 그 외 호출부(웰빙 페이지·게이지 등)는 store 스냅샷으로 폴백 → 모든 화면이 join/나가기를 동일하게 반영.
-  const myBots = bots ?? getEnrolledClassBots().map(b => b.bot);
+  // 봇 소스는 enrollment 권위(class-enrollment 스토어)이며, 반드시 호출부에서 주입한다.
+  // 클라이언트 호출부(홈·게이지)는 `useMyClassBots()` 구독값을 넘겨 join/나가기에 reactive하게 반응한다.
+  // 미주입(서버 컴포넌트 등) 시엔 enrollment를 알 수 없으므로 봇 코멘트를 생성하지 않는다([]).
+  const myBots = bots ?? [];
   // 시연용 봇별 subject로 매칭 — 없으면 첫 봇 fallback
   const bot =
     myBots.find(b => {
