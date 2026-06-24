@@ -1,25 +1,16 @@
 'use client';
 
-import { useState } from 'react';
 import { GraduationCap, ClipboardList, Video, MessageCircle, KeyRound } from 'lucide-react';
-import { toast } from 'sonner';
 
 /**
  * 교사수업 모드 신규 사용자 hero — "선생님이 이끄는 구조화된 수업".
- * 참여 코드 입력 + 배정 대기 안내.
+ *
+ * 권위 문서(`05_풀림_수업방_세부기획.md` Step 6)의 학생 초대 채널은 코드·링크·QR 세 가지다.
+ * 실제 참여(코드→enrollment) 플로우는 아직 미구현이라, 여기서는 가짜 성공/실패 대신
+ * 셸의 `준비 중`(aria-disabled) 컨벤션을 따라 비활성 상태로 노출한다.
+ * 실제 join 구현은 온보딩/enrollment PR 범위.
  */
 export function TeacherClassHero({ name }: { name?: string }) {
-  const [code, setCode] = useState('');
-
-  const handleJoin = () => {
-    if (!code.trim()) {
-      toast.error('참여 코드를 입력해 주세요.');
-      return;
-    }
-    toast.info('입력한 코드로 연결할 수 있는 클래스를 찾지 못했어요. 선생님께 받은 참여 코드를 다시 확인해 주세요.');
-    setCode('');
-  };
-
   return (
     <section className="relative overflow-hidden rounded-2xl bg-pullim-slate-900 p-5 text-white shadow-pullim-sm">
       <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
@@ -47,28 +38,25 @@ export function TeacherClassHero({ name }: { name?: string }) {
         </li>
       </ul>
 
-      {/* 참여 코드 입력 */}
-      <div className="mt-4 flex items-center gap-2">
+      {/* 참여(코드·링크·QR) — 준비 중 (실제 join 플로우는 온보딩 PR) */}
+      <div className="mt-4 flex items-center gap-2" aria-disabled="true">
         <div className="relative flex-1">
-          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pullim-slate-500" />
+          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pullim-slate-600" />
           <input
             type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            placeholder="참여 코드 입력 (예: ABC-1234)"
-            maxLength={8}
-            className="w-full rounded-xl border border-pullim-slate-700 bg-pullim-slate-800 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-pullim-slate-500 focus:border-pullim-slate-500 focus:outline-none focus:ring-2 focus:ring-pullim-slate-500/30"
+            disabled
+            placeholder="참여 코드 입력 (준비 중)"
+            aria-label="참여 코드 입력 (준비 중)"
+            className="w-full cursor-not-allowed rounded-xl border border-pullim-slate-700 bg-pullim-slate-800/60 py-2.5 pl-9 pr-3 text-sm text-pullim-slate-400 placeholder:text-pullim-slate-500"
           />
         </div>
-        <button
-          type="button"
-          onClick={handleJoin}
-          className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-pullim-slate-900 transition-colors hover:bg-pullim-slate-100"
-        >
-          참여하기
-        </button>
+        <span className="shrink-0 rounded-xl bg-pullim-slate-700 px-4 py-2.5 text-sm font-bold text-pullim-slate-400">
+          준비 중
+        </span>
       </div>
+      <p className="mt-2 text-xs text-pullim-slate-500">
+        코드·링크·QR로 선생님 클래스에 참여하는 기능을 준비하고 있어요.
+      </p>
     </section>
   );
 }
