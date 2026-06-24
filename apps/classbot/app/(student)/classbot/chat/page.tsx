@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye, Sparkles, Check, Compass } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  scopeMeta,
   pickClassbotReply, type ReplyKey,
   type QuickReplyKey, type LessonFlowKey,
   getMyBots, type ClassBot,
@@ -25,14 +24,12 @@ import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
-import { LiveCompactBar, LiveHeaderMeta } from '@/components/classbot/live-overlay';
+import { LiveCompactBar } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
 import { LiveBadge } from '@/components/classbot/live-badge';
 import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
-import { ChatStudyRail } from '@/components/classbot/chat-study-rail';
 import { ChatStudyInline } from '@/components/classbot/chat-study-inline';
 import { EmptyState } from '@/components/classbot/empty-state';
-import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
 /**
@@ -175,7 +172,6 @@ const STICKY_THRESHOLD = 80;
 const TEXTAREA_MAX_PX = 96;
 
 function ChatPanel({ bot }: { bot: ClassBot }) {
-  const scope = scopeMeta[bot.scope];
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
@@ -319,60 +315,10 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
 
   const isSendDisabled = pending || !value.trim();
 
-  // ── 데스크톱 좌측 프로필 레일: 봇 정체성 + 범위/라이브 전체 정보 ──────────────
-  const railNode = useMemo(() => (
-    <BotIdentityCard
-      bot={bot}
-      density="comfortable"
-      headingLevel="h2"
-      showSignatureLiner
-      trailing={isLive ? <LiveBadge variant="pill" /> : undefined}
-    >
-      {/* watched-by-teacher — always visible */}
-      <div className="bg-white/10 mt-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-2xs backdrop-blur">
-        <Eye className="text-pullim-lemon h-3 w-3" />
-        <span className="text-white/90"><strong className="text-pullim-lemon">{bot.teacherName}</strong>이 이 대화를 실시간으로 볼 수 있어요. 시험 기간엔 자동 차단.</span>
-      </div>
-      {isLive ? (
-        /* live lock banner — rail only */
-        <div className="bg-pullim-lemon/15 border-pullim-lemon/40 mt-2 rounded-lg border px-3 py-1.5 text-2xs">
-          <span className="text-pullim-lemon font-bold">🔒 라이브 정책 적용 중</span>
-          <span className="text-white/80 ml-1">— {scope.label} <span className="font-mono text-micro text-white/55">({scope.short})</span>으로 자동 잠금. 종료 후 평시 정책 복귀.</span>
-        </div>
-      ) : (
-        /* scope schedule — rail only */
-        <details className="bg-pullim-blue-700/30 mt-2 rounded-lg px-3 py-1.5 text-2xs backdrop-blur">
-          <summary className="cursor-pointer list-none flex items-center gap-1.5">
-            <span className="bg-pullim-lemon text-pullim-lemon-ink rounded-full px-1.5 py-0.5 text-micro font-bold">{scope.label}</span>
-            <span className="text-white/90 font-semibold">지금 봇 범위 — {scope.allow}</span>
-            <span className="text-white/60 ml-auto text-micro">시간대별 자동 변동 ↗</span>
-          </summary>
-          <div className="text-white/80 mt-2 space-y-0.5 leading-relaxed">
-            <p>· 18:00~19:00 · 단계 힌트까지 <span className="font-mono text-micro text-white/55">(L4)</span></p>
-            <p>· 19:00~22:00 · 개념까지 <span className="font-mono text-micro text-white/55">(L3)</span> ← 현재 학원 시간</p>
-            <p>· 22:00 이후 · 답까지 <span className="font-mono text-micro text-white/55">(L5)</span> 자기학습</p>
-          </div>
-        </details>
-      )}
-      {isLive && <LiveHeaderMeta bot={bot} />}
-    </BotIdentityCard>
-  ), [bot, isLive, scope]);
-
-  // ── 데스크톱 우측 레일 (2단 레이아웃): 봇 프로필 + 퀴즈 + 학습 가이드 ──────────
-  // 기존 좌측 프로필 레일을 우측으로 합쳐 2단으로 만든다. 챗이 좌측 전체 폭을 차지.
-  const rightRail = useMemo(() => (
-    <div className="space-y-4 p-3">
-      {railNode}
-      <ChatStudyRail bot={bot} />
-    </div>
-  ), [railNode, bot]);
-  useSetRightRail(rightRail);
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/*
-        모바일 전용 봇 메타 헤더 (lg 이상에서 숨김 — 데스크톱은 우측 레일 사용).
-        identity ONLY — scope/watched/live 는 레일에만 있어 Playwright strict mode 통과.
+        봇 메타 헤더 (lg 이상에서 숨김).
         data-slot/data-collapsed 은 BotIdentityCard 가 data-* props 를 포워드하지 않으므로
         wrapper <div> 에 직접 배치.
       */}
