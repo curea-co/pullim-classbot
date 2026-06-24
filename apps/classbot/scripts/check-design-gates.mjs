@@ -16,7 +16,10 @@ const breakAll = grep('word-break:\\\\s*break-all', 'app components lib');
 if (breakAll.length) failures.push(['word-break: break-all is banned (use overflow-wrap: anywhere on the parent)', breakAll]);
 
 // Gate 2: no hardcoded 6-digit hex inside components/ (token files live in lib/tokens, exempt).
-const hex = grep('#[0-9A-Fa-f]{6}', 'components');
+// SVG presentation attributes (fill="…", stroke="…") in icon components are also exempt —
+// frozen brand pixel-art colours cannot use CSS var() in SVG attribute syntax.
+const hex = grep('#[0-9A-Fa-f]{6}', 'components')
+  .filter(l => !/fill="#[0-9A-Fa-f]{6}"/i.test(l) && !/stroke="#[0-9A-Fa-f]{6}"/i.test(l));
 if (hex.length) failures.push(['hardcoded hex in components/ — use var(--*) tokens', hex]);
 
 if (failures.length) {

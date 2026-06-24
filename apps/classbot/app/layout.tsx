@@ -72,6 +72,7 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
+      data-theme="pullim-os"
       className={`${pretendard.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
