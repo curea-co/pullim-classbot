@@ -48,7 +48,8 @@ export default function StudentClassbotPage() {
       return order(a.dDay) - order(b.dDay);
     });
 
-  const wellnessComment = getWellnessBotComment(me.id);
+  // 웰빙 코멘트도 홈과 같은 데이터 소스(useMyClassBots)를 쓰도록 봇 주입 — join 반영 일관성
+  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
 
   // suppress unused var lint — submissions hook is retained for hook ordering
   void submissions;
@@ -74,15 +75,29 @@ export default function StudentClassbotPage() {
       {/* 4. WellnessNudge — optional */}
       {wellnessComment && <WellnessNudge comment={wellnessComment} />}
 
-      {/* 5. 클래스 나가기 — 참여 상태 초기화 (데모 반복용) */}
-      <div className="pt-2 text-center">
-        <button
-          type="button"
-          onClick={() => myBots.forEach(b => leaveClass(b.bot.id))}
-          className="min-h-11 rounded px-3 text-xs font-medium text-pullim-slate-400 underline-offset-2 hover:text-pullim-slate-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
-        >
-          클래스 나가기
-        </button>
+      {/* 5. 참여 중인 클래스 — 반 단위 나가기 (전체 일괄 삭제 금지) */}
+      <div className="space-y-1.5 pt-2">
+        <p className="px-1 text-xs font-semibold text-pullim-slate-400">참여 중인 클래스</p>
+        <ul className="space-y-1.5">
+          {myBots.map(({ bot, enrollment }) => (
+            <li
+              key={bot.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-pullim-slate-200 bg-white px-3 py-2"
+            >
+              <span className="min-w-0 truncate text-sm text-pullim-slate-700">
+                {enrollment.classroomLabel} · {enrollment.assignedBy}
+              </span>
+              <button
+                type="button"
+                onClick={() => leaveClass(bot.id)}
+                aria-label={`${enrollment.classroomLabel} 나가기`}
+                className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-medium text-pullim-slate-400 underline-offset-2 hover:text-pullim-slate-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
+              >
+                나가기
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

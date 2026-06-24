@@ -70,7 +70,7 @@ const LOW_MOOD_TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
  * 학생의 오늘 웰빙 snapshot에서 가장 낮은 5지표 영역의 담당 봇 코멘트를 생성.
  * 분해 데이터가 없으면 null.
  */
-export function getWellnessBotComment(studentId: string): WellnessBotComment | null {
+export function getWellnessBotComment(studentId: string, bots?: ClassBot[]): WellnessBotComment | null {
   const trend = getWellbeingTrend(studentId);
   if (trend.length === 0) return null;
   const today = trend[trend.length - 1];
@@ -90,7 +90,9 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
 
   // 추출본 mock — 단일 학생(서연) 가정, studentId는 v2 대비 인자 보존
   void studentId;
-  const myBots = getMyBots().map(b => b.bot);
+  // bots는 호출부(reactive useMyClassBots)에서 주입 — 미전달 시 정적 getMyBots()로 폴백.
+  // 참여 코드 join 으로 생긴 enrollment가 웰빙 카드에도 반영되도록 단일 데이터 소스 유지.
+  const myBots = bots ?? getMyBots().map(b => b.bot);
   // 시연용 봇별 subject로 매칭 — 없으면 첫 봇 fallback
   const bot =
     myBots.find(b => {
