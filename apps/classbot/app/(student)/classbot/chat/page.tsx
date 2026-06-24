@@ -559,8 +559,9 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
       payload: {
         problemNumber: pq.problemNumber,
         title: pq.title,
-        ctaLabel: '풀러 가기',
-        ctaHref: `/classbot/assignment/as_prescription/solve?bot=${botId}`,
+        // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
+        ctaLabel: '학습하러 가기',
+        ctaHref: `/classbot/learn/${botId}`,
       } satisfies ProblemCardPayload,
     };
   }
