@@ -51,15 +51,9 @@ function genQid() {
 export const useLiveStore = create<LiveStore>()(
   persist(
     (set, get) => ({
-      // 초기 seed — cb_001 라이브 운영 중 (기존 mock과 호환)
-      active: {
-        cb_001: {
-          botId: 'cb_001',
-          startedAt: new Date(Date.now() - 5 * 60_000).toISOString(), // 5분 전 시작
-          currentSlide: 12,
-          pendingQuestions: [],
-        },
-      },
+      // 출시: 데모 라이브 시드 제거 — 신규 사용자는 진행 중 라이브 없음.
+      // 교사가 실제로 라이브를 시작(start)하면 채워진다.
+      active: {},
       start: botId => {
         set(state => ({
           active: {

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enrollFirstTutor } from './helpers';
 
 /**
  * chat scroll(sticky-to-bottom) + input(multiline textarea + 전송 가드) 회귀.
@@ -14,6 +15,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('chat scroll sticky-to-bottom', () => {
   test('위로 스크롤 → 새 메시지 도착 시 배너 노출 + scrollTop 보존', async ({ page }) => {
+    await enrollFirstTutor(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     const textarea = page.getByPlaceholder(/에게 물어보세요/);
@@ -56,6 +58,7 @@ test.describe('chat scroll sticky-to-bottom', () => {
   });
 
   test('배너 클릭 → 최하단 복귀 + 배너 사라짐', async ({ page }) => {
+    await enrollFirstTutor(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     const textarea = page.getByPlaceholder(/에게 물어보세요/);
@@ -95,6 +98,7 @@ test.describe('chat scroll sticky-to-bottom', () => {
 
 test.describe('chat textarea multiline input', () => {
   test('Enter 단독 → 전송 / Shift+Enter → 줄바꿈', async ({ page }) => {
+    await enrollFirstTutor(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     const textarea = page.getByPlaceholder(/에게 물어보세요/);
@@ -123,6 +127,7 @@ test.describe('chat textarea multiline input', () => {
   });
 
   test('빈 입력 / whitespace-only → 전송 버튼 disabled', async ({ page }) => {
+    await enrollFirstTutor(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
 
     const sendBtn = page.getByRole('button', { name: '질문 보내기', exact: true });

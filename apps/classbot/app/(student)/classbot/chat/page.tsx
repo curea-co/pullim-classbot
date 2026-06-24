@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye, Sparkles, Check } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Eye, Sparkles, Check, Compass } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   scopeMeta,
@@ -31,6 +31,7 @@ import { LiveBadge } from '@/components/classbot/live-badge';
 import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
 import { ChatStudyRail } from '@/components/classbot/chat-study-rail';
 import { ChatStudyInline } from '@/components/classbot/chat-study-inline';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { useSetRightRail } from '@/components/shell/right-rail-context';
 import { cn } from '@/lib/utils';
 
@@ -110,6 +111,20 @@ function ClassbotChatPageInner() {
     setSelectedBotId(nextId);
     // URL 동기화 — 다른 탭에서 라이브 알림이 와도 정확한 봇이 보이도록
     router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
+  }
+
+  // 등록한 튜터가 없으면(신규 사용자) 대화할 봇이 없음 → 봇 마켓 유도 (크래시 방지)
+  if (!bot) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <EmptyState
+          icon={Compass}
+          title="아직 등록한 튜터가 없어요"
+          description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
+          action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+        />
+      </div>
+    );
   }
 
   return (

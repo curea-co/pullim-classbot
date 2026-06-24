@@ -32,11 +32,12 @@ export default function StudentClassbotPage() {
   const allAssignments = useMergedAssignments(me.id);     // hook 4
   const submissions = useAssignmentStore(s => s.submissions); // hook 5
 
-  // ── self mode: all hooks have run; now branch on render ────────────────────
-  if (mode === 'self') return <SelfHomePlaceholder />;
-
   // ── derived data ───────────────────────────────────────────────────────────
   const myBots = getMyBots();
+
+  // self mode, 또는 교사 배정 봇이 없는 신규 사용자 → 환영/온보딩 홈
+  // (all hooks have run above; safe to branch on render)
+  if (mode === 'self' || myBots.length === 0) return <SelfHomePlaceholder />;
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
   // Incomplete assignments — sorted urgent first
