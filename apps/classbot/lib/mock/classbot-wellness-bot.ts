@@ -121,10 +121,11 @@ export function getWellnessBotComment(studentId: string, bots?: ClassBot[]): Wel
 
 /**
  * 체크인 직후 봇 반응 ([13 § 3.3.4]) — 학생 입력한 mood에 따라 봇 한 줄 + actionable CTA.
+ * `bots`는 호출부(클라이언트 체크인 폼)가 `useMyClassBots()` 구독값을 주입한다 — enrollment 반영.
  */
-export function getCheckInReaction(studentId: string, mood: EmotionMood | null): WellnessBotComment | null {
+export function getCheckInReaction(studentId: string, mood: EmotionMood | null, bots?: ClassBot[]): WellnessBotComment | null {
   // 가장 낮은 영역 기반 봇 매칭은 동일 — 체크인 mood에 따라 텍스트만 조정
-  const base = getWellnessBotComment(studentId);
+  const base = getWellnessBotComment(studentId, bots);
   if (!base) return null;
 
   // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어/국어 누나는 존대, 나머지 반말)
