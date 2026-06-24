@@ -16,7 +16,7 @@ export function TeacherClassHero({ name }: { name?: string }) {
       toast.error('참여 코드를 입력해 주세요.');
       return;
     }
-    toast.info('선생님이 아직 클래스를 개설하지 않았어요. 코드를 다시 확인해 주세요.');
+    toast.info('입력한 코드로 연결할 수 있는 클래스를 찾지 못했어요. 선생님께 받은 참여 코드를 다시 확인해 주세요.');
     setCode('');
   };
 
