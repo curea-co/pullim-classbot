@@ -180,49 +180,12 @@ export const classBots: ClassBot[] = [
   },
 ];
 
-/** 서연 학생의 enrollment — 5봇 모두 등록 (각각 다른 경로로 배정됨) */
-export const studentEnrollments: StudentEnrollment[] = [
-  {
-    botId: 'cb_001',
-    classroomId: 'cr_math_a',
-    classroomLabel: '고2 미적분 A반',
-    assignedBy: '김수학 선생님',
-    assignedAt: '2026-03-04 17:20',
-    via: '대치프리미엄 수학학원',
-  },
-  {
-    botId: 'cb_002',
-    classroomId: 'cr_eng_b',
-    classroomLabel: '고2 영어독해 B반',
-    assignedBy: '박영어 선생님',
-    assignedAt: '2026-03-04 17:22',
-    via: '대치프리미엄 수학학원',
-  },
-  {
-    botId: 'cb_003',
-    classroomId: 'cr_sci_2024',
-    classroomLabel: '1학년 6반 통합과학',
-    assignedBy: '정과학 선생님',
-    assignedAt: '2025-03-02 09:00',
-    via: '서울 모 고등학교',
-  },
-  {
-    botId: 'cb_004',
-    classroomId: 'cr_kor_a',
-    classroomLabel: '고2 비문학독해 A반',
-    assignedBy: '최국어 선생님',
-    assignedAt: '2026-04-08 17:30',
-    via: '대치프리미엄 수학학원',
-  },
-  {
-    botId: 'cb_005',
-    classroomId: 'cr_soc_a',
-    classroomLabel: '고2 사회 A반',
-    assignedBy: '강사회 선생님',
-    assignedAt: '2026-05-12 09:00',
-    via: '대치프리미엄 수학학원',
-  },
-];
+/**
+ * 학생 enrollment — 출시(shipping) 기준 **신규 사용자는 빈 상태**.
+ * 교사 배정(교사수업 모드)은 BE 연동 후 실제 배정으로 채워진다. 데모 시드는 제거됨.
+ * 빈 배열이면 useStudentMode 가 자동으로 'self'(자기주도) 모드로 해석 → 환영/온보딩 홈.
+ */
+export const studentEnrollments: StudentEnrollment[] = [];
 
 /**
  * 봇별 단원 트리 — 과제 생성 시 단원 드롭다운 선택지.
