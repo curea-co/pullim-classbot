@@ -1,16 +1,35 @@
 'use client';
 
+import { useState } from 'react';
 import { GraduationCap, ClipboardList, Video, MessageCircle, KeyRound } from 'lucide-react';
+import { toast } from 'sonner';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 
 /**
  * 교사수업 모드 신규 사용자 hero — "선생님이 이끄는 구조화된 수업".
  *
- * 권위 문서(`05_풀림_수업방_세부기획.md` Step 6)의 학생 초대 채널은 코드·링크·QR 세 가지다.
- * 실제 참여(코드→enrollment) 플로우는 아직 미구현이라, 여기서는 가짜 성공/실패 대신
- * 셸의 `준비 중`(aria-disabled) 컨벤션을 따라 비활성 상태로 노출한다.
- * 실제 join 구현은 온보딩/enrollment PR 범위.
+ * 참여 코드 입력 → `useClassEnrollmentStore.join()` (mock). 유효 코드면 enrollment가 생겨
+ * 홈이 일반 교사수업 홈으로 전환된다(상위 page가 reactive). 알 수 없는 코드는 에러 토스트.
+ * 권위 문서(`05_수업방` Step 6) 초대 채널은 코드·링크·QR — 현재 데모는 코드만 동작.
  */
 export function TeacherClassHero({ name }: { name?: string }) {
+  const [code, setCode] = useState('');
+  const join = useClassEnrollmentStore((s) => s.join);
+
+  const handleJoin = () => {
+    if (!code.trim()) {
+      toast.error('참여 코드를 입력해 주세요.');
+      return;
+    }
+    const res = join(code);
+    if (res.ok) {
+      toast.success(`${res.enrollment.assignedBy}의 ${res.enrollment.classroomLabel}에 참여했어요!`);
+      setCode('');
+    } else {
+      toast.error(res.error);
+    }
+  };
+
   return (
     <section className="relative overflow-hidden rounded-2xl bg-pullim-slate-900 p-5 text-white shadow-pullim-sm">
       <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
@@ -38,24 +57,31 @@ export function TeacherClassHero({ name }: { name?: string }) {
         </li>
       </ul>
 
-      {/* 참여(코드·링크·QR) — 준비 중 (실제 join 플로우는 온보딩 PR) */}
-      <div className="mt-4 flex items-center gap-2" aria-disabled="true">
+      {/* 참여 코드 입력 — 유효 코드: MATH-2024 / ENG-2024 / SCI-2024 (데모) */}
+      <div className="mt-4 flex items-center gap-2">
         <div className="relative flex-1">
-          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pullim-slate-600" />
+          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pullim-slate-500" />
           <input
             type="text"
-            disabled
-            placeholder="참여 코드 입력 (준비 중)"
-            aria-label="참여 코드 입력 (준비 중)"
-            className="w-full cursor-not-allowed rounded-xl border border-pullim-slate-700 bg-pullim-slate-800/60 py-2.5 pl-9 pr-3 text-sm text-pullim-slate-400 placeholder:text-pullim-slate-500"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+            placeholder="참여 코드 입력 (예: MATH-2024)"
+            aria-label="참여 코드 입력"
+            maxLength={12}
+            className="w-full rounded-xl border border-pullim-slate-700 bg-pullim-slate-800 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-pullim-slate-500 focus:border-pullim-slate-500 focus:outline-none focus:ring-2 focus:ring-pullim-slate-500/30"
           />
         </div>
-        <span className="shrink-0 rounded-xl bg-pullim-slate-700 px-4 py-2.5 text-sm font-bold text-pullim-slate-400">
-          준비 중
-        </span>
+        <button
+          type="button"
+          onClick={handleJoin}
+          className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-pullim-slate-900 transition-colors hover:bg-pullim-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+        >
+          참여하기
+        </button>
       </div>
       <p className="mt-2 text-xs text-pullim-slate-500">
-        코드·링크·QR로 선생님 클래스에 참여하는 기능을 준비하고 있어요.
+        선생님께 받은 참여 코드를 입력하면 클래스에 연결돼요.
       </p>
     </section>
   );

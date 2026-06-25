@@ -3,13 +3,15 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
   type QuickReplyKey, type LessonFlowKey,
-  getMyBots, type ClassBot,
+  type ClassBot,
 } from '@/lib/mock';
+import { useModeBots } from '@/lib/store/mode-bots';
+import { useStudentMode } from '@/lib/store/student-mode';
 import {
   getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
@@ -22,7 +24,6 @@ import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveCompactBar } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
@@ -90,19 +91,29 @@ function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
-  const enrolledTutors = useEnrolledTutors();
-  const myBots = useMemo(() => [...getMyBots().map(b => b.bot), ...enrolledTutors], [enrolledTutors]);
+  // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
+  const { mode, hydrated } = useStudentMode();
+  const myBots = useModeBots();
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
   const activeLive = useLiveStore(s => s.active);
 
-  // ?bot= 쿼리와 selectedBotId 동기화 — 외부 링크가 봇 지정 시 반영
+  // selectedBotId / ?bot= 정규화
   useEffect(() => {
+    // 1) 외부 링크가 유효한 봇을 지정 → 반영
     if (botParam && botParam !== selectedBotId && myBots.some(b => b.id === botParam)) {
       setSelectedBotId(botParam);
+      return;
     }
-  }, [botParam, myBots, selectedBotId]);
+    // 2) 모드 전환·나가기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
+    //    (보이는 봇 = myBots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
+    if (myBots.length > 0 && !myBots.some(b => b.id === selectedBotId)) {
+      const next = myBots[0].id;
+      setSelectedBotId(next);
+      if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
+    }
+  }, [botParam, myBots, selectedBotId, router]);
 
   function handleBotChange(nextId: string) {
     setSelectedBotId(nextId);
@@ -110,16 +121,34 @@ function ClassbotChatPageInner() {
     router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
   }
 
-  // 등록한 튜터가 없으면(신규 사용자) 대화할 봇이 없음 → 봇 마켓 유도 (크래시 방지)
+  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  if (!hydrated) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
+      </div>
+    );
+  }
+
+  // 대화할 봇이 없을 때 — 모드별로 다른 빈 상태 (spec: self 전용 surface를 class 모드에 노출 금지)
   if (!bot) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
-        <EmptyState
-          icon={Compass}
-          title="아직 등록한 튜터가 없어요"
-          description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-          action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
-        />
+        {mode === 'class' ? (
+          <EmptyState
+            icon={GraduationCap}
+            title="아직 참여한 클래스가 없어요"
+            description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
+            action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+          />
+        ) : (
+          <EmptyState
+            icon={Compass}
+            title="아직 등록한 튜터가 없어요"
+            description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
+            action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+          />
+        )}
       </div>
     );
   }
