@@ -87,7 +87,7 @@ export function ReplayRecap({
                     )}
                     <ActionButton onClick={() => onSeek(w.atSec)} icon={Play} label="다시 보기" />
                     <Link
-                      href={`/classbot/chat?bot=${replay.botId}`}
+                      href={`/classbot/chat?bot=${replay.botId}&ask=${encodeURIComponent(`${w.label} 다시 설명해 줄래?`)}`}
                       className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-pullim-slate-50 px-3 text-xs font-bold text-pullim-slate-600 hover:bg-pullim-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> 질문

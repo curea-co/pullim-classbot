@@ -91,6 +91,7 @@ function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
+  const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
   // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
   const { mode, hydrated } = useStudentMode();
   const myBots = useModeBots();
@@ -192,7 +193,7 @@ function ClassbotChatPageInner() {
       )}
 
       {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
-      <ChatPanel key={bot.id} bot={bot} />
+      <ChatPanel key={bot.id} bot={bot} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
     </div>
   );
 }
@@ -200,7 +201,7 @@ function ClassbotChatPageInner() {
 const STICKY_THRESHOLD = 80;
 const TEXTAREA_MAX_PX = 96;
 
-function ChatPanel({ bot }: { bot: ClassBot }) {
+function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) {
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
@@ -229,7 +230,7 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     ];
   });
   const [pending, setPending] = useState(false);
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialAsk ?? '');
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용

@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ReplayRecap } from '../replay-recap';
-import { getSentReplays } from '@/lib/mock';
+import { demoReplays } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
 
-const mathReplay = getSentReplays().find(r => r.id === 'rp_demo_math')!;
+const mathReplay = demoReplays.find(r => r.id === 'rp_demo_math')!;
 
 beforeEach(() => useReplayStore.setState({ resolvedWeakPoints: {} }));
 
