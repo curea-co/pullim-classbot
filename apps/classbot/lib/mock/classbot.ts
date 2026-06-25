@@ -587,7 +587,7 @@ export type Replay = {
 
 export const studentReplays: Replay[] = []; // 출시: 데모 리플레이 시드 제거(신규 빈 상태)
 
-/** 학생이 보는 것 — 발송 승인된 리플레이만 */
+/** 학생이 보는 것 — 발송 승인된 리플레이만. (출시 빈 시드 → 빈 목록. 데모는 detail 경로에서만 노출) */
 export function getSentReplays(): Replay[] {
   return studentReplays.filter(r => r.status === 'sent');
 }
