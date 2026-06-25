@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getSentReplays } from '@/lib/mock';
-import { ReplayPlayer } from '@/components/classbot/replay-player';
+import { ReplayDetail } from '@/components/classbot/replay-detail';
 
 type Params = { id: string };
 
@@ -14,5 +14,5 @@ export default async function ClassbotReplayDetailPage({ params }: { params: Pro
   const replay = getSentReplays().find(r => r.id === id);
   if (!replay) notFound();
 
-  return <ReplayPlayer replay={replay} />;
+  return <ReplayDetail replay={replay} />;
 }
