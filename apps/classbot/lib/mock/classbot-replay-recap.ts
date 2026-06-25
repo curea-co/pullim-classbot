@@ -26,9 +26,11 @@ export function getReplayWeakPoints(replay: Replay): WeakPoint[] {
     }
   }
 
-  // 2) 집중 저하 1분 빈 → 가장 가까운 concept/attention 세그먼트로 매핑
+  // 2) 집중 저하 1분 빈 → 학생이 재접근 가능한 가장 가까운 세그먼트로 매핑.
+  //    권위 07 §4.6: 학생은 "본인이 응답한 구간"만 재접근 가능 → ownedByMe 세그먼트로만 anchor.
+  //    (비-owned 교사/봇 구간으로 점프 링크를 만들지 않는다)
   const anchors: ReplaySegment[] = replay.segments.filter(
-    s => s.type === 'concept' || s.type === 'attention',
+    s => Boolean(s.ownedByMe) && (s.type === 'concept' || s.type === 'attention'),
   );
   replay.focusBins.forEach((focus, min) => {
     if (focus >= FOCUS_THRESHOLD || anchors.length === 0) return;

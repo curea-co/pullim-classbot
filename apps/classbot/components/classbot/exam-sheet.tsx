@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type ExamQuestion } from '@/lib/mock/classbot-replay-exam';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +23,13 @@ export function ExamSheet({
   const [selected, setSelected] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
 
+  // 문항이 바뀌면(다음 약점으로 교체) 선택·채점 상태를 초기화 — 이전 문항 오염 방지.
+  // getReplayQuiz는 키별 동일 ref를 반환하므로 question 참조 비교로 안전.
+  useEffect(() => {
+    setSelected(null);
+    setChecked(false);
+  }, [question]);
+
   function handleSubmit() {
     if (selected === null || checked) return;
     setChecked(true);
@@ -34,7 +41,7 @@ export function ExamSheet({
       {/* 헤더 */}
       <div className="flex items-center justify-between border-b border-pullim-slate-200 bg-pullim-slate-50 px-4 py-2 font-sans">
         <span className="text-xs font-bold tracking-wide text-pullim-slate-500">다시 풀기</span>
-        <span className="text-xs text-pullim-slate-400">{question.subjectLabel}</span>
+        <span className="text-xs text-pullim-slate-500">{question.subjectLabel}</span>
       </div>
 
       <div className="p-4">
@@ -55,7 +62,7 @@ export function ExamSheet({
         {/* 〈보기〉 (수학/과학) */}
         {question.boxed && (
           <div className="mb-4 space-y-1 rounded-lg border border-pullim-slate-300 bg-pullim-slate-50 px-4 py-3 text-center">
-            <div className="mb-1 text-2xs font-bold tracking-wider text-pullim-slate-400 font-sans">〈보기〉</div>
+            <div className="mb-1 text-2xs font-bold tracking-wider text-pullim-slate-500 font-sans">〈보기〉</div>
             {question.boxed.lines.map((line, i) => (
               <p key={i} className="text-sm text-pullim-slate-800">{line}</p>
             ))}
