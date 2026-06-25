@@ -231,6 +231,10 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   });
   const [pending, setPending] = useState(false);
   const [value, setValue] = useState(initialAsk ?? '');
+  // 같은 봇에서 ask query만 바뀌는 soft nav(App Router)에서도 prefill 갱신 — 회고 '질문' 문맥 보존.
+  useEffect(() => {
+    if (initialAsk) setValue(initialAsk);
+  }, [initialAsk]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용

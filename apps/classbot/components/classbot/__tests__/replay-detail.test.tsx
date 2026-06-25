@@ -2,10 +2,21 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ReplayDetail } from '../replay-detail';
 import { demoReplays } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
+import { useStudentModeStore } from '@/lib/store/student-mode';
 
 const mathReplay = demoReplays.find(r => r.id === 'rp_demo_math')!;
 
-beforeEach(() => useReplayStore.setState({ resolvedWeakPoints: {} }));
+beforeEach(() => {
+  useReplayStore.setState({ resolvedWeakPoints: {} });
+  useStudentModeStore.setState({ mode: 'class' }); // 리플레이는 class 모드 콘텐츠
+});
+
+it('shows a class-mode gate (no recap) when in self mode', () => {
+  useStudentModeStore.setState({ mode: 'self' });
+  render(<ReplayDetail replay={mathReplay} />);
+  expect(screen.getByRole('button', { name: '교사 수업 모드로 보기' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /다시 풀기/ })).toBeNull();
+});
 
 it('opens the exam sheet on 다시 풀기 and resolves the weak point on a correct submit', () => {
   render(<ReplayDetail replay={mathReplay} />);
