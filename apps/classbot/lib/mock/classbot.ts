@@ -5,6 +5,7 @@
 
 import type { ScopeLevel } from './tutor';
 import type { ClassbotQuickPrompt } from './chat';
+import { demoReplays } from './classbot-replay-demo';
 
 export type ClassBot = {
   id: string;
@@ -587,9 +588,9 @@ export type Replay = {
 
 export const studentReplays: Replay[] = []; // 출시: 데모 리플레이 시드 제거(신규 빈 상태)
 
-/** 학생이 보는 것 — 발송 승인된 리플레이만 */
+/** 학생이 보는 것 — 발송 승인된 리플레이만. 출시 시드는 빈 배열이라 데모 리플레이를 합산. */
 export function getSentReplays(): Replay[] {
-  return studentReplays.filter(r => r.status === 'sent');
+  return [...studentReplays, ...demoReplays].filter(r => r.status === 'sent');
 }
 
 /** 교사가 보는 큐 — processing/review/sent 모두. 최근순. */
