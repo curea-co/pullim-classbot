@@ -231,9 +231,9 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   });
   const [pending, setPending] = useState(false);
   const [value, setValue] = useState(initialAsk ?? '');
-  // 같은 봇에서 ask query만 바뀌는 soft nav(App Router)에서도 prefill 갱신 — 회고 '질문' 문맥 보존.
+  // composer는 URL ask 상태를 따른다 — ask 변경 시 새 prefill 반영, ask 제거 시 초기화(stale 방지).
   useEffect(() => {
-    if (initialAsk) setValue(initialAsk);
+    setValue(initialAsk ?? '');
   }, [initialAsk]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);

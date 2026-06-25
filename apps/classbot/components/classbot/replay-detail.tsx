@@ -49,6 +49,10 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
     <div className="space-y-4">
       <ReplayRecap replay={replay} onSeek={handleSeek} onReattempt={handleReattempt} />
 
+      {/* 플레이어 — 다시보기/다시풀기 시 약점 시점으로 seek */}
+      <ReplayPlayer replay={replay} seekSignal={seek} />
+
+      {/* 다시 풀기 시험지 — 플레이어 바로 아래에 인라인으로 붙여 'seek된 맥락 + 풀이'를 같이 본다 */}
       {active && (
         <section className="relative">
           <button
@@ -63,8 +67,6 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
           <ExamSheet key={active.key} question={active.question} onResult={handleResult} />
         </section>
       )}
-
-      <ReplayPlayer replay={replay} seekSignal={seek} />
     </div>
   );
 }
