@@ -1,18 +1,17 @@
 import Link from 'next/link';
-import { ArrowRight, Heart, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Heart, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
+import { WellnessBotCommentCard } from '@/components/classbot/wellness-bot-comment-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import {
   getCheckInsForStudent, hasTodayCheckIn, moodMeta,
 } from '@/lib/mock';
-import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 
 export default function WellnessPage() {
@@ -20,52 +19,12 @@ export default function WellnessPage() {
   const me = resolveRosterMe(DEMO_FALLBACK_USER_ID);
   const checkIns = getCheckInsForStudent(me.id);
   const checkedToday = hasTodayCheckIn(me.id);
-  // [13 § 3.3.3·9.3] 담당 봇 코멘트 — 가장 낮은 5지표 영역의 봇 자동 매칭
-  const botComment = getWellnessBotComment(me.id);
 
   /* ── RAIL ──────────────────────────────────────────────── */
   const rail = (
     <>
-      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3] 좌측 라이너 4px + 아바타 + 이름 + 시간 + 시그니처 ghost CTA */}
-      {botComment && (() => {
-        const sig = botSignature(botComment.bot);
-        return (
-          <section
-            className="bg-card rounded-2xl border border-l-[4px] p-4"
-            style={{ borderLeftColor: sig.hex }}
-          >
-            <header className="mb-2 flex items-center gap-2">
-              <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-                style={{ backgroundColor: sig.hex }}
-              >
-                {botComment.bot.avatarEmoji}
-              </span>
-              <div className="min-w-0 flex-1">
-                {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
-                <div className="inline-flex items-center gap-1.5 text-xs">
-                  <span className="text-pullim-slate-900 font-bold">{botComment.bot.name}</span>
-                  <span className="text-pullim-slate-400 font-normal">· {botComment.generatedAt}</span>
-                </div>
-                {/* [13 § 8.3] 학생 가시 영역 — "낮아요"/"부족" 금지, "신경 쓸 부분"으로 완화 */}
-                <p className="text-pullim-slate-500 text-2xs">{botComment.weakArea}이 이번 주 신경 쓸 부분이에요</p>
-              </div>
-              <Sparkles className="text-pullim-slate-300 h-3 w-3" />
-            </header>
-            <p className="text-pullim-slate-700 mt-1 text-sm leading-relaxed">
-              &ldquo;{botComment.text}&rdquo;
-            </p>
-            <Link
-              href={botComment.ctaHref}
-              className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
-              style={{ borderColor: sig.inkLight, color: sig.inkLight }}
-            >
-              {botComment.ctaLabel}
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </section>
-        );
-      })()}
+      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3]. enrollment 권위는 client에서만 읽히므로 분리 렌더. */}
+      <WellnessBotCommentCard studentId={me.id} />
 
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}
       {me.wellbeing < 60 && (

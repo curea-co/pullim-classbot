@@ -31,7 +31,14 @@ const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; c
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: Eye },
 };
 
-export function ReplayPlayer({ replay }: { replay: Replay }) {
+export function ReplayPlayer({
+  replay,
+  seekSignal,
+}: {
+  replay: Replay;
+  /** 외부(회고 카드)에서 특정 순간으로 seek — 매 신호마다 새 객체로 전달. */
+  seekSignal?: { atSec: number };
+}) {
   const totalSec = replay.durationMin * 60;
   const [now, setNow] = useState(() => Math.min(replay.watchProgress.lastSec, totalSec));
   const [playing, setPlaying] = useState(false);
@@ -55,6 +62,13 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
     }, 100);
     return () => window.clearInterval(id);
   }, [playing, speed, totalSec]);
+
+  // 외부 seek 신호 — 회고 카드의 다시보기/다시풀기가 해당 순간으로 이동(재생 정지).
+  useEffect(() => {
+    if (!seekSignal) return;
+    setNow(Math.min(Math.max(0, seekSignal.atSec), totalSec));
+    setPlaying(false);
+  }, [seekSignal, totalSec]);
 
   const currentLineIdx = useMemo(
     () => replay.transcript.findIndex(t => now >= t.atSec && now < t.endSec),
