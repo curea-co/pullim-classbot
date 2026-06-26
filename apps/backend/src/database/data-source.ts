@@ -27,6 +27,9 @@ const AppDataSource = new DataSource({
   entities: [AuthUser, AuthUserProvider, AuthRevokedToken],
   namingStrategy: new SnakeNamingStrategy(),
   migrations: [__dirname + "/migrations/*.{ts,js}"],
+  // RDS 등 TLS 필요 시 DATABASE_SSL=true. CA bundle 은 추후 ssl.ca 로 지정 가능.
+  ssl:
+    process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
   // 절대 동기화 금지 — Drizzle 자산과 공존하므로 스키마는 마이그레이션으로만 변경.
   synchronize: false,
 });

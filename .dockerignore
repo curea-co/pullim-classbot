@@ -16,3 +16,16 @@ Dockerfile
 coverage
 build
 out
+# FE app — 백엔드 이미지에 불필요 (package.json 은 bun lockfile 검증에 필요해 허용)
+apps/classbot
+!apps/classbot/package.json
+# 백엔드 이전 빌드 산출물 (multi-stage 에서 재빌드)
+apps/backend/dist
+# 테스트·문서
+apps/backend/test
+docs
+input
+output
+proc
+*.md
+
