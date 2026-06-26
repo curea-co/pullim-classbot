@@ -66,7 +66,9 @@
 - **응답:** `{ passage?, stem, choices[], answerIndex, rationale, sourceStandardId }[]` — **서버사이드 QC 통과분만**.
 - **모델/grounding:** qgen-ai `langchain-anthropic` 경로 Opus 4.8; structured outputs로 스키마 강제(자유형 파싱 없음); 커리큘럼 repo가 RAG grounding; `qc` 도메인이 환각 게이트.
 
-**기존 mock 매핑:** `apps/classbot/lib/mock/classbot-replay-exam.ts`(`ExamQuestion`, `getReplayQuiz`)가 스왑 지점. 같은 형태 in, 실 데이터는 **feature flag** 뒤에서. flag off면 mock 유지(폴백).
+**타입 소유권(중요 — 패키지 경계):** 위 BE⇄qgen-ai 계약(`QgenQuizRequest`, qgen 원시 문항)은 **BE 내부 계약**이라 `apps/backend`(PR-5 `QgenClient` 옆)가 소유한다 — FE 가 import 하지 않으므로 FE↔BE 공유 패키지(`packages/types`)에 넣지 않는다. `packages/types`에는 **FE 가 실제로 import 하는 계약만** 둔다: 리플레이 재응시 응답 `ReplayRequizResponse`와 문항 타입 `ReplayQuestion`. **`ReplayQuestion`은 권위 `ExamQuestion`과 1:1**(`stem`, `passage?{paragraphs}`, `boxed?{lines}`, `options[]`, `answerIndex`, `explanation`, `subjectLabel`) — 시험지 렌더러가 요구하는 문단형 지문/〈보기〉/과목/해설을 보장한다. **BE 가 qgen-ai 원시 출력을 `ReplayQuestion`으로 매핑**한다.
+
+**기존 mock 매핑:** `apps/classbot/lib/mock/classbot-replay-exam.ts`(`ExamQuestion`, `getReplayQuiz`)가 스왑 지점. `ReplayQuestion`이 `ExamQuestion`과 동형이므로 같은 형태 in, 실 데이터는 **feature flag** 뒤에서. flag off면 mock 유지(폴백).
 
 **영속(classbot DB):** 신규 `replay_attempt` + `generated_question` 테이블 — classbot가 시도 이력 소유, qgen-ai가 생성/QC 소유. QGen 스키마 비결합.
 
@@ -77,15 +79,17 @@ Slice 1 = **2개 리포, 6개 PR**, 각 PR은 `feature→dev`. (분리 이유: d
 ```
 SLICE 1 (문제 생성)                                           repo          depends
 ──────────────────────────────────────────────────────────────────────────────────
-PR-1  packages/types: 계약 + DTO                              classbot      —
-      (QgenQuizRequest, GeneratedQuestion, ReplayAttempt DTO)  (shared, 먼저)
+PR-1  packages/types: FE↔BE 리플레이 계약                       classbot      —
+      (ReplayQuestion ≡ 권위 ExamQuestion, ReplayRequizResponse)(shared, 먼저)
+      ※ qgen-ai 내부 계약(QgenQuizRequest 등)은 여기 아님 — PR-5 apps/backend 소유
 PR-2  qgen-ai: 실시간 generate 경로 Opus 4.8 표준화 +          qgen-ai       —  (병렬)
       structured-output 문제 스키마 + QC 게이트
 PR-3  qgen-ai: classbot 호출용 generation 엔드포인트 +          qgen-ai       PR-2
       S2S API-key 인증 미들웨어
 PR-4  classbot BE: Phase β 부트스트랩 — Nest config, 자체 DB    classbot BE   PR-1
       (TypeORM, :5434), auth guard, qgen-ai secret/config
-PR-5  classbot BE: 리플레이 requiz 기능 — QgenClient +          classbot BE   PR-1,3,4
+PR-5  classbot BE: 리플레이 requiz 기능 — QgenClient(+BE↔qgen-ai  classbot BE   PR-1,3,4
+      내부 계약 타입 소유) + 원시→ReplayQuestion 매핑 + 런타임 검증 +
       POST /api/replay/:id/requiz + 시도 영속 + 테스트
 PR-6  classbot FE: replay-exam mock → BE flag 게이트 스왑;      classbot FE   PR-1,5
       mock 폴백 유지

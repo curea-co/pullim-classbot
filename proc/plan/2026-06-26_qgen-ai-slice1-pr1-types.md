@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Slice 1(문제 생성)의 FE↔BE↔qgen-ai 계약을 `@pullim-classbot/types` 에 **plain TS 타입**으로 정의해, 이후 BE(PR-5)·FE(PR-6)가 동일 시그니처를 import 하게 한다.
+> **AMENDMENT (구현 후, Codex 리뷰 반영 — #150):** 아래 본문은 초기 계획이며, 실제 구현은 패키지 경계를 바로잡았다. **qgen-ai 내부 계약(`QgenQuizRequest`/`QgenQuizResponse`)은 FE↔BE 공유 패키지에서 제외**(→ apps/backend PR-5 소유). `packages/types`에는 **FE↔BE 리플레이 계약만** 남기고, 문항 타입은 **권위 `ExamQuestion`과 1:1**로 정렬했다: `packages/types/src/replay.ts`의 `ReplayPassage{paragraphs}`, `ReplayBoxed{lines}`, `ReplayQuestion{stem, passage?, boxed?, options[], answerIndex, explanation, subjectLabel}`, `ReplayRequizResponse{replayId, attemptId, questions[], degraded, generatedAt}`. 아래 `qgen.ts`/`GeneratedQuestion(choices/rationale)` 형태는 superseded.
+
+**Goal:** Slice 1(문제 생성)의 FE↔BE 리플레이 재응시 계약을 `@pullim-classbot/types` 에 **plain TS 타입**으로 정의해, 이후 BE(PR-5)·FE(PR-6)가 동일 시그니처를 import 하게 한다. (BE↔qgen-ai 내부 계약은 apps/backend 소유.)
 
 **Architecture:** 기존 `packages/types` 컨벤션(plain TS 타입, BE source of truth, zod 미사용) 그대로 따른다. **런타임 검증은 이 패키지가 아니라 BE↔qgen-ai 경계(PR-5 `QgenClient`)에서** 수행한다(시스템 경계에서만 검증). 따라서 본 PR은 타입 + 컴파일타임 fixture 만 추가하고, 검증 도구는 `tsc --noEmit`.
 
