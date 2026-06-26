@@ -63,14 +63,14 @@
 **계약(classbot BE ⇄ qgen-ai)** — qgen-ai 수정 가능하므로 우리가 소유, 정확한 필드는 Slice 1 plan에서 `app/api/v1/schemas/generation_schema.py`에 핀:
 - **요청:** `{ achievementStandardId | subjectCoords, difficulty, count, format: "structured", seedExampleId? }`
   (`seedExampleId`는 학생이 틀린 문항 기반 `generate_by_example` 경로용)
-- **응답:** `{ passage?, stem, choices[], answerIndex, rationale, sourceStandardId }[]` — **서버사이드 QC 통과분만**.
+- **응답(2단계 — 혼동 주의):** (a) qgen **내부 생성** 출력은 `{ passage?, stem, choices[], answerIndex, rationale, sourceStandardId }` 류지만, (b) **classbot 가 호출하는 것은 classbot 전용 엔드포인트**이고 그 usecase 가 (a)를 **classbot-shaped 응답으로 매핑**해 반환한다: `ApiResponse{ data: { questions: ClassbotRequizQuestion[]{ passage_paragraphs?, boxed_lines?, options[], answer_index, explanation, subject_label }, set_question_id } }`(snake_case, 서버사이드 QC 통과분만). **classbot BE `QgenClient` 는 (b)를 소비**해 `ReplayQuestion` 으로 매핑(요소 타입 경계검증 + 일시실패 1회 재시도 — PR-4 #152). 정확한 필드는 handoff plan `proc/plan/2026-06-26_qgen-ai-slice1-classbot-endpoint.md` 가 권위.
 - **모델/grounding:** qgen-ai `langchain-anthropic` 경로 Opus 4.8; structured outputs로 스키마 강제(자유형 파싱 없음); 커리큘럼 repo가 RAG grounding; `qc` 도메인이 환각 게이트.
 
-**타입 소유권(중요 — 패키지 경계):** 위 BE⇄qgen-ai 계약(`QgenQuizRequest`, qgen 원시 문항)은 **BE 내부 계약**이라 `apps/backend`(PR-5 `QgenClient` 옆)가 소유한다 — FE 가 import 하지 않으므로 FE↔BE 공유 패키지(`packages/types`)에 넣지 않는다. `packages/types`에는 **권위에 있는 문항 타입만** 둔다: `ReplayQuestion`(+ `ReplayPassage`, `ReplayBoxed`). **`ReplayQuestion`은 권위 `ExamQuestion`과 1:1**(`stem`, `passage?{paragraphs}`, `boxed?{lines}`, `options[]`, `answerIndex`, `explanation`, `subjectLabel`) — 시험지 렌더러가 요구하는 문단형 지문/〈보기〉/과목/해설을 보장한다. **BE 가 qgen-ai 원시 출력을 `ReplayQuestion`으로 매핑**한다. 재응시 응답 envelope(`ReplayRequizResponse` — 다문항·시도 메타)는 아직 권위에 없으므로 **BE API spec 확정 후 PR-5 에서** 공유한다(권위 외 형태를 PR-1 에서 미리 굳히지 않는다 — Codex #150).
+**타입 소유권(중요 — 패키지 경계):** 위 BE⇄qgen-ai 계약(`QgenQuizRequest`, qgen 원시 문항)은 **BE 내부 계약**이라 `apps/backend`(PR-5 `QgenClient` 옆)가 소유한다 — FE 가 import 하지 않으므로 FE↔BE 공유 패키지(`packages/types`)에 넣지 않는다. `packages/types`에는 **권위에 있는 문항 타입만** 둔다: `ReplayQuestion`(+ `ReplayPassage`, `ReplayBoxed`). **`ReplayQuestion`은 권위 `ExamQuestion`과 1:1**(`stem`, `passage?{paragraphs}`, `boxed?{lines}`, `options[]`, `answerIndex`, `explanation`, `subjectLabel`) — 시험지 렌더러가 요구하는 문단형 지문/〈보기〉/과목/해설을 보장한다. **BE 가 qgen-ai 원시 출력을 `ReplayQuestion`으로 매핑**한다. 재응시 응답 envelope(`ReplayRequizResponse` — 다문항·시도 메타)는 PR-4(#152)에서 **BE-local DTO** 로 먼저 구현했고(questions 는 공유 `ReplayQuestion[]` 사용), **packages/types 로의 승격은 FE(PR-6)가 소비하기 직전 별도 shared PR** 로 올린다(최상위 split 규칙: shared 변경을 BE PR 에 섞지 않음).
 
 **기존 mock 매핑:** `apps/classbot/lib/mock/classbot-replay-exam.ts`(`ExamQuestion`, `getReplayQuiz`)가 스왑 지점. `ReplayQuestion`이 `ExamQuestion`과 동형이므로 같은 형태 in, 실 데이터는 **feature flag** 뒤에서. flag off면 mock 유지(폴백).
 
-**영속(classbot DB):** 신규 `replay_attempt` + `generated_question` 테이블 — classbot가 시도 이력 소유, qgen-ai가 생성/QC 소유. QGen 스키마 비결합.
+**영속(classbot DB):** 신규 `replay_attempt` + `generated_question` 테이블 — classbot가 시도 이력 소유, qgen-ai가 생성/QC 소유. QGen 스키마 비결합. **(시퀀싱: PR-4 #152 는 영속 미포함으로 머지 — `attemptId` 는 qgen `setQuestionId`/mock id. 영속은 flow live 후 별도 PR 후속.)**
 
 ## 3. 크로스 리포 PR 분해 & 시퀀싱
 
