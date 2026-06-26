@@ -31,16 +31,16 @@ RUN bun run build
 
 # ============================================================
 # Stage 2: prod-install
-#   bun install --production --frozen-lockfile で bun.lock に固定されたランタイム依存のみ取得。
-#   bcrypt の native addon が含まれるため build ツールは本ステージで完結させる。
-#   bun の symlink 構造 (node_modules/.bun) を /runtime-nm に実体展開する:
-#     node_modules/.bun/<pkg>/node_modules/<dep> を node_modules/<dep> にフラット化。
+#   bun install --production --frozen-lockfile 로 bun.lock 에 고정된 런타임 의존성만 취득.
+#   bcrypt 의 native addon 빌드 툴은 본 스테이지에서 완결 (runtime 에는 반입하지 않음).
+#   bun 의 symlink 화된 node_modules (.bun 내용주소 스토어 + 상대 symlink) 를
+#   그대로 runtime 에 넘긴다. 스토어는 한 번만 저장되어 dedup 된다.
 # ============================================================
 FROM oven/bun:1-slim AS prod-install
 
 WORKDIR /workspace
 
-# bun install に必要な全 workspace package.json + lockfile をコピー
+# bun install 에 필요한 전 workspace package.json + lockfile 복사
 COPY package.json bun.lock ./
 COPY packages/types/package.json       ./packages/types/package.json
 COPY packages/auth/package.json        ./packages/auth/package.json
@@ -48,45 +48,40 @@ COPY packages/api-client/package.json  ./packages/api-client/package.json
 COPY apps/backend/package.json         ./apps/backend/package.json
 COPY apps/classbot/package.json        ./apps/classbot/package.json
 
-# bcrypt native addon のビルドと rsync (symlink 実体化コピー用) をインストール
+# bcrypt native addon 빌드 툴 (본 스테이지에서 완결)
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
-      python3 make g++ rsync \
+      python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# bun.lock に固定された production 依存のみ取得
-RUN bun install --production --frozen-lockfile
-
-# bun の node_modules/.bun キャッシュから全パッケージを /runtime-nm にフラット展開する。
-# rsync -rL で symlink を実体解決しながらコピー。
-# .bun/<pkg+ver>/node_modules/* の各エントリをトップレベルに集約 (先勝ちで重複解決)。
-RUN mkdir /runtime-nm && \
-    find /workspace/node_modules/.bun -mindepth 2 -maxdepth 2 -name 'node_modules' -type d | \
-      while read nm; do \
-        rsync -rL --ignore-existing "$nm"/ /runtime-nm/ 2>/dev/null || true; \
-      done && \
-    rsync -rL --ignore-existing /workspace/apps/backend/node_modules/ /runtime-nm/ 2>/dev/null || true
+# bun.lock 에 고정된 production 의존성만, 그것도 backend workspace 범위로만 취득.
+# --filter 없으면 FE(classbot) 의존(next/@next-swc 등 ~700MB)까지 .bun 스토어에 깔린다.
+RUN bun install --production --frozen-lockfile --filter @pullim-classbot/backend
 
 # ============================================================
 # Stage 3: runtime
-#   oven/bun:1-slim — prod-install と同じ ABI で bcrypt native addon が動く
+#   oven/bun:1-slim — prod-install 과 동일 ABI 라 bcrypt native addon 이 동작
 # ============================================================
 FROM oven/bun:1-slim AS runtime
 
 # 보안: non-root 사용자
 RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
-WORKDIR /app
+WORKDIR /workspace/apps/backend
 
 ENV NODE_ENV=production
+
+# bun 의 symlink 레이아웃을 그대로 보존하기 위해 workspace 구조를 동일하게 재현한다.
+# apps/backend/node_modules 의 상대 symlink (../../../../node_modules/.bun/...) 가
+# runtime 에서도 동일 경로로 해소되도록 store 디렉토리(.bun)와 symlink 트리 양쪽을 복사.
+# COPY 는 symlink 를 symlink 그대로 보존 → .bun 스토어는 한 번만 저장되어 dedup 된다.
+COPY --from=prod-install /workspace/node_modules              /workspace/node_modules
+COPY --from=prod-install /workspace/apps/backend/node_modules /workspace/apps/backend/node_modules
 
 # build stage 에서 컴파일된 dist 를 복사
 COPY --from=build /workspace/apps/backend/dist ./dist
 
-# prod-install でフラット化した node_modules をコピー
-COPY --from=prod-install /runtime-nm ./node_modules
-
 # 소유권 변경
-RUN chown -R appuser:appgroup /app
+RUN chown -R appuser:appgroup /workspace
 
 USER appuser
 
