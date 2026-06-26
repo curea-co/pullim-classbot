@@ -1,27 +1,22 @@
 import { isLowConditionDay } from '../classbot-light-day';
 
-it('low when wellbeing score < 60', () => {
-  expect(isLowConditionDay({ score: 59, mood: null })).toBe(true);
-  expect(isLowConditionDay({ score: 60, mood: null })).toBe(false);
+it('low when a flag is present (below-60-3days / below-40-instant)', () => {
+  expect(isLowConditionDay({ flag: 'below-60-3days', recentMoods: [] })).toBe(true);
+  expect(isLowConditionDay({ flag: 'below-40-instant', recentMoods: [1] })).toBe(true);
 });
 
-it('low when a flag is present, regardless of score', () => {
-  expect(isLowConditionDay({ score: 85, flag: 'below-60-3days', mood: null })).toBe(true);
-  expect(isLowConditionDay({ score: 85, flag: 'below-40-instant', mood: null })).toBe(true);
+it('low when the last 3 check-ins are all 힘들었어 (mood 4)', () => {
+  expect(isLowConditionDay({ flag: null, recentMoods: [4, 4, 4] })).toBe(true);
 });
 
-it('low when today check-in mood >= 3 (그저그래/힘들었어)', () => {
-  expect(isLowConditionDay({ score: 90, mood: 3 })).toBe(true);
-  expect(isLowConditionDay({ score: 90, mood: 4 })).toBe(true);
-  expect(isLowConditionDay({ score: 90, mood: 2 })).toBe(false);
-  expect(isLowConditionDay({ score: 90, mood: 1 })).toBe(false);
-  expect(isLowConditionDay({ score: 90, mood: null })).toBe(false);
+it('NOT low for a single bad day or 그저그래 (authority: sustained only)', () => {
+  expect(isLowConditionDay({ flag: null, recentMoods: [4] })).toBe(false);       // 하루만 힘듦
+  expect(isLowConditionDay({ flag: null, recentMoods: [4, 4] })).toBe(false);    // 이틀만
+  expect(isLowConditionDay({ flag: null, recentMoods: [3, 3, 3] })).toBe(false); // 그저그래 연속도 X
+  expect(isLowConditionDay({ flag: null, recentMoods: [4, 4, 2] })).toBe(false); // 연속 끊김
 });
 
-it('not low when score ok, no flag, mood ok', () => {
-  expect(isLowConditionDay({ score: 75, flag: null, mood: 1 })).toBe(false);
-});
-
-it('low if ANY signal trips (good score but low mood)', () => {
-  expect(isLowConditionDay({ score: 88, flag: null, mood: 3 })).toBe(true);
+it('not low with no flag and no streak', () => {
+  expect(isLowConditionDay({ flag: null, recentMoods: [] })).toBe(false);
+  expect(isLowConditionDay({ flag: undefined, recentMoods: [1, 2, 1] })).toBe(false);
 });
