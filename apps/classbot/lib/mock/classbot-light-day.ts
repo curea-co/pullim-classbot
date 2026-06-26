@@ -20,8 +20,8 @@ export function isLowConditionDay(input: {
 
 /** 오늘 신호(웰빙 flag + 최근 3일 연속 체크인 mood)를 모아 저조 여부 반환. */
 export function useLowConditionToday(studentId: string): boolean {
-  const trend = getWellbeingTrend(studentId);
-  const today = trend[trend.length - 1];
+  // daysAgo===0 을 직접 찾는다 — trend 정렬(DESC) 내부 구현에 의존하지 않도록
+  const today = getWellbeingTrend(studentId).find(s => s.daysAgo === 0);
   if (!today) return false;
   const checkIns = getCheckInsForStudent(studentId);
   // daysAgo 0,1,2 가 모두 있을 때만 연속 — 빠진 날이 있으면 연속 아님(undefined로 끊김)

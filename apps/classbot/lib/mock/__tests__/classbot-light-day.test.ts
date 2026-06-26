@@ -1,4 +1,4 @@
-import { isLowConditionDay } from '../classbot-light-day';
+import { isLowConditionDay, useLowConditionToday } from '../classbot-light-day';
 
 it('low when a flag is present (below-60-3days / below-40-instant)', () => {
   expect(isLowConditionDay({ flag: 'below-60-3days', recentMoods: [] })).toBe(true);
@@ -19,4 +19,10 @@ it('NOT low for a single bad day or 그저그래 (authority: sustained only)', (
 it('not low with no flag and no streak', () => {
   expect(isLowConditionDay({ flag: null, recentMoods: [] })).toBe(false);
   expect(isLowConditionDay({ flag: undefined, recentMoods: [1, 2, 1] })).toBe(false);
+});
+
+// useLowConditionToday: 실제 seed 기반 — s4(flag below-60-3days + 3일 연속 mood4) low, s1(무신호) not
+it('useLowConditionToday: true for flagged+streak student, false for healthy student', () => {
+  expect(useLowConditionToday('s4')).toBe(true);
+  expect(useLowConditionToday('s1')).toBe(false);
 });
