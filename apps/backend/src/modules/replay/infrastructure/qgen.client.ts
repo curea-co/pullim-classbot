@@ -90,6 +90,40 @@ function assertQgenQuestion(q: unknown): asserts q is QgenRawQuestion {
     );
   }
 
+  // passage_paragraphs 가 존재하면 모든 요소가 string 이어야 함.
+  if (obj["passage_paragraphs"] != null) {
+    if (!Array.isArray(obj["passage_paragraphs"])) {
+      throw new QgenUnavailableError(
+        "qgen response: question.passage_paragraphs must be array",
+      );
+    }
+    const paragraphs = obj["passage_paragraphs"] as unknown[];
+    for (let i = 0; i < paragraphs.length; i++) {
+      if (typeof paragraphs[i] !== "string") {
+        throw new QgenUnavailableError(
+          "qgen response: question.passage_paragraphs must contain only strings",
+        );
+      }
+    }
+  }
+
+  // boxed_lines 가 존재하면 모든 요소가 string 이어야 함.
+  if (obj["boxed_lines"] != null) {
+    if (!Array.isArray(obj["boxed_lines"])) {
+      throw new QgenUnavailableError(
+        "qgen response: question.boxed_lines must be array",
+      );
+    }
+    const lines = obj["boxed_lines"] as unknown[];
+    for (let i = 0; i < lines.length; i++) {
+      if (typeof lines[i] !== "string") {
+        throw new QgenUnavailableError(
+          "qgen response: question.boxed_lines must contain only strings",
+        );
+      }
+    }
+  }
+
   if (typeof obj["explanation"] !== "string") {
     throw new QgenUnavailableError(
       "qgen response: question.explanation must be string",
@@ -197,27 +231,55 @@ export class QgenClient implements IQgenClient {
       count: input.count,
     });
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey ?? "",
-          "x-source-id": demoCoordinate.sourceId,
-        },
-        body,
-        signal: AbortSignal.timeout(30000),
-      });
-    } catch {
-      throw new QgenUnavailableError("QGen request failed (network/timeout)");
+    const fetchOptions = {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey ?? "",
+        "x-source-id": demoCoordinate.sourceId,
+      },
+      body,
+      signal: AbortSignal.timeout(30000),
+    };
+
+    // 일시적 실패(fetch reject 또는 5xx) 시 한 번 재시도한다.
+    // 4xx / validation 실패 / null demoCoordinate 는 즉시 throw (재시도 없음).
+    const attemptFetch = async (): Promise<
+      { response: Response; transient: false } | { transient: true }
+    > => {
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          ...fetchOptions,
+          signal: AbortSignal.timeout(30000),
+        });
+      } catch {
+        return { transient: true };
+      }
+
+      // 5xx → transient; 4xx → non-transient (즉시 throw)
+      if (!response.ok) {
+        if (response.status >= 500) {
+          return { transient: true };
+        }
+        throw new QgenUnavailableError(
+          `QGen responded with non-2xx status: ${response.status}`,
+        );
+      }
+
+      return { response, transient: false };
+    };
+
+    let attempt = await attemptFetch();
+    if (attempt.transient) {
+      // 한 번만 재시도
+      attempt = await attemptFetch();
+      if (attempt.transient) {
+        throw new QgenUnavailableError("QGen request failed (network/timeout)");
+      }
     }
 
-    if (!response.ok) {
-      throw new QgenUnavailableError(
-        `QGen responded with non-2xx status: ${response.status}`,
-      );
-    }
+    const response = attempt.response;
 
     let parsed: unknown;
     try {

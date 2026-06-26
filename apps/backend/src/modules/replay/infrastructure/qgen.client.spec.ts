@@ -77,6 +77,28 @@ function mockFetchError(status: number): jest.SpyInstance {
   } as Response);
 }
 
+// 5xx 또는 network reject 처럼 재시도가 발생하는 경우,
+// 두 번 모두 실패하도록 mock 을 두 개 쌓는 헬퍼.
+function mockFetch5xxTwice(status: number): jest.SpyInstance {
+  const errorResponse = {
+    ok: false,
+    status,
+    // eslint-disable-next-line @typescript-eslint/require-await
+    json: async () => ({ error: "server error" }),
+  } as Response;
+  return jest
+    .spyOn(global, "fetch")
+    .mockResolvedValueOnce(errorResponse)
+    .mockResolvedValueOnce(errorResponse);
+}
+
+function mockFetchNetworkErrorTwice(message: string): jest.SpyInstance {
+  return jest
+    .spyOn(global, "fetch")
+    .mockRejectedValueOnce(new Error(message))
+    .mockRejectedValueOnce(new Error(message));
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -187,11 +209,12 @@ describe("QgenClient", () => {
   });
 
   describe("(c) 비-2xx 응답 → QgenUnavailableError", () => {
-    it("500 응답 시 throws QgenUnavailableError", async () => {
+    it("500 응답 시 throws QgenUnavailableError (재시도 후 동일 실패)", async () => {
       const config = makeConfig();
       const client = new QgenClient(config as never);
 
-      mockFetchError(500);
+      // 5xx 는 transient → 재시도 1회. 두 번 모두 실패해야 최종 throw.
+      mockFetch5xxTwice(500);
 
       await expect(client.requiz({ count: 1 })).rejects.toThrow(
         QgenUnavailableError,
@@ -211,25 +234,27 @@ describe("QgenClient", () => {
   });
 
   describe("(d) fetch 가 AbortError 로 reject → QgenUnavailableError", () => {
-    it("타임아웃(AbortError) 시 throws QgenUnavailableError", async () => {
+    it("타임아웃(AbortError) 시 throws QgenUnavailableError (재시도 후 동일 실패)", async () => {
       const config = makeConfig();
       const client = new QgenClient(config as never);
 
+      // AbortError 는 transient → 재시도 1회. 두 번 모두 실패해야 최종 throw.
       const abortError = new DOMException("signal timed out", "AbortError");
-      jest.spyOn(global, "fetch").mockRejectedValueOnce(abortError);
+      jest
+        .spyOn(global, "fetch")
+        .mockRejectedValueOnce(abortError)
+        .mockRejectedValueOnce(abortError);
 
       await expect(client.requiz({ count: 1 })).rejects.toThrow(
         QgenUnavailableError,
       );
     });
 
-    it("일반 네트워크 에러 시에도 throws QgenUnavailableError", async () => {
+    it("일반 네트워크 에러 시에도 throws QgenUnavailableError (재시도 후 동일 실패)", async () => {
       const config = makeConfig();
       const client = new QgenClient(config as never);
 
-      jest
-        .spyOn(global, "fetch")
-        .mockRejectedValueOnce(new Error("network failure"));
+      mockFetchNetworkErrorTwice("network failure");
 
       await expect(client.requiz({ count: 1 })).rejects.toThrow(
         QgenUnavailableError,
@@ -261,6 +286,114 @@ describe("QgenClient", () => {
       await expect(client.requiz({ count: 1 })).rejects.toThrow(
         QgenUnavailableError,
       );
+    });
+  });
+
+  describe("(h) passage_paragraphs / boxed_lines 요소 타입 검증 → QgenUnavailableError", () => {
+    it("passage_paragraphs 에 non-string 요소가 있으면 throws QgenUnavailableError", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      mockFetchOk(makeQgenPayload({ passage_paragraphs: ["정상 단락", 42] }));
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+    });
+
+    it("boxed_lines 에 non-string 요소가 있으면 throws QgenUnavailableError", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      mockFetchOk(
+        makeQgenPayload({
+          passage_paragraphs: null,
+          boxed_lines: [null, "조건 2"],
+        }),
+      );
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+    });
+  });
+
+  describe("(i) 일시적 실패 → 1회 재시도", () => {
+    it("fetch 가 한 번 reject(network error)된 뒤 두 번째 호출이 성공하면 resolve 된다 (fetch 2회 호출)", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      const spy = jest
+        .spyOn(global, "fetch")
+        .mockRejectedValueOnce(new Error("network failure"))
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          // eslint-disable-next-line @typescript-eslint/require-await
+          json: async () => makeQgenPayload(),
+        } as Response);
+
+      const result = await client.requiz({ count: 1 });
+
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(result.questions).toHaveLength(1);
+    });
+
+    it("첫 번째 응답이 503(5xx)이고 두 번째가 정상이면 resolve 된다 (fetch 2회 호출)", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      const spy = jest
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          // eslint-disable-next-line @typescript-eslint/require-await
+          json: async () => ({ error: "service unavailable" }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          // eslint-disable-next-line @typescript-eslint/require-await
+          json: async () => makeQgenPayload(),
+        } as Response);
+
+      const result = await client.requiz({ count: 1 });
+
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(result.questions).toHaveLength(1);
+    });
+
+    it("422(4xx) 응답은 재시도하지 않고 즉시 throws QgenUnavailableError (fetch 1회 호출)", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      const spy = jest.spyOn(global, "fetch").mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        json: async () => ({ error: "unprocessable" }),
+      } as Response);
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("두 번 모두 network error 이면 throws QgenUnavailableError (fetch 2회 호출)", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      const spy = jest
+        .spyOn(global, "fetch")
+        .mockRejectedValueOnce(new Error("network failure 1"))
+        .mockRejectedValueOnce(new Error("network failure 2"));
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+      expect(spy).toHaveBeenCalledTimes(2);
     });
   });
 
