@@ -8,16 +8,18 @@ import { AppController } from "./app.controller";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import databaseConfig from "./config/database.config";
 import jwtConfig from "./config/jwt.config";
+import qgenConfig from "./config/qgen.config";
 import { AuthRevokedToken } from "./entities/auth-revoked-token.entity";
 import { AuthUser } from "./entities/auth-user.entity";
 import { AuthUserProvider } from "./entities/auth-user-provider.entity";
 import { AuthModule } from "./modules/auth/auth.module";
+import { ReplayModule } from "./modules/replay/replay.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig],
+      load: [databaseConfig, jwtConfig, qgenConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -37,6 +39,7 @@ import { AuthModule } from "./modules/auth/auth.module";
       }),
     }),
     AuthModule,
+    ReplayModule,
   ],
   controllers: [AppController],
   providers: [
