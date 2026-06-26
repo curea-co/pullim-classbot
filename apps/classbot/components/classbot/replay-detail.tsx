@@ -7,6 +7,8 @@ import { type WeakPoint } from '@/lib/mock/classbot-replay-recap';
 import { getReplayQuiz, type ExamQuestion } from '@/lib/mock/classbot-replay-exam';
 import { useReplayStore } from '@/lib/store/replay';
 import { useStudentMode } from '@/lib/store/student-mode';
+import { USE_REAL_REQUIZ_BE } from '@/lib/features';
+import { useRequiz } from '@/hooks/api/replay/use-requiz';
 import { ReplayRecap } from './replay-recap';
 import { ReplayPlayer } from './replay-player';
 import { ExamSheet } from './exam-sheet';
@@ -20,16 +22,36 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
   const [seek, setSeek] = useState<{ atSec: number } | undefined>(undefined);
   const [active, setActive] = useState<{ key: string; question: ExamQuestion } | null>(null);
   const resolveWeakPoint = useReplayStore(s => s.resolveWeakPoint);
+  const requiz = useRequiz(replay.id);
 
   function handleSeek(atSec: number) {
     setSeek({ atSec }); // 새 객체 → 플레이어 seek effect 트리거(같은 지점 반복도 동작)
   }
 
-  function handleReattempt(w: WeakPoint) {
+  function fallbackMock(w: WeakPoint) {
     const question = getReplayQuiz(replay.id, w.atSec);
     if (!question) return;
     setSeek({ atSec: w.atSec });
     setActive({ key: w.key, question });
+  }
+
+  function handleReattempt(w: WeakPoint) {
+    if (USE_REAL_REQUIZ_BE) {
+      requiz.mutate(undefined, {
+        onSuccess: (res) => {
+          const q = res.questions[0];
+          if (q) {
+            setSeek({ atSec: w.atSec });
+            setActive({ key: w.key, question: q });
+          } else {
+            fallbackMock(w);
+          }
+        },
+        onError: () => fallbackMock(w),
+      });
+    } else {
+      fallbackMock(w);
+    }
   }
 
   function handleResult(correct: boolean) {
