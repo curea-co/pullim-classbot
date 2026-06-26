@@ -29,3 +29,21 @@ export const badMissingLabel: ReplayQuestion = {
   answerIndex: 0,
   explanation: '...',
 };
+
+import type { ReplayRequizResponse } from './replay';
+// 유효한 재응시 응답
+export const validRequiz: ReplayRequizResponse = {
+  replayId: 'r-1',
+  attemptId: 'a-1',
+  questions: [validPassageQ],
+  degraded: false,
+  generatedAt: '2026-06-26T00:00:00.000Z',
+};
+// degraded 폴백도 동일 형태
+export const degradedRequiz: ReplayRequizResponse = {
+  replayId: 'r-1',
+  attemptId: 'mock-r-1',
+  questions: [validBoxedQ],
+  degraded: true,
+  generatedAt: '2026-06-26T00:00:00.000Z',
+};
