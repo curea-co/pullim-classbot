@@ -55,11 +55,41 @@ function assertQgenQuestion(q: unknown): asserts q is QgenRawQuestion {
       "qgen response: question.options must be array",
     );
   }
+
+  // options 배열의 모든 요소가 string 이어야 하고, 비어있지 않아야 함.
+  const options = obj["options"] as unknown[];
+  if (options.length === 0) {
+    throw new QgenUnavailableError(
+      "qgen response: question.options must not be empty",
+    );
+  }
+  for (let i = 0; i < options.length; i++) {
+    if (typeof options[i] !== "string") {
+      throw new QgenUnavailableError(
+        "qgen response: question.options must contain only strings",
+      );
+    }
+  }
+
   if (typeof obj["answer_index"] !== "number") {
     throw new QgenUnavailableError(
       "qgen response: question.answer_index must be number",
     );
   }
+
+  // answer_index 가 정수이며 0 <= answer_index < options.length 범위 내여야 함.
+  const answerIndex = obj["answer_index"];
+  if (!Number.isInteger(answerIndex)) {
+    throw new QgenUnavailableError(
+      "qgen response: question.answer_index must be an integer",
+    );
+  }
+  if (answerIndex < 0 || answerIndex >= options.length) {
+    throw new QgenUnavailableError(
+      "qgen response: question.answer_index must be within bounds of options array",
+    );
+  }
+
   if (typeof obj["explanation"] !== "string") {
     throw new QgenUnavailableError(
       "qgen response: question.explanation must be string",

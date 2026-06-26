@@ -250,4 +250,51 @@ describe("QgenClient", () => {
       expect(spy).not.toHaveBeenCalled();
     });
   });
+
+  describe("(f) options 요소 타입 검증 → QgenUnavailableError", () => {
+    it("options 배열에 non-string 요소가 있으면 throws QgenUnavailableError", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      mockFetchOk(makeQgenPayload({ options: [null, 42] }));
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+    });
+  });
+
+  describe("(g) answer_index 범위 검증 → QgenUnavailableError", () => {
+    it("answer_index 가 options.length 과 같으면 throws QgenUnavailableError", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      mockFetchOk(
+        makeQgenPayload({
+          options: ["①선택1", "②선택2", "③선택3"],
+          answer_index: 3, // >= options.length
+        }),
+      );
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+    });
+
+    it("answer_index 가 음수이면 throws QgenUnavailableError", async () => {
+      const config = makeConfig();
+      const client = new QgenClient(config as never);
+
+      mockFetchOk(
+        makeQgenPayload({
+          options: ["①선택1", "②선택2"],
+          answer_index: -1,
+        }),
+      );
+
+      await expect(client.requiz({ count: 1 })).rejects.toThrow(
+        QgenUnavailableError,
+      );
+    });
+  });
 });
