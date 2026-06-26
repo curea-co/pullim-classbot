@@ -19,11 +19,11 @@
 
 **Files:** Create `apps/classbot/lib/mock/classbot-light-day.ts`, `__tests__/classbot-light-day.test.ts`.
 
-**Produces:**
-- `isLowConditionDay(input: { score: number; flag?: string | null; mood: import('./classbot').EmotionMood | null }): boolean` — `score < 60 || Boolean(flag) || (mood != null && mood >= 3)`.
-- `useLowConditionToday(studentId: string): boolean` — 오늘 snapshot(`getWellbeingTrend(studentId)` 마지막) {score, flag} + 오늘 체크인 mood(`getCheckInsForStudent`에서 daysAgo===0, 없으면 null) → `isLowConditionDay`.
+**Produces:** (권위 트리거에 한정 — `05-business-rules.md` 수동 + `13-reports-and-emotion-checkin.md` §3.1·§4.3·§8.2 의 지속 신호만)
+- `isLowConditionDay(input: { flag?: string | null; recentMoods: import('./classbot').EmotionMood[] }): boolean` — `Boolean(flag)`(below-60-3days / below-40-instant 등 지속 flag) `||` 최근 3일 연속 '힘들었어'(`recentMoods.slice(0,3)` 가 모두 mood 4). 단발 score·`그저그래`로는 절대 true 가 아니다.
+- `useLowConditionToday(studentId: string): boolean` — 오늘 snapshot(`getWellbeingTrend(studentId)` 마지막) flag + 최근 3일 체크인 mood(`getCheckInsForStudent`에서 daysAgo 0·1·2, 빠진 날은 연속 끊김) → `isLowConditionDay`.
 
-- [ ] Step 1: 실패 테스트 — score 59→true / 60→false; flag 있으면 true; mood 3·4→true, 1·2→false, null 무시; 조합(score 좋아도 mood3→true).
+- [ ] Step 1: 실패 테스트 — flag 있으면 true; 최근 3일 연속 mood 4 → true; 단발/이틀만 mood 4 → false; `그저그래`(mood 3) 연속 → false; 연속 끊김(4,4,2) → false; flag 없고 streak 없음 → false.
 - [ ] Step 2: RED.
 - [ ] Step 3: 구현(순수 + hook).
 - [ ] Step 4: GREEN.

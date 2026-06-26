@@ -4,7 +4,8 @@ import { Feather } from 'lucide-react';
 
 /**
  * 가벼운 모드 넛지 — 저조 신호가 있는 날 홈 상단에 노출. spec §8.
- * 자동으로 학습을 바꾸지 않고, 학생이 '가볍게 가기'로 opt-in 하도록 제안.
+ * 카피는 권위 13 §8.1~§8.3 톤(또래 어조, '이번 주' 프레임, 시스템이 상태를
+ * 진단하는 어조 금지)에 맞춘다. 자동으로 학습을 바꾸지 않고, 학생이 '가볍게 가기'로 opt-in.
  * palette-safe(blue/slate, amber/green 금지), 토큰만, 44px, focus-visible.
  */
 export function LightDayNudge({ onEnable }: { onEnable: () => void }) {
@@ -14,8 +15,8 @@ export function LightDayNudge({ onEnable }: { onEnable: () => void }) {
         <Feather className="h-5 w-5 text-pullim-blue-600" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-pullim-slate-900">오늘 컨디션이 무거워 보여요</p>
-        <p className="text-xs text-pullim-slate-500">핵심 하나만 가볍게 가볼까요?</p>
+        <p className="text-sm font-bold text-pullim-slate-900">이번 주, 좀 무거웠지</p>
+        <p className="text-xs text-pullim-slate-500">핵심 하나만 같이 가볍게 가보자</p>
       </div>
       <button
         type="button"

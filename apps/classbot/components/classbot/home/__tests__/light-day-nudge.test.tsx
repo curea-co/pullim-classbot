@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LightDayNudge } from '../light-day-nudge';
 
-it('renders the nudge copy', () => {
+it('renders the authority-toned nudge copy (week-framed, non-diagnosing)', () => {
   render(<LightDayNudge onEnable={() => {}} />);
-  expect(screen.getByText(/컨디션이 무거워/)).toBeTruthy();
+  expect(screen.getByText(/이번 주, 좀 무거웠지/)).toBeTruthy();
 });
 
 it('calls onEnable when 가볍게 가기 is clicked', () => {
