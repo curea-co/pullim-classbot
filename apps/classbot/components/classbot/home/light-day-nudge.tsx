@@ -15,8 +15,8 @@ export function LightDayNudge({ onEnable }: { onEnable: () => void }) {
         <Feather className="h-5 w-5 text-pullim-blue-600" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-pullim-slate-900">이번 주 좀 무거웠지</p>
-        <p className="text-xs text-pullim-slate-500">같이 가볍게 가보자</p>
+        <p className="text-sm font-bold text-pullim-slate-900">이번 주 좀 무거웠지.</p>
+        <p className="text-xs text-pullim-slate-500">같이 가볍게 가보자.</p>
       </div>
       <button
         type="button"
