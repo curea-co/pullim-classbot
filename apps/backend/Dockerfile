@@ -31,37 +31,46 @@ RUN bun run build
 
 # ============================================================
 # Stage 2: prod-install
-#   backend 패키지만 npm --omit=dev 로 설치해 심볼릭링크 없는 node_modules 를 생성.
-#   bun 의 글로벌 .bun 캐시 심볼릭링크 구조를 우회한다.
+#   bun install --production --frozen-lockfile で bun.lock に固定されたランタイム依存のみ取得。
+#   bcrypt の native addon が含まれるため build ツールは本ステージで完結させる。
+#   bun の symlink 構造 (node_modules/.bun) を /runtime-nm に実体展開する:
+#     node_modules/.bun/<pkg>/node_modules/<dep> を node_modules/<dep> にフラット化。
 # ============================================================
-FROM node:20-slim AS prod-install
+FROM oven/bun:1-slim AS prod-install
 
-WORKDIR /install
+WORKDIR /workspace
 
-# backend package.json 만 복사 (workspace 의존성 @pullim-classbot/* 는 devOnly 처리)
-COPY --from=build /workspace/apps/backend/package.json ./package.json
+# bun install に必要な全 workspace package.json + lockfile をコピー
+COPY package.json bun.lock ./
+COPY packages/types/package.json       ./packages/types/package.json
+COPY packages/auth/package.json        ./packages/auth/package.json
+COPY packages/api-client/package.json  ./packages/api-client/package.json
+COPY apps/backend/package.json         ./apps/backend/package.json
+COPY apps/classbot/package.json        ./apps/classbot/package.json
 
-# @pullim-classbot/types 는 import type 전용 → 런타임 require 없음.
-# npm install 시 workspace: 프로토콜을 모르므로 해당 dep 을 제거 후 설치한다.
-# jq 없으면 node -e 로 처리.
-RUN node -e " \
-  const fs = require('fs'); \
-  const pkg = JSON.parse(fs.readFileSync('package.json','utf8')); \
-  delete pkg.dependencies['@pullim-classbot/types']; \
-  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
-"
-# bcrypt は native addon (node-gyp) を含むため --ignore-scripts は使えない
-# python3 + make + g++ が必要; ビルド後 dev ツールはランタイムステージに持ち込まない
+# bcrypt native addon のビルドと rsync (symlink 実体化コピー用) をインストール
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
-      python3 make g++ \
+      python3 make g++ rsync \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install --omit=dev
+
+# bun.lock に固定された production 依存のみ取得
+RUN bun install --production --frozen-lockfile
+
+# bun の node_modules/.bun キャッシュから全パッケージを /runtime-nm にフラット展開する。
+# rsync -rL で symlink を実体解決しながらコピー。
+# .bun/<pkg+ver>/node_modules/* の各エントリをトップレベルに集約 (先勝ちで重複解決)。
+RUN mkdir /runtime-nm && \
+    find /workspace/node_modules/.bun -mindepth 2 -maxdepth 2 -name 'node_modules' -type d | \
+      while read nm; do \
+        rsync -rL --ignore-existing "$nm"/ /runtime-nm/ 2>/dev/null || true; \
+      done && \
+    rsync -rL --ignore-existing /workspace/apps/backend/node_modules/ /runtime-nm/ 2>/dev/null || true
 
 # ============================================================
 # Stage 3: runtime
-#   node:20-slim + 비root 사용자
+#   oven/bun:1-slim — prod-install と同じ ABI で bcrypt native addon が動く
 # ============================================================
-FROM node:20-slim AS runtime
+FROM oven/bun:1-slim AS runtime
 
 # 보안: non-root 사용자
 RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
@@ -73,8 +82,8 @@ ENV NODE_ENV=production
 # build stage 에서 컴파일된 dist 를 복사
 COPY --from=build /workspace/apps/backend/dist ./dist
 
-# prod-install stage 의 실제 node_modules (symlink 없는 npm 트리)
-COPY --from=prod-install /install/node_modules ./node_modules
+# prod-install でフラット化した node_modules をコピー
+COPY --from=prod-install /runtime-nm ./node_modules
 
 # 소유권 변경
 RUN chown -R appuser:appgroup /app
