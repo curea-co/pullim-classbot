@@ -1,6 +1,6 @@
 /**
  * 레슨 진도 — 챗 봇 주도 수업의 4단 위상(개념→예제→퀴즈→정리) 방문 기록.
- * per-user × per-bot 격리, localStorage persist 로 세션 간 유지.
+ * per-user × per-bot × per-day 격리, localStorage persist 로 같은 날 유지(매일 자연 reset).
  *
  * 실제 학습 위상 전진은 chat/page.tsx 의 lessonRequest useEffect / send() 콜백이
  * turn.kind → phase 매핑 후 markPhase 로 마킹한다(A1).
@@ -9,19 +9,23 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { todayKey } from './today-key';
 
 export type LessonPhase = 'concept' | 'example' | 'quiz' | 'summary';
 
 /** 위상 진행 순서 — current 계산(최후미 방문 위상)에 사용. */
 export const PHASE_ORDER: LessonPhase[] = ['concept', 'example', 'quiz', 'summary'];
 
-/** `${userId}:${botId}` 합성 키 — per-user × per-bot 격리. */
+/**
+ * `${userId}:${botId}:${YYYY-MM-DD}` 합성 키 — per-user × per-bot × **per-day** 격리.
+ * 날짜를 끼워 매일 자연 reset("오늘 진도"). 같은 날 새로고침은 같은 키라 유지.
+ */
 function progressKey(userId: string, botId: string): string {
-  return `${userId}:${botId}`;
+  return `${userId}:${botId}:${todayKey()}`;
 }
 
 interface LessonProgressStore {
-  /** key=`${userId}:${botId}` → 방문한 위상 목록(중복 없음) */
+  /** key=`${userId}:${botId}:${YYYY-MM-DD}` → 방문한 위상 목록(중복 없음) */
   visited: Record<string, LessonPhase[]>;
   /** 위상 방문 마킹 (중복 방지 push) */
   markPhase: (userId: string, botId: string, phase: LessonPhase) => void;

@@ -1,7 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { useSessionGoalStore, useSessionProgress } from '../session-goal';
+import { todayKey } from '../today-key';
 
-const K = 'student_001::cb_001';
+// 키는 호출부에서 `${userId}::${botId}::${YYYY-MM-DD}` 로 조립한다(날짜 스코프 → 매일 자연 reset).
+const T = todayKey();
+const K = `student_001::cb_001::${T}`;
 
 beforeEach(() => useSessionGoalStore.setState({ progress: {} }));
 
@@ -15,12 +18,24 @@ it('mark is idempotent per step', () => {
   expect(s().progress[K]).toMatchObject({ concept: true, example: false, quiz: true, goalDone: false });
 });
 
-it('keys are isolated', () => {
+it('keys are isolated per user', () => {
   const s = () => useSessionGoalStore.getState();
   s().mark(K, 'concept');
-  s().mark('student_002::cb_001', 'example');
+  const other = `student_002::cb_001::${T}`;
+  s().mark(other, 'example');
   expect(s().progress[K]).toMatchObject({ concept: true, example: false });
-  expect(s().progress['student_002::cb_001']).toMatchObject({ concept: false, example: true });
+  expect(s().progress[other]).toMatchObject({ concept: false, example: true });
+});
+
+it('different-day key is isolated (오늘 키는 어제 달성과 섞이지 않음)', () => {
+  const s = () => useSessionGoalStore.getState();
+  // 어제 키가 이미 채워져 있어도 오늘 키는 비어 있는 상태로 시작
+  const yesterday = 'student_001::cb_001::2000-01-01';
+  s().mark(yesterday, 'concept');
+  s().mark(yesterday, 'example');
+  s().mark(K, 'quiz');
+  expect(s().progress[K]).toMatchObject({ concept: false, example: false, quiz: true });
+  expect(s().progress[yesterday]).toMatchObject({ concept: true, example: true, quiz: false });
 });
 
 it('useSessionProgress defaults to all-false for missing key', () => {

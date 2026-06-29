@@ -1,14 +1,15 @@
 /**
  * 세션 목표 진척 — "오늘의 한 가지"(개념/예제/퀴즈) 달성도.
- * key=`${userId}::${botId}` 격리, localStorage persist 로 세션 간 유지(B7).
+ * key=`${userId}::${botId}::${YYYY-MM-DD}` 격리(날짜 스코프 → 매일 자연 reset), localStorage persist 로 같은 날 유지(B7).
  *
- * 유일 실시간 구독자는 SessionGoalBanner. summary 버블은 구독하지 않고
- * 빌드 시점 done snapshot 을 payload 에 박아 정적 렌더한다(render-perf).
+ * 실시간 구독자: SessionGoalBanner(항상) + summary 버블(summary turn 한정).
+ * 둘 다 hydration-게이트된 라이브 store 를 읽어 배너↔summary 가 항상 일치한다.
  */
 'use client';
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useStoresHydrated } from './use-hydrated';
 
 export type SessionStep = 'concept' | 'example' | 'quiz';
 
@@ -27,7 +28,7 @@ const EMPTY_PROGRESS: SessionProgress = {
 };
 
 interface SessionGoalStore {
-  /** key=`${userId}::${botId}` → 단계별 달성 + 목표완료 */
+  /** key=`${userId}::${botId}::${YYYY-MM-DD}` → 단계별 달성 + 목표완료 */
   progress: Record<string, SessionProgress>;
   /** 단계 달성 마킹 (idempotent) */
   mark: (key: string, step: SessionStep) => void;
@@ -69,4 +70,15 @@ export const useSessionGoalStore = create<SessionGoalStore>()(
 /** 미존재 key → 전부 false. 달성도(doneCount)는 컴포넌트에서 계산. */
 export function useSessionProgress(key: string): SessionProgress {
   return useSessionGoalStore((s) => s.progress[key] ?? EMPTY_PROGRESS);
+}
+
+/**
+ * hydration-게이트 버전 — rehydration 완료 전에는 전부 false 를 강제 반환한다.
+ * summary 버블이 freeze 된 pre-hydration snapshot 대신 라이브 store 를 읽되,
+ * SSR/첫 페인트는 항상 0/false 로 평가돼 배너와 동일(하이드레이션 불일치 없음).
+ */
+export function useSessionProgressLive(key: string): SessionProgress {
+  const hydrated = useStoresHydrated(useSessionGoalStore);
+  const live = useSessionProgress(key);
+  return hydrated ? live : EMPTY_PROGRESS;
 }

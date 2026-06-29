@@ -34,7 +34,8 @@ import { ContextAnchor } from '@/components/classbot/context-anchor';
 import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
-import { useSessionGoalStore, type SessionStep } from '@/lib/store/session-goal';
+import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
+import { todayKey } from '@/lib/store/today-key';
 import { cn } from '@/lib/utils';
 
 /**
@@ -82,12 +83,13 @@ type ConceptPayload = { concept: LessonConcept };
 type ExamplePayload = { title: string; steps: LessonStep[] };
 type QuizPayload = { quiz: LessonQuiz };
 /**
- * summary 버블 달성도 — 빌드 시점 done snapshot(B7).
- * store selector 를 MessageBody 에 두면 모든 과거 summary 버블이 리렌더되므로,
- * summary turn 생성 시 현재 done 을 payload 에 굳혀 넣어 구독 없이 정적 렌더한다.
+ * summary 버블 달성도(B7 finding#2).
+ * freeze 된 pre-hydration done snapshot 은 배너와 어긋날 수 있어 제거 — 대신 goalKey 만 싣고,
+ * summary 분기에서 hydration-게이트 라이브 store(useSessionProgressLive)를 직접 읽는다.
+ * summary turn 은 "오늘 정리" 1회뿐이라 모든 버블이 구독하는 perf 문제(plan 경고)는 재현되지 않는다.
  */
 type SummaryPayload = {
-  done: { concept: boolean; example: boolean; quiz: boolean };
+  goalKey: string;
   nextLine?: string;
 };
 
@@ -230,8 +232,9 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   );
   // A6 앵커 jump 용 dispatch (MessageBody/InlineQuiz 외 ChatPanel 스코프에도 구독)
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
-  // B7 세션 목표 키 — per-user × per-bot
-  const goalKey = useMemo(() => `${me.id}::${bot.id}`, [me.id, bot.id]);
+  // B7 세션 목표 키 — per-user × per-bot × per-day(오늘 스코프 → 매일 자연 reset).
+  // todayKey()는 같은 날엔 안정적이라 memo deps 에 둘 필요 없다(날이 바뀌면 remount/재계산으로 갱신).
+  const goalKey = useMemo(() => `${me.id}::${bot.id}::${todayKey()}`, [me.id, bot.id]);
 
   // [07 § 4.6.1·4.6.3] 첫 인사 + 봇 주도 수업 오프너 (mount 시 1회만 계산)
   const [turns, setTurns] = useState<Turn[]>(() => {
@@ -320,7 +323,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       const phase = kindToLessonPhase(turn.kind);
       if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
       const step = kindToSessionStep(turn.kind);
-      if (step) useSessionGoalStore.getState().mark(`${me.id}::${bot.id}`, step);
+      if (step) useSessionGoalStore.getState().mark(`${me.id}::${bot.id}::${todayKey()}`, step);
       if ((turn.kind === 'concept' || turn.kind === 'concept-detail') && turn.payload && 'concept' in turn.payload) {
         setActiveConceptId(turn.payload.concept.id);
       }
@@ -352,17 +355,14 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       const phase = kindToLessonPhase(richTurn.kind);
       if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
       const step = kindToSessionStep(richTurn.kind);
-      if (step) useSessionGoalStore.getState().mark(`${me.id}::${bot.id}`, step);
+      if (step) useSessionGoalStore.getState().mark(goalKey, step);
       if ((richTurn.kind === 'concept' || richTurn.kind === 'concept-detail') && richTurn.payload && 'concept' in richTurn.payload) {
         setActiveConceptId(richTurn.payload.concept.id);
       }
-      // summary 버블: 구독 없이 정적 렌더하도록 현재 done snapshot 을 payload 에 굳혀 넣는다(B7).
+      // summary 버블: freeze 된 pre-hydration snapshot 대신 goalKey 만 실어 보낸다(B7 finding#2).
+      // 렌더 시 MessageBody summary 분기가 hydration-게이트 라이브 store 를 읽어 배너와 항상 일치.
       if (richTurn.kind === 'summary') {
-        const p = useSessionGoalStore.getState().progress[`${me.id}::${bot.id}`];
-        richTurn.payload = {
-          done: { concept: !!p?.concept, example: !!p?.example, quiz: !!p?.quiz },
-          nextLine: lesson.nextLine,
-        } satisfies SummaryPayload;
+        richTurn.payload = { goalKey, nextLine: lesson.nextLine } satisfies SummaryPayload;
       }
 
       setTurns(t => [...t, richTurn]);
@@ -1049,48 +1049,16 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
     );
   }
 
-  // summary — 오늘 정리 카드 + 달성도(B7, payload done-snapshot 으로 구독 없이 정적 렌더)
+  // summary — 오늘 정리 카드 + 달성도(B7 finding#2).
+  // done 은 freeze snapshot 이 아니라 SummaryBubble 이 hydration-게이트 라이브 store 에서 읽는다 →
+  // 배너와 항상 일치. 구독은 summary 분기(전용 컴포넌트)에만 들어가 다른 버블 리렌더 없음.
   if (turn.kind === 'summary') {
-    const done = turn.payload && 'done' in turn.payload ? turn.payload.done : undefined;
+    const goalKey = turn.payload && 'goalKey' in turn.payload ? turn.payload.goalKey : undefined;
     const nextLine = turn.payload && 'nextLine' in turn.payload ? turn.payload.nextLine : undefined;
-    const doneCount = done ? [done.concept, done.example, done.quiz].filter(Boolean).length : 0;
-    const allDone = doneCount === 3;
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-3')} style={linerStyle}>
         <RichText text={turn.text} />
-        {done && (
-          <div className="border-pullim-slate-200 space-y-2 border-t pt-3">
-            <div className="flex items-center justify-between">
-              <span className="text-pullim-slate-600 text-sm font-bold">오늘 목표 달성도</span>
-              <span className="text-pullim-slate-700 text-sm font-semibold">{doneCount}/3 완료</span>
-            </div>
-            <div
-              role="progressbar"
-              aria-valuenow={doneCount}
-              aria-valuemin={0}
-              aria-valuemax={3}
-              aria-label={`오늘 목표 ${doneCount}/3 완료`}
-              className="bg-pullim-slate-100 h-2 w-full overflow-hidden rounded-full"
-            >
-              <span
-                className="bg-pullim-blue-600 block h-full rounded-full"
-                style={{ width: `${(doneCount / 3) * 100}%` }}
-              />
-            </div>
-            {allDone && (
-              <p className="text-pullim-blue-700 text-sm font-bold">🎯 오늘 목표 달성!</p>
-            )}
-            {nextLine && (
-              <div className="bg-pullim-blue-50 text-pullim-slate-800 flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px]">
-                <ArrowRight aria-hidden className="text-pullim-blue-600 h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="text-pullim-blue-700 mr-1 font-bold">다음 한 걸음 ·</span>
-                  {nextLine}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+        {goalKey && <SummaryProgress goalKey={goalKey} nextLine={nextLine} />}
       </div>
     );
   }
@@ -1121,6 +1089,50 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
   return (
     <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
       <RichText text={turn.text} />
+    </div>
+  );
+}
+
+/**
+ * summary 버블 달성도 — 배너와 동일한 hydration-게이트 라이브 store 를 읽어 항상 일치(B7 finding#2).
+ * summary turn 은 "오늘 정리" 1회뿐이라 이 구독이 다른 버블 리렌더를 유발하지 않는다.
+ * SSR/첫 페인트는 useSessionProgressLive 가 0/false 를 강제 → 배너와 하이드레이션 일치.
+ */
+function SummaryProgress({ goalKey, nextLine }: { goalKey: string; nextLine?: string }) {
+  const progress = useSessionProgressLive(goalKey);
+  const doneCount = [progress.concept, progress.example, progress.quiz].filter(Boolean).length;
+  const allDone = doneCount === 3;
+  return (
+    <div className="border-pullim-slate-200 space-y-2 border-t pt-3">
+      <div className="flex items-center justify-between">
+        <span className="text-pullim-slate-600 text-sm font-bold">오늘 목표 달성도</span>
+        <span className="text-pullim-slate-700 text-sm font-semibold">{doneCount}/3 완료</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={doneCount}
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-label={`오늘 목표 ${doneCount}/3 완료`}
+        className="bg-pullim-slate-100 h-2 w-full overflow-hidden rounded-full"
+      >
+        <span
+          className="bg-pullim-blue-600 block h-full rounded-full"
+          style={{ width: `${(doneCount / 3) * 100}%` }}
+        />
+      </div>
+      {allDone && (
+        <p className="text-pullim-blue-700 text-sm font-bold">🎯 오늘 목표 달성!</p>
+      )}
+      {nextLine && (
+        <div className="bg-pullim-blue-50 text-pullim-slate-800 flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px]">
+          <ArrowRight aria-hidden className="text-pullim-blue-600 h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="text-pullim-blue-700 mr-1 font-bold">다음 한 걸음 ·</span>
+            {nextLine}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
