@@ -27,11 +27,15 @@ export type CreatedReplay = Pick<
 type ReplayStore = {
   overrides: Record<string, ReplayOverride>;
   created: CreatedReplay[];
+  /** 학생이 회고에서 해결한 약점 — replayId → weakKey[] (key 형식은 getReplayWeakPoints) */
+  resolvedWeakPoints: Record<string, string[]>;
   setTakeaways: (id: string, takeaways: string[]) => void;
   approve: (id: string) => void;
   /** processing → review (AI 처리 완료 후 검수 대기로 자동 진입) */
   promoteToReview: (id: string) => void;
   createFromLive: (payload: CreatedReplay) => void;
+  /** 약점 해결 표시 (idempotent) — 재도전 정답 시 호출 */
+  resolveWeakPoint: (replayId: string, key: string) => void;
   reset: (id: string) => void;
 };
 
@@ -40,6 +44,15 @@ export const useReplayStore = create<ReplayStore>()(
     set => ({
       overrides: {},
       created: [],
+      resolvedWeakPoints: {},
+      resolveWeakPoint: (replayId, key) =>
+        set(state => {
+          const prev = state.resolvedWeakPoints[replayId] ?? [];
+          if (prev.includes(key)) return state;
+          return {
+            resolvedWeakPoints: { ...state.resolvedWeakPoints, [replayId]: [...prev, key] },
+          };
+        }),
       setTakeaways: (id, takeaways) =>
         set(state => ({
           overrides: { ...state.overrides, [id]: { ...state.overrides[id], keyTakeaways: takeaways } },
@@ -75,3 +88,11 @@ export const useReplayStore = create<ReplayStore>()(
     { name: 'pullim-replay-overrides' },
   ),
 );
+
+/** 안정 빈 배열 — 셀렉터가 매 렌더 새 ref를 반환해 리렌더 churn 나는 것 방지. */
+const EMPTY_KEYS: string[] = [];
+
+/** 특정 리플레이에서 해결된 약점 키 목록 (reactive). */
+export function useResolvedWeakPoints(replayId: string): string[] {
+  return useReplayStore(s => s.resolvedWeakPoints[replayId] ?? EMPTY_KEYS);
+}

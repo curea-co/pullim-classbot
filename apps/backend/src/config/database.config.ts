@@ -18,4 +18,5 @@ export default registerAs("database", () => ({
   username: process.env.DATABASE_USERNAME ?? "pullim",
   password: process.env.DATABASE_PASSWORD ?? "pullim",
   name: process.env.DATABASE_NAME ?? "pullim_classbot",
+  ssl: process.env.DATABASE_SSL === "true",
 }));

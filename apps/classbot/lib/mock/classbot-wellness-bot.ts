@@ -3,7 +3,7 @@
  * 권위: [13 § 3.3.3·9.3](proc/spec/13-reports-and-emotion-checkin.md) — 가장 점수 낮은 영역의 담당 봇이 한 줄 코멘트 + actionable CTA.
  */
 
-import { getMyBots, getWellbeingTrend, type EmotionMood, type ClassBot } from './classbot';
+import { getWellbeingTrend, type EmotionMood, type ClassBot } from './classbot';
 
 export type WellnessBotComment = {
   bot: ClassBot;
@@ -70,7 +70,7 @@ const LOW_MOOD_TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
  * 학생의 오늘 웰빙 snapshot에서 가장 낮은 5지표 영역의 담당 봇 코멘트를 생성.
  * 분해 데이터가 없으면 null.
  */
-export function getWellnessBotComment(studentId: string): WellnessBotComment | null {
+export function getWellnessBotComment(studentId: string, bots?: ClassBot[]): WellnessBotComment | null {
   const trend = getWellbeingTrend(studentId);
   if (trend.length === 0) return null;
   const today = trend[trend.length - 1];
@@ -90,7 +90,10 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
 
   // 추출본 mock — 단일 학생(서연) 가정, studentId는 v2 대비 인자 보존
   void studentId;
-  const myBots = getMyBots().map(b => b.bot);
+  // 봇 소스는 enrollment 권위(class-enrollment 스토어)이며, 반드시 호출부에서 주입한다.
+  // 클라이언트 호출부(홈·게이지)는 `useMyClassBots()` 구독값을 넘겨 join/나가기에 reactive하게 반응한다.
+  // 미주입(서버 컴포넌트 등) 시엔 enrollment를 알 수 없으므로 봇 코멘트를 생성하지 않는다([]).
+  const myBots = bots ?? [];
   // 시연용 봇별 subject로 매칭 — 없으면 첫 봇 fallback
   const bot =
     myBots.find(b => {
@@ -118,10 +121,11 @@ export function getWellnessBotComment(studentId: string): WellnessBotComment | n
 
 /**
  * 체크인 직후 봇 반응 ([13 § 3.3.4]) — 학생 입력한 mood에 따라 봇 한 줄 + actionable CTA.
+ * `bots`는 호출부(클라이언트 체크인 폼)가 `useMyClassBots()` 구독값을 주입한다 — enrollment 반영.
  */
-export function getCheckInReaction(studentId: string, mood: EmotionMood | null): WellnessBotComment | null {
+export function getCheckInReaction(studentId: string, mood: EmotionMood | null, bots?: ClassBot[]): WellnessBotComment | null {
   // 가장 낮은 영역 기반 봇 매칭은 동일 — 체크인 mood에 따라 텍스트만 조정
-  const base = getWellnessBotComment(studentId);
+  const base = getWellnessBotComment(studentId, bots);
   if (!base) return null;
 
   // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어/국어 누나는 존대, 나머지 반말)

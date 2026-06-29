@@ -1,5 +1,7 @@
+"use client";
 import * as React from "react";
 import { cn } from "@/lib/cn";
+import { useRailCollapsed } from "./rail-collapse-context";
 
 export interface RailItem {
   label: string;
@@ -18,7 +20,9 @@ export interface OsRailProps {
   className?: string;
 }
 
-export function OsRail({ head, items, collapsed = false, linkComponent = "a", className }: OsRailProps) {
+export function OsRail({ head, items, collapsed: collapsedProp, linkComponent = "a", className }: OsRailProps) {
+  const ctx = useRailCollapsed();
+  const collapsed = collapsedProp ?? ctx;
   const Link = linkComponent;
   return (
     <nav

@@ -9,6 +9,7 @@ import BackLink from '@/components/classbot/back-link';
 import { Textarea } from '@/components/ui/textarea';
 import { type EmotionMood } from '@/lib/mock';
 import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
+import { useModeBots } from '@/lib/store/mode-bots';
 import { useRosterMe } from '@/lib/current-user';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
@@ -19,6 +20,7 @@ import { botSignature } from '@/lib/tokens/bot-signature';
 export function CheckInForm() {
   const router = useRouter();
   const me = useRosterMe();
+  const modeBots = useModeBots();   // 모드별 봇 구독 — 체크인 봇 반응에 주입
   const [mood, setMood] = useState<EmotionMood | null>(null);
   const [intensityRange, setIntensityRange] = useState<[number, number]>([2, 4]);
   const [freeText, setFreeText] = useState('');
@@ -41,7 +43,7 @@ export function CheckInForm() {
 
   if (done) {
     // [13 § 3.3.4] 체크인 사후 봇 반응 — 가장 낮은 영역 담당 봇이 한 줄 + actionable CTA
-    const reaction = getCheckInReaction(me.id, mood);
+    const reaction = getCheckInReaction(me.id, mood, modeBots);
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="bg-pullim-blue-50 pullim-anim-message-mount flex h-20 w-20 items-center justify-center rounded-full">

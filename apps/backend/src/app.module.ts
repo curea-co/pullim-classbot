@@ -8,16 +8,18 @@ import { AppController } from "./app.controller";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import databaseConfig from "./config/database.config";
 import jwtConfig from "./config/jwt.config";
+import qgenConfig from "./config/qgen.config";
 import { AuthRevokedToken } from "./entities/auth-revoked-token.entity";
 import { AuthUser } from "./entities/auth-user.entity";
 import { AuthUserProvider } from "./entities/auth-user-provider.entity";
 import { AuthModule } from "./modules/auth/auth.module";
+import { ReplayModule } from "./modules/replay/replay.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig],
+      load: [databaseConfig, jwtConfig, qgenConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -28,6 +30,11 @@ import { AuthModule } from "./modules/auth/auth.module";
         username: configService.getOrThrow<string>("database.username"),
         password: configService.getOrThrow<string>("database.password"),
         database: configService.getOrThrow<string>("database.name"),
+        // RDS 등 TLS 필요 시 DATABASE_SSL=true. rejectUnauthorized:false 는 RDS
+        // 관리형 인증서에 대응; 추후 CA bundle 을 ssl.ca 로 지정해 더 엄격히 할 수 있다.
+        ssl: configService.get<boolean>("database.ssl")
+          ? { rejectUnauthorized: false }
+          : false,
         // 인증 엔티티만 등록 — classbot FE(Drizzle) 테이블은 TypeORM 이 관리하지 않는다.
         entities: [AuthUser, AuthUserProvider, AuthRevokedToken],
         // camelCase 프로퍼티 ↔ snake_case 컬럼 자동 변환 (본체 pullim 정렬).
@@ -37,6 +44,7 @@ import { AuthModule } from "./modules/auth/auth.module";
       }),
     }),
     AuthModule,
+    ReplayModule,
   ],
   controllers: [AppController],
   providers: [

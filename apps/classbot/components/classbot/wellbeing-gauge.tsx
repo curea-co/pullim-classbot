@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Heart, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { useModeBots } from '@/lib/store/mode-bots';
+import { useStudentMode } from '@/lib/store/student-mode';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 import { Sparkbar } from '@/components/classbot/sparkbar';
@@ -37,9 +39,13 @@ export function WellbeingGauge({
   audience?: 'student-chat' | 'student-self';
 }) {
   const trend = getWellbeingTrend(studentId);
+  // 봇 인사이트는 enrollment 권위(class-enrollment 스토어)를 구독해 주입 — join/나가기에 reactive.
   // 학생 화면에는 봇 인사이트 합성 — § 9.2 필수 요소. compact mode(교사 mini chart)는 inline early return 분기로 자동 미노출.
   // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
-  const rawInsight = getWellnessBotComment(studentId);
+  const { hydrated } = useStudentMode();
+  const modeBots = useModeBots();
+  // hydration 전에는 모드/봇이 빈 상태 → 잘못된 인사이트 플래시 방지(차트는 그대로 표시).
+  const rawInsight = hydrated ? getWellnessBotComment(studentId, modeBots) : null;
   const botInsight = rawInsight && audience === 'student-self'
     ? { ...rawInsight, ctaHref: '/classbot/assignment', ctaLabel: '다음 주 도전' }
     : rawInsight;

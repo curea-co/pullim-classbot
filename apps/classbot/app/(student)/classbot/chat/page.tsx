@@ -3,13 +3,15 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
   type QuickReplyKey, type LessonFlowKey,
-  getMyBots, type ClassBot,
+  type ClassBot,
 } from '@/lib/mock';
+import { useModeBots } from '@/lib/store/mode-bots';
+import { useStudentMode } from '@/lib/store/student-mode';
 import {
   getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
@@ -22,7 +24,6 @@ import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { useEnrolledTutors } from '@/lib/store/self-learning';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
 import { LiveCompactBar } from '@/components/classbot/live-overlay';
 import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-attach-sheet';
@@ -90,19 +91,30 @@ function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
-  const enrolledTutors = useEnrolledTutors();
-  const myBots = useMemo(() => [...getMyBots().map(b => b.bot), ...enrolledTutors], [enrolledTutors]);
+  const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
+  // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
+  const { mode, hydrated } = useStudentMode();
+  const myBots = useModeBots();
   const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
   const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
   const activeLive = useLiveStore(s => s.active);
 
-  // ?bot= 쿼리와 selectedBotId 동기화 — 외부 링크가 봇 지정 시 반영
+  // selectedBotId / ?bot= 정규화
   useEffect(() => {
+    // 1) 외부 링크가 유효한 봇을 지정 → 반영
     if (botParam && botParam !== selectedBotId && myBots.some(b => b.id === botParam)) {
       setSelectedBotId(botParam);
+      return;
     }
-  }, [botParam, myBots, selectedBotId]);
+    // 2) 모드 전환·나가기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
+    //    (보이는 봇 = myBots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
+    if (myBots.length > 0 && !myBots.some(b => b.id === selectedBotId)) {
+      const next = myBots[0].id;
+      setSelectedBotId(next);
+      if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
+    }
+  }, [botParam, myBots, selectedBotId, router]);
 
   function handleBotChange(nextId: string) {
     setSelectedBotId(nextId);
@@ -110,16 +122,34 @@ function ClassbotChatPageInner() {
     router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
   }
 
-  // 등록한 튜터가 없으면(신규 사용자) 대화할 봇이 없음 → 봇 마켓 유도 (크래시 방지)
+  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  if (!hydrated) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
+      </div>
+    );
+  }
+
+  // 대화할 봇이 없을 때 — 모드별로 다른 빈 상태 (spec: self 전용 surface를 class 모드에 노출 금지)
   if (!bot) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
-        <EmptyState
-          icon={Compass}
-          title="아직 등록한 튜터가 없어요"
-          description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-          action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
-        />
+        {mode === 'class' ? (
+          <EmptyState
+            icon={GraduationCap}
+            title="아직 참여한 클래스가 없어요"
+            description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
+            action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+          />
+        ) : (
+          <EmptyState
+            icon={Compass}
+            title="아직 등록한 튜터가 없어요"
+            description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
+            action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+          />
+        )}
       </div>
     );
   }
@@ -163,7 +193,7 @@ function ClassbotChatPageInner() {
       )}
 
       {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
-      <ChatPanel key={bot.id} bot={bot} />
+      <ChatPanel key={bot.id} bot={bot} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
     </div>
   );
 }
@@ -171,7 +201,7 @@ function ClassbotChatPageInner() {
 const STICKY_THRESHOLD = 80;
 const TEXTAREA_MAX_PX = 96;
 
-function ChatPanel({ bot }: { bot: ClassBot }) {
+function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) {
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
@@ -200,7 +230,11 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
     ];
   });
   const [pending, setPending] = useState(false);
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialAsk ?? '');
+  // composer는 URL ask 상태를 따른다 — ask 변경 시 새 prefill 반영, ask 제거 시 초기화(stale 방지).
+  useEffect(() => {
+    setValue(initialAsk ?? '');
+  }, [initialAsk]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -347,11 +381,12 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
       </div>
 
       {/*
-        챗 메인 — 2단 레이아웃에서 좌측 전체 폭을 차지한다.
+        챗 메인 — lg+ 는 2단 [챗 | 오늘의 학습 가이드 레일], 모바일은 단일 컬럼(가이드는 챗 상단 인라인).
         라이브 봇이면 헤더 바로 아래에 컴팩트 라이브 바를 얹어 챗을 위로 끌어올리고,
         섹션 내부 단일 스크롤(flex-1)로 중앙 중첩 스크롤바를 제거한다.
       */}
-      <section className="bg-card flex flex-1 min-h-0 flex-col rounded-2xl border">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="bg-card flex flex-1 min-h-0 min-w-0 flex-col rounded-2xl border">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
@@ -371,8 +406,10 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
             data-slot="chat-scroll"
             className="flex max-h-[calc(100dvh-14rem)] min-h-[360px] flex-col gap-3 overflow-y-auto p-4 lg:max-h-none lg:min-h-0 lg:flex-1"
           >
-            {/* 챗에 내장된 학습 가이드 + 연습 퀴즈 (학습 요소 강화) */}
-            <ChatStudyInline bot={bot} />
+            {/* 챗 내장 학습 가이드 — 모바일 전용(lg+ 는 우측 레일). */}
+            <div className="lg:hidden">
+              <ChatStudyInline bot={bot} />
+            </div>
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
             ))}
@@ -450,6 +487,15 @@ function ChatPanel({ bot }: { bot: ClassBot }) {
           </form>
         </div>
       </section>
+
+      {/* 오늘의 학습 가이드 — lg+ 우측 레일(독립 스크롤). 모바일은 챗 상단 인라인 유지. */}
+      <aside
+        data-slot="chat-study-rail"
+        className="hidden min-h-0 lg:block lg:overflow-y-auto"
+      >
+        <ChatStudyInline bot={bot} />
+      </aside>
+      </div>
     </div>
   );
 }

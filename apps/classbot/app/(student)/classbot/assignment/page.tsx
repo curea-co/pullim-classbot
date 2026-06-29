@@ -12,7 +12,9 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
 import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
-import { useMergedAssignments } from '@/lib/store/assignments';
+import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useRosterMe } from '@/lib/current-user';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -57,11 +59,15 @@ export default function StudentAssignmentListPage() {
 
   // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)를 보여준다.
   // 인증 사용자는 Phase7 실API 경로 그대로 유지. 데모/e2e 의 발사→수령 흐름이 동작.
+  // 데모 경로도 참여 중인 클래스(봇)로 스코프 — 반을 나가면 그 반 과제가 목록에서도 사라진다(홈과 일관).
   const merged = useMergedAssignments(me.id);
-  const demoData = useMemo(
-    () => ({ assignments: merged.map(assignmentToReadRow) }),
-    [merged],
-  );
+  const enrollments = useClassEnrollmentStore((s) => s.enrollments);
+  // persist(class-enrollment·assignments) rehydrate 전에는 demo 목록이 빈/미필터 상태 → 스켈레톤 유지.
+  const demoHydrated = useStoresHydrated(useClassEnrollmentStore, useAssignmentStore);
+  const demoData = useMemo(() => {
+    const enrolledBotIds = new Set(enrollments.map((e) => e.botId));
+    return { assignments: merged.filter((a) => enrolledBotIds.has(a.botId)).map(assignmentToReadRow) };
+  }, [merged, enrollments]);
 
   return (
     <div className="space-y-4">
@@ -70,7 +76,7 @@ export default function StudentAssignmentListPage() {
       <AssignmentListBody
         data={isUnauthenticated ? demoData : data}
         bots={botsData?.bots ?? []}
-        isLoading={isUnauthenticated ? false : isLoading}
+        isLoading={isUnauthenticated ? !demoHydrated : isLoading}
         isUnauthenticated={false}
         isError={isUnauthenticated ? false : isError}
         onRetry={() => void refetch()}
