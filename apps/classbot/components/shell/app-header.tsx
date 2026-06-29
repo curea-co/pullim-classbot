@@ -22,11 +22,6 @@ import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { StudentModeToggle } from './student-mode-toggle';
 
-const roleLogoLabel: Record<Role, string> = {
-  student: '클래스봇',
-  teacher: '교사',
-};
-
 const roleHomeHref: Record<Role, string> = {
   student: '/',
   teacher: '/teacher',
@@ -37,12 +32,18 @@ export function AppBrand({ role }: { role: Role }) {
   return (
     <Link
       href={roleHomeHref[role]}
-      className="flex items-center gap-1.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+      aria-label="풀림 클래스봇 홈"
+      className="inline-flex items-center gap-2.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
     >
-      <ClassbotMark size={32} />
-      <span className="text-pullim-slate-900 text-base font-bold tracking-tight">풀림</span>
-      <span className="text-pullim-slate-400 hidden text-2xs font-bold uppercase md:inline">
-        {roleLogoLabel[role]}
+      {/* 로고 글리프 — os.pullim.ai `.mast .glyph`(30×30, radius 9px, pullim-blue 타일) 동형 */}
+      <ClassbotMark size={30} />
+      {/* 워드마크 — `.mast .wordmark`: 800 / 18px / letter-spacing -0.04em */}
+      <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
+        풀림
+      </span>
+      {/* 서비스명 — `.mast .sub`: mono 11px / .04em / 좌측 divider(pl 9px·ml 2px) */}
+      <span className="text-pullim-slate-400 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-[11px] leading-none tracking-[0.04em]">
+        클래스봇
       </span>
     </Link>
   );
