@@ -385,8 +385,8 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         라이브 봇이면 헤더 바로 아래에 컴팩트 라이브 바를 얹어 챗을 위로 끌어올리고,
         섹션 내부 단일 스크롤(flex-1)로 중앙 중첩 스크롤바를 제거한다.
       */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
-      <section className="bg-card flex flex-1 min-h-0 flex-col rounded-2xl border">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="bg-card flex flex-1 min-h-0 min-w-0 flex-col rounded-2xl border">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
           {isLive && (
