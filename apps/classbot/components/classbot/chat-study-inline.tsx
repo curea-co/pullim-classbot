@@ -6,6 +6,8 @@ import type { ClassBot } from '@/lib/mock';
 import { getBotLesson } from '@/lib/mock/classbot-lesson';
 import { useLessonActionStore } from '@/lib/store/lesson-action';
 import { LessonProgressMap } from '@/components/classbot/lesson-progress-map';
+import { WeaknessReviewCard } from '@/components/classbot/weakness-review-card';
+import { ConceptMasteryBar } from '@/components/classbot/concept-mastery-rail';
 
 /**
  * 챗 상단 수업 런처 — 페이지 이동/모달 없이 모든 학습을 챗에 녹인다.
@@ -22,6 +24,9 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
   const [open, setOpen] = useState(true);
 
   return (
+    <>
+    {/* 복습할 약점(B1B2) — 개념 리스트 위. due 없으면 자체 미렌더. */}
+    <WeaknessReviewCard botId={bot.id} userId={userId} />
     <section
       data-slot="chat-study-inline"
       className="border-pullim-blue-200 from-pullim-blue-50/70 rounded-2xl border bg-gradient-to-br to-white"
@@ -84,6 +89,8 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
                     <p className="text-pullim-slate-600 mt-1 line-clamp-2 text-sm leading-relaxed">
                       {c.summary}
                     </p>
+                    {/* 정답률 막대(B1B2) — UnitProgress(학습 단계)와 라벨로 구분 */}
+                    <ConceptMasteryBar conceptId={c.id} conceptTitle={c.title} botId={bot.id} userId={userId} />
                   </button>
                 </li>
               ))}
@@ -152,5 +159,6 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
         </div>
       )}
     </section>
+    </>
   );
 }

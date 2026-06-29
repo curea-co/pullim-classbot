@@ -22,6 +22,13 @@ jest.mock('@/hooks/api/replay/use-requiz', () => ({
   useRequiz: () => ({ mutate: mockMutate }),
 }));
 
+// ReplayRecap(자식) 이 B1B2 '질문' 약점 합류에 useCurrentUser/router 를 쓴다 →
+// AuthProvider 없는 테스트를 위해 데모 폴백/ no-op router 로 mock.
+jest.mock('@/lib/current-user', () => ({
+  useCurrentUser: () => ({ id: 'student_001', role: 'student', name: '서연', isAuthenticated: false }),
+}));
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+
 beforeEach(() => {
   useReplayStore.setState({ resolvedWeakPoints: {} });
   useStudentModeStore.setState({ mode: 'class' }); // 리플레이는 class 모드 콘텐츠

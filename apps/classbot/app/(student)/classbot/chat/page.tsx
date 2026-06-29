@@ -42,6 +42,9 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
 import { todayKey } from '@/lib/store/today-key';
+import { useMisconceptionStore } from '@/lib/store/misconception';
+import { useProficiencyStore } from '@/lib/store/proficiency';
+import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
 import { cn } from '@/lib/utils';
 
 /**
@@ -88,7 +91,11 @@ type ExplainStepPayload = {
 type LessonIntroPayload = { topic: string; keyCallout: string };
 type ConceptPayload = { concept: LessonConcept };
 type ExamplePayload = { title: string; steps: LessonStep[] };
-type QuizPayload = { quiz: LessonQuiz };
+/**
+ * B1B2 — conceptId 로 숙련도/약점 store 에 결과를 귀속. 미지정 시 relatedConceptId 폴백.
+ * reviewWeaknessKey: review 로 주입된 퀴즈일 때만 — 정답 시 해당 약점 key 를 출처 무관하게 해소.
+ */
+type QuizPayload = { quiz: LessonQuiz; conceptId?: string; reviewWeaknessKey?: string };
 /**
  * summary 버블 달성도(B7 finding#2).
  * freeze 된 pre-hydration done snapshot 은 배너와 어긋날 수 있어 제거 — 대신 goalKey 만 싣고,
@@ -524,6 +531,13 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} onCardReveal={handleCardReveal} />
             ))}
+            {/*
+              B6 오개념 코칭 — record 후 turns/pending 변화 없이 등장하므로 자동추적이 안 돈다.
+              onAppear(=handleCardReveal)로 sticky 면 바닥추적. usePendingCoachTag 구독은 이 격리
+              컴포넌트 안에만 있어 record 마다 chat-scroll 전체가 리렌더되지 않는다.
+              turns.map 사이가 아니라 turns 블록 뒤 단일 노드 — selector 카운트 무영향.
+            */}
+            <MisconceptionCoaching botId={bot.id} userId={me.id} onAppear={handleCardReveal} />
             {pending && <PendingBubble bot={bot} />}
           </div>
 
@@ -776,7 +790,10 @@ function buildLessonTurn(
     id, role: 'bot', at,
     text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
     kind: 'quiz',
-    payload: { quiz: lesson.quiz } satisfies QuizPayload,
+    payload: {
+      quiz: lesson.quiz,
+      conceptId: lesson.quiz.relatedConceptId ?? concepts[idxRef.current]?.id,
+    } satisfies QuizPayload,
   };
 }
 
@@ -832,8 +849,28 @@ function buildLessonActionTurn(
         id, role: 'bot', at,
         text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
         kind: 'quiz',
-        payload: { quiz: lesson.quiz } satisfies QuizPayload,
+        payload: {
+          quiz: lesson.quiz,
+          conceptId: lesson.quiz.relatedConceptId ?? concepts[idxRef.current]?.id,
+        } satisfies QuizPayload,
       };
+    case 'review': {
+      // B1B2 약점 복습 — 요청 개념으로 idxRef 동기화(메시지 문구는 약점 개념 기준).
+      const idx = findIdx(req.conceptId);
+      idxRef.current = idx;
+      const c = concepts[idx] ?? concepts[0];
+      // Codex#164 finding#1: mock 은 봇당 퀴즈 1개(per-concept 퀴즈 뱅크 없음) — review 는
+      // 가용한 lesson.quiz 를 그대로 낸다(퀴즈를 날조하지 않음). 따라서 기록 conceptId 는
+      // 요청 약점의 개념이 아니라 **실제 제공되는 퀴즈의 개념**(relatedConceptId)에 맞춘다.
+      const conceptId = lesson.quiz.relatedConceptId ?? c?.id;
+      return {
+        id, role: 'bot', at,
+        text: `지난번 막혔던 **${c?.title ?? '개념'}**, 다시 한 번 점검해보자 👇`,
+        kind: 'quiz',
+        // finding#2: 약점 key 를 스레딩 — 정답 시 출처(quiz/replay) 무관하게 그 약점을 해소.
+        payload: { quiz: lesson.quiz, conceptId, reviewWeaknessKey: req.weaknessKey } satisfies QuizPayload,
+      };
+    }
     case 'self-explain': {
       // selfExplains 에서 conceptId 매핑(미지정/미발견 → 첫 프롬프트). 비면 주입 안 함.
       const list = lesson.selfExplains;
@@ -1131,7 +1168,14 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
-        <InlineQuiz quiz={turn.payload.quiz} botId={botId} scope={scope} onCardReveal={onCardReveal} />
+        <InlineQuiz
+          quiz={turn.payload.quiz}
+          conceptId={turn.payload.conceptId}
+          reviewWeaknessKey={turn.payload.reviewWeaknessKey}
+          botId={botId}
+          scope={scope}
+          onCardReveal={onCardReveal}
+        />
       </div>
     );
   }
@@ -1245,11 +1289,15 @@ function RichTextInline({ text }: { text: string }) {
  * - 오답: 그 보기가 왜 함정인지(distractor 피드백) + 처방(개념 다시 보기=챗 주입 / 다시 풀기).
  * 색 규약: blue/slate + 위험빨강만 (green/amber 금지).
  */
-function InlineQuiz({ quiz, botId, scope, onCardReveal }: { quiz: LessonQuiz; botId: string; scope: number; onCardReveal: () => void }) {
+function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardReveal }: { quiz: LessonQuiz; conceptId?: string; reviewWeaknessKey?: string; botId: string; scope: number; onCardReveal: () => void }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
+  // B6+B1B2: turn 당 인스턴스라 auth-context 구독 1개 추가는 허용(prop drill 회피).
+  const me = useCurrentUser();
   const [selected, setSelected] = useState<number | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [hintCount, setHintCount] = useState(0);
+  // 제출 1회당 1기록. reset(다시 풀기) 시 false 로 되돌려 재제출을 새 시도로 카운트.
+  const recordedRef = useRef(false);
   // B5: 확신도 — optional 메타인지 레이어. 제출 게이트에 넣지 않는다(기존 흐름 보존).
   const [confidence, setConfidence] = useState<Confidence | undefined>();
   const correct = submitted && selected === quiz.answerIndex;
@@ -1269,6 +1317,36 @@ function InlineQuiz({ quiz, botId, scope, onCardReveal }: { quiz: LessonQuiz; bo
     setSubmitted(false);
     setHintCount(0);
     setConfidence(undefined);
+    // 다시 풀기 → 다음 제출을 새 시도로 카운트(이중 기록 방지 가드 해제).
+    recordedRef.current = false;
+  }
+
+  /**
+   * 제출 시 결과 기록(B6+B1B2). 제출 1회당 1기록 — recordedRef 가드로 이중 기록 방지.
+   * reset() 이 ref 를 풀어주므로 '다시 풀기' 후 재제출은 새 시도로 카운트된다.
+   */
+  function handleSubmit() {
+    if (selected === undefined) return;
+    setSubmitted(true);
+    onCardReveal();
+    if (recordedRef.current) return;
+    recordedRef.current = true;
+    const isCorrect = selected === quiz.answerIndex;
+    // B1B2 — 정/오답 모두 숙련도에 기록(conceptId 미지정 시 relatedConceptId 폴백).
+    const cid = conceptId ?? quiz.relatedConceptId;
+    if (cid) {
+      useProficiencyStore.getState().recordQuizResult(me.id, { botId, conceptId: cid, correct: isCorrect });
+    }
+    // finding#2 — review 로 주입된 퀴즈에서 정답이면 그 약점 key 를 출처(quiz/replay) 무관하게 해소.
+    // recordQuizResult 는 q:botId:conceptId 만(streak≥2) 지우므로 replay(r:...) 약점은 여기서만 해소된다.
+    if (isCorrect && reviewWeaknessKey) {
+      useProficiencyStore.getState().clearWeakness(me.id, reviewWeaknessKey);
+    }
+    // B6 — 오답이면 그 보기의 함정 태그 누적(record 내부에서 'correct'/falsy 무시).
+    if (!isCorrect) {
+      const tag = quiz.distractorTags?.[selected ?? -1];
+      useMisconceptionStore.getState().record(me.id, tag);
+    }
   }
 
   return (
@@ -1368,7 +1446,7 @@ function InlineQuiz({ quiz, botId, scope, onCardReveal }: { quiz: LessonQuiz; bo
         <button
           type="button"
           disabled={selected === undefined}
-          onClick={() => { setSubmitted(true); onCardReveal(); }}
+          onClick={handleSubmit}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
           제출하기
