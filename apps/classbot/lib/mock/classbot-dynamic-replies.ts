@@ -7,8 +7,23 @@
  * 3) 시간/상황 기반: 새벽·심야 진입 → 웰빙 칩 prepend
  */
 
-import type { ClassbotQuickPrompt, QuickReplyKey } from './chat';
+import { LESSON_FLOW_KEYS, type ClassbotQuickPrompt, type QuickReplyKey } from './chat';
 import type { ClassBot } from './classbot';
+
+/**
+ * 빠른 칩 시각 종류 (A7).
+ * - guide: 봇 주도 수업 단계 칩(개념/예제/퀴즈/다음) — 시그니처 좌측 라이너 강조
+ * - ask: 자유 질문·웰빙·요약 등 — 중립 outline
+ */
+export type QuickReplyChipKind = 'guide' | 'ask';
+
+/**
+ * 칩 응답키 → 시각 종류. 수업 흐름키(LESSON_FLOW_KEYS)면 guide, 그 외(today_summary/exam_prep/
+ * reassurance/extremum 등)는 ask.
+ */
+export function quickReplyChipKind(key: QuickReplyKey): QuickReplyChipKind {
+  return (LESSON_FLOW_KEYS as readonly string[]).includes(key) ? 'guide' : 'ask';
+}
 
 /**
  * 봇 주도 가이드 수업 — 기본 흐름칩 (개념 → 예제 → 퀴즈 → 다음 개념).
