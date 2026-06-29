@@ -23,9 +23,9 @@ test.describe('가이드 수업 흐름칩 (등록 후)', () => {
     await page.getByRole('button', { name: '개념 더보기' }).click();
     await expect(chat.getByText('자세히 보기 (학습 팁·예제 문항) →')).toBeVisible({ timeout: 3000 });
 
-    // 예제 풀어줘 → 예제 단계 카드(리드 문구는 흐름 공통)
+    // 예제 풀어줘 → 예제 fading 카드(B3: 점감 스캐폴딩 리드 문구)
     await page.getByRole('button', { name: '예제 풀어줘' }).click();
-    await expect(chat.getByText(/예제로 같이 적용해보자/)).toBeVisible({ timeout: 3000 });
+    await expect(chat.getByText(/직접 채워봐/)).toBeVisible({ timeout: 3000 });
 
     // 퀴즈 내줘 → 인라인 퀴즈
     await page.getByRole('button', { name: '퀴즈 내줘' }).click();

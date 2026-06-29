@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, BookOpen, ListChecks, ChevronDown, ChevronUp, MessageSquarePlus } from 'lucide-react';
+import { Sparkles, BookOpen, ListChecks, ChevronDown, ChevronUp, MessageSquarePlus, Mic } from 'lucide-react';
 import type { ClassBot } from '@/lib/mock';
 import { getBotLesson } from '@/lib/mock/classbot-lesson';
 import { useLessonActionStore } from '@/lib/store/lesson-action';
@@ -17,6 +17,7 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
   const lesson = getBotLesson(bot.id);
   const concepts = lesson.concepts;
   const quizzes = lesson.practiceQuizzes;
+  const selfExplains = lesson.selfExplains ?? [];
   const dispatch = useLessonActionStore(s => s.dispatch);
   const [open, setOpen] = useState(true);
 
@@ -118,6 +119,36 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
               ))}
             </ul>
           </div>
+
+          {/* 내 말로 설명 — 누르면 챗에 자기설명 프롬프트 주입(B4) */}
+          {selfExplains.length > 0 && (
+            <div>
+              <div className="text-pullim-slate-600 mb-2 flex items-center gap-1.5 text-xs font-bold">
+                <Mic className="text-pullim-blue-600 h-4 w-4" />
+                내 말로 설명
+                <span className="text-pullim-slate-400 font-normal">· 개념을 직접 설명해보기</span>
+              </div>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {selfExplains.map(se => {
+                  const concept = concepts.find(c => c.id === se.conceptId);
+                  return (
+                    <li key={se.conceptId}>
+                      <button
+                        type="button"
+                        onClick={() => dispatch(bot.id, 'self-explain', se.conceptId)}
+                        className="group bg-white border-pullim-slate-200 border-l-pullim-blue-400 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40 flex w-full items-center gap-2 rounded-xl border border-l-[3px] p-3 text-left transition-colors"
+                      >
+                        <span className="text-pullim-slate-800 min-w-0 flex-1 truncate text-[15px] font-bold">
+                          {concept?.title ?? '오늘의 개념'}
+                        </span>
+                        <MessageSquarePlus className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </section>
