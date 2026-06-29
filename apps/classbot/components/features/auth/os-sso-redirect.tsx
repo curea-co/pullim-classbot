@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { osLoginUrl } from '@/lib/auth/os-sso';
+import { osLoginUrl, osSignupUrl } from '@/lib/auth/os-sso';
 
 /**
  * OS SSO 모드 전용 리다이렉트 가드.
@@ -17,14 +17,15 @@ import { osLoginUrl } from '@/lib/auth/os-sso';
  *
  * `useSearchParams` 를 쓰므로 호출부에서 `<Suspense>` 로 감싸야 한다.
  */
-export function OsSsoRedirect() {
+export function OsSsoRedirect({ mode = 'login' }: { mode?: 'login' | 'signup' }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const next = searchParams.get('next') ?? '/';
-    window.location.assign(osLoginUrl(next));
-  }, [searchParams]);
+    // 로그인 진입은 OS 로그인, 회원가입 진입은 OS 회원가입으로 위임(가입 플로우 보존).
+    window.location.assign(mode === 'signup' ? osSignupUrl(next) : osLoginUrl(next));
+  }, [searchParams, mode]);
 
   return null;
 }

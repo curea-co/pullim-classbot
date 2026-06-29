@@ -30,7 +30,14 @@ interface MeResponse {
 
 /**
  * pullim-api 역할 → classbot UserRole(student|teacher|admin) 매핑.
- * globalRole=admin → admin, 도메인 role=teacher → teacher, 그 외(student/parent/institution) → student.
+ * globalRole=admin → admin, 도메인 role=teacher → teacher, 그 외 → student.
+ *
+ * classbot 추출본은 도메인 역할이 **student|teacher|admin 3종뿐**이다(보호자/기관 표면은 추출 시
+ * 제거 — apps/classbot/CLAUDE.md §2). 따라서 OS 의 parent/institution 은 classbot 에 대응 라우트가
+ * 없어 student(자기주도 학습자) 기본 뷰로 매핑한다. 이 매핑은 **UI 라우팅(학생 홈 vs 교사 홈)에만**
+ * 영향하며, 권한 상승이 아니다 — 데이터는 role 이 아니라 sub(사용자 id)로 분리되고, classbot 접근
+ * 자체는 `flags.classbot` entitlement 게이트가 통제한다(역할 무관). 보호자 전용 표면이 classbot 에
+ * 도입되면 그때 parent 분기를 추가한다(후속).
  */
 function mapRole(role: string, globalRole: string): UserRole {
   if (globalRole === 'admin') return 'admin';

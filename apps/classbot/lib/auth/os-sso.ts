@@ -41,7 +41,22 @@ export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
  * @returns `${OS_URL}/login` 또는 `${OS_URL}/login?next=<encoded>`
  */
 export function osLoginUrl(next: string): string {
-  const base = `${OS_URL}/login`;
+  return osAuthUrl('/login', next);
+}
+
+/**
+ * 풀림 OS 회원가입 URL 을 만든다. 회원가입 진입은 OS 로그인이 아니라 OS **회원가입**으로 위임한다
+ * (학생 단독 가입 등 가입 플로우 보존). 복귀 규약은 osLoginUrl 과 동일(`next`).
+ * @param next - 가입 후 돌아올 내부 경로
+ * @returns `${OS_URL}/signup` 또는 `${OS_URL}/signup?next=<encoded>`
+ */
+export function osSignupUrl(next: string): string {
+  return osAuthUrl('/signup', next);
+}
+
+/** OS 인증 진입 URL(`/login`·`/signup`)에 안전 검증한 `next` 를 부착한다. */
+function osAuthUrl(path: '/login' | '/signup', next: string): string {
+  const base = `${OS_URL}${path}`;
   if (!isSafeNextPath(next)) return base;
   return `${base}?next=${encodeURIComponent(next)}`;
 }
