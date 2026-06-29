@@ -10,6 +10,8 @@
  * 톤은 봇 페르소나에 맞춤(친근/정중/스파르타/차분/열정).
  */
 
+import type { DistractorTag } from './classbot-distractor';
+
 export interface LessonConcept {
   id: string;
   /** 개념명 */
@@ -68,6 +70,12 @@ export interface LessonQuiz {
   optionFeedback: string[];
   /** 오답 시 다시 볼 개념 id (처방 연결) */
   relatedConceptId?: string;
+  /**
+   * B6 — 보기별 함정 태그(options 와 같은 길이, answerIndex 위치는 'correct').
+   * 오답 시 그 태그를 misconception store 에 누적해 같은 유형 반복을 코칭한다.
+   * 미부여 퀴즈는 누적 skip(undefined). 레슨별 실제 함정에만 부여.
+   */
+  distractorTags?: DistractorTag[];
 }
 
 /** 연습 퀴즈(레일·인라인 카드용) — 과제 라우트로 연결 */
@@ -204,6 +212,7 @@ const LESSONS: Record<string, BotLesson> = {
         '부호가 +→−, −→+ 로 실제 바뀌니 극값이 있어. y=x³(안 바뀜)과 헷갈리지 마.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['correct', 'confuse-max-min', 'plug-x-not-fx', 'sign-no-change'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'Q-12', title: '접선의 방정식 구하기', difficulty: '중' },
@@ -338,6 +347,7 @@ const LESSONS: Record<string, BotLesson> = {
         '연결어는 항상 방향 단서를 줘요. however 는 분명한 역접이에요.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['same-direction', 'correct', 'example-vs-contrast', 'ignore-connective'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'B-07', title: '빈칸 추론 — 연결어 단서', difficulty: '중' },
@@ -464,6 +474,7 @@ const LESSONS: Record<string, BotLesson> = {
         '2.5 는 평균이다. 직렬은 더하기다.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['wrong-formula-parallel', 'correct', 'add-vs-multiply', 'average-not-sum'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'S-03', title: '전기회로 — 직렬·병렬 저항', difficulty: '중' },
@@ -582,6 +593,7 @@ const LESSONS: Record<string, BotLesson> = {
         '선택지부터 보면 함정에 끌려가요. 본문 구조가 먼저예요.',
       ],
       relatedConceptId: 'c1',
+      distractorTags: ['over-detail', 'correct', 'literal-word-match', 'jump-to-conclusion'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'K-05', title: '비문학 — 주제·구조 파악', difficulty: '중' },
@@ -701,6 +713,7 @@ const LESSONS: Record<string, BotLesson> = {
         '한쪽만 보면 쟁점이 안 보여. 양쪽 입장을 같이 놓아야 해.',
       ],
       relatedConceptId: 'c1',
+      distractorTags: ['jump-to-conclusion', 'correct', 'jump-to-conclusion', 'one-side-only'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'C-02', title: '쟁점 — 입장·근거 분리', difficulty: '중' },
@@ -784,6 +797,7 @@ const FALLBACK: BotLesson = {
       '정답! 개념·예제·복습이 한 사이클이에요.',
     ],
     relatedConceptId: 'c1',
+    distractorTags: ['over-detail', 'over-detail', 'over-detail', 'correct'],
   },
   practiceQuizzes: [{ id: 'q1', problemNumber: 'Q-01', title: '기초 개념 점검', difficulty: '하' }],
   summary: '오늘 학습을 정리했어요.',

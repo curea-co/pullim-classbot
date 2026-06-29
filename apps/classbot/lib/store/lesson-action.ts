@@ -16,6 +16,7 @@ export type LessonActionType =
   | 'example'         // 예제 단계 주입
   | 'quiz'            // 인라인 퀴즈 주입
   | 'self-explain'    // 자기설명 프롬프트 주입(B4)
+  | 'review'          // 약점 복습 — 해당 개념 퀴즈 재주입(B1B2)
   | 'next';           // 다음 개념
 
 export interface LessonRequest {
