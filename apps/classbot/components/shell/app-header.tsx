@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap, Sun, Moon } from 'lucide-react';
+import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, GraduationCap, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { ClassbotMark } from '@/components/brand/classbot-mark';
@@ -17,14 +17,11 @@ import { currentPersona, currentTeacher } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
+import { osLoginUrl, OS_URL } from '@/lib/auth/os-sso';
+import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { StudentModeToggle } from './student-mode-toggle';
-
-const roleLogoLabel: Record<Role, string> = {
-  student: '클래스봇',
-  teacher: '교사',
-};
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -36,12 +33,18 @@ export function AppBrand({ role }: { role: Role }) {
   return (
     <Link
       href={roleHomeHref[role]}
-      className="flex items-center gap-1.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+      aria-label="풀림 클래스봇 홈"
+      className="inline-flex items-center gap-2.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
     >
-      <ClassbotMark size={32} />
-      <span className="text-pullim-slate-900 text-base font-bold tracking-tight">풀림</span>
-      <span className="text-pullim-slate-400 hidden text-2xs font-bold uppercase md:inline">
-        {roleLogoLabel[role]}
+      {/* 로고 글리프 — os.pullim.ai `.mast .glyph`(30×30, radius 9px, pullim-blue 타일) 동형 */}
+      <ClassbotMark size={30} />
+      {/* 워드마크 — `.mast .wordmark`: 800 / 18px / letter-spacing -0.04em */}
+      <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
+        풀림
+      </span>
+      {/* 서비스명 — `.mast .sub`: mono 11px / .04em / 좌측 divider(pl 9px·ml 2px) */}
+      <span className="text-pullim-slate-400 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-[11px] leading-none tracking-[0.04em]">
+        클래스봇
       </span>
     </Link>
   );
@@ -163,13 +166,26 @@ function ProfileMenu({ role }: { role: Role }) {
     if (me.isAuthenticated) {
       await signOut();
       toast.success('로그아웃되었습니다.');
-      router.push('/login');
+      // OS SSO 모드: 로그아웃 후 앱(비로그인 데모)으로 되돌아가지 않도록 OS 로 내보낸다(인증 진입 일원화).
+      // 비-SSO 모드: 기존대로 루트로(AuthContext 가 미인증 세션을 다시 파생).
+      if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
       return;
     }
     toast.info('로그아웃 (데모)', {
       description: '데모 환경이라 실제 로그아웃은 동작하지 않아요.',
       duration: 3000,
     });
+  }
+
+  // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
+  // 아니면 기존 classbot 로그인 폼(`/login`)으로 라우팅.
+  function goLogin() {
+    if (OS_SSO_ENABLED) {
+      if (typeof window === 'undefined') return;
+      window.location.assign(osLoginUrl(window.location.pathname + window.location.search));
+      return;
+    }
+    router.push('/login');
   }
 
   return (
@@ -217,14 +233,21 @@ function ProfileMenu({ role }: { role: Role }) {
             )}
             {mounted && resolvedTheme === 'dark' ? '라이트 모드' : '다크 모드'}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => void handleLogout()}
-            variant="destructive"
-            className="gap-1.5 px-2 py-1.5 text-sm"
-          >
-            <LogOut className="h-4 w-4" />
-            로그아웃
-          </DropdownMenuItem>
+          {me.isAuthenticated ? (
+            <DropdownMenuItem
+              onClick={() => void handleLogout()}
+              variant="destructive"
+              className="gap-1.5 px-2 py-1.5 text-sm"
+            >
+              <LogOut className="h-4 w-4" />
+              로그아웃
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={goLogin} className="gap-1.5 px-2 py-1.5 text-sm">
+              <LogIn className="h-4 w-4" />
+              로그인
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
