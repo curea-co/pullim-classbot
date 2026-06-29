@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, GraduationCap, Sun, Moon } from 'lucide-react';
+import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { ClassbotMark } from '@/components/brand/classbot-mark';
@@ -13,7 +13,6 @@ import {
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
-import { currentPersona, currentTeacher } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -123,18 +122,6 @@ function StudentStreakBadge() {
   );
 }
 
-/**
- * 역할 진입 메타 — 3개 모든 역할의 진입점.
- * ProfileMenu에서 *현재 역할을 제외한 나머지 두 역할*을 모두 메뉴에 노출 (병렬).
- * 데모에서 동일 사용자가 학생·교사·보호자 뷰를 자유롭게 오갈 수 있게.
- */
-const ROLE_ENTRIES: Record<Role, { href: string; label: string; Icon: typeof GraduationCap }> = {
-  student: { href: '/',                 label: '학생 뷰로 전환',   Icon: UserIcon },
-  teacher: { href: '/teacher/classbot', label: '교사 뷰로 전환',   Icon: GraduationCap },
-};
-
-const ALL_ROLES: Role[] = ['student', 'teacher'];
-
 function ProfileMenu({ role }: { role: Role }) {
   const me = useCurrentUser();
   const { signOut } = useAuth();
@@ -142,39 +129,20 @@ function ProfileMenu({ role }: { role: Role }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  // 세션 사용자면 그 이름, 비로그인(데모)면 역할별 데모 페르소나 메타.
-  const profile =
-    role === 'student'
-      ? {
-          name: me.isAuthenticated ? me.name : currentPersona.name,
-          sub: `${currentPersona.grade} · ${currentPersona.school}`,
-          profileHref: '/classbot',
-        }
-      : {
-          name: me.isAuthenticated ? `${me.name} 선생님` : `${currentTeacher.name} 선생님`,
-          sub: currentTeacher.organization,
-          profileHref: '/teacher',
-        };
+  // 로그인 세션 사용자 메타만 노출한다(데모 페르소나·역할전환 제거). 비로그인 시 페르소나 미표시.
+  const roleLabel = role === 'teacher' ? '교사' : '학생';
+  const profile = {
+    name: role === 'teacher' ? `${me.name} 선생님` : me.name,
+    sub: roleLabel,
+    profileHref: role === 'teacher' ? '/teacher' : '/classbot',
+  };
 
-  // 역할 전환은 **비로그인 데모에서만** 노출한다. 로그인 세션은 role 이 고정이고
-  // (RoleGuard 가 타 역할 라우트를 차단), 임의 전환은 RBAC 와 모순이므로 숨긴다.
-  const otherEntries = me.isAuthenticated
-    ? []
-    : ALL_ROLES.filter(r => r !== role).map(r => ({ role: r, ...ROLE_ENTRIES[r] }));
-
+  // 로그아웃은 로그인 세션에서만 노출되는 항목(비로그인은 '로그인' 항목). 데모 로그아웃 토스트 제거.
   async function handleLogout() {
-    if (me.isAuthenticated) {
-      await signOut();
-      toast.success('로그아웃되었습니다.');
-      // OS SSO 모드: 로그아웃 후 앱(비로그인 데모)으로 되돌아가지 않도록 OS 로 내보낸다(인증 진입 일원화).
-      // 비-SSO 모드: 기존대로 루트로(AuthContext 가 미인증 세션을 다시 파생).
-      if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
-      return;
-    }
-    toast.info('로그아웃 (데모)', {
-      description: '데모 환경이라 실제 로그아웃은 동작하지 않아요.',
-      duration: 3000,
-    });
+    await signOut();
+    toast.success('로그아웃되었습니다.');
+    // OS SSO 모드: 로그아웃 후 OS 로 내보낸다(인증 진입 일원화). 비-SSO 모드: 루트로.
+    if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
   }
 
   // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
@@ -194,34 +162,31 @@ function ProfileMenu({ role }: { role: Role }) {
         aria-label="프로필 메뉴 열기"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 hover:ring-pullim-blue-200 ml-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white transition-all hover:ring-2 focus-visible:ring-pullim-blue-300 focus-visible:ring-2 outline-none"
       >
-        {profile.name[0]}
+        {me.isAuthenticated ? profile.name[0] : <UserIcon className="h-5 w-5" />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="px-2 py-1.5">
-            <div className="text-pullim-slate-900 text-sm font-bold">{profile.name}</div>
-            <div className="text-pullim-slate-500 text-2xs font-normal">{profile.sub}</div>
+            {me.isAuthenticated ? (
+              <>
+                <div className="text-pullim-slate-900 text-sm font-bold">{profile.name}</div>
+                <div className="text-pullim-slate-500 text-2xs font-normal">{profile.sub}</div>
+              </>
+            ) : (
+              <div className="text-pullim-slate-500 text-2xs font-normal">로그인하고 학습을 시작하세요</div>
+            )}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="p-0">
-            <Link href={profile.profileHref} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
-              <UserIcon className="h-4 w-4" />
-              내 정보
-            </Link>
-          </DropdownMenuItem>
-          {otherEntries.map(entry => {
-            const Icon = entry.Icon;
-            return (
-              <DropdownMenuItem key={entry.role} className="p-0">
-                <Link href={entry.href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
-                  <Icon className="h-4 w-4" />
-                  {entry.label}
-                </Link>
-              </DropdownMenuItem>
-            );
-          })}
+          {me.isAuthenticated && (
+            <DropdownMenuItem className="p-0">
+              <Link href={profile.profileHref} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
+                <UserIcon className="h-4 w-4" />
+                내 정보
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={() => setTheme(mounted && resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="gap-1.5 px-2 py-1.5 text-sm"

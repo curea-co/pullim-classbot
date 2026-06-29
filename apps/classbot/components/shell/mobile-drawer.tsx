@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/sheet';
 import { ClassbotMark } from '@/components/brand/classbot-mark';
 import { AppSidebar } from './app-sidebar';
-import { RoleSwitcher } from './role-switcher';
 import type { Role } from './nav-config';
 
 /**
@@ -34,9 +33,6 @@ export function MobileDrawer({ role }: { role: Role }) {
               {role === 'student' ? '클래스봇' : '교사'}
             </span>
           </SheetTitle>
-          <div className="mt-2">
-            <RoleSwitcher current={role} />
-          </div>
         </SheetHeader>
         <AppSidebar role={role} onNavigate={() => setOpen(false)} className="flex-1" />
       </SheetContent>
