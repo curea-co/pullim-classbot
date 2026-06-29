@@ -14,9 +14,13 @@ import {
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
 import {
-  getBotLesson,
-  type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz,
+  getBotLesson, getSelfExplain,
+  type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz, type SelfExplainPrompt,
 } from '@/lib/mock/classbot-lesson';
+import { InlineWorkedExample } from '@/components/classbot/inline-worked-example';
+import {
+  CONFIDENCE_OPTIONS, getCalibrationFeedback, CALIB_TONE_CLASS, type Confidence,
+} from '@/lib/tokens/quiz-calibration';
 import { RichText } from '@/components/classbot/rich-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
@@ -54,7 +58,7 @@ import { cn } from '@/lib/utils';
  */
 type MessageKind =
   | 'text' | 'problem-card' | 'explain-step'
-  | 'lesson-intro' | 'concept' | 'concept-detail' | 'example' | 'quiz' | 'summary';
+  | 'lesson-intro' | 'concept' | 'concept-detail' | 'example' | 'quiz' | 'summary' | 'self-explain';
 
 type Turn = {
   id: string;
@@ -66,7 +70,8 @@ type Turn = {
   kind?: MessageKind;
   /** 타입별 payload */
   payload?: ProblemCardPayload | ExplainStepPayload
-    | LessonIntroPayload | ConceptPayload | ExamplePayload | QuizPayload | SummaryPayload;
+    | LessonIntroPayload | ConceptPayload | ExamplePayload | QuizPayload | SummaryPayload
+    | SelfExplainPayload;
 };
 
 type ProblemCardPayload = {
@@ -94,6 +99,8 @@ type SummaryPayload = {
   goalKey: string;
   nextLine?: string;
 };
+/** 자기설명 프롬프트 payload (B4). */
+type SelfExplainPayload = { prompt: SelfExplainPrompt };
 
 
 export default function ClassbotChatPage() {
@@ -412,6 +419,15 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     submit();
   }
 
+  // B3: 예제 reveal·확신도 삽입 등 버블 내부 높이 변화는 turns/pending 변화가 아니라
+  // 자동추적 effect(deps=[turns,pending])가 안 돈다 → 카드가 onReveal 로 알리면
+  // stickyRef.current(바닥 근처) 일 때만 즉시 바닥 추적(useCallback 으로 자식 리렌더 최소화).
+  const handleCardReveal = useCallback(() => {
+    if (stickyRef.current) scrollToBottom('auto');
+    // scrollToBottom/stickyRef 는 ref/stable closure 라 deps 불필요.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // A6 앵커 탭 — 마지막 본 개념을 챗에 재주입(이동 없음, 자동스크롤은 lessonRequest effect 가 처리)
   function handleAnchorJump() {
     if (!activeConceptId) return;
@@ -506,7 +522,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
               <ChatStudyInline bot={bot} userId={me.id} />
             </div>
             {turns.map((t, i) => (
-              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
+              <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} onCardReveal={handleCardReveal} />
             ))}
             {pending && <PendingBubble bot={bot} />}
           </div>
@@ -750,7 +766,7 @@ function buildLessonTurn(
   if (key === 'lesson_example') {
     return {
       id, role: 'bot', at,
-      text: '예제로 같이 적용해보자.',
+      text: '예제야. 처음 단계는 내가, 뒷 단계는 네가 직접 채워봐 👇',
       kind: 'example',
       payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
     };
@@ -807,7 +823,7 @@ function buildLessonActionTurn(
     case 'example':
       return {
         id, role: 'bot', at,
-        text: '예제로 같이 적용해보자.',
+        text: '예제야. 처음 단계는 내가, 뒷 단계는 네가 직접 채워봐 👇',
         kind: 'example',
         payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
       };
@@ -818,6 +834,20 @@ function buildLessonActionTurn(
         kind: 'quiz',
         payload: { quiz: lesson.quiz } satisfies QuizPayload,
       };
+    case 'self-explain': {
+      // selfExplains 에서 conceptId 매핑(미지정/미발견 → 첫 프롬프트). 비면 주입 안 함.
+      const list = lesson.selfExplains;
+      const prompt = !list || list.length === 0
+        ? undefined
+        : (req.conceptId ? list.find(s => s.conceptId === req.conceptId) ?? list[0] : list[0]);
+      if (!prompt) return null;
+      return {
+        id, role: 'bot', at,
+        text: '네 말로 한번 설명해볼래? 아래에 적어줘 👇',
+        kind: 'self-explain',
+        payload: { prompt } satisfies SelfExplainPayload,
+      };
+    }
   }
 }
 
@@ -855,7 +885,7 @@ function DateDivider({ ts }: { ts: number }) {
   );
 }
 
-function RenderTurn({ turn, bot, prev, meName }: { turn: Turn; bot: ClassBot; prev: Turn | undefined; meName: string }) {
+function RenderTurn({ turn, bot, prev, meName, onCardReveal }: { turn: Turn; bot: ClassBot; prev: Turn | undefined; meName: string; onCardReveal: () => void }) {
   // 일자가 바뀌면 디바이더 노출 (첫 메시지도 포함)
   const showDivider = !prev
     || new Date(prev.at).toDateString() !== new Date(turn.at).toDateString();
@@ -869,12 +899,12 @@ function RenderTurn({ turn, bot, prev, meName }: { turn: Turn; bot: ClassBot; pr
   return (
     <>
       {showDivider && <DateDivider ts={turn.at} />}
-      <Bubble turn={turn} bot={bot} continuation={isContinuation} meName={meName} />
+      <Bubble turn={turn} bot={bot} continuation={isContinuation} meName={meName} onCardReveal={onCardReveal} />
     </>
   );
 }
 
-function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: ClassBot; continuation?: boolean; meName: string }) {
+function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { turn: Turn; bot: ClassBot; continuation?: boolean; meName: string; onCardReveal: () => void }) {
   const isStudent = turn.role === 'student';
   const botSig = botSignature(bot);
   return (
@@ -902,7 +932,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
             <span className="text-pullim-slate-400 font-normal">· {formatTime(turn.at)}</span>
           </div>
         )}
-        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} botId={bot.id} scope={bot.scope} />
+        <MessageBody turn={turn} isStudent={isStudent} botLinerHex={botSig.hex} botId={bot.id} scope={bot.scope} onCardReveal={onCardReveal} />
         {isStudent && (
           <div className="text-pullim-slate-400 mt-1 text-xs">{formatTime(turn.at)}</div>
         )}
@@ -912,7 +942,7 @@ function Bubble({ turn, bot, continuation = false, meName }: { turn: Turn; bot: 
 }
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
-function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number }) {
+function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number; onCardReveal: () => void }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
   // 버블 — 봇은 옅은 회색 + 또렷한 보더 + 시그니처 좌측 라이너, 본문 15px (가독성)
   const baseBubbleClass = cn(
@@ -1052,17 +1082,23 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
     );
   }
 
-  // example / explain-step — 단계 풀이 카드
-  if ((turn.kind === 'example' || turn.kind === 'explain-step') && turn.payload && 'steps' in turn.payload) {
+  // example — 점진 스캐폴딩(fading worked example, B3). reveal 로 높이 변하면 onCardReveal 로 바닥추적.
+  if (turn.kind === 'example' && turn.payload && 'steps' in turn.payload && 'title' in turn.payload) {
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <InlineWorkedExample title={turn.payload.title} steps={turn.payload.steps} onReveal={onCardReveal} />
+      </div>
+    );
+  }
+
+  // explain-step — 단계 풀이 카드(정적 ol, 스캐폴딩 불필요)
+  if (turn.kind === 'explain-step' && turn.payload && 'steps' in turn.payload) {
     const steps = turn.payload.steps;
-    const exampleTitle = turn.kind === 'example' && 'title' in turn.payload ? turn.payload.title : undefined;
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-          {exampleTitle && (
-            <p className="text-pullim-slate-900 mb-2 text-base font-bold">{exampleTitle}</p>
-          )}
           <ol className="space-y-2.5">
             {steps.map(s => (
               <li key={s.num} className="flex gap-2.5">
@@ -1086,12 +1122,22 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
     );
   }
 
-  // quiz — 인라인 객관식 퀴즈 (힌트 사다리 + 오답 처방)
+  // quiz — 인라인 객관식 퀴즈 (힌트 사다리 + 확신도 보정 + 오답 처방)
   if (turn.kind === 'quiz' && turn.payload && 'quiz' in turn.payload) {
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
-        <InlineQuiz quiz={turn.payload.quiz} botId={botId} scope={scope} />
+        <InlineQuiz quiz={turn.payload.quiz} botId={botId} scope={scope} onCardReveal={onCardReveal} />
+      </div>
+    );
+  }
+
+  // self-explain — 자기설명 프롬프트 카드 (B4)
+  if (turn.kind === 'self-explain' && turn.payload && 'prompt' in turn.payload) {
+    return (
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
+        <RichText text={turn.text} />
+        <SelfExplainCard prompt={turn.payload.prompt} botId={botId} onCardReveal={onCardReveal} />
       </div>
     );
   }
@@ -1195,11 +1241,13 @@ function RichTextInline({ text }: { text: string }) {
  * - 오답: 그 보기가 왜 함정인지(distractor 피드백) + 처방(개념 다시 보기=챗 주입 / 다시 풀기).
  * 색 규약: blue/slate + 위험빨강만 (green/amber 금지).
  */
-function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; scope: number }) {
+function InlineQuiz({ quiz, botId, scope, onCardReveal }: { quiz: LessonQuiz; botId: string; scope: number; onCardReveal: () => void }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
   const [selected, setSelected] = useState<number | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [hintCount, setHintCount] = useState(0);
+  // B5: 확신도 — optional 메타인지 레이어. 제출 게이트에 넣지 않는다(기존 흐름 보존).
+  const [confidence, setConfidence] = useState<Confidence | undefined>();
   const correct = submitted && selected === quiz.answerIndex;
   // scope L레벨 → 힌트 공개 깊이 (L3 개념까지=1, L4 단계까지=2, L5 답까지=전부)
   const maxHints = scope >= 5 ? quiz.hints.length : Math.min(scope >= 4 ? 2 : 1, quiz.hints.length);
@@ -1216,6 +1264,7 @@ function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; s
     setSelected(undefined);
     setSubmitted(false);
     setHintCount(0);
+    setConfidence(undefined);
   }
 
   return (
@@ -1282,17 +1331,57 @@ function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; s
         </div>
       )}
 
+      {/* B5: 확신도 — 보기 선택 후 제출 전 노출. toggle-button 그룹(가짜 radiogroup 금지). optional. */}
+      {!submitted && selected !== undefined && (
+        <div className="mt-2.5">
+          <p className="text-pullim-slate-600 mb-1.5 text-sm font-bold">얼마나 확신해? (선택)</p>
+          <div role="group" aria-label="확신도" className="flex flex-wrap gap-1.5">
+            {CONFIDENCE_OPTIONS.map(opt => {
+              const on = confidence === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setConfidence(prev => (prev === opt.value ? undefined : opt.value))}
+                  className={cn(
+                    'focus-visible:ring-pullim-blue-400 inline-flex min-h-[44px] items-center gap-1 rounded-lg border px-3 py-1.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2',
+                    on
+                      ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
+                      : 'border-pullim-slate-200 bg-white text-pullim-slate-700 hover:border-pullim-slate-400',
+                  )}
+                >
+                  <span aria-hidden>{opt.emoji}</span>
+                  <span>{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {!submitted ? (
         <button
           type="button"
           disabled={selected === undefined}
-          onClick={() => setSubmitted(true)}
+          onClick={() => { setSubmitted(true); onCardReveal(); }}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
           제출하기
         </button>
       ) : (
         <div className="mt-2.5 space-y-2">
+          {/* B5: 확신도 보정 배너 — confidence 선택 시만. wrong+sure 도 danger 아닌 neutral 코칭. */}
+          {confidence && (() => {
+            const fb = getCalibrationFeedback(correct, confidence);
+            const optEmoji = CONFIDENCE_OPTIONS.find(o => o.value === confidence)?.emoji ?? '';
+            return (
+              <div className={cn('rounded-lg p-3 text-[15px]', CALIB_TONE_CLASS[fb.tone])}>
+                <p className="font-bold">{optEmoji} {fb.title}</p>
+                <p className="text-pullim-slate-700 mt-1 leading-relaxed">{fb.body}</p>
+              </div>
+            );
+          })()}
           {/* 판정 + 처방 피드백 */}
           {correct ? (
             <div className="bg-pullim-blue-50 rounded-lg p-3 text-[15px]">
@@ -1330,6 +1419,125 @@ function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; s
               </button>
             )}
             {correct && (
+              <button
+                type="button"
+                onClick={() => dispatchLesson(botId, 'next')}
+                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold text-white transition-colors"
+              >
+                다음 개념 →
+              </button>
+            )}
+            {correct && (
+              <button
+                type="button"
+                onClick={() => dispatchLesson(botId, 'self-explain', quiz.relatedConceptId)}
+                className="border-pullim-blue-200 text-pullim-blue-700 hover:bg-pullim-blue-50 inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-1.5 text-sm font-bold transition-colors"
+              >
+                🗣 내 말로 설명
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── 자기설명 카드 (B4) ─── */
+
+type ExplainGrade = 'strong' | 'partial' | 'weak';
+
+/**
+ * 자기설명 채점 — 키워드 부분일치 비율(대소문자 무시).
+ * ratio ≥0.6 'strong' / ≥0.3 'partial' / else 'weak'. 빈 문자열·키워드 0개 → 'weak'.
+ * 순수함수 — 단위 테스트용 export.
+ */
+export function scoreExplanation(value: string, keywords: string[]): ExplainGrade {
+  const text = value.trim().toLowerCase();
+  if (!text || keywords.length === 0) return 'weak';
+  const hits = keywords.filter(k => text.includes(k.trim().toLowerCase())).length;
+  const ratio = hits / keywords.length;
+  if (ratio >= 0.6) return 'strong';
+  if (ratio >= 0.3) return 'partial';
+  return 'weak';
+}
+
+/**
+ * 자기설명 카드 — textarea 입력 → 제출 → 등급별 피드백 + 모범답안 + 처방.
+ * 색: strong/partial=blue, weak=slate (빨강 미사용). InlineQuiz 와 동형.
+ */
+function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainPrompt; botId: string; onCardReveal: () => void }) {
+  const dispatchLesson = useLessonActionStore(s => s.dispatch);
+  const [value, setValue] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const grade = submitted ? scoreExplanation(value, prompt.keywords) : null;
+  const feedbackText =
+    grade === 'strong' ? prompt.feedbackStrong
+    : grade === 'partial' ? prompt.feedbackPartial
+    : grade === 'weak' ? prompt.feedbackWeak
+    : '';
+  const positive = grade === 'strong' || grade === 'partial';
+
+  function reset() {
+    setValue('');
+    setSubmitted(false);
+  }
+
+  return (
+    <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
+      <p className="text-pullim-slate-900 text-base font-bold">{prompt.prompt}</p>
+      <textarea
+        value={value}
+        rows={3}
+        onChange={e => setValue(e.target.value)}
+        disabled={submitted}
+        aria-label="자기설명 입력"
+        placeholder="배운 걸 네 말로 적어봐…"
+        className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 mt-2.5 w-full resize-none rounded-lg border px-3 py-2 text-[15px] leading-relaxed outline-none disabled:opacity-70"
+      />
+      {!submitted ? (
+        <button
+          type="button"
+          disabled={!value.trim()}
+          onClick={() => { setSubmitted(true); onCardReveal(); }}
+          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
+        >
+          설명 제출하기
+        </button>
+      ) : (
+        <div className="mt-2.5 space-y-2">
+          <div
+            aria-live="polite"
+            className={cn(
+              'rounded-lg p-3 text-[15px] leading-relaxed',
+              positive ? 'bg-pullim-blue-50 text-pullim-blue-700' : 'bg-pullim-slate-50 text-pullim-slate-700',
+            )}
+          >
+            <p className="font-bold">{feedbackText}</p>
+          </div>
+          <div className="bg-pullim-slate-50 text-pullim-slate-700 rounded-lg p-3 text-sm leading-relaxed">
+            <span className="text-pullim-blue-700 font-bold">모범 답안 · </span>
+            {prompt.sampleAnswer}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {!positive ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => dispatchLesson(botId, 'concept-detail', prompt.conceptId)}
+                  className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold text-white transition-colors"
+                >
+                  📘 개념 다시 보기
+                </button>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors"
+                >
+                  ↻ 다시 쓰기
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 onClick={() => dispatchLesson(botId, 'next')}
@@ -1406,6 +1614,8 @@ export function plainAnnounceText(turn: Turn): string {
       return '예제가 도착했어요';
     case 'summary':
       return '오늘 정리가 도착했어요';
+    case 'self-explain':
+      return '자기설명 요청이 도착했어요';
     case 'problem-card':
       return '문제 카드가 도착했어요';
     default: {
