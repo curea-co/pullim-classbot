@@ -5,6 +5,7 @@ import { Sparkles, BookOpen, ListChecks, ChevronDown, ChevronUp, MessageSquarePl
 import type { ClassBot } from '@/lib/mock';
 import { getBotLesson } from '@/lib/mock/classbot-lesson';
 import { useLessonActionStore } from '@/lib/store/lesson-action';
+import { LessonProgressMap } from '@/components/classbot/lesson-progress-map';
 
 /**
  * 챗 상단 수업 런처 — 페이지 이동/모달 없이 모든 학습을 챗에 녹인다.
@@ -12,7 +13,7 @@ import { useLessonActionStore } from '@/lib/store/lesson-action';
  *
  * 색: /classbot/chat 은 color-palette 스캔 대상 → green/amber 금지. blue/slate 만 사용.
  */
-export function ChatStudyInline({ bot }: { bot: ClassBot }) {
+export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string }) {
   const lesson = getBotLesson(bot.id);
   const concepts = lesson.concepts;
   const quizzes = lesson.practiceQuizzes;
@@ -47,6 +48,11 @@ export function ChatStudyInline({ bot }: { bot: ClassBot }) {
           <ChevronDown className="text-pullim-slate-500 h-5 w-5 shrink-0" />
         )}
       </button>
+
+      {/* 레슨 진도 스텝퍼 — 토글 open 무관 항상 노출(A1) */}
+      <div className="border-pullim-blue-100 border-t px-3 py-2">
+        <LessonProgressMap botId={bot.id} userId={userId} variant="rail" />
+      </div>
 
       {open && (
         <div className="space-y-4 px-4 pb-4">

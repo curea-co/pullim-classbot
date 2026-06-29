@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
@@ -30,7 +30,12 @@ import { ChatAttachSheet, ChatVoiceButton } from '@/components/classbot/chat-att
 import { LiveBadge } from '@/components/classbot/live-badge';
 import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
 import { ChatStudyInline } from '@/components/classbot/chat-study-inline';
+import { ContextAnchor } from '@/components/classbot/context-anchor';
+import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
+import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
+import { todayKey } from '@/lib/store/today-key';
 import { cn } from '@/lib/utils';
 
 /**
@@ -59,7 +64,7 @@ type Turn = {
   kind?: MessageKind;
   /** 타입별 payload */
   payload?: ProblemCardPayload | ExplainStepPayload
-    | LessonIntroPayload | ConceptPayload | ExamplePayload | QuizPayload;
+    | LessonIntroPayload | ConceptPayload | ExamplePayload | QuizPayload | SummaryPayload;
 };
 
 type ProblemCardPayload = {
@@ -77,6 +82,16 @@ type LessonIntroPayload = { topic: string; keyCallout: string };
 type ConceptPayload = { concept: LessonConcept };
 type ExamplePayload = { title: string; steps: LessonStep[] };
 type QuizPayload = { quiz: LessonQuiz };
+/**
+ * summary 버블 달성도(B7 finding#2).
+ * freeze 된 pre-hydration done snapshot 은 배너와 어긋날 수 있어 제거 — 대신 goalKey 만 싣고,
+ * summary 분기에서 hydration-게이트 라이브 store(useSessionProgressLive)를 직접 읽는다.
+ * summary turn 은 "오늘 정리" 1회뿐이라 모든 버블이 구독하는 perf 문제(plan 경고)는 재현되지 않는다.
+ */
+type SummaryPayload = {
+  goalKey: string;
+  nextLine?: string;
+};
 
 
 export default function ClassbotChatPage() {
@@ -209,6 +224,18 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   // 봇 주도 가이드 수업 데이터 (단일 출처)
   const lesson = useMemo(() => getBotLesson(bot.id), [bot.id]);
 
+  // A6 컨텍스트 앵커 — 마지막 본 개념(비스크롤 헤더에 위치 표시 + 1탭 재진입)
+  const [activeConceptId, setActiveConceptId] = useState<string | undefined>(undefined);
+  const activeConcept = useMemo(
+    () => lesson.concepts.find(c => c.id === activeConceptId),
+    [lesson, activeConceptId],
+  );
+  // A6 앵커 jump 용 dispatch (MessageBody/InlineQuiz 외 ChatPanel 스코프에도 구독)
+  const dispatchLesson = useLessonActionStore(s => s.dispatch);
+  // B7 세션 목표 키 — per-user × per-bot × per-day(오늘 스코프 → 매일 자연 reset).
+  // todayKey()는 같은 날엔 안정적이라 memo deps 에 둘 필요 없다(날이 바뀌면 remount/재계산으로 갱신).
+  const goalKey = useMemo(() => `${me.id}::${bot.id}::${todayKey()}`, [me.id, bot.id]);
+
   // [07 § 4.6.1·4.6.3] 첫 인사 + 봇 주도 수업 오프너 (mount 시 1회만 계산)
   const [turns, setTurns] = useState<Turn[]>(() => {
     const now = Date.now();
@@ -289,9 +316,20 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     stickyRef.current = true; // 주입 시 항상 따라 내려가도록
     const at = Date.now();
     const turn = buildLessonActionTurn(`la${lessonRequest.nonce}`, at, lessonRequest, lesson, conceptIdxRef);
-    if (turn) setTurns(t => [...t, turn]);
+    if (turn) {
+      setTurns(t => [...t, turn]);
+      // 진행 마킹(A1·B7) + 컨텍스트 앵커 갱신(A6) — getState() 직접 호출은 deps 불필요.
+      // 키는 비로그인→로그인 per-user 키 오염 방지 위해 effect 내부에서 인라인 계산.
+      const phase = kindToLessonPhase(turn.kind);
+      if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
+      const step = kindToSessionStep(turn.kind);
+      if (step) useSessionGoalStore.getState().mark(`${me.id}::${bot.id}::${todayKey()}`, step);
+      if ((turn.kind === 'concept' || turn.kind === 'concept-detail') && turn.payload && 'concept' in turn.payload) {
+        setActiveConceptId(turn.payload.concept.id);
+      }
+    }
     clearLessonRequest();
-  }, [lessonRequest, bot.id, lesson, clearLessonRequest]);
+  }, [lessonRequest, bot.id, lesson, clearLessonRequest, me.id]);
 
   function send(text: string, forcedKey?: QuickReplyKey) {
     if (!text.trim() || pending) return;
@@ -312,6 +350,21 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         ? buildLessonTurn(`b${at}`, at, forcedKey, lesson, conceptIdxRef)
         // 일반 응답 — 톤별 문자열 + 레거시 메시지 타입 매핑
         : buildRichBotTurn(`b${at}`, pickClassbotReply(text, bot.tone, forcedKey), at, forcedKey, bot.id);
+
+      // 진행 마킹(A1·B7) + 컨텍스트 앵커 갱신(A6).
+      const phase = kindToLessonPhase(richTurn.kind);
+      if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
+      const step = kindToSessionStep(richTurn.kind);
+      if (step) useSessionGoalStore.getState().mark(goalKey, step);
+      if ((richTurn.kind === 'concept' || richTurn.kind === 'concept-detail') && richTurn.payload && 'concept' in richTurn.payload) {
+        setActiveConceptId(richTurn.payload.concept.id);
+      }
+      // summary 버블: freeze 된 pre-hydration snapshot 대신 goalKey 만 실어 보낸다(B7 finding#2).
+      // 렌더 시 MessageBody summary 분기가 hydration-게이트 라이브 store 를 읽어 배너와 항상 일치.
+      if (richTurn.kind === 'summary') {
+        richTurn.payload = { goalKey, nextLine: lesson.nextLine } satisfies SummaryPayload;
+      }
+
       setTurns(t => [...t, richTurn]);
       // [04 § 9.6] forcedKey가 있을 때만 후속 칩 추천 가능 (free text는 키 미지정)
       setLastBotReplyKey(forcedKey);
@@ -331,6 +384,12 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     submit();
+  }
+
+  // A6 앵커 탭 — 마지막 본 개념을 챗에 재주입(이동 없음, 자동스크롤은 lessonRequest effect 가 처리)
+  function handleAnchorJump() {
+    if (!activeConceptId) return;
+    dispatchLesson(bot.id, 'concept', activeConceptId);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -399,6 +458,16 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         {/* 라이브 진행 중이면 — 컴팩트 바 (펼치면 슬라이드·자막·즉석 퀴즈·질문) */}
         {isLive && <LiveCompactBar bot={bot} />}
 
+        {/*
+          고정 헤더형 표시물 — chat-scroll div 가 아니라 비스크롤 레이어(scroll div 위 형제).
+          scrollHeight/scrollTop 측정 체인에서 분리 → chat-scroll-and-input.spec 좌표 단언 무영향.
+          순서(위→아래): B7 세션 목표 배너 → A6 컨텍스트 앵커.
+        */}
+        <div className="space-y-2 px-4 pt-3">
+          <SessionGoalBanner bot={bot} goalKey={goalKey} />
+          <ContextAnchor concept={activeConcept} botSigHex={botSig.hex} onJump={handleAnchorJump} />
+        </div>
+
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div
             ref={scrollRef}
@@ -408,7 +477,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
           >
             {/* 챗 내장 학습 가이드 — 모바일 전용(lg+ 는 우측 레일). */}
             <div className="lg:hidden">
-              <ChatStudyInline bot={bot} />
+              <ChatStudyInline bot={bot} userId={me.id} />
             </div>
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
@@ -493,7 +562,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         data-slot="chat-study-rail"
         className="hidden min-h-0 lg:block lg:overflow-y-auto"
       >
-        <ChatStudyInline bot={bot} />
+        <ChatStudyInline bot={bot} userId={me.id} />
       </aside>
       </div>
     </div>
@@ -573,6 +642,40 @@ const LESSON_FLOW_KEYS: ReadonlySet<string> = new Set([
 
 function isLessonFlowKey(k?: QuickReplyKey): k is LessonFlowKey {
   return k !== undefined && LESSON_FLOW_KEYS.has(k);
+}
+
+/* ─── 진행 마킹 매핑(A1·B7) — turn.kind → 레슨 위상 / 세션 단계 ─── */
+
+/** turn.kind → A1 LessonPhase(없으면 undefined — 마킹 안 함). */
+function kindToLessonPhase(kind?: MessageKind): LessonPhase | undefined {
+  switch (kind) {
+    case 'concept':
+    case 'concept-detail':
+      return 'concept';
+    case 'example':
+      return 'example';
+    case 'quiz':
+      return 'quiz';
+    case 'summary':
+      return 'summary';
+    default:
+      return undefined;
+  }
+}
+
+/** turn.kind → B7 SessionStep(summary 는 step 아님 → undefined). */
+function kindToSessionStep(kind?: MessageKind): SessionStep | undefined {
+  switch (kind) {
+    case 'concept':
+    case 'concept-detail':
+      return 'concept';
+    case 'example':
+      return 'example';
+    case 'quiz':
+      return 'quiz';
+    default:
+      return undefined;
+  }
 }
 
 /** 흐름키로 getBotLesson 데이터를 구조화 메시지로 변환. "다음 개념"은 idxRef 순환. */
@@ -946,11 +1049,16 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
     );
   }
 
-  // summary — 오늘 정리 카드
+  // summary — 오늘 정리 카드 + 달성도(B7 finding#2).
+  // done 은 freeze snapshot 이 아니라 SummaryBubble 이 hydration-게이트 라이브 store 에서 읽는다 →
+  // 배너와 항상 일치. 구독은 summary 분기(전용 컴포넌트)에만 들어가 다른 버블 리렌더 없음.
   if (turn.kind === 'summary') {
+    const goalKey = turn.payload && 'goalKey' in turn.payload ? turn.payload.goalKey : undefined;
+    const nextLine = turn.payload && 'nextLine' in turn.payload ? turn.payload.nextLine : undefined;
     return (
-      <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-3')} style={linerStyle}>
         <RichText text={turn.text} />
+        {goalKey && <SummaryProgress goalKey={goalKey} nextLine={nextLine} />}
       </div>
     );
   }
@@ -981,6 +1089,50 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope }: { turn: Tur
   return (
     <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
       <RichText text={turn.text} />
+    </div>
+  );
+}
+
+/**
+ * summary 버블 달성도 — 배너와 동일한 hydration-게이트 라이브 store 를 읽어 항상 일치(B7 finding#2).
+ * summary turn 은 "오늘 정리" 1회뿐이라 이 구독이 다른 버블 리렌더를 유발하지 않는다.
+ * SSR/첫 페인트는 useSessionProgressLive 가 0/false 를 강제 → 배너와 하이드레이션 일치.
+ */
+function SummaryProgress({ goalKey, nextLine }: { goalKey: string; nextLine?: string }) {
+  const progress = useSessionProgressLive(goalKey);
+  const doneCount = [progress.concept, progress.example, progress.quiz].filter(Boolean).length;
+  const allDone = doneCount === 3;
+  return (
+    <div className="border-pullim-slate-200 space-y-2 border-t pt-3">
+      <div className="flex items-center justify-between">
+        <span className="text-pullim-slate-600 text-sm font-bold">오늘 목표 달성도</span>
+        <span className="text-pullim-slate-700 text-sm font-semibold">{doneCount}/3 완료</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={doneCount}
+        aria-valuemin={0}
+        aria-valuemax={3}
+        aria-label={`오늘 목표 ${doneCount}/3 완료`}
+        className="bg-pullim-slate-100 h-2 w-full overflow-hidden rounded-full"
+      >
+        <span
+          className="bg-pullim-blue-600 block h-full rounded-full"
+          style={{ width: `${(doneCount / 3) * 100}%` }}
+        />
+      </div>
+      {allDone && (
+        <p className="text-pullim-blue-700 text-sm font-bold">🎯 오늘 목표 달성!</p>
+      )}
+      {nextLine && (
+        <div className="bg-pullim-blue-50 text-pullim-slate-800 flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px]">
+          <ArrowRight aria-hidden className="text-pullim-blue-600 h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="text-pullim-blue-700 mr-1 font-bold">다음 한 걸음 ·</span>
+            {nextLine}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
