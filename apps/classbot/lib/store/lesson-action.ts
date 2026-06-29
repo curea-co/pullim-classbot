@@ -15,6 +15,8 @@ export type LessonActionType =
   | 'concept-detail'  // 개념 상세(팁·핵심요소·예제) 주입
   | 'example'         // 예제 단계 주입
   | 'quiz'            // 인라인 퀴즈 주입
+  | 'self-explain'    // 자기설명 프롬프트 주입(B4)
+  | 'review'          // 약점 복습 — 해당 개념 퀴즈 재주입(B1B2)
   | 'next';           // 다음 개념
 
 export interface LessonRequest {
@@ -22,13 +24,23 @@ export interface LessonRequest {
   type: LessonActionType;
   /** concept/concept-detail 대상 개념 id (없으면 현재 개념) */
   conceptId?: string;
+  /**
+   * review 액션 전용 — 해소 대상 약점의 안정 key(`q:...`/`r:...`).
+   * 정답 시 이 key 의 약점을 출처(quiz/replay) 무관하게 정확히 제거하기 위해 스레딩.
+   */
+  weaknessKey?: string;
   /** 같은 액션 반복 트리거 식별 */
   nonce: number;
 }
 
 interface LessonActionState {
   request: LessonRequest | null;
-  dispatch: (botId: string, type: LessonActionType, conceptId?: string) => void;
+  dispatch: (
+    botId: string,
+    type: LessonActionType,
+    conceptId?: string,
+    weaknessKey?: string,
+  ) => void;
   clear: () => void;
 }
 
@@ -36,7 +48,7 @@ let counter = 0;
 
 export const useLessonActionStore = create<LessonActionState>(set => ({
   request: null,
-  dispatch: (botId, type, conceptId) =>
-    set({ request: { botId, type, conceptId, nonce: ++counter } }),
+  dispatch: (botId, type, conceptId, weaknessKey) =>
+    set({ request: { botId, type, conceptId, weaknessKey, nonce: ++counter } }),
   clear: () => set({ request: null }),
 }));

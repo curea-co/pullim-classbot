@@ -10,6 +10,8 @@
  * 톤은 봇 페르소나에 맞춤(친근/정중/스파르타/차분/열정).
  */
 
+import type { DistractorTag } from './classbot-distractor';
+
 export interface LessonConcept {
   id: string;
   /** 개념명 */
@@ -32,6 +34,29 @@ export interface LessonStep {
   label: string;
   body: string;
   formula?: string;
+  /** B3 — 점진 스캐폴딩 대상 단계. true 면 처음엔 가려진 빈칸으로 노출(시범 단계는 false/미지정). */
+  fadable?: boolean;
+  /** B3 — '정답 확인하기'로 공개되는 핵심 답 힌트(공개 시 body/formula 와 함께 노출). */
+  reveal?: string;
+}
+
+/**
+ * 자기설명 프롬프트 — B4.
+ * 개념을 "내 말로" 적게 하고, 키워드 매칭 비율로 강/부분/약 등급 피드백을 준다.
+ */
+export interface SelfExplainPrompt {
+  /** 대상 개념 id (concepts[].id 와 매핑) */
+  conceptId: string;
+  /** 학생에게 보이는 질문 */
+  prompt: string;
+  /** 채점 기준 키워드(대소문자 무시 부분일치) */
+  keywords: string[];
+  /** 모범 답안 */
+  sampleAnswer: string;
+  /** 등급별 피드백(빨강 미사용 — strong/partial=blue, weak=slate) */
+  feedbackStrong: string;
+  feedbackPartial: string;
+  feedbackWeak: string;
 }
 
 export interface LessonQuiz {
@@ -45,6 +70,12 @@ export interface LessonQuiz {
   optionFeedback: string[];
   /** 오답 시 다시 볼 개념 id (처방 연결) */
   relatedConceptId?: string;
+  /**
+   * B6 — 보기별 함정 태그(options 와 같은 길이, answerIndex 위치는 'correct').
+   * 오답 시 그 태그를 misconception store 에 누적해 같은 유형 반복을 코칭한다.
+   * 미부여 퀴즈는 누적 skip(undefined). 레슨별 실제 함정에만 부여.
+   */
+  distractorTags?: DistractorTag[];
 }
 
 /** 연습 퀴즈(레일·인라인 카드용) — 과제 라우트로 연결 */
@@ -75,6 +106,12 @@ export interface BotLesson {
   practiceQuizzes: ChatQuiz[];
   /** 오늘 정리 (RichText) */
   summary: string;
+  /** 세션 목표 — "오늘의 한 가지"(B7 배너). 미지정 시 topic 폴백. */
+  sessionGoal?: string;
+  /** 다음 한 걸음 — summary 버블 하단 "다음" 행(B7). summary 본문에서 분리. */
+  nextLine?: string;
+  /** 자기설명 프롬프트(B4) — 개념당 1개. conceptId 로 concepts 와 매핑. */
+  selfExplains?: SelfExplainPrompt[];
 }
 
 const LESSONS: Record<string, BotLesson> = {
@@ -153,9 +190,9 @@ const LESSONS: Record<string, BotLesson> = {
       title: 'f(x) = x³ − 3x 의 극값 구하기',
       steps: [
         { num: 1, label: '도함수', body: "f(x)를 미분해서 임계점을 찾자.", formula: "f'(x) = 3x² − 3" },
-        { num: 2, label: '임계점', body: "f'(x)=0 → 3x²−3=0 → x=±1 이 극값 후보.", formula: 'x = −1, 1' },
-        { num: 3, label: '부호 변화 표', body: "x=−1 좌우 +→− (극대), x=1 좌우 −→+ (극소).", formula: 'f(−1)=2, f(1)=−2' },
-        { num: 4, label: '결론', body: '극댓값 2 (x=−1), 극솟값 −2 (x=1). 끝!' },
+        { num: 2, label: '임계점', body: "f'(x)=0 을 풀어 극값 후보를 찾아봐.", formula: 'x = −1, 1', fadable: true, reveal: '3x²−3=0 → x=±1' },
+        { num: 3, label: '부호 변화 표', body: "두 후보의 좌우 부호 변화를 직접 따져봐.", formula: 'f(−1)=2, f(1)=−2', fadable: true, reveal: 'x=−1 +→−(극대), x=1 −→+(극소)' },
+        { num: 4, label: '결론', body: '극댓값과 극솟값을 정리하면?', fadable: true, reveal: '극댓값 2(x=−1), 극솟값 −2(x=1)' },
       ],
     },
     quiz: {
@@ -175,6 +212,7 @@ const LESSONS: Record<string, BotLesson> = {
         '부호가 +→−, −→+ 로 실제 바뀌니 극값이 있어. y=x³(안 바뀜)과 헷갈리지 마.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['correct', 'confuse-max-min', 'plug-x-not-fx', 'sign-no-change'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'Q-12', title: '접선의 방정식 구하기', difficulty: '중' },
@@ -185,8 +223,38 @@ const LESSONS: Record<string, BotLesson> = {
       '오늘 **극값 판정** 정리 👇\n' +
       "① 극값 후보는 `f'(x)=0`\n" +
       '② 후보 좌우 **부호 변화**로 극대/극소 판정\n' +
-      '③ 변곡점은 `f″(x)` 부호 변화 — 극값과 별개\n' +
-      '내일은 그래프 개형 종합으로 간다. 가보자!',
+      '③ 변곡점은 `f″(x)` 부호 변화 — 극값과 별개',
+    sessionGoal: '극값 판정을 부호 변화로 끝내기',
+    nextLine: '내일은 그래프 개형 종합으로 간다. 가보자!',
+    selfExplains: [
+      {
+        conceptId: 'c1',
+        prompt: '도함수가 뭔지 네 말로 설명해볼래?',
+        keywords: ['평균변화율', '극한', '기울기', '순간'],
+        sampleAnswer: '도함수는 평균변화율의 극한으로, 한 점에서의 접선의 기울기(순간변화율)야.',
+        feedbackStrong: '핵심을 다 짚었어! 극한·기울기 개념이 정확해.',
+        feedbackPartial: '방향은 맞아. 평균변화율의 극한이라는 정의도 한 번 더 짚어보자.',
+        feedbackWeak: '아직 정의가 흐릿해. 평균변화율 → 극한 → 접선 기울기 순서로 다시 정리해보자.',
+      },
+      {
+        conceptId: 'c2',
+        prompt: '극값을 어떻게 판정하는지 네 말로 설명해봐.',
+        keywords: ['부호', '극대', '극소', '임계점'],
+        sampleAnswer: "f'(x)=0 인 임계점에서 좌우 부호가 +→− 면 극대, −→+ 면 극소야.",
+        feedbackStrong: '완벽해! 부호 변화로 극대·극소를 가르는 게 핵심이야.',
+        feedbackPartial: '거의 왔어. 부호가 어떻게 바뀔 때 극대/극소인지도 붙여보자.',
+        feedbackWeak: "f'(x)=0 후 부호 변화를 확인한다는 흐름을 다시 잡아보자.",
+      },
+      {
+        conceptId: 'c3',
+        prompt: '변곡점이 뭔지 네 말로 설명해볼래?',
+        keywords: ['이계도함수', '볼록', '오목', '부호'],
+        sampleAnswer: "변곡점은 f''(x) 의 부호가 바뀌어 볼록↔오목이 전환되는 점이야.",
+        feedbackStrong: '정확해! 변곡점과 극값을 헷갈리지 않고 잘 구분했어.',
+        feedbackPartial: '좋아. 이계도함수 부호 변화라는 점을 한 번 더 강조해보자.',
+        feedbackWeak: "변곡점은 f''(x) 부호가 바뀌는 곳 — 볼록/오목 전환이라는 걸 다시 보자.",
+      },
+    ],
   },
 
   // ── cb_002 영어 누나 · 정중 존댓말 · 수능 빈칸 7유형 ──────────────────────
@@ -257,9 +325,9 @@ const LESSONS: Record<string, BotLesson> = {
       title: '연결어 단서로 빈칸 잡기',
       steps: [
         { num: 1, label: '주제 파악', body: '첫·끝 문장으로 글의 방향(예: "협업의 가치")을 잡아요.' },
-        { num: 2, label: '연결어 표시', body: '빈칸 앞 "Therefore" → 앞 내용의 **결론**이 들어갈 자리예요.' },
-        { num: 3, label: '재진술 매칭', body: '본문의 cooperation 이 재진술된 선택지를 골라요.' },
-        { num: 4, label: '함정 제거', body: '단어만 같은 지엽적 선택지를 지우면 정답이 남아요.' },
+        { num: 2, label: '연결어 표시', body: '빈칸 앞 "Therefore" 는 어떤 자리 신호일까요?', fadable: true, reveal: '앞 내용의 **결론**이 들어갈 자리' },
+        { num: 3, label: '재진술 매칭', body: '본문의 핵심어가 재진술된 선택지를 직접 골라봐요.', fadable: true, reveal: 'cooperation 이 재진술된 선택지' },
+        { num: 4, label: '함정 제거', body: '남은 오답은 어떤 기준으로 지울까요?', fadable: true, reveal: '단어만 같은 지엽적 선택지를 제거' },
       ],
     },
     quiz: {
@@ -279,6 +347,7 @@ const LESSONS: Record<string, BotLesson> = {
         '연결어는 항상 방향 단서를 줘요. however 는 분명한 역접이에요.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['same-direction', 'correct', 'example-vs-contrast', 'ignore-connective'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'B-07', title: '빈칸 추론 — 연결어 단서', difficulty: '중' },
@@ -288,8 +357,38 @@ const LESSONS: Record<string, BotLesson> = {
       '오늘 **빈칸 추론** 정리예요 👇\n' +
       '① 빈칸 = 글의 **주제**, 반복·재진술 키워드가 단서\n' +
       '② **연결어**로 빈칸의 방향(같다/반대/예시)을 결정\n' +
-      '③ 단어만 같은 **함정 오답**은 의미 방향으로 걸러내기\n' +
-      '내일은 어법·어휘로 이어가요.',
+      '③ 단어만 같은 **함정 오답**은 의미 방향으로 걸러내기',
+    sessionGoal: '빈칸의 방향을 연결어로 잡기',
+    nextLine: '내일은 어법·어휘로 이어가요.',
+    selfExplains: [
+      {
+        conceptId: 'c1',
+        prompt: '빈칸 추론에서 빈칸이 무엇을 묻는 자리인지 본인 말로 설명해보세요.',
+        keywords: ['주제', '반복', '재진술', '키워드'],
+        sampleAnswer: '빈칸은 글의 주제가 압축되는 자리라서, 반복·재진술되는 키워드가 정답 단서예요.',
+        feedbackStrong: '정확해요! 주제와 반복 키워드를 잘 연결했어요.',
+        feedbackPartial: '좋아요. 반복·재진술 키워드가 단서라는 점도 함께 넣어보세요.',
+        feedbackWeak: '빈칸 = 글의 주제라는 출발점부터 다시 잡아볼까요?',
+      },
+      {
+        conceptId: 'c2',
+        prompt: '연결어가 빈칸의 방향을 어떻게 결정하는지 설명해보세요.',
+        keywords: ['역접', '인과', '결론', '방향'],
+        sampleAnswer: 'however 같은 역접은 반대 방향, therefore 같은 인과는 결론 방향을 가리켜요.',
+        feedbackStrong: '훌륭해요! 역접·인과로 방향을 가른 게 핵심이에요.',
+        feedbackPartial: '맞아요. 역접/인과 각각의 방향도 예로 붙여보세요.',
+        feedbackWeak: '연결어가 방향 표지판이라는 개념부터 다시 정리해봐요.',
+      },
+      {
+        conceptId: 'c3',
+        prompt: '오답 함정이 왜 생기는지 본인 말로 설명해보세요.',
+        keywords: ['단어', '의미', '방향', '지엽'],
+        sampleAnswer: '지문 단어를 그대로 베낀 선택지는 단어만 같고 의미 방향이 다른 함정이에요.',
+        feedbackStrong: '정확해요! 단어 일치 ≠ 의미 일치를 잘 짚었어요.',
+        feedbackPartial: '좋아요. 의미 방향으로 검증한다는 점을 더 강조해보세요.',
+        feedbackWeak: '단어가 같다고 정답이 아니라는 점부터 다시 보면 좋아요.',
+      },
+    ],
   },
 
   // ── cb_003 과학 쌤 · 스파르타 반말 · 통합과학 전기회로 ────────────────────
@@ -353,9 +452,9 @@ const LESSONS: Record<string, BotLesson> = {
       title: '합성저항과 전류 구하기',
       steps: [
         { num: 1, label: '병렬 먼저', body: '6Ω·3Ω 병렬을 묶는다.', formula: '1/R = 1/6 + 1/3 = 1/2 → R = 2Ω' },
-        { num: 2, label: '직렬 합산', body: '묶은 2Ω 에 직렬 4Ω 더한다.', formula: 'R = 2 + 4 = 6Ω' },
-        { num: 3, label: '전류', body: '전체 전압 12V 면 옴의 법칙 적용.', formula: 'I = V/R = 12/6 = 2A' },
-        { num: 4, label: '결론', body: '합성저항 6Ω, 전체 전류 2A. 끝.' },
+        { num: 2, label: '직렬 합산', body: '묶은 2Ω 에 직렬 4Ω 을 더하면?', formula: 'R = 2 + 4 = 6Ω', fadable: true, reveal: '합성저항 R = 6Ω' },
+        { num: 3, label: '전류', body: '전체 전압 12V 로 옴의 법칙을 적용해봐.', formula: 'I = V/R = 12/6 = 2A', fadable: true, reveal: 'I = 12/6 = 2A' },
+        { num: 4, label: '결론', body: '합성저항과 전체 전류를 정리하면?', fadable: true, reveal: '합성저항 6Ω, 전체 전류 2A' },
       ],
     },
     quiz: {
@@ -375,6 +474,7 @@ const LESSONS: Record<string, BotLesson> = {
         '2.5 는 평균이다. 직렬은 더하기다.',
       ],
       relatedConceptId: 'c2',
+      distractorTags: ['wrong-formula-parallel', 'correct', 'add-vs-multiply', 'average-not-sum'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'S-03', title: '전기회로 — 직렬·병렬 저항', difficulty: '중' },
@@ -384,8 +484,38 @@ const LESSONS: Record<string, BotLesson> = {
       '오늘 **전기회로** 정리다 👇\n' +
       '① `V=IR` — 변형 세 형태 다 외운다\n' +
       '② 직렬 전류 같다 / 병렬 전압 같다\n' +
-      '③ 합성저항은 **안쪽 병렬부터** 묶어 줄인다\n' +
-      '내일은 자기장 들어간다. 예습해라.',
+      '③ 합성저항은 **안쪽 병렬부터** 묶어 줄인다',
+    sessionGoal: 'V=IR과 직렬·병렬 구분 끝내기',
+    nextLine: '내일은 자기장 들어간다. 예습해라.',
+    selfExplains: [
+      {
+        conceptId: 'c1',
+        prompt: '옴의 법칙을 네 말로 설명해봐.',
+        keywords: ['전압', '전류', '저항', 'V=IR'],
+        sampleAnswer: '전압은 전류와 저항의 곱이다 — V=IR. 둘을 알면 나머지가 나온다.',
+        feedbackStrong: '정확하다! V=IR 의 세 변수를 다 잡았다.',
+        feedbackPartial: '거의 맞다. V·I·R 의 관계(곱)도 분명히 적어라.',
+        feedbackWeak: 'V=IR 부터 다시. 전압=전류×저항 관계를 외워라.',
+      },
+      {
+        conceptId: 'c2',
+        prompt: '직렬과 병렬의 차이를 네 말로 설명해봐.',
+        keywords: ['직렬', '병렬', '전류', '전압'],
+        sampleAnswer: '직렬은 전류가 같고 전압이 나뉘고, 병렬은 전압이 같고 전류가 나뉜다.',
+        feedbackStrong: '완벽하다! 직렬·병렬을 정확히 갈랐다.',
+        feedbackPartial: '방향은 맞다. 어느 쪽이 같고 어느 쪽이 나뉘는지 분명히 해라.',
+        feedbackWeak: '직렬=전류 같다, 병렬=전압 같다. 이 한 문장부터 다시.',
+      },
+      {
+        conceptId: 'c3',
+        prompt: '복합 회로 합성저항을 어떻게 줄이는지 네 말로 설명해봐.',
+        keywords: ['병렬', '직렬', '안쪽', '합성'],
+        sampleAnswer: '안쪽 병렬을 먼저 한 저항으로 묶고, 그 값을 직렬로 더해 줄인다.',
+        feedbackStrong: '정확하다! 안쪽 병렬 → 바깥 직렬 순서를 잡았다.',
+        feedbackPartial: '좋다. 병렬을 먼저 묶는다는 순서를 분명히 적어라.',
+        feedbackWeak: '안쪽 병렬부터 묶는 순서를 다시 정리해라.',
+      },
+    ],
   },
 
   // ── cb_004 국어 누나 · 차분 존댓말 · 비문학 독해 ──────────────────────────
@@ -441,9 +571,9 @@ const LESSONS: Record<string, BotLesson> = {
       title: '단락 요약으로 주제 잡기',
       steps: [
         { num: 1, label: '첫 문단 요약', body: '첫 문단을 한 줄로: "기술 발전이 일자리를 바꾼다."' },
-        { num: 2, label: '끝 문단 요약', body: '끝 문단을 한 줄로: "그래도 인간의 역할은 남는다."' },
-        { num: 3, label: '방향 비교', body: '두 요약의 방향이 다르면 **주장 vs 반박** 구조예요.' },
-        { num: 4, label: '주제 확정', body: '글이 결국 지지하는 쪽(끝 문단)이 주제예요.' },
+        { num: 2, label: '끝 문단 요약', body: '끝 문단을 직접 한 줄로 요약해봐요.', fadable: true, reveal: '"그래도 인간의 역할은 남는다."' },
+        { num: 3, label: '방향 비교', body: '두 요약의 방향이 다르면 어떤 구조일까요?', fadable: true, reveal: '방향이 다르면 **주장 vs 반박** 구조' },
+        { num: 4, label: '주제 확정', body: '그렇다면 글의 주제는 어느 쪽일까요?', fadable: true, reveal: '글이 결국 지지하는 끝 문단 쪽' },
       ],
     },
     quiz: {
@@ -463,6 +593,7 @@ const LESSONS: Record<string, BotLesson> = {
         '선택지부터 보면 함정에 끌려가요. 본문 구조가 먼저예요.',
       ],
       relatedConceptId: 'c1',
+      distractorTags: ['over-detail', 'correct', 'literal-word-match', 'jump-to-conclusion'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'K-05', title: '비문학 — 주제·구조 파악', difficulty: '중' },
@@ -472,8 +603,38 @@ const LESSONS: Record<string, BotLesson> = {
       '오늘 **비문학 주제·근거 추론** 정리예요 👇\n' +
       '① **문단 중심문장**을 모아 구조를 잡기\n' +
       '② **지시어**의 대상을 정확히 추적\n' +
-      '③ **주장-근거 매칭**으로 논증 파악\n' +
-      '내일은 주장형 vs 정보형 구분으로 이어가요.',
+      '③ **주장-근거 매칭**으로 논증 파악',
+    sessionGoal: '문단 요약으로 글의 주제 잡기',
+    nextLine: '내일은 주장형 vs 정보형 구분으로 이어가요.',
+    selfExplains: [
+      {
+        conceptId: 'c1',
+        prompt: '비문학에서 문단 중심문장이 왜 중요한지 본인 말로 설명해보세요.',
+        keywords: ['중심문장', '문단', '구조', '요약'],
+        sampleAnswer: '각 문단의 중심문장을 모으면 글 전체의 뼈대(구조)가 드러나요.',
+        feedbackStrong: '정확해요! 중심문장과 구조의 연결을 잘 잡았어요.',
+        feedbackPartial: '좋아요. 중심문장을 모으면 구조가 보인다는 점을 더해보세요.',
+        feedbackWeak: '문단 단위로 중심문장을 고른다는 출발점부터 다시 볼까요?',
+      },
+      {
+        conceptId: 'c2',
+        prompt: '지시어를 추적하는 이유를 본인 말로 설명해보세요.',
+        keywords: ['지시어', '대상', '연결', '앞'],
+        sampleAnswer: '이/그/이러한 같은 지시어의 대상을 앞에서 찾으면 문장 연결이 빨라져요.',
+        feedbackStrong: '훌륭해요! 지시어와 대상 연결을 정확히 설명했어요.',
+        feedbackPartial: '맞아요. 대상을 앞에서 찾는다는 점을 분명히 해보세요.',
+        feedbackWeak: '지시어가 앞 내용을 압축한 단서라는 점부터 다시 정리해봐요.',
+      },
+      {
+        conceptId: 'c3',
+        prompt: '주장과 근거를 짝짓는 방법을 본인 말로 설명해보세요.',
+        keywords: ['주장', '근거', '접속사', '논증'],
+        sampleAnswer: '단정형 주장 문장에 근거를 짝지으면 글의 논증 구조가 보여요.',
+        feedbackStrong: '정확해요! 주장-근거 매칭으로 논증을 잡았어요.',
+        feedbackPartial: '좋아요. 근거의 위치·접속사 단서도 함께 넣어보세요.',
+        feedbackWeak: '주장(단정형)과 근거를 구분하는 것부터 다시 볼까요?',
+      },
+    ],
   },
 
   // ── cb_005 사회 코치 · 열정 반말 · 현대사회 쟁점 ──────────────────────────
@@ -530,9 +691,9 @@ const LESSONS: Record<string, BotLesson> = {
       title: '환경 보전 vs 개발 쟁점 분석',
       steps: [
         { num: 1, label: '입장 분리', body: '환경 보전 측: 생태계 보호 / 개발 측: 일자리·경제 성장.' },
-        { num: 2, label: '근거 태깅', body: '"개발로 고용 1만 명↑" [사실 추정], "자연은 지켜야 한다" [가치판단].' },
-        { num: 3, label: '매트릭스', body: '경제·환경·형평성 기준으로 두 입장 근거를 표에 배치.' },
-        { num: 4, label: '결론', body: '근거가 사실로 더 받쳐지는 쪽이 설득력 있어.' },
+        { num: 2, label: '근거 태깅', body: '각 근거에 [사실]/[가치판단] 태그를 직접 붙여봐.', fadable: true, reveal: '"고용 1만↑"[사실], "자연은 지켜야"[가치판단]' },
+        { num: 3, label: '매트릭스', body: '어떤 기준으로 두 입장을 표에 놓을까?', fadable: true, reveal: '경제·환경·형평성 기준으로 배치' },
+        { num: 4, label: '결론', body: '어느 쪽이 더 설득력 있을까?', fadable: true, reveal: '근거가 사실로 더 받쳐지는 쪽' },
       ],
     },
     quiz: {
@@ -552,6 +713,7 @@ const LESSONS: Record<string, BotLesson> = {
         '한쪽만 보면 쟁점이 안 보여. 양쪽 입장을 같이 놓아야 해.',
       ],
       relatedConceptId: 'c1',
+      distractorTags: ['jump-to-conclusion', 'correct', 'jump-to-conclusion', 'one-side-only'],
     },
     practiceQuizzes: [
       { id: 'q1', problemNumber: 'C-02', title: '쟁점 — 입장·근거 분리', difficulty: '중' },
@@ -561,8 +723,38 @@ const LESSONS: Record<string, BotLesson> = {
       '오늘 **현대사회 쟁점 분석** 정리야 👇\n' +
       '① **입장 분리** — 누가·무엇을·왜\n' +
       '② 근거를 **사실 vs 가치판단**으로 태깅\n' +
-      '③ **쟁점 매트릭스**로 두 입장 동시 비교\n' +
-      '내일은 정책 분석 들어간다. 가보자!',
+      '③ **쟁점 매트릭스**로 두 입장 동시 비교',
+    sessionGoal: '입장과 근거 두 축으로 쟁점 쪼개기',
+    nextLine: '내일은 정책 분석 들어간다. 가보자!',
+    selfExplains: [
+      {
+        conceptId: 'c1',
+        prompt: '쟁점 분석에서 입장을 어떻게 쪼개는지 네 말로 설명해봐!',
+        keywords: ['누가', '무엇', '왜', '주장'],
+        sampleAnswer: '누가·무엇을·왜 주장하는지 한 줄로 정리하면 입장이 또렷해져.',
+        feedbackStrong: '완벽해! 누가·뭘·왜 세 축을 정확히 잡았어.',
+        feedbackPartial: '좋아! 세 요소(누가·무엇·왜)를 다 넣으면 더 완벽해.',
+        feedbackWeak: '입장은 누가·무엇을·왜 — 이 세 줄부터 다시 잡아보자!',
+      },
+      {
+        conceptId: 'c2',
+        prompt: '사실 근거와 가치판단 근거의 차이를 네 말로 설명해봐!',
+        keywords: ['사실', '데이터', '가치', '의견'],
+        sampleAnswer: '사실 근거는 데이터·통계처럼 검증 가능한 것, 가치판단은 옳다/나쁘다 같은 의견이야.',
+        feedbackStrong: '정확해! 사실 vs 가치판단을 잘 갈랐어.',
+        feedbackPartial: '방향 좋아! 데이터=사실, 평가어=의견이라는 점도 붙여봐.',
+        feedbackWeak: '근거를 [사실]/[의견]으로 태깅하는 것부터 다시 가보자!',
+      },
+      {
+        conceptId: 'c3',
+        prompt: '쟁점 매트릭스를 어떻게 쓰는지 네 말로 설명해봐!',
+        keywords: ['기준', '입장', '근거', '비교'],
+        sampleAnswer: '같은 기준(행)에 두 입장(열)의 근거를 채우면 비교가 한눈에 돼.',
+        feedbackStrong: '완벽해! 기준으로 두 입장을 비교하는 게 핵심이야.',
+        feedbackPartial: '좋아! 같은 기준에 양쪽 근거를 놓는다는 점을 더 강조해봐.',
+        feedbackWeak: '기준을 먼저 정하고 양쪽 근거를 채운다는 순서를 다시 잡자!',
+      },
+    ],
   },
 };
 
@@ -583,7 +775,10 @@ const FALLBACK: BotLesson = {
   ],
   example: {
     title: '예제',
-    steps: [{ num: 1, label: '시작', body: '개념을 먼저 확인하고 예제로 적용해봐요.' }],
+    steps: [
+      { num: 1, label: '시작', body: '개념을 먼저 확인하고 예제로 적용해봐요.' },
+      { num: 2, label: '적용', body: '배운 개념을 직접 한 번 적용해봐요.', fadable: true, reveal: '개념 → 예제 → 복습으로 이어집니다.' },
+    ],
   },
   quiz: {
     question: '오늘 학습을 한마디로 정리하면?',
@@ -602,9 +797,23 @@ const FALLBACK: BotLesson = {
       '정답! 개념·예제·복습이 한 사이클이에요.',
     ],
     relatedConceptId: 'c1',
+    distractorTags: ['over-detail', 'over-detail', 'over-detail', 'correct'],
   },
   practiceQuizzes: [{ id: 'q1', problemNumber: 'Q-01', title: '기초 개념 점검', difficulty: '하' }],
-  summary: '오늘 학습을 정리했어요. 내일도 이어가요!',
+  summary: '오늘 학습을 정리했어요.',
+  sessionGoal: '오늘 핵심 한 가지 정리하기',
+  nextLine: '내일도 이어가요!',
+  selfExplains: [
+    {
+      conceptId: 'c1',
+      prompt: '오늘 배운 핵심을 본인 말로 한 번 설명해볼래요?',
+      keywords: ['개념', '예제', '복습'],
+      sampleAnswer: '개념을 이해하고 예제로 적용한 뒤 복습하면 한 사이클이 완성돼요.',
+      feedbackStrong: '잘 정리했어요! 학습 사이클을 잘 짚었어요.',
+      feedbackPartial: '좋아요. 개념·예제·복습 흐름을 한 번 더 이어보세요.',
+      feedbackWeak: '개념 → 예제 → 복습 순서부터 다시 떠올려볼까요?',
+    },
+  ],
 };
 
 /**
@@ -631,4 +840,18 @@ export function getStudyGuide(botId: string): StudyConcept[] {
 /** 우측 레일·인라인 카드용 — 연습 퀴즈 */
 export function getChatQuizzes(botId: string): ChatQuiz[] {
   return getBotLesson(botId).practiceQuizzes;
+}
+
+/**
+ * 자기설명 프롬프트(B4) — conceptId 지정 시 매핑, 미지정/미발견 시 첫 프롬프트 폴백.
+ * selfExplains 가 비면 undefined.
+ */
+export function getSelfExplain(botId: string, conceptId?: string): SelfExplainPrompt | undefined {
+  const list = getBotLesson(botId).selfExplains;
+  if (!list || list.length === 0) return undefined;
+  if (conceptId) {
+    const found = list.find(s => s.conceptId === conceptId);
+    if (found) return found;
+  }
+  return list[0];
 }

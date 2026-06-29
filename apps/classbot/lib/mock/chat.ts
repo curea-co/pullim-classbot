@@ -25,6 +25,15 @@ export type LessonFlowKey =
   | 'lesson_quiz'     // 퀴즈 내줘
   | 'lesson_next';    // 다음 개념
 
+/**
+ * 봇 주도 수업 흐름키 런타임 목록 (A7).
+ * chat/page.tsx 의 isLessonFlowKey, classbot-dynamic-replies 의 quickReplyChipKind 가 공유한다.
+ * LessonFlowKey 유니언과 1:1 동기화(satisfies 로 컴파일타임 보장).
+ */
+export const LESSON_FLOW_KEYS = [
+  'lesson_concept', 'lesson_example', 'lesson_quiz', 'lesson_next',
+] as const satisfies readonly LessonFlowKey[];
+
 /** 빠른칩이 기대하는 응답 키 — 일반 응답 + 수업 흐름 */
 export type QuickReplyKey = ReplyKey | LessonFlowKey;
 

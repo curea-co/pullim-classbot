@@ -1,13 +1,29 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RotateCcw, Play, MessageCircle } from 'lucide-react';
 import { type Replay, formatReplayTime } from '@/lib/mock';
 import { getReplayWeakPoints, type WeakPoint } from '@/lib/mock/classbot-replay-recap';
 import { getReplayQuiz } from '@/lib/mock/classbot-replay-exam';
+import { getBotLesson } from '@/lib/mock/classbot-lesson';
 import { useResolvedWeakPoints, useReplayStore } from '@/lib/store/replay';
+import { useProficiencyStore } from '@/lib/store/proficiency';
+import { useCurrentUser } from '@/lib/current-user';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { cn } from '@/lib/utils';
+
+/**
+ * 약점 label → 레슨 개념 id 추론. label 부분일치(개념명 포함) 우선,
+ * 실패 시 첫 개념 폴백(레슨이 비면 'c1').
+ */
+function inferConceptId(botId: string, label: string): string {
+  const concepts = getBotLesson(botId).concepts;
+  const lower = label.toLowerCase();
+  const hit = concepts.find(
+    (c) => lower.includes(c.title.toLowerCase()) || c.title.toLowerCase().includes(lower),
+  );
+  return hit?.id ?? concepts[0]?.id ?? 'c1';
+}
 
 /**
  * 리플레이 회고 카드 — 핵심 정리 + 자동 약점(막힌 곳) + 다음 행동. spec §8.
@@ -26,6 +42,24 @@ export function ReplayRecap({
   const hydrated = useStoresHydrated(useReplayStore);
   const resolvedRaw = useResolvedWeakPoints(replay.id);
   const resolved = hydrated ? resolvedRaw : [];
+  const router = useRouter();
+  const me = useCurrentUser();
+
+  // 회고 '질문' — 약점을 복습 deck(proficiency)에 합류시킨 뒤 챗으로 이동.
+  // 기존 ask= 평문 prefill 도 유지(즉문즉답) — deck=구조화 재학습이라 중복 아님.
+  function handleAsk(w: WeakPoint) {
+    const conceptId = inferConceptId(replay.botId, w.label);
+    useProficiencyStore.getState().addReplayWeakness(me.id, {
+      botId: replay.botId,
+      replayId: replay.id,
+      atSec: w.atSec,
+      conceptId,
+      label: w.label,
+    });
+    router.push(
+      `/classbot/chat?bot=${replay.botId}&ask=${encodeURIComponent(`${w.label} 다시 설명해 줄래?`)}`,
+    );
+  }
 
   const weakPoints = getReplayWeakPoints(replay);
   const open = weakPoints.filter(w => !resolved.includes(w.key));
@@ -86,12 +120,13 @@ export function ReplayRecap({
                       <ActionButton primary onClick={() => onReattempt(w)} icon={RotateCcw} label="다시 풀기" />
                     )}
                     <ActionButton onClick={() => onSeek(w.atSec)} icon={Play} label="다시 보기" />
-                    <Link
-                      href={`/classbot/chat?bot=${replay.botId}&ask=${encodeURIComponent(`${w.label} 다시 설명해 줄래?`)}`}
+                    <button
+                      type="button"
+                      onClick={() => handleAsk(w)}
                       className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-pullim-slate-50 px-3 text-xs font-bold text-pullim-slate-600 hover:bg-pullim-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
                     >
                       <MessageCircle className="h-3.5 w-3.5" /> 질문
-                    </Link>
+                    </button>
                   </div>
                 </li>
               );

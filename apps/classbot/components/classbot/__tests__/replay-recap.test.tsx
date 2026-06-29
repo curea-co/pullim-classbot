@@ -3,6 +3,13 @@ import { ReplayRecap } from '../replay-recap';
 import { demoReplays } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
 
+// ReplayRecap 이 '질문' 약점 합류(B1B2)에 useCurrentUser 를 쓴다 → 데모 폴백 사용자로 mock
+// (테스트는 AuthProvider 없이 렌더). next/navigation router 도 no-op.
+jest.mock('@/lib/current-user', () => ({
+  useCurrentUser: () => ({ id: 'student_001', role: 'student', name: '서연', isAuthenticated: false }),
+}));
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+
 const mathReplay = demoReplays.find(r => r.id === 'rp_demo_math')!;
 
 beforeEach(() => useReplayStore.setState({ resolvedWeakPoints: {} }));
