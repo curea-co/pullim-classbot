@@ -381,10 +381,11 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       </div>
 
       {/*
-        챗 메인 — 2단 레이아웃에서 좌측 전체 폭을 차지한다.
+        챗 메인 — lg+ 는 2단 [챗 | 오늘의 학습 가이드 레일], 모바일은 단일 컬럼(가이드는 챗 상단 인라인).
         라이브 봇이면 헤더 바로 아래에 컴팩트 라이브 바를 얹어 챗을 위로 끌어올리고,
         섹션 내부 단일 스크롤(flex-1)로 중앙 중첩 스크롤바를 제거한다.
       */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_320px]">
       <section className="bg-card flex flex-1 min-h-0 flex-col rounded-2xl border">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
@@ -405,8 +406,10 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
             data-slot="chat-scroll"
             className="flex max-h-[calc(100dvh-14rem)] min-h-[360px] flex-col gap-3 overflow-y-auto p-4 lg:max-h-none lg:min-h-0 lg:flex-1"
           >
-            {/* 챗에 내장된 학습 가이드 + 연습 퀴즈 (학습 요소 강화) */}
-            <ChatStudyInline bot={bot} />
+            {/* 챗 내장 학습 가이드 — 모바일 전용(lg+ 는 우측 레일). */}
+            <div className="lg:hidden">
+              <ChatStudyInline bot={bot} />
+            </div>
             {turns.map((t, i) => (
               <RenderTurn key={t.id} turn={t} bot={bot} prev={turns[i - 1]} meName={me.name} />
             ))}
@@ -484,6 +487,15 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
           </form>
         </div>
       </section>
+
+      {/* 오늘의 학습 가이드 — lg+ 우측 레일(독립 스크롤). 모바일은 챗 상단 인라인 유지. */}
+      <aside
+        data-slot="chat-study-rail"
+        className="hidden min-h-0 lg:block lg:overflow-y-auto"
+      >
+        <ChatStudyInline bot={bot} />
+      </aside>
+      </div>
     </div>
   );
 }
