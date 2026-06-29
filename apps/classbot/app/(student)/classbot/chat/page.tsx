@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Send, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
   type QuickReplyKey, type LessonFlowKey,
   type ClassBot,
+  LESSON_FLOW_KEYS,
 } from '@/lib/mock';
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
@@ -21,7 +22,8 @@ import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-act
 import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
-import { getDynamicQuickReplies } from '@/lib/mock/classbot-dynamic-replies';
+import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
+import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
 import { useLiveStore } from '@/lib/store/live';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { useVisualViewport } from '@/lib/hooks/use-visual-viewport';
@@ -221,6 +223,11 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
+  // A5: prefers-reduced-motion → 칩 stagger 무력화
+  const reduced = useReducedMotion();
+  // A5: 스크린리더 announce 텍스트는 격리된 SrLiveRegion 이 자체 state 로 들고,
+  // ChatPanel 은 imperative setter 를 ref 로 받아 호출한다 → turns.map 리렌더 회피.
+  const announceRef = useRef<((text: string) => void) | null>(null);
   // 봇 주도 가이드 수업 데이터 (단일 출처)
   const lesson = useMemo(() => getBotLesson(bot.id), [bot.id]);
 
@@ -308,6 +315,15 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     }
   }, [turns, pending]);
 
+  // A5: aria-live 미러링 — 단일 소스. 마지막 bot turn 만 감지해 1회 announce(중복 방지).
+  // pending(타이핑 점)은 announce 안 함. send()/lessonRequest 양쪽에서 부르지 않고 여기로 통합.
+  useEffect(() => {
+    const last = turns[turns.length - 1];
+    if (last?.role === 'bot') {
+      announceRef.current?.(plainAnnounceText(last));
+    }
+  }, [turns]);
+
   // 수업 액션 소비 — 인라인 런처/우측 레일/챗 버블 dispatch를 대화에 주입(이동 없음)
   const lessonRequest = useLessonActionStore(s => s.request);
   const clearLessonRequest = useLessonActionStore(s => s.clear);
@@ -378,6 +394,16 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     setValue('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+    }
+    // A5: textarea 재포커스는 데스크톱 한정. 모바일 재포커스는 가상 키보드/--keyboard-offset
+    // 재트리거로 회귀를 부르므로(mobile-and-focus) keyboardOpen 아닐 때 + pointer:fine 에서만.
+    const isDesktop =
+      !keyboardOpen &&
+      (typeof window === 'undefined' ||
+        typeof window.matchMedia !== 'function' ||
+        window.matchMedia('(pointer:fine)').matches);
+    if (isDesktop) {
+      textareaRef.current?.focus();
     }
   }
 
@@ -502,6 +528,9 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
           )}
         </div>
 
+        {/* A5: 격리된 sr-only live region — 자체 state 로 announce 텍스트를 들어 ChatPanel 리렌더 회피. */}
+        <SrLiveRegion announceRef={announceRef} />
+
         {/*
           입력 영역 — 모바일 키보드 열림 시 sticky로 viewport 키보드 위에 고정 ([04 § 9.5]).
           --keyboard-offset CSS 변수는 useVisualViewport hook이 동적으로 갱신.
@@ -512,23 +541,41 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
           className="bg-card sticky border-t p-3 space-y-2 z-10"
           style={{ bottom: 'var(--keyboard-offset, 0px)' }}
         >
-          {/* 동적 빠른 칩 — M7 stagger (60ms 시차) */}
+          {/*
+            동적 빠른 칩 — M7 stagger(60ms, A5 reduced-motion 시 0ms).
+            A7: guide(수업 단계 — 시그니처 좌측 라이너 강조) vs ask(자유 질문 — 중립 outline) 시각 구분.
+          */}
           <div className="flex flex-wrap gap-1.5">
-            {dynamicQuickReplies.map((p, i) => (
-              <button
-                key={p.text}
-                type="button"
-                onClick={() => send(p.text, p.expectedReplyKey)}
-                disabled={pending}
-                style={{
-                  borderLeftColor: botSig.hex,
-                  animationDelay: `${i * 60}ms`,
-                }}
-                className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 pullim-anim-message-mount border-l-2 disabled:opacity-50 inline-flex items-center gap-1 rounded-r-full rounded-l px-3 py-1.5 text-sm font-semibold transition-colors"
-              >
-                {p.text}
-              </button>
-            ))}
+            {dynamicQuickReplies.map((p, i) => {
+              const kind = quickReplyChipKind(p.expectedReplyKey);
+              const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
+              const animationDelay = reduced ? '0ms' : `${i * 60}ms`;
+              const commonClass =
+                'pullim-anim-message-mount disabled:opacity-50 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1';
+              return (
+                <button
+                  key={p.text}
+                  type="button"
+                  onClick={() => send(p.text, p.expectedReplyKey)}
+                  disabled={pending}
+                  title={kind === 'guide' ? '수업 단계' : '자유 질문'}
+                  style={
+                    kind === 'guide'
+                      ? { borderLeftColor: botSig.hex, animationDelay }
+                      : { animationDelay }
+                  }
+                  className={cn(
+                    commonClass,
+                    kind === 'guide'
+                      ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
+                      : 'border border-pullim-slate-200 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-full',
+                  )}
+                >
+                  <Icon aria-hidden className="h-3.5 w-3.5" />
+                  <span>{p.text}</span>
+                </button>
+              );
+            })}
           </div>
 
           <form onSubmit={handleSubmit} className="flex items-end gap-1.5">
@@ -636,12 +683,11 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
 
 /* ─── 봇 주도 가이드 수업 — 흐름키 → 구조화 메시지 ─── */
 
-const LESSON_FLOW_KEYS: ReadonlySet<string> = new Set([
-  'lesson_concept', 'lesson_example', 'lesson_quiz', 'lesson_next',
-]);
+// A7: 흐름키 런타임 목록은 chat.ts 의 LESSON_FLOW_KEYS 단일 출처에서 파생(중복 Set 제거).
+const LESSON_FLOW_KEY_SET: ReadonlySet<string> = new Set(LESSON_FLOW_KEYS);
 
 function isLessonFlowKey(k?: QuickReplyKey): k is LessonFlowKey {
-  return k !== undefined && LESSON_FLOW_KEYS.has(k);
+  return k !== undefined && LESSON_FLOW_KEY_SET.has(k);
 }
 
 /* ─── 진행 마킹 매핑(A1·B7) — turn.kind → 레슨 위상 / 세션 단계 ─── */
@@ -1157,6 +1203,14 @@ function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; s
   // scope L레벨 → 힌트 공개 깊이 (L3 개념까지=1, L4 단계까지=2, L5 답까지=전부)
   const maxHints = scope >= 5 ? quiz.hints.length : Math.min(scope >= 4 ? 2 : 1, quiz.hints.length);
 
+  // A5: 마운트 시 첫 보기 button 에 키보드 포커스(퀴즈는 항상 사용자 액션 후 주입 — 초기 페이지
+  // 로드 greeting/lesson-intro 와 동시 mount 되지 않음). preventScroll:true 필수 —
+  // false 면 chat-scroll scrollTop 강제 이동 → new-message-banner 불변식 파괴.
+  const firstOptionRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    firstOptionRef.current?.focus({ preventScroll: true });
+  }, []);
+
   function reset() {
     setSelected(undefined);
     setSubmitted(false);
@@ -1174,6 +1228,7 @@ function InlineQuiz({ quiz, botId, scope }: { quiz: LessonQuiz; botId: string; s
           return (
             <li key={i}>
               <button
+                ref={i === 0 ? firstOptionRef : undefined}
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
@@ -1327,6 +1382,74 @@ function PendingBubble({ bot }: { bot: ClassBot }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── A5 스크린리더 접근성 ─── */
+
+/**
+ * 봇 turn → 스크린리더 announce 문구. 짧게 truncate(전문 금지 — SR 이 본문 DOM 도 읽으므로
+ * live region 에 전문을 또 넣으면 이중 낭독·장황). 카드류는 종류만, 텍스트 turn 은 1줄 요약.
+ * quiz-runner.tsx:146 의 role=status 규약과 정렬(짧은 상태 문구).
+ */
+export function plainAnnounceText(turn: Turn): string {
+  switch (turn.kind) {
+    case 'quiz':
+      return '퀴즈가 도착했어요';
+    case 'concept':
+    case 'concept-detail':
+      return '개념 설명이 도착했어요';
+    case 'example':
+    case 'explain-step':
+      return '예제가 도착했어요';
+    case 'summary':
+      return '오늘 정리가 도착했어요';
+    case 'problem-card':
+      return '문제 카드가 도착했어요';
+    default: {
+      // text/lesson-intro 등 — 마크다운 strip 후 첫 줄/1문장 요약(truncate).
+      const plain = stripMarkdown(turn.text);
+      const firstLine = plain.split('\n')[0]?.trim() ?? '';
+      const sentence = firstLine.split(/(?<=[.!?。？！])\s/)[0] ?? firstLine;
+      const summary = sentence.length > 60 ? `${sentence.slice(0, 60)}…` : sentence;
+      return summary ? `새 메시지: ${summary}` : '새 메시지가 도착했어요';
+    }
+  }
+}
+
+/** 간이 마크다운 strip — bold/italic/code/link 마커 제거(announce 용 평문화). */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[#>]/g, '')
+    .trim();
+}
+
+/**
+ * 격리된 sr-only live region (A5). announce 텍스트를 자체 state 로 들고,
+ * 부모(ChatPanel)는 announceRef.current 로 setter 만 받아 호출 → ChatPanel/turns.map 리렌더 회피.
+ * quiz-runner.tsx:146 의 role=status·aria-live=polite·aria-atomic 패턴. 항상 mount.
+ */
+function SrLiveRegion({ announceRef }: { announceRef: React.MutableRefObject<((text: string) => void) | null> }) {
+  const [text, setText] = useState('');
+  const announce = useCallback((next: string) => setText(next), []);
+  // 부모가 호출할 imperative setter 를 ref 에 등록(mount/unmount 생명주기 동기화).
+  useEffect(() => {
+    announceRef.current = announce;
+    return () => {
+      if (announceRef.current === announce) announceRef.current = null;
+    };
+  }, [announceRef, announce]);
+  return (
+    <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+      {text}
     </div>
   );
 }
