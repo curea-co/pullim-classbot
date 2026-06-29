@@ -17,7 +17,7 @@ import { currentPersona, currentTeacher } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
-import { osLoginUrl } from '@/lib/auth/os-sso';
+import { osLoginUrl, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
@@ -166,8 +166,9 @@ function ProfileMenu({ role }: { role: Role }) {
     if (me.isAuthenticated) {
       await signOut();
       toast.success('로그아웃되었습니다.');
-      // 전체 새로고침으로 AuthContext 가 미인증 세션을 다시 파생하게 한다.
-      if (typeof window !== 'undefined') window.location.assign('/');
+      // OS SSO 모드: 로그아웃 후 앱(비로그인 데모)으로 되돌아가지 않도록 OS 로 내보낸다(인증 진입 일원화).
+      // 비-SSO 모드: 기존대로 루트로(AuthContext 가 미인증 세션을 다시 파생).
+      if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
       return;
     }
     toast.info('로그아웃 (데모)', {
