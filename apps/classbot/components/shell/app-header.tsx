@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Bell, Search, Flame, User as UserIcon, LogOut, GraduationCap, Sun, Moon } from 'lucide-react';
+import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, GraduationCap, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { ClassbotMark } from '@/components/brand/classbot-mark';
@@ -17,6 +17,7 @@ import { currentPersona, currentTeacher } from '@/lib/mock';
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
+import { osLoginUrl } from '@/lib/auth/os-sso';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { StudentModeToggle } from './student-mode-toggle';
@@ -163,13 +164,20 @@ function ProfileMenu({ role }: { role: Role }) {
     if (me.isAuthenticated) {
       await signOut();
       toast.success('로그아웃되었습니다.');
-      router.push('/login');
+      // 전체 새로고침으로 AuthContext 가 미인증 세션을 다시 파생하게 한다.
+      if (typeof window !== 'undefined') window.location.assign('/');
       return;
     }
     toast.info('로그아웃 (데모)', {
       description: '데모 환경이라 실제 로그아웃은 동작하지 않아요.',
       duration: 3000,
     });
+  }
+
+  // OS SSO 로그인으로 이동(현재 경로를 next 로 복귀). 공통 헤더가 없어 classbot 이 자체 처리.
+  function goLogin() {
+    if (typeof window === 'undefined') return;
+    window.location.assign(osLoginUrl(window.location.pathname + window.location.search));
   }
 
   return (
@@ -217,14 +225,21 @@ function ProfileMenu({ role }: { role: Role }) {
             )}
             {mounted && resolvedTheme === 'dark' ? '라이트 모드' : '다크 모드'}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => void handleLogout()}
-            variant="destructive"
-            className="gap-1.5 px-2 py-1.5 text-sm"
-          >
-            <LogOut className="h-4 w-4" />
-            로그아웃
-          </DropdownMenuItem>
+          {me.isAuthenticated ? (
+            <DropdownMenuItem
+              onClick={() => void handleLogout()}
+              variant="destructive"
+              className="gap-1.5 px-2 py-1.5 text-sm"
+            >
+              <LogOut className="h-4 w-4" />
+              로그아웃
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={goLogin} className="gap-1.5 px-2 py-1.5 text-sm">
+              <LogIn className="h-4 w-4" />
+              로그인
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

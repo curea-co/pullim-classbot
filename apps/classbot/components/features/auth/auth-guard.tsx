@@ -1,45 +1,34 @@
 'use client';
 
-import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { tokenManager } from '@pullim-classbot/api-client/token-manager';
+import { useEffect, type ReactNode } from 'react';
+
+import { useAuth } from '@/lib/auth/auth-context';
+import { osLoginUrl } from '@/lib/auth/os-sso';
 
 interface AuthGuardProps {
   children: ReactNode;
-  /** 미인증 시 보낼 경로 (기본 /login). */
-  redirectTo?: string;
-}
-
-function subscribe(callback: () => void): () => void {
-  return tokenManager.onTokenChange(callback);
-}
-
-function getHasToken(): boolean {
-  return !!tokenManager.getRefreshToken();
-}
-
-function getHasTokenServer(): boolean {
-  return false;
 }
 
 /**
- * 인증 가드 — 본체 pullim AuthGuard 패턴.
+ * 인증 가드 — OS SSO 모드.
  *
- * 최소 적용 원칙: 기존 흐름을 깨지 않도록 layout 에 전면 적용하지 않는다.
- * 보호가 필요한 페이지/서브트리에서만 children 을 감싼다.
- * 미인증이면 `?next=` 를 붙여 로그인으로 보낸다.
+ * 세션 복원(`/me`)이 끝난 뒤 사용자가 없으면 OS 로그인으로 보낸다(`osLoginUrl(next)`).
+ * HttpOnly 세션 쿠키는 JS 가 동기적으로 읽을 수 없으므로, 토큰 동기 확인 대신
+ * AuthContext 의 비동기 세션 상태(`isReady`/`user`)에 기댄다.
+ *
+ * 최소 적용 원칙: layout 전면 적용이 아니라 보호가 필요한 서브트리만 감싼다.
  */
-export function AuthGuard({ children, redirectTo = '/login' }: AuthGuardProps) {
-  const router = useRouter();
-  const hasToken = useSyncExternalStore(subscribe, getHasToken, getHasTokenServer);
+export function AuthGuard({ children }: AuthGuardProps) {
+  const { user, isReady } = useAuth();
 
   useEffect(() => {
-    if (!hasToken && typeof window !== 'undefined') {
+    if (isReady && !user && typeof window !== 'undefined') {
       const current = window.location.pathname + window.location.search;
-      router.replace(`${redirectTo}?next=${encodeURIComponent(current)}`);
+      window.location.assign(osLoginUrl(current));
     }
-  }, [hasToken, redirectTo, router]);
+  }, [isReady, user]);
 
-  if (!hasToken) return null;
+  // 세션 복원 중이거나 미인증(리다이렉트 진행 중)이면 children 을 렌더하지 않는다.
+  if (!isReady || !user) return null;
   return <>{children}</>;
 }

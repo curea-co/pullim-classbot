@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "lsof -ti:3032 | xargs -r kill -9 2>/dev/null || true",
-    "dev": "next dev -p 3032",
+    "predev": "lsof -ti:3012 | xargs -r kill -9 2>/dev/null || true",
+    "dev": "next dev -p 3012",
     "build": "next build",
-    "start": "next start -p 3032",
+    "start": "next start -p 3012",
     "lint": "eslint && node scripts/check-design-gates.mjs",
     "gates": "node scripts/check-design-gates.mjs",
     "typecheck": "tsc --noEmit",

@@ -9,7 +9,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { authService, type AuthUser } from '@pullim-classbot/auth';
+import { type AuthUser } from '@pullim-classbot/auth';
+
+import { OsSsoAuthProvider } from '@/lib/auth/os-sso-provider';
+
+// OS SSO 모드: 세션은 pullim-api `/me`(쿠키)에서 파생한다. authService 싱글톤 `setProvider` 스왑은
+// 워크스페이스 패키지 번들 경계에서 인스턴스가 갈릴 수 있어(스왑 미반영), OS SSO Provider 를
+// 모듈 단일 인스턴스로 **직접** 사용한다(단일 진실).
+const ssoProvider = new OsSsoAuthProvider();
 
 interface AuthContextValue {
   /** 현재 로그인 사용자. 미로그인 시 null. */
@@ -34,17 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange(setUser);
-    void authService.getSession().finally(() => setIsReady(true));
+    const unsubscribe = ssoProvider.onAuthStateChange(setUser);
+    void ssoProvider.getSession().finally(() => setIsReady(true));
     return unsubscribe;
   }, []);
 
   const refreshSession = useCallback(async () => {
-    await authService.getSession();
+    await ssoProvider.getSession();
   }, []);
 
   const signOut = useCallback(async () => {
-    await authService.signOut();
+    await ssoProvider.signOut();
   }, []);
 
   const value = useMemo<AuthContextValue>(
