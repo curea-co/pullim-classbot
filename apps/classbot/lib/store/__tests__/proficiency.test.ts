@@ -73,6 +73,25 @@ it('addReplayWeakness upsert(idempotent key) + clearWeakness', () => {
   expect(s().byUser[U].weaknesses).toHaveLength(0);
 });
 
+it('review 정답: replay 약점(r: key)은 recordQuizResult 만으로는 안 지워지고 clearWeakness(key) 로만 해소', () => {
+  // Codex#164 finding#2 — review-card 가 약점 key 를 스레딩 → InlineQuiz 가 정답 시 clearWeakness(key) 호출.
+  // recordQuizResult 는 q:botId:conceptId 만(streak≥2) 지우므로 replay 약점은 stat 기록만으로 절대 해소되지 않는다.
+  const s = () => useProficiencyStore.getState();
+  s().addReplayWeakness(U, { botId: B, replayId: 'rp9', atSec: 42, conceptId: C, label: '극값 판정' });
+  const rKey = 'r:rp9:42';
+  expect(s().byUser[U].weaknesses.map(w => w.key)).toEqual([rKey]);
+
+  // 정답을 연속 2회 기록해도(streak 충족) replay 약점은 남는다 — recordQuizResult 는 q: key 만 본다.
+  s().recordQuizResult(U, { botId: B, conceptId: C, correct: true });
+  s().recordQuizResult(U, { botId: B, conceptId: C, correct: true });
+  expect(stat()!.streak).toBe(CLEAR_STREAK);
+  expect(s().byUser[U].weaknesses.map(w => w.key)).toEqual([rKey]); // 여전히 잔존
+
+  // review 흐름의 정답 처리가 호출하는 clearWeakness(key) 로만 해소.
+  s().clearWeakness(U, rKey);
+  expect(s().byUser[U].weaknesses).toHaveLength(0);
+});
+
 it('useDueWeaknesses: due≤now 만, 오래된 due 우선 정렬, now 주입', () => {
   const now = 1_000_000;
   useProficiencyStore.setState({

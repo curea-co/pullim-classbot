@@ -41,7 +41,7 @@ export function WeaknessReviewCard({ botId, userId }: { botId: string; userId: s
             </span>
             <button
               type="button"
-              onClick={() => dispatchLesson(botId, 'review', w.conceptId)}
+              onClick={() => dispatchLesson(botId, 'review', w.conceptId, w.key)}
               className="bg-pullim-blue-600 hover:bg-pullim-blue-700 focus-visible:ring-pullim-blue-400 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-3 text-xs font-bold text-white transition-colors focus-visible:outline-none focus-visible:ring-2"
             >
               <RotateCcw className="h-3.5 w-3.5" /> 다시 풀기
