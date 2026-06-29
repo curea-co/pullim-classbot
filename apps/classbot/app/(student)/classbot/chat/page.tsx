@@ -543,7 +543,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         >
           {/*
             동적 빠른 칩 — M7 stagger(60ms, A5 reduced-motion 시 0ms).
-            A7: guide(수업 단계 — 시그니처 좌측 라이너 강조) vs ask(자유 질문 — 중립 outline) 시각 구분.
+            A7: 모든 칩은 좌측 라이너를 가진다(DS). guide(수업 단계 — 시그니처색 라이너) vs ask(자유 질문 — 중립 slate 라이너) 색으로 구분.
           */}
           <div className="flex flex-wrap gap-1.5">
             {dynamicQuickReplies.map((p, i) => {
@@ -566,9 +566,10 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
                   }
                   className={cn(
                     commonClass,
+                    // DS: 모든 빠른 칩은 좌측 라이너를 가진다. guide=시그니처색, ask=중립 slate 로 색 구분.
                     kind === 'guide'
                       ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
-                      : 'border border-pullim-slate-200 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-full',
+                      : 'border border-l-2 border-pullim-slate-200 border-l-pullim-slate-300 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-r-full rounded-l',
                   )}
                 >
                   <Icon aria-hidden className="h-3.5 w-3.5" />
@@ -1438,8 +1439,10 @@ function stripMarkdown(text: string): string {
  * quiz-runner.tsx:146 의 role=status·aria-live=polite·aria-atomic 패턴. 항상 mount.
  */
 function SrLiveRegion({ announceRef }: { announceRef: React.MutableRefObject<((text: string) => void) | null> }) {
-  const [text, setText] = useState('');
-  const announce = useCallback((next: string) => setText(next), []);
+  // seq: announce 마다 단조 증가. 같은 문구가 연속 와도 렌더 문자열이 달라지도록
+  // 안 보이는 trailing NBSP 를 toggle → SR 이 DOM 변화를 감지해 재낭독.
+  const [{ text, seq }, setState] = useState({ text: '', seq: 0 });
+  const announce = useCallback((next: string) => setState(prev => ({ text: next, seq: prev.seq + 1 })), []);
   // 부모가 호출할 imperative setter 를 ref 에 등록(mount/unmount 생명주기 동기화).
   useEffect(() => {
     announceRef.current = announce;
@@ -1447,9 +1450,11 @@ function SrLiveRegion({ announceRef }: { announceRef: React.MutableRefObject<((t
       if (announceRef.current === announce) announceRef.current = null;
     };
   }, [announceRef, announce]);
+  // 가시/낭독 내용은 메시지 그대로, 보이지 않는 NBSP 만 toggle 되어 연속 동일 문구도 재낭독.
+  const rendered = text ? text + ' '.repeat(seq % 2) : text;
   return (
     <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-      {text}
+      {rendered}
     </div>
   );
 }
