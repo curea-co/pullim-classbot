@@ -18,6 +18,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
 import { osLoginUrl } from '@/lib/auth/os-sso';
+import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { StudentModeToggle } from './student-mode-toggle';
@@ -175,10 +176,15 @@ function ProfileMenu({ role }: { role: Role }) {
     });
   }
 
-  // OS SSO 로그인으로 이동(현재 경로를 next 로 복귀). 공통 헤더가 없어 classbot 이 자체 처리.
+  // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
+  // 아니면 기존 classbot 로그인 폼(`/login`)으로 라우팅.
   function goLogin() {
-    if (typeof window === 'undefined') return;
-    window.location.assign(osLoginUrl(window.location.pathname + window.location.search));
+    if (OS_SSO_ENABLED) {
+      if (typeof window === 'undefined') return;
+      window.location.assign(osLoginUrl(window.location.pathname + window.location.search));
+      return;
+    }
+    router.push('/login');
   }
 
   return (

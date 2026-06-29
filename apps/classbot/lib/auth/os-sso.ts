@@ -26,10 +26,11 @@ export const OS_URL = process.env.NEXT_PUBLIC_OS_URL || DEFAULT_OS_URL;
 
 /**
  * pullim-api base URL(OS SSO 모드). `/me`·`/auth/csrf`·`/auth/logout`·`/classbot/*` 호출 대상.
- * 플랫폼 위성 앱 관례(pullim-web)와 동일하게 `NEXT_PUBLIC_API_URL` 을 pullim-api base 로 쓴다
+ * api-client 의 `NEXT_PUBLIC_API_URL`(= classbot BE base) 과는 **별개 변수**다. 둘이 충돌하지
+ * 않도록 OS SSO/pullim-api base 는 전용 `NEXT_PUBLIC_OS_API_URL` 로 읽는다
  * (글로벌 envelope·`/api` 프리픽스 없음 — 경로는 `/me` 처럼 루트 기준).
  */
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE;
+export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
 
 /**
  * 풀림 OS 로그인 URL 을 만든다. 로그인 성공 후 `next` 경로로 복귀한다.
