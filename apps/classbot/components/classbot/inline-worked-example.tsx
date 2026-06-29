@@ -49,6 +49,9 @@ export function InlineWorkedExample({
           const isActive = i === activeIdx;
           if (isRevealed || !s.fadable) {
             // 공개됐거나 비-fadable(시범) 단계 — 기존 ol 렌더.
+            // 공개된 fadable 단계는 body(직접 풀어봐 프롬프트) 대신 reveal(정답/핵심)을 노출.
+            const revealedFadable = isRevealed && s.fadable;
+            const shownBody = revealedFadable ? (s.reveal ?? s.body) : s.body;
             return (
               <li
                 key={s.num}
@@ -59,7 +62,7 @@ export function InlineWorkedExample({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-pullim-slate-900 text-[15px] font-bold">{s.label}</div>
-                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{s.body}</div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{shownBody}</div>
                   {s.formula && (
                     <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
                       {s.formula}

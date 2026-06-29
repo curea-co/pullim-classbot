@@ -841,6 +841,10 @@ function buildLessonActionTurn(
         ? undefined
         : (req.conceptId ? list.find(s => s.conceptId === req.conceptId) ?? list[0] : list[0]);
       if (!prompt) return null;
+      // concept/concept-detail 케이스와 동일하게 idxRef 를 해당 개념에 동기화.
+      // 그래야 이어지는 'next' 가 올바른 다음 개념으로 진행된다.
+      const seIdx = concepts.findIndex(c => c.id === prompt.conceptId);
+      if (seIdx >= 0) idxRef.current = seIdx;
       return {
         id, role: 'bot', at,
         text: '네 말로 한번 설명해볼래? 아래에 적어줘 👇',

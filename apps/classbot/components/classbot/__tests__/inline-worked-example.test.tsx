@@ -26,13 +26,14 @@ describe('InlineWorkedExample', () => {
     expect(disabled).toBeDisabled();
   });
 
-  it('reveals the next step, activates the following, and calls onReveal on click', () => {
+  it('reveals the next step (showing the reveal answer, not the prompt body), activates the following, and calls onReveal on click', () => {
     const onReveal = jest.fn();
     render(<InlineWorkedExample title="예제" steps={STEPS} onReveal={onReveal} />);
     fireEvent.click(screen.getByText('정답 확인하기'));
     expect(onReveal).toHaveBeenCalledTimes(1);
-    // first fadable now shown
-    expect(screen.getByText('직접 채워봐.')).toBeInTheDocument();
+    // first fadable now shown — the reveal answer, NOT the prompt body
+    expect(screen.getByText('정답1')).toBeInTheDocument();
+    expect(screen.queryByText('직접 채워봐.')).not.toBeInTheDocument();
     // next fadable now active (a 정답 확인하기 still present), not 앞 단계 먼저
     expect(screen.getByText('정답 확인하기')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '앞 단계 먼저' })).not.toBeInTheDocument();
