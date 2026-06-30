@@ -80,6 +80,29 @@ test.describe('키보드 Tab 포커스 가시성', () => {
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
+    // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
+    // 발사 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 참여시켜야 발사분이 학생 목록에 노출된다.
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        'pullim-class-enrollment',
+        JSON.stringify({
+          state: {
+            enrollments: [
+              {
+                botId: 'cb_001',
+                classroomId: 'cr_math_a',
+                classroomLabel: '고2 미적분 A반',
+                assignedBy: '김수학 선생님',
+                assignedAt: '2026-06-24 09:00',
+                via: '대치프리미엄 수학학원',
+              },
+            ],
+          },
+          version: 0,
+        }),
+      );
+    });
+
     // 학생 풀이로 진입
     await page.goto(BASE + '/classbot/assignment');
     const overviewLink = page.locator('a[href^="/classbot/assignment/as_user_"]:not([href*="/solve"]):not([href*="/result"])').first();
