@@ -18,6 +18,26 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => {
       window.localStorage.removeItem('pullim-assignments');
+      // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
+      // 발사 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 발사→학생 목록 노출이 동작한다.
+      window.localStorage.setItem(
+        'pullim-class-enrollment',
+        JSON.stringify({
+          state: {
+            enrollments: [
+              {
+                botId: 'cb_001',
+                classroomId: 'cr_math_a',
+                classroomLabel: '고2 미적분 A반',
+                assignedBy: '김수학 선생님',
+                assignedAt: '2026-06-24 09:00',
+                via: '대치프리미엄 수학학원',
+              },
+            ],
+          },
+          version: 0,
+        }),
+      );
     });
   });
 
