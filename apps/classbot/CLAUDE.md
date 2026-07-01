@@ -74,7 +74,7 @@
 ## 6. prod-verify — production 회귀 자동화
 
 이 앱은 **production hit Playwright** 자산을 보유 (`apps/classbot/tests/e2e/*` + `.github/workflows/prod-verify.yml`):
-- main push / 일일 schedule (UTC 23:00 = KST 08:00) / 수동 dispatch 세 경로로 https://pullim-classbot.vercel.app 검증
+- main push / 일일 schedule (UTC 23:00 = KST 08:00) / 수동 dispatch 세 경로로 https://classbot.pullim.ai 검증
 - HTML `<meta name="x-build-sha">` 와 commit SHA 일치 polling 후 Playwright 7 spec 실행
 - 색·chat·slider 회귀 자동 검출
 

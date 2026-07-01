@@ -46,7 +46,7 @@ bun --filter @pullim-classbot/classbot start
 bun --filter @pullim-classbot/classbot test:e2e
 
 # Production hit
-PLAYWRIGHT_BASE_URL=https://pullim-classbot.vercel.app \
+PLAYWRIGHT_BASE_URL=https://classbot.pullim.ai \
   bun --filter @pullim-classbot/classbot test:e2e
 ```
 
