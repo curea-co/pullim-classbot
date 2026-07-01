@@ -78,8 +78,8 @@ Vercel 대시보드 > **`classbot` 프로젝트** > Settings > Environment Varia
 
 | # | 항목 | 오너 | 완료 |
 |---|------|------|------|
-| B-7 | `pullim-api` 또는 `pullim-web`의 `REDIRECT_HOST_ALLOWLIST`(또는 동등한 next 복귀 경로 허용 목록)에 `dev-classbot.pullim.ai`가 등록되어 있는가 — OS 로그인 완료 후 `?next=https://dev-classbot.pullim.ai/...` 복귀를 위해 필요 | BE(OS팀) | [ ] |
-| B-8 | OS 로그인 완료 후 `next` 파라미터로 classbot Dev URL로 복귀하는 경로를 pullim-web이 허용하는가 | FE(OS팀) | [ ] |
+| B-7 | **현재 classbot `osLoginUrl()`은 `next`에 내부 경로만 부착한다** (`window.location.pathname + search` → 예 `?next=/classbot`, 절대 URL 아님). 이는 same-origin 복귀만 성립하므로, classbot이 OS와 **다른 호스트**인 Dev에서 OS→classbot 복귀가 되려면 (a) classbot이 full-URL `next`(`https://dev-classbot.pullim.ai/...`)를 넘기도록 바꾸거나 (b) OS `resolveNext`가 cross-host 복귀를 허용해야 한다 | FE(classbot)+BE(OS팀) | [ ] |
+| B-8 | 위 (a)를 택하면 `pullim-api`/`pullim-web`의 `REDIRECT_HOST_ALLOWLIST`(cross-host `next` 허용 목록)에 `dev-classbot.pullim.ai`가 등록되어야 open-redirect 가드를 통과한다 | BE(OS팀) | [ ] |
 
 ---
 
@@ -115,14 +115,21 @@ curl -s https://dev-classbot.pullim.ai/classbot \
 
 ### 4-3. 자동 SSO 라운드트립 spec 실행
 
-> 현재 `apps/classbot/tests/e2e/` 디렉터리에는 SSO 전용 spec(`sso-login-roundtrip.spec.ts`)이 아직 없다.
-> 아래 명령은 해당 spec이 추가된 이후의 실행 방법을 선술한다.
+SSO 전용 spec `apps/classbot/tests/e2e/sso-login-roundtrip.spec.ts` 가 존재한다. 전용 env 부재 시 전부 skip 되어(prod-verify 안전) Dev 검증 시에만 env 를 주입해 실행한다. `bunx playwright` 는 `apps/classbot` 디렉터리에서 실행한다.
 
 ```bash
-# SSO 전용 e2e spec (작성 후)
+cd apps/classbot
+
+# (1) 리다이렉트 계약만 — classbot base 만 있으면 됨(test 1 실행, test 2·3 skip)
 SSO_E2E_BASE_URL=https://dev-classbot.pullim.ai \
-  PLAYWRIGHT_BASE_URL=https://dev-classbot.pullim.ai \
-  bunx playwright test apps/classbot/tests/e2e/sso-login-roundtrip.spec.ts
+  bunx playwright test tests/e2e/sso-login-roundtrip.spec.ts
+
+# (2) 세션·로그아웃까지(test 2·3) — /me 호출 대상 OS API origin + 유효 세션 쿠키 필요.
+#     세션 쿠키는 classbot origin 이 아니라 API origin 에 주입되어야 /me 로 전송된다.
+SSO_E2E_BASE_URL=https://dev-classbot.pullim.ai \
+  SSO_E2E_API_BASE_URL=https://api.pullim.ai \
+  SSO_E2E_SESSION_COOKIE='local-pullim-at=<유효세션쿠키값>' \
+  bunx playwright test tests/e2e/sso-login-roundtrip.spec.ts
 ```
 
 **기존 prod-verify spec을 Dev에 대해 실행 (SSO 무관 회귀 확인):**
@@ -173,7 +180,7 @@ bun run dev
 #    pullim-web 리포에서:
 bun run dev
 
-# 3. classbot FE — SSO 모드 (port 3012, os.pullim.local:3012)
+# 3. classbot FE — SSO 모드 (port 3012, classbot.pullim.local:3012)
 #    pullim-classbot 리포에서 (apps/classbot/.env.local을 아래 값으로 설정):
 #      NEXT_PUBLIC_OS_SSO=true
 #      NEXT_PUBLIC_OS_URL=http://os.pullim.local:3001
@@ -184,8 +191,9 @@ bun run dev:classbot
 
 ### 5-3. 로컬 쿠키 공유 원리
 
-OS 로그인(`os.pullim.local:3001`)이 set한 host-only 세션 쿠키는 포트 무관으로 같은 host(`os.pullim.local`)의 다른 포트(`3012`)에도 전송된다.
-classbot의 `GET /me`는 `credentials:'include'`로 이 쿠키를 자동 동봉한다.
+classbot(`classbot.pullim.local:3012`)의 `GET /me`는 `api.pullim.local:3000`으로 나가는 **cross-subdomain** 호출이다. 따라서 세션 쿠키는 특정 host 에 묶인 host-only 쿠키여선 안 되고, **공통 상위 도메인 `.pullim.local`을 `Domain`으로 갖는 도메인 쿠키**여야 `os.`/`api.`/`classbot.` 모든 서브도메인에 전송된다. `/etc/hosts`가 세 서비스를 같은 등록가능도메인(`pullim.local`)의 서브도메인으로 두는 이유가 이것이다.
+
+classbot의 `/me`는 `credentials:'include'`로 이 쿠키를 동봉하며, 실제 전송 여부는 pullim-api의 쿠키 `Domain`/`SameSite` 설정에 달려 있다(§3-3 B-6). 로컬(HTTP)에서는 `SameSite=Lax`+도메인 쿠키로 동작하지만, Dev(HTTPS cross-site)에서는 `SameSite=None; Secure`가 필요하다.
 
 ### 5-4. 로컬 SSO 플로우 확인
 
