@@ -33,10 +33,10 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
       brand={<AppBrand role={role} />}
       actions={<AppHeaderActions role={role} />}
       rail={rail}
-      // 사이드바 왼쪽 고정 — 데스크톱 레일을 항상 펼침으로 핀(controlled=false, 접기 토글 없음).
-      // 앱 측 controlled 경로라 PUDS resync 에 안전(벤더 파일 미의존). onToggleCollapsed 는 넘기지 않아
-      // dashboard-shell 이 토글 버튼 자체를 렌더하지 않는다.
+      // 사이드바 왼쪽 고정 — 데스크톱 레일을 항상 펼침으로 핀.
+      // collapsed={false}(항상 펼침) + hideToggle(접기 토글 숨김). 둘 다 앱 측 prop 이라 PUDS resync 안전.
       collapsed={false}
+      hideToggle
       tabbar={role === "student" ? <OsTabbar items={tabItems(pathname)} linkComponent={Link} /> : undefined}
       linkComponent={Link}
     >

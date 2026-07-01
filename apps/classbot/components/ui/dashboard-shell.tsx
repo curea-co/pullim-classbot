@@ -18,6 +18,8 @@ export interface DashboardShellProps {
   collapsed?: boolean;
   /** Controlled toggle handler. If omitted, the shell self-manages collapse internally. */
   onToggleCollapsed?: () => void;
+  /** Hide the collapse toggle affordance (e.g. a pinned/always-open rail). Default false = unchanged. */
+  hideToggle?: boolean;
   as?: "main" | "div";
   linkComponent?: React.ElementType;
   children: React.ReactNode;
@@ -55,6 +57,7 @@ export function DashboardShell({
   tabbar,
   collapsed: collapsedProp,
   onToggleCollapsed,
+  hideToggle = false,
   as = "main",
   linkComponent = "a",
   children,
@@ -72,9 +75,9 @@ export function DashboardShell({
     }
   }, [controlled]);
   const collapsed = controlled ? !!collapsedProp : internal;
-  // 고정(pinned) 모드: collapsed 값만 제어하고 토글 핸들러를 주지 않으면 접기가 불가능하므로
-  // 무의미한 토글 버튼을 렌더하지 않는다(classbot 사이드바 왼쪽 고정). PUDS resync 시 재적용 필요.
-  const showToggle = !(controlled && onToggleCollapsed === undefined);
+  // 토글 affordance 노출 여부. 명시적 opt-in prop 으로만 숨긴다(기존 controlled/uncontrolled 의미는 불변).
+  // classbot 은 hideToggle 로 사이드바 왼쪽 고정. PUDS resync 시 이 prop 재적용 필요.
+  const showToggle = !hideToggle;
   const toggle = controlled
     ? (onToggleCollapsed ?? (() => {}))
     : () =>
