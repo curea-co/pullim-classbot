@@ -32,6 +32,37 @@ export function TeacherClassHero({ name }: { name?: string }) {
 
   return (
     <section className="relative overflow-hidden rounded-2xl bg-pullim-slate-900 p-5 text-white shadow-pullim-sm">
+      {/* 데코 — 라이팅/입시 코치 Hero 와 통일한 CSS 3D 부유 카드(의존성 0, 장식용이라 aria-hidden).
+          blue/slate 토큰만 사용, motion-safe 로만 애니메이트. 텍스트가 항상 위(z-10)에 오도록 z-0. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute right-4 top-4 z-0 hidden lg:block [perspective:1200px]"
+      >
+        <div className="relative h-36 w-40 [transform-style:preserve-3d]">
+          {/* 뒤 — 과제 카드 */}
+          <div className="absolute right-6 top-1 h-20 w-28 rounded-xl border border-pullim-slate-700 bg-pullim-slate-800 p-2.5 shadow-pullim-md [transform:rotateY(-16deg)_rotateX(7deg)_translateZ(-44px)] motion-safe:animate-[pullim-hero-float-a_8s_ease-in-out_infinite]">
+            <div className="h-1.5 w-8 rounded-full bg-pullim-slate-600" />
+            <div className="mt-2 h-1.5 w-16 rounded-full bg-pullim-slate-700" />
+            <div className="mt-1.5 h-1.5 w-12 rounded-full bg-pullim-slate-700" />
+          </div>
+          {/* 중간 — 라이브 카드(블루 액센트 바) */}
+          <div className="absolute right-2 top-6 h-20 w-28 rounded-xl border border-pullim-slate-700 bg-pullim-slate-800 p-2.5 shadow-pullim-md [transform:rotateY(-8deg)_rotateX(4deg)] motion-safe:animate-[pullim-hero-float-b_6500ms_ease-in-out_infinite]">
+            <div className="h-1.5 w-10 rounded-full bg-pullim-blue-500" />
+            <div className="mt-2 h-1.5 w-16 rounded-full bg-pullim-slate-700" />
+            <div className="mt-1.5 h-1.5 w-14 rounded-full bg-pullim-slate-700" />
+          </div>
+          {/* 앞 — 진행률 카드(블루) */}
+          <div className="absolute right-0 top-14 h-16 w-24 rounded-xl border border-pullim-blue-500 bg-pullim-blue-600 p-2.5 shadow-pullim-md [transform:rotateY(-2deg)_rotateX(2deg)_translateZ(40px)] motion-safe:animate-[pullim-hero-float-c_7500ms_ease-in-out_infinite]">
+            <div className="h-1.5 w-12 rounded-full bg-pullim-blue-100" />
+            <div className="mt-2 flex items-center gap-1.5">
+              <div className="h-3.5 w-3.5 rounded-full bg-white" />
+              <div className="h-1.5 w-9 rounded-full bg-pullim-blue-300" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-10">
       <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
         <GraduationCap className="h-3.5 w-3.5" /> 교사 수업
       </div>
@@ -83,6 +114,7 @@ export function TeacherClassHero({ name }: { name?: string }) {
       <p className="mt-2 text-xs text-pullim-slate-500">
         선생님께 받은 참여 코드를 입력하면 클래스에 연결돼요.
       </p>
+      </div>
     </section>
   );
 }

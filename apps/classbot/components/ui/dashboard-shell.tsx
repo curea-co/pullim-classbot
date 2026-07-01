@@ -72,6 +72,9 @@ export function DashboardShell({
     }
   }, [controlled]);
   const collapsed = controlled ? !!collapsedProp : internal;
+  // 고정(pinned) 모드: collapsed 값만 제어하고 토글 핸들러를 주지 않으면 접기가 불가능하므로
+  // 무의미한 토글 버튼을 렌더하지 않는다(classbot 사이드바 왼쪽 고정). PUDS resync 시 재적용 필요.
+  const showToggle = !(controlled && onToggleCollapsed === undefined);
   const toggle = controlled
     ? (onToggleCollapsed ?? (() => {}))
     : () =>
@@ -99,28 +102,30 @@ export function DashboardShell({
             <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
               <div className="relative h-full w-max">
                 <div className="h-full overflow-y-auto">{rail}</div>
-                <button
-                  type="button"
-                  onClick={toggle}
-                  aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-                  aria-expanded={!collapsed}
-                  className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="15"
-                    height="15"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                {showToggle && (
+                  <button
+                    type="button"
+                    onClick={toggle}
+                    aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+                    aria-expanded={!collapsed}
+                    className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
                   >
-                    <path d="m15 6-6 6 6 6" />
-                  </svg>
-                </button>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                    >
+                      <path d="m15 6-6 6 6 6" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </aside>
           )}
