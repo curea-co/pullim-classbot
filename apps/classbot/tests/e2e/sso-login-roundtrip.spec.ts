@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * 풀림 OS SSO 로그인 라운드트립 e2e — 미로그인 진입 → OS 로그인 리다이렉트 → 세션 복원(/me) → 로그아웃.
+ * 풀림 OS SSO **통합 계약** e2e — 미로그인 진입 → OS 로그인 리다이렉트, 세션 복원(/me), 로그아웃.
+ *
+ * ⚠️ 범위(정직하게): 이 스펙은 SSO 연동의 *계약 표면*을 검증한다 — (1) 로그인 CTA 가 OS 호스트로
+ *  리다이렉트하는가, (2) 유효 세션 쿠키가 있으면 /me 로 인증 세션이 복원되는가, (3) 로그아웃이 OS 로
+ *  이탈시키는가. **실제 OS 자격증명 로그인 → next 복귀** 전체 라운드트립은 검증하지 않는다(2·3 은 세션
+ *  쿠키 주입으로 우회). 그 부분은 §4-2 수동 확인 + 블로커 B-7/B-8(cross-host next) 해소 후에 가능하다.
  *
  * ⚠️ prod-verify 안전 게이트 (MUST):
  *  이 디렉터리의 모든 스펙은 prod-verify 워크플로가 **SSO OFF 인 production**(https://classbot.pullim.ai)
@@ -35,7 +40,7 @@ const SSO_API_BASE = process.env.SSO_E2E_API_BASE_URL;
 // 없으면 "classbot origin 을 벗어났다"까지만 검증한다.
 const SSO_OS_URL = process.env.SSO_E2E_OS_URL;
 
-test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
+test.describe('SSO 통합 계약 — 리다이렉트·세션복원·로그아웃 (OS SSO 모드 전용)', () => {
   test('미로그인 진입 → 로그인 CTA 가 OS 로그인 URL 로 향한다', async ({ page }) => {
     test.skip(!SSO_BASE, 'SSO_E2E_BASE_URL 미설정 — SSO Dev 미배포. prod-verify 안전 skip.');
     const base = SSO_BASE!;
@@ -79,8 +84,10 @@ test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
     // 따라서 쿠키는 classbot origin 이 아니라 **API origin(SSO_API_BASE)** 에 주입해야 /me 요청에 동봉된다.
     // (classbot origin 에 넣으면 cross-origin 이라 /me 로 전송되지 않아 항상 미로그인으로 판정된다.)
     const [cookieName, ...rest] = process.env.SSO_E2E_SESSION_COOKIE!.split('=');
+    // Dev 는 cross-site(https://dev-classbot ↔ https://api) 이므로 credentials:'include' /me 에
+    // 쿠키가 실리려면 SameSite=None; Secure 여야 한다. 실제 OS 세션 쿠키도 이 속성으로 set 되므로 동일하게 주입한다.
     await page.context().addCookies([
-      { name: cookieName, value: rest.join('='), url: SSO_API_BASE! },
+      { name: cookieName, value: rest.join('='), url: SSO_API_BASE!, sameSite: 'None', secure: true },
     ]);
 
     await page.goto(base + '/classbot', { waitUntil: 'networkidle' });
@@ -106,8 +113,10 @@ test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
     const base = SSO_BASE!;
 
     const [cookieName, ...rest] = process.env.SSO_E2E_SESSION_COOKIE!.split('=');
+    // Dev 는 cross-site(https://dev-classbot ↔ https://api) 이므로 credentials:'include' /me 에
+    // 쿠키가 실리려면 SameSite=None; Secure 여야 한다. 실제 OS 세션 쿠키도 이 속성으로 set 되므로 동일하게 주입한다.
     await page.context().addCookies([
-      { name: cookieName, value: rest.join('='), url: SSO_API_BASE! },
+      { name: cookieName, value: rest.join('='), url: SSO_API_BASE!, sameSite: 'None', secure: true },
     ]);
 
     await page.goto(base + '/classbot', { waitUntil: 'networkidle' });

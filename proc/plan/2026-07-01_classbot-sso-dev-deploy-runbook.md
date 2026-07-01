@@ -117,6 +117,8 @@ curl -s https://dev-classbot.pullim.ai/classbot \
 
 SSO 전용 spec `apps/classbot/tests/e2e/sso-login-roundtrip.spec.ts` 가 존재한다. 전용 env 부재 시 전부 skip 되어(prod-verify 안전) Dev 검증 시에만 env 를 주입해 실행한다. `bunx playwright` 는 `apps/classbot` 디렉터리에서 실행한다.
 
+> **범위 주의**: 이 spec 은 SSO 연동의 *계약 표면*(로그인 CTA→OS 리다이렉트 / 세션 쿠키→/me 복원 / 로그아웃→OS 이탈)만 자동 검증한다. **실제 OS 자격증명 로그인 → classbot 복귀(next)** 전체 왕복은 세션 쿠키 주입으로 우회하므로 자동 검증 대상이 아니다 — 그 부분은 §4-2 수동 확인과 블로커 B-7/B-8(cross-host next) 해소 이후에 성립한다.
+
 ```bash
 cd apps/classbot
 
