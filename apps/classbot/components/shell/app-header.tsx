@@ -16,7 +16,7 @@ import {
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
-import { osLoginUrl, OS_URL } from '@/lib/auth/os-sso';
+import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
@@ -147,10 +147,14 @@ function ProfileMenu({ role }: { role: Role }) {
 
   // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
   // 아니면 기존 classbot 로그인 폼(`/login`)으로 라우팅.
+  // cross-host(예: Dev — OS≠classbot 오리진)면 내부 경로만으론 OS 가 앱으로 못 돌아오므로
+  // resolveReturnTarget 이 앱 오리진 절대 URL 로 승격한다(same-origin 은 기존 내부 경로 유지). (B-7)
   function goLogin() {
     if (OS_SSO_ENABLED) {
       if (typeof window === 'undefined') return;
-      window.location.assign(osLoginUrl(window.location.pathname + window.location.search));
+      const appOrigin = window.location.origin;
+      const target = resolveReturnTarget(window.location.pathname + window.location.search, appOrigin);
+      window.location.assign(osLoginUrl(target, appOrigin));
       return;
     }
     router.push('/login');
