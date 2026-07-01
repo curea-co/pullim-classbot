@@ -31,6 +31,9 @@ const SSO_BASE = process.env.SSO_E2E_BASE_URL;
 // `/me`·`/auth/*` 는 classbot origin 이 아니라 OS API origin(NEXT_PUBLIC_OS_API_URL)으로 호출된다.
 // 세션 쿠키 기반 시나리오(2·3)는 이 API origin 을 알아야 쿠키를 올바른 origin 에 주입할 수 있다.
 const SSO_API_BASE = process.env.SSO_E2E_API_BASE_URL;
+// (선택) OS 호스트 base. 주면 로그인 리다이렉트·로그아웃 도착지의 origin 을 이 값으로 정밀 고정한다.
+// 없으면 "classbot origin 을 벗어났다"까지만 검증한다.
+const SSO_OS_URL = process.env.SSO_E2E_OS_URL;
 
 test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
   test('미로그인 진입 → 로그인 CTA 가 OS 로그인 URL 로 향한다', async ({ page }) => {
@@ -54,9 +57,13 @@ test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
     expect(url.pathname).toBe('/login');
     // osLoginUrl 규약: 현재 내부 경로(`/classbot`)를 next 로 부착(open-redirect 방지 통과 경로).
     expect(url.searchParams.get('next')).toBe('/classbot');
+    // 계약의 핵심은 "OS 호스트로 이동"이다 — classbot origin 에 머무르면(예: NEXT_PUBLIC_OS_URL 오설정)
+    // pathname/next 만으론 못 잡으므로 origin 이 classbot 을 벗어났는지 확인한다.
+    expect(url.origin).not.toBe(new URL(base).origin);
+    if (SSO_OS_URL) expect(url.origin).toBe(new URL(SSO_OS_URL).origin);
   });
 
-  test('세션 쿠키 존재 시 /me 파생 사용자명이 프로필 메뉴에 노출된다', async ({ page }) => {
+  test('세션 쿠키 존재 시 /me 로 인증 세션이 복원되어 인증 전용 메뉴가 노출된다', async ({ page }) => {
     test.skip(!SSO_BASE, 'SSO_E2E_BASE_URL 미설정 — SSO Dev 미배포. prod-verify 안전 skip.');
     test.skip(
       !SSO_API_BASE,
@@ -79,7 +86,9 @@ test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
     await page.goto(base + '/classbot', { waitUntil: 'networkidle' });
 
     await page.getByRole('button', { name: '프로필 메뉴 열기' }).click();
-    // 로그인 세션에서는 '로그인' 대신 '로그아웃' 항목이 노출된다(app-header ProfileMenu 분기).
+    // ProfileMenu 는 me.isAuthenticated 일 때만 '내 정보'·'로그아웃'을 렌더한다(비로그인은 '로그인').
+    // '내 정보'는 인증 사용자 전용 항목이라 /me 세션 복원의 직접 신호다 — 이게 떠야 매핑이 실제로 성립.
+    await expect(page.getByRole('menuitem', { name: '내 정보' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: '로그아웃' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: '로그인' })).toHaveCount(0);
   });
@@ -115,6 +124,10 @@ test.describe('SSO 로그인 라운드트립 (OS SSO 모드 전용)', () => {
       page.waitForURL((u) => !u.toString().startsWith(base), { timeout: 15_000 }),
       logoutItem.click(),
     ]);
-    expect(page.url().startsWith(base)).toBe(false);
+    // classbot 이탈만 보면 엉뚱한 외부 URL 로 새도 통과하므로 도착 origin 을 검증한다.
+    const after = new URL(page.url());
+    expect(after.origin).not.toBe(new URL(base).origin);
+    // OS base 를 주면 도착지가 OS origin 인지까지 고정(handleLogout → window.location.assign(OS_URL)).
+    if (SSO_OS_URL) expect(after.origin).toBe(new URL(SSO_OS_URL).origin);
   });
 });

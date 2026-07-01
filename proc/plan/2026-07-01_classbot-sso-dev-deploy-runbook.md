@@ -126,8 +126,10 @@ SSO_E2E_BASE_URL=https://dev-classbot.pullim.ai \
 
 # (2) 세션·로그아웃까지(test 2·3) — /me 호출 대상 OS API origin + 유효 세션 쿠키 필요.
 #     세션 쿠키는 classbot origin 이 아니라 API origin 에 주입되어야 /me 로 전송된다.
+#     (선택) SSO_E2E_OS_URL 을 주면 로그인·로그아웃 도착지 origin 을 OS 호스트로 정밀 고정한다.
 SSO_E2E_BASE_URL=https://dev-classbot.pullim.ai \
   SSO_E2E_API_BASE_URL=https://api.pullim.ai \
+  SSO_E2E_OS_URL=https://dev-os.pullim.ai \
   SSO_E2E_SESSION_COOKIE='local-pullim-at=<유효세션쿠키값>' \
   bunx playwright test tests/e2e/sso-login-roundtrip.spec.ts
 ```
@@ -135,9 +137,11 @@ SSO_E2E_BASE_URL=https://dev-classbot.pullim.ai \
 **기존 prod-verify spec을 Dev에 대해 실행 (SSO 무관 회귀 확인):**
 
 ```bash
-# 기존 e2e 전체 — SSO 세션 없이 접근 가능한 공개 페이지 회귀 확인
+# 기존 e2e 전체 — SSO 세션 없이 접근 가능한 공개 페이지 회귀 확인.
+# Playwright config 는 apps/classbot/playwright.config.ts 하나뿐이라 그 디렉터리에서 실행해야 한다.
+cd apps/classbot
 PLAYWRIGHT_BASE_URL=https://dev-classbot.pullim.ai \
-  bunx playwright test apps/classbot/tests/e2e/
+  bunx playwright test tests/e2e/
 ```
 
 ### 4-4. /me 엔드포인트 직접 확인
