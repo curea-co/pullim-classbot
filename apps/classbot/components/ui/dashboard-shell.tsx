@@ -18,6 +18,8 @@ export interface DashboardShellProps {
   collapsed?: boolean;
   /** Controlled toggle handler. If omitted, the shell self-manages collapse internally. */
   onToggleCollapsed?: () => void;
+  /** Hide the collapse toggle affordance (e.g. a pinned/always-open rail). Default false = unchanged. */
+  hideToggle?: boolean;
   as?: "main" | "div";
   linkComponent?: React.ElementType;
   children: React.ReactNode;
@@ -55,6 +57,7 @@ export function DashboardShell({
   tabbar,
   collapsed: collapsedProp,
   onToggleCollapsed,
+  hideToggle = false,
   as = "main",
   linkComponent = "a",
   children,
@@ -72,6 +75,9 @@ export function DashboardShell({
     }
   }, [controlled]);
   const collapsed = controlled ? !!collapsedProp : internal;
+  // 토글 affordance 노출 여부. 명시적 opt-in prop 으로만 숨긴다(기존 controlled/uncontrolled 의미는 불변).
+  // classbot 은 hideToggle 로 사이드바 왼쪽 고정. PUDS resync 시 이 prop 재적용 필요.
+  const showToggle = !hideToggle;
   const toggle = controlled
     ? (onToggleCollapsed ?? (() => {}))
     : () =>
@@ -99,28 +105,30 @@ export function DashboardShell({
             <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
               <div className="relative h-full w-max">
                 <div className="h-full overflow-y-auto">{rail}</div>
-                <button
-                  type="button"
-                  onClick={toggle}
-                  aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-                  aria-expanded={!collapsed}
-                  className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="15"
-                    height="15"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                {showToggle && (
+                  <button
+                    type="button"
+                    onClick={toggle}
+                    aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+                    aria-expanded={!collapsed}
+                    className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
                   >
-                    <path d="m15 6-6 6 6 6" />
-                  </svg>
-                </button>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="15"
+                      height="15"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                    >
+                      <path d="m15 6-6 6 6 6" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </aside>
           )}
