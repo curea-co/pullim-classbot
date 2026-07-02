@@ -48,8 +48,14 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
   // PR-1 리마인드와 동일 스코프 규약 — 빈 배열 = 전체(단일 교실 mock)
   const eligible =
     targetIds.length === 0 ? classRoster : classRoster.filter((r) => targetIds.includes(r.id));
-  const mine = submissions.filter((s) => s.assignmentId === assignment.id);
+  const eligibleIds = new Set(eligible.map((r) => r.id));
+  // 비대상 학생 제출은 제외 — 발사 스코프 밖 제출이 섞이면 오답률·재발사 대상이 오염된다 (Codex #186 R2)
+  const mine = submissions.filter(
+    (s) => s.assignmentId === assignment.id && eligibleIds.has(s.studentId),
+  );
   const byStudent = new Map<string, Submission>(mine.map((s) => [s.studentId, s]));
+  // 시험 과제는 결과 피드백 비공개 정책 — 학생에게 절대 노출되지 않는 코멘트 발송 경로를 열지 않는다 (R2)
+  const canComment = assignment.mode !== 'exam';
 
   // 문항별 오답률(제출자 기준) → 임계 이상 문항 + 그 문항을 틀린 제출자
   const questions = getQuestionsForAssignment(assignment);
@@ -118,6 +124,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
                 {submission ? (
                   <>
                     <Chip tone="info">{submission.scorePercent}%</Chip>
+                    {canComment && (
                     <button
                       type="button"
                       onClick={() => {
@@ -129,6 +136,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
                       <MessageCircle className="h-3.5 w-3.5" aria-hidden />
                       코멘트
                     </button>
+                    )}
                   </>
                 ) : (
                   <Chip tone="neutral">미제출</Chip>
