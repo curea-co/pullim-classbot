@@ -126,4 +126,41 @@ describe('domainFetch — 인증 사용자 (Bearer 경로)', () => {
     // 인증 경로에서는 x-user-id 폴백을 쓰지 않는다.
     expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
   });
+
+  it('falls back to the demo x-user-id path once when a stale token fails auth (401 + refresh 실패)', async () => {
+    // 잔존 stale 토큰 — Bearer 401 → refresh 401 → authRequest 최종 실패(401)
+    tokenManager.setTokens('stale-access', 'stale-refresh');
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // Bearer 시도
+      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // refresh 시도
+      .mockResolvedValueOnce(jsonResponse(200, { bots: [] })); // 데모 폴백
+
+    const result = await domainFetch<{ bots: unknown[] }>('/bots?role=student', {
+      demoUserId: 'student_001',
+    });
+
+    expect(result).toEqual({ bots: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
+    expect(url).toBe(`${BASE_URL}/bots?role=student`);
+    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it('propagates non-401 domain errors from the authenticated path without demo fallback', async () => {
+    tokenManager.setTokens('access-abc', 'refresh-def');
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(403, { statusCode: 403, message: '본인 대상 과제에만 제출할 수 있습니다.' }),
+    );
+
+    await expect(
+      domainFetch('/assignments/as_1/submissions', {
+        method: 'POST',
+        body: { answers: {}, scorePercent: 0 },
+        demoUserId: 'student_001',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    // 진짜 도메인 에러(403)는 데모 폴백으로 가리지 않는다 — 인증 호출 1회뿐
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -17,6 +17,7 @@ import {
   useInterventionStore,
   useMyInterventions,
   useUnreadCount,
+  useAssignmentComment,
   resetBackendInterventionSyncForTests,
 } from '../interventions';
 
@@ -227,6 +228,25 @@ describe('flag ON — 읽기 동기화 (useMyInterventions/useUnreadCount)', () 
     expect(byId['iv_new'].assignmentId).toBeUndefined(); // null → 부재
     // 최신순 — createdAt 정렬 후 reverse
     expect(result.current[0].id).toBe('iv_new');
+  });
+
+  it('syncs the inbox on useAssignmentComment too (결과 페이지 직링크 진입)', async () => {
+    // 직링크 진입 — 벨(useMyInterventions) 미마운트 상태에서 코멘트 훅만 마운트
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, {
+        interventions: [
+          { ...BE_ROW, id: 'iv_cmt', type: 'comment', message: '이 부분 다시 보자!' },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() => useAssignmentComment('as_user_ab12cd34', 's1'));
+
+    expect(result.current).toBeNull(); // 동기화 전 — 로컬 비어 있음
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current?.id).toBe('iv_cmt');
+    expect(result.current?.message).toBe('이 부분 다시 보자!');
+    expect(result.current?.studentId).toBe('s1'); // student_001 → s1 역변환
   });
 
   it('leaves the local store untouched when the BE read fails (graceful)', async () => {

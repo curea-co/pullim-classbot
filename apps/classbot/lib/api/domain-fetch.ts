@@ -7,6 +7,7 @@
  *
  * 신원 규약 (M2 개정 §3 — JWT 우선 + `x-user-id` 폴백, 무신원 401):
  *  - **인증 사용자**(토큰 보유): `authRequest`(Bearer 자동 첨부 + 401 refresh) 경로.
+ *    refresh 까지 실패한 stale 토큰(최종 401)은 데모 x-user-id 경로로 1회 폴백.
  *  - **미인증 데모**: `x-user-id` 헤더로 도메인 사용자 키를 전송.
  *    학생 키는 개입 수신자 규약(`resolveRosterMe`)과 동일한 roster 브리지를 거친 뒤
  *    **DB seed 변환**(scripts/seed.ts: roster `s1`(서연) ↔ 도메인 `student_001`)을
@@ -87,7 +88,16 @@ export async function domainFetch<T>(path: string, options: DomainFetchOptions):
 
   // 인증 사용자 — Bearer 자동 첨부 + 401 refresh (api-client 경로).
   if (tokenManager.getAccessToken()) {
-    return authRequest<T>(path, { method, body });
+    try {
+      return await authRequest<T>(path, { method, body });
+    } catch (e) {
+      // stale/무효 토큰(만료 + refresh 실패 포함)으로 인증이 끝내 실패(401)하면
+      // 데모 x-user-id 경로로 1회 폴백한다 — 잔존 토큰이 데모 UX 를 영구 차단하지
+      // 않게(Codex #196 R1). 그 외(403/404 등 진짜 도메인 에러)는 가리지 않고 전파.
+      if (!(e instanceof ApiError) || e.status !== 401) {
+        throw e;
+      }
+    }
   }
 
   // 미인증 데모 — x-user-id 폴백 (Ph7 과도기 규약).

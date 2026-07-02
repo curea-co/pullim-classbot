@@ -245,6 +245,7 @@ export function useAssignmentComment(
   assignmentId: string,
   studentId: string,
 ): InterventionEvent | null {
+  useBackendInterventionSync(); // Ph7 — 결과 페이지 직링크 진입에서도 인박스 동기화 (Codex #196 R1)
   const events = useInterventionStore((s) => s.events);
   const comments = events.filter(
     (e) => e.type === 'comment' && e.assignmentId === assignmentId && e.studentId === studentId,
