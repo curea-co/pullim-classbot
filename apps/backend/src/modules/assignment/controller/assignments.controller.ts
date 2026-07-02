@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 
 import { DomainUserId } from "../../../common/decorators/domain-user-id.decorator";
 import { Public } from "../../../common/decorators/public.decorator";
@@ -7,6 +17,8 @@ import type {
   AssignmentDetailResponseDto,
   AssignmentsReadResponseDto,
 } from "./dto/assignment-responses.dto";
+import type { AssignmentRow } from "../interface/assignment-repository.interface";
+import { DispatchAssignmentUseCase } from "../use-cases/dispatch-assignment.use-case";
 import { GetAssignmentUseCase } from "../use-cases/get-assignment.use-case";
 import { ListAssignmentsUseCase } from "../use-cases/list-assignments.use-case";
 
@@ -26,6 +38,7 @@ export class AssignmentsController {
   constructor(
     private readonly listAssignmentsUseCase: ListAssignmentsUseCase,
     private readonly getAssignmentUseCase: GetAssignmentUseCase,
+    private readonly dispatchAssignmentUseCase: DispatchAssignmentUseCase,
   ) {}
 
   /** `GET /api/assignments?audience=student|teacher` — 내 과제 목록. */
@@ -47,5 +60,19 @@ export class AssignmentsController {
     @DomainUserId() userId: string | undefined,
   ): Promise<AssignmentDetailResponseDto> {
     return this.getAssignmentUseCase.execute(id, userId);
+  }
+
+  /**
+   * `POST /api/assignments` — 교사 발사 (spec §4.5 출제).
+   * 요청 교사가 봇 소유자인지 검증하고 서버가 id 를 생성해 201 로
+   * 생성 row(FE AssignmentReadRow 형태)를 반환한다.
+   */
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  dispatch(
+    @Body() body: unknown,
+    @DomainUserId() userId: string | undefined,
+  ): Promise<AssignmentRow> {
+    return this.dispatchAssignmentUseCase.execute(userId, body);
   }
 }

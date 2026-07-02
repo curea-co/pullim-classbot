@@ -64,6 +64,13 @@ export interface BotRefRow {
   grade: string;
 }
 
+/** 도메인 사용자 한 행 (역할 검증용 — classroom DomainUserRow 미러). */
+export interface DomainUserRow {
+  id: string;
+  name: string;
+  role: "student" | "teacher" | "parent";
+}
+
 /**
  * assignment 저장소 추상. Service 는 이 인터페이스로만 DB 에 접근한다.
  */
@@ -87,6 +94,12 @@ export abstract class IAssignmentRepository {
   abstract findBotById(botId: string): Promise<BotRefRow | null>;
   /** 학생이 그 봇에 enrolled 인지 — 전체 대상(student_id NULL) 접근 판정. */
   abstract hasEnrollment(botId: string, studentId: string): Promise<boolean>;
+  abstract findUserById(id: string): Promise<DomainUserRow | null>;
+  /**
+   * 과제를 삽입한다. 모든 필드는 서비스가 완성해 넘긴다.
+   * @returns true 면 삽입, false 면 id 충돌(PK) — 호출부가 id 재생성
+   */
+  abstract createAssignment(row: AssignmentRow): Promise<boolean>;
 }
 
 /** DI 주입 토큰 — classroom 의 CLASSROOM_REPOSITORY_TOKEN 패턴 미러. */

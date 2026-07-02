@@ -4,6 +4,7 @@ import { AssignmentsController } from "./controller/assignments.controller";
 import { AssignmentRepository } from "./infrastructure/assignment.repository";
 import { ASSIGNMENT_REPOSITORY_TOKEN } from "./interface/assignment-repository.interface";
 import { AssignmentService } from "./service/assignment.service";
+import { DispatchAssignmentUseCase } from "./use-cases/dispatch-assignment.use-case";
 import { GetAssignmentUseCase } from "./use-cases/get-assignment.use-case";
 import { ListAssignmentsUseCase } from "./use-cases/list-assignments.use-case";
 
@@ -20,6 +21,7 @@ import { ListAssignmentsUseCase } from "./use-cases/list-assignments.use-case";
     AssignmentService,
     ListAssignmentsUseCase,
     GetAssignmentUseCase,
+    DispatchAssignmentUseCase,
   ],
 })
 export class AssignmentModule {}

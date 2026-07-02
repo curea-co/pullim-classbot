@@ -6,6 +6,7 @@ import {
   AssignmentQuestionRow,
   AssignmentRow,
   BotRefRow,
+  DomainUserRow,
   IAssignmentRepository,
 } from "../interface/assignment-repository.interface";
 
@@ -136,5 +137,59 @@ export class AssignmentRepository extends IAssignmentRepository {
       [botId, studentId],
     );
     return rows.length > 0;
+  }
+
+  async findUserById(id: string): Promise<DomainUserRow | null> {
+    const rows: DomainUserRow[] = await this.dataSource.query(
+      `SELECT "id", "name", "role" FROM "users" WHERE "id" = $1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
+  /**
+   * 과제를 삽입한다. id PK 충돌은 DO NOTHING → false (호출부가 id 재생성).
+   * jsonb 컬럼(achievement_codes)은 문자열화해 $n::jsonb 로 바인딩한다.
+   */
+  async createAssignment(row: AssignmentRow): Promise<boolean> {
+    const inserted: Array<{ id: string }> = await this.dataSource.query(
+      `INSERT INTO "assignments"
+         ("id", "bot_id", "student_id", "title", "scope", "subject", "grade",
+          "chapter_from", "chapter_to", "achievement_codes", "question_count",
+          "difficulty", "mode", "scope_override", "source", "assigned_by",
+          "assigned_at_label", "due_label", "d_day", "completed_count",
+          "recent_accuracy", "state", "reason_hint", "solve_href")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13,
+               $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+       ON CONFLICT ("id") DO NOTHING
+       RETURNING "id"`,
+      [
+        row.id,
+        row.botId,
+        row.studentId,
+        row.title,
+        row.scope,
+        row.subject,
+        row.grade,
+        row.chapterFrom,
+        row.chapterTo,
+        JSON.stringify(row.achievementCodes),
+        row.questionCount,
+        row.difficulty,
+        row.mode,
+        row.scopeOverride,
+        row.source,
+        row.assignedBy,
+        row.assignedAtLabel,
+        row.dueLabel,
+        row.dDay,
+        row.completedCount,
+        row.recentAccuracy,
+        row.state,
+        row.reasonHint,
+        row.solveHref,
+      ],
+    );
+    return inserted.length > 0;
   }
 }
