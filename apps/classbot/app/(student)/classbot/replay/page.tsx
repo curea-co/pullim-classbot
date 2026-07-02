@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
+import { ReplayReviewNudge } from '@/components/classbot/replay-review-nudge';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/classbot/empty-state';
 
@@ -51,6 +52,9 @@ export default function ClassbotReplayListPage() {
         title="리플레이"
         description={`${allReplays.length + createdSent.length}개 수업 · 총 시청 ${totalWatchedMin}분`}
       />
+
+      {/* 복습 넛지 — 미해결 약점이 남은 리플레이 recap 으로 유도 (spec §6, 필터와 무관하게 전체 기준) */}
+      <ReplayReviewNudge replays={allReplays} />
 
       {/* 방금 도착한 리플레이 — 라이브 종료 후 교사 승인된 신규본 */}
       {createdSent.length > 0 && (
