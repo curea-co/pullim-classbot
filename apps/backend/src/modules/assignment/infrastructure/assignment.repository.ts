@@ -3,7 +3,9 @@ import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 
 import {
+  AssignmentQuestionRow,
   AssignmentRow,
+  BotRefRow,
   IAssignmentRepository,
 } from "../interface/assignment-repository.interface";
 
@@ -78,5 +80,61 @@ export class AssignmentRepository extends IAssignmentRepository {
        ORDER BY a."id" DESC`,
       [teacherId],
     );
+  }
+
+  async findAssignmentById(id: string): Promise<AssignmentRow | null> {
+    const rows: AssignmentRow[] = await this.dataSource.query(
+      `SELECT ${ASSIGNMENT_COLUMNS}
+       FROM "assignments" a
+       WHERE a."id" = $1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
+  /** 과제 문항 — "order" 오름차순 (assignment_questions_order_uq). */
+  async findQuestions(assignmentId: string): Promise<AssignmentQuestionRow[]> {
+    return this.dataSource.query(
+      `SELECT
+         q."id",
+         q."assignment_id" AS "assignmentId",
+         q."order",
+         q."type",
+         q."prompt",
+         q."options",
+         q."answer_index"  AS "answerIndex",
+         q."answer_key"    AS "answerKey",
+         q."model_answer"  AS "modelAnswer",
+         q."hints"
+       FROM "assignment_questions" q
+       WHERE q."assignment_id" = $1
+       ORDER BY q."order"`,
+      [assignmentId],
+    );
+  }
+
+  async findBotById(botId: string): Promise<BotRefRow | null> {
+    const rows: BotRefRow[] = await this.dataSource.query(
+      `SELECT
+         b."id",
+         b."name",
+         b."teacher_id" AS "teacherId",
+         b."subject",
+         b."grade"
+       FROM "class_bots" b
+       WHERE b."id" = $1`,
+      [botId],
+    );
+    return rows[0] ?? null;
+  }
+
+  async hasEnrollment(botId: string, studentId: string): Promise<boolean> {
+    const rows: Array<{ exists: boolean }> = await this.dataSource.query(
+      `SELECT TRUE AS "exists"
+       FROM "enrollments"
+       WHERE "bot_id" = $1 AND "student_id" = $2`,
+      [botId, studentId],
+    );
+    return rows.length > 0;
   }
 }

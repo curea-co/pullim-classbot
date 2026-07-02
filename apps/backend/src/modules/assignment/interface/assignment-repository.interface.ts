@@ -41,6 +41,29 @@ export interface AssignmentRow {
   solveHref: string;
 }
 
+/** 과제 문항 한 행 — assignment_questions 컬럼과 1:1 (mock AssignmentQuestion). */
+export interface AssignmentQuestionRow {
+  id: string;
+  assignmentId: string;
+  order: number;
+  type: "mc" | "short" | "essay" | "numeric";
+  prompt: string;
+  options: string[] | null;
+  answerIndex: number | null;
+  answerKey: string | null;
+  modelAnswer: string | null;
+  hints: string[] | null;
+}
+
+/** 봇 참조 한 행 — 소유 검증 + 발사 파생 필드(subject/grade/assignedBy)용. */
+export interface BotRefRow {
+  id: string;
+  name: string;
+  teacherId: string | null;
+  subject: string;
+  grade: string;
+}
+
 /**
  * assignment 저장소 추상. Service 는 이 인터페이스로만 DB 에 접근한다.
  */
@@ -56,6 +79,14 @@ export abstract class IAssignmentRepository {
   abstract findAssignmentsForTeacher(
     teacherId: string,
   ): Promise<AssignmentRow[]>;
+  abstract findAssignmentById(id: string): Promise<AssignmentRow | null>;
+  /** 과제 문항 — order 오름차순. 없으면 빈 배열(콘텐츠는 M3). */
+  abstract findQuestions(
+    assignmentId: string,
+  ): Promise<AssignmentQuestionRow[]>;
+  abstract findBotById(botId: string): Promise<BotRefRow | null>;
+  /** 학생이 그 봇에 enrolled 인지 — 전체 대상(student_id NULL) 접근 판정. */
+  abstract hasEnrollment(botId: string, studentId: string): Promise<boolean>;
 }
 
 /** DI 주입 토큰 — classroom 의 CLASSROOM_REPOSITORY_TOKEN 패턴 미러. */

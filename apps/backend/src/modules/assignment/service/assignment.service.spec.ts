@@ -17,6 +17,10 @@ function makeRepository(): RepositoryDouble {
   return {
     findAssignmentsForStudent: jest.fn(),
     findAssignmentsForTeacher: jest.fn(),
+    findAssignmentById: jest.fn(),
+    findQuestions: jest.fn(),
+    findBotById: jest.fn(),
+    hasEnrollment: jest.fn(),
   };
 }
 
@@ -46,6 +50,37 @@ const ASSIGNMENT: AssignmentRow = {
   state: "todo",
   reasonHint: null,
   solveHref: "/classbot/assignment/as_user_a1b2c3d4/solve?step=1",
+};
+
+/** 본인 지정 대상 과제 픽스처 — s2 단일 대상. */
+const TARGETED_ASSIGNMENT: AssignmentRow = {
+  ...ASSIGNMENT,
+  id: "as_user_e5f6a7b8",
+  studentId: "s2",
+  solveHref: "/classbot/assignment/as_user_e5f6a7b8/solve?step=1",
+};
+
+/** cb_001 봇 참조 픽스처 — teacher_001 소유. */
+const BOT_REF = {
+  id: "cb_001",
+  name: "수학이 형",
+  teacherId: "teacher_001",
+  subject: "수학Ⅱ",
+  grade: "고2",
+};
+
+/** assignment_questions 한 행 픽스처. */
+const QUESTION = {
+  id: "q_as_today_1",
+  assignmentId: "as_user_a1b2c3d4",
+  order: 1,
+  type: "mc" as const,
+  prompt: "f(x)=x³-3x 의 극댓값은?",
+  options: ["-2", "0", "2", "4"],
+  answerIndex: 2,
+  answerKey: null,
+  modelAnswer: null,
+  hints: null,
 };
 
 /** HttpException 의 spec §3 봉투 { error: { code } } 를 단언한다. */
@@ -123,5 +158,113 @@ describe("AssignmentService.listAssignments", () => {
 
     expectEnvelope(err, 401, "UNAUTHORIZED");
     expect(repo.findAssignmentsForStudent).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 읽기 — getAssignment (상세 + 문항)
+// ---------------------------------------------------------------------------
+
+describe("AssignmentService.getAssignment", () => {
+  /** 상세 픽스처 — 접근 주체별 허용/차단을 함께 검증한다. */
+  function makeDetailRepository(row: AssignmentRow = ASSIGNMENT) {
+    const repo = makeRepository();
+    repo.findAssignmentById.mockResolvedValue(row);
+    repo.findBotById.mockResolvedValue(BOT_REF);
+    repo.findQuestions.mockResolvedValue([QUESTION]);
+    repo.hasEnrollment.mockResolvedValue(false);
+    return repo;
+  }
+
+  it("전체 대상 과제 — enrolled 학생이면 FE { assignment } 봉투(+questions)로 반환한다", async () => {
+    const repo = makeDetailRepository();
+    repo.hasEnrollment.mockResolvedValue(true);
+    const service = new AssignmentService(repo);
+
+    const result = await service.getAssignment("as_user_a1b2c3d4", "s2");
+
+    expect(repo.hasEnrollment).toHaveBeenCalledWith("cb_001", "s2");
+    expect(result).toEqual({
+      assignment: { ...ASSIGNMENT, questions: [QUESTION] },
+    });
+  });
+
+  it("단일 지정 과제 — 지정 학생 본인이면 enrolled 확인 없이 반환한다", async () => {
+    const repo = makeDetailRepository(TARGETED_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const result = await service.getAssignment("as_user_e5f6a7b8", "s2");
+
+    expect(result.assignment.id).toBe("as_user_e5f6a7b8");
+    expect(repo.hasEnrollment).not.toHaveBeenCalled();
+  });
+
+  it("발사 교사(봇 소유자)도 접근 가능", async () => {
+    const repo = makeDetailRepository(TARGETED_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const result = await service.getAssignment(
+      "as_user_e5f6a7b8",
+      "teacher_001",
+    );
+
+    expect(result.assignment.id).toBe("as_user_e5f6a7b8");
+  });
+
+  it("문항이 없으면 questions 빈 배열 (콘텐츠는 M3)", async () => {
+    const repo = makeDetailRepository();
+    repo.hasEnrollment.mockResolvedValue(true);
+    repo.findQuestions.mockResolvedValue([]);
+    const service = new AssignmentService(repo);
+
+    const result = await service.getAssignment("as_user_a1b2c3d4", "s2");
+
+    expect(result.assignment.questions).toEqual([]);
+  });
+
+  it("대상 학생도 발사 교사도 아니면 403 FORBIDDEN 봉투", async () => {
+    const repo = makeDetailRepository(TARGETED_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .getAssignment("as_user_e5f6a7b8", "s9")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("전체 대상 과제라도 enrolled 아니면 403 FORBIDDEN 봉투", async () => {
+    const repo = makeDetailRepository();
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .getAssignment("as_user_a1b2c3d4", "s9")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("없는 과제는 404 NOT_FOUND 봉투", async () => {
+    const repo = makeRepository();
+    repo.findAssignmentById.mockResolvedValue(null);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .getAssignment("as_missing", "s2")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("신원이 없으면 401 UNAUTHORIZED 봉투", async () => {
+    const repo = makeRepository();
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .getAssignment("as_user_a1b2c3d4", undefined)
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+    expect(repo.findAssignmentById).not.toHaveBeenCalled();
   });
 });

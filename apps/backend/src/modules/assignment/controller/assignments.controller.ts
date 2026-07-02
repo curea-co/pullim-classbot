@@ -1,9 +1,13 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 
 import { DomainUserId } from "../../../common/decorators/domain-user-id.decorator";
 import { Public } from "../../../common/decorators/public.decorator";
 import { OptionalJwtAuthGuard } from "../../../common/guards/optional-jwt-auth.guard";
-import type { AssignmentsReadResponseDto } from "./dto/assignment-responses.dto";
+import type {
+  AssignmentDetailResponseDto,
+  AssignmentsReadResponseDto,
+} from "./dto/assignment-responses.dto";
+import { GetAssignmentUseCase } from "../use-cases/get-assignment.use-case";
 import { ListAssignmentsUseCase } from "../use-cases/list-assignments.use-case";
 
 /**
@@ -21,6 +25,7 @@ import { ListAssignmentsUseCase } from "../use-cases/list-assignments.use-case";
 export class AssignmentsController {
   constructor(
     private readonly listAssignmentsUseCase: ListAssignmentsUseCase,
+    private readonly getAssignmentUseCase: GetAssignmentUseCase,
   ) {}
 
   /** `GET /api/assignments?audience=student|teacher` — 내 과제 목록. */
@@ -30,5 +35,17 @@ export class AssignmentsController {
     @DomainUserId() userId: string | undefined,
   ): Promise<AssignmentsReadResponseDto> {
     return this.listAssignmentsUseCase.execute(audience, userId);
+  }
+
+  /**
+   * `GET /api/assignments/:id` — 과제 상세(+문항).
+   * 대상 학생 또는 발사 교사만 200, 그 외 403.
+   */
+  @Get(":id")
+  detail(
+    @Param("id") id: string,
+    @DomainUserId() userId: string | undefined,
+  ): Promise<AssignmentDetailResponseDto> {
+    return this.getAssignmentUseCase.execute(id, userId);
   }
 }
