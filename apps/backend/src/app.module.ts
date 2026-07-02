@@ -12,6 +12,7 @@ import qgenConfig from "./config/qgen.config";
 import { AuthRevokedToken } from "./entities/auth-revoked-token.entity";
 import { AuthUser } from "./entities/auth-user.entity";
 import { AuthUserProvider } from "./entities/auth-user-provider.entity";
+import { AssignmentModule } from "./modules/assignment/assignment.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassroomModule } from "./modules/classroom/classroom.module";
 import { ReplayModule } from "./modules/replay/replay.module";
@@ -44,6 +45,7 @@ import { ReplayModule } from "./modules/replay/replay.module";
         synchronize: false,
       }),
     }),
+    AssignmentModule,
     AuthModule,
     ClassroomModule,
     ReplayModule,
