@@ -324,3 +324,154 @@ describe("InterventionService.sendInterventions", () => {
     expectEnvelope(err, 409, "CONFLICT");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 학생 인박스 — listInterventions
+// ---------------------------------------------------------------------------
+
+describe("InterventionService.listInterventions", () => {
+  it("audience=student — 요청 학생의 이벤트를 최신순 봉투로 반환한다", async () => {
+    const repo = makeRepository();
+    repo.findInterventionsForStudent.mockResolvedValue([REMIND_ROW]);
+    const service = new InterventionService(repo);
+
+    const result = await service.listInterventions("student", "s2");
+
+    expect(repo.findInterventionsForStudent).toHaveBeenCalledWith("s2");
+    expect(result).toEqual({ interventions: [REMIND_DTO] });
+  });
+
+  it("빈 인박스는 빈 배열로 반환한다 (spec §3)", async () => {
+    const repo = makeRepository();
+    repo.findInterventionsForStudent.mockResolvedValue([]);
+    const service = new InterventionService(repo);
+
+    const result = await service.listInterventions("student", "s2");
+
+    expect(result).toEqual({ interventions: [] });
+  });
+
+  it("audience 가 student 가 아니면 400 VALIDATION 봉투", async () => {
+    const service = new InterventionService(makeRepository());
+
+    const err = await service
+      .listInterventions("teacher", "teacher_001")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+  });
+
+  it("무신원이면 401 UNAUTHORIZED — M2 개정 §3", async () => {
+    const repo = makeRepository();
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .listInterventions("student", undefined)
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+    expect(repo.findInterventionsForStudent).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 읽음 처리 — markRead / markAllRead
+// ---------------------------------------------------------------------------
+
+describe("InterventionService.markRead", () => {
+  it("수신 학생 본인이면 read_at 을 기록하고 갱신 행을 반환한다", async () => {
+    const repo = makeRepository();
+    const readRow = { ...REMIND_ROW, readAt: new Date("2026-07-03T05:00:00.000Z") };
+    repo.findInterventionById.mockResolvedValue(REMIND_ROW);
+    repo.markRead.mockResolvedValue(readRow);
+    const service = new InterventionService(repo);
+
+    const result = await service.markRead("s2", "iv_a1b2c3d4");
+
+    expect(repo.markRead).toHaveBeenCalledWith("iv_a1b2c3d4");
+    expect(result).toEqual({
+      ...REMIND_DTO,
+      readAt: "2026-07-03T05:00:00.000Z",
+    });
+  });
+
+  it("이미 읽음이면 기존 read_at 그대로 200 (멱등)", async () => {
+    const repo = makeRepository();
+    const readRow = { ...REMIND_ROW, readAt: new Date("2026-07-03T05:00:00.000Z") };
+    repo.findInterventionById.mockResolvedValue(readRow);
+    repo.markRead.mockResolvedValue(readRow);
+    const service = new InterventionService(repo);
+
+    const result = await service.markRead("s2", "iv_a1b2c3d4");
+
+    expect(result.readAt).toBe("2026-07-03T05:00:00.000Z");
+  });
+
+  it("수신 학생 본인이 아니면 403 FORBIDDEN", async () => {
+    const repo = makeRepository();
+    repo.findInterventionById.mockResolvedValue(REMIND_ROW);
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .markRead("s3", "iv_a1b2c3d4")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+    expect(repo.markRead).not.toHaveBeenCalled();
+  });
+
+  it("없는 이벤트면 404 NOT_FOUND", async () => {
+    const repo = makeRepository();
+    repo.findInterventionById.mockResolvedValue(null);
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .markRead("s2", "iv_missing1")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("무신원이면 401 UNAUTHORIZED", async () => {
+    const service = new InterventionService(makeRepository());
+
+    const err = await service
+      .markRead(undefined, "iv_a1b2c3d4")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+  });
+});
+
+describe("InterventionService.markAllRead", () => {
+  it("요청 학생의 미읽음 전체를 읽음 처리하고 { updated } 를 반환한다", async () => {
+    const repo = makeRepository();
+    repo.markAllRead.mockResolvedValue(3);
+    const service = new InterventionService(repo);
+
+    const result = await service.markAllRead("s2");
+
+    expect(repo.markAllRead).toHaveBeenCalledWith("s2");
+    expect(result).toEqual({ updated: 3 });
+  });
+
+  it("미읽음이 없으면 { updated: 0 } (멱등)", async () => {
+    const repo = makeRepository();
+    repo.markAllRead.mockResolvedValue(0);
+    const service = new InterventionService(repo);
+
+    const result = await service.markAllRead("s2");
+
+    expect(result).toEqual({ updated: 0 });
+  });
+
+  it("무신원이면 401 UNAUTHORIZED", async () => {
+    const repo = makeRepository();
+    const service = new InterventionService(repo);
+
+    const err = await service.markAllRead(undefined).catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+    expect(repo.markAllRead).not.toHaveBeenCalled();
+  });
+});
