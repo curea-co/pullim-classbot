@@ -14,6 +14,7 @@ import {
 } from '@/lib/store/assignments';
 import { useInterventionStore } from '@/lib/store/interventions';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import type { AssignmentQuestion } from '@/lib/mock';
 
 /**
@@ -80,6 +81,8 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
 
   const handleRequiz = () => {
     const id = nextAssignmentId();
+    // 신선한 마감(+3일) — 원 과제의 지난 마감/시험 제한을 끌고 가지 않는다 (Codex #186 R3)
+    const dueIso = new Date(Date.now() + 3 * 86400000).toISOString();
     const requiz: UserAssignment = {
       ...(assignment as Assignment),
       id,
@@ -89,9 +92,13 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       completedCount: 0,
       state: 'todo',
       assignedAt: '방금 발사',
+      dueLabel: formatDueLabel(dueIso),
+      dDay: computeDDay(dueIso),
+      scopeOverride: undefined,
       solveHref: `/classbot/assignment/${id}/solve?step=1`,
       dispatchStatus: 'sent',
       targetStudentIds: requizTargets,
+      examTimeLimitMin: undefined,
       // 오답 문항 집합 보존 — 학생이 원 과제에서 틀린 바로 그 문항을 받는다 (Codex #186)
       requizQuestionIds: wrongQuestions.map((q) => q.id),
     };

@@ -85,6 +85,24 @@ it('오답률 높은 문항 재발사 — 복습 과제 dispatch + 오답자에�
   expect(resolved.map((q) => q.id)).toEqual(wrongIds);
 });
 
+it('재발사 과제는 신선한 마감(+3일)이고 원 과제의 시험 제한을 끌고 가지 않는다 (Codex #186 R3)', () => {
+  act(() =>
+    useAssignmentStore.setState({ submissions: [sub('s1', allWrong(), 0)] }),
+  );
+  // 원 과제가 지난 마감 + 시험 제한을 가진 상태를 흉내
+  const stale = {
+    ...A, dDay: '오늘', dueLabel: '오늘 09:00', examTimeLimitMin: 50, scopeOverride: 1,
+    targetStudentIds: ['s1'],
+  } as typeof A;
+  render(<SubmissionStatusPanel assignment={stale} />);
+  fireEvent.click(screen.getByRole('button', { name: /재발사/ }));
+
+  const [d] = useAssignmentStore.getState().dispatched;
+  expect(d.dDay).toBe('D-3'); // 생성 시점 +3일
+  expect(d.examTimeLimitMin).toBeUndefined(); // 시험 제한 미전파
+  expect(d.scopeOverride).toBeUndefined();
+});
+
 it('제출이 없으면 재발사 버튼 미노출', () => {
   render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1'] }} />);
   expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
