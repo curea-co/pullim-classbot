@@ -11,6 +11,7 @@ import {
 } from "../../classroom/infrastructure/domain-http.error";
 import type {
   AssignmentDetailResponseDto,
+  AssignmentResponseDto,
   AssignmentsReadResponseDto,
   SubmissionResponseDto,
   SubmissionsReadResponseDto,
@@ -25,6 +26,7 @@ import {
   AssignmentRow,
   BotRefRow,
   IAssignmentRepository,
+  NewAssignment,
   SubmissionRow,
 } from "../interface/assignment-repository.interface";
 
@@ -51,6 +53,8 @@ interface DispatchInput {
   dueLabel: string;
   dDay: string;
   reasonHint: string | null;
+  examTimeLimitMin: number | null;
+  requizQuestionIds: string[] | null;
 }
 
 /** 제출 결과 — created 는 컨트롤러의 201/200 분기에만 쓴다. */
@@ -95,11 +99,11 @@ export class AssignmentService {
     }
     const requesterId = this.requireUserId(userId);
 
-    const assignments =
+    const rows =
       audience === "student"
         ? await this.repository.findAssignmentsForStudent(requesterId)
         : await this.repository.findAssignmentsForTeacher(requesterId);
-    return { assignments };
+    return { assignments: rows.map((row) => this.toAssignmentDto(row)) };
   }
 
   /**
@@ -124,19 +128,20 @@ export class AssignmentService {
     await this.assertCanAccessAssignment(assignment, requesterId);
 
     const questions = await this.repository.findQuestions(id);
-    return { assignment: { ...assignment, questions } };
+    return { assignment: { ...this.toAssignmentDto(assignment), questions } };
   }
 
   /**
    * 과제 접근 판정 — 대상 학생 또는 발사 교사(봇 소유자)만 통과.
    * 대상 판정은 FE 스토어 필터(`targetStudentIds 빈 배열=전체 enrolled`)의
-   * DB 재현: student_id NULL 이면 enrolled 여부, non-null 이면 본인 여부.
+   * DB 재현: 직접 지정(student_id 일치 또는 target_student_ids 포함) 또는
+   * 전체 대상(둘 다 null/빈)의 enrolled 학생.
    */
   private async assertCanAccessAssignment(
     assignment: AssignmentRow,
     requesterId: string,
   ): Promise<void> {
-    if (assignment.studentId === requesterId) {
+    if (this.isDirectTarget(assignment, requesterId)) {
       return;
     }
 
@@ -145,34 +150,52 @@ export class AssignmentService {
       return;
     }
 
-    if (
-      assignment.studentId === null &&
-      (await this.repository.hasEnrollment(assignment.botId, requesterId))
-    ) {
+    if (await this.isEnrolledForAllTarget(assignment, requesterId)) {
       return;
     }
 
     throw forbidden("본인 대상이거나 발사한 과제만 조회할 수 있습니다.");
   }
 
+  /** 직접 지정 대상 — student_id 일치(단일 호환) 또는 target_student_ids 포함. */
+  private isDirectTarget(assignment: AssignmentRow, userId: string): boolean {
+    return (
+      assignment.studentId === userId ||
+      (assignment.targetStudentIds ?? []).includes(userId)
+    );
+  }
+
+  /** 전체 대상 과제(student_id·targets 모두 null/빈)의 enrolled 학생인지. */
+  private async isEnrolledForAllTarget(
+    assignment: AssignmentRow,
+    userId: string,
+  ): Promise<boolean> {
+    const isAllTarget =
+      assignment.studentId === null &&
+      (assignment.targetStudentIds ?? []).length === 0;
+    if (!isAllTarget) {
+      return false;
+    }
+    return this.repository.hasEnrollment(assignment.botId, userId);
+  }
+
   /**
    * 교사 발사 — `POST /api/assignments` (spec §4.5, FE 스토어 dispatch 재현).
    *
    * 검증: 요청자 teacher 역할 + 그 봇 소유(403), title 5~50자 등 본문(400).
-   * 대상 의미: targetStudentIds 빈 배열 = 전체 enrolled(student_id NULL),
-   * 1명 = 단일 지정(enrolled 학생 검증). 2명 이상은 assignments 스키마에
-   * target_student_ids 컬럼이 없어 표현 불가 — 400 (FE 스키마 PR 제안 참조).
-   *
-   * 미영속 필드: examTimeLimitMin / requizQuestionIds / dispatchedAt 은
-   * 대응 컬럼이 없어 타입 검증만 하고 저장하지 않는다(문항 콘텐츠는 M3).
+   * 대상 의미(스키마 0002): targetStudentIds 빈 배열 = 전체 enrolled
+   * (student_id NULL + targets []), 1명 = 단일 지정(student_id 호환 병기),
+   * 2명 이상 = target_student_ids jsonb 영속. 대상 전원 enrolled 검증(400).
+   * examTimeLimitMin / requizQuestionIds 도 영속하며, dispatched_at 은
+   * DB NOW() 로 기록해 목록 정렬 키로 쓴다.
    * @param userId - 요청 교사 id (JWT 또는 x-user-id)
    * @param body - FE buildAssignment 구성 필드 (dueIso 또는 dueLabel·dDay)
-   * @returns 생성된 행 — FE AssignmentReadRow 형태 그대로 (201)
+   * @returns 생성된 행 — FE AssignmentReadRow 상위집합 (201)
    */
   async dispatchAssignment(
     userId: string | undefined,
     body: unknown,
-  ): Promise<AssignmentRow> {
+  ): Promise<AssignmentResponseDto> {
     const input = this.parseDispatchBody(body);
     const requesterId = this.requireUserId(userId);
 
@@ -192,13 +215,14 @@ export class AssignmentService {
       throw forbidden("본인 소유의 클래스봇으로만 과제를 발사할 수 있습니다.");
     }
 
-    const targetStudentId = await this.resolveTargetStudent(bot, input);
+    const targets = await this.resolveTargetStudents(bot, input);
 
     // id 는 서버 생성(as_user_<uuid 앞 8자>) — PK 충돌 시 재생성.
     for (let attempt = 0; attempt < GENERATED_ID_MAX_ATTEMPTS; attempt += 1) {
-      const row = this.buildAssignmentRow(input, bot, targetStudentId);
-      if (await this.repository.createAssignment(row)) {
-        return row;
+      const row = this.buildAssignmentRow(input, bot, targets, user.id);
+      const dispatchedAt = await this.repository.createAssignment(row);
+      if (dispatchedAt) {
+        return this.toAssignmentDto({ ...row, dispatchedAt });
       }
     }
     // 16^8 공간에서 연속 충돌은 사실상 불가 — 방어적 종료.
@@ -228,9 +252,8 @@ export class AssignmentService {
     }
 
     const isTarget =
-      assignment.studentId === requesterId ||
-      (assignment.studentId === null &&
-        (await this.repository.hasEnrollment(assignment.botId, requesterId)));
+      this.isDirectTarget(assignment, requesterId) ||
+      (await this.isEnrolledForAllTarget(assignment, requesterId));
     if (!isTarget) {
       throw forbidden("본인 대상 과제에만 제출할 수 있습니다.");
     }
@@ -321,41 +344,49 @@ export class AssignmentService {
     };
   }
 
-  /** 단일 지정 대상 검증 — 존재(404)·학생 역할(400)·enrolled(400). */
-  private async resolveTargetStudent(
+  /**
+   * 지정 대상 전원 검증 — 각각 존재(404)·학생 역할(400)·enrolled(400).
+   * @returns 중복 제거된 대상 id 배열 (빈 배열 = 전체 enrolled)
+   */
+  private async resolveTargetStudents(
     bot: BotRefRow,
     input: DispatchInput,
-  ): Promise<string | null> {
-    if (input.targetStudentIds.length === 0) {
-      return null;
+  ): Promise<string[]> {
+    const targetIds = [...new Set(input.targetStudentIds)];
+    for (const targetId of targetIds) {
+      const student = await this.repository.findUserById(targetId);
+      if (!student) {
+        throw notFound(`대상 학생(${targetId})을 찾을 수 없습니다.`);
+      }
+      if (student.role !== "student") {
+        throw validationError("targetStudentIds 는 학생 사용자여야 합니다.");
+      }
+      if (!(await this.repository.hasEnrollment(bot.id, targetId))) {
+        throw validationError(
+          "그 클래스봇에 enrolled 된 학생만 대상으로 지정할 수 있습니다.",
+        );
+      }
     }
-    const targetId = input.targetStudentIds[0];
-    const student = await this.repository.findUserById(targetId);
-    if (!student) {
-      throw notFound("대상 학생을 찾을 수 없습니다.");
-    }
-    if (student.role !== "student") {
-      throw validationError("targetStudentIds 는 학생 사용자여야 합니다.");
-    }
-    if (!(await this.repository.hasEnrollment(bot.id, targetId))) {
-      throw validationError(
-        "그 클래스봇에 enrolled 된 학생만 대상으로 지정할 수 있습니다.",
-      );
-    }
-    return student.id;
+    return targetIds;
   }
 
-  /** 서버 파생 필드를 채운 insert 행 — FE buildAssignment 의 서버판. */
+  /**
+   * 서버 파생 필드를 채운 insert 행 — FE buildAssignment 의 서버판.
+   * student_id 는 단일 지정일 때만 채워 기존 소비자와 호환을 유지하고,
+   * target_student_ids 에는 항상 대상 배열을 병기해 일관화한다.
+   */
   private buildAssignmentRow(
     input: DispatchInput,
     bot: BotRefRow,
-    targetStudentId: string | null,
-  ): AssignmentRow {
+    targets: string[],
+    createdBy: string,
+  ): NewAssignment {
     const id = `as_user_${randomUUID().split("-")[0]}`;
     return {
       id,
       botId: bot.id,
-      studentId: targetStudentId,
+      studentId: targets.length === 1 ? targets[0] : null,
+      createdBy,
       title: input.title,
       scope: input.scope,
       subject: bot.subject,
@@ -377,6 +408,17 @@ export class AssignmentService {
       state: "todo",
       reasonHint: input.reasonHint,
       solveHref: `/classbot/assignment/${id}/solve?step=1`,
+      targetStudentIds: targets,
+      examTimeLimitMin: input.examTimeLimitMin,
+      requizQuestionIds: input.requizQuestionIds,
+    };
+  }
+
+  /** AssignmentRow → 응답형 (dispatchedAt ISO 변환, spec §3). */
+  private toAssignmentDto(row: AssignmentRow): AssignmentResponseDto {
+    return {
+      ...row,
+      dispatchedAt: row.dispatchedAt ? row.dispatchedAt.toISOString() : null,
     };
   }
 
@@ -414,11 +456,13 @@ export class AssignmentService {
       );
     }
 
-    const targetStudentIds = this.parseTargetStudentIds(
+    const targetStudentIds = this.parseStringArray(
       record.targetStudentIds,
+      "targetStudentIds",
     );
     const { dueLabel, dDay } = this.resolveDue(record);
-    this.assertOptionalShapes(record);
+    const { examTimeLimitMin, requizQuestionIds } =
+      this.parseDispatchOptions(record);
 
     const scope =
       typeof record.scope === "string" && record.scope.trim().length > 0
@@ -451,19 +495,9 @@ export class AssignmentService {
         typeof record.reasonHint === "string" && record.reasonHint.trim()
           ? record.reasonHint.trim().slice(0, 200)
           : null,
+      examTimeLimitMin,
+      requizQuestionIds,
     };
-  }
-
-  /** targetStudentIds — 빈 배열=전체 enrolled, 1명=단일 지정, 2명 이상=400. */
-  private parseTargetStudentIds(value: unknown): string[] {
-    const ids = this.parseStringArray(value, "targetStudentIds");
-    if (ids.length > 1) {
-      throw validationError(
-        "targetStudentIds 는 현재 전체([]) 또는 1명만 지원합니다 — " +
-          "assignments 스키마에 다중 대상 컬럼(target_student_ids)이 없습니다.",
-      );
-    }
-    return ids;
   }
 
   /** dueIso(미래 시각, KST 해석) 또는 dueLabel·dDay 직접 지정. */
@@ -496,22 +530,35 @@ export class AssignmentService {
   }
 
   /**
-   * 미영속 옵션 필드의 타입만 검증 — examTimeLimitMin / requizQuestionIds.
-   * assignments 스키마에 대응 컬럼이 없어 저장하지 않는다(스키마 diff 제안
-   * 참조). 잘못된 타입은 조용히 버리지 않고 400 으로 알린다.
+   * 발사 옵션 필드 — examTimeLimitMin / requizQuestionIds (스키마 0002 영속).
+   * 잘못된 타입은 조용히 버리지 않고 400 으로 알린다.
    */
-  private assertOptionalShapes(record: Record<string, unknown>): void {
-    if (
-      record.examTimeLimitMin !== undefined &&
-      (typeof record.examTimeLimitMin !== "number" ||
+  private parseDispatchOptions(record: Record<string, unknown>): {
+    examTimeLimitMin: number | null;
+    requizQuestionIds: string[] | null;
+  } {
+    let examTimeLimitMin: number | null = null;
+    if (record.examTimeLimitMin !== undefined) {
+      if (
+        typeof record.examTimeLimitMin !== "number" ||
         !Number.isInteger(record.examTimeLimitMin) ||
-        record.examTimeLimitMin < 1)
-    ) {
-      throw validationError("examTimeLimitMin 은 양의 정수여야 합니다.");
+        record.examTimeLimitMin < 1
+      ) {
+        throw validationError("examTimeLimitMin 은 양의 정수여야 합니다.");
+      }
+      examTimeLimitMin = record.examTimeLimitMin;
     }
+
+    let requizQuestionIds: string[] | null = null;
     if (record.requizQuestionIds !== undefined) {
-      this.parseStringArray(record.requizQuestionIds, "requizQuestionIds");
+      const ids = this.parseStringArray(
+        record.requizQuestionIds,
+        "requizQuestionIds",
+      );
+      requizQuestionIds = ids.length > 0 ? ids : null;
     }
+
+    return { examTimeLimitMin, requizQuestionIds };
   }
 
   /** 비어 있지 않은 문자열 필수 필드. */

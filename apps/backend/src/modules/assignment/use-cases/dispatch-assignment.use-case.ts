@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
-import type { AssignmentRow } from "../interface/assignment-repository.interface";
+import type { AssignmentResponseDto } from "../controller/dto/assignment-responses.dto";
 import { AssignmentService } from "../service/assignment.service";
 
 /**
@@ -11,7 +11,10 @@ import { AssignmentService } from "../service/assignment.service";
 export class DispatchAssignmentUseCase {
   constructor(private readonly assignmentService: AssignmentService) {}
 
-  execute(userId: string | undefined, body: unknown): Promise<AssignmentRow> {
+  execute(
+    userId: string | undefined,
+    body: unknown,
+  ): Promise<AssignmentResponseDto> {
     return this.assignmentService.dispatchAssignment(userId, body);
   }
 }

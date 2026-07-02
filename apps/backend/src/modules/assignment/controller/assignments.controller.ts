@@ -17,11 +17,11 @@ import { Public } from "../../../common/decorators/public.decorator";
 import { OptionalJwtAuthGuard } from "../../../common/guards/optional-jwt-auth.guard";
 import type {
   AssignmentDetailResponseDto,
+  AssignmentResponseDto,
   AssignmentsReadResponseDto,
   SubmissionResponseDto,
   SubmissionsReadResponseDto,
 } from "./dto/assignment-responses.dto";
-import type { AssignmentRow } from "../interface/assignment-repository.interface";
 import { DispatchAssignmentUseCase } from "../use-cases/dispatch-assignment.use-case";
 import { GetAssignmentUseCase } from "../use-cases/get-assignment.use-case";
 import { ListAssignmentsUseCase } from "../use-cases/list-assignments.use-case";
@@ -80,7 +80,7 @@ export class AssignmentsController {
   dispatch(
     @Body() body: unknown,
     @DomainUserId() userId: string | undefined,
-  ): Promise<AssignmentRow> {
+  ): Promise<AssignmentResponseDto> {
     return this.dispatchAssignmentUseCase.execute(userId, body);
   }
 

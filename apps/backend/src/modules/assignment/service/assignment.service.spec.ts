@@ -30,6 +30,7 @@ function makeRepository(): RepositoryDouble {
 
 /** FE AssignmentReadRow 형태의 과제 픽스처 — 전체 enrolled 대상(studentId null). */
 const ASSIGNMENT: AssignmentRow = {
+  createdBy: "teacher_001",
   id: "as_user_a1b2c3d4",
   botId: "cb_001",
   studentId: null,
@@ -54,14 +55,34 @@ const ASSIGNMENT: AssignmentRow = {
   state: "todo",
   reasonHint: null,
   solveHref: "/classbot/assignment/as_user_a1b2c3d4/solve?step=1",
+  targetStudentIds: [],
+  dispatchedAt: new Date("2026-07-02T04:00:00.000Z"),
+  examTimeLimitMin: null,
+  requizQuestionIds: null,
 };
 
-/** 본인 지정 대상 과제 픽스처 — s2 단일 대상. */
+/** ASSIGNMENT 의 응답형 — dispatchedAt ISO 직렬화(spec §3). */
+const ASSIGNMENT_DTO = {
+  ...ASSIGNMENT,
+  dispatchedAt: "2026-07-02T04:00:00.000Z",
+};
+
+/** 본인 지정 대상 과제 픽스처 — s2 단일 대상(호환 student_id + targets 병기). */
 const TARGETED_ASSIGNMENT: AssignmentRow = {
   ...ASSIGNMENT,
   id: "as_user_e5f6a7b8",
   studentId: "s2",
+  targetStudentIds: ["s2"],
   solveHref: "/classbot/assignment/as_user_e5f6a7b8/solve?step=1",
+};
+
+/** 다중 지정 대상 과제 픽스처 — s2·s3 (student_id NULL, targets jsonb). */
+const MULTI_TARGET_ASSIGNMENT: AssignmentRow = {
+  ...ASSIGNMENT,
+  id: "as_user_c9d0e1f2",
+  studentId: null,
+  targetStudentIds: ["s2", "s3"],
+  solveHref: "/classbot/assignment/as_user_c9d0e1f2/solve?step=1",
 };
 
 /** cb_001 봇 참조 픽스처 — teacher_001 소유. */
@@ -108,7 +129,7 @@ describe("AssignmentService.listAssignments", () => {
     const result = await service.listAssignments("student", "s2");
 
     expect(repo.findAssignmentsForStudent).toHaveBeenCalledWith("s2");
-    expect(result).toEqual({ assignments: [ASSIGNMENT] });
+    expect(result).toEqual({ assignments: [ASSIGNMENT_DTO] });
   });
 
   it("audience=teacher — 소유 봇 스코프 행을 반환한다", async () => {
@@ -119,7 +140,7 @@ describe("AssignmentService.listAssignments", () => {
     const result = await service.listAssignments("teacher", "teacher_001");
 
     expect(repo.findAssignmentsForTeacher).toHaveBeenCalledWith("teacher_001");
-    expect(result).toEqual({ assignments: [ASSIGNMENT] });
+    expect(result).toEqual({ assignments: [ASSIGNMENT_DTO] });
   });
 
   it("빈 목록은 빈 배열로 반환한다 (spec §3)", async () => {
@@ -189,7 +210,7 @@ describe("AssignmentService.getAssignment", () => {
 
     expect(repo.hasEnrollment).toHaveBeenCalledWith("cb_001", "s2");
     expect(result).toEqual({
-      assignment: { ...ASSIGNMENT, questions: [QUESTION] },
+      assignment: { ...ASSIGNMENT_DTO, questions: [QUESTION] },
     });
   });
 
@@ -213,6 +234,27 @@ describe("AssignmentService.getAssignment", () => {
     );
 
     expect(result.assignment.id).toBe("as_user_e5f6a7b8");
+  });
+
+  it("다중 지정 과제 — 지정 학생(s3)이면 enrolled 확인 없이 반환한다", async () => {
+    const repo = makeDetailRepository(MULTI_TARGET_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const result = await service.getAssignment("as_user_c9d0e1f2", "s3");
+
+    expect(result.assignment.id).toBe("as_user_c9d0e1f2");
+    expect(repo.hasEnrollment).not.toHaveBeenCalled();
+  });
+
+  it("다중 지정 과제 — 비대상(s4)은 403 FORBIDDEN 봉투", async () => {
+    const repo = makeDetailRepository(MULTI_TARGET_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .getAssignment("as_user_c9d0e1f2", "s4")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
   });
 
   it("문항이 없으면 questions 빈 배열 (콘텐츠는 M3)", async () => {
@@ -280,6 +322,8 @@ describe("AssignmentService.getAssignment", () => {
 describe("AssignmentService.dispatchAssignment", () => {
   const TEACHER = { id: "teacher_001", name: "김수학", role: "teacher" };
   const STUDENT = { id: "s2", name: "민준", role: "student" };
+  const STUDENT2 = { id: "s3", name: "지우", role: "student" };
+  const DISPATCHED_AT = new Date("2026-07-03T04:00:00.000Z");
 
   /** FE buildAssignment 구성 필드의 유효 본문 — 전체 발사([]). */
   const BODY = {
@@ -302,11 +346,12 @@ describe("AssignmentService.dispatchAssignment", () => {
     repo.findUserById.mockImplementation((id: string) => {
       if (id === TEACHER.id) return Promise.resolve(TEACHER);
       if (id === STUDENT.id) return Promise.resolve(STUDENT);
+      if (id === STUDENT2.id) return Promise.resolve(STUDENT2);
       return Promise.resolve(null);
     });
     repo.findBotById.mockResolvedValue(BOT_REF);
     repo.hasEnrollment.mockResolvedValue(true);
-    repo.createAssignment.mockResolvedValue(true);
+    repo.createAssignment.mockResolvedValue(DISPATCHED_AT);
     return repo;
   }
 
@@ -335,10 +380,24 @@ describe("AssignmentService.dispatchAssignment", () => {
       state: "todo",
       reasonHint: BODY.reasonHint,
       solveHref: `/classbot/assignment/${row.id}/solve?step=1`,
+      targetStudentIds: [],
+      dispatchedAt: DISPATCHED_AT.toISOString(),
+      examTimeLimitMin: null,
+      requizQuestionIds: null,
     });
     expect(row.dueLabel).toEqual(expect.any(String));
     expect(row.dDay).toMatch(/^(오늘|D-\d+)$/);
-    expect(repo.createAssignment).toHaveBeenCalledWith(row);
+    expect(repo.createAssignment).toHaveBeenCalledTimes(1);
+    // insert 행에는 dispatchedAt 이 없다 — DB NOW() 가 원천(리턴값으로 응답 구성).
+    const insertRow = (
+      repo.createAssignment.mock.calls[0] as unknown[]
+    )[0] as Record<string, unknown>;
+    expect(insertRow).not.toHaveProperty("dispatchedAt");
+    expect(insertRow).toMatchObject({
+      id: row.id,
+      studentId: null,
+      targetStudentIds: [],
+    });
   });
 
   it("단일 지정 대상 — enrolled 학생 검증 후 studentId 로 기록한다", async () => {
@@ -351,7 +410,41 @@ describe("AssignmentService.dispatchAssignment", () => {
     });
 
     expect(row.studentId).toBe("s2");
+    expect(row.targetStudentIds).toEqual(["s2"]);
     expect(repo.hasEnrollment).toHaveBeenCalledWith("cb_001", "s2");
+  });
+
+  it("다중 지정 대상([s2,s3]) — 전원 enrolled 검증 후 target_student_ids 로 영속한다", async () => {
+    const repo = makeDispatchRepository();
+    const service = new AssignmentService(repo);
+
+    const row = await service.dispatchAssignment("teacher_001", {
+      ...BODY,
+      targetStudentIds: ["s2", "s3"],
+    });
+
+    expect(row.studentId).toBeNull();
+    expect(row.targetStudentIds).toEqual(["s2", "s3"]);
+    expect(repo.hasEnrollment).toHaveBeenCalledWith("cb_001", "s2");
+    expect(repo.hasEnrollment).toHaveBeenCalledWith("cb_001", "s3");
+  });
+
+  it("다중 지정 중 한 명이라도 미 enrolled 면 400 VALIDATION 봉투", async () => {
+    const repo = makeDispatchRepository();
+    repo.hasEnrollment.mockImplementation((_botId: string, sid: string) =>
+      Promise.resolve(sid !== "s3"),
+    );
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .dispatchAssignment("teacher_001", {
+        ...BODY,
+        targetStudentIds: ["s2", "s3"],
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+    expect(repo.createAssignment).not.toHaveBeenCalled();
   });
 
   it("exam 모드는 scopeOverride 1 (FE buildAssignment 동일)", async () => {
@@ -366,6 +459,20 @@ describe("AssignmentService.dispatchAssignment", () => {
 
     expect(row.mode).toBe("exam");
     expect(row.scopeOverride).toBe(1);
+    expect(row.examTimeLimitMin).toBe(60);
+  });
+
+  it("requizQuestionIds 를 영속한다 (오답 재발사)", async () => {
+    const repo = makeDispatchRepository();
+    const service = new AssignmentService(repo);
+
+    const row = await service.dispatchAssignment("teacher_001", {
+      ...BODY,
+      mode: "wrong-conquest",
+      requizQuestionIds: ["q_as_today_1", "q_as_today_2"],
+    });
+
+    expect(row.requizQuestionIds).toEqual(["q_as_today_1", "q_as_today_2"]);
   });
 
   it("title 5~50자 위반은 400 VALIDATION 봉투", async () => {
@@ -378,20 +485,6 @@ describe("AssignmentService.dispatchAssignment", () => {
 
     expectEnvelope(err, 400, "VALIDATION");
     expect(repo.createAssignment).not.toHaveBeenCalled();
-  });
-
-  it("다중 지정 대상(2명 이상)은 400 — 스키마에 target_student_ids 부재(제안 DDL 참조)", async () => {
-    const repo = makeDispatchRepository();
-    const service = new AssignmentService(repo);
-
-    const err = await service
-      .dispatchAssignment("teacher_001", {
-        ...BODY,
-        targetStudentIds: ["s2", "s3"],
-      })
-      .catch((e: unknown) => e);
-
-    expectEnvelope(err, 400, "VALIDATION");
   });
 
   it("과거 dueIso 는 400 VALIDATION 봉투", async () => {
@@ -559,6 +652,19 @@ describe("AssignmentService.submitAssignment", () => {
 
     expect(result.created).toBe(false);
     expect(result.submission.scorePercent).toBe(90);
+  });
+
+  it("다중 지정 대상 과제 — 지정 학생(s3)도 제출 가능", async () => {
+    const repo = makeSubmitRepository(MULTI_TARGET_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const result = await service.submitAssignment("s3", "as_user_c9d0e1f2", {
+      answers: ANSWERS,
+      scorePercent: 70,
+    });
+
+    expect(result.created).toBe(true);
+    expect(repo.hasEnrollment).not.toHaveBeenCalled();
   });
 
   it("대상이 아닌 학생은 403 FORBIDDEN 봉투", async () => {

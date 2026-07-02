@@ -4,12 +4,20 @@ import type {
 } from "../../interface/assignment-repository.interface";
 
 /**
+ * 과제 한 건 응답형 — AssignmentRow 의 dispatchedAt 을 ISO-8601 문자열로
+ * 직렬화(spec §3). FE `AssignmentReadRow` 소비자는 확장 필드
+ * (targetStudentIds/dispatchedAt/examTimeLimitMin/requizQuestionIds)를 무시한다.
+ */
+export type AssignmentResponseDto = Omit<AssignmentRow, "dispatchedAt"> & {
+  dispatchedAt: string | null;
+};
+
+/**
  * `GET /api/assignments` 응답 봉투 — FE `AssignmentsReadResponse`
  * (apps/classbot/hooks/api/read/types.ts)와 정확히 일치해야 한다.
- * 행 형태는 AssignmentRow(FE AssignmentReadRow 1:1) 그대로.
  */
 export interface AssignmentsReadResponseDto {
-  assignments: AssignmentRow[];
+  assignments: AssignmentResponseDto[];
 }
 
 /**
@@ -18,7 +26,7 @@ export interface AssignmentsReadResponseDto {
  * 으로 FE 기존 소비자는 무시한다. 문항이 없으면 빈 배열(콘텐츠는 M3).
  */
 export interface AssignmentDetailResponseDto {
-  assignment: AssignmentRow & { questions: AssignmentQuestionRow[] };
+  assignment: AssignmentResponseDto & { questions: AssignmentQuestionRow[] };
 }
 
 /**

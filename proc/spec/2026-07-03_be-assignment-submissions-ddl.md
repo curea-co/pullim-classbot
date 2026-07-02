@@ -1,5 +1,12 @@
 # BE assignment 모듈 — `submissions` 테이블 제안 + assignments 스키마 gap
 
+> **후속 (같은 날)**: 본 제안은 스키마 PR **#192**(feat/m2-schema-submissions,
+> 마이그레이션 0002)로 인도됐다 — submissions 테이블 + assignments 에
+> `target_student_ids` jsonb · `dispatched_at` timestamptz(+idx) ·
+> `exam_time_limit_min` int · `requiz_question_ids` jsonb. BE assignment
+> 모듈은 이에 맞춰 다중 대상 발사 / dispatched_at 정렬 / 옵션 필드 영속을
+> 배선 완료했다(§3 표의 "현재 BE 처리" 열은 0002 이전 상태의 기록).
+
 > **원본**: `proc/spec/2026-05-18_be-api-design.md` (읽기 권위) · `proc/spec/2026-07-03_be-api-m2-amendment.md`
 > **근거**: 실출시 로드맵 M2 — assignment 도메인 모듈(BE). FE 스토어
 > `apps/classbot/lib/store/assignments.ts` 의 `Submission`(recordSubmission

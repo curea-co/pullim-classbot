@@ -8,6 +8,7 @@ import {
   BotRefRow,
   DomainUserRow,
   IAssignmentRepository,
+  NewAssignment,
   SubmissionInput,
   SubmissionRow,
   UpsertSubmissionResult,
@@ -47,7 +48,14 @@ const ASSIGNMENT_COLUMNS = `
   a."recent_accuracy"   AS "recentAccuracy",
   a."state",
   a."reason_hint"       AS "reasonHint",
-  a."solve_href"        AS "solveHref"`;
+  a."solve_href"        AS "solveHref",
+  a."target_student_ids"  AS "targetStudentIds",
+  a."dispatched_at"       AS "dispatchedAt",
+  a."exam_time_limit_min" AS "examTimeLimitMin",
+  a."requiz_question_ids" AS "requizQuestionIds"`;
+
+/** 정렬 — 발사 시각 역순(0002 이전 레거시 null 은 뒤), id 타이브레이커. */
+const ASSIGNMENT_ORDER = `ORDER BY a."dispatched_at" DESC NULLS LAST, a."id" DESC`;
 
 /**
  * assignment 저장소 — TypeORM DataSource + parameterized raw SQL.
@@ -65,9 +73,9 @@ export class AssignmentRepository extends IAssignmentRepository {
   }
 
   /**
-   * 학생 스코프 — enrolled 봇의 과제 중 전체 대상(student_id NULL)이거나
-   * 본인 지정(student_id = 학생)인 행. 정렬은 id DESC(기존 FE Stage 1 라우트
-   * 정합 — assignments 에 created_at 컬럼이 없어 id 가 유일한 정렬 키).
+   * 학생 스코프 — enrolled 봇의 과제 중 (a) 단일 지정 본인(student_id 일치),
+   * (b) 다중 지정 포함(target_student_ids jsonb 포함), (c) 전체 대상
+   * (student_id·targets 모두 null/빈) 인 행. 정렬은 dispatched_at DESC.
    */
   async findAssignmentsForStudent(studentId: string): Promise<AssignmentRow[]> {
     return this.dataSource.query(
@@ -77,8 +85,18 @@ export class AssignmentRepository extends IAssignmentRepository {
          SELECT 1 FROM "enrollments" e
          WHERE e."bot_id" = a."bot_id" AND e."student_id" = $1
        )
-         AND (a."student_id" IS NULL OR a."student_id" = $1)
-       ORDER BY a."id" DESC`,
+         AND (
+           a."student_id" = $1
+           OR a."target_student_ids" @> jsonb_build_array($1::text)
+           OR (
+             a."student_id" IS NULL
+             AND (
+               a."target_student_ids" IS NULL
+               OR a."target_student_ids" = '[]'::jsonb
+             )
+           )
+         )
+       ${ASSIGNMENT_ORDER}`,
       [studentId],
     );
   }
@@ -90,7 +108,7 @@ export class AssignmentRepository extends IAssignmentRepository {
        FROM "assignments" a
        INNER JOIN "class_bots" b ON b."id" = a."bot_id"
        WHERE b."teacher_id" = $1
-       ORDER BY a."id" DESC`,
+       ${ASSIGNMENT_ORDER}`,
       [teacherId],
     );
   }
@@ -160,21 +178,25 @@ export class AssignmentRepository extends IAssignmentRepository {
   }
 
   /**
-   * 과제를 삽입한다. id PK 충돌은 DO NOTHING → false (호출부가 id 재생성).
-   * jsonb 컬럼(achievement_codes)은 문자열화해 $n::jsonb 로 바인딩한다.
+   * 과제를 삽입한다. dispatched_at 은 NOW() 기록 후 반환(응답 구성용).
+   * id PK 충돌은 DO NOTHING → null (호출부가 id 재생성).
+   * jsonb 컬럼은 문자열화해 $n::jsonb 로 바인딩한다(null 은 NULL 그대로).
    */
-  async createAssignment(row: AssignmentRow): Promise<boolean> {
-    const inserted: Array<{ id: string }> = await this.dataSource.query(
+  async createAssignment(row: NewAssignment): Promise<Date | null> {
+    const inserted: Array<{ dispatchedAt: Date }> = await this.dataSource.query(
       `INSERT INTO "assignments"
          ("id", "bot_id", "student_id", "title", "scope", "subject", "grade",
           "chapter_from", "chapter_to", "achievement_codes", "question_count",
           "difficulty", "mode", "scope_override", "source", "assigned_by",
           "assigned_at_label", "due_label", "d_day", "completed_count",
-          "recent_accuracy", "state", "reason_hint", "solve_href")
+          "recent_accuracy", "state", "reason_hint", "solve_href",
+          "target_student_ids", "dispatched_at", "exam_time_limit_min",
+          "requiz_question_ids", "created_by")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13,
-               $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+               $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+               $25::jsonb, NOW(), $26, $27::jsonb, $28)
        ON CONFLICT ("id") DO NOTHING
-       RETURNING "id"`,
+       RETURNING "dispatched_at" AS "dispatchedAt"`,
       [
         row.id,
         row.botId,
@@ -200,9 +222,15 @@ export class AssignmentRepository extends IAssignmentRepository {
         row.state,
         row.reasonHint,
         row.solveHref,
+        JSON.stringify(row.targetStudentIds ?? []),
+        row.examTimeLimitMin,
+        row.requizQuestionIds === null
+          ? null
+          : JSON.stringify(row.requizQuestionIds),
+        row.createdBy,
       ],
     );
-    return inserted.length > 0;
+    return inserted[0]?.dispatchedAt ?? null;
   }
 
   /**
