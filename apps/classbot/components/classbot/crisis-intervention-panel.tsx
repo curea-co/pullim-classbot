@@ -13,7 +13,14 @@ import { useInterventionStore } from '@/lib/store/interventions';
  * 위기 신호 / 즉시 개입 패널 — 학생 카드 클릭 시 상세 모달.
  * D4 의사결정: 상세 모달 + chat 진입 CTA. (v2 Wee센터는 placeholder)
  */
-export function CrisisInterventionPanel({ students }: { students: ClassroomStudent[] }) {
+export function CrisisInterventionPanel({
+  students,
+  botId,
+}: {
+  students: ClassroomStudent[];
+  /** 이 패널이 열린 클래스(봇) 스코프 — 개입 이벤트에 보존 (Codex #187) */
+  botId: string;
+}) {
   const [activeStudent, setActiveStudent] = useState<ClassroomStudent | null>(null);
 
   return (
@@ -71,6 +78,7 @@ export function CrisisInterventionPanel({ students }: { students: ClassroomStude
       {activeStudent && (
         <CrisisDetailModal
           student={activeStudent}
+          botId={botId}
           onClose={() => setActiveStudent(null)}
         />
       )}
@@ -78,7 +86,15 @@ export function CrisisInterventionPanel({ students }: { students: ClassroomStude
   );
 }
 
-function CrisisDetailModal({ student, onClose }: { student: ClassroomStudent; onClose: () => void }) {
+function CrisisDetailModal({
+  student,
+  botId,
+  onClose,
+}: {
+  student: ClassroomStudent;
+  botId: string;
+  onClose: () => void;
+}) {
   const myCheckIns = emotionCheckIns
     .filter(e => e.studentId === student.id)
     .sort((a, b) => a.daysAgo - b.daysAgo);
@@ -160,8 +176,8 @@ function CrisisDetailModal({ student, onClose }: { student: ClassroomStudent; on
             )}
           </section>
 
-          {/* 응원 메시지 — 개입 루프 PR-3: crisis 이벤트 → 학생 벨 인박스 도착 */}
-          <CrisisEncourageForm student={student} botId="cb_001" />
+          {/* 응원 메시지 — 개입 루프 PR-3: crisis 이벤트 → 학생 벨 인박스 도착 (봇 스코프 보존) */}
+          <CrisisEncourageForm student={student} botId={botId} />
 
           {/* CTA */}
           <section className="space-y-1.5">
