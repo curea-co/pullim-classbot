@@ -88,3 +88,8 @@ export const demoReplays: Replay[] = [
     ],
   }),
 ];
+
+/** 데모 시드 여부 — 데모 리플레이는 학생 sent 스코프(`/replay/[id]`)가 아니라 `/replay/demo/[id]` 에서만 열린다. */
+export function isDemoReplay(id: string): boolean {
+  return demoReplays.some(r => r.id === id);
+}

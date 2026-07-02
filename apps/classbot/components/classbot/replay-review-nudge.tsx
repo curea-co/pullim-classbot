@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { Replay } from '@/lib/mock';
 import { getReplayWeakPoints } from '@/lib/mock/classbot-replay-recap';
+import { isDemoReplay } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
@@ -30,9 +31,14 @@ export function ReplayReviewNudge({ replays }: { replays: Replay[] }) {
   }
   if (total === 0 || !target) return null;
 
+  // 데모 시드는 /replay/demo/[id] 에서만 열린다 — 학생 sent 스코프로 링크하면 404 (Codex #181).
+  const href = isDemoReplay(target.replay.id)
+    ? `/classbot/replay/demo/${target.replay.id}`
+    : `/classbot/replay/${target.replay.id}`;
+
   return (
     <Link
-      href={`/classbot/replay/${target.replay.id}`}
+      href={href}
       className="bg-pullim-blue-50 border-pullim-blue-200 hover:border-pullim-blue-400 flex min-h-11 items-center gap-2.5 rounded-xl border p-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
     >
       <span className="bg-pullim-blue-600 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white">
