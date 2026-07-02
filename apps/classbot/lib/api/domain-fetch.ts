@@ -22,8 +22,14 @@ import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
 /** 데모 교사 표면의 도메인 id — mock `currentTeacher`(김수학) 의 seed id. */
 export const DEMO_TEACHER_ID = 'teacher_001';
 
-/** 데모 "나"(서연) 의 roster id — seed 에서 유일하게 도메인 id 로 치환되는 키. */
-const DEMO_ROSTER_ID = resolveRosterMe(DEMO_FALLBACK_USER_ID).id;
+/**
+ * 데모 "나"(서연) 의 roster id — seed 에서 유일하게 도메인 id 로 치환되는 키.
+ * 모듈 로드 시점이 아니라 호출 시점에 해석한다 — `@/lib/current-user` 를 부분 mock
+ * 하는 기존 테스트(예: replay-detail)가 이 모듈을 간접 import 해도 깨지지 않도록.
+ */
+function demoRosterId(): string {
+  return resolveRosterMe(DEMO_FALLBACK_USER_ID).id;
+}
 
 /**
  * FE roster 학생 키 → BE 도메인 user id (seed 변환: s1 → student_001).
@@ -31,7 +37,7 @@ const DEMO_ROSTER_ID = resolveRosterMe(DEMO_FALLBACK_USER_ID).id;
  * @returns BE users 테이블과 조인 가능한 도메인 id
  */
 export function toDomainUserId(rosterOrUserId: string): string {
-  return rosterOrUserId === DEMO_ROSTER_ID ? DEMO_FALLBACK_USER_ID : rosterOrUserId;
+  return rosterOrUserId === demoRosterId() ? DEMO_FALLBACK_USER_ID : rosterOrUserId;
 }
 
 /**
@@ -41,7 +47,7 @@ export function toDomainUserId(rosterOrUserId: string): string {
  * @returns FE roster 키
  */
 export function fromDomainUserId(domainId: string): string {
-  return domainId === DEMO_FALLBACK_USER_ID ? DEMO_ROSTER_ID : domainId;
+  return domainId === DEMO_FALLBACK_USER_ID ? demoRosterId() : domainId;
 }
 
 /**

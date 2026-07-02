@@ -3,25 +3,25 @@
 import { useState } from 'react';
 import { GraduationCap, ClipboardList, Video, MessageCircle, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { joinClass } from '@/lib/store/class-enrollment';
 
 /**
  * 교사수업 모드 신규 사용자 hero — "선생님이 이끄는 구조화된 수업".
  *
- * 참여 코드 입력 → `useClassEnrollmentStore.join()` (mock). 유효 코드면 enrollment가 생겨
+ * 참여 코드 입력 → `joinClass()` (Ph7 플래그 스위치 — OFF: mock 스토어 join,
+ * ON: BE POST /api/enrollments). 유효 코드면 enrollment가 생겨
  * 홈이 일반 교사수업 홈으로 전환된다(상위 page가 reactive). 알 수 없는 코드는 에러 토스트.
  * 권위 문서(`05_수업방` Step 6) 초대 채널은 코드·링크·QR — 현재 데모는 코드만 동작.
  */
 export function TeacherClassHero({ name }: { name?: string }) {
   const [code, setCode] = useState('');
-  const join = useClassEnrollmentStore((s) => s.join);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!code.trim()) {
       toast.error('참여 코드를 입력해 주세요.');
       return;
     }
-    const res = join(code);
+    const res = await joinClass(code);
     if (res.ok) {
       toast.success(`${res.enrollment.assignedBy}의 ${res.enrollment.classroomLabel}에 참여했어요!`);
       setCode('');
