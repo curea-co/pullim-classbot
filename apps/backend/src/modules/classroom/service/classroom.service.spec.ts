@@ -4,6 +4,7 @@ import type {
   BotRow,
   ClassroomRow,
   EnrolledBotRow,
+  EnrollmentRow,
   IClassroomRepository,
 } from "../interface/classroom-repository.interface";
 import { ClassroomService } from "./classroom.service";
@@ -217,5 +218,160 @@ describe("ClassroomService.listClassrooms", () => {
       .catch((e: unknown) => e);
 
     expectEnvelope(err, 401, "UNAUTHORIZED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 코드 참여 — joinByCode (POST /api/enrollments, M2 개정 §2)
+// ---------------------------------------------------------------------------
+
+const JOIN_CODE = {
+  code: "MATH-2024",
+  botId: "cb_001",
+  classroomId: "cr_math_a",
+  teacherId: "teacher_001",
+  createdAt: new Date("2026-07-01T00:00:00.000Z"),
+};
+
+const STUDENT = { id: "s2", name: "민준", role: "student" as const };
+
+const EXISTING_ENROLLMENT: EnrollmentRow = {
+  botId: "cb_001",
+  studentId: "s2",
+  classroomId: "cr_math_a",
+  classroomLabel: "고2 미적분 A반",
+  assignedBy: "김수학 선생님",
+  assignedAt: new Date("2026-07-02T09:00:00.000Z"),
+  via: "대치프리미엄 수학학원",
+};
+
+/** joinByCode happy path 용 저장소 상태를 구성한다. */
+function makeJoinRepository() {
+  const repo = makeRepository();
+  repo.findUserById.mockResolvedValue(STUDENT);
+  repo.findJoinCode.mockResolvedValue(JOIN_CODE);
+  repo.findBotById.mockResolvedValue(BOT);
+  repo.findClassroomById.mockResolvedValue(CLASSROOM);
+  repo.findEnrollment.mockResolvedValue(null);
+  repo.createEnrollment.mockResolvedValue(new Date("2026-07-03T10:00:00.000Z"));
+  return repo;
+}
+
+describe("ClassroomService.joinByCode", () => {
+  it("유효 코드 — enrollment 를 생성하고 StudentEnrollment 형태로 반환한다", async () => {
+    const repo = makeJoinRepository();
+    const service = new ClassroomService(repo);
+
+    const result = await service.joinByCode("s2", { code: "MATH-2024" });
+
+    // 파생 필드: classroomLabel=반 label, assignedBy=봇 teacherName, via=반 organization.
+    expect(repo.createEnrollment).toHaveBeenCalledWith({
+      botId: "cb_001",
+      studentId: "s2",
+      classroomId: "cr_math_a",
+      classroomLabel: "고2 미적분 A반",
+      assignedBy: "김수학 선생님",
+      via: "대치프리미엄 수학학원",
+    });
+    expect(result).toEqual({
+      created: true,
+      enrollment: {
+        botId: "cb_001",
+        classroomId: "cr_math_a",
+        classroomLabel: "고2 미적분 A반",
+        assignedBy: "김수학 선생님",
+        assignedAt: "2026-07-03T10:00:00.000Z",
+        via: "대치프리미엄 수학학원",
+      },
+    });
+  });
+
+  it("코드는 mock resolveClassCode 와 동일하게 trim + 대문자 정규화한다", async () => {
+    const repo = makeJoinRepository();
+    const service = new ClassroomService(repo);
+
+    await service.joinByCode("s2", { code: "  math-2024  " });
+
+    expect(repo.findJoinCode).toHaveBeenCalledWith("MATH-2024");
+  });
+
+  it("이미 등록된 학생이면 멱등 — created=false 로 기존 enrollment 를 반환한다", async () => {
+    const repo = makeJoinRepository();
+    repo.findEnrollment.mockResolvedValue(EXISTING_ENROLLMENT);
+    const service = new ClassroomService(repo);
+
+    const result = await service.joinByCode("s2", { code: "MATH-2024" });
+
+    expect(repo.createEnrollment).not.toHaveBeenCalled();
+    expect(result.created).toBe(false);
+    expect(result.enrollment.assignedAt).toBe("2026-07-02T09:00:00.000Z");
+  });
+
+  it("동시 삽입 충돌(createEnrollment=null)도 멱등 — 기존 행으로 폴백한다", async () => {
+    const repo = makeJoinRepository();
+    repo.createEnrollment.mockResolvedValue(null);
+    repo.findEnrollment
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(EXISTING_ENROLLMENT);
+    const service = new ClassroomService(repo);
+
+    const result = await service.joinByCode("s2", { code: "MATH-2024" });
+
+    expect(result.created).toBe(false);
+    expect(result.enrollment.botId).toBe("cb_001");
+  });
+
+  it("무효 코드는 404 NOT_FOUND 봉투", async () => {
+    const repo = makeJoinRepository();
+    repo.findJoinCode.mockResolvedValue(null);
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .joinByCode("s2", { code: "NOPE-0000" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("code 가 비어 있으면 400 VALIDATION 봉투", async () => {
+    const service = new ClassroomService(makeRepository());
+
+    const err = await service
+      .joinByCode("s2", { code: "   " })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+  });
+
+  it("신원이 없으면 401, 알 수 없는 사용자도 401", async () => {
+    const repo = makeJoinRepository();
+    repo.findUserById.mockResolvedValue(null);
+    const service = new ClassroomService(repo);
+
+    const noIdentity = await service
+      .joinByCode(undefined, { code: "MATH-2024" })
+      .catch((e: unknown) => e);
+    const unknownUser = await service
+      .joinByCode("ghost", { code: "MATH-2024" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(noIdentity, 401, "UNAUTHORIZED");
+    expectEnvelope(unknownUser, 401, "UNAUTHORIZED");
+  });
+
+  it("학생이 아닌 사용자(교사)는 403 FORBIDDEN 봉투", async () => {
+    const repo = makeJoinRepository();
+    repo.findUserById.mockResolvedValue({
+      id: "teacher_001",
+      name: "김수학",
+      role: "teacher" as const,
+    });
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .joinByCode("teacher_001", { code: "MATH-2024" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
   });
 });
