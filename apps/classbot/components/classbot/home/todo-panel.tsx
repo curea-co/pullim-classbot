@@ -106,8 +106,10 @@ export function TodoPanel({
         </ul>
       )}
 
-      {/* light 모드 푸터 — 나머지 접힘 안내 + 평소대로 복귀 (렌더만 바꾸고 데이터 불변) */}
-      {light && !isEmpty && (
+      {/* light 모드 푸터 — 나머지 접힘 안내 + 평소대로 복귀 (렌더만 바꾸고 데이터 불변).
+          빈 상태에서도 [평소대로 보기]는 유지 — 없으면 low 신호+빈 할 일 조합에서 같은 날
+          Light Day 를 해제할 방법이 없다 (Codex #182 R2). */}
+      {light && (
         <div className="mt-2 flex items-center justify-between gap-2">
           {restCount > 0 ? (
             <button

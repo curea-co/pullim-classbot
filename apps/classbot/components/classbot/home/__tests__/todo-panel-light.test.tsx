@@ -35,9 +35,13 @@ it('light=true — [평소대로 보기] 클릭 시 onExitLight 호출', () => {
   expect(onExitLight).toHaveBeenCalled();
 });
 
-it('light=true — 할 일이 없으면 기존 빈 상태 그대로', () => {
-  render(<TodoPanel incompleteAssignments={[]} liveBots={[]} light onExitLight={() => {}} />);
+it('light=true — 할 일이 없어도 빈 상태 + [평소대로 보기]로 같은 날 해제 가능 (Codex #182 R2)', () => {
+  const onExitLight = jest.fn();
+  render(<TodoPanel incompleteAssignments={[]} liveBots={[]} light onExitLight={onExitLight} />);
   expect(screen.getByText(/다 따라잡았어요/)).toBeTruthy();
+  // 빈 상태에서 해제 UI가 사라지면 low 신호+빈 할 일 조합에서 하루 동안 Light Day에 갇힌다.
+  fireEvent.click(screen.getByRole('button', { name: '평소대로 보기' }));
+  expect(onExitLight).toHaveBeenCalled();
 });
 
 it('light=true — 라이브는 숨기지 않고, 핵심 1개는 가장 급한 과제다 (Codex #182)', () => {
