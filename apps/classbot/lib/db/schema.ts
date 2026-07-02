@@ -10,6 +10,7 @@
 import {
   boolean,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -73,12 +74,19 @@ export const consentLogs = pgTable('consent_logs', {
  *  B. Bots & Classrooms
  * ========================================================== */
 
-export const classrooms = pgTable('classrooms', {
-  id: text('id').primaryKey(),
-  label: text('label').notNull(),
-  organization: text('organization').notNull(),
-  teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
-});
+export const classrooms = pgTable(
+  'classrooms',
+  {
+    id: text('id').primaryKey(),
+    label: text('label').notNull(),
+    organization: text('organization').notNull(),
+    teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    // join_codes 의 (classroom_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('classrooms_id_teacher_uq').on(t.id, t.teacherId),
+  }),
+);
 
 export const classBots = pgTable(
   'class_bots',
@@ -106,6 +114,8 @@ export const classBots = pgTable(
   },
   (t) => ({
     bySubject: index('class_bots_subject_idx').on(t.subject),
+    // join_codes 의 (bot_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('class_bots_id_teacher_uq').on(t.id, t.teacherId),
   }),
 );
 
@@ -131,20 +141,32 @@ export const enrollments = pgTable(
  * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
  * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
  *
- * 무결성 노트: (botId, classroomId) 쌍의 정합(그 봇이 그 반·그 교사 소유인지)은 DB 로 표현할
- * 관계 테이블이 없어 FK 로 강제하지 못한다 — 코드 **발급** 엔드포인트(BE classroom 모듈)가
- * 교사 소유권을 검증하는 것이 계약. 시드는 CODE_MAP(정합 보장) 만 사용.
+ * 소유권 무결성(DB 강제): teacher_id 를 함께 저장하고 (bot_id, teacher_id)·(classroom_id,
+ * teacher_id) 복합 FK 로 부모의 (id, teacher_id) unique 를 참조 — **봇과 반이 같은 교사
+ * 소유일 때만** 코드가 존재할 수 있다(다른 교사의 반-봇 오연결 코드 저장 불가, Codex #190).
+ * 코드 발급 엔드포인트(BE classroom 모듈)는 추가로 요청 교사 == teacher_id 를 검증한다.
  */
 export const joinCodes = pgTable(
   'join_codes',
   {
     code: text('code').primaryKey(),
-    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
-    classroomId: text('classroom_id').notNull().references(() => classrooms.id, { onDelete: 'cascade' }),
+    botId: text('bot_id').notNull(),
+    classroomId: text('classroom_id').notNull(),
+    teacherId: text('teacher_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     byBot: index('join_codes_bot_idx').on(t.botId),
+    botOwnerFk: foreignKey({
+      columns: [t.botId, t.teacherId],
+      foreignColumns: [classBots.id, classBots.teacherId],
+      name: 'join_codes_bot_owner_fk',
+    }).onDelete('cascade'),
+    classroomOwnerFk: foreignKey({
+      columns: [t.classroomId, t.teacherId],
+      foreignColumns: [classrooms.id, classrooms.teacherId],
+      name: 'join_codes_classroom_owner_fk',
+    }).onDelete('cascade'),
   }),
 );
 

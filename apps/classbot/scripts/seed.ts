@@ -325,6 +325,7 @@ async function main() {
     code,
     botId: t.botId,
     classroomId: t.classroomId,
+    teacherId: BOT_TO_TEACHER[t.botId] ?? 'teacher_001', // 복합 FK — 봇·반 소유 교사 (Codex #190)
   }));
   if (codeRows.length > 0) {
     await db.insert(joinCodes).values(codeRows);
