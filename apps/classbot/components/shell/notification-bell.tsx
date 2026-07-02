@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Bell, ClipboardList, MessageCircle, RotateCcw, Heart } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
   useMyInterventions, useUnreadCount, useInterventionStore,
@@ -118,9 +118,12 @@ export function NotificationBell() {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-1.5">
-        <DropdownMenuLabel className="text-pullim-slate-500 px-2.5 pt-1 pb-1.5 text-2xs font-bold uppercase tracking-wider">
-          알림
-        </DropdownMenuLabel>
+        {/* Base UI: MenuGroupLabel 은 Menu.Group 내부에서만 렌더 가능 */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-pullim-slate-500 px-2.5 pt-1 pb-1.5 text-2xs font-bold uppercase tracking-wider">
+            알림
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <NotificationInbox studentId={me.id} />
       </DropdownMenuContent>
     </DropdownMenu>
