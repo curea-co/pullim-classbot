@@ -8,6 +8,12 @@ import { useEnrolledTutors, useStreak, useTodayOneThing, useGoals } from '@/lib/
 import { MyTutorCard } from '@/components/classbot/my-tutor-card';
 import { WelcomeHero } from '@/components/classbot/home/welcome-hero';
 import { OnboardingChecklist } from '@/components/classbot/home/onboarding-checklist';
+import { LightDayNudge } from '@/components/classbot/home/light-day-nudge';
+import { LightDayExitStrip } from '@/components/classbot/home/light-day-exit-strip';
+import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
+import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import { todayKey } from '@/lib/store/today-key';
 import { useCurrentUser } from '@/lib/current-user';
 import { Chip } from '@/components/ui/chip';
 
@@ -21,10 +27,27 @@ export function SelfHomePlaceholder() {
   const goals = useGoals();
   const one = useTodayOneThing();
   const me = useCurrentUser();
+  // 가벼운 모드(Light Day) — class 홈과 동일 신호/상태 배선 (spec §6). todayKey 는 같은 날 안정적.
+  const lowToday = useLowConditionToday(me.id);
+  const lightOn = useLightDayOn(todayKey());
+  const { enable: enableLight, disable: disableLight } = useLightDayActions();
+  const lightHydrated = useStoresHydrated(useLightDayStore);
+  const lightDay = lightHydrated && lightOn;
 
   return (
     <div className="space-y-5">
       <WelcomeHero name={me.isAuthenticated ? me.name : undefined} hasTutors={tutors.length > 0} />
+
+      {/* 저조 신호 & 아직 opt-in 전 → 넛지 (hydration 후에만, spec §8). spec §6 데이터 흐름
+          (low && !lightOn → 넛지) 그대로 — 0개 상태 예외 없음. 튜터 0개여도 opt-in 후 같은 날
+          원복은 아래 LightDayExitStrip 이 보장한다 (Codex #182 R4). */}
+      {lightHydrated && lowToday && !lightOn && (
+        <LightDayNudge onEnable={() => enableLight(todayKey())} />
+      )}
+
+      {/* Light Day 해제 안전망 — 튜터 0개면 오늘의 한 가지 블록([평소대로 보기] 위치)이 렌더되지 않아
+          같은 날 원복이 불가해진다(예: light on 상태에서 튜터 전부 해제, Codex #182 R3). */}
+      {lightDay && tutors.length === 0 && <LightDayExitStrip onExit={disableLight} />}
 
       <OnboardingChecklist
         enrolled={tutors.length > 0}
@@ -45,6 +68,11 @@ export function SelfHomePlaceholder() {
             <Chip tone="neutral">
               오늘 시작해요
             </Chip>
+          )}
+
+          {/* 라이트 데이 — 오늘의 한 가지는 그대로 1개, 부드러운 카피만 얹는다 (spec §8) */}
+          {lightDay && (
+            <p className="text-pullim-slate-500 text-xs">오늘은 이것 하나만 해도 충분해요.</p>
           )}
 
           {/* 오늘의 한 가지 card */}
@@ -76,6 +104,17 @@ export function SelfHomePlaceholder() {
                 <p className="text-sm text-pullim-slate-500">튜터의 단원을 목표로 추가해 보세요</p>
               </div>
             </Link>
+          )}
+
+          {/* 라이트 데이 해제 — 평소대로 복귀 */}
+          {lightDay && (
+            <button
+              type="button"
+              onClick={disableLight}
+              className="text-pullim-blue-600 hover:text-pullim-blue-700 min-h-11 rounded-lg px-1 text-xs font-bold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
+            >
+              평소대로 보기
+            </button>
           )}
         </div>
       )}
