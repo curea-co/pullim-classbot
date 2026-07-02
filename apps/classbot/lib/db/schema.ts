@@ -407,11 +407,62 @@ export const assignments = pgTable(
     state: text('state', { enum: ['todo', 'in-progress', 'submitted', 'overdue'] }).notNull(),
     reasonHint: text('reason_hint'),
     solveHref: text('solve_href').notNull(),
+    /* ── M2 발사(dispatch) 필드 (spec 개정 2026-07-03_be-assignment-submissions-ddl.md §3) ── */
+    /** 다중 지정 대상 — FE 규약 단일화: **빈 배열 = 전체 enrolled**, [id,…]=지정 (null 이중표현 금지) */
+    targetStudentIds: jsonb('target_student_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 발사 상태 — FE UserAssignment.dispatchStatus 계약(M2 는 발사 즉시 sent; draft/scheduled round-trip 은 후속) */
+    dispatchStatus: text('dispatch_status', { enum: ['draft', 'sent', 'scheduled', 'withdrawn'] })
+      .notNull()
+      .default('sent'),
+    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록).
+     *  nullable 은 교사 user 삭제 SET NULL 정책(classrooms/class_bots.teacher_id 와 동일) —
+     *  발사 경로(BE POST /api/assignments)는 항상 기록한다(join_codes.teacher_id 와 같은 계약). */
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순). DEFAULT 없음: draft/scheduled 행이
+     *  발사된 것처럼 보이지 않도록 **실제 발사(sent 전이) 시점에만** BE 가 명시 기록한다(Codex #192 R2). */
+    dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
+    /** 시험 모드 제한 시간(분) — FE UserAssignment.examTimeLimitMin */
+    examTimeLimitMin: integer('exam_time_limit_min'),
+    /** 오답 재발사 문항 id 집합 — 문항 콘텐츠 영속은 M3, 키만 보존 */
+    requizQuestionIds: jsonb('requiz_question_ids').$type<string[] | null>(),
   },
   (t) => ({
     byStudent: index('assignments_student_idx').on(t.studentId),
     byBot: index('assignments_bot_idx').on(t.botId),
     byState: index('assignments_state_idx').on(t.state),
+    byDispatchedAt: index('assignments_dispatched_at_idx').on(t.dispatchedAt),
+  }),
+);
+
+/**
+ * 학생 제출 — FE `recordSubmission`(동일 assignment+student upsert) 의미의 실전판.
+ * (BE assignment 모듈이 소비 — DDL 제안: proc/spec/2026-07-03_be-assignment-submissions-ddl.md §2)
+ *
+ * 계약 범위: 이 테이블은 **최종 제출 스냅샷**이다(FE Submission 1:1). 풀이 진행 라이프사이클
+ * (임시저장·startedAt·lastPosition·시험 이탈 카운트, spec 12 §5)은 solve-세션 영속(M3+)에서
+ * 별도 attempt/session 테이블로 다룬다 — 여기 컬럼을 선점하지 않는다. 채점 상태 전이는
+ * 기존 grading_items 소관.
+ */
+export const submissions = pgTable(
+  'submissions',
+  {
+    id: text('id').primaryKey(),
+    assignmentId: text('assignment_id').notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    /** { [questionId]: answer } — FE Submission.answers 그대로 */
+    answers: jsonb('answers').$type<Record<string, string>>().notNull().default({}),
+    /** 0~100 정수 (FE computeMockScore 산출) */
+    scorePercent: integer('score_percent').notNull(),
+  },
+  (t) => ({
+    // 멱등 invariant — recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
+    byAssignmentStudent: uniqueIndex('submissions_assignment_student_uq')
+      .on(t.assignmentId, t.studentId),
+    byAssignment: index('submissions_assignment_idx').on(t.assignmentId),
+    byStudent: index('submissions_student_idx').on(t.studentId),
   }),
 );
 

@@ -15,6 +15,13 @@
       "when": 1783007572224,
       "tag": "0001_friendly_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783017839858,
+      "tag": "0002_lonely_lilandra",
+      "breakpoints": true
     }
   ]
 }
