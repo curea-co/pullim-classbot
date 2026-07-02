@@ -367,6 +367,11 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
  * 과제의 문항 풀 — 시드 문항이 있으면 그대로, 없으면 mode 기반 fallback.
  * 새 과제는 mock 시드를 빌려와 P0 시연을 보장.
  */
+/*
+ * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 문항 **본문**은 여전히 mock 풀에서 해석한다 —
+ * 문항 콘텐츠의 DB 영속·서버 해석은 M3(QGen 생성 경로) 소관(스키마 PR #192·BE PR #193 명시).
+ * M2 의 BE 는 과제 메타(행)만 진실이고, 새 과제의 questions 는 빈 배열 + FE mock fallback.
+ */
 export function getQuestionsForAssignment(
   assignment: Assignment & { requizQuestionIds?: string[] },
 ): AssignmentQuestion[] {

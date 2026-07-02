@@ -200,6 +200,11 @@ export function useClassEnrollments(): StudentEnrollment[] {
 }
 
 /** enrollment[] → classBots 카탈로그 브릿지 (순수). */
+/**
+ * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 봇 **카탈로그**(이름·성격·커리큘럼)는 여전히
+ * mock `classBots` 가 권위다 — M2 는 봇 생성 API 를 배선하지 않으므로 BE 에는 시드(=mock)
+ * 밖의 봇이 존재할 수 없다. 봇 카탈로그의 BE 이관은 M3(봇 빌더 실전화)와 함께.
+ */
 function bridge(
   enrollments: StudentEnrollment[],
 ): { bot: ClassBot; enrollment: StudentEnrollment }[] {
