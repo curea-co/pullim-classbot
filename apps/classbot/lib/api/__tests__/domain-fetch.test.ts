@@ -8,6 +8,9 @@ import {
   toDomainUserId,
   fromDomainUserId,
   demoStudentDomainId,
+  getAuthUserSnapshot,
+  studentRequestIdentity,
+  teacherRequestIdentity,
   DEMO_TEACHER_ID,
 } from '../domain-fetch';
 
@@ -25,6 +28,14 @@ function jsonResponse(status: number, body: unknown): Response {
     status,
     text: async () => JSON.stringify(body),
   } as unknown as Response;
+}
+
+/** 디코더블 access token (검증 없음 — decodeAccessToken 은 sub/role 만 요구). */
+function fakeJwt(sub: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({ sub, email: `${sub}@test.io`, role: 'student', exp: 9999999999 }),
+  ).toString('base64url');
+  return `header.${payload}.sig`;
 }
 
 describe('identity bridge (roster ↔ seed 도메인 id)', () => {
@@ -45,6 +56,45 @@ describe('identity bridge (roster ↔ seed 도메인 id)', () => {
 
   it('DEMO_TEACHER_ID matches the seed teacher (김수학)', () => {
     expect(DEMO_TEACHER_ID).toBe('teacher_001');
+  });
+});
+
+describe('request identity (앱 인증 상태 게이트 — Codex #196 R2 ①②)', () => {
+  it('getAuthUserSnapshot: null without token / null for garbage / sub for a decodable token', () => {
+    expect(getAuthUserSnapshot()).toBeNull();
+
+    tokenManager.setTokens('garbage-not-a-jwt', 'r');
+    expect(getAuthUserSnapshot()).toBeNull();
+
+    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r');
+    expect(getAuthUserSnapshot()).toEqual({ id: 'u-uuid-1' });
+  });
+
+  it('unauthenticated: identities carry demo keys as demoUserId', () => {
+    expect(studentRequestIdentity()).toEqual({
+      isAuthenticated: false,
+      userId: 'student_001',
+      demoUserId: 'student_001',
+    });
+    expect(teacherRequestIdentity()).toEqual({
+      isAuthenticated: false,
+      userId: 'teacher_001',
+      demoUserId: 'teacher_001',
+    });
+  });
+
+  it('authenticated: identities keep the raw user id and never expose demoUserId', () => {
+    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r');
+    expect(studentRequestIdentity()).toEqual({
+      isAuthenticated: true,
+      userId: 'u-uuid-1',
+      demoUserId: undefined,
+    });
+    expect(teacherRequestIdentity()).toEqual({
+      isAuthenticated: true,
+      userId: 'u-uuid-1',
+      demoUserId: undefined,
+    });
   });
 });
 
@@ -127,8 +177,9 @@ describe('domainFetch — 인증 사용자 (Bearer 경로)', () => {
     expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
   });
 
-  it('falls back to the demo x-user-id path once when a stale token fails auth (401 + refresh 실패)', async () => {
-    // 잔존 stale 토큰 — Bearer 401 → refresh 401 → authRequest 최종 실패(401)
+  it('미인증(잔여 토큰): falls back to the demo x-user-id path once on final 401 (demoUserId 전달됨)', async () => {
+    // 잔여 stale 토큰 — Bearer 401 → refresh 401 → authRequest 최종 실패(401).
+    // 호출부는 앱 미인증(비-디코더블 토큰) 판정으로 demoUserId 를 전달한 상태.
     tokenManager.setTokens('stale-access', 'stale-refresh');
     fetchMock
       .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // Bearer 시도
@@ -145,6 +196,21 @@ describe('domainFetch — 인증 사용자 (Bearer 경로)', () => {
     expect(url).toBe(`${BASE_URL}/bots?role=student`);
     expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it('인증 사용자: propagates a final 401 without demo fallback when demoUserId is absent (오귀속 차단)', async () => {
+    // 앱 인증 상태(디코더블 토큰) — 호출부가 demoUserId 를 전달하지 않는다.
+    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'stale-refresh');
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // Bearer 시도
+      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })); // refresh 시도
+
+    await expect(domainFetch('/bots?role=student', {})).rejects.toMatchObject({ status: 401 });
+    // Bearer + refresh 2회뿐 — 데모 x-user-id 요청은 나가지 않는다
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetchMock.mock.calls as [string, RequestInit][]) {
+      expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+    }
   });
 
   it('propagates non-401 domain errors from the authenticated path without demo fallback', async () => {

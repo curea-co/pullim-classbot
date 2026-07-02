@@ -13,6 +13,7 @@ jest.mock('@/lib/features', () => ({
   },
 }));
 
+import { tokenManager } from '@pullim-classbot/api-client';
 import {
   useClassEnrollmentStore,
   useMyClassBots,
@@ -22,10 +23,19 @@ import {
 
 const fetchMock = jest.fn();
 
+/** 디코더블 access token (검증 없음 — decodeAccessToken 은 sub/role 만 요구). */
+function fakeJwt(sub: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({ sub, email: `${sub}@test.io`, role: 'student', exp: 9999999999 }),
+  ).toString('base64url');
+  return `header.${payload}.sig`;
+}
+
 beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
   fetchMock.mockReset();
   _useRealCoreBE = false;
+  tokenManager.clearTokens();
   resetBackendEnrollmentSyncForTests();
   useClassEnrollmentStore.setState({ enrollments: [] });
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -175,6 +185,37 @@ describe('useMyClassBots — 읽기 동기화', () => {
 
     await act(async () => {});
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('flag ON: resyncs when the resolved user changes (단일 비행 캐시 사용자 스코프 — Codex #196 R2 ③)', async () => {
+    _useRealCoreBE = true;
+    fetchMock.mockResolvedValue(jsonResponse(200, { bots: [] }));
+
+    // 1) 미인증 데모 사용자로 1회 동기화
+    renderHook(() => useMyClassBots());
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      ((fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>)[
+        'x-user-id'
+      ],
+    ).toBe('student_001');
+
+    // 2) 로그인(사용자 전환) 후 재마운트 — 캐시 키(resolved user id) 변경 → 재동기화
+    tokenManager.setTokens(fakeJwt('u-uuid-9'), 'r');
+    renderHook(() => useMyClassBots());
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const authInit = (fetchMock.mock.calls[1] as [string, RequestInit])[1];
+    expect((authInit.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${fakeJwt('u-uuid-9')}`,
+    );
+    expect((authInit.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+
+    // 3) 같은 사용자 재마운트 — 캐시 재사용(추가 fetch 없음)
+    renderHook(() => useMyClassBots());
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('flag ON: keeps the local store untouched when the BE read fails (graceful)', async () => {

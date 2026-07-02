@@ -13,20 +13,45 @@ jest.mock('@/lib/features', () => ({
   },
 }));
 
+// useInterventionRecipientId 테스트용 — useCurrentUser 만 가변 오버라이드,
+// resolveRosterMe 등 나머지는 실제 구현 유지(신원 브리지가 이를 쓴다).
+let _currentUser = {
+  id: 'student_001',
+  role: 'student' as const,
+  name: '서연',
+  isAuthenticated: false,
+};
+jest.mock('@/lib/current-user', () => ({
+  ...jest.requireActual('@/lib/current-user'),
+  useCurrentUser: () => _currentUser,
+}));
+
+import { tokenManager } from '@pullim-classbot/api-client';
 import {
   useInterventionStore,
   useMyInterventions,
   useUnreadCount,
   useAssignmentComment,
+  useInterventionRecipientId,
   resetBackendInterventionSyncForTests,
 } from '../interventions';
 
 const fetchMock = jest.fn();
 
+/** 디코더블 access token (검증 없음 — decodeAccessToken 은 sub/role 만 요구). */
+function fakeJwt(sub: string): string {
+  const payload = Buffer.from(
+    JSON.stringify({ sub, email: `${sub}@test.io`, role: 'student', exp: 9999999999 }),
+  ).toString('base64url');
+  return `header.${payload}.sig`;
+}
+
 beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
   fetchMock.mockReset();
   _useRealCoreBE = false;
+  _currentUser = { id: 'student_001', role: 'student', name: '서연', isAuthenticated: false };
+  tokenManager.clearTokens();
   resetBackendInterventionSyncForTests();
   useInterventionStore.setState({ events: [] });
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -260,5 +285,61 @@ describe('flag ON — 읽기 동기화 (useMyInterventions/useUnreadCount)', () 
 
     await act(async () => {});
     expect(result.current).toHaveLength(1);
+  });
+});
+
+describe('수신자/필터 키 규칙 (Codex #196 R2 ②)', () => {
+  it('useInterventionRecipientId: flag ON + 인증 → raw user id, 미인증/flag OFF → roster 브리지', () => {
+    // flag OFF + 인증 — 기존 mock 규약(브리지) 그대로 (회귀 0)
+    _currentUser = { id: 'u-uuid-1', role: 'student', name: 'u', isAuthenticated: true };
+    expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('s1');
+
+    _useRealCoreBE = true;
+    // flag ON + 인증 — raw user id 유지 (BE 가 JWT 신원 행을 반환)
+    expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('u-uuid-1');
+    // flag ON + 미인증 데모 — 브리지(student_001 → s1)
+    _currentUser = { id: 'student_001', role: 'student', name: '서연', isAuthenticated: false };
+    expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('s1');
+  });
+
+  it('인증 uuid 사용자의 인박스는 raw id 로 유지되고 s1 행과 섞이지 않는다', async () => {
+    _useRealCoreBE = true;
+    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r'); // 앱 인증 세션
+    // 로컬에 데모(s1) 키 행이 남아 있어도 인증 사용자 인박스에 흘러들지 않아야 한다
+    useInterventionStore.setState({
+      events: [
+        {
+          id: 'iv_local_s1',
+          type: 'remind',
+          botId: 'cb_001',
+          studentId: 's1',
+          assignmentId: 'as_1',
+          message: '데모 행',
+          createdAt: '2026-07-03T08:00:00.000Z',
+          readAt: null,
+        },
+      ],
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, {
+        interventions: [{ ...BE_ROW, id: 'iv_auth', studentId: 'u-uuid-1' }],
+      }),
+    );
+
+    const { result } = renderHook(() => useMyInterventions('u-uuid-1'));
+
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    // 인증 행은 raw id 유지 — roster 키(s1)로 붕괴되지 않는다
+    expect(result.current[0].id).toBe('iv_auth');
+    expect(result.current[0].studentId).toBe('u-uuid-1');
+    // Bearer 경로 — x-user-id 미전송
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${fakeJwt('u-uuid-1')}`,
+    );
+    expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+    // s1 행은 s1 인박스에만 남는다
+    const { result: demoInbox } = renderHook(() => useMyInterventions('s1'));
+    expect(demoInbox.current.map((e) => e.id)).toEqual(['iv_local_s1']);
   });
 });

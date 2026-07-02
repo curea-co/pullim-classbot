@@ -23,7 +23,8 @@ import {
 } from '@/lib/mock';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import {
-  domainFetch, demoStudentDomainId, toDomainUserId, fromDomainUserId, DEMO_TEACHER_ID,
+  domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
+  toDomainUserId, fromDomainUserId, type RequestIdentity,
 } from '@/lib/api/domain-fetch';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
@@ -169,8 +170,12 @@ interface BackendAssignmentRow {
   requizQuestionIds?: string[] | null;
 }
 
-/** BE 행 → 스토어 UserAssignment. studentId 계열은 roster 키로 역변환(조인 정합). */
-function toUserAssignment(row: BackendAssignmentRow): UserAssignment {
+/**
+ * BE 행 → 스토어 UserAssignment.
+ * 학생 키 역변환(student_001→s1)은 **미인증 데모 읽기에서만** 적용한다 — 인증
+ * 사용자 행의 raw user id 를 roster 키로 붕괴시키지 않는다 (Codex #196 R2 ②).
+ */
+function toUserAssignment(row: BackendAssignmentRow, mapToRosterKeys: boolean): UserAssignment {
   return {
     id: row.id,
     botId: row.botId,
@@ -196,7 +201,9 @@ function toUserAssignment(row: BackendAssignmentRow): UserAssignment {
     ...(row.reasonHint ? { reasonHint: row.reasonHint } : {}),
     solveHref: row.solveHref,
     dispatchStatus: 'sent',
-    targetStudentIds: (row.targetStudentIds ?? []).map(fromDomainUserId),
+    targetStudentIds: mapToRosterKeys
+      ? (row.targetStudentIds ?? []).map(fromDomainUserId)
+      : (row.targetStudentIds ?? []),
     ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
     ...(row.examTimeLimitMin != null ? { examTimeLimitMin: row.examTimeLimitMin } : {}),
     ...(row.requizQuestionIds && row.requizQuestionIds.length > 0
@@ -230,15 +237,17 @@ async function dispatchToBackend(a: UserAssignment): Promise<void> {
       ? { requizQuestionIds: a.requizQuestionIds }
       : {}),
   };
+  const identity = teacherRequestIdentity();
   try {
     const created = await domainFetch<BackendAssignmentRow>('/assignments', {
       method: 'POST',
       body,
-      demoUserId: DEMO_TEACHER_ID,
+      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 교사 키.
+      demoUserId: identity.demoUserId,
     });
     useAssignmentStore.setState((s) => ({
       dispatched: s.dispatched.map((d) =>
-        d.id === a.id ? { ...d, ...toUserAssignment(created) } : d,
+        d.id === a.id ? { ...d, ...toUserAssignment(created, !identity.isAuthenticated) } : d,
       ),
     }));
   } catch (e) {
@@ -254,7 +263,8 @@ async function submitToBackend(submission: Submission): Promise<void> {
       {
         method: 'POST',
         body: { answers: submission.answers, scorePercent: submission.scorePercent },
-        demoUserId: toDomainUserId(submission.studentId),
+        // 인증이면 Bearer 신원(데모 명의 미전달), 미인증만 payload roster 키를 seed 변환.
+        demoUserId: getAuthUserSnapshot() ? undefined : toDomainUserId(submission.studentId),
       },
     );
   } catch (e) {
@@ -262,21 +272,27 @@ async function submitToBackend(submission: Submission): Promise<void> {
   }
 }
 
-// 세션당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않는다.
-let backendAssignmentSync: Promise<UserAssignment[] | null> | null = null;
+// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
+// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+let backendAssignmentSync: {
+  key: string;
+  promise: Promise<UserAssignment[] | null>;
+} | null = null;
 
 /** 테스트 전용 — 단일 비행 캐시 리셋. */
 export function resetBackendAssignmentSyncForTests(): void {
   backendAssignmentSync = null;
 }
 
-async function fetchBackendAssignments(): Promise<UserAssignment[] | null> {
+async function fetchBackendAssignments(
+  identity: RequestIdentity,
+): Promise<UserAssignment[] | null> {
   try {
     const res = await domainFetch<{ assignments: BackendAssignmentRow[] }>(
       '/assignments?audience=student',
-      { demoUserId: demoStudentDomainId() },
+      { demoUserId: identity.demoUserId },
     );
-    return res.assignments.map(toUserAssignment);
+    return res.assignments.map((row) => toUserAssignment(row, !identity.isAuthenticated));
   } catch (e) {
     console.warn('[assignments] BE 과제 목록 동기화 실패 — 로컬 유지:', e);
     return null;
@@ -292,8 +308,14 @@ function useBackendAssignmentSync(): void {
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    backendAssignmentSync ??= fetchBackendAssignments();
-    void backendAssignmentSync.then((rows) => {
+    const identity = studentRequestIdentity();
+    if (backendAssignmentSync?.key !== identity.userId) {
+      backendAssignmentSync = {
+        key: identity.userId,
+        promise: fetchBackendAssignments(identity),
+      };
+    }
+    void backendAssignmentSync.promise.then((rows) => {
       if (cancelled || !rows) return;
       useAssignmentStore.setState((s) => {
         const beIds = new Set(rows.map((r) => r.id));

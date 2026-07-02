@@ -16,7 +16,8 @@ import { persist } from 'zustand/middleware';
 import { useCurrentUser, resolveRosterMe } from '@/lib/current-user';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import {
-  domainFetch, demoStudentDomainId, toDomainUserId, fromDomainUserId, DEMO_TEACHER_ID,
+  domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
+  toDomainUserId, fromDomainUserId, type RequestIdentity,
 } from '@/lib/api/domain-fetch';
 
 export type InterventionType = 'remind' | 'requiz' | 'comment' | 'crisis';
@@ -107,13 +108,17 @@ interface BackendInterventionRow {
   readAt: string | null;
 }
 
-/** BE 행 → 스토어 이벤트. studentId 는 roster 키로 역변환(수신자 조인 정합). */
-function toEvent(row: BackendInterventionRow): InterventionEvent {
+/**
+ * BE 행 → 스토어 이벤트.
+ * 수신자 키 역변환(student_001→s1)은 **미인증 데모 읽기에서만** 적용한다 — 인증
+ * 사용자 행의 raw user id 를 roster 키로 붕괴시키지 않는다 (Codex #196 R2 ②).
+ */
+function toEvent(row: BackendInterventionRow, mapToRosterKeys: boolean): InterventionEvent {
   return {
     id: row.id,
     type: row.type,
     botId: row.botId,
-    studentId: fromDomainUserId(row.studentId),
+    studentId: mapToRosterKeys ? fromDomainUserId(row.studentId) : row.studentId,
     ...(row.assignmentId ? { assignmentId: row.assignmentId } : {}),
     message: row.message,
     createdAt: row.createdAt,
@@ -138,16 +143,20 @@ async function sendToBackend(input: InterventionInput, localId: string): Promise
       },
     ],
   };
+  const identity = teacherRequestIdentity();
   try {
     const res = await domainFetch<{ interventions: BackendInterventionRow[] }>('/interventions', {
       method: 'POST',
       body,
-      demoUserId: DEMO_TEACHER_ID,
+      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 교사 키.
+      demoUserId: identity.demoUserId,
     });
     const created = res.interventions[0];
     if (created) {
       useInterventionStore.setState((s) => ({
-        events: s.events.map((e) => (e.id === localId ? toEvent(created) : e)),
+        events: s.events.map((e) =>
+          e.id === localId ? toEvent(created, !identity.isAuthenticated) : e,
+        ),
       }));
     }
   } catch (e) {
@@ -160,7 +169,7 @@ async function markReadOnBackend(id: string): Promise<void> {
   try {
     await domainFetch<unknown>(`/interventions/${encodeURIComponent(id)}/read`, {
       method: 'PATCH',
-      demoUserId: demoStudentDomainId(),
+      demoUserId: studentRequestIdentity().demoUserId,
     });
   } catch (e) {
     console.warn('[interventions] BE 읽음 처리 실패 — 로컬 유지:', e);
@@ -172,28 +181,35 @@ async function markAllReadOnBackend(studentId: string): Promise<void> {
   try {
     await domainFetch<unknown>('/interventions/read-all', {
       method: 'PATCH',
-      demoUserId: toDomainUserId(studentId),
+      // 인증이면 Bearer 신원(데모 명의 미전달), 미인증만 인자 roster 키를 seed 변환.
+      demoUserId: getAuthUserSnapshot() ? undefined : toDomainUserId(studentId),
     });
   } catch (e) {
     console.warn('[interventions] BE 전체 읽음 처리 실패 — 로컬 유지:', e);
   }
 }
 
-// 세션당 1회 fetch 단일 비행 — 벨/배지 등 여러 마운트에서 중복 요청하지 않는다.
-let backendInterventionSync: Promise<InterventionEvent[] | null> | null = null;
+// 사용자당 1회 fetch 단일 비행 — 벨/배지 등 여러 마운트에서 중복 요청하지 않고,
+// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+let backendInterventionSync: {
+  key: string;
+  promise: Promise<InterventionEvent[] | null>;
+} | null = null;
 
 /** 테스트 전용 — 단일 비행 캐시 리셋. */
 export function resetBackendInterventionSyncForTests(): void {
   backendInterventionSync = null;
 }
 
-async function fetchBackendInterventions(): Promise<InterventionEvent[] | null> {
+async function fetchBackendInterventions(
+  identity: RequestIdentity,
+): Promise<InterventionEvent[] | null> {
   try {
     const res = await domainFetch<{ interventions: BackendInterventionRow[] }>(
       '/interventions?audience=student',
-      { demoUserId: demoStudentDomainId() },
+      { demoUserId: identity.demoUserId },
     );
-    return res.interventions.map(toEvent);
+    return res.interventions.map((row) => toEvent(row, !identity.isAuthenticated));
   } catch (e) {
     console.warn('[interventions] BE 인박스 동기화 실패 — 로컬 유지:', e);
     return null;
@@ -209,8 +225,14 @@ function useBackendInterventionSync(): void {
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    backendInterventionSync ??= fetchBackendInterventions();
-    void backendInterventionSync.then((rows) => {
+    const identity = studentRequestIdentity();
+    if (backendInterventionSync?.key !== identity.userId) {
+      backendInterventionSync = {
+        key: identity.userId,
+        promise: fetchBackendInterventions(identity),
+      };
+    }
+    void backendInterventionSync.promise.then((rows) => {
       if (cancelled || !rows) return;
       useInterventionStore.setState((s) => {
         const localIds = new Set(s.events.map((e) => e.id));
@@ -273,8 +295,13 @@ export function useRemindedStudentIds(assignmentId: string): Set<string> {
  * 인증 사용자 raw id 를 쓰면 쓰기 측(s1..)과 영원히 매칭되지 않아 알림이 도착하지 않는다(Codex #184 R3 —
  * "mock 단계라면 읽기/쓰기 모두 동일한 도메인 학생 키" 허용안 채택). UUID↔roster 실신원 매핑은
  * auth 통합(Phase β/SSO) 소관 — 이 훅이 그때의 단일 교체 지점이다.
+ *
+ * Ph7(`USE_REAL_CORE_BE` ON) + 인증: BE 가 JWT 신원(raw user id) 행을 반환하므로
+ * roster 브리지로 붕괴시키지 않고 raw id 를 그대로 쓴다 (Codex #196 R2 ②).
+ * 플래그 OFF 는 기존 mock 규약(브리지) 그대로 — 회귀 0.
  */
 export function useInterventionRecipientId(): string {
-  const { id } = useCurrentUser();
+  const { id, isAuthenticated } = useCurrentUser();
+  if (USE_REAL_CORE_BE && isAuthenticated) return id;
   return resolveRosterMe(id).id;
 }

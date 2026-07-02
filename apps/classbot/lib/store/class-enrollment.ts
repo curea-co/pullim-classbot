@@ -16,7 +16,11 @@ import { ApiError } from '@pullim-classbot/api-client';
 import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
 import { resolveClassCode } from '@/lib/mock/class-codes';
 import { USE_REAL_CORE_BE } from '@/lib/features';
-import { domainFetch, demoStudentDomainId } from '@/lib/api/domain-fetch';
+import {
+  domainFetch,
+  studentRequestIdentity,
+  type RequestIdentity,
+} from '@/lib/api/domain-fetch';
 
 export type JoinResult =
   | { ok: true; enrollment: StudentEnrollment }
@@ -82,7 +86,8 @@ export async function joinClass(code: string): Promise<JoinResult> {
     const enrollment = await domainFetch<StudentEnrollment>('/enrollments', {
       method: 'POST',
       body: { code },
-      demoUserId: demoStudentDomainId(),
+      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 키.
+      demoUserId: studentRequestIdentity().demoUserId,
     });
     useClassEnrollmentStore.setState((s) => {
       const already = s.enrollments.some((e) => e.botId === enrollment.botId);
@@ -111,18 +116,24 @@ interface EnrolledBotResponseRow {
   via: string;
 }
 
-// 세션당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않는다.
-let backendEnrollmentSync: Promise<StudentEnrollment[] | null> | null = null;
+// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
+// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+let backendEnrollmentSync: {
+  key: string;
+  promise: Promise<StudentEnrollment[] | null>;
+} | null = null;
 
 /** 테스트 전용 — 단일 비행 캐시 리셋. */
 export function resetBackendEnrollmentSyncForTests(): void {
   backendEnrollmentSync = null;
 }
 
-async function fetchBackendEnrollments(): Promise<StudentEnrollment[] | null> {
+async function fetchBackendEnrollments(
+  identity: RequestIdentity,
+): Promise<StudentEnrollment[] | null> {
   try {
     const res = await domainFetch<{ bots: EnrolledBotResponseRow[] }>('/bots?role=student', {
-      demoUserId: demoStudentDomainId(),
+      demoUserId: identity.demoUserId,
     });
     return res.bots.map((row) => ({
       botId: row.id,
@@ -148,8 +159,14 @@ function useBackendEnrollmentSync(): void {
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    backendEnrollmentSync ??= fetchBackendEnrollments();
-    void backendEnrollmentSync.then((rows) => {
+    const identity = studentRequestIdentity();
+    if (backendEnrollmentSync?.key !== identity.userId) {
+      backendEnrollmentSync = {
+        key: identity.userId,
+        promise: fetchBackendEnrollments(identity),
+      };
+    }
+    void backendEnrollmentSync.promise.then((rows) => {
       if (cancelled || !rows) return;
       useClassEnrollmentStore.setState((s) => ({
         enrollments: [
