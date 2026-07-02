@@ -96,6 +96,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
       scopeOverride: undefined,
+      recentAccuracy: undefined, // 원 과제 정답률 미상속 — 새 과제가 진행된 것처럼 보이면 안 됨 (R6)
       solveHref: `/classbot/assignment/${id}/solve?step=1`,
       dispatchStatus: 'sent',
       targetStudentIds: requizTargets,
@@ -220,7 +221,8 @@ export function SubmissionStatusSheet({ assignment }: { assignment: AssignmentWi
         <ClipboardCheck className="h-3.5 w-3.5" aria-hidden />
         제출 현황
       </SheetTrigger>
-      <SheetContent side="right" className="w-96 overflow-y-auto p-4">
+      {/* 모바일(375px)에서 넘치지 않게 — 전폭, sm+ 에서 고정폭 */}
+      <SheetContent side="right" className="w-full overflow-y-auto p-4 sm:w-96">
         <SheetHeader className="p-0 pb-3">
           <SheetTitle className="text-sm font-bold">
             제출 현황 — {assignment.title}

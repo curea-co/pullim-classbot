@@ -92,7 +92,7 @@ it('재발사 과제는 신선한 마감(+3일)이고 원 과제의 시험 제�
   // 원 과제가 지난 마감 + 시험 제한을 가진 상태를 흉내
   const stale = {
     ...A, dDay: '오늘', dueLabel: '오늘 09:00', examTimeLimitMin: 50, scopeOverride: 1,
-    targetStudentIds: ['s1'],
+    recentAccuracy: 62, targetStudentIds: ['s1'],
   } as typeof A;
   render(<SubmissionStatusPanel assignment={stale} />);
   fireEvent.click(screen.getByRole('button', { name: /재발사/ }));
@@ -101,6 +101,7 @@ it('재발사 과제는 신선한 마감(+3일)이고 원 과제의 시험 제�
   expect(d.dDay).toBe('D-3'); // 생성 시점 +3일
   expect(d.examTimeLimitMin).toBeUndefined(); // 시험 제한 미전파
   expect(d.scopeOverride).toBeUndefined();
+  expect(d.recentAccuracy).toBeUndefined(); // 원 과제 정답률 미상속 — 새 과제가 진행된 것처럼 보이면 안 됨 (R6)
 });
 
 it('제출이 없으면 재발사 버튼 미노출', () => {
