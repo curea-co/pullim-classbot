@@ -5,20 +5,29 @@ import type {
   BotsReadResponseDto,
   ClassroomsReadResponseDto,
   EnrollmentResponseDto,
+  JoinCodeResponseDto,
   OwnedBotDto,
 } from "../controller/dto/classroom-responses.dto";
 import {
+  conflict,
   forbidden,
   notFound,
   unauthorized,
   validationError,
 } from "../infrastructure/domain-http.error";
 import {
+  generateJoinCode,
+  JOIN_CODE_PATTERN,
+} from "../infrastructure/join-code.util";
+import {
   BotRow,
   CLASSROOM_REPOSITORY_TOKEN,
   EnrollmentRow,
   IClassroomRepository,
 } from "../interface/classroom-repository.interface";
+
+/** 서버 생성 코드의 PK 충돌 시 최대 재시도 횟수. */
+const GENERATED_CODE_MAX_ATTEMPTS = 5;
 
 /** 코드 참여 결과 — created 는 컨트롤러의 201/200 분기에만 쓴다. */
 export interface JoinByCodeResult {
@@ -164,6 +173,142 @@ export class ClassroomService {
         assignedAt: assignedAt.toISOString(),
         via: classroom.organization,
       },
+    };
+  }
+
+  /**
+   * 참여 코드 발급 — `POST /api/bots/:id/join-codes` (M2 개정 §1·§2).
+   *
+   * **소유권 강제 지점**: 요청 교사가 봇·반 *모두*의 소유자인지 검증하고
+   * teacher_id 를 필수 기록한다 — join_codes 의 NULL teacher_id 는 발급
+   * 경로에서 절대 생성되지 않는다(스키마 주석 계약).
+   * @param userId - 요청 교사 id (JWT 또는 x-user-id)
+   * @param botId - 코드가 연결될 봇 id (path)
+   * @param body - { code?, classroomId } — code 미지정 시 서버 생성
+   */
+  async issueJoinCode(
+    userId: string | undefined,
+    botId: string,
+    body: unknown,
+  ): Promise<JoinCodeResponseDto> {
+    const input = this.parseIssueBody(body);
+    const requesterId = this.requireUserId(userId);
+
+    const user = await this.repository.findUserById(requesterId);
+    if (!user) {
+      throw unauthorized("알 수 없는 사용자입니다.");
+    }
+    if (user.role !== "teacher") {
+      throw forbidden("교사만 참여 코드를 발급할 수 있습니다.");
+    }
+
+    const bot = await this.repository.findBotById(botId);
+    if (!bot) {
+      throw notFound("클래스봇을 찾을 수 없습니다.");
+    }
+    if (bot.teacherId !== user.id) {
+      throw forbidden("본인 소유의 클래스봇만 코드를 발급할 수 있습니다.");
+    }
+
+    const classroom = await this.repository.findClassroomById(
+      input.classroomId,
+    );
+    if (!classroom) {
+      throw notFound("반을 찾을 수 없습니다.");
+    }
+    if (classroom.teacherId !== user.id) {
+      throw forbidden("본인 소유의 반만 코드에 연결할 수 있습니다.");
+    }
+
+    // 지정 코드: 1회 시도, 중복이면 409. 서버 생성 코드: 충돌 시 재생성.
+    if (input.code) {
+      const createdAt = await this.repository.createJoinCode({
+        code: input.code,
+        botId: bot.id,
+        classroomId: classroom.id,
+        teacherId: user.id,
+      });
+      if (!createdAt) {
+        throw conflict("이미 사용 중인 참여 코드입니다.");
+      }
+      return this.toJoinCodeDto(
+        input.code,
+        bot.id,
+        classroom.id,
+        user.id,
+        createdAt,
+      );
+    }
+
+    for (let attempt = 0; attempt < GENERATED_CODE_MAX_ATTEMPTS; attempt += 1) {
+      const code = generateJoinCode();
+      const createdAt = await this.repository.createJoinCode({
+        code,
+        botId: bot.id,
+        classroomId: classroom.id,
+        teacherId: user.id,
+      });
+      if (createdAt) {
+        return this.toJoinCodeDto(
+          code,
+          bot.id,
+          classroom.id,
+          user.id,
+          createdAt,
+        );
+      }
+    }
+    // 32^8 공간에서 연속 충돌은 사실상 불가 — 방어적 종료.
+    throw conflict("참여 코드 생성에 실패했습니다. 다시 시도해 주세요.");
+  }
+
+  /** { code?, classroomId } 본문 검증 — code 는 정규화 + 패턴 검사. */
+  private parseIssueBody(body: unknown): {
+    code: string | null;
+    classroomId: string;
+  } {
+    const record =
+      body && typeof body === "object"
+        ? (body as { code?: unknown; classroomId?: unknown })
+        : {};
+    if (
+      typeof record.classroomId !== "string" ||
+      record.classroomId.trim().length === 0
+    ) {
+      throw validationError(
+        "classroomId 는 비어 있지 않은 문자열이어야 합니다.",
+      );
+    }
+
+    if (record.code === undefined || record.code === null) {
+      return { code: null, classroomId: record.classroomId.trim() };
+    }
+    if (typeof record.code !== "string") {
+      throw validationError("code 는 문자열이어야 합니다.");
+    }
+    const code = record.code.trim().toUpperCase();
+    if (!JOIN_CODE_PATTERN.test(code)) {
+      throw validationError(
+        "code 는 대문자 영숫자·하이픈 4~24자여야 합니다 (예: MATH-2024).",
+      );
+    }
+    return { code, classroomId: record.classroomId.trim() };
+  }
+
+  /** 발급 응답형 — teacherId 필수(non-null), createdAt ISO. */
+  private toJoinCodeDto(
+    code: string,
+    botId: string,
+    classroomId: string,
+    teacherId: string,
+    createdAt: Date,
+  ): JoinCodeResponseDto {
+    return {
+      code,
+      botId,
+      classroomId,
+      teacherId,
+      createdAt: createdAt.toISOString(),
     };
   }
 

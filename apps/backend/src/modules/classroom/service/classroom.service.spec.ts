@@ -375,3 +375,180 @@ describe("ClassroomService.joinByCode", () => {
     expectEnvelope(err, 403, "FORBIDDEN");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 코드 발급 — issueJoinCode (POST /api/bots/:id/join-codes, M2 개정 §2)
+// ---------------------------------------------------------------------------
+
+const TEACHER = { id: "teacher_001", name: "김수학", role: "teacher" as const };
+
+/** issueJoinCode happy path 용 저장소 상태 — 봇·반 모두 teacher_001 소유. */
+function makeIssueRepository() {
+  const repo = makeRepository();
+  repo.findUserById.mockResolvedValue(TEACHER);
+  repo.findBotById.mockResolvedValue(BOT);
+  repo.findClassroomById.mockResolvedValue(CLASSROOM);
+  repo.createJoinCode.mockResolvedValue(new Date("2026-07-03T11:00:00.000Z"));
+  return repo;
+}
+
+describe("ClassroomService.issueJoinCode", () => {
+  it("코드 지정 발급 — 정규화된 코드에 teacher_id 를 필수 기록한다", async () => {
+    const repo = makeIssueRepository();
+    const service = new ClassroomService(repo);
+
+    const result = await service.issueJoinCode("teacher_001", "cb_001", {
+      code: " math-2026 ",
+      classroomId: "cr_math_a",
+    });
+
+    // NULL teacher_id 발급 금지(M2 개정 §1) — 요청 교사를 필수 기록.
+    expect(repo.createJoinCode).toHaveBeenCalledWith({
+      code: "MATH-2026",
+      botId: "cb_001",
+      classroomId: "cr_math_a",
+      teacherId: "teacher_001",
+    });
+    expect(result).toEqual({
+      code: "MATH-2026",
+      botId: "cb_001",
+      classroomId: "cr_math_a",
+      teacherId: "teacher_001",
+      createdAt: "2026-07-03T11:00:00.000Z",
+    });
+  });
+
+  it("코드 미지정 시 서버가 XXXX-XXXX 코드를 생성한다", async () => {
+    const repo = makeIssueRepository();
+    const service = new ClassroomService(repo);
+
+    const result = await service.issueJoinCode("teacher_001", "cb_001", {
+      classroomId: "cr_math_a",
+    });
+
+    expect(result.code).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+    expect(repo.createJoinCode).toHaveBeenCalledWith(
+      expect.objectContaining({ teacherId: "teacher_001" }),
+    );
+  });
+
+  it("생성 코드가 충돌하면 재시도한다", async () => {
+    const repo = makeIssueRepository();
+    repo.createJoinCode
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(new Date("2026-07-03T11:00:00.000Z"));
+    const service = new ClassroomService(repo);
+
+    const result = await service.issueJoinCode("teacher_001", "cb_001", {
+      classroomId: "cr_math_a",
+    });
+
+    expect(repo.createJoinCode).toHaveBeenCalledTimes(2);
+    expect(result.createdAt).toBe("2026-07-03T11:00:00.000Z");
+  });
+
+  it("지정 코드가 이미 존재하면 409 CONFLICT 봉투(재시도 없음)", async () => {
+    const repo = makeIssueRepository();
+    repo.createJoinCode.mockResolvedValue(null);
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .issueJoinCode("teacher_001", "cb_001", {
+        code: "MATH-2024",
+        classroomId: "cr_math_a",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 409, "CONFLICT");
+    expect(repo.createJoinCode).toHaveBeenCalledTimes(1);
+  });
+
+  it("요청 교사가 봇 소유자가 아니면 403 FORBIDDEN", async () => {
+    const repo = makeIssueRepository();
+    repo.findUserById.mockResolvedValue({
+      id: "teacher_002",
+      name: "박영어",
+      role: "teacher" as const,
+    });
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .issueJoinCode("teacher_002", "cb_001", { classroomId: "cr_math_a" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+    expect(repo.createJoinCode).not.toHaveBeenCalled();
+  });
+
+  it("반 소유자가 다르면 403 FORBIDDEN (봇·반 모두 검증)", async () => {
+    const repo = makeIssueRepository();
+    repo.findClassroomById.mockResolvedValue({
+      ...CLASSROOM,
+      teacherId: "teacher_002",
+    });
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .issueJoinCode("teacher_001", "cb_001", { classroomId: "cr_math_a" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+    expect(repo.createJoinCode).not.toHaveBeenCalled();
+  });
+
+  it("교사 role 이 아니면 403 FORBIDDEN", async () => {
+    const repo = makeIssueRepository();
+    repo.findUserById.mockResolvedValue(STUDENT);
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .issueJoinCode("s2", "cb_001", { classroomId: "cr_math_a" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("없는 봇 404, 없는 반 404", async () => {
+    const repoNoBot = makeIssueRepository();
+    repoNoBot.findBotById.mockResolvedValue(null);
+    const repoNoClassroom = makeIssueRepository();
+    repoNoClassroom.findClassroomById.mockResolvedValue(null);
+
+    const noBot = await new ClassroomService(repoNoBot)
+      .issueJoinCode("teacher_001", "cb_none", { classroomId: "cr_math_a" })
+      .catch((e: unknown) => e);
+    const noClassroom = await new ClassroomService(repoNoClassroom)
+      .issueJoinCode("teacher_001", "cb_001", { classroomId: "cr_none" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(noBot, 404, "NOT_FOUND");
+    expectEnvelope(noClassroom, 404, "NOT_FOUND");
+  });
+
+  it("classroomId 누락 400 VALIDATION · 형식 불량 code 400 VALIDATION", async () => {
+    const service = new ClassroomService(makeIssueRepository());
+
+    const noClassroom = await service
+      .issueJoinCode("teacher_001", "cb_001", {})
+      .catch((e: unknown) => e);
+    const badCode = await service
+      .issueJoinCode("teacher_001", "cb_001", {
+        code: "no spaces!",
+        classroomId: "cr_math_a",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(noClassroom, 400, "VALIDATION");
+    expectEnvelope(badCode, 400, "VALIDATION");
+  });
+
+  it("신원이 없으면 401 UNAUTHORIZED", async () => {
+    const service = new ClassroomService(makeIssueRepository());
+
+    const err = await service
+      .issueJoinCode(undefined, "cb_001", { classroomId: "cr_math_a" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+  });
+});

@@ -12,6 +12,7 @@ describe("BotsController", () => {
     const controller = new BotsController(
       listBots as never,
       makeUseCase(null) as never,
+      makeUseCase(null) as never,
     );
 
     const result = await controller.list("student", "s2");
@@ -26,11 +27,32 @@ describe("BotsController", () => {
     const controller = new BotsController(
       makeUseCase(null) as never,
       getBot as never,
+      makeUseCase(null) as never,
     );
 
     const result = await controller.detail("cb_001");
 
     expect(getBot.execute).toHaveBeenCalledWith("cb_001");
+    expect(result).toBe(expected);
+  });
+
+  it("POST /bots/:id/join-codes — 교사 id·봇 id·본문을 issue use-case 에 위임한다", async () => {
+    const expected = { code: "A7FK-3MQ9" };
+    const issue = makeUseCase(expected);
+    const controller = new BotsController(
+      makeUseCase(null) as never,
+      makeUseCase(null) as never,
+      issue as never,
+    );
+    const body = { classroomId: "cr_math_a" };
+
+    const result = await controller.issueJoinCode(
+      "cb_001",
+      body,
+      "teacher_001",
+    );
+
+    expect(issue.execute).toHaveBeenCalledWith("teacher_001", "cb_001", body);
     expect(result).toBe(expected);
   });
 });

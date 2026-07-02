@@ -7,6 +7,7 @@ import { ClassroomRepository } from "./infrastructure/classroom.repository";
 import { CLASSROOM_REPOSITORY_TOKEN } from "./interface/classroom-repository.interface";
 import { ClassroomService } from "./service/classroom.service";
 import { GetBotUseCase } from "./use-cases/get-bot.use-case";
+import { IssueJoinCodeUseCase } from "./use-cases/issue-join-code.use-case";
 import { JoinByCodeUseCase } from "./use-cases/join-by-code.use-case";
 import { ListBotsUseCase } from "./use-cases/list-bots.use-case";
 import { ListClassroomsUseCase } from "./use-cases/list-classrooms.use-case";
@@ -26,6 +27,7 @@ import { ListClassroomsUseCase } from "./use-cases/list-classrooms.use-case";
     GetBotUseCase,
     ListClassroomsUseCase,
     JoinByCodeUseCase,
+    IssueJoinCodeUseCase,
   ],
 })
 export class ClassroomModule {}

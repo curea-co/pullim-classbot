@@ -1,4 +1,14 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 
 import { DomainUserId } from "../../../common/decorators/domain-user-id.decorator";
 import { Public } from "../../../common/decorators/public.decorator";
@@ -6,8 +16,10 @@ import { OptionalJwtAuthGuard } from "../../../common/guards/optional-jwt-auth.g
 import type {
   BotDetailResponseDto,
   BotsReadResponseDto,
+  JoinCodeResponseDto,
 } from "./dto/classroom-responses.dto";
 import { GetBotUseCase } from "../use-cases/get-bot.use-case";
+import { IssueJoinCodeUseCase } from "../use-cases/issue-join-code.use-case";
 import { ListBotsUseCase } from "../use-cases/list-bots.use-case";
 
 /**
@@ -25,6 +37,7 @@ export class BotsController {
   constructor(
     private readonly listBotsUseCase: ListBotsUseCase,
     private readonly getBotUseCase: GetBotUseCase,
+    private readonly issueJoinCodeUseCase: IssueJoinCodeUseCase,
   ) {}
 
   /** `GET /api/bots?role=student|teacher` — 내 봇 목록. */
@@ -40,5 +53,19 @@ export class BotsController {
   @Get(":id")
   detail(@Param("id") id: string): Promise<BotDetailResponseDto> {
     return this.getBotUseCase.execute(id);
+  }
+
+  /**
+   * `POST /api/bots/:id/join-codes` — 참여 코드 발급 (M2 개정 §2).
+   * 요청 교사가 봇·반 소유자인지 검증하고 teacher_id 를 필수 기록한다.
+   */
+  @Post(":id/join-codes")
+  @HttpCode(HttpStatus.CREATED)
+  issueJoinCode(
+    @Param("id") botId: string,
+    @Body() body: unknown,
+    @DomainUserId() userId: string | undefined,
+  ): Promise<JoinCodeResponseDto> {
+    return this.issueJoinCodeUseCase.execute(userId, botId, body);
   }
 }
