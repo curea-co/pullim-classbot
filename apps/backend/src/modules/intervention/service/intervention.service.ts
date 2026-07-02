@@ -120,8 +120,7 @@ export class InterventionService {
     }
     const requesterId = this.requireUserId(userId);
 
-    const rows =
-      await this.repository.findInterventionsForStudent(requesterId);
+    const rows = await this.repository.findInterventionsForStudent(requesterId);
     return { interventions: rows.map((row) => this.toDto(row)) };
   }
 
@@ -232,7 +231,10 @@ export class InterventionService {
 
     for (const input of inputs) {
       if (!botCache.has(input.botId)) {
-        botCache.set(input.botId, await this.repository.findBotById(input.botId));
+        botCache.set(
+          input.botId,
+          await this.repository.findBotById(input.botId),
+        );
       }
       const bot = botCache.get(input.botId);
       if (!bot) {

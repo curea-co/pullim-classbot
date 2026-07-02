@@ -3,8 +3,16 @@ import { HttpException } from "@nestjs/common";
 import type {
   IInterventionRepository,
   InterventionRow,
+  NewIntervention,
 } from "../interface/intervention-repository.interface";
 import { InterventionService } from "./intervention.service";
+
+/** createInterventions 더블의 n번째 호출 insert 배치를 꺼낸다. */
+function insertedBatch(repo: RepositoryDouble, call = 0): NewIntervention[] {
+  return (
+    repo.createInterventions.mock.calls[call] as unknown[]
+  )[0] as NewIntervention[];
+}
 
 // ---------------------------------------------------------------------------
 // 저장소 더블 + 픽스처
@@ -102,7 +110,7 @@ describe("InterventionService.sendInterventions", () => {
     });
 
     expect(repo.createInterventions).toHaveBeenCalledTimes(1);
-    const rows = repo.createInterventions.mock.calls[0][0];
+    const rows = insertedBatch(repo);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       type: "remind",
@@ -123,7 +131,7 @@ describe("InterventionService.sendInterventions", () => {
     const result = await service.sendInterventions("teacher_001", REMIND_INPUT);
 
     expect(repo.createInterventions).toHaveBeenCalledTimes(1);
-    expect(repo.createInterventions.mock.calls[0][0]).toHaveLength(1);
+    expect(insertedBatch(repo)).toHaveLength(1);
     expect(result).toEqual({ interventions: [REMIND_DTO] });
   });
 
@@ -146,7 +154,7 @@ describe("InterventionService.sendInterventions", () => {
       message: "요즘 힘들지? 선생님이 응원해!",
     });
 
-    expect(repo.createInterventions.mock.calls[0][0][0]).toMatchObject({
+    expect(insertedBatch(repo)[0]).toMatchObject({
       type: "crisis",
       assignmentId: null,
     });
@@ -302,12 +310,8 @@ describe("InterventionService.sendInterventions", () => {
     });
 
     expect(repo.createInterventions).toHaveBeenCalledTimes(2);
-    const firstIds = repo.createInterventions.mock.calls[0][0].map(
-      (r: { id: string }) => r.id,
-    );
-    const secondIds = repo.createInterventions.mock.calls[1][0].map(
-      (r: { id: string }) => r.id,
-    );
+    const firstIds = insertedBatch(repo, 0).map((r) => r.id);
+    const secondIds = insertedBatch(repo, 1).map((r) => r.id);
     expect(secondIds).not.toEqual(firstIds);
     expect(result).toEqual({ interventions: [REMIND_DTO] });
   });
@@ -381,7 +385,10 @@ describe("InterventionService.listInterventions", () => {
 describe("InterventionService.markRead", () => {
   it("수신 학생 본인이면 read_at 을 기록하고 갱신 행을 반환한다", async () => {
     const repo = makeRepository();
-    const readRow = { ...REMIND_ROW, readAt: new Date("2026-07-03T05:00:00.000Z") };
+    const readRow = {
+      ...REMIND_ROW,
+      readAt: new Date("2026-07-03T05:00:00.000Z"),
+    };
     repo.findInterventionById.mockResolvedValue(REMIND_ROW);
     repo.markRead.mockResolvedValue(readRow);
     const service = new InterventionService(repo);
@@ -397,7 +404,10 @@ describe("InterventionService.markRead", () => {
 
   it("이미 읽음이면 기존 read_at 그대로 200 (멱등)", async () => {
     const repo = makeRepository();
-    const readRow = { ...REMIND_ROW, readAt: new Date("2026-07-03T05:00:00.000Z") };
+    const readRow = {
+      ...REMIND_ROW,
+      readAt: new Date("2026-07-03T05:00:00.000Z"),
+    };
     repo.findInterventionById.mockResolvedValue(readRow);
     repo.markRead.mockResolvedValue(readRow);
     const service = new InterventionService(repo);
