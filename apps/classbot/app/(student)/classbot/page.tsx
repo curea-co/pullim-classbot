@@ -19,6 +19,7 @@ import {
   GrowthPanel,
   WellnessNudge,
   LightDayNudge,
+  LightDayExitStrip,
 } from '@/components/classbot/home';
 
 /**
@@ -50,7 +51,16 @@ export default function StudentClassbotPage() {
   if (!hydrated) return <HomeSkeleton />;
 
   // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
-  if (mode === 'class' && myBots.length === 0) return <TeacherClassHome />;
+  // 클래스 0개 홈에는 TodoPanel 이 없어 Light Day 해제 UI가 사라진다 — 같은 날 원복 계약(spec §3/§8)을
+  // 지키도록 안전망 스트립을 함께 렌더 (예: light on 상태에서 마지막 클래스 나가기, Codex #182 R3).
+  if (mode === 'class' && myBots.length === 0) {
+    return (
+      <div className="space-y-5">
+        {lightHydrated && lightOn && <LightDayExitStrip onExit={disableLight} />}
+        <TeacherClassHome />
+      </div>
+    );
+  }
   if (mode === 'self') return <SelfHomePlaceholder />;
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 

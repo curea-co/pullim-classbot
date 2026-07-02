@@ -9,6 +9,7 @@ import { MyTutorCard } from '@/components/classbot/my-tutor-card';
 import { WelcomeHero } from '@/components/classbot/home/welcome-hero';
 import { OnboardingChecklist } from '@/components/classbot/home/onboarding-checklist';
 import { LightDayNudge } from '@/components/classbot/home/light-day-nudge';
+import { LightDayExitStrip } from '@/components/classbot/home/light-day-exit-strip';
 import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
 import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
@@ -43,6 +44,10 @@ export function SelfHomePlaceholder() {
       {lightHydrated && lowToday && !lightOn && tutors.length > 0 && (
         <LightDayNudge onEnable={() => enableLight(todayKey())} />
       )}
+
+      {/* Light Day 해제 안전망 — 튜터 0개면 오늘의 한 가지 블록([평소대로 보기] 위치)이 렌더되지 않아
+          같은 날 원복이 불가해진다(예: light on 상태에서 튜터 전부 해제, Codex #182 R3). */}
+      {lightDay && tutors.length === 0 && <LightDayExitStrip onExit={disableLight} />}
 
       <OnboardingChecklist
         enrolled={tutors.length > 0}

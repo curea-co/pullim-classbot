@@ -37,11 +37,14 @@ export function TodoPanel({
   }, [light]);
   const isEmpty = incompleteAssignments.length === 0 && liveBots.length === 0;
 
-  // light & 접힘: 라이브는 시간 민감이라 절대 숨기지 않고, 핵심 1개 = 가장 급한 incomplete 과제
-  // (이미 urgent-first 정렬, spec §8). 나머지 과제만 접는다 (Codex #182).
+  // light & 접힘: 라이브는 시간 민감이라 1개는 노출하되 멀티 라이브는 접고(패널이 가벼워야 함, R3),
+  // 핵심 1개 = 가장 급한 incomplete 과제(이미 urgent-first 정렬, spec §8 — 라이브가 있어도 숨기지 않음, R1).
   const collapse = light && !expanded && !isEmpty;
+  const visibleLiveBots = collapse ? liveBots.slice(0, 1) : liveBots;
   const visibleAssignments = collapse ? incompleteAssignments.slice(0, 1) : incompleteAssignments;
-  const restCount = incompleteAssignments.length - visibleAssignments.length;
+  const restCount =
+    liveBots.length - visibleLiveBots.length +
+    incompleteAssignments.length - visibleAssignments.length;
 
   return (
     <section>
@@ -58,8 +61,8 @@ export function TodoPanel({
         </div>
       ) : (
         <ul className="space-y-2">
-          {/* LIVE bots first — light 여부와 무관하게 항상 노출(시간 민감) */}
-          {liveBots.map(({ bot }) => (
+          {/* LIVE bots first — light 접힘에서도 1개는 노출(시간 민감), 멀티는 접힘 */}
+          {visibleLiveBots.map(({ bot }) => (
             <li key={bot.id}>
               <Link
                 href={`/classbot/live/${bot.id}`}
