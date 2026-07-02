@@ -15,6 +15,7 @@ import type {
   InterventionsReadResponseDto,
 } from "../controller/dto/intervention-responses.dto";
 import {
+  AssignmentRefRow,
   BotRefRow,
   IInterventionRepository,
   INTERVENTION_REPOSITORY_TOKEN,
@@ -217,16 +218,17 @@ export class InterventionService {
   }
 
   /**
-   * 발신 대상 일괄 검증 — 봇 존재(404)·소유(403)·과제 존재(404)·enrolled(400).
-   * 한 건이라도 실패하면 전체 발신을 거부한다(일괄 원자성 — insert 는
-   * 검증 전량 통과 후에만). 같은 봇/과제/학생 반복 조회는 캐시로 1회화.
+   * 발신 대상 일괄 검증 — 봇 존재(404)·소유(403)·과제 존재(404)·과제-봇
+   * 스코프 일치(400)·enrolled(400). 한 건이라도 실패하면 전체 발신을
+   * 거부한다(일괄 원자성 — insert 는 검증 전량 통과 후에만).
+   * 같은 봇/과제/학생 반복 조회는 캐시로 1회화.
    */
   private async assertSendTargets(
     teacherId: string,
     inputs: SendEventInput[],
   ): Promise<void> {
     const botCache = new Map<string, BotRefRow | null>();
-    const assignmentSeen = new Set<string>();
+    const assignmentCache = new Map<string, AssignmentRefRow>();
     const enrollmentSeen = new Set<string>();
 
     for (const input of inputs) {
@@ -246,14 +248,25 @@ export class InterventionService {
         );
       }
 
-      if (input.assignmentId && !assignmentSeen.has(input.assignmentId)) {
-        const assignment = await this.repository.findAssignmentRefById(
-          input.assignmentId,
-        );
+      if (input.assignmentId) {
+        let assignment = assignmentCache.get(input.assignmentId);
         if (!assignment) {
-          throw notFound(`과제(${input.assignmentId})를 찾을 수 없습니다.`);
+          const found = await this.repository.findAssignmentRefById(
+            input.assignmentId,
+          );
+          if (!found) {
+            throw notFound(`과제(${input.assignmentId})를 찾을 수 없습니다.`);
+          }
+          assignmentCache.set(input.assignmentId, found);
+          assignment = found;
         }
-        assignmentSeen.add(input.assignmentId);
+        // 과제-봇 스코프 일치 — 교사가 봇을 여럿 소유해도 다른 봇의 과제를
+        // 이 봇 이벤트에 붙이는 크로스 오염을 차단한다.
+        if (assignment.botId !== input.botId) {
+          throw validationError(
+            "assignmentId 는 그 클래스봇(botId)의 과제여야 합니다.",
+          );
+        }
       }
 
       const enrollmentKey = `${input.botId} ${input.studentId}`;
@@ -317,6 +330,11 @@ export class InterventionService {
     let assignmentId: string | null = null;
     if (record.assignmentId !== undefined && record.assignmentId !== null) {
       assignmentId = this.requireString(record.assignmentId, "assignmentId");
+    }
+    // spec §3 — remind/comment 는 대상 과제, requiz 는 새 과제가 반드시 있다.
+    // crisis 만 과제 무관(null 허용).
+    if (type !== "crisis" && assignmentId === null) {
+      throw validationError(`${String(type)} 은 assignmentId 가 필요합니다.`);
     }
 
     return {

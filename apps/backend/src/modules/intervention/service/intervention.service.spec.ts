@@ -233,6 +233,41 @@ describe("InterventionService.sendInterventions", () => {
     expectEnvelope(err, 404, "NOT_FOUND");
   });
 
+  it.each(["remind", "comment", "requiz"] as const)(
+    "%s 인데 assignmentId 가 없으면 400 VALIDATION (spec §3 — crisis 만 null 허용)",
+    async (type) => {
+      const repo = makeSendableRepository();
+      const service = new InterventionService(repo);
+      const withoutAssignment: Record<string, unknown> = { ...REMIND_INPUT };
+      delete withoutAssignment.assignmentId;
+
+      const err = await service
+        .sendInterventions("teacher_001", {
+          events: [{ ...withoutAssignment, type }],
+        })
+        .catch((e: unknown) => e);
+
+      expectEnvelope(err, 400, "VALIDATION");
+      expect(repo.createInterventions).not.toHaveBeenCalled();
+    },
+  );
+
+  it("assignmentId 의 과제가 다른 봇 소속이면 400 VALIDATION (크로스 봇 오염 차단)", async () => {
+    const repo = makeSendableRepository();
+    repo.findAssignmentRefById.mockResolvedValue({
+      id: "as_user_a1b2c3d4",
+      botId: "cb_002",
+    });
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .sendInterventions("teacher_001", { events: [REMIND_INPUT] })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+    expect(repo.createInterventions).not.toHaveBeenCalled();
+  });
+
   it("그 봇에 enrolled 되지 않은 학생 대상이면 400 VALIDATION", async () => {
     const repo = makeSendableRepository();
     repo.hasEnrollment.mockResolvedValue(false);
