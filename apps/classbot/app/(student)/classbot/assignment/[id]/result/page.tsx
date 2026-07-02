@@ -8,6 +8,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ScoreDisplay } from '@/components/classbot/score-display';
+import { TeacherCommentCard } from '@/components/classbot/teacher-comment-card';
+import { useInterventionRecipientId } from '@/lib/store/interventions';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { classBots } from '@/lib/mock';
@@ -32,6 +34,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
   const me = useRosterMe();
   const submission = useStudentSubmission(id, me.id);
+  const interventionRecipientId = useInterventionRecipientId();
 
   const back = (
     <Link
@@ -155,6 +158,11 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
+        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더).
+            시험 모드는 결과 피드백 비공개 정책(봇 피드백·오답 카드와 동일 게이트)을 따른다 (Codex #184).
+            수신자 키는 개입 규약(데모=roster 폴백, 인증=본인 id)을 따라 남의 코멘트 노출을 방지(R2). */}
+        {!isExam && <TeacherCommentCard assignmentId={id} studentId={interventionRecipientId} />}
+
         {/* 봇 피드백 — 시험 외 */}
         {!isExam && (
           <section className="bg-card rounded-2xl border p-4">
