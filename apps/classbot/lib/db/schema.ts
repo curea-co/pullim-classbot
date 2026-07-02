@@ -408,8 +408,14 @@ export const assignments = pgTable(
     reasonHint: text('reason_hint'),
     solveHref: text('solve_href').notNull(),
     /* ── M2 발사(dispatch) 필드 (spec 개정 2026-07-03_be-assignment-submissions-ddl.md §3) ── */
-    /** 다중 지정 대상 — null=전체 enrolled(student_id NULL 규약과 병존), [id,…]=지정 학생들 */
-    targetStudentIds: jsonb('target_student_ids').$type<string[] | null>(),
+    /** 다중 지정 대상 — FE 규약 단일화: **빈 배열 = 전체 enrolled**, [id,…]=지정 (null 이중표현 금지) */
+    targetStudentIds: jsonb('target_student_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 발사 상태 — FE UserAssignment.dispatchStatus 계약(M2 는 발사 즉시 sent; draft/scheduled round-trip 은 후속) */
+    dispatchStatus: text('dispatch_status', { enum: ['draft', 'sent', 'scheduled', 'withdrawn'] })
+      .notNull()
+      .default('sent'),
+    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록) */
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순) */
     dispatchedAt: timestamp('dispatched_at', { withTimezone: true }).defaultNow(),
     /** 시험 모드 제한 시간(분) — FE UserAssignment.examTimeLimitMin */
@@ -428,6 +434,11 @@ export const assignments = pgTable(
 /**
  * 학생 제출 — FE `recordSubmission`(동일 assignment+student upsert) 의미의 실전판.
  * (BE assignment 모듈이 소비 — DDL 제안: proc/spec/2026-07-03_be-assignment-submissions-ddl.md §2)
+ *
+ * 계약 범위: 이 테이블은 **최종 제출 스냅샷**이다(FE Submission 1:1). 풀이 진행 라이프사이클
+ * (임시저장·startedAt·lastPosition·시험 이탈 카운트, spec 12 §5)은 solve-세션 영속(M3+)에서
+ * 별도 attempt/session 테이블로 다룬다 — 여기 컬럼을 선점하지 않는다. 채점 상태 전이는
+ * 기존 grading_items 소관.
  */
 export const submissions = pgTable(
   'submissions',

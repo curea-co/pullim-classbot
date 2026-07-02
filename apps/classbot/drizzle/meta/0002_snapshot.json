@@ -1,5 +1,5 @@
 {
-  "id": "ac70482a-6b98-436d-a577-fc0cb470cb79",
+  "id": "d930de70-6bab-46c2-9945-f5f9a7e9725d",
   "prevId": "d816f25c-50e8-4a46-805c-4b617639799a",
   "version": "7",
   "dialect": "postgresql",
@@ -282,6 +282,20 @@
           "name": "target_student_ids",
           "type": "jsonb",
           "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "dispatch_status": {
+          "name": "dispatch_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sent'"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
           "notNull": false
         },
         "dispatched_at": {
@@ -386,6 +400,19 @@
           "tableTo": "users",
           "columnsFrom": [
             "student_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "assignments_created_by_users_id_fk": {
+          "name": "assignments_created_by_users_id_fk",
+          "tableFrom": "assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
           ],
           "columnsTo": [
             "id"
