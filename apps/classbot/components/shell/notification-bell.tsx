@@ -32,7 +32,8 @@ function hrefFor(e: InterventionEvent): string {
   if ((e.type === 'remind' || e.type === 'requiz') && e.assignmentId) {
     return `/classbot/assignment/${e.assignmentId}`;
   }
-  return '/classbot/chat';
+  // crisis — 해당 봇의 챗으로 정규화(chat 페이지 ?bot= 규약, Codex #187 R2)
+  return `/classbot/chat?bot=${e.botId}`;
 }
 
 /** 인박스 목록 — 벨 드롭다운 내부. 항목 클릭 시 읽음 처리 후 딥링크 이동. */

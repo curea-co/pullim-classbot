@@ -123,8 +123,8 @@ export default function TeacherHomePage() {
           </div>
         </section>
 
-        {/* 위기 신호 — 카드 클릭 시 상세 모달 + 1:1 chat CTA */}
-        <CrisisInterventionPanel students={alertStudents} />
+        {/* 위기 신호 — 카드 클릭 시 상세 모달 + 1:1 chat CTA. 개입 이벤트는 이 페이지의 봇 스코프 보존. */}
+        <CrisisInterventionPanel students={alertStudents} botId={myClassBot.id} />
       </div>
 
       {/* 최근 봇 질문 + 다가오는 수업 */}
