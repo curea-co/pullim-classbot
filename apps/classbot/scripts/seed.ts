@@ -145,13 +145,16 @@ function lessonOwnerBot(lessonId: string): string {
   return 'cb_001';
 }
 
-/** liveSession.id → bot/classroom 매핑 */
+/** liveSession.id → bot/classroom 매핑 — CODE_MAP(참여 코드)이 bot↔classroom 의 권위.
+ *  (studentEnrollments 는 출시 빈 배열이라 의존 시 전부 cr_math_a 로 오연결됨, Codex #190 R5) */
 function liveSessionBotAndClassroom(ls: { botName: string; classroom: string }) {
   const botEntry = mockClassBots.find((b) => b.name === ls.botName);
   const botId = botEntry?.id ?? 'cb_001';
-  // 봇 첫 enrollment의 classroom id로 매핑
-  const enrollment = studentEnrollments.find((e) => e.botId === botId);
-  const classroomId = enrollment?.classroomId ?? 'cr_math_a';
+  const codeTarget = Object.values(CODE_MAP).find((t) => t.botId === botId);
+  const classroomId =
+    codeTarget?.classroomId ??
+    studentEnrollments.find((e) => e.botId === botId)?.classroomId ??
+    'cr_math_a';
   return { botId, classroomId };
 }
 
