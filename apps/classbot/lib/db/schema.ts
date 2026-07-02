@@ -10,6 +10,7 @@
 import {
   boolean,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -73,12 +74,19 @@ export const consentLogs = pgTable('consent_logs', {
  *  B. Bots & Classrooms
  * ========================================================== */
 
-export const classrooms = pgTable('classrooms', {
-  id: text('id').primaryKey(),
-  label: text('label').notNull(),
-  organization: text('organization').notNull(),
-  teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
-});
+export const classrooms = pgTable(
+  'classrooms',
+  {
+    id: text('id').primaryKey(),
+    label: text('label').notNull(),
+    organization: text('organization').notNull(),
+    teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    // join_codes 의 (classroom_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('classrooms_id_teacher_uq').on(t.id, t.teacherId),
+  }),
+);
 
 export const classBots = pgTable(
   'class_bots',
@@ -106,6 +114,8 @@ export const classBots = pgTable(
   },
   (t) => ({
     bySubject: index('class_bots_subject_idx').on(t.subject),
+    // join_codes 의 (bot_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('class_bots_id_teacher_uq').on(t.id, t.teacherId),
   }),
 );
 
@@ -124,6 +134,41 @@ export const enrollments = pgTable(
     pk: primaryKey({ columns: [t.botId, t.studentId] }),
     byStudent: index('enrollments_student_idx').on(t.studentId),
     byClassroom: index('enrollments_classroom_idx').on(t.classroomId),
+  }),
+);
+
+/**
+ * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
+ * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
+ *
+ * 소유권 무결성 — 정확한 보장 범위(spec 개정 `2026-07-03_be-api-m2-amendment.md`):
+ * teacher_id 가 **채워진** 코드에 한해 (bot_id, teacher_id)·(classroom_id, teacher_id) 복합
+ * FK(부모 (id, teacher_id) unique 참조)가 "봇·반이 같은 교사 소유"를 DB 로 강제한다(Codex #190).
+ * teacher_id = NULL 은 복합 FK 를 우회하는 ownerless 상태 — **교사 user 삭제 시 ON UPDATE
+ * CASCADE 로만 도달하는 것이 의도**(부모 SET NULL 정책 정합, 삭제 비차단. R3/R4). 발급
+ * 엔드포인트(POST /api/bots/{id}/join-codes)는 소유권 검증 후 teacher_id 를 필수 기록한다.
+ */
+export const joinCodes = pgTable(
+  'join_codes',
+  {
+    code: text('code').primaryKey(),
+    botId: text('bot_id').notNull(),
+    classroomId: text('classroom_id').notNull(),
+    teacherId: text('teacher_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byBot: index('join_codes_bot_idx').on(t.botId),
+    botOwnerFk: foreignKey({
+      columns: [t.botId, t.teacherId],
+      foreignColumns: [classBots.id, classBots.teacherId],
+      name: 'join_codes_bot_owner_fk',
+    }).onDelete('cascade').onUpdate('cascade'),
+    classroomOwnerFk: foreignKey({
+      columns: [t.classroomId, t.teacherId],
+      foreignColumns: [classrooms.id, classrooms.teacherId],
+      name: 'join_codes_classroom_owner_fk',
+    }).onDelete('cascade').onUpdate('cascade'),
   }),
 );
 
@@ -362,11 +407,93 @@ export const assignments = pgTable(
     state: text('state', { enum: ['todo', 'in-progress', 'submitted', 'overdue'] }).notNull(),
     reasonHint: text('reason_hint'),
     solveHref: text('solve_href').notNull(),
+    /* ── M2 발사(dispatch) 필드 (spec 개정 2026-07-03_be-assignment-submissions-ddl.md §3) ── */
+    /** 다중 지정 대상 — FE 규약 단일화: **빈 배열 = 전체 enrolled**, [id,…]=지정 (null 이중표현 금지) */
+    targetStudentIds: jsonb('target_student_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 발사 상태 — FE UserAssignment.dispatchStatus 계약(M2 는 발사 즉시 sent; draft/scheduled round-trip 은 후속) */
+    dispatchStatus: text('dispatch_status', { enum: ['draft', 'sent', 'scheduled', 'withdrawn'] })
+      .notNull()
+      .default('sent'),
+    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록).
+     *  nullable 은 교사 user 삭제 SET NULL 정책(classrooms/class_bots.teacher_id 와 동일) —
+     *  발사 경로(BE POST /api/assignments)는 항상 기록한다(join_codes.teacher_id 와 같은 계약). */
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순). DEFAULT 없음: draft/scheduled 행이
+     *  발사된 것처럼 보이지 않도록 **실제 발사(sent 전이) 시점에만** BE 가 명시 기록한다(Codex #192 R2). */
+    dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
+    /** 시험 모드 제한 시간(분) — FE UserAssignment.examTimeLimitMin */
+    examTimeLimitMin: integer('exam_time_limit_min'),
+    /** 오답 재발사 문항 id 집합 — 문항 콘텐츠 영속은 M3, 키만 보존 */
+    requizQuestionIds: jsonb('requiz_question_ids').$type<string[] | null>(),
   },
   (t) => ({
     byStudent: index('assignments_student_idx').on(t.studentId),
     byBot: index('assignments_bot_idx').on(t.botId),
     byState: index('assignments_state_idx').on(t.state),
+    byDispatchedAt: index('assignments_dispatched_at_idx').on(t.dispatchedAt),
+  }),
+);
+
+/**
+ * 학생 제출 — FE `recordSubmission`(동일 assignment+student upsert) 의미의 실전판.
+ * (BE assignment 모듈이 소비 — DDL 제안: proc/spec/2026-07-03_be-assignment-submissions-ddl.md §2)
+ *
+ * 계약 범위: 이 테이블은 **최종 제출 스냅샷**이다(FE Submission 1:1). 풀이 진행 라이프사이클
+ * (임시저장·startedAt·lastPosition·시험 이탈 카운트, spec 12 §5)은 solve-세션 영속(M3+)에서
+ * 별도 attempt/session 테이블로 다룬다 — 여기 컬럼을 선점하지 않는다. 채점 상태 전이는
+ * 기존 grading_items 소관.
+ */
+export const submissions = pgTable(
+  'submissions',
+  {
+    id: text('id').primaryKey(),
+    assignmentId: text('assignment_id').notNull()
+      .references(() => assignments.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+    /** { [questionId]: answer } — FE Submission.answers 그대로 */
+    answers: jsonb('answers').$type<Record<string, string>>().notNull().default({}),
+    /** 0~100 정수 (FE computeMockScore 산출) */
+    scorePercent: integer('score_percent').notNull(),
+  },
+  (t) => ({
+    // 멱등 invariant — recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
+    byAssignmentStudent: uniqueIndex('submissions_assignment_student_uq')
+      .on(t.assignmentId, t.studentId),
+    byAssignment: index('submissions_assignment_idx').on(t.assignmentId),
+    byStudent: index('submissions_student_idx').on(t.studentId),
+  }),
+);
+
+/**
+ * 교사 개입 이벤트 — FE `pullim-interventions` 스토어(InterventionEvent)의 실전판.
+ * (spec: proc/spec/2026-07-02_classbot-teacher-intervention-design.md §3, 실출시 M2 BE 3/3)
+ * 교사 표면(리마인드·코멘트·재발사·응원)이 쓰고, 학생 벨 인박스·결과 코멘트가 읽는다.
+ */
+export const interventions = pgTable(
+  'interventions',
+  {
+    id: text('id').primaryKey(),
+    type: text('type', { enum: ['remind', 'requiz', 'comment', 'crisis'] }).notNull(),
+    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** remind/comment 는 대상 과제, requiz 는 새 과제 — crisis 는 null */
+    assignmentId: text('assignment_id').references(() => assignments.id, { onDelete: 'cascade' }),
+    /** 발신 교사 — assignments.created_by 와 동일 계약(nullable = 교사 삭제 SET NULL, 발신 경로는 항상 기록) */
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** 인박스에 그대로 표시할 문구 — 발신 시점에 완성해 저장. FE 타입은 message? 지만
+     *  4개 쓰기 표면(리마인드·코멘트·재발사·응원) 전부 항상 완성문을 보내며, BE POST 는
+     *  빈 message 를 400 으로 검증 — NOT NULL 이 인박스 렌더 무결성을 보장한다. */
+    message: text('message').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // 학생 인박스(미읽음 배지) 조회 경로
+    byStudent: index('interventions_student_idx').on(t.studentId, t.createdAt),
+    // 결과 페이지 코멘트·과제별 리마인드 dedup 조회 경로
+    byAssignment: index('interventions_assignment_idx').on(t.assignmentId),
   }),
 );
 
