@@ -20,3 +20,24 @@ export interface AssignmentsReadResponseDto {
 export interface AssignmentDetailResponseDto {
   assignment: AssignmentRow & { questions: AssignmentQuestionRow[] };
 }
+
+/**
+ * 제출 한 건 응답 — FE 스토어 `Submission` 형태 재현
+ * (submittedAt 은 spec §3 에 따라 ISO-8601 문자열).
+ */
+export interface SubmissionResponseDto {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  submittedAt: string;
+  answers: Record<string, string>;
+  scorePercent: number;
+}
+
+/**
+ * `GET /api/assignments/:id/submissions` 응답 봉투 — 교사 제출 현황 시트가
+ * 소비할 형태(studentId / submittedAt / scorePercent / answers).
+ */
+export interface SubmissionsReadResponseDto {
+  submissions: SubmissionResponseDto[];
+}

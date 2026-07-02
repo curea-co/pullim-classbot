@@ -8,7 +8,19 @@ import {
   BotRefRow,
   DomainUserRow,
   IAssignmentRepository,
+  SubmissionInput,
+  SubmissionRow,
+  UpsertSubmissionResult,
 } from "../interface/assignment-repository.interface";
+
+/** submissions 공통 SELECT 컬럼 (camelCase 별칭) — FE 스토어 Submission 1:1. */
+const SUBMISSION_COLUMNS = `
+  s."id",
+  s."assignment_id" AS "assignmentId",
+  s."student_id"    AS "studentId",
+  s."submitted_at"  AS "submittedAt",
+  s."answers",
+  s."score_percent" AS "scorePercent"`;
 
 /** assignments 공통 SELECT 컬럼 (camelCase 별칭) — FE AssignmentReadRow 1:1. */
 const ASSIGNMENT_COLUMNS = `
@@ -191,5 +203,49 @@ export class AssignmentRepository extends IAssignmentRepository {
       ],
     );
     return inserted.length > 0;
+  }
+
+  /**
+   * 제출 멱등 upsert — (assignment_id, student_id) unique 충돌 시 갱신
+   * (기존 id 유지, submitted_at NOW() 갱신). `xmax = 0` 은 Postgres 의
+   * "이 행이 이번 문장에서 삽입됐는가" 판별 관용구 — created 분기에 쓴다.
+   *
+   * ⚠ `submissions` 테이블은 Drizzle 스키마 PR(FE 레이어)로 별도 인도
+   * (proc/spec/2026-07-03_be-assignment-submissions-ddl.md 의 DDL).
+   */
+  async upsertSubmission(
+    input: SubmissionInput,
+  ): Promise<UpsertSubmissionResult> {
+    const rows: Array<SubmissionRow & { created: boolean }> =
+      await this.dataSource.query(
+        `INSERT INTO "submissions" AS s
+           ("id", "assignment_id", "student_id", "submitted_at", "answers",
+            "score_percent")
+         VALUES ($1, $2, $3, NOW(), $4::jsonb, $5)
+         ON CONFLICT ("assignment_id", "student_id") DO UPDATE SET
+           "submitted_at"  = NOW(),
+           "answers"       = EXCLUDED."answers",
+           "score_percent" = EXCLUDED."score_percent"
+         RETURNING ${SUBMISSION_COLUMNS}, (s.xmax = 0) AS "created"`,
+        [
+          input.id,
+          input.assignmentId,
+          input.studentId,
+          JSON.stringify(input.answers),
+          input.scorePercent,
+        ],
+      );
+    const { created, ...row } = rows[0];
+    return { created, row };
+  }
+
+  async findSubmissions(assignmentId: string): Promise<SubmissionRow[]> {
+    return this.dataSource.query(
+      `SELECT ${SUBMISSION_COLUMNS}
+       FROM "submissions" s
+       WHERE s."assignment_id" = $1
+       ORDER BY s."submitted_at" DESC, s."id"`,
+      [assignmentId],
+    );
   }
 }

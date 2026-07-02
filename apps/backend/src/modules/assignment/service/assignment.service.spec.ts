@@ -23,6 +23,8 @@ function makeRepository(): RepositoryDouble {
     hasEnrollment: jest.fn(),
     findUserById: jest.fn(),
     createAssignment: jest.fn(),
+    upsertSubmission: jest.fn(),
+    findSubmissions: jest.fn(),
   };
 }
 
@@ -463,6 +465,244 @@ describe("AssignmentService.dispatchAssignment", () => {
 
     const err = await service
       .dispatchAssignment(undefined, BODY)
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 제출 — submitAssignment / listSubmissions
+// ---------------------------------------------------------------------------
+
+describe("AssignmentService.submitAssignment", () => {
+  const SUBMITTED_AT = new Date("2026-07-03T05:00:00.000Z");
+  const ANSWERS = { q_as_today_1: "2", q_as_today_2: "0" };
+
+  function makeSubmitRepository(row: AssignmentRow = ASSIGNMENT) {
+    const repo = makeRepository();
+    repo.findAssignmentById.mockResolvedValue(row);
+    repo.findBotById.mockResolvedValue(BOT_REF);
+    repo.hasEnrollment.mockResolvedValue(true);
+    repo.upsertSubmission.mockImplementation(
+      (input: { id: string; assignmentId: string; studentId: string }) =>
+        Promise.resolve({
+          created: true,
+          row: {
+            id: input.id,
+            assignmentId: input.assignmentId,
+            studentId: input.studentId,
+            submittedAt: SUBMITTED_AT,
+            answers: ANSWERS,
+            scorePercent: 80,
+          },
+        }),
+    );
+    return repo;
+  }
+
+  it("대상 학생 제출 — sub_ id 생성 + upsert, submittedAt ISO 로 반환한다", async () => {
+    const repo = makeSubmitRepository();
+    const service = new AssignmentService(repo);
+
+    const result = await service.submitAssignment("s2", "as_user_a1b2c3d4", {
+      answers: ANSWERS,
+      scorePercent: 80,
+    });
+
+    expect(repo.upsertSubmission).toHaveBeenCalledTimes(1);
+    const upsertInput = (
+      repo.upsertSubmission.mock.calls[0] as unknown[]
+    )[0] as {
+      id: string;
+      assignmentId: string;
+      studentId: string;
+      answers: Record<string, string>;
+      scorePercent: number;
+    };
+    expect(upsertInput.id).toMatch(/^sub_[0-9a-f]{8}$/);
+    expect(upsertInput).toMatchObject({
+      assignmentId: "as_user_a1b2c3d4",
+      studentId: "s2",
+      answers: ANSWERS,
+      scorePercent: 80,
+    });
+    expect(result.created).toBe(true);
+    expect(result.submission).toMatchObject({
+      assignmentId: "as_user_a1b2c3d4",
+      studentId: "s2",
+      submittedAt: SUBMITTED_AT.toISOString(),
+      answers: ANSWERS,
+      scorePercent: 80,
+    });
+  });
+
+  it("재제출은 upsert 멱등 — created=false (FE recordSubmission upsert 의미)", async () => {
+    const repo = makeSubmitRepository();
+    repo.upsertSubmission.mockResolvedValue({
+      created: false,
+      row: {
+        id: "sub_11111111",
+        assignmentId: "as_user_a1b2c3d4",
+        studentId: "s2",
+        submittedAt: SUBMITTED_AT,
+        answers: ANSWERS,
+        scorePercent: 90,
+      },
+    });
+    const service = new AssignmentService(repo);
+
+    const result = await service.submitAssignment("s2", "as_user_a1b2c3d4", {
+      answers: ANSWERS,
+      scorePercent: 90,
+    });
+
+    expect(result.created).toBe(false);
+    expect(result.submission.scorePercent).toBe(90);
+  });
+
+  it("대상이 아닌 학생은 403 FORBIDDEN 봉투", async () => {
+    const repo = makeSubmitRepository(TARGETED_ASSIGNMENT);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .submitAssignment("s9", "as_user_e5f6a7b8", {
+        answers: ANSWERS,
+        scorePercent: 80,
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+    expect(repo.upsertSubmission).not.toHaveBeenCalled();
+  });
+
+  it("없는 과제는 404 NOT_FOUND 봉투", async () => {
+    const repo = makeSubmitRepository();
+    repo.findAssignmentById.mockResolvedValue(null);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .submitAssignment("s2", "as_missing", {
+        answers: ANSWERS,
+        scorePercent: 80,
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("answers 가 문자열 record 가 아니면 400 VALIDATION 봉투", async () => {
+    const repo = makeSubmitRepository();
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .submitAssignment("s2", "as_user_a1b2c3d4", {
+        answers: { q1: 3 },
+        scorePercent: 80,
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+  });
+
+  it("scorePercent 0~100 밖은 400 VALIDATION 봉투", async () => {
+    const repo = makeSubmitRepository();
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .submitAssignment("s2", "as_user_a1b2c3d4", {
+        answers: ANSWERS,
+        scorePercent: 120,
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+  });
+
+  it("신원이 없으면 401 UNAUTHORIZED 봉투", async () => {
+    const service = new AssignmentService(makeSubmitRepository());
+
+    const err = await service
+      .submitAssignment(undefined, "as_user_a1b2c3d4", {
+        answers: ANSWERS,
+        scorePercent: 80,
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+  });
+});
+
+describe("AssignmentService.listSubmissions", () => {
+  const SUBMISSION_ROW = {
+    id: "sub_11111111",
+    assignmentId: "as_user_a1b2c3d4",
+    studentId: "s2",
+    submittedAt: new Date("2026-07-03T05:00:00.000Z"),
+    answers: { q_as_today_1: "2" },
+    scorePercent: 80,
+  };
+
+  function makeListRepository() {
+    const repo = makeRepository();
+    repo.findAssignmentById.mockResolvedValue(ASSIGNMENT);
+    repo.findBotById.mockResolvedValue(BOT_REF);
+    repo.findSubmissions.mockResolvedValue([SUBMISSION_ROW]);
+    return repo;
+  }
+
+  it("발사 교사(봇 소유자) — 제출 목록을 submittedAt ISO 로 반환한다", async () => {
+    const repo = makeListRepository();
+    const service = new AssignmentService(repo);
+
+    const result = await service.listSubmissions(
+      "teacher_001",
+      "as_user_a1b2c3d4",
+    );
+
+    expect(repo.findSubmissions).toHaveBeenCalledWith("as_user_a1b2c3d4");
+    expect(result).toEqual({
+      submissions: [
+        {
+          id: "sub_11111111",
+          assignmentId: "as_user_a1b2c3d4",
+          studentId: "s2",
+          submittedAt: "2026-07-03T05:00:00.000Z",
+          answers: { q_as_today_1: "2" },
+          scorePercent: 80,
+        },
+      ],
+    });
+  });
+
+  it("발사 교사가 아니면(대상 학생 포함) 403 FORBIDDEN 봉투", async () => {
+    const repo = makeListRepository();
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .listSubmissions("s2", "as_user_a1b2c3d4")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("없는 과제는 404 NOT_FOUND 봉투", async () => {
+    const repo = makeListRepository();
+    repo.findAssignmentById.mockResolvedValue(null);
+    const service = new AssignmentService(repo);
+
+    const err = await service
+      .listSubmissions("teacher_001", "as_missing")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("신원이 없으면 401 UNAUTHORIZED 봉투", async () => {
+    const service = new AssignmentService(makeListRepository());
+
+    const err = await service
+      .listSubmissions(undefined, "as_user_a1b2c3d4")
       .catch((e: unknown) => e);
 
     expectEnvelope(err, 401, "UNAUTHORIZED");

@@ -72,6 +72,38 @@ export interface DomainUserRow {
 }
 
 /**
+ * 학생 제출 한 행 — FE 스토어 `Submission`(lib/store/assignments.ts) 재현.
+ * ⚠ `submissions` 테이블은 아직 Drizzle 스키마에 없다 — 본 모듈은 테이블
+ * 존재를 전제로 구현하며 DDL 은 FE 스키마 PR 로 별도 인도한다
+ * (proc/spec/2026-07-03_be-assignment-submissions-ddl.md).
+ */
+export interface SubmissionRow {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  submittedAt: Date;
+  answers: Record<string, string>;
+  scorePercent: number;
+}
+
+/** 제출 upsert 입력 — submitted_at 은 DB NOW(). */
+export interface SubmissionInput {
+  /** 신규 삽입 시 쓸 id — 기존 행 갱신이면 무시(기존 id 유지). */
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  answers: Record<string, string>;
+  scorePercent: number;
+}
+
+/** upsert 결과 — created 는 컨트롤러의 201/200 분기에만 쓴다. */
+export interface UpsertSubmissionResult {
+  /** true 면 신규 삽입(201), false 면 기존 행 갱신 멱등(200). */
+  created: boolean;
+  row: SubmissionRow;
+}
+
+/**
  * assignment 저장소 추상. Service 는 이 인터페이스로만 DB 에 접근한다.
  */
 export abstract class IAssignmentRepository {
@@ -100,6 +132,15 @@ export abstract class IAssignmentRepository {
    * @returns true 면 삽입, false 면 id 충돌(PK) — 호출부가 id 재생성
    */
   abstract createAssignment(row: AssignmentRow): Promise<boolean>;
+  /**
+   * 같은 (assignment, student) 는 갱신하는 멱등 upsert —
+   * FE recordSubmission 의미. submitted_at 은 DB NOW() 로 갱신된다.
+   */
+  abstract upsertSubmission(
+    input: SubmissionInput,
+  ): Promise<UpsertSubmissionResult>;
+  /** 과제의 제출 목록 — submitted_at DESC. */
+  abstract findSubmissions(assignmentId: string): Promise<SubmissionRow[]>;
 }
 
 /** DI 주입 토큰 — classroom 의 CLASSROOM_REPOSITORY_TOKEN 패턴 미러. */

@@ -7,6 +7,8 @@ import { AssignmentService } from "./service/assignment.service";
 import { DispatchAssignmentUseCase } from "./use-cases/dispatch-assignment.use-case";
 import { GetAssignmentUseCase } from "./use-cases/get-assignment.use-case";
 import { ListAssignmentsUseCase } from "./use-cases/list-assignments.use-case";
+import { ListSubmissionsUseCase } from "./use-cases/list-submissions.use-case";
+import { SubmitAssignmentUseCase } from "./use-cases/submit-assignment.use-case";
 
 /**
  * assignment 도메인 모듈 — assignments / assignment_questions / submissions (M2).
@@ -22,6 +24,8 @@ import { ListAssignmentsUseCase } from "./use-cases/list-assignments.use-case";
     ListAssignmentsUseCase,
     GetAssignmentUseCase,
     DispatchAssignmentUseCase,
+    SubmitAssignmentUseCase,
+    ListSubmissionsUseCase,
   ],
 })
 export class AssignmentModule {}

@@ -12,6 +12,8 @@ import {
 import type {
   AssignmentDetailResponseDto,
   AssignmentsReadResponseDto,
+  SubmissionResponseDto,
+  SubmissionsReadResponseDto,
 } from "../controller/dto/assignment-responses.dto";
 import {
   computeDDay,
@@ -23,6 +25,7 @@ import {
   AssignmentRow,
   BotRefRow,
   IAssignmentRepository,
+  SubmissionRow,
 } from "../interface/assignment-repository.interface";
 
 /** 서버 생성 id 의 PK 충돌 시 최대 재시도 횟수 (classroom join-code 패턴). */
@@ -48,6 +51,13 @@ interface DispatchInput {
   dueLabel: string;
   dDay: string;
   reasonHint: string | null;
+}
+
+/** 제출 결과 — created 는 컨트롤러의 201/200 분기에만 쓴다. */
+export interface SubmitAssignmentResult {
+  /** true 면 신규 제출(201), false 면 기존 제출 갱신 멱등(200). */
+  created: boolean;
+  submission: SubmissionResponseDto;
 }
 
 /**
@@ -193,6 +203,122 @@ export class AssignmentService {
     }
     // 16^8 공간에서 연속 충돌은 사실상 불가 — 방어적 종료.
     throw conflict("과제 생성에 실패했습니다. 다시 시도해 주세요.");
+  }
+
+  /**
+   * 학생 제출 — `POST /api/assignments/:id/submissions`.
+   *
+   * 대상 학생 검증(403) 후 **같은 (assignment, student) 는 갱신하는 멱등
+   * upsert** — FE 스토어 recordSubmission 의미 재현. submitted_at 은 DB NOW().
+   * @param userId - 요청 학생 id (JWT 또는 x-user-id)
+   * @param assignmentId - 과제 id (path)
+   * @param body - { answers: Record<string,string>, scorePercent: 0~100 }
+   */
+  async submitAssignment(
+    userId: string | undefined,
+    assignmentId: string,
+    body: unknown,
+  ): Promise<SubmitAssignmentResult> {
+    const input = this.parseSubmissionBody(body);
+    const requesterId = this.requireUserId(userId);
+
+    const assignment = await this.repository.findAssignmentById(assignmentId);
+    if (!assignment) {
+      throw notFound("과제를 찾을 수 없습니다.");
+    }
+
+    const isTarget =
+      assignment.studentId === requesterId ||
+      (assignment.studentId === null &&
+        (await this.repository.hasEnrollment(assignment.botId, requesterId)));
+    if (!isTarget) {
+      throw forbidden("본인 대상 과제에만 제출할 수 있습니다.");
+    }
+
+    const { created, row } = await this.repository.upsertSubmission({
+      id: `sub_${randomUUID().split("-")[0]}`,
+      assignmentId: assignment.id,
+      studentId: requesterId,
+      answers: input.answers,
+      scorePercent: input.scorePercent,
+    });
+    return { created, submission: this.toSubmissionDto(row) };
+  }
+
+  /**
+   * 제출 목록 — `GET /api/assignments/:id/submissions`.
+   * **발사 교사(봇 소유자)만** 조회 가능(403) — 교사 제출 현황 시트 소비용.
+   * @param userId - 요청 교사 id (JWT 또는 x-user-id)
+   * @param assignmentId - 과제 id (path)
+   */
+  async listSubmissions(
+    userId: string | undefined,
+    assignmentId: string,
+  ): Promise<SubmissionsReadResponseDto> {
+    const requesterId = this.requireUserId(userId);
+
+    const assignment = await this.repository.findAssignmentById(assignmentId);
+    if (!assignment) {
+      throw notFound("과제를 찾을 수 없습니다.");
+    }
+
+    const bot = await this.repository.findBotById(assignment.botId);
+    if (bot?.teacherId !== requesterId) {
+      throw forbidden("발사한 교사만 제출 현황을 조회할 수 있습니다.");
+    }
+
+    const rows = await this.repository.findSubmissions(assignmentId);
+    return { submissions: rows.map((row) => this.toSubmissionDto(row)) };
+  }
+
+  /** SubmissionRow → 응답형 (submittedAt ISO 변환, spec §3). */
+  private toSubmissionDto(row: SubmissionRow): SubmissionResponseDto {
+    return {
+      id: row.id,
+      assignmentId: row.assignmentId,
+      studentId: row.studentId,
+      submittedAt: row.submittedAt.toISOString(),
+      answers: row.answers,
+      scorePercent: row.scorePercent,
+    };
+  }
+
+  /** { answers, scorePercent } 본문 검증 — FE computeMockScore 산출 계약. */
+  private parseSubmissionBody(body: unknown): {
+    answers: Record<string, string>;
+    scorePercent: number;
+  } {
+    const record =
+      body && typeof body === "object"
+        ? (body as { answers?: unknown; scorePercent?: unknown })
+        : {};
+
+    const answers = record.answers;
+    if (
+      !answers ||
+      typeof answers !== "object" ||
+      Array.isArray(answers) ||
+      Object.values(answers).some((v) => typeof v !== "string")
+    ) {
+      throw validationError(
+        "answers 는 { [questionId]: answer(string) } 객체여야 합니다.",
+      );
+    }
+
+    const scorePercent = record.scorePercent;
+    if (
+      typeof scorePercent !== "number" ||
+      !Number.isFinite(scorePercent) ||
+      scorePercent < 0 ||
+      scorePercent > 100
+    ) {
+      throw validationError("scorePercent 는 0~100 숫자여야 합니다.");
+    }
+
+    return {
+      answers: answers as Record<string, string>,
+      scorePercent: Math.round(scorePercent),
+    };
   }
 
   /** 단일 지정 대상 검증 — 존재(404)·학생 역할(400)·enrolled(400). */
