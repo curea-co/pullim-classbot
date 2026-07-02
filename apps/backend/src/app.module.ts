@@ -13,6 +13,7 @@ import { AuthRevokedToken } from "./entities/auth-revoked-token.entity";
 import { AuthUser } from "./entities/auth-user.entity";
 import { AuthUserProvider } from "./entities/auth-user-provider.entity";
 import { AuthModule } from "./modules/auth/auth.module";
+import { ClassroomModule } from "./modules/classroom/classroom.module";
 import { ReplayModule } from "./modules/replay/replay.module";
 
 @Module({
@@ -44,6 +45,7 @@ import { ReplayModule } from "./modules/replay/replay.module";
       }),
     }),
     AuthModule,
+    ClassroomModule,
     ReplayModule,
   ],
   controllers: [AppController],
