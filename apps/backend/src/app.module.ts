@@ -15,6 +15,7 @@ import { AuthUserProvider } from "./entities/auth-user-provider.entity";
 import { AssignmentModule } from "./modules/assignment/assignment.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassroomModule } from "./modules/classroom/classroom.module";
+import { InterventionModule } from "./modules/intervention/intervention.module";
 import { ReplayModule } from "./modules/replay/replay.module";
 
 @Module({
@@ -48,6 +49,7 @@ import { ReplayModule } from "./modules/replay/replay.module";
     AssignmentModule,
     AuthModule,
     ClassroomModule,
+    InterventionModule,
     ReplayModule,
   ],
   controllers: [AppController],
