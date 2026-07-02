@@ -77,6 +77,12 @@ it('오답률 높은 문항 재발사 — 복습 과제 dispatch + 오답자에�
   expect(requiz).toHaveLength(1);
   expect(requiz[0].studentId).toBe('s1');
   expect(requiz[0].assignmentId).toBe(dispatched[0].id); // 새 과제로 딥링크
+
+  // 오답 문항 집합 보존 — 학생이 generic 시드가 아니라 실제 틀린 문항을 받는다 (Codex #186)
+  const wrongIds = questions().map((q) => q.id); // s1 이 전부 오답 → 전 문항
+  expect(dispatched[0].requizQuestionIds).toEqual(wrongIds);
+  const resolved = getQuestionsForAssignment(dispatched[0]);
+  expect(resolved.map((q) => q.id)).toEqual(wrongIds);
 });
 
 it('제출이 없으면 재발사 버튼 미노출', () => {

@@ -13,7 +13,7 @@ import { persist } from 'zustand/middleware';
 import {
   type Assignment, type AssignmentQuestion,
   studentAssignments, getAssignmentById as getSeedAssignmentById,
-  getQuestionsByAssignment,
+  getQuestionsByAssignment, getQuestionsByIds,
 } from '@/lib/mock';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
@@ -27,6 +27,8 @@ export type UserAssignment = Assignment & {
   dispatchedAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
+  /** 오답 재발사(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
+  requizQuestionIds?: string[];
 };
 
 /** 학생 제출 기록 — 교사 진행률 / 점수 집계의 원천 */
@@ -148,7 +150,14 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
  * 과제의 문항 풀 — 시드 문항이 있으면 그대로, 없으면 mode 기반 fallback.
  * 새 과제는 mock 시드를 빌려와 P0 시연을 보장.
  */
-export function getQuestionsForAssignment(assignment: Assignment): AssignmentQuestion[] {
+export function getQuestionsForAssignment(
+  assignment: Assignment & { requizQuestionIds?: string[] },
+): AssignmentQuestion[] {
+  // 오답 재발사 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
+  if (assignment.requizQuestionIds && assignment.requizQuestionIds.length > 0) {
+    const requizQs = getQuestionsByIds(assignment.requizQuestionIds);
+    if (requizQs.length > 0) return requizQs;
+  }
   const seedQs = getQuestionsByAssignment(assignment.id);
   if (seedQs.length > 0) return seedQs;
   // fallback by mode — 발사된 새 과제용

@@ -86,6 +86,8 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       solveHref: `/classbot/assignment/${id}/solve?step=1`,
       dispatchStatus: 'sent',
       targetStudentIds: requizTargets,
+      // 오답 문항 집합 보존 — 학생이 원 과제에서 틀린 바로 그 문항을 받는다 (Codex #186)
+      requizQuestionIds: wrongQuestions.map((q) => q.id),
     };
     dispatch(requiz);
     for (const studentId of requizTargets) {
