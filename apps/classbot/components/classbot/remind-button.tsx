@@ -16,10 +16,13 @@ export function RemindButton({
   assignmentId,
   botId,
   title,
+  targetStudentIds = [],
 }: {
   assignmentId: string;
   botId: string;
   title: string;
+  /** 발사 대상 학생 — 빈 배열 = 반 전체 (Assignment.targetStudentIds 규약과 동일) */
+  targetStudentIds?: string[];
 }) {
   const hydrated = useStoresHydrated(useInterventionStore, useAssignmentStore);
   const submissions = useAssignmentStore((s) => s.submissions);
@@ -31,7 +34,12 @@ export function RemindButton({
   const submitted = new Set(
     submissions.filter((s) => s.assignmentId === assignmentId).map((s) => s.studentId),
   );
-  const notSubmitted = classRoster.filter((r) => !submitted.has(r.id));
+  // 부분 대상 발사면 그 학생들만 — 반 전체로 새는 리마인드 방지 (Codex #184)
+  const eligible =
+    targetStudentIds.length === 0
+      ? classRoster
+      : classRoster.filter((r) => targetStudentIds.includes(r.id));
+  const notSubmitted = eligible.filter((r) => !submitted.has(r.id));
   if (notSubmitted.length === 0) return null;
 
   const handleSend = () => {

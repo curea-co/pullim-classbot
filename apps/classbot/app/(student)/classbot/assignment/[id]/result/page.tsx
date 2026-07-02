@@ -156,8 +156,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
-        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더) */}
-        <TeacherCommentCard assignmentId={id} studentId={me.id} />
+        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더).
+            시험 모드는 결과 피드백 비공개 정책(봇 피드백·오답 카드와 동일 게이트)을 따른다 (Codex #184). */}
+        {!isExam && <TeacherCommentCard assignmentId={id} studentId={me.id} />}
 
         {/* 봇 피드백 — 시험 외 */}
         {!isExam && (

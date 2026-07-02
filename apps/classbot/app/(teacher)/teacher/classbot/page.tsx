@@ -128,7 +128,8 @@ function DispatchedAssignments() {
   );
 }
 
-function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
+// 행 데이터 = store dispatched(UserAssignment) + mock 시드(Assignment) 혼합 — targetStudentIds 는 발사분만 보유.
+function DispatchedRow({ assignment: a }: { assignment: Assignment & { targetStudentIds?: string[] } }) {
   const mode = modeMeta[a.mode];
   const Icon = mode.icon;
   const { completedCount, avgScore, latestSubmittedAt } = useAssignmentProgress(a);
@@ -190,9 +191,14 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment }) {
             )}
           </div>
 
-          {/* 개입 — 미제출 리마인드 (spec 개입 루프 PR-1, 학생 벨 인박스로 도착) */}
+          {/* 개입 — 미제출 리마인드 (spec 개입 루프 PR-1, 학생 벨 인박스로 도착). 부분 대상 발사 스코프 준수. */}
           <div className="mt-2">
-            <RemindButton assignmentId={a.id} botId={a.botId} title={a.title} />
+            <RemindButton
+              assignmentId={a.id}
+              botId={a.botId}
+              title={a.title}
+              targetStudentIds={a.targetStudentIds}
+            />
           </div>
         </div>
         <ComingSoonButton icon={Send} note="같은 과제 재발사" className="text-pullim-blue-600 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">

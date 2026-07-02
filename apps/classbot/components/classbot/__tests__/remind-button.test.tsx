@@ -48,6 +48,15 @@ it('이미 발송된 과제는 처음부터 "리마인드 보냄" 비활성 (per
   expect(screen.getByRole('button', { name: /리마인드 보냄/ }).hasAttribute('disabled')).toBe(true);
 });
 
+it('부분 대상 과제는 대상 학생만 리마인드한다 (Codex #184)', () => {
+  act(() => useAssignmentStore.setState({ submissions: [sub('s3')] }));
+  render(<RemindButton {...A} targetStudentIds={['s3', 's4', 's5']} />);
+  // 대상 3명 중 s3 제출 → 미제출 2명(s4·s5)만
+  fireEvent.click(screen.getByRole('button', { name: /미제출 2명 리마인드/ }));
+  const ids = useInterventionStore.getState().events.map((e) => e.studentId).sort();
+  expect(ids).toEqual(['s4', 's5']);
+});
+
 it('전원 제출이면 렌더하지 않는다', () => {
   act(() => useAssignmentStore.setState({ submissions: classRoster.map((r) => sub(r.id)) }));
   const { container } = render(<RemindButton {...A} />);
