@@ -466,6 +466,35 @@ export const submissions = pgTable(
   }),
 );
 
+/**
+ * 교사 개입 이벤트 — FE `pullim-interventions` 스토어(InterventionEvent)의 실전판.
+ * (spec: proc/spec/2026-07-02_classbot-teacher-intervention-design.md §3, 실출시 M2 BE 3/3)
+ * 교사 표면(리마인드·코멘트·재발사·응원)이 쓰고, 학생 벨 인박스·결과 코멘트가 읽는다.
+ */
+export const interventions = pgTable(
+  'interventions',
+  {
+    id: text('id').primaryKey(),
+    type: text('type', { enum: ['remind', 'requiz', 'comment', 'crisis'] }).notNull(),
+    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** remind/comment 는 대상 과제, requiz 는 새 과제 — crisis 는 null */
+    assignmentId: text('assignment_id').references(() => assignments.id, { onDelete: 'cascade' }),
+    /** 발신 교사 — assignments.created_by 와 동일 계약(nullable = 교사 삭제 SET NULL, 발신 경로는 항상 기록) */
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** 인박스에 그대로 표시할 문구 — 발신 시점에 완성해 저장(FE 계약 동일) */
+    message: text('message').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // 학생 인박스(미읽음 배지) 조회 경로
+    byStudent: index('interventions_student_idx').on(t.studentId, t.createdAt),
+    // 결과 페이지 코멘트·과제별 리마인드 dedup 조회 경로
+    byAssignment: index('interventions_assignment_idx').on(t.assignmentId),
+  }),
+);
+
 export const assignmentQuestions = pgTable(
   'assignment_questions',
   {
