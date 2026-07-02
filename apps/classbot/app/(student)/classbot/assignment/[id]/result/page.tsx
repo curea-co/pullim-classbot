@@ -8,6 +8,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ScoreDisplay } from '@/components/classbot/score-display';
+import { TeacherCommentCard } from '@/components/classbot/teacher-comment-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { classBots } from '@/lib/mock';
@@ -155,6 +156,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
+        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더) */}
+        <TeacherCommentCard assignmentId={id} studentId={me.id} />
+
         {/* 봇 피드백 — 시험 외 */}
         {!isExam && (
           <section className="bg-card rounded-2xl border p-4">
