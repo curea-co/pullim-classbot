@@ -10,6 +10,7 @@
 import {
   boolean,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -73,12 +74,19 @@ export const consentLogs = pgTable('consent_logs', {
  *  B. Bots & Classrooms
  * ========================================================== */
 
-export const classrooms = pgTable('classrooms', {
-  id: text('id').primaryKey(),
-  label: text('label').notNull(),
-  organization: text('organization').notNull(),
-  teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
-});
+export const classrooms = pgTable(
+  'classrooms',
+  {
+    id: text('id').primaryKey(),
+    label: text('label').notNull(),
+    organization: text('organization').notNull(),
+    teacherId: text('teacher_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    // join_codes 의 (classroom_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('classrooms_id_teacher_uq').on(t.id, t.teacherId),
+  }),
+);
 
 export const classBots = pgTable(
   'class_bots',
@@ -106,6 +114,8 @@ export const classBots = pgTable(
   },
   (t) => ({
     bySubject: index('class_bots_subject_idx').on(t.subject),
+    // join_codes 의 (bot_id, teacher_id) 복합 FK 대상 — 소유권 정합을 DB 로 강제
+    idTeacherUq: uniqueIndex('class_bots_id_teacher_uq').on(t.id, t.teacherId),
   }),
 );
 
@@ -124,6 +134,41 @@ export const enrollments = pgTable(
     pk: primaryKey({ columns: [t.botId, t.studentId] }),
     byStudent: index('enrollments_student_idx').on(t.studentId),
     byClassroom: index('enrollments_classroom_idx').on(t.classroomId),
+  }),
+);
+
+/**
+ * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
+ * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
+ *
+ * 소유권 무결성 — 정확한 보장 범위(spec 개정 `2026-07-03_be-api-m2-amendment.md`):
+ * teacher_id 가 **채워진** 코드에 한해 (bot_id, teacher_id)·(classroom_id, teacher_id) 복합
+ * FK(부모 (id, teacher_id) unique 참조)가 "봇·반이 같은 교사 소유"를 DB 로 강제한다(Codex #190).
+ * teacher_id = NULL 은 복합 FK 를 우회하는 ownerless 상태 — **교사 user 삭제 시 ON UPDATE
+ * CASCADE 로만 도달하는 것이 의도**(부모 SET NULL 정책 정합, 삭제 비차단. R3/R4). 발급
+ * 엔드포인트(POST /api/bots/{id}/join-codes)는 소유권 검증 후 teacher_id 를 필수 기록한다.
+ */
+export const joinCodes = pgTable(
+  'join_codes',
+  {
+    code: text('code').primaryKey(),
+    botId: text('bot_id').notNull(),
+    classroomId: text('classroom_id').notNull(),
+    teacherId: text('teacher_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byBot: index('join_codes_bot_idx').on(t.botId),
+    botOwnerFk: foreignKey({
+      columns: [t.botId, t.teacherId],
+      foreignColumns: [classBots.id, classBots.teacherId],
+      name: 'join_codes_bot_owner_fk',
+    }).onDelete('cascade').onUpdate('cascade'),
+    classroomOwnerFk: foreignKey({
+      columns: [t.classroomId, t.teacherId],
+      foreignColumns: [classrooms.id, classrooms.teacherId],
+      name: 'join_codes_classroom_owner_fk',
+    }).onDelete('cascade').onUpdate('cascade'),
   }),
 );
 
