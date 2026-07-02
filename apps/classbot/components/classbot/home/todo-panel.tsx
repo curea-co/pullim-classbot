@@ -37,11 +37,15 @@ export function TodoPanel({
   }, [light]);
   const isEmpty = incompleteAssignments.length === 0 && liveBots.length === 0;
 
-  // light & 접힘: 라이브는 시간 민감이라 1개는 노출하되 멀티 라이브는 접고(패널이 가벼워야 함, R3),
-  // 핵심 1개 = 가장 급한 incomplete 과제(이미 urgent-first 정렬, spec §8 — 라이브가 있어도 숨기지 않음, R1).
+  // light & 접힘: 문자 그대로 **핵심 1개**만 노출(spec §8 "핵심 1개 크게 + 나머지 N개 접기").
+  // 핵심 1개 = 가장 급한 incomplete 과제(urgent-first 정렬 선두), 과제가 없으면 라이브 1개.
+  // 라이브도 접히지만 유실은 아니다 — 같은 홈의 TutorShowcase 가 라이브 상태를 상시 표시한다 (Codex #182 R4).
   const collapse = light && !expanded && !isEmpty;
-  const visibleLiveBots = collapse ? liveBots.slice(0, 1) : liveBots;
-  const visibleAssignments = collapse ? incompleteAssignments.slice(0, 1) : incompleteAssignments;
+  const showAssignmentAsCore = incompleteAssignments.length > 0;
+  const visibleLiveBots = collapse ? (showAssignmentAsCore ? [] : liveBots.slice(0, 1)) : liveBots;
+  const visibleAssignments = collapse
+    ? incompleteAssignments.slice(0, showAssignmentAsCore ? 1 : 0)
+    : incompleteAssignments;
   const restCount =
     liveBots.length - visibleLiveBots.length +
     incompleteAssignments.length - visibleAssignments.length;

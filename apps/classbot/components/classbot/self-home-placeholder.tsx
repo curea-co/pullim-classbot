@@ -38,10 +38,10 @@ export function SelfHomePlaceholder() {
     <div className="space-y-5">
       <WelcomeHero name={me.isAuthenticated ? me.name : undefined} hasTutors={tutors.length > 0} />
 
-      {/* 저조 신호 & 아직 opt-in 전 → 넛지 (hydration 후에만, spec §8).
-          튜터 없으면 미노출 — 가볍게 할 학습 자체가 없고, 해제 UI(오늘의 한 가지 블록)도 없어
-          opt-in 시 같은 날 되돌릴 수 없는 상태에 빠진다 (Codex #182). */}
-      {lightHydrated && lowToday && !lightOn && tutors.length > 0 && (
+      {/* 저조 신호 & 아직 opt-in 전 → 넛지 (hydration 후에만, spec §8). spec §6 데이터 흐름
+          (low && !lightOn → 넛지) 그대로 — 0개 상태 예외 없음. 튜터 0개여도 opt-in 후 같은 날
+          원복은 아래 LightDayExitStrip 이 보장한다 (Codex #182 R4). */}
+      {lightHydrated && lowToday && !lightOn && (
         <LightDayNudge onEnable={() => enableLight(todayKey())} />
       )}
 
