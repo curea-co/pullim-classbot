@@ -51,11 +51,14 @@ export default function StudentClassbotPage() {
   if (!hydrated) return <HomeSkeleton />;
 
   // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
-  // 클래스 0개 홈에는 TodoPanel 이 없어 Light Day 해제 UI가 사라진다 — 같은 날 원복 계약(spec §3/§8)을
-  // 지키도록 안전망 스트립을 함께 렌더 (예: light on 상태에서 마지막 클래스 나가기, Codex #182 R3).
+  // 클래스 0개 홈도 spec §6 데이터 흐름 그대로 — 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
+  // on 이면 해제 안전망 스트립(TodoPanel 이 없어 같은 날 원복 계약 §3/§8 을 스트립이 보장, R3).
   if (mode === 'class' && myBots.length === 0) {
     return (
       <div className="space-y-5">
+        {lightHydrated && lowToday && !lightOn && (
+          <LightDayNudge onEnable={() => enableLight(todayKey())} />
+        )}
         {lightHydrated && lightOn && <LightDayExitStrip onExit={disableLight} />}
         <TeacherClassHome />
       </div>
