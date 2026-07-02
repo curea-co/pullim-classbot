@@ -475,3 +475,97 @@ describe("InterventionService.markAllRead", () => {
     expect(repo.markAllRead).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// 과제별 개입 목록 — listAssignmentInterventions
+// ---------------------------------------------------------------------------
+
+describe("InterventionService.listAssignmentInterventions", () => {
+  /** 과제별 조회 해피패스 저장소 상태 — teacher_001 소유 봇의 과제. */
+  function makeAssignmentScopedRepository(): RepositoryDouble {
+    const repo = makeRepository();
+    repo.findAssignmentRefById.mockResolvedValue(ASSIGNMENT_REF);
+    repo.findBotById.mockResolvedValue(BOT_REF);
+    repo.findInterventionsForAssignment.mockResolvedValue([REMIND_ROW]);
+    return repo;
+  }
+
+  it("발사 교사 — 과제별 개입 전체를 봉투로 반환한다 (type 생략)", async () => {
+    const repo = makeAssignmentScopedRepository();
+    const service = new InterventionService(repo);
+
+    const result = await service.listAssignmentInterventions(
+      "teacher_001",
+      "as_user_a1b2c3d4",
+      undefined,
+    );
+
+    expect(repo.findInterventionsForAssignment).toHaveBeenCalledWith(
+      "as_user_a1b2c3d4",
+      null,
+    );
+    expect(result).toEqual({ interventions: [REMIND_DTO] });
+  });
+
+  it("type=remind — 리마인드만 필터한다 (FE useRemindedStudentIds 의 서버판)", async () => {
+    const repo = makeAssignmentScopedRepository();
+    const service = new InterventionService(repo);
+
+    await service.listAssignmentInterventions(
+      "teacher_001",
+      "as_user_a1b2c3d4",
+      "remind",
+    );
+
+    expect(repo.findInterventionsForAssignment).toHaveBeenCalledWith(
+      "as_user_a1b2c3d4",
+      "remind",
+    );
+  });
+
+  it("type 이 enum 밖이면 400 VALIDATION", async () => {
+    const service = new InterventionService(makeAssignmentScopedRepository());
+
+    const err = await service
+      .listAssignmentInterventions("teacher_001", "as_user_a1b2c3d4", "nudge")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 400, "VALIDATION");
+  });
+
+  it("발사 교사(봇 소유자)가 아니면 403 FORBIDDEN", async () => {
+    const repo = makeAssignmentScopedRepository();
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .listAssignmentInterventions("teacher_002", "as_user_a1b2c3d4", "remind")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+    expect(repo.findInterventionsForAssignment).not.toHaveBeenCalled();
+  });
+
+  it("없는 과제면 404 NOT_FOUND", async () => {
+    const repo = makeAssignmentScopedRepository();
+    repo.findAssignmentRefById.mockResolvedValue(null);
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .listAssignmentInterventions("teacher_001", "as_missing", "remind")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("무신원이면 401 UNAUTHORIZED", async () => {
+    const repo = makeAssignmentScopedRepository();
+    const service = new InterventionService(repo);
+
+    const err = await service
+      .listAssignmentInterventions(undefined, "as_user_a1b2c3d4", "remind")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
+    expect(repo.findInterventionsForAssignment).not.toHaveBeenCalled();
+  });
+});
