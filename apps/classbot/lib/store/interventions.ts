@@ -17,7 +17,7 @@ import { useCurrentUser, resolveRosterMe } from '@/lib/current-user';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import {
   domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
-  toDomainUserId, fromDomainUserId, type RequestIdentity,
+  toDomainUserId, fromDomainUserId, useStudentSyncUserId, type RequestIdentity,
 } from '@/lib/api/domain-fetch';
 
 export type InterventionType = 'remind' | 'requiz' | 'comment' | 'crisis';
@@ -222,6 +222,8 @@ async function fetchBackendInterventions(
  * 플래그 OFF 면 완전 no-op.
  */
 function useBackendInterventionSync(): void {
+  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
+  const syncUserId = useStudentSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
@@ -244,7 +246,7 @@ function useBackendInterventionSync(): void {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncUserId]);
 }
 
 /** 내 개입 이벤트 — 최신순 (reactive). */

@@ -116,6 +116,34 @@ describe('joinClass — flag ON', () => {
     expect(useClassEnrollmentStore.getState().enrollments).toHaveLength(0);
   });
 
+  it('propagates a 401 rejection as a join failure — no mock fallback (Codex #196 R3 ①)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { error: { code: 'UNAUTHORIZED', message: '로그인이 필요합니다.' } }),
+    );
+
+    const res = await joinClass('MATH-2024');
+
+    // BE 의 명시적 거부(4xx)를 mock 성공으로 가장하지 않는다
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe('클래스 참여에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    }
+    expect(useClassEnrollmentStore.getState().enrollments).toHaveLength(0); // mock join 미실행
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('gracefully degrades to the mock join on 5xx (BE 장애)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(503, { error: { code: 'SERVICE_UNAVAILABLE', message: '점검 중' } }),
+    );
+
+    const res = await joinClass('MATH-2024');
+
+    expect(res.ok).toBe(true);
+    expect(useClassEnrollmentStore.getState().enrollments[0].botId).toBe('cb_001');
+    expect(console.warn).toHaveBeenCalled();
+  });
+
   it('gracefully degrades to the mock join when the BE is down (network error)', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
 
@@ -216,6 +244,33 @@ describe('useMyClassBots — 읽기 동기화', () => {
     renderHook(() => useMyClassBots());
     await act(async () => {});
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('flag ON: refetches on user switch within the SAME mount (토큰 변경 반응 — Codex #196 R3 ②)', async () => {
+    _useRealCoreBE = true;
+    fetchMock.mockResolvedValue(jsonResponse(200, { bots: [] }));
+
+    // 마운트 1회 — 미인증 데모로 첫 동기화
+    renderHook(() => useMyClassBots());
+    await act(async () => {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      ((fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<string, string>)[
+        'x-user-id'
+      ],
+    ).toBe('student_001');
+
+    // 재마운트 없이 로그인(토큰 변경)만 발생 → resolved user id 변경 → effect 재실행
+    await act(async () => {
+      tokenManager.setTokens(fakeJwt('u-uuid-3'), 'r');
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const authInit = (fetchMock.mock.calls[1] as [string, RequestInit])[1];
+    expect((authInit.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${fakeJwt('u-uuid-3')}`,
+    );
+    expect((authInit.headers as Record<string, string>)['x-user-id']).toBeUndefined();
   });
 
   it('flag ON: keeps the local store untouched when the BE read fails (graceful)', async () => {

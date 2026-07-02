@@ -19,6 +19,7 @@ import { USE_REAL_CORE_BE } from '@/lib/features';
 import {
   domainFetch,
   studentRequestIdentity,
+  useStudentSyncUserId,
   type RequestIdentity,
 } from '@/lib/api/domain-fetch';
 
@@ -29,6 +30,9 @@ export type JoinResult =
 /** 무효 코드 에러 카피 — mock/BE(404) 공용. */
 const INVALID_CODE_ERROR =
   '참여할 수 없는 코드예요. 선생님께 받은 참여 코드를 다시 확인해 주세요.';
+
+/** 일반 join 실패 카피 — BE 4xx(401/403 등, 404 제외) 거부용. */
+const JOIN_FAILED_ERROR = '클래스 참여에 실패했어요. 잠시 후 다시 시도해 주세요.';
 
 interface ClassEnrollmentStore {
   enrollments: StudentEnrollment[];
@@ -73,8 +77,10 @@ export const useClassEnrollmentStore = create<ClassEnrollmentStore>()(
  * OFF: 기존 스토어 join(mock resolveClassCode) 그대로.
  * ON : `POST /api/enrollments` — 201/200 응답 enrollment(StudentEnrollment 1:1)를
  *      스토어에도 반영해 기존 파생 로직(useMyClassBots 등)을 유지한다.
- *      404(무효 코드) → 기존 에러 카피. 그 외 실패(BE 다운 등) → mock join 으로
- *      graceful degrade (QGen degraded 패턴 — UX 를 깨지 않는다).
+ *      **BE 의 거부(4xx)는 실패로 전파한다** — 404(무효 코드)는 기존 에러 카피,
+ *      401/403 등은 일반 실패 카피. mock join 폴백(graceful degrade)은
+ *      **네트워크 실패/5xx(BE 다운)** 에만 좁혀 적용한다 — BE 가 명시적으로 거부한
+ *      join 을 mock 성공으로 가장하지 않는다 (Codex #196 R3 ①).
  * @param code - 참여 코드
  * @returns JoinResult (기존 계약 그대로)
  */
@@ -99,9 +105,14 @@ export async function joinClass(code: string): Promise<JoinResult> {
     });
     return { ok: true, enrollment };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
-      return { ok: false, error: INVALID_CODE_ERROR };
+    // 4xx = BE 의 명시적 거부 — mock 폴백 없이 실패로 전파.
+    if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
+      return {
+        ok: false,
+        error: e.status === 404 ? INVALID_CODE_ERROR : JOIN_FAILED_ERROR,
+      };
     }
+    // 네트워크 실패/5xx — BE 다운이 UX 를 깨지 않게 mock join 으로 degrade.
     console.warn('[class-enrollment] BE 코드 참여 실패 — mock 폴백:', e);
     return useClassEnrollmentStore.getState().join(code);
   }
@@ -156,6 +167,8 @@ async function fetchBackendEnrollments(
  * 플래그 OFF 면 완전 no-op.
  */
 function useBackendEnrollmentSync(): void {
+  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
+  const syncUserId = useStudentSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
@@ -178,7 +191,7 @@ function useBackendEnrollmentSync(): void {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncUserId]);
 }
 
 /** 참여 중인 enrollment 목록 (reactive). */

@@ -19,6 +19,8 @@
  *    s2~s18 은 그대로 통과 — 제출/enrollment 조인 정합이 유지된다.
  */
 
+import { useSyncExternalStore } from 'react';
+
 import {
   ApiError,
   BASE_URL,
@@ -28,6 +30,7 @@ import {
 } from '@pullim-classbot/api-client';
 
 import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
+import { USE_REAL_CORE_BE } from '@/lib/features';
 
 /** 데모 교사 표면의 도메인 id — mock `currentTeacher`(김수학) 의 seed id. */
 export const DEMO_TEACHER_ID = 'teacher_001';
@@ -117,6 +120,25 @@ export function teacherRequestIdentity(): RequestIdentity {
   const auth = getAuthUserSnapshot();
   if (auth) return { isAuthenticated: true, userId: auth.id, demoUserId: undefined };
   return { isAuthenticated: false, userId: DEMO_TEACHER_ID, demoUserId: DEMO_TEACHER_ID };
+}
+
+/** 토큰 변경(로그인/로그아웃) 구독 — useSyncExternalStore subscribe 어댑터. */
+function subscribeToTokenChange(callback: () => void): () => void {
+  return tokenManager.onTokenChange(callback);
+}
+
+/**
+ * Ph7 sync 훅용 resolved 학생 사용자 id (reactive) — 토큰 변경(로그인/로그아웃·
+ * 사용자 전환)에 반응해 **같은 마운트에서도** effect 재실행(재동기화)을 트리거한다
+ * (Codex #196 R3 ②). 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0.
+ * @returns resolved user id (인증: raw sub, 데모: seed 도메인 키, 플래그 OFF: '')
+ */
+export function useStudentSyncUserId(): string {
+  return useSyncExternalStore(
+    subscribeToTokenChange,
+    () => (USE_REAL_CORE_BE ? studentRequestIdentity().userId : ''),
+    () => '',
+  );
 }
 
 interface DomainFetchOptions {

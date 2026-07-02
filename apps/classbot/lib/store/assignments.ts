@@ -24,7 +24,7 @@ import {
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import {
   domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
-  toDomainUserId, fromDomainUserId, type RequestIdentity,
+  toDomainUserId, fromDomainUserId, useStudentSyncUserId, type RequestIdentity,
 } from '@/lib/api/domain-fetch';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
@@ -305,6 +305,8 @@ async function fetchBackendAssignments(
  * 플래그 OFF 면 완전 no-op. 데모 read 폴백(assignment/page.tsx demoData)은 불변.
  */
 function useBackendAssignmentSync(): void {
+  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
+  const syncUserId = useStudentSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
@@ -325,7 +327,7 @@ function useBackendAssignmentSync(): void {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [syncUserId]);
 }
 
 /** SSR 안전 hydration — 서버에서는 빈 배열, 클라이언트에서만 store 반영 */
