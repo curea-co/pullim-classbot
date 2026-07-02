@@ -144,6 +144,8 @@ export const enrollments = pgTable(
  * 소유권 무결성(DB 강제): teacher_id 를 함께 저장하고 (bot_id, teacher_id)·(classroom_id,
  * teacher_id) 복합 FK 로 부모의 (id, teacher_id) unique 를 참조 — **봇과 반이 같은 교사
  * 소유일 때만** 코드가 존재할 수 있다(다른 교사의 반-봇 오연결 코드 저장 불가, Codex #190).
+ * teacher_id 는 nullable + ON UPDATE CASCADE — 교사 user 삭제 시 봇/반의 teacher_id 가
+ * SET NULL 되는 기존 정책과 정합(코드도 ownerless 로 따라가고, 삭제가 막히지 않는다. R3).
  * 코드 발급 엔드포인트(BE classroom 모듈)는 추가로 요청 교사 == teacher_id 를 검증한다.
  */
 export const joinCodes = pgTable(
@@ -152,7 +154,7 @@ export const joinCodes = pgTable(
     code: text('code').primaryKey(),
     botId: text('bot_id').notNull(),
     classroomId: text('classroom_id').notNull(),
-    teacherId: text('teacher_id').notNull(),
+    teacherId: text('teacher_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
@@ -161,12 +163,12 @@ export const joinCodes = pgTable(
       columns: [t.botId, t.teacherId],
       foreignColumns: [classBots.id, classBots.teacherId],
       name: 'join_codes_bot_owner_fk',
-    }).onDelete('cascade'),
+    }).onDelete('cascade').onUpdate('cascade'),
     classroomOwnerFk: foreignKey({
       columns: [t.classroomId, t.teacherId],
       foreignColumns: [classrooms.id, classrooms.teacherId],
       name: 'join_codes_classroom_owner_fk',
-    }).onDelete('cascade'),
+    }).onDelete('cascade').onUpdate('cascade'),
   }),
 );
 

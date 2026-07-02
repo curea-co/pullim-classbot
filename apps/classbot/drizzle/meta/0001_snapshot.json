@@ -1,5 +1,5 @@
 {
-  "id": "2f8b672a-99ff-48f1-ad30-197bc2aec216",
+  "id": "d816f25c-50e8-4a46-805c-4b617639799a",
   "prevId": "74fb7b3e-282a-485e-9f13-f6ec9cc26880",
   "version": "7",
   "dialect": "postgresql",
@@ -845,6 +845,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "class_bots_id_teacher_uq": {
+          "name": "class_bots_id_teacher_uq",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "teacher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -897,7 +918,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "classrooms_id_teacher_uq": {
+          "name": "classrooms_id_teacher_uq",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "teacher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "classrooms_teacher_id_users_id_fk": {
           "name": "classrooms_teacher_id_users_id_fk",
@@ -1617,6 +1660,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "teacher_id": {
+          "name": "teacher_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1643,31 +1692,35 @@
         }
       },
       "foreignKeys": {
-        "join_codes_bot_id_class_bots_id_fk": {
-          "name": "join_codes_bot_id_class_bots_id_fk",
+        "join_codes_bot_owner_fk": {
+          "name": "join_codes_bot_owner_fk",
           "tableFrom": "join_codes",
           "tableTo": "class_bots",
           "columnsFrom": [
-            "bot_id"
+            "bot_id",
+            "teacher_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "teacher_id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         },
-        "join_codes_classroom_id_classrooms_id_fk": {
-          "name": "join_codes_classroom_id_classrooms_id_fk",
+        "join_codes_classroom_owner_fk": {
+          "name": "join_codes_classroom_owner_fk",
           "tableFrom": "join_codes",
           "tableTo": "classrooms",
           "columnsFrom": [
-            "classroom_id"
+            "classroom_id",
+            "teacher_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "teacher_id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
