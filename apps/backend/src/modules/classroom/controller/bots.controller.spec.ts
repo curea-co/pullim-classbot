@@ -21,7 +21,7 @@ describe("BotsController", () => {
     expect(result).toBe(expected);
   });
 
-  it("GET /bots/:id — id 를 get-bot use-case 에 위임한다", async () => {
+  it("GET /bots/:id — id 와 요청 사용자 id 를 get-bot use-case 에 위임한다", async () => {
     const expected = { id: "cb_001" };
     const getBot = makeUseCase(expected);
     const controller = new BotsController(
@@ -30,9 +30,9 @@ describe("BotsController", () => {
       makeUseCase(null) as never,
     );
 
-    const result = await controller.detail("cb_001");
+    const result = await controller.detail("cb_001", "s2");
 
-    expect(getBot.execute).toHaveBeenCalledWith("cb_001");
+    expect(getBot.execute).toHaveBeenCalledWith("cb_001", "s2");
     expect(result).toBe(expected);
   });
 

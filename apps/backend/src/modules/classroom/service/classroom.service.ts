@@ -76,12 +76,36 @@ export class ClassroomService {
 
   /**
    * 봇 상세 — 봇 + curriculum units + settings (spec §4.2).
+   *
+   * **접근 스코프(Codex #191 R2)**: 요청자가 그 봇의 소유 교사이거나 그 봇에
+   * enrolled 된 학생일 때만 허용, 아니면 403. 학생의 발견/마켓 유스케이스는
+   * FE mock discover 가 담당하므로 상세(설정 포함)를 공개하지 않는다 —
+   * 필요해지면 공개 필드 축소판을 별도 추가.
    * @param botId - 봇 id
+   * @param userId - 요청 사용자 id (JWT 또는 x-user-id)
    */
-  async getBot(botId: string): Promise<BotDetailResponseDto> {
+  async getBot(
+    botId: string,
+    userId: string | undefined,
+  ): Promise<BotDetailResponseDto> {
+    const requesterId = this.requireUserId(userId);
+
     const bot = await this.repository.findBotById(botId);
     if (!bot) {
       throw notFound("클래스봇을 찾을 수 없습니다.");
+    }
+
+    const isOwner = bot.teacherId === requesterId;
+    if (!isOwner) {
+      const enrollment = await this.repository.findEnrollment(
+        bot.id,
+        requesterId,
+      );
+      if (!enrollment) {
+        throw forbidden(
+          "본인 소유이거나 수강 중인 클래스봇만 조회할 수 있습니다.",
+        );
+      }
     }
 
     const [curriculumUnits, settings] = await Promise.all([

@@ -49,10 +49,16 @@ export class BotsController {
     return this.listBotsUseCase.execute(role, userId);
   }
 
-  /** `GET /api/bots/:id` — 봇 상세 (+ curriculum + settings). */
+  /**
+   * `GET /api/bots/:id` — 봇 상세 (+ curriculum + settings).
+   * 소유 교사 또는 enrolled 학생만 200, 그 외 403 (Codex #191 R2).
+   */
   @Get(":id")
-  detail(@Param("id") id: string): Promise<BotDetailResponseDto> {
-    return this.getBotUseCase.execute(id);
+  detail(
+    @Param("id") id: string,
+    @DomainUserId() userId: string | undefined,
+  ): Promise<BotDetailResponseDto> {
+    return this.getBotUseCase.execute(id, userId);
   }
 
   /**

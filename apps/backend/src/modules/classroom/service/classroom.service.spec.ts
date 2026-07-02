@@ -150,7 +150,8 @@ describe("ClassroomService.listBots", () => {
 });
 
 describe("ClassroomService.getBot", () => {
-  it("봇 + 커리큘럼 + 설정을 합친 상세를 반환한다 (spec §4.2)", async () => {
+  /** getBot 용 상세 픽스처 — 접근 주체별 허용/차단을 함께 검증한다. */
+  function makeDetailRepository() {
     const repo = makeRepository();
     repo.findBotById.mockResolvedValue(BOT);
     repo.findCurriculumUnits.mockResolvedValue([
@@ -162,10 +163,18 @@ describe("ClassroomService.getBot", () => {
       },
     ]);
     repo.findBotSettings.mockResolvedValue({ identity: { name: "수학이 형" } });
+    repo.findEnrollment.mockResolvedValue(null);
+    return repo;
+  }
+
+  it("소유 교사 — 봇 + 커리큘럼 + 설정을 합친 상세를 반환한다 (spec §4.2)", async () => {
+    const repo = makeDetailRepository();
     const service = new ClassroomService(repo);
 
-    const result = await service.getBot("cb_001");
+    const result = await service.getBot("cb_001", "teacher_001");
 
+    // 소유자는 enrollment 조회 없이 통과한다.
+    expect(repo.findEnrollment).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       id: "cb_001",
       createdAt: "2026-06-01T00:00:00.000Z",
@@ -174,27 +183,60 @@ describe("ClassroomService.getBot", () => {
     });
   });
 
-  it("설정이 없으면 settings=null", async () => {
-    const repo = makeRepository();
-    repo.findBotById.mockResolvedValue(BOT);
+  it("enrolled 학생 — 상세를 반환한다 (설정 없으면 settings=null)", async () => {
+    const repo = makeDetailRepository();
     repo.findCurriculumUnits.mockResolvedValue([]);
     repo.findBotSettings.mockResolvedValue(null);
+    repo.findEnrollment.mockResolvedValue(EXISTING_ENROLLMENT);
     const service = new ClassroomService(repo);
 
-    const result = await service.getBot("cb_001");
+    const result = await service.getBot("cb_001", "s2");
 
+    expect(repo.findEnrollment).toHaveBeenCalledWith("cb_001", "s2");
     expect(result.settings).toBeNull();
     expect(result.curriculumUnits).toEqual([]);
   });
 
+  it("미수강 학생은 403 FORBIDDEN 봉투", async () => {
+    const repo = makeDetailRepository();
+    const service = new ClassroomService(repo);
+
+    const err = await service.getBot("cb_001", "s9").catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("타 교사(비소유)도 403 FORBIDDEN 봉투", async () => {
+    const repo = makeDetailRepository();
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .getBot("cb_001", "teacher_002")
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
   it("없는 봇이면 404 NOT_FOUND 봉투", async () => {
-    const repo = makeRepository();
+    const repo = makeDetailRepository();
     repo.findBotById.mockResolvedValue(null);
     const service = new ClassroomService(repo);
 
-    const err = await service.getBot("cb_none").catch((e: unknown) => e);
+    const err = await service
+      .getBot("cb_none", "teacher_001")
+      .catch((e: unknown) => e);
 
     expectEnvelope(err, 404, "NOT_FOUND");
+  });
+
+  it("신원이 없으면 401 UNAUTHORIZED 봉투", async () => {
+    const service = new ClassroomService(makeDetailRepository());
+
+    const err = await service
+      .getBot("cb_001", undefined)
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 401, "UNAUTHORIZED");
   });
 });
 
