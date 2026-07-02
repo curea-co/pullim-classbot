@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import type { Replay } from '@/lib/mock';
 import { getReplayWeakPoints } from '@/lib/mock/classbot-replay-recap';
-import { isDemoReplay } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
@@ -14,8 +13,19 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
  * 모든 리플레이의 미해결 약점(`getReplayWeakPoints` − resolved 스토어)을 합산해,
  * 약점이 가장 많은 리플레이의 recap 으로 링크한다. 해결 상태는 persist 스토어라
  * `useStoresHydrated` 이후에만 렌더(플래시/SSR 불일치 방지, spec §8). 0개면 렌더 안 함.
+ *
+ * 라우팅은 호출자가 결정한다 — 기본은 학생 sent 상세(`/classbot/replay/[id]`)이고,
+ * 데모 표면처럼 다른 라우트(`/replay/demo/[id]`)를 쓰는 호출자는 `getHref` 를 주입한다.
+ * (데모 시드 모듈을 여기서 직접 import 하지 않는다 — 데이터 격리 유지, Codex #181 R4)
  */
-export function ReplayReviewNudge({ replays }: { replays: Replay[] }) {
+export function ReplayReviewNudge({
+  replays,
+  getHref = (r) => `/classbot/replay/${r.id}`,
+}: {
+  replays: Replay[];
+  /** 타깃 리플레이 → 상세 경로. 기본 = 학생 sent 상세 라우트. */
+  getHref?: (replay: Replay) => string;
+}) {
   const hydrated = useStoresHydrated(useReplayStore);
   const resolvedMap = useReplayStore((s) => s.resolvedWeakPoints);
 
@@ -31,14 +41,9 @@ export function ReplayReviewNudge({ replays }: { replays: Replay[] }) {
   }
   if (total === 0 || !target) return null;
 
-  // 데모 시드는 /replay/demo/[id] 에서만 열린다 — 학생 sent 스코프로 링크하면 404 (Codex #181).
-  const href = isDemoReplay(target.replay.id)
-    ? `/classbot/replay/demo/${target.replay.id}`
-    : `/classbot/replay/${target.replay.id}`;
-
   return (
     <Link
-      href={href}
+      href={getHref(target.replay)}
       className="bg-pullim-blue-50 border-pullim-blue-200 hover:border-pullim-blue-400 flex min-h-11 items-center gap-2.5 rounded-xl border p-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
     >
       <span className="bg-pullim-blue-600 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white">
