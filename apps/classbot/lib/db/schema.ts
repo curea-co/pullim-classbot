@@ -130,6 +130,10 @@ export const enrollments = pgTable(
 /**
  * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
  * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
+ *
+ * 무결성 노트: (botId, classroomId) 쌍의 정합(그 봇이 그 반·그 교사 소유인지)은 DB 로 표현할
+ * 관계 테이블이 없어 FK 로 강제하지 못한다 — 코드 **발급** 엔드포인트(BE classroom 모듈)가
+ * 교사 소유권을 검증하는 것이 계약. 시드는 CODE_MAP(정합 보장) 만 사용.
  */
 export const joinCodes = pgTable(
   'join_codes',

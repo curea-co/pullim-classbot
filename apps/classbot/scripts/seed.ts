@@ -609,28 +609,26 @@ async function main() {
   );
 
   /* 16. grading_items (+ overriddenSample) + grading_history */
-  if (gradingQueue.length > 0) {
-    await db.insert(gradingItems).values(
-      [...gradingQueue, overriddenSample].map((g) => ({
-        id: g.id,
-        studentId: mapStudentId(g.studentId),
-        studentName: g.studentName,
-        assignmentTitle: g.assignmentTitle,
-        submittedAtLabel: g.submittedAt,
-        type: g.type,
-        topic: g.topic,
-        draftScore: g.draftScore,
-        maxScore: g.maxScore,
-        tier: g.tier,
-        aiConfidence: g.aiConfidence,
-        responsePreview: g.responsePreview,
-        draftComment: g.draftComment,
-        rubric: g.rubric as unknown as Array<Record<string, unknown>>,
-        status: g.status,
-        overrideDelta: g.overrideDelta ?? null,
-      })),
-    );
-  }
+  await db.insert(gradingItems).values(
+    [...gradingQueue, overriddenSample].map((g) => ({
+      id: g.id,
+      studentId: mapStudentId(g.studentId),
+      studentName: g.studentName,
+      assignmentTitle: g.assignmentTitle,
+      submittedAtLabel: g.submittedAt,
+      type: g.type,
+      topic: g.topic,
+      draftScore: g.draftScore,
+      maxScore: g.maxScore,
+      tier: g.tier,
+      aiConfidence: g.aiConfidence,
+      responsePreview: g.responsePreview,
+      draftComment: g.draftComment,
+      rubric: g.rubric as unknown as Array<Record<string, unknown>>,
+      status: g.status,
+      overrideDelta: g.overrideDelta ?? null,
+    })),
+  );
 
   if (mockGradingHistory.length > 0) {
     await db.insert(gradingHistory).values(
