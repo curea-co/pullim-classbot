@@ -21,3 +21,9 @@
 | `POST /api/bots/{id}/join-codes` | 참여 코드 발급 — 요청 교사 == 봇·반 소유 교사 검증, `teacher_id` 필수 기록 | 🟡 M2 |
 
 기존 `POST /api/classrooms/{id}/enrollments`(교사 직접 배정)는 그대로 유효 — 코드 참여는 학생 셀프 진입점으로 병존한다.
+
+## 3. 인증 규약 개정 — 무신원 mock 폴백 폐지
+
+**M2부터 도메인 라우트는 신원 필수다**: JWT(request.user) 우선, Ph7 과도기 동안 `x-user-id` 헤더 폴백 허용(구현: `apps/backend/src/common/utils/domain-user.util.ts` — Ph7 완료 시 폴백 제거 대상). 둘 다 없으면 **401 `{ error: { code: 'UNAUTHORIZED', message } }`**.
+
+원본 spec §3 의 무신원 mock 폴백(x-user-id 부재 시 `student_001`/`teacher_001` 로 fallback)은 **데모 전제 규약으로 폐지한다** — 익명 쓰기(enrollment 생성 등)가 고정 mock 신원으로 기록되는 보안 구멍을 차단한다(실출시 전제, PR #191 리뷰 확정). 본 절이 원본 §3 해당 문장을 대체한다.
