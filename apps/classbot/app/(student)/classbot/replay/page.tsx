@@ -9,9 +9,7 @@ import {
 import {
   getSentReplays, classBots, formatReplayTime, type Replay,
 } from '@/lib/mock';
-import { demoReplays } from '@/lib/mock/classbot-replay-demo';
 import { useReplayStore } from '@/lib/store/replay';
-import { useCurrentUser } from '@/lib/current-user';
 import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -21,7 +19,6 @@ import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/classbot/empty-state';
 
 export default function ClassbotReplayListPage() {
-  const me = useCurrentUser();
   const allReplays = useMemo(() => getSentReplays(), []);
   const created = useReplayStore(s => s.created);
   const createdSent = useMemo(() => created.filter(r => r.status === 'sent'), [created]);
@@ -57,10 +54,11 @@ export default function ClassbotReplayListPage() {
       />
 
       {/* 복습 넛지 — 미해결 약점이 남은 리플레이 recap 으로 유도 (spec §6, 필터와 무관하게 전체 기준).
-          데모 시드는 **미인증 데모 사용자에게만** 포함 — assignment 페이지의 demo 폴백과 동일 선례.
-          로그인 사용자는 sent 스코프만(실제 목록/라우트 비오염, demo/[id] 격리 의도 유지, Codex #181 R2).
-          미인증 데모에서는 넛지가 고아였던 데모 recap(/replay/demo/[id])의 실제 진입점이 된다. */}
-      <ReplayReviewNudge replays={me.isAuthenticated ? allReplays : [...allReplays, ...demoReplays]} />
+          입력은 목록 본문과 동일한 sent 스코프 — 넛지와 화면이 항상 일치한다(데모 시드 미포함:
+          세션 복원 전 플래시·넛지-빈목록 모순 방지, demo/[id] 격리 의도 유지, Codex #181 R2·R3).
+          studentReplays 가 시드되기 전(출시 빈 배열)에는 자연히 미노출 — 데모 recap 진입은
+          컴포넌트의 demo href 분기가 지원하므로 데모 표면에서 재사용 가능. */}
+      <ReplayReviewNudge replays={allReplays} />
 
       {/* 방금 도착한 리플레이 — 라이브 종료 후 교사 승인된 신규본 */}
       {createdSent.length > 0 && (
