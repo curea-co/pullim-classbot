@@ -141,12 +141,12 @@ export const enrollments = pgTable(
  * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
  * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
  *
- * 소유권 무결성(DB 강제): teacher_id 를 함께 저장하고 (bot_id, teacher_id)·(classroom_id,
- * teacher_id) 복합 FK 로 부모의 (id, teacher_id) unique 를 참조 — **봇과 반이 같은 교사
- * 소유일 때만** 코드가 존재할 수 있다(다른 교사의 반-봇 오연결 코드 저장 불가, Codex #190).
- * teacher_id 는 nullable + ON UPDATE CASCADE — 교사 user 삭제 시 봇/반의 teacher_id 가
- * SET NULL 되는 기존 정책과 정합(코드도 ownerless 로 따라가고, 삭제가 막히지 않는다. R3).
- * 코드 발급 엔드포인트(BE classroom 모듈)는 추가로 요청 교사 == teacher_id 를 검증한다.
+ * 소유권 무결성 — 정확한 보장 범위(spec 개정 `2026-07-03_be-api-m2-amendment.md`):
+ * teacher_id 가 **채워진** 코드에 한해 (bot_id, teacher_id)·(classroom_id, teacher_id) 복합
+ * FK(부모 (id, teacher_id) unique 참조)가 "봇·반이 같은 교사 소유"를 DB 로 강제한다(Codex #190).
+ * teacher_id = NULL 은 복합 FK 를 우회하는 ownerless 상태 — **교사 user 삭제 시 ON UPDATE
+ * CASCADE 로만 도달하는 것이 의도**(부모 SET NULL 정책 정합, 삭제 비차단. R3/R4). 발급
+ * 엔드포인트(POST /api/bots/{id}/join-codes)는 소유권 검증 후 teacher_id 를 필수 기록한다.
  */
 export const joinCodes = pgTable(
   'join_codes',

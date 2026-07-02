@@ -99,8 +99,6 @@
 
 > 정확한 컬럼 타입·default·관계는 [`src/lib/db/schema.ts`](../../src/lib/db/schema.ts)가 SOT.
 
-| 25 | `join_codes` | `code` text | `bot_id`, `classroom_id`, `teacher_id` | *(M2 개정 2026-07-03)* 학생 코드 참여 진입점. (bot,teacher)·(classroom,teacher) 복합 FK 로 교사 소유 정합 DB 강제 |
-
 ### 주요 invariant
 - **`enrollments`** — 한 학생이 같은 봇에 중복 등록 불가 (PK).
 - **`bot_settings`** — 한 봇당 단일 row (PK = bot_id).
@@ -146,8 +144,6 @@
 | `POST /api/bots` | 봇 생성 (교사) | 🟡 |
 | `GET /api/classrooms` | 내 반 목록 | 🟢 |
 | `POST /api/classrooms/{id}/enrollments` | 학생 배정 | 🟡 |
-| `POST /api/enrollments` | **학생 코드 참여** — body `{code}` → join_codes 해석 → enrollment 생성 *(M2 개정 2026-07-03 — mock class-codes 의 실전판)* | 🟢 |
-| `POST /api/bots/{id}/join-codes` | 참여 코드 발급 — 교사 소유권 검증 *(M2 개정)* | 🟡 |
 
 ### 4.3 Live & Lessons
 
