@@ -108,15 +108,17 @@ it('제출이 없으면 재발사 버튼 미노출', () => {
   expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
 });
 
-it('시험 과제에는 코멘트 발송 경로가 없다 — 결과 비공개 정책 정합 (Codex #186 R2)', () => {
-  act(() => useAssignmentStore.setState({ submissions: [sub('s1', allRight(), 90)] }));
+it('시험 과제에는 코멘트·오답 재발사 경로가 없다 — 결과 비공개 정책 정합 (Codex #186 R2·R5)', () => {
+  act(() => useAssignmentStore.setState({ submissions: [sub('s1', allWrong(), 0)] }));
   render(
     <SubmissionStatusPanel
       assignment={{ ...A, mode: 'exam' } as typeof A}
     />,
   );
-  expect(screen.getByText('90%')).toBeTruthy(); // 현황은 보임
-  expect(screen.queryByRole('button', { name: /코멘트/ })).toBeNull(); // 발송 경로 없음
+  expect(screen.getByText('0%')).toBeTruthy(); // 현황은 보임
+  expect(screen.queryByRole('button', { name: /코멘트/ })).toBeNull(); // 코멘트 경로 없음
+  // 재발사도 오답 정보를 노출(어떤 문항이 틀렸는지)하므로 발표 전 시험에서는 차단
+  expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
 });
 
 it('비대상 학생 제출은 오답률·재발사 대상에서 제외된다 (Codex #186 R2)', () => {

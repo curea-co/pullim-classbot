@@ -55,8 +55,9 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
     (s) => s.assignmentId === assignment.id && eligibleIds.has(s.studentId),
   );
   const byStudent = new Map<string, Submission>(mine.map((s) => [s.studentId, s]));
-  // 시험 과제는 결과 피드백 비공개 정책 — 학생에게 절대 노출되지 않는 코멘트 발송 경로를 열지 않는다 (R2)
-  const canComment = assignment.mode !== 'exam';
+  // 시험 과제는 결과 피드백 비공개 정책 — 코멘트(R2)도, 오답 정보를 노출하는 재발사(R5)도 열지 않는다.
+  const isExam = assignment.mode === 'exam';
+  const canComment = !isExam;
 
   // 문항별 오답률(제출자 기준) → 임계 이상 문항 + 그 문항을 틀린 제출자
   const questions = getQuestionsForAssignment(assignment);
@@ -138,7 +139,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
                         setCommentFor(commentFor === student.id ? null : student.id);
                         setDraft('');
                       }}
-                      className="text-pullim-blue-600 hover:bg-pullim-blue-50 inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-2xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
+                      className="text-pullim-blue-600 hover:bg-pullim-blue-50 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-2xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
                     >
                       <MessageCircle className="h-3.5 w-3.5" aria-hidden />
                       코멘트
@@ -174,8 +175,8 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
         })}
       </ul>
 
-      {/* 오답 문항 재발사 — 제출이 있고 임계 이상 오답 문항이 있을 때만 */}
-      {mine.length > 0 && wrongQuestions.length > 0 && (
+      {/* 오답 문항 재발사 — 제출이 있고 임계 이상 오답 문항이 있을 때만. 시험은 비공개 정책상 차단(R5). */}
+      {!isExam && mine.length > 0 && wrongQuestions.length > 0 && (
         <div className="border-pullim-slate-200 rounded-xl border border-dashed p-3">
           <p className="text-pullim-slate-700 text-xs font-bold">
             오답률 높은 문항 {wrongQuestions.length}개
