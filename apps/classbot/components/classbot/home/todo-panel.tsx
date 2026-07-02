@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronDown, Radio } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -29,18 +29,19 @@ export function TodoPanel({
   /** light 모드에서 [평소대로 보기] 클릭 → 가벼운 모드 해제 */
   onExitLight?: () => void;
 }) {
-  // light 모드 접힘 상태 — 펼치면 그날은 전체 목록(데이터는 원래 그대로).
+  // light 모드 접힘 상태 — 펼치면 전체 목록(데이터는 원래 그대로).
   const [expanded, setExpanded] = useState(false);
+  // light 해제 시 접힘 초기화 — 같은 세션에서 재진입해도 "핵심 1개 + 나머지 접기"로 시작 (Codex #182).
+  useEffect(() => {
+    if (!light) setExpanded(false);
+  }, [light]);
   const isEmpty = incompleteAssignments.length === 0 && liveBots.length === 0;
 
-  // light & 접힘: 라이브가 있으면 라이브 1개, 아니면 가장 급한 과제 1개만 남긴다(이미 urgent-first 정렬).
+  // light & 접힘: 라이브는 시간 민감이라 절대 숨기지 않고, 핵심 1개 = 가장 급한 incomplete 과제
+  // (이미 urgent-first 정렬, spec §8). 나머지 과제만 접는다 (Codex #182).
   const collapse = light && !expanded && !isEmpty;
-  const visibleLiveBots = collapse ? liveBots.slice(0, 1) : liveBots;
-  const visibleAssignments = collapse
-    ? (liveBots.length > 0 ? [] : incompleteAssignments.slice(0, 1))
-    : incompleteAssignments;
-  const restCount =
-    liveBots.length + incompleteAssignments.length - visibleLiveBots.length - visibleAssignments.length;
+  const visibleAssignments = collapse ? incompleteAssignments.slice(0, 1) : incompleteAssignments;
+  const restCount = incompleteAssignments.length - visibleAssignments.length;
 
   return (
     <section>
@@ -57,8 +58,8 @@ export function TodoPanel({
         </div>
       ) : (
         <ul className="space-y-2">
-          {/* LIVE bots first */}
-          {visibleLiveBots.map(({ bot }) => (
+          {/* LIVE bots first — light 여부와 무관하게 항상 노출(시간 민감) */}
+          {liveBots.map(({ bot }) => (
             <li key={bot.id}>
               <Link
                 href={`/classbot/live/${bot.id}`}

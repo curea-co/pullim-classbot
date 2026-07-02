@@ -39,3 +39,29 @@ it('light=true — 할 일이 없으면 기존 빈 상태 그대로', () => {
   render(<TodoPanel incompleteAssignments={[]} liveBots={[]} light onExitLight={() => {}} />);
   expect(screen.getByText(/다 따라잡았어요/)).toBeTruthy();
 });
+
+it('light=true — 라이브는 숨기지 않고, 핵심 1개는 가장 급한 과제다 (Codex #182)', () => {
+  const liveBots = [
+    { bot: { id: 'cb_001', name: '미적분 봇' }, enrollment: {} },
+  ] as unknown as Parameters<typeof TodoPanel>[0]['liveBots'];
+  render(
+    <TodoPanel incompleteAssignments={assignments} liveBots={liveBots} light onExitLight={() => {}} />,
+  );
+  expect(screen.getByText('미적분 봇')).toBeTruthy(); // 라이브는 시간 민감 — 항상 노출
+  expect(screen.getByText('도함수 마무리')).toBeTruthy(); // 핵심 1개 = 가장 급한 incomplete
+  expect(screen.queryByText('적분 예습')).toBeNull(); // 나머지 과제만 접힘
+});
+
+it('light 해제 후 재진입 시 다시 접힌 상태로 시작한다 (Codex #182)', () => {
+  const { rerender } = render(
+    <TodoPanel incompleteAssignments={assignments} liveBots={[]} light onExitLight={() => {}} />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /나머지 1개/ })); // 펼침
+  expect(screen.getByText('적분 예습')).toBeTruthy();
+
+  rerender(<TodoPanel incompleteAssignments={assignments} liveBots={[]} />); // 평소대로 복귀
+  rerender(
+    <TodoPanel incompleteAssignments={assignments} liveBots={[]} light onExitLight={() => {}} />,
+  ); // 같은 세션 재진입
+  expect(screen.queryByText('적분 예습')).toBeNull(); // 다시 접힘으로 시작
+});
