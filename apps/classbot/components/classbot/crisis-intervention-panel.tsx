@@ -8,6 +8,7 @@ import { AlertCard } from '@/components/classbot/alert-card';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useInterventionStore } from '@/lib/store/interventions';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
 /**
  * 위기 신호 / 즉시 개입 패널 — 학생 카드 클릭 시 상세 모달.
@@ -213,9 +214,14 @@ export function CrisisEncourageForm({
   student: ClassroomStudent;
   botId: string;
 }) {
+  // 쓰기 표면 hydration 게이트 — RemindButton·SubmissionStatusSheet 와 동일 패턴
+  // (persist rehydration 전 쓰기 유실 방지, Codex #187 R2)
+  const hydrated = useStoresHydrated(useInterventionStore);
   const send = useInterventionStore((s) => s.send);
   const [draft, setDraft] = useState('');
   const [sent, setSent] = useState(false);
+
+  if (!hydrated) return null;
 
   if (sent) {
     return (

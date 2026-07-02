@@ -56,7 +56,7 @@ it('인박스 — comment 는 결과 페이지로, crisis 는 챗으로 딥링�
   render(<NotificationInbox studentId="s1" />);
   const hrefs = screen.getAllByRole('link').map((l) => l.getAttribute('href'));
   expect(hrefs).toContain('/classbot/assignment/as_1/result');
-  expect(hrefs).toContain('/classbot/chat');
+  expect(hrefs).toContain('/classbot/chat?bot=cb_001'); // crisis 는 봇 스코프 챗으로
 });
 
 it('인박스 — 비어 있으면 빈 상태 문구', () => {
