@@ -1,5 +1,5 @@
 {
-  "id": "d930de70-6bab-46c2-9945-f5f9a7e9725d",
+  "id": "5f84d1ea-0d85-411d-a435-7d8b221b3a49",
   "prevId": "d816f25c-50e8-4a46-805c-4b617639799a",
   "version": "7",
   "dialect": "postgresql",
@@ -302,8 +302,7 @@
           "name": "dispatched_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": false
         },
         "exam_time_limit_min": {
           "name": "exam_time_limit_min",

@@ -414,10 +414,13 @@ export const assignments = pgTable(
     dispatchStatus: text('dispatch_status', { enum: ['draft', 'sent', 'scheduled', 'withdrawn'] })
       .notNull()
       .default('sent'),
-    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록) */
+    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록).
+     *  nullable 은 교사 user 삭제 SET NULL 정책(classrooms/class_bots.teacher_id 와 동일) —
+     *  발사 경로(BE POST /api/assignments)는 항상 기록한다(join_codes.teacher_id 와 같은 계약). */
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
-    /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순) */
-    dispatchedAt: timestamp('dispatched_at', { withTimezone: true }).defaultNow(),
+    /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순). DEFAULT 없음: draft/scheduled 행이
+     *  발사된 것처럼 보이지 않도록 **실제 발사(sent 전이) 시점에만** BE 가 명시 기록한다(Codex #192 R2). */
+    dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
     /** 시험 모드 제한 시간(분) — FE UserAssignment.examTimeLimitMin */
     examTimeLimitMin: integer('exam_time_limit_min'),
     /** 오답 재발사 문항 id 집합 — 문항 콘텐츠 영속은 M3, 키만 보존 */
