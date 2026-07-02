@@ -93,6 +93,7 @@ const ALL_TABLES = [
   'emotion_checkins',
   'reports',
   'templates',
+  'submissions',
   'assignment_questions',
   'assignments',
   'replay_watch_progress',
