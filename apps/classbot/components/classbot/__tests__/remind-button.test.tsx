@@ -38,13 +38,30 @@ it('클릭 → 미제출 학생별 remind 이벤트(제목 포함 문구) + 버�
   expect(btn.hasAttribute('disabled')).toBe(true);
 });
 
-it('이미 발송된 과제는 처음부터 "리마인드 보냄" 비활성 (persist 파생)', () => {
-  act(() =>
+it('학생 단위 dedup — 이미 받은 학생은 제외하고 새 미제출자에게만 재발송 가능 (Codex #184 R2)', () => {
+  // 대상 3명(s3·s4·s5): s3 는 이미 리마인드 수신, s4 는 제출 → 남은 발송 대상은 s5 뿐
+  act(() => {
+    useAssignmentStore.setState({ submissions: [sub('s4')] });
     useInterventionStore.getState().send({
       type: 'remind', botId: 'cb_001', studentId: 's3', assignmentId: 'as_1', message: 'x',
-    }),
-  );
-  render(<RemindButton {...A} />);
+    });
+  });
+  render(<RemindButton {...A} targetStudentIds={['s3', 's4', 's5']} />);
+  fireEvent.click(screen.getByRole('button', { name: /미제출 1명 리마인드/ }));
+  const reminded = useInterventionStore.getState().events.filter((e) => e.type === 'remind');
+  expect(reminded.map((e) => e.studentId).sort()).toEqual(['s3', 's5']); // s3 중복 없음
+});
+
+it('현재 미제출자 전원이 이미 수신했으면 "리마인드 보냄" 비활성', () => {
+  act(() => {
+    useAssignmentStore.setState({ submissions: [sub('s4')] });
+    for (const id of ['s3', 's5']) {
+      useInterventionStore.getState().send({
+        type: 'remind', botId: 'cb_001', studentId: id, assignmentId: 'as_1', message: 'x',
+      });
+    }
+  });
+  render(<RemindButton {...A} targetStudentIds={['s3', 's4', 's5']} />);
   expect(screen.getByRole('button', { name: /리마인드 보냄/ }).hasAttribute('disabled')).toBe(true);
 });
 

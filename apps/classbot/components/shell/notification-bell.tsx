@@ -7,11 +7,10 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
-  useMyInterventions, useUnreadCount, useInterventionStore,
+  useMyInterventions, useUnreadCount, useInterventionStore, useInterventionRecipientId,
   type InterventionEvent, type InterventionType,
 } from '@/lib/store/interventions';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
-import { useRosterMe } from '@/lib/current-user';
 import { cn } from '@/lib/utils';
 
 /**
@@ -94,11 +93,11 @@ export function NotificationInbox({ studentId }: { studentId: string }) {
   );
 }
 
-/** 헤더 벨 — 미읽음 배지 + 드롭다운 인박스 (학생 전용). */
+/** 헤더 벨 — 미읽음 배지 + 드롭다운 인박스 (학생 전용). 수신자 = 데모는 roster 폴백, 인증은 본인 id. */
 export function NotificationBell() {
-  const me = useRosterMe();
+  const recipientId = useInterventionRecipientId();
   const hydrated = useStoresHydrated(useInterventionStore);
-  const unread = useUnreadCount(me.id);
+  const unread = useUnreadCount(recipientId);
   const showBadge = hydrated && unread > 0;
 
   return (
@@ -124,7 +123,7 @@ export function NotificationBell() {
             알림
           </DropdownMenuLabel>
         </DropdownMenuGroup>
-        <NotificationInbox studentId={me.id} />
+        <NotificationInbox studentId={recipientId} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

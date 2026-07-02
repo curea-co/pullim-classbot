@@ -2,9 +2,12 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { NotificationBell, NotificationInbox } from '../notification-bell';
 import { useInterventionStore } from '@/lib/store/interventions';
 
-// 벨은 현재 학생(roster me) 수신함 — 데모 폴백 s1(서연) 로 mock (replay-recap 테스트 관례).
+// 벨 수신자 = 미인증 데모는 roster 폴백(s1 서연), 인증 사용자는 본인 id 그대로
+// (roster 매핑 없는 인증 사용자가 남의 알림을 보지 않도록, Codex #184 R2).
+const mockUser = { id: 'student_001', isAuthenticated: false };
 jest.mock('@/lib/current-user', () => ({
-  useRosterMe: () => ({ id: 's1', name: '서연' }),
+  useCurrentUser: () => mockUser,
+  resolveRosterMe: () => ({ id: 's1', name: '서연' }),
 }));
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -14,7 +17,11 @@ const send = (over: Partial<Parameters<ReturnType<typeof useInterventionStore.ge
     assignmentId: 'as_1', message: "'도함수' 과제가 아직 제출 전이에요", ...over,
   });
 
-beforeEach(() => useInterventionStore.setState({ events: [] }));
+beforeEach(() => {
+  useInterventionStore.setState({ events: [] });
+  mockUser.id = 'student_001';
+  mockUser.isAuthenticated = false;
+});
 
 it('미읽음 N건 → 벨에 숫자 배지 + aria-label (색 단독 신호 금지)', () => {
   act(() => { send(); send({ type: 'crisis', assignmentId: undefined, message: '힘내!' }); });
@@ -55,4 +62,13 @@ it('인박스 — comment 는 결과 페이지로, crisis 는 챗으로 딥링�
 it('인박스 — 비어 있으면 빈 상태 문구', () => {
   render(<NotificationInbox studentId="s1" />);
   expect(screen.getByText(/새 알림이 없어요/)).toBeTruthy();
+});
+
+it('roster 매핑 없는 인증 사용자는 데모 폴백(s1)의 알림을 보지 않는다 (Codex #184 R2)', () => {
+  act(() => send()); // s1 수신 이벤트 존재
+  mockUser.id = 'uuid-authenticated-user';
+  mockUser.isAuthenticated = true;
+  render(<NotificationBell />);
+  expect(screen.getByRole('button', { name: '알림' })).toBeTruthy(); // 배지 없음
+  expect(screen.queryByText('1')).toBeNull();
 });

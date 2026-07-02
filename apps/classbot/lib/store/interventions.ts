@@ -7,6 +7,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useCurrentUser, resolveRosterMe } from '@/lib/current-user';
 
 export type InterventionType = 'remind' | 'requiz' | 'comment' | 'crisis';
 
@@ -97,9 +98,26 @@ export function useAssignmentComment(
   return comments.length > 0 ? comments[comments.length - 1] : null;
 }
 
-/** 과제에 remind 가 이미 발송됐는지 — 같은 과제 중복 발송 방지 (reactive). */
-export function useHasRemindFor(assignmentId: string): boolean {
-  return useInterventionStore((s) =>
-    s.events.some((e) => e.type === 'remind' && e.assignmentId === assignmentId),
+/**
+ * 과제별 remind 수신 학생 집합 — **학생 단위** 중복 발송 방지 (reactive).
+ * 과제 단위 영구 차단이 아니라, 이미 받은 학생만 제외하고 새로 미제출이 된 학생에게는
+ * 재발송할 수 있어야 한다 (Codex #184 R2).
+ */
+export function useRemindedStudentIds(assignmentId: string): Set<string> {
+  const events = useInterventionStore((s) => s.events);
+  return new Set(
+    events
+      .filter((e) => e.type === 'remind' && e.assignmentId === assignmentId)
+      .map((e) => e.studentId),
   );
+}
+
+/**
+ * 개입 수신자 id — 미인증 데모는 roster 폴백(서연 s1, 제출/결과와 동일 조인 키),
+ * **인증 사용자는 본인 id 그대로**(roster 매핑이 없어도 폴백하지 않아 남의 알림을 보지 않는다).
+ * (Codex #184 R2)
+ */
+export function useInterventionRecipientId(): string {
+  const { id, isAuthenticated } = useCurrentUser();
+  return isAuthenticated ? id : resolveRosterMe(id).id;
 }

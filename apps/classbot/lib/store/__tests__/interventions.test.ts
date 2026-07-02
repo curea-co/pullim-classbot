@@ -4,7 +4,7 @@ import {
   useMyInterventions,
   useUnreadCount,
   useAssignmentComment,
-  useHasRemindFor,
+  useRemindedStudentIds,
 } from '../interventions';
 
 const base = { botId: 'cb_001', studentId: 's1' } as const;
@@ -66,9 +66,14 @@ it('useAssignmentComment — 해당 과제·학생의 comment 최신 1건, 없�
   expect(renderHook(() => useAssignmentComment('as_2', 's1')).result.current).toBeNull();
 });
 
-it('useHasRemindFor — 과제에 remind 이벤트가 하나라도 있으면 true(중복 발송 방지)', () => {
-  expect(renderHook(() => useHasRemindFor('as_1')).result.current).toBe(false);
-  act(() => useInterventionStore.getState().send({ ...base, type: 'remind', assignmentId: 'as_1', message: 'a' }));
-  expect(renderHook(() => useHasRemindFor('as_1')).result.current).toBe(true);
-  expect(renderHook(() => useHasRemindFor('as_2')).result.current).toBe(false);
+it('useRemindedStudentIds — 과제별 remind 수신 학생 집합(학생 단위 dedup, Codex #184 R2)', () => {
+  expect(renderHook(() => useRemindedStudentIds('as_1')).result.current.size).toBe(0);
+  act(() => {
+    useInterventionStore.getState().send({ ...base, type: 'remind', assignmentId: 'as_1', message: 'a' });
+    useInterventionStore.getState().send({ botId: 'cb_001', studentId: 's2', type: 'remind', assignmentId: 'as_1', message: 'a' });
+    useInterventionStore.getState().send({ ...base, type: 'comment', assignmentId: 'as_1', message: 'c' }); // remind 아님
+  });
+  const set = renderHook(() => useRemindedStudentIds('as_1')).result.current;
+  expect([...set].sort()).toEqual(['s1', 's2']);
+  expect(renderHook(() => useRemindedStudentIds('as_2')).result.current.size).toBe(0);
 });

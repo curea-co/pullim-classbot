@@ -3,7 +3,7 @@
 import { BellRing, Check } from 'lucide-react';
 import { classRoster } from '@/lib/mock';
 import { useAssignmentStore } from '@/lib/store/assignments';
-import { useInterventionStore, useHasRemindFor } from '@/lib/store/interventions';
+import { useInterventionStore, useRemindedStudentIds } from '@/lib/store/interventions';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
 /**
@@ -27,7 +27,7 @@ export function RemindButton({
   const hydrated = useStoresHydrated(useInterventionStore, useAssignmentStore);
   const submissions = useAssignmentStore((s) => s.submissions);
   const send = useInterventionStore((s) => s.send);
-  const alreadySent = useHasRemindFor(assignmentId);
+  const reminded = useRemindedStudentIds(assignmentId);
 
   if (!hydrated) return null;
 
@@ -42,8 +42,12 @@ export function RemindButton({
   const notSubmitted = eligible.filter((r) => !submitted.has(r.id));
   if (notSubmitted.length === 0) return null;
 
+  // 학생 단위 dedup — 이미 받은 학생 제외, 새 미제출자에게는 재발송 가능 (Codex #184 R2)
+  const toRemind = notSubmitted.filter((r) => !reminded.has(r.id));
+  const alreadySent = toRemind.length === 0;
+
   const handleSend = () => {
-    for (const student of notSubmitted) {
+    for (const student of toRemind) {
       send({
         type: 'remind',
         botId,
@@ -73,7 +77,7 @@ export function RemindButton({
       ) : (
         <>
           <BellRing className="h-3.5 w-3.5" aria-hidden />
-          미제출 {notSubmitted.length}명 리마인드
+          미제출 {toRemind.length}명 리마인드
         </>
       )}
     </button>
