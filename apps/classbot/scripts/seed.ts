@@ -18,6 +18,7 @@ loadEnv({ path: '.env' });
 import { sql } from 'drizzle-orm';
 
 import { getDb, getPool } from '../lib/db';
+import { CODE_MAP } from '../lib/mock/class-codes';
 
 // 시드는 실행 시점에 DATABASE_URL 이 설정돼 있어야 한다(런타임 연결).
 const db = getDb();
@@ -34,6 +35,7 @@ import {
   crisisAlerts,
   emotionCheckIns,
   enrollments,
+  joinCodes,
   gradingHistory,
   gradingItems,
   lessons,
@@ -104,6 +106,7 @@ const ALL_TABLES = [
   'bot_settings',
   'bot_curriculum_units',
   'enrollments',
+  'join_codes',
   'class_bots',
   'classrooms',
   'consent_logs',
@@ -247,8 +250,17 @@ async function main() {
   }
   console.log(`[seed] parent_child_links: ${childLinks.length}, consent_logs: ${consentLog.length}`);
 
-  /* 4. classrooms */
+  /* 4. classrooms — 참여 코드(CODE_MAP)가 클래스룸의 권위. enrollment(출시 빈 배열)도 union. */
   const classroomMap = new Map<string, { label: string; org: string; teacherId: string }>();
+  for (const [, target] of Object.entries(CODE_MAP)) {
+    if (!classroomMap.has(target.classroomId)) {
+      classroomMap.set(target.classroomId, {
+        label: target.classroomLabel,
+        org: target.via,
+        teacherId: BOT_TO_TEACHER[target.botId] ?? 'teacher_001',
+      });
+    }
+  }
   for (const e of studentEnrollments) {
     if (!classroomMap.has(e.classroomId)) {
       classroomMap.set(e.classroomId, {
@@ -258,14 +270,16 @@ async function main() {
       });
     }
   }
-  await db.insert(classrooms).values(
-    Array.from(classroomMap.entries()).map(([id, v]) => ({
-      id,
-      label: v.label,
-      organization: v.org,
-      teacherId: v.teacherId,
-    })),
-  );
+  if (classroomMap.size > 0) {
+    await db.insert(classrooms).values(
+      Array.from(classroomMap.entries()).map(([id, v]) => ({
+        id,
+        label: v.label,
+        organization: v.org,
+        teacherId: v.teacherId,
+      })),
+    );
+  }
   console.log(`[seed] classrooms: ${classroomMap.size}`);
 
   /* 5. class_bots */
@@ -290,19 +304,32 @@ async function main() {
   );
   console.log(`[seed] class_bots: ${mockClassBots.length}`);
 
-  /* 6. enrollments — 서연 본인만 enrolled로 (s1 → student_001) */
-  await db.insert(enrollments).values(
-    studentEnrollments.map((e) => ({
-      botId: e.botId,
-      studentId: currentPersona.id,
-      classroomId: e.classroomId,
-      classroomLabel: e.classroomLabel,
-      assignedBy: e.assignedBy,
-      assignedAt: new Date(e.assignedAt),
-      via: e.via,
-    })),
-  );
+  /* 6. enrollments — 서연 본인만 enrolled로 (s1 → student_001). 출시 mock 은 빈 배열 → 가드. */
+  if (studentEnrollments.length > 0) {
+    await db.insert(enrollments).values(
+      studentEnrollments.map((e) => ({
+        botId: e.botId,
+        studentId: currentPersona.id,
+        classroomId: e.classroomId,
+        classroomLabel: e.classroomLabel,
+        assignedBy: e.assignedBy,
+        assignedAt: new Date(e.assignedAt),
+        via: e.via,
+      })),
+    );
+  }
   console.log(`[seed] enrollments: ${studentEnrollments.length}`);
+
+  /* 6b. join_codes — 참여 코드(mock CODE_MAP)의 실전판. 학생 join 의 진입점. */
+  const codeRows = Object.entries(CODE_MAP).map(([code, t]) => ({
+    code,
+    botId: t.botId,
+    classroomId: t.classroomId,
+  }));
+  if (codeRows.length > 0) {
+    await db.insert(joinCodes).values(codeRows);
+  }
+  console.log(`[seed] join_codes: ${codeRows.length}`);
 
   /* 7. bot_curriculum_units */
   const curriculumRows: Array<typeof botCurriculumUnits.$inferInsert> = [];
@@ -330,48 +357,52 @@ async function main() {
   console.log(`[seed] bot_settings: ${mockClassBots.length}`);
 
   /* 9. lessons — upcomingLessons (교사) */
-  await db.insert(lessons).values(
-    upcomingLessons.map((l) => ({
-      id: l.id,
-      botId: 'cb_001', // upcoming은 cb_001만
-      classroomId: 'cr_math_a',
-      title: l.title,
-      chapter: l.chapter,
-      startLabel: l.start,
-      status: l.status,
-      prepReady: l.prepReady,
-      studentCount: l.studentCount,
-      botName: l.botName,
-    })),
-  );
+  if (upcomingLessons.length > 0) {
+    await db.insert(lessons).values(
+      upcomingLessons.map((l) => ({
+        id: l.id,
+        botId: 'cb_001', // upcoming은 cb_001만
+        classroomId: 'cr_math_a',
+        title: l.title,
+        chapter: l.chapter,
+        startLabel: l.start,
+        status: l.status,
+        prepReady: l.prepReady,
+        studentCount: l.studentCount,
+        botName: l.botName,
+      })),
+    );
+  }
   console.log(`[seed] lessons: ${upcomingLessons.length}`);
 
   /* 10. live_sessions */
-  await db.insert(liveSessions).values(
-    mockLiveSessions.map((ls) => {
-      const { botId, classroomId } = liveSessionBotAndClassroom(ls);
-      return {
-        id: ls.id,
-        botId,
-        classroomId,
-        lessonId: null,
-        botName: ls.botName,
-        botEmoji: ls.botEmoji,
-        classroomLabel: ls.classroom,
-        subject: ls.subject,
-        status: ls.status,
-        startLabel: ls.startedAt,
-        durationMin: ls.durationMin,
-        participantCount: ls.participantCount,
-        totalCount: ls.totalCount,
-        scope: ls.scope,
-        intensity: ls.intensity,
-        alertCount: ls.alertCount,
-        // 현재 라이브 중인 ls_a 세션에 한해 classRoster 스냅샷
-        roster: ls.id === 'ls_a' ? classRoster : [],
-      };
-    }),
-  );
+  if (mockLiveSessions.length > 0) {
+    await db.insert(liveSessions).values(
+      mockLiveSessions.map((ls) => {
+        const { botId, classroomId } = liveSessionBotAndClassroom(ls);
+        return {
+          id: ls.id,
+          botId,
+          classroomId,
+          lessonId: null,
+          botName: ls.botName,
+          botEmoji: ls.botEmoji,
+          classroomLabel: ls.classroom,
+          subject: ls.subject,
+          status: ls.status,
+          startLabel: ls.startedAt,
+          durationMin: ls.durationMin,
+          participantCount: ls.participantCount,
+          totalCount: ls.totalCount,
+          scope: ls.scope,
+          intensity: ls.intensity,
+          alertCount: ls.alertCount,
+          // 현재 라이브 중인 ls_a 세션에 한해 classRoster 스냅샷
+          roster: ls.id === 'ls_a' ? classRoster : [],
+        };
+      }),
+    );
+  }
   console.log(`[seed] live_sessions: ${mockLiveSessions.length}`);
 
   /* 11. live_quizzes — currentQuiz + history + drafts */
@@ -432,49 +463,53 @@ async function main() {
   console.log(`[seed] live_quizzes: ${quizRows.length}`);
 
   /* 12. bot_questions */
-  await db.insert(botQuestions).values(
-    liveFeed.map((f) => ({
-      id: f.id,
-      liveSessionId: 'ls_a',
-      studentId: mapStudentId(f.studentId),
-      studentName: f.studentName,
-      question: f.question,
-      scopeUsed: f.scopeUsed,
-      shared: f.shared,
-      botAnswerPreview: f.botAnswerPreview,
-      tier: f.tier,
-      agoMin: f.agoMin,
-    })),
-  );
+  if (liveFeed.length > 0) {
+    await db.insert(botQuestions).values(
+      liveFeed.map((f) => ({
+        id: f.id,
+        liveSessionId: 'ls_a',
+        studentId: mapStudentId(f.studentId),
+        studentName: f.studentName,
+        question: f.question,
+        scopeUsed: f.scopeUsed,
+        shared: f.shared,
+        botAnswerPreview: f.botAnswerPreview,
+        tier: f.tier,
+        agoMin: f.agoMin,
+      })),
+    );
+  }
   console.log(`[seed] bot_questions: ${liveFeed.length}`);
 
   /* 13. replays */
   const knownLessonIds = new Set(upcomingLessons.map((l) => l.id));
-  await db.insert(replays).values(
-    studentReplays.map((r) => ({
-      id: r.id,
-      lessonId: knownLessonIds.has(r.lessonId) ? r.lessonId : null,
-      botId: r.botId,
-      classroom: r.classroom,
-      title: r.title,
-      chapter: r.chapter,
-      botName: r.botName,
-      date: r.date,
-      startedAtLabel: r.startedAt,
-      endedAtLabel: r.endedAt,
-      durationMin: r.durationMin,
-      participantCount: r.participantCount,
-      status: r.status,
-      aiProcessedAtLabel: r.aiProcessedAt,
-      sentAtLabel: r.sentAt,
-      myAccuracy: r.myAccuracy,
-      keyTakeaways: r.keyTakeaways,
-      segments: r.segments,
-      transcript: r.transcript,
-      focusBins: r.focusBins,
-      viewerStats: r.viewerStats,
-    })),
-  );
+  if (studentReplays.length > 0) {
+    await db.insert(replays).values(
+      studentReplays.map((r) => ({
+        id: r.id,
+        lessonId: knownLessonIds.has(r.lessonId) ? r.lessonId : null,
+        botId: r.botId,
+        classroom: r.classroom,
+        title: r.title,
+        chapter: r.chapter,
+        botName: r.botName,
+        date: r.date,
+        startedAtLabel: r.startedAt,
+        endedAtLabel: r.endedAt,
+        durationMin: r.durationMin,
+        participantCount: r.participantCount,
+        status: r.status,
+        aiProcessedAtLabel: r.aiProcessedAt,
+        sentAtLabel: r.sentAt,
+        myAccuracy: r.myAccuracy,
+        keyTakeaways: r.keyTakeaways,
+        segments: r.segments,
+        transcript: r.transcript,
+        focusBins: r.focusBins,
+        viewerStats: r.viewerStats,
+      })),
+    );
+  }
   console.log(`[seed] replays: ${studentReplays.length}`);
 
   /* 14. replay_bookmarks · teacher_questions · watch_progress */
@@ -519,100 +554,114 @@ async function main() {
   );
 
   /* 15. assignments + assignment_questions */
-  await db.insert(assignments).values(
-    studentAssignments.map((a) => ({
-      id: a.id,
-      botId: a.botId,
-      studentId: currentPersona.id,
-      title: a.title,
-      scope: a.scope,
-      subject: a.subject,
-      grade: a.grade,
-      chapterFrom: a.chapterFrom,
-      chapterTo: a.chapterTo,
-      achievementCodes: a.achievementCodes,
-      questionCount: a.questionCount,
-      difficulty: a.difficulty,
-      mode: a.mode,
-      scopeOverride: a.scopeOverride ?? null,
-      source: a.source,
-      assignedBy: a.assignedBy,
-      assignedAtLabel: a.assignedAt,
-      dueLabel: a.dueLabel,
-      dDay: a.dDay,
-      completedCount: a.completedCount,
-      recentAccuracy: a.recentAccuracy ?? null,
-      state: a.state,
-      reasonHint: a.reasonHint ?? null,
-      solveHref: a.solveHref,
-    })),
-  );
-  await db.insert(assignmentQuestions).values(
-    mockAssignmentQuestions.map((q) => ({
-      id: q.id,
-      assignmentId: q.assignmentId,
-      order: q.order,
-      type: q.type,
-      prompt: q.prompt,
-      options: q.options ?? null,
-      answerIndex: q.answerIndex ?? null,
-      answerKey: q.answerKey ?? null,
-      modelAnswer: q.modelAnswer ?? null,
-      hints: q.hints ?? null,
-    })),
-  );
+  if (studentAssignments.length > 0) {
+    await db.insert(assignments).values(
+      studentAssignments.map((a) => ({
+        id: a.id,
+        botId: a.botId,
+        studentId: currentPersona.id,
+        title: a.title,
+        scope: a.scope,
+        subject: a.subject,
+        grade: a.grade,
+        chapterFrom: a.chapterFrom,
+        chapterTo: a.chapterTo,
+        achievementCodes: a.achievementCodes,
+        questionCount: a.questionCount,
+        difficulty: a.difficulty,
+        mode: a.mode,
+        scopeOverride: a.scopeOverride ?? null,
+        source: a.source,
+        assignedBy: a.assignedBy,
+        assignedAtLabel: a.assignedAt,
+        dueLabel: a.dueLabel,
+        dDay: a.dDay,
+        completedCount: a.completedCount,
+        recentAccuracy: a.recentAccuracy ?? null,
+        state: a.state,
+        reasonHint: a.reasonHint ?? null,
+        solveHref: a.solveHref,
+      })),
+    );
+  }
+  // 문항 풀(as_today 등)은 부모 과제가 없는 데모 콘텐츠 — FK 정합 위해 부모가 시드된 것만.
+  // 문항 콘텐츠의 DB 영속은 M3(QGen 생성 경로)에서 — 그 전까지 FE 가 mock 풀에서 해석(현행 유지).
+  const seededAssignmentIds = new Set(studentAssignments.map((a) => a.id));
+  const validQuestionRows = mockAssignmentQuestions.filter((q) => seededAssignmentIds.has(q.assignmentId));
+  if (validQuestionRows.length > 0) {
+    await db.insert(assignmentQuestions).values(
+      validQuestionRows.map((q) => ({
+        id: q.id,
+        assignmentId: q.assignmentId,
+        order: q.order,
+        type: q.type,
+        prompt: q.prompt,
+        options: q.options ?? null,
+        answerIndex: q.answerIndex ?? null,
+        answerKey: q.answerKey ?? null,
+        modelAnswer: q.modelAnswer ?? null,
+        hints: q.hints ?? null,
+      })),
+    );
+  }
   console.log(
-    `[seed] assignments: ${studentAssignments.length}, assignment_questions: ${mockAssignmentQuestions.length}`,
+    `[seed] assignments: ${studentAssignments.length}, assignment_questions: ${validQuestionRows.length}`,
   );
 
   /* 16. grading_items (+ overriddenSample) + grading_history */
-  await db.insert(gradingItems).values(
-    [...gradingQueue, overriddenSample].map((g) => ({
-      id: g.id,
-      studentId: mapStudentId(g.studentId),
-      studentName: g.studentName,
-      assignmentTitle: g.assignmentTitle,
-      submittedAtLabel: g.submittedAt,
-      type: g.type,
-      topic: g.topic,
-      draftScore: g.draftScore,
-      maxScore: g.maxScore,
-      tier: g.tier,
-      aiConfidence: g.aiConfidence,
-      responsePreview: g.responsePreview,
-      draftComment: g.draftComment,
-      rubric: g.rubric as unknown as Array<Record<string, unknown>>,
-      status: g.status,
-      overrideDelta: g.overrideDelta ?? null,
-    })),
-  );
+  if (gradingQueue.length > 0) {
+    await db.insert(gradingItems).values(
+      [...gradingQueue, overriddenSample].map((g) => ({
+        id: g.id,
+        studentId: mapStudentId(g.studentId),
+        studentName: g.studentName,
+        assignmentTitle: g.assignmentTitle,
+        submittedAtLabel: g.submittedAt,
+        type: g.type,
+        topic: g.topic,
+        draftScore: g.draftScore,
+        maxScore: g.maxScore,
+        tier: g.tier,
+        aiConfidence: g.aiConfidence,
+        responsePreview: g.responsePreview,
+        draftComment: g.draftComment,
+        rubric: g.rubric as unknown as Array<Record<string, unknown>>,
+        status: g.status,
+        overrideDelta: g.overrideDelta ?? null,
+      })),
+    );
+  }
 
-  await db.insert(gradingHistory).values(
-    mockGradingHistory.map((h) => ({
-      studentId: mapStudentId(h.studentId),
-      assignmentTitle: h.assignmentTitle,
-      gradedAtLabel: h.gradedAt,
-      score: h.score,
-      maxScore: h.maxScore,
-    })),
-  );
+  if (mockGradingHistory.length > 0) {
+    await db.insert(gradingHistory).values(
+      mockGradingHistory.map((h) => ({
+        studentId: mapStudentId(h.studentId),
+        assignmentTitle: h.assignmentTitle,
+        gradedAtLabel: h.gradedAt,
+        score: h.score,
+        maxScore: h.maxScore,
+      })),
+    );
+  }
   console.log(
     `[seed] grading_items: ${gradingQueue.length + 1}, grading_history: ${mockGradingHistory.length}`,
   );
 
   /* 17. emotion_checkins */
-  await db.insert(emotionCheckIns).values(
-    mockEmotionCheckIns.map((e) => ({
-      id: e.id,
-      studentId: mapStudentId(e.studentId),
-      date: e.date,
-      mood: e.mood,
-      intensity: e.intensity ?? null,
-      intensityRange: e.intensityRange ?? null,
-      freeText: e.freeText ?? null,
-      keywordFlag: e.keywordFlag ?? null,
-    })),
-  );
+  if (mockEmotionCheckIns.length > 0) {
+    await db.insert(emotionCheckIns).values(
+      mockEmotionCheckIns.map((e) => ({
+        id: e.id,
+        studentId: mapStudentId(e.studentId),
+        date: e.date,
+        mood: e.mood,
+        intensity: e.intensity ?? null,
+        intensityRange: e.intensityRange ?? null,
+        freeText: e.freeText ?? null,
+        keywordFlag: e.keywordFlag ?? null,
+      })),
+    );
+  }
   console.log(`[seed] emotion_checkins: ${mockEmotionCheckIns.length}`);
 
   /* 18. wellbeing_snapshots — date 컬럼이 PK라 daysAgo→date 변환. mock 기준일 today */
@@ -637,36 +686,40 @@ async function main() {
   console.log(`[seed] wellbeing_snapshots: ${wellbeingDedup.size}`);
 
   /* 19. crisis_alerts */
-  await db.insert(crisisAlerts).values(
-    mockCrisisAlerts.map((a) => ({
-      id: a.id,
-      studentId: mapStudentId(a.studentId),
-      triggerType: a.triggerType,
-      severity: a.severity,
-      detectedAtLabel: a.detectedAt,
-      summary: a.summary,
-      notifiedTeacher: a.notifiedTeacher,
-      notifiedParent: a.notifiedParent,
-      notifiedWeeCenter: a.notifiedWeeCenter,
-      resolved: a.resolved,
-    })),
-  );
+  if (mockCrisisAlerts.length > 0) {
+    await db.insert(crisisAlerts).values(
+      mockCrisisAlerts.map((a) => ({
+        id: a.id,
+        studentId: mapStudentId(a.studentId),
+        triggerType: a.triggerType,
+        severity: a.severity,
+        detectedAtLabel: a.detectedAt,
+        summary: a.summary,
+        notifiedTeacher: a.notifiedTeacher,
+        notifiedParent: a.notifiedParent,
+        notifiedWeeCenter: a.notifiedWeeCenter,
+        resolved: a.resolved,
+      })),
+    );
+  }
   console.log(`[seed] crisis_alerts: ${mockCrisisAlerts.length}`);
 
   /* 20. reports */
-  await db.insert(reports).values(
-    mockReports.map((r) => ({
-      id: r.id,
-      kind: r.kind,
-      title: r.title,
-      subject: r.subject,
-      generatedAtLabel: r.generatedAt,
-      status: r.status,
-      kpis: r.kpis as unknown as Array<Record<string, unknown>>,
-      summary: r.summary,
-      alerts: r.alerts ?? [],
-    })),
-  );
+  if (mockReports.length > 0) {
+    await db.insert(reports).values(
+      mockReports.map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        title: r.title,
+        subject: r.subject,
+        generatedAtLabel: r.generatedAt,
+        status: r.status,
+        kpis: r.kpis as unknown as Array<Record<string, unknown>>,
+        summary: r.summary,
+        alerts: r.alerts ?? [],
+      })),
+    );
+  }
   console.log(`[seed] reports: ${mockReports.length}`);
 
   /* 21. templates + my uploads */

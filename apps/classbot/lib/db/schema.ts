@@ -127,6 +127,23 @@ export const enrollments = pgTable(
   }),
 );
 
+/**
+ * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
+ * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
+ */
+export const joinCodes = pgTable(
+  'join_codes',
+  {
+    code: text('code').primaryKey(),
+    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
+    classroomId: text('classroom_id').notNull().references(() => classrooms.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    byBot: index('join_codes_bot_idx').on(t.botId),
+  }),
+);
+
 export const botCurriculumUnits = pgTable(
   'bot_curriculum_units',
   {
