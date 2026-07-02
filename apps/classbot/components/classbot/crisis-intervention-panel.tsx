@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Heart, MessageCircle, X, Calendar } from 'lucide-react';
+import { AlertTriangle, Heart, MessageCircle, X, Calendar, Check } from 'lucide-react';
 import { type ClassroomStudent, emotionCheckIns, moodMeta } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { useInterventionStore } from '@/lib/store/interventions';
 
 /**
  * 위기 신호 / 즉시 개입 패널 — 학생 카드 클릭 시 상세 모달.
@@ -159,6 +160,9 @@ function CrisisDetailModal({ student, onClose }: { student: ClassroomStudent; on
             )}
           </section>
 
+          {/* 응원 메시지 — 개입 루프 PR-3: crisis 이벤트 → 학생 벨 인박스 도착 */}
+          <CrisisEncourageForm student={student} botId="cb_001" />
+
           {/* CTA */}
           <section className="space-y-1.5">
             <button
@@ -179,6 +183,63 @@ function CrisisDetailModal({ student, onClose }: { student: ClassroomStudent; on
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 위기학생 응원 메시지 발신 — 교사 개입 crisis 쓰기 표면 (spec §4, PR-3).
+ * 발신 시 학생 벨 인박스에 '선생님 응원'으로 도착(챗 딥링크). 단일 교실 mock 이라 botId 기본 cb_001.
+ */
+export function CrisisEncourageForm({
+  student,
+  botId,
+}: {
+  student: ClassroomStudent;
+  botId: string;
+}) {
+  const send = useInterventionStore((s) => s.send);
+  const [draft, setDraft] = useState('');
+  const [sent, setSent] = useState(false);
+
+  if (sent) {
+    return (
+      <p className="text-pullim-blue-600 bg-pullim-blue-50 inline-flex w-full items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-xs font-bold">
+        <Check className="h-3.5 w-3.5" aria-hidden />
+        응원을 보냈어요 — {student.name} 학생 알림으로 전달돼요
+      </p>
+    );
+  }
+
+  return (
+    <section className="bg-pullim-blue-50 border-pullim-blue-100 rounded-xl border p-3">
+      <header className="mb-1.5 flex items-center gap-1.5">
+        <Heart className="text-pullim-blue-600 h-3 w-3" aria-hidden />
+        <h3 className="text-pullim-slate-700 text-xs font-bold">응원 한마디</h3>
+      </header>
+      <div className="flex items-start gap-2">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={2}
+          placeholder={`${student.name} 학생에게 — 평가 없는 응원·격려가 좋아요`}
+          aria-label={`${student.name}에게 응원 메시지`}
+          className="border-pullim-blue-200 placeholder:text-pullim-slate-400 min-w-0 flex-1 rounded-lg border bg-white p-2 text-xs focus:border-pullim-blue-400 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const message = draft.trim();
+            if (!message) return;
+            send({ type: 'crisis', botId, studentId: student.id, message });
+            setSent(true);
+          }}
+          disabled={draft.trim().length === 0}
+          className="bg-pullim-blue-600 hover:bg-pullim-blue-700 min-h-11 shrink-0 rounded-lg px-3 text-xs font-bold text-white transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
+        >
+          응원 보내기
+        </button>
+      </div>
+    </section>
   );
 }
 
