@@ -5,6 +5,10 @@ import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignment
 import { useLiveStore } from '@/lib/store/live';
 import { useMyClassBots, useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
+import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import { todayKey } from '@/lib/store/today-key';
 import { useStudentMode } from '@/lib/store/student-mode';
 import { SelfHomePlaceholder } from '@/components/classbot/self-home-placeholder';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
@@ -14,6 +18,7 @@ import {
   TodoPanel,
   GrowthPanel,
   WellnessNudge,
+  LightDayNudge,
 } from '@/components/classbot/home';
 
 /**
@@ -34,6 +39,11 @@ export default function StudentClassbotPage() {
   const submissions = useAssignmentStore(s => s.submissions); // hook 5
   const myBots = useMyClassBots();                        // hook 6 — 참여 코드로 join된 교사 클래스 (reactive)
   const leaveClass = useClassEnrollmentStore(s => s.leave); // hook 7
+  // 가벼운 모드(Light Day) — 저조 신호·상태·hydration (spec §6 홈 배선). todayKey 는 같은 날 안정적.
+  const lowToday = useLowConditionToday(me.id);           // hook 8
+  const lightOn = useLightDayOn(todayKey());              // hook 9
+  const { enable: enableLight, disable: disableLight } = useLightDayActions(); // hook 10
+  const lightHydrated = useStoresHydrated(useLightDayStore); // hook 11
 
   // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 분기를 신뢰할 수 없다.
   // hydration 완료 전까지 스켈레톤을 그려 SSR·첫 페인트 불일치와 모드 전환 플래시를 막는다.
@@ -66,17 +76,24 @@ export default function StudentClassbotPage() {
   // ── class mode JSX ─────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
+      {/* 0. LightDayNudge — 저조 신호 & 아직 opt-in 전이면 홈 상단에 (hydration 후에만, spec §8) */}
+      {lightHydrated && lowToday && !lightOn && (
+        <LightDayNudge onEnable={() => enableLight(todayKey())} />
+      )}
+
       {/* 1. LearningHero — navy band */}
       <LearningHero incompleteAssignments={incompleteAssignments} />
 
       {/* 2. TutorShowcase — personality cards */}
       <TutorShowcase bots={myBots} activeLive={activeLive} />
 
-      {/* 3. Two-column panel — 오늘 할 일 + 나의 성장 */}
+      {/* 3. Two-column panel — 오늘 할 일 + 나의 성장 (라이트 데이면 핵심 1개로 축소 렌더) */}
       <div className="grid gap-4 lg:grid-cols-2">
         <TodoPanel
           incompleteAssignments={incompleteAssignments}
           liveBots={liveBots}
+          light={lightHydrated && lightOn}
+          onExitLight={disableLight}
         />
         <GrowthPanel />
       </div>

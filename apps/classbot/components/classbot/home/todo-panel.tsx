@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Radio } from 'lucide-react';
+import { ArrowRight, ChevronDown, Radio } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip, type ChipProps } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
@@ -18,15 +19,37 @@ function dDayChipTone(dDay: string): NonNullable<ChipProps['tone']> {
 export function TodoPanel({
   incompleteAssignments,
   liveBots,
+  light = false,
+  onExitLight,
 }: {
   incompleteAssignments: Assignment[];
   liveBots: BotSlot[];
+  /** 가벼운 모드(Light Day) — 핵심 1개만 + 나머지 접기 + [평소대로 보기]. 데이터 불변, 렌더만. spec §4·§8 */
+  light?: boolean;
+  /** light 모드에서 [평소대로 보기] 클릭 → 가벼운 모드 해제 */
+  onExitLight?: () => void;
 }) {
+  // light 모드 접힘 상태 — 펼치면 그날은 전체 목록(데이터는 원래 그대로).
+  const [expanded, setExpanded] = useState(false);
   const isEmpty = incompleteAssignments.length === 0 && liveBots.length === 0;
+
+  // light & 접힘: 라이브가 있으면 라이브 1개, 아니면 가장 급한 과제 1개만 남긴다(이미 urgent-first 정렬).
+  const collapse = light && !expanded && !isEmpty;
+  const visibleLiveBots = collapse ? liveBots.slice(0, 1) : liveBots;
+  const visibleAssignments = collapse
+    ? (liveBots.length > 0 ? [] : incompleteAssignments.slice(0, 1))
+    : incompleteAssignments;
+  const restCount =
+    liveBots.length + incompleteAssignments.length - visibleLiveBots.length - visibleAssignments.length;
 
   return (
     <section>
       <SectionHeading title="오늘 할 일" />
+      {light && !isEmpty && (
+        <p className="text-pullim-slate-500 -mt-1 mb-2 text-xs">
+          오늘은 이것 하나만 해도 충분해요.
+        </p>
+      )}
       {isEmpty ? (
         <div className="border-pullim-slate-100 rounded-xl border border-dashed bg-pullim-slate-50 px-4 py-6 text-center">
           <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요 🎉</p>
@@ -35,7 +58,7 @@ export function TodoPanel({
       ) : (
         <ul className="space-y-2">
           {/* LIVE bots first */}
-          {liveBots.map(({ bot }) => (
+          {visibleLiveBots.map(({ bot }) => (
             <li key={bot.id}>
               <Link
                 href={`/classbot/live/${bot.id}`}
@@ -56,7 +79,7 @@ export function TodoPanel({
           ))}
 
           {/* Incomplete assignments — urgent first (already sorted) */}
-          {incompleteAssignments.map((a) => (
+          {visibleAssignments.map((a) => (
             <li key={a.id}>
               <Link
                 href={a.solveHref ?? '/classbot/assignment'}
@@ -80,6 +103,31 @@ export function TodoPanel({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* light 모드 푸터 — 나머지 접힘 안내 + 평소대로 복귀 (렌더만 바꾸고 데이터 불변) */}
+      {light && !isEmpty && (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {restCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
+            >
+              나머지 {restCount}개 · 펼치기
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          ) : (
+            <span aria-hidden />
+          )}
+          <button
+            type="button"
+            onClick={onExitLight}
+            className="text-pullim-blue-600 hover:text-pullim-blue-700 min-h-11 rounded-lg px-2 text-xs font-bold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
+          >
+            평소대로 보기
+          </button>
+        </div>
       )}
     </section>
   );
