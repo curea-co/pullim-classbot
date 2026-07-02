@@ -23,6 +23,7 @@ import {
   type Assignment, type ScopeLevel,
 } from '@/lib/mock';
 import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib/store/assignments';
+import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import { cn } from '@/lib/utils';
 
 type ModeMeta = { label: string; description: string; color: string; defaultScope: ScopeLevel };
@@ -57,27 +58,7 @@ function defaultDueLabel(): string {
   return tomorrow.toISOString().slice(0, 16);
 }
 
-function formatDueLabel(iso: string): string {
-  if (!iso) return '내일 22:00';
-  const d = new Date(iso);
-  const now = new Date();
-  const diffDays = Math.ceil((d.getTime() - now.getTime()) / 86400000);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  if (diffDays <= 0) return `오늘 ${hh}:${mm}`;
-  if (diffDays === 1) return `내일 ${hh}:${mm}`;
-  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`;
-}
-
-function computeDDay(iso: string): string {
-  if (!iso) return 'D-1';
-  const d = new Date(iso);
-  const now = new Date();
-  const diffDays = Math.ceil((d.getTime() - now.getTime()) / 86400000);
-  if (diffDays <= 0) return '오늘';
-  if (diffDays === 1) return 'D-1';
-  return `D-${diffDays}`;
-}
+// formatDueLabel/computeDDay 는 재발사(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
 
 export function AssignmentForm() {
   const router = useRouter();

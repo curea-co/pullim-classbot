@@ -13,6 +13,7 @@ import { LiveBroadcastControls } from '@/components/classbot/live-broadcast-cont
 import { AlertCard } from '@/components/classbot/alert-card';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { RemindButton } from '@/components/classbot/remind-button';
+import { SubmissionStatusSheet } from '@/components/classbot/submission-status-sheet';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { myClassBot, studentAssignments, classRoster, type Assignment } from '@/lib/mock';
 import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
@@ -191,14 +192,15 @@ function DispatchedRow({ assignment: a }: { assignment: Assignment & { targetStu
             )}
           </div>
 
-          {/* 개입 — 미제출 리마인드 (spec 개입 루프 PR-1, 학생 벨 인박스로 도착). 부분 대상 발사 스코프 준수. */}
-          <div className="mt-2">
+          {/* 개입 — 미제출 리마인드(PR-1) + 제출 현황 시트(PR-2: 코멘트·오답 재발사) */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <RemindButton
               assignmentId={a.id}
               botId={a.botId}
               title={a.title}
               targetStudentIds={a.targetStudentIds}
             />
+            <SubmissionStatusSheet assignment={a} />
           </div>
         </div>
         <ComingSoonButton icon={Send} note="같은 과제 재발사" className="text-pullim-blue-600 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">

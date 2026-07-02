@@ -1,0 +1,134 @@
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { SubmissionStatusPanel } from '../submission-status-sheet';
+import { useInterventionStore } from '@/lib/store/interventions';
+import {
+  useAssignmentStore, getQuestionsForAssignment, type Submission,
+} from '@/lib/store/assignments';
+import type { Assignment } from '@/lib/mock';
+
+// practice 모드 새 과제는 as_today 시드 문항으로 fallback — 오답률 파생이 결정적.
+const A = {
+  id: 'as_x', botId: 'cb_001', title: '도함수 마무리', mode: 'practice', questionCount: 2,
+  subject: '수학Ⅱ', grade: '고2', scope: '도함수', chapterFrom: '', chapterTo: '',
+  achievementCodes: [], difficulty: 3, source: 'teacher-assigned', assignedBy: '수학이 형',
+  assignedAt: '방금 발사', dueLabel: '오늘 23:59', dDay: '오늘', completedCount: 0, state: 'todo',
+} as unknown as Assignment & { targetStudentIds?: string[] };
+
+const questions = () => getQuestionsForAssignment(A);
+
+/** 문항 전부 오답인 답안 */
+const allWrong = () =>
+  Object.fromEntries(questions().map((q) => [q.id, q.type === 'mc' ? '99' : 'x']));
+/** 문항 전부 정답인 답안 */
+const allRight = () =>
+  Object.fromEntries(
+    questions().map((q) => [q.id, q.type === 'mc' ? String(q.answerIndex) : '충분히 긴 서술 답안']),
+  );
+
+const sub = (studentId: string, answers: Record<string, string>, score = 50): Submission => ({
+  id: `sub_${studentId}`, assignmentId: 'as_x', studentId,
+  submittedAt: '2026-07-02T09:00:00Z', answers, scorePercent: score,
+});
+
+beforeEach(() => {
+  useInterventionStore.setState({ events: [] });
+  useAssignmentStore.setState({ submissions: [], dispatched: [] });
+});
+
+it('대상 학생별 제출/미제출 상태를 렌더한다', () => {
+  act(() => useAssignmentStore.setState({ submissions: [sub('s1', allRight(), 90)] }));
+  render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1', 's2'] }} />);
+  expect(screen.getByText('서연')).toBeTruthy(); // s1
+  expect(screen.getByText('90%')).toBeTruthy(); // 제출 점수
+  expect(screen.getByText('미제출')).toBeTruthy(); // s2 민준
+});
+
+it('제출자 행 [코멘트] → 입력 → 보내기 → comment 이벤트 발신', () => {
+  act(() => useAssignmentStore.setState({ submissions: [sub('s1', allRight(), 90)] }));
+  render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1'] }} />);
+  fireEvent.click(screen.getByRole('button', { name: /코멘트/ }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '오답 정리 훌륭했어요!' } });
+  fireEvent.click(screen.getByRole('button', { name: '보내기' }));
+
+  const events = useInterventionStore.getState().events;
+  expect(events).toHaveLength(1);
+  expect(events[0]).toMatchObject({
+    type: 'comment', studentId: 's1', assignmentId: 'as_x', message: '오답 정리 훌륭했어요!',
+  });
+});
+
+it('오답률 높은 문항 재발사 — 복습 과제 dispatch + 오답자에게 requiz 이벤트', () => {
+  // s1 전부 오답(오답률 기여), s2 전부 정답 → 오답 문항 존재, 재발사 대상은 s1 만
+  act(() =>
+    useAssignmentStore.setState({
+      submissions: [sub('s1', allWrong(), 0), sub('s2', allRight(), 100)],
+    }),
+  );
+  render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1', 's2'] }} />);
+  fireEvent.click(screen.getByRole('button', { name: /재발사/ }));
+
+  const dispatched = useAssignmentStore.getState().dispatched;
+  expect(dispatched).toHaveLength(1);
+  expect(dispatched[0].title).toBe('복습: 도함수 마무리');
+  expect(dispatched[0].mode).toBe('wrong-conquest');
+  expect(dispatched[0].targetStudentIds).toEqual(['s1']); // 오답자만
+
+  const requiz = useInterventionStore.getState().events.filter((e) => e.type === 'requiz');
+  expect(requiz).toHaveLength(1);
+  expect(requiz[0].studentId).toBe('s1');
+  expect(requiz[0].assignmentId).toBe(dispatched[0].id); // 새 과제로 딥링크
+
+  // 오답 문항 집합 보존 — 학생이 generic 시드가 아니라 실제 틀린 문항을 받는다 (Codex #186)
+  const wrongIds = questions().map((q) => q.id); // s1 이 전부 오답 → 전 문항
+  expect(dispatched[0].requizQuestionIds).toEqual(wrongIds);
+  const resolved = getQuestionsForAssignment(dispatched[0]);
+  expect(resolved.map((q) => q.id)).toEqual(wrongIds);
+});
+
+it('재발사 과제는 신선한 마감(+3일)이고 원 과제의 시험 제한을 끌고 가지 않는다 (Codex #186 R3)', () => {
+  act(() =>
+    useAssignmentStore.setState({ submissions: [sub('s1', allWrong(), 0)] }),
+  );
+  // 원 과제가 지난 마감 + 시험 제한을 가진 상태를 흉내
+  const stale = {
+    ...A, dDay: '오늘', dueLabel: '오늘 09:00', examTimeLimitMin: 50, scopeOverride: 1,
+    recentAccuracy: 62, targetStudentIds: ['s1'],
+  } as typeof A;
+  render(<SubmissionStatusPanel assignment={stale} />);
+  fireEvent.click(screen.getByRole('button', { name: /재발사/ }));
+
+  const [d] = useAssignmentStore.getState().dispatched;
+  expect(d.dDay).toBe('D-3'); // 생성 시점 +3일
+  expect(d.examTimeLimitMin).toBeUndefined(); // 시험 제한 미전파
+  expect(d.scopeOverride).toBeUndefined();
+  expect(d.recentAccuracy).toBeUndefined(); // 원 과제 정답률 미상속 — 새 과제가 진행된 것처럼 보이면 안 됨 (R6)
+});
+
+it('제출이 없으면 재발사 버튼 미노출', () => {
+  render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1'] }} />);
+  expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
+});
+
+it('시험 과제에는 코멘트·오답 재발사 경로가 없다 — 결과 비공개 정책 정합 (Codex #186 R2·R5)', () => {
+  act(() => useAssignmentStore.setState({ submissions: [sub('s1', allWrong(), 0)] }));
+  render(
+    <SubmissionStatusPanel
+      assignment={{ ...A, mode: 'exam' } as typeof A}
+    />,
+  );
+  expect(screen.getByText('0%')).toBeTruthy(); // 현황은 보임
+  expect(screen.queryByRole('button', { name: /코멘트/ })).toBeNull(); // 코멘트 경로 없음
+  // 재발사도 오답 정보를 노출(어떤 문항이 틀렸는지)하므로 발표 전 시험에서는 차단
+  expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
+});
+
+it('비대상 학생 제출은 오답률·재발사 대상에서 제외된다 (Codex #186 R2)', () => {
+  // 대상 s1(전부 정답), 비대상 s2(전부 오답) — s2 가 섞여도 오답률 오염 없음
+  act(() =>
+    useAssignmentStore.setState({
+      submissions: [sub('s1', allRight(), 100), sub('s2', allWrong(), 0)],
+    }),
+  );
+  render(<SubmissionStatusPanel assignment={{ ...A, targetStudentIds: ['s1'] }} />);
+  expect(screen.queryByRole('button', { name: /재발사/ })).toBeNull();
+});
