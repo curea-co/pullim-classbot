@@ -482,7 +482,9 @@ export const interventions = pgTable(
     assignmentId: text('assignment_id').references(() => assignments.id, { onDelete: 'cascade' }),
     /** 발신 교사 — assignments.created_by 와 동일 계약(nullable = 교사 삭제 SET NULL, 발신 경로는 항상 기록) */
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
-    /** 인박스에 그대로 표시할 문구 — 발신 시점에 완성해 저장(FE 계약 동일) */
+    /** 인박스에 그대로 표시할 문구 — 발신 시점에 완성해 저장. FE 타입은 message? 지만
+     *  4개 쓰기 표면(리마인드·코멘트·재발사·응원) 전부 항상 완성문을 보내며, BE POST 는
+     *  빈 message 를 400 으로 검증 — NOT NULL 이 인박스 렌더 무결성을 보장한다. */
     message: text('message').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     readAt: timestamp('read_at', { withTimezone: true }),
