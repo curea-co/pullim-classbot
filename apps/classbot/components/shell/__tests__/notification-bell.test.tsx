@@ -2,8 +2,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { NotificationBell, NotificationInbox } from '../notification-bell';
 import { useInterventionStore } from '@/lib/store/interventions';
 
-// 벨 수신자 = 미인증 데모는 roster 폴백(s1 서연), 인증 사용자는 본인 id 그대로
-// (roster 매핑 없는 인증 사용자가 남의 알림을 보지 않도록, Codex #184 R2).
+// 벨 수신자 = roster 브리지 키 — 쓰기(리마인드 s1..)·제출/결과 조인과 동일 규약이어야
+// 알림이 실제로 도착한다 (Codex #184 R3 — mock 단계 읽기/쓰기 동일 도메인 키).
 const mockUser = { id: 'student_001', isAuthenticated: false };
 jest.mock('@/lib/current-user', () => ({
   useCurrentUser: () => mockUser,
@@ -64,11 +64,11 @@ it('인박스 — 비어 있으면 빈 상태 문구', () => {
   expect(screen.getByText(/새 알림이 없어요/)).toBeTruthy();
 });
 
-it('roster 매핑 없는 인증 사용자는 데모 폴백(s1)의 알림을 보지 않는다 (Codex #184 R2)', () => {
-  act(() => send()); // s1 수신 이벤트 존재
-  mockUser.id = 'uuid-authenticated-user';
+it('수신자 키 = roster 브리지 — 쓰기 측(s1) 이벤트가 인증 사용자에게도 도착한다 (Codex #184 R3)', () => {
+  act(() => send()); // 교사 리마인드는 roster id(s1) 로 저장됨
+  mockUser.id = 'uuid-authenticated-user'; // 브리지가 s1 로 해석 (제출/결과 조인과 동일)
   mockUser.isAuthenticated = true;
   render(<NotificationBell />);
-  expect(screen.getByRole('button', { name: '알림' })).toBeTruthy(); // 배지 없음
-  expect(screen.queryByText('1')).toBeNull();
+  // raw id 를 쓰면 쓰기 측과 영원히 불일치 → 벨이 항상 비어 보이는 회귀. 브리지 키로 도착 보장.
+  expect(screen.getByRole('button', { name: /읽지 않은 알림 1개/ })).toBeTruthy();
 });

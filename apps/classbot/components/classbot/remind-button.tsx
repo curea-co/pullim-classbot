@@ -34,7 +34,9 @@ export function RemindButton({
   const submitted = new Set(
     submissions.filter((s) => s.assignmentId === assignmentId).map((s) => s.studentId),
   );
-  // 부분 대상 발사면 그 학생들만 — 반 전체로 새는 리마인드 방지 (Codex #184)
+  // 부분 대상 발사면 그 학생들만 — 반 전체로 새는 리마인드 방지 (Codex #184).
+  // 전체 발사([])의 이상적 스코프는 "해당 botId 의 enrollment"이나, mock 은 단일 교실 roster 만
+  // 보유(봇별 roster 데이터 부재) — classRoster 가 곧 그 교실. 봇별 스코프는 BE 연동 시 함께 (R3 한계 문서화).
   const eligible =
     targetStudentIds.length === 0
       ? classRoster
