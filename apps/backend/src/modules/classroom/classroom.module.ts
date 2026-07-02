@@ -6,6 +6,7 @@ import { EnrollmentsController } from "./controller/enrollments.controller";
 import { ClassroomRepository } from "./infrastructure/classroom.repository";
 import { CLASSROOM_REPOSITORY_TOKEN } from "./interface/classroom-repository.interface";
 import { ClassroomService } from "./service/classroom.service";
+import { AssignEnrollmentUseCase } from "./use-cases/assign-enrollment.use-case";
 import { GetBotUseCase } from "./use-cases/get-bot.use-case";
 import { IssueJoinCodeUseCase } from "./use-cases/issue-join-code.use-case";
 import { JoinByCodeUseCase } from "./use-cases/join-by-code.use-case";
@@ -28,6 +29,7 @@ import { ListClassroomsUseCase } from "./use-cases/list-classrooms.use-case";
     ListClassroomsUseCase,
     JoinByCodeUseCase,
     IssueJoinCodeUseCase,
+    AssignEnrollmentUseCase,
   ],
 })
 export class ClassroomModule {}

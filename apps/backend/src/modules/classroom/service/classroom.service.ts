@@ -22,6 +22,7 @@ import {
 import {
   BotRow,
   CLASSROOM_REPOSITORY_TOKEN,
+  ClassroomRow,
   EnrollmentRow,
   IClassroomRepository,
 } from "../interface/classroom-repository.interface";
@@ -139,24 +140,87 @@ export class ClassroomService {
       throw notFound("참여 코드에 연결된 클래스봇/반이 없습니다.");
     }
 
-    const existing = await this.repository.findEnrollment(bot.id, user.id);
+    return this.upsertEnrollment(bot, classroom, user.id);
+  }
+
+  /**
+   * 교사 직접 배정 — `POST /api/classrooms/:id/enrollments` (spec §4.2).
+   * 코드 참여(M2 개정 §2)와 병존하는 교사 셀프 진입점: 요청 교사가 반·봇
+   * *모두*의 소유자인지 검증한 뒤 joinByCode 와 동일한 upsert 를 재사용한다
+   * (멱등 200/신규 201, enrolled_count 트랜잭션 증가, 동일 응답 형태).
+   * @param userId - 요청 교사 id (JWT 또는 x-user-id)
+   * @param classroomId - 배정할 반 id (path)
+   * @param body - { studentId, botId }
+   */
+  async assignEnrollment(
+    userId: string | undefined,
+    classroomId: string,
+    body: unknown,
+  ): Promise<JoinByCodeResult> {
+    const input = this.parseAssignBody(body);
+    const requesterId = this.requireUserId(userId);
+
+    const user = await this.repository.findUserById(requesterId);
+    if (!user) {
+      throw unauthorized("알 수 없는 사용자입니다.");
+    }
+    if (user.role !== "teacher") {
+      throw forbidden("교사만 학생을 배정할 수 있습니다.");
+    }
+
+    const classroom = await this.repository.findClassroomById(classroomId);
+    if (!classroom) {
+      throw notFound("반을 찾을 수 없습니다.");
+    }
+    if (classroom.teacherId !== user.id) {
+      throw forbidden("본인 소유의 반에만 학생을 배정할 수 있습니다.");
+    }
+
+    const bot = await this.repository.findBotById(input.botId);
+    if (!bot) {
+      throw notFound("클래스봇을 찾을 수 없습니다.");
+    }
+    if (bot.teacherId !== user.id) {
+      throw forbidden("본인 소유의 클래스봇에만 학생을 배정할 수 있습니다.");
+    }
+
+    const student = await this.repository.findUserById(input.studentId);
+    if (!student) {
+      throw notFound("학생을 찾을 수 없습니다.");
+    }
+    if (student.role !== "student") {
+      throw validationError("studentId 는 학생 사용자여야 합니다.");
+    }
+
+    return this.upsertEnrollment(bot, classroom, student.id);
+  }
+
+  /**
+   * enrollment 멱등 upsert — 코드 참여·교사 직접 배정 공용 꼬리.
+   * 파생 필드는 mock class-codes.ts 의미 재현: assignedBy=봇 교사명,
+   * via=반 소속 기관. PK 충돌(동시 삽입)은 기존 행 폴백으로 멱등 처리.
+   */
+  private async upsertEnrollment(
+    bot: BotRow,
+    classroom: ClassroomRow,
+    studentId: string,
+  ): Promise<JoinByCodeResult> {
+    const existing = await this.repository.findEnrollment(bot.id, studentId);
     if (existing) {
       return { created: false, enrollment: this.toEnrollmentDto(existing) };
     }
 
     const assignedAt = await this.repository.createEnrollment({
       botId: bot.id,
-      studentId: user.id,
+      studentId,
       classroomId: classroom.id,
       classroomLabel: classroom.label,
-      // mock class-codes.ts 의미 재현: assignedBy=봇 교사명, via=반 소속 기관.
       assignedBy: bot.teacherName,
       via: classroom.organization,
     });
 
-    // PK 충돌(동시 참여)이면 멱등 — 방금 생긴 기존 행을 반환한다.
     if (!assignedAt) {
-      const raced = await this.repository.findEnrollment(bot.id, user.id);
+      const raced = await this.repository.findEnrollment(bot.id, studentId);
       if (!raced) {
         throw notFound("참여 처리에 실패했습니다. 다시 시도해 주세요.");
       }
@@ -174,6 +238,27 @@ export class ClassroomService {
         via: classroom.organization,
       },
     };
+  }
+
+  /** { studentId, botId } 본문 검증. */
+  private parseAssignBody(body: unknown): {
+    studentId: string;
+    botId: string;
+  } {
+    const record =
+      body && typeof body === "object"
+        ? (body as { studentId?: unknown; botId?: unknown })
+        : {};
+    if (
+      typeof record.studentId !== "string" ||
+      record.studentId.trim().length === 0
+    ) {
+      throw validationError("studentId 는 비어 있지 않은 문자열이어야 합니다.");
+    }
+    if (typeof record.botId !== "string" || record.botId.trim().length === 0) {
+      throw validationError("botId 는 비어 있지 않은 문자열이어야 합니다.");
+    }
+    return { studentId: record.studentId.trim(), botId: record.botId.trim() };
   }
 
   /**

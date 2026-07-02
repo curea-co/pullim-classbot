@@ -552,3 +552,188 @@ describe("ClassroomService.issueJoinCode", () => {
     expectEnvelope(err, 401, "UNAUTHORIZED");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 교사 직접 배정 — assignEnrollment (POST /api/classrooms/:id/enrollments, spec §4.2)
+// ---------------------------------------------------------------------------
+
+/** assignEnrollment happy path — teacher_001 이 자기 봇·반에 s2 를 배정. */
+function makeAssignRepository() {
+  const repo = makeRepository();
+  repo.findUserById.mockImplementation((id: string) => {
+    if (id === "teacher_001") return Promise.resolve(TEACHER);
+    if (id === "s2") return Promise.resolve(STUDENT);
+    return Promise.resolve(null);
+  });
+  repo.findBotById.mockResolvedValue(BOT);
+  repo.findClassroomById.mockResolvedValue(CLASSROOM);
+  repo.findEnrollment.mockResolvedValue(null);
+  repo.createEnrollment.mockResolvedValue(new Date("2026-07-04T09:00:00.000Z"));
+  return repo;
+}
+
+describe("ClassroomService.assignEnrollment", () => {
+  it("happy — 소유 검증 후 코드 참여와 동일한 파생 필드로 enrollment 를 생성한다", async () => {
+    const repo = makeAssignRepository();
+    const service = new ClassroomService(repo);
+
+    const result = await service.assignEnrollment("teacher_001", "cr_math_a", {
+      studentId: "s2",
+      botId: "cb_001",
+    });
+
+    expect(repo.createEnrollment).toHaveBeenCalledWith({
+      botId: "cb_001",
+      studentId: "s2",
+      classroomId: "cr_math_a",
+      classroomLabel: "고2 미적분 A반",
+      assignedBy: "김수학 선생님",
+      via: "대치프리미엄 수학학원",
+    });
+    expect(result).toEqual({
+      created: true,
+      enrollment: {
+        botId: "cb_001",
+        classroomId: "cr_math_a",
+        classroomLabel: "고2 미적분 A반",
+        assignedBy: "김수학 선생님",
+        assignedAt: "2026-07-04T09:00:00.000Z",
+        via: "대치프리미엄 수학학원",
+      },
+    });
+  });
+
+  it("이미 배정된 학생이면 멱등 — created=false 로 기존 행을 반환한다", async () => {
+    const repo = makeAssignRepository();
+    repo.findEnrollment.mockResolvedValue(EXISTING_ENROLLMENT);
+    const service = new ClassroomService(repo);
+
+    const result = await service.assignEnrollment("teacher_001", "cr_math_a", {
+      studentId: "s2",
+      botId: "cb_001",
+    });
+
+    expect(repo.createEnrollment).not.toHaveBeenCalled();
+    expect(result.created).toBe(false);
+    expect(result.enrollment.assignedAt).toBe("2026-07-02T09:00:00.000Z");
+  });
+
+  it("요청자가 교사가 아니면 403 FORBIDDEN", async () => {
+    const repo = makeAssignRepository();
+    repo.findUserById.mockResolvedValue(STUDENT);
+    const service = new ClassroomService(repo);
+
+    const err = await service
+      .assignEnrollment("s2", "cr_math_a", { studentId: "s3", botId: "cb_001" })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(err, 403, "FORBIDDEN");
+  });
+
+  it("반 소유자가 아니면 403, 봇 소유자가 아니어도 403", async () => {
+    const repoOtherClassroom = makeAssignRepository();
+    repoOtherClassroom.findClassroomById.mockResolvedValue({
+      ...CLASSROOM,
+      teacherId: "teacher_002",
+    });
+    const repoOtherBot = makeAssignRepository();
+    repoOtherBot.findBotById.mockResolvedValue({
+      ...BOT,
+      teacherId: "teacher_002",
+    });
+
+    const notMyClassroom = await new ClassroomService(repoOtherClassroom)
+      .assignEnrollment("teacher_001", "cr_math_a", {
+        studentId: "s2",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+    const notMyBot = await new ClassroomService(repoOtherBot)
+      .assignEnrollment("teacher_001", "cr_math_a", {
+        studentId: "s2",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(notMyClassroom, 403, "FORBIDDEN");
+    expectEnvelope(notMyBot, 403, "FORBIDDEN");
+    expect(repoOtherClassroom.createEnrollment).not.toHaveBeenCalled();
+    expect(repoOtherBot.createEnrollment).not.toHaveBeenCalled();
+  });
+
+  it("없는 학생 404 NOT_FOUND, 학생 아닌 대상 400 VALIDATION", async () => {
+    const service = new ClassroomService(makeAssignRepository());
+
+    const ghost = await service
+      .assignEnrollment("teacher_001", "cr_math_a", {
+        studentId: "ghost",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+    const notStudent = await service
+      .assignEnrollment("teacher_001", "cr_math_a", {
+        studentId: "teacher_001",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(ghost, 404, "NOT_FOUND");
+    expectEnvelope(notStudent, 400, "VALIDATION");
+  });
+
+  it("없는 반 404, 없는 봇 404", async () => {
+    const repoNoClassroom = makeAssignRepository();
+    repoNoClassroom.findClassroomById.mockResolvedValue(null);
+    const repoNoBot = makeAssignRepository();
+    repoNoBot.findBotById.mockResolvedValue(null);
+
+    const noClassroom = await new ClassroomService(repoNoClassroom)
+      .assignEnrollment("teacher_001", "cr_none", {
+        studentId: "s2",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+    const noBot = await new ClassroomService(repoNoBot)
+      .assignEnrollment("teacher_001", "cr_math_a", {
+        studentId: "s2",
+        botId: "cb_none",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(noClassroom, 404, "NOT_FOUND");
+    expectEnvelope(noBot, 404, "NOT_FOUND");
+  });
+
+  it("본문 studentId/botId 누락 400 VALIDATION · 무신원 401", async () => {
+    const service = new ClassroomService(makeAssignRepository());
+
+    const badBody = await service
+      .assignEnrollment("teacher_001", "cr_math_a", { studentId: "s2" })
+      .catch((e: unknown) => e);
+    const noIdentity = await service
+      .assignEnrollment(undefined, "cr_math_a", {
+        studentId: "s2",
+        botId: "cb_001",
+      })
+      .catch((e: unknown) => e);
+
+    expectEnvelope(badBody, 400, "VALIDATION");
+    expectEnvelope(noIdentity, 401, "UNAUTHORIZED");
+  });
+
+  it("동시 삽입 충돌(createEnrollment=null)도 멱등 — 기존 행 폴백", async () => {
+    const repo = makeAssignRepository();
+    repo.createEnrollment.mockResolvedValue(null);
+    repo.findEnrollment
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(EXISTING_ENROLLMENT);
+    const service = new ClassroomService(repo);
+
+    const result = await service.assignEnrollment("teacher_001", "cr_math_a", {
+      studentId: "s2",
+      botId: "cb_001",
+    });
+
+    expect(result.created).toBe(false);
+  });
+});
