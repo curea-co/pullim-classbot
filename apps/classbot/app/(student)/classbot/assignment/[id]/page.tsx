@@ -12,7 +12,7 @@ import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
 import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
-import { useAssignmentLookup } from '@/lib/store/assignments';
+import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,9 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
   }
 
   // 문항은 더 깊은 레이어(mock) — 시드 과제는 존재, 신규 DB 과제는 빈 배열로 안내.
-  const questions = getQuestionsByAssignment(id);
+  // 로컬 발사분은 getQuestionsForAssignment 로 해석 — 오답 재발사(requizQuestionIds) 계약을
+  // 개요도 solve/result 와 동일하게 읽어 재발사 과제가 잘못 표시되지 않게 한다 (Codex #186 R4).
+  const questions = localA ? getQuestionsForAssignment(localA) : getQuestionsByAssignment(id);
 
   const isInProgress = a.state === 'in-progress';
   const isSubmitted = a.state === 'submitted';

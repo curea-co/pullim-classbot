@@ -1393,6 +1393,13 @@ export function getQuestionsByAssignment(assignmentId: string): AssignmentQuesti
     .sort((a, b) => a.order - b.order);
 }
 
+/** id 목록으로 문항 해석 — 입력 순서 보존. 오답 재발사(requiz)가 틀린 문항 집합을 그대로 받도록. */
+export function getQuestionsByIds(ids: string[]): AssignmentQuestion[] {
+  return ids
+    .map(id => assignmentQuestions.find(q => q.id === id))
+    .filter((q): q is AssignmentQuestion => q != null);
+}
+
 export function getAssignmentById(id: string): Assignment | undefined {
   return studentAssignments.find(a => a.id === id);
 }

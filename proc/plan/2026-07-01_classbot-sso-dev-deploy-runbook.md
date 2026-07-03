@@ -61,6 +61,49 @@ Vercel 대시보드 > **`classbot` 프로젝트** > Settings > Environment Varia
 | B-2 | `dev-classbot.pullim.ai` Vercel Preview 배포가 `dev` 브랜치를 소스로 인식하는가 | Infra | [ ] |
 | B-3 | `dev-classbot.pullim.ai`가 외부 차단(Vercel Password Protection 또는 allowlist)으로 보호되어 있는가 (Dev = preview, 외부 노출 금지) | Infra | [ ] |
 
+#### 세부 실행 절차
+
+리포 구성 기준값: bun workspace 모노레포(`bun@1.3.12`), classbot 앱 = `apps/classbot`, Next `output: standalone`, `vercel.json` 없음(대시보드 설정).
+
+**B-1a. 프로젝트 Build & Development 설정** — Vercel → 프로젝트 → Settings → General:
+
+| 항목 | 값 |
+|---|---|
+| Framework Preset | Next.js |
+| **Root Directory** | `apps/classbot` |
+| **Include files outside root directory** | **ON** (workspace 패키지 접근 필수) |
+| Install Command | `cd ../.. && bun install` (루트에서 설치 → workspace 해석) |
+| Build Command | `bun run build` (Root Directory 안에서 실행) |
+| Output Directory | 비움 (Next.js 자동; `output:standalone`은 Vercel이 자체 처리) |
+| Package Manager | `packageManager: bun@1.3.12` 자동 감지 |
+
+- 확인: dev 커밋 → Preview 빌드 성공, 로그에 `bun install` + `next build`.
+
+**B-1b. 도메인 추가** — Settings → Domains → Add `dev-classbot.pullim.ai`:
+- `pullim.ai` 존(Cloudflare/Route53 등)에 Vercel 안내 레코드 추가 — 보통 **CNAME `dev-classbot` → `cname.vercel-dns.com`**.
+- 확인: Domains에 `dev-classbot.pullim.ai` **Valid Configuration**.
+
+**B-2. dev 브랜치 = Preview + 도메인 고정** — Settings → Git:
+- Production Branch = `main` (main만 Production). `dev` push → 자동 Preview.
+- Settings → Domains → `dev-classbot.pullim.ai` → **Git Branch = `dev`** 지정 → 이 도메인이 항상 dev 최신 Preview를 서빙.
+- 확인: `curl -s https://dev-classbot.pullim.ai/classbot | grep x-build-sha` 가 dev HEAD SHA와 일치.
+
+**B-3. 외부 차단** — Settings → Deployment Protection:
+- **Vercel Authentication**(팀 전용) 또는 **Password Protection** ON, scope에 Preview 포함(dev 도메인 커버).
+- ⚠️ **SSO e2e 충돌 주의**: Protection이 켜지면 라운드트립·`sso-login-roundtrip.spec.ts`가 인증 벽에 막힘 → **Protection Bypass for Automation** 토큰 발급 후 e2e 실행 시 `x-vercel-protection-bypass` 헤더/쿼리로 통과.
+- 확인: 시크릿 창(비로그인)에서 접속 시 인증 벽, 팀 로그인/바이패스로 통과.
+
+**환경변수** — Settings → Environment Variables, **Preview** 스코프(§2 표와 동일). `NEXT_PUBLIC_*`는 빌드 인라인 → 저장 후 **재배포** 필수. Preview 브랜치가 여럿이면 dev에만 적용하려면 Vercel **Custom Environments**(브랜치 타겟)로 스코프.
+
+**CLI 대안(선택)**:
+```bash
+cd apps/classbot
+vercel link
+vercel env add NEXT_PUBLIC_OS_SSO preview          # 값 true (나머지 3개 동일)
+vercel domains add dev-classbot.pullim.ai
+vercel --prod=false                                 # preview 배포
+```
+
 ### 3-2. classbot 포트 · 서비스 표준 배정
 
 | # | 항목 | 오너 | 완료 |

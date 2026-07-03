@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
+import { ReplayReviewNudge } from '@/components/classbot/replay-review-nudge';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/classbot/empty-state';
 
@@ -51,6 +52,13 @@ export default function ClassbotReplayListPage() {
         title="리플레이"
         description={`${allReplays.length + createdSent.length}개 수업 · 총 시청 ${totalWatchedMin}분`}
       />
+
+      {/* 복습 넛지 — 미해결 약점이 남은 리플레이 recap 으로 유도 (spec §6, 필터와 무관하게 전체 기준).
+          입력은 목록 본문과 동일한 sent 스코프 — 넛지와 화면이 항상 일치한다(데모 시드 미포함:
+          세션 복원 전 플래시·넛지-빈목록 모순 방지, demo/[id] 격리 의도 유지, Codex #181 R2·R3).
+          studentReplays 가 시드되기 전(출시 빈 배열)에는 자연히 미노출 — 데모 recap 진입은
+          컴포넌트의 demo href 분기가 지원하므로 데모 표면에서 재사용 가능. */}
+      <ReplayReviewNudge replays={allReplays} />
 
       {/* 방금 도착한 리플레이 — 라이브 종료 후 교사 승인된 신규본 */}
       {createdSent.length > 0 && (

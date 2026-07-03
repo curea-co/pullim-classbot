@@ -414,3 +414,18 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* Hero 3D 부유 카드 — 라이팅/입시 코치 Hero 와 통일한 CSS 3D(의존성 0). 각 카드의 3D 포즈를
+   유지한 채 translateY 로 미세 부유. motion-safe 변형으로만 적용돼 reduced-motion 시 정지(정적 포즈). */
+@keyframes pullim-hero-float-a {
+  0%, 100% { transform: rotateY(-16deg) rotateX(7deg) translateZ(-44px) translateY(0); }
+  50%      { transform: rotateY(-16deg) rotateX(7deg) translateZ(-44px) translateY(-7px); }
+}
+@keyframes pullim-hero-float-b {
+  0%, 100% { transform: rotateY(-8deg) rotateX(4deg) translateY(0); }
+  50%      { transform: rotateY(-8deg) rotateX(4deg) translateY(-5px); }
+}
+@keyframes pullim-hero-float-c {
+  0%, 100% { transform: rotateY(-2deg) rotateX(2deg) translateZ(40px) translateY(0); }
+  50%      { transform: rotateY(-2deg) rotateX(2deg) translateZ(40px) translateY(-9px); }
+}

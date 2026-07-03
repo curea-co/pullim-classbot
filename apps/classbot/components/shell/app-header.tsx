@@ -20,6 +20,7 @@ import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { NotificationBell } from './notification-bell';
 import { StudentModeToggle } from './student-mode-toggle';
 
 const roleHomeHref: Record<Role, string> = {
@@ -71,13 +72,18 @@ export function AppHeaderActions({ role }: { role: Role }) {
         >
           <Search className="h-[22px] w-[22px]" />
         </button>
-        <button
-          aria-label="알림 — 준비 중"
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
-          title="준비 중"
-        >
-          <Bell className="h-[22px] w-[22px]" />
-        </button>
+        {/* 알림 — 학생은 개입 인박스(교사 개입 수신함), 교사 수신함은 후속(준비 중 유지) */}
+        {role === 'student' ? (
+          <NotificationBell />
+        ) : (
+          <button
+            aria-label="알림 — 준비 중"
+            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+            title="준비 중"
+          >
+            <Bell className="h-[22px] w-[22px]" />
+          </button>
+        )}
         <ProfileMenu role={role} />
       </div>
     </>

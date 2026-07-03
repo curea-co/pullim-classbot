@@ -5,7 +5,8 @@ import type { StudentEnrollment } from '@/lib/mock/classbot';
  * 실제로는 BE가 코드/링크/QR을 enrollment로 해석한다. 데모에서는 소수의 고정 코드만 인정.
  * assignedBy는 대응 봇(classBots)의 teacherName과 일치시킨다.
  */
-const CODE_MAP: Record<string, StudentEnrollment> = {
+// export — DB seed(join_codes 테이블)가 이 맵을 실전판으로 옮긴다 (실출시 M2).
+export const CODE_MAP: Record<string, StudentEnrollment> = {
   'MATH-2024': {
     botId: 'cb_001',
     classroomId: 'cr_math_a',

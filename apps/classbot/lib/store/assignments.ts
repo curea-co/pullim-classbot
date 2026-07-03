@@ -6,15 +6,26 @@
  * - localStorage persist — 새로고침 후에도 학생 화면에 보존
  * - mock 시드 + dispatched 합산은 lib/mock/classbot.ts의 getMyAssignments() 헬퍼에서
  * - 새 과제 id 패턴: `as_user_${Date.now()}` (시드 id와 충돌 회피)
+ *
+ * Ph7(`USE_REAL_CORE_BE`): 쓰기(dispatch/recordSubmission)는 스토어 선반영 후
+ * BE 로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMergedAssignments 등)는
+ * `GET /api/assignments?audience=student` 를 스토어 캐시로 동기화한다.
+ * 플래그 OFF 면 기존 mock/localStorage 동작 100% 불변.
  */
 
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   type Assignment, type AssignmentQuestion,
   studentAssignments, getAssignmentById as getSeedAssignmentById,
-  getQuestionsByAssignment,
+  getQuestionsByAssignment, getQuestionsByIds,
 } from '@/lib/mock';
+import { USE_REAL_CORE_BE } from '@/lib/features';
+import {
+  domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
+  toDomainUserId, fromDomainUserId, useStudentSyncUserId, type RequestIdentity,
+} from '@/lib/api/domain-fetch';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
 
@@ -27,6 +38,8 @@ export type UserAssignment = Assignment & {
   dispatchedAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
+  /** 오답 재발사(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
+  requizQuestionIds?: string[];
 };
 
 /** 학생 제출 기록 — 교사 진행률 / 점수 집계의 원천 */
@@ -66,7 +79,7 @@ export const useAssignmentStore = create<AssignmentStore>()(
       submissions: [],
       lastDispatched: null,
 
-      dispatch: (a) =>
+      dispatch: (a) => {
         set((s) => {
           const targetCount = a.targetStudentIds.length === 0 ? 18 : a.targetStudentIds.length;
           return {
@@ -78,7 +91,10 @@ export const useAssignmentStore = create<AssignmentStore>()(
               assignmentTitle: a.title,
             },
           };
-        }),
+        });
+        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지, M2 단방향 신뢰)
+        if (USE_REAL_CORE_BE) void dispatchToBackend(a);
+      },
 
       saveDraft: (a) =>
         set((s) => {
@@ -102,6 +118,8 @@ export const useAssignmentStore = create<AssignmentStore>()(
           );
           return { submissions: [submission, ...filtered] };
         });
+        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지)
+        if (USE_REAL_CORE_BE) void submitToBackend(submission);
         return submission;
       },
 
@@ -112,6 +130,205 @@ export const useAssignmentStore = create<AssignmentStore>()(
     },
   ),
 );
+
+/* ─────────────────────────────────────────────────────────────
+ * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
+ * ───────────────────────────────────────────────────────────── */
+
+/**
+ * BE 과제 한 행 — `AssignmentResponseDto`(FE AssignmentReadRow 상위집합) 소비형.
+ * 시각 필드는 ISO-8601 문자열(spec §3), 라벨은 assignedAtLabel.
+ */
+interface BackendAssignmentRow {
+  id: string;
+  botId: string;
+  studentId: string | null;
+  title: string;
+  scope: string;
+  subject: string;
+  grade: string;
+  chapterFrom: string;
+  chapterTo: string;
+  achievementCodes: string[];
+  questionCount: number;
+  difficulty: Assignment['difficulty'];
+  mode: Assignment['mode'];
+  scopeOverride: Assignment['scopeOverride'] | null;
+  source: Assignment['source'];
+  assignedBy: string;
+  assignedAtLabel: string;
+  dueLabel: string;
+  dDay: string;
+  completedCount: number;
+  recentAccuracy: number | null;
+  state: Assignment['state'];
+  reasonHint: string | null;
+  solveHref: string;
+  targetStudentIds?: string[] | null;
+  dispatchedAt?: string | null;
+  examTimeLimitMin?: number | null;
+  requizQuestionIds?: string[] | null;
+}
+
+/**
+ * BE 행 → 스토어 UserAssignment.
+ * 학생 키 역변환(student_001→s1)은 **미인증 데모 읽기에서만** 적용한다 — 인증
+ * 사용자 행의 raw user id 를 roster 키로 붕괴시키지 않는다 (Codex #196 R2 ②).
+ */
+function toUserAssignment(row: BackendAssignmentRow, mapToRosterKeys: boolean): UserAssignment {
+  return {
+    id: row.id,
+    botId: row.botId,
+    title: row.title,
+    scope: row.scope,
+    subject: row.subject,
+    grade: row.grade,
+    chapterFrom: row.chapterFrom,
+    chapterTo: row.chapterTo,
+    achievementCodes: row.achievementCodes ?? [],
+    questionCount: row.questionCount,
+    difficulty: row.difficulty,
+    mode: row.mode,
+    ...(row.scopeOverride != null ? { scopeOverride: row.scopeOverride } : {}),
+    source: row.source,
+    assignedBy: row.assignedBy,
+    assignedAt: row.assignedAtLabel,
+    dueLabel: row.dueLabel,
+    dDay: row.dDay,
+    completedCount: row.completedCount,
+    ...(row.recentAccuracy != null ? { recentAccuracy: row.recentAccuracy } : {}),
+    state: row.state,
+    ...(row.reasonHint ? { reasonHint: row.reasonHint } : {}),
+    solveHref: row.solveHref,
+    dispatchStatus: 'sent',
+    targetStudentIds: mapToRosterKeys
+      ? (row.targetStudentIds ?? []).map(fromDomainUserId)
+      : (row.targetStudentIds ?? []),
+    ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
+    ...(row.examTimeLimitMin != null ? { examTimeLimitMin: row.examTimeLimitMin } : {}),
+    ...(row.requizQuestionIds && row.requizQuestionIds.length > 0
+      ? { requizQuestionIds: row.requizQuestionIds }
+      : {}),
+  };
+}
+
+/**
+ * 교사 발사 → `POST /api/assignments` (dueLabel/dDay 직접 전달 경로).
+ * 성공 시 로컬 낙관 항목을 서버 생성 행으로 재키잉해 — 이후 상세/제출/읽기 동기화가
+ * BE 와 같은 id 를 쓰게 한다. 실패 시 콘솔 경고 + 로컬 유지 (graceful degrade).
+ */
+async function dispatchToBackend(a: UserAssignment): Promise<void> {
+  const body = {
+    botId: a.botId,
+    title: a.title,
+    scope: a.scope,
+    chapterFrom: a.chapterFrom,
+    chapterTo: a.chapterTo,
+    achievementCodes: a.achievementCodes,
+    questionCount: a.questionCount,
+    difficulty: a.difficulty,
+    mode: a.mode,
+    targetStudentIds: a.targetStudentIds.map(toDomainUserId),
+    dueLabel: a.dueLabel,
+    dDay: a.dDay,
+    ...(a.reasonHint ? { reasonHint: a.reasonHint } : {}),
+    ...(a.examTimeLimitMin != null ? { examTimeLimitMin: a.examTimeLimitMin } : {}),
+    ...(a.requizQuestionIds && a.requizQuestionIds.length > 0
+      ? { requizQuestionIds: a.requizQuestionIds }
+      : {}),
+  };
+  const identity = teacherRequestIdentity();
+  try {
+    const created = await domainFetch<BackendAssignmentRow>('/assignments', {
+      method: 'POST',
+      body,
+      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 교사 키.
+      demoUserId: identity.demoUserId,
+    });
+    useAssignmentStore.setState((s) => ({
+      dispatched: s.dispatched.map((d) =>
+        d.id === a.id ? { ...d, ...toUserAssignment(created, !identity.isAuthenticated) } : d,
+      ),
+    }));
+  } catch (e) {
+    console.warn('[assignments] BE 과제 발사 실패 — 로컬 유지:', e);
+  }
+}
+
+/** 학생 제출 → `POST /api/assignments/:id/submissions`. 실패 시 경고 + 로컬 유지. */
+async function submitToBackend(submission: Submission): Promise<void> {
+  try {
+    await domainFetch<unknown>(
+      `/assignments/${encodeURIComponent(submission.assignmentId)}/submissions`,
+      {
+        method: 'POST',
+        body: { answers: submission.answers, scorePercent: submission.scorePercent },
+        // 인증이면 Bearer 신원(데모 명의 미전달), 미인증만 payload roster 키를 seed 변환.
+        demoUserId: getAuthUserSnapshot() ? undefined : toDomainUserId(submission.studentId),
+      },
+    );
+  } catch (e) {
+    console.warn('[assignments] BE 제출 기록 실패 — 로컬 유지:', e);
+  }
+}
+
+// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
+// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+let backendAssignmentSync: {
+  key: string;
+  promise: Promise<UserAssignment[] | null>;
+} | null = null;
+
+/** 테스트 전용 — 단일 비행 캐시 리셋. */
+export function resetBackendAssignmentSyncForTests(): void {
+  backendAssignmentSync = null;
+}
+
+async function fetchBackendAssignments(
+  identity: RequestIdentity,
+): Promise<UserAssignment[] | null> {
+  try {
+    const res = await domainFetch<{ assignments: BackendAssignmentRow[] }>(
+      '/assignments?audience=student',
+      { demoUserId: identity.demoUserId },
+    );
+    return res.assignments.map((row) => toUserAssignment(row, !identity.isAuthenticated));
+  } catch (e) {
+    console.warn('[assignments] BE 과제 목록 동기화 실패 — 로컬 유지:', e);
+    return null;
+  }
+}
+
+/**
+ * 플래그 ON 읽기 동기화 — `GET /api/assignments?audience=student` 를 dispatched
+ * 캐시에 병합한다. 같은 id 는 BE 행이 진실, BE 에 없는 로컬 행은 유지(쓰기 실패분 보존).
+ * 플래그 OFF 면 완전 no-op. 데모 read 폴백(assignment/page.tsx demoData)은 불변.
+ */
+function useBackendAssignmentSync(): void {
+  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
+  const syncUserId = useStudentSyncUserId();
+  useEffect(() => {
+    if (!USE_REAL_CORE_BE) return;
+    let cancelled = false;
+    const identity = studentRequestIdentity();
+    if (backendAssignmentSync?.key !== identity.userId) {
+      backendAssignmentSync = {
+        key: identity.userId,
+        promise: fetchBackendAssignments(identity),
+      };
+    }
+    void backendAssignmentSync.promise.then((rows) => {
+      if (cancelled || !rows) return;
+      useAssignmentStore.setState((s) => {
+        const beIds = new Set(rows.map((r) => r.id));
+        return { dispatched: [...s.dispatched.filter((d) => !beIds.has(d.id)), ...rows] };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [syncUserId]);
+}
 
 /** SSR 안전 hydration — 서버에서는 빈 배열, 클라이언트에서만 store 반영 */
 export function useDispatchedAssignments(): UserAssignment[] {
@@ -131,6 +348,7 @@ export function nextAssignmentId(): string {
  * 그렇지 않으면 해당 학생만 포함.
  */
 export function useMergedAssignments(studentId?: string): Assignment[] {
+  useBackendAssignmentSync(); // Ph7 — 플래그 OFF 면 no-op
   const dispatched = useAssignmentStore((s) => s.dispatched);
   const filteredDispatched = studentId
     ? dispatched.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
@@ -140,6 +358,7 @@ export function useMergedAssignments(studentId?: string): Assignment[] {
 
 /** id로 과제 lookup — 시드 + 발사 모두 검색 */
 export function useAssignmentLookup(id: string): Assignment | undefined {
+  useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
   const dispatched = useAssignmentStore((s) => s.dispatched);
   return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
 }
@@ -148,7 +367,19 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
  * 과제의 문항 풀 — 시드 문항이 있으면 그대로, 없으면 mode 기반 fallback.
  * 새 과제는 mock 시드를 빌려와 P0 시연을 보장.
  */
-export function getQuestionsForAssignment(assignment: Assignment): AssignmentQuestion[] {
+/*
+ * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 문항 **본문**은 여전히 mock 풀에서 해석한다 —
+ * 문항 콘텐츠의 DB 영속·서버 해석은 M3(QGen 생성 경로) 소관(스키마 PR #192·BE PR #193 명시).
+ * M2 의 BE 는 과제 메타(행)만 진실이고, 새 과제의 questions 는 빈 배열 + FE mock fallback.
+ */
+export function getQuestionsForAssignment(
+  assignment: Assignment & { requizQuestionIds?: string[] },
+): AssignmentQuestion[] {
+  // 오답 재발사 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
+  if (assignment.requizQuestionIds && assignment.requizQuestionIds.length > 0) {
+    const requizQs = getQuestionsByIds(assignment.requizQuestionIds);
+    if (requizQs.length > 0) return requizQs;
+  }
   const seedQs = getQuestionsByAssignment(assignment.id);
   if (seedQs.length > 0) return seedQs;
   // fallback by mode — 발사된 새 과제용
