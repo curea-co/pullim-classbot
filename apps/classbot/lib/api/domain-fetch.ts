@@ -5,11 +5,16 @@
  * **같은 오리진 Next route handler**(`/api/*`) 전용이라 별도 헬퍼가 필요하다 —
  * 이쪽은 `@pullim-classbot/api-client` 의 `BASE_URL`(NestJS BE) 로 간다.
  *
- * 신원 규약 (M2 개정 §3 — JWT 우선 + `x-user-id` 폴백, 무신원 401):
- *  - **인증 사용자**(앱 인증 세션 = 디코더블 access token, `getAuthUserSnapshot`):
+ * 신원 규약 (M2 개정 §3 — JWT 우선 + `x-user-id` 폴백, 무신원 401) — 3-way:
+ *  - **① classbot JWT 인증**(앱 인증 세션 = 디코더블 access token, `getAuthUserSnapshot`):
  *    `authRequest`(Bearer 자동 첨부 + 401 refresh) 경로만. 401 도 데모로 폴백하지 않고
  *    전파한다 — 인증 사용자의 요청이 데모 명의로 오귀속되는 것을 차단(Codex #196 R2 ①).
- *  - **미인증 데모**: `x-user-id` 헤더로 도메인 사용자 키를 전송. 잔여(비-디코더블)
+ *  - **② OS SSO 쿠키 세션**(`OS_SSO_ENABLED` && OS 세션 인증): OS 세션은 HttpOnly
+ *    쿠키라 JS 가 토큰을 못 읽어 Bearer 첨부가 불가하다. auth-context 가
+ *    `setDomainIdentitySnapshot` 으로 publish 한 세션 사용자의 **raw sub(uuid)** 를
+ *    `x-user-id` 로 전송한다 — 인증 사용자이므로 데모 브리지(roster↔seed 변환)는
+ *    적용하지 않는다(#196 규칙 "인증=raw id" 유지).
+ *  - **③ 미인증 데모**: `x-user-id` 헤더로 도메인 사용자 키를 전송. 잔여(비-디코더블)
  *    토큰으로 authRequest 가 401 로 끝나면 데모 경로로 1회 폴백한다 — 폴백은
  *    호출부가 `demoUserId` 를 전달한(= 앱 미인증) 경우에만 열린다.
  *    학생 키는 개입 수신자 규약(`resolveRosterMe`)과 동일한 roster 브리지를 거친 뒤
@@ -29,8 +34,18 @@ import {
   tokenManager,
 } from '@pullim-classbot/api-client';
 
+import {
+  peekDomainIdentitySnapshot,
+  subscribeDomainIdentity,
+  type SsoIdentityUser,
+} from '@/lib/api/identity-snapshot';
+import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
 import { USE_REAL_CORE_BE } from '@/lib/features';
+
+// 스냅샷 publish/타입은 leaf(identity-snapshot)가 소유 — 호출부 편의로 재수출한다.
+// (auth-context 는 순환 방지를 위해 leaf 를 직접 import 한다.)
+export { setDomainIdentitySnapshot, type SsoIdentityUser } from '@/lib/api/identity-snapshot';
 
 /** 데모 교사 표면의 도메인 id — mock `currentTeacher`(김수학) 의 seed id. */
 export const DEMO_TEACHER_ID = 'teacher_001';
@@ -75,20 +90,31 @@ export function demoStudentDomainId(currentUserId: string = DEMO_FALLBACK_USER_I
   return toDomainUserId(resolveRosterMe(currentUserId).id);
 }
 
+/** SSO 세션 신원 — `OS_SSO_ENABLED` && 스냅샷 보유일 때만 값. (② 게이트 단일 지점) */
+function ssoUserSnapshot(): SsoIdentityUser | null {
+  return OS_SSO_ENABLED ? peekDomainIdentitySnapshot() : null;
+}
+
 /**
- * 앱 인증 세션 스냅샷 (비훅) — `ApiAuthProvider.getSession` 과 동일한 파생
- * (**디코더블 access token 의 claim**). 스토어 액션·sync 훅처럼 React 컨텍스트
- * 밖(또는 AuthProvider 부재 테스트)에서 인증 여부를 판정하는 단일 지점이다.
- *
- * NOTE(OS SSO): 쿠키 세션(OS_SSO_ENABLED) 환경은 토큰이 없어 미인증으로 판정된다 —
- * Ph7(M2)은 자체 JWT auth 전제. SSO 통합 시 이 판정을 provider 세션으로 교체한다.
- * @returns 인증이면 { id }(JWT sub), 아니면 null
+ * 앱 인증 세션 스냅샷 (비훅) — 스토어 액션·sync 훅처럼 React 컨텍스트 밖(또는
+ * AuthProvider 부재 테스트)에서 인증 여부를 판정하는 단일 지점. 3-way:
+ *  ① 디코더블 access token 보유 → JWT claim sub (`ApiAuthProvider.getSession` 과 동일 파생)
+ *  ② `OS_SSO_ENABLED` && auth-context 가 publish 한 OS 세션 → OS sub (raw uuid)
+ *  ③ 둘 다 아니면 null (미인증 — 호출부가 데모 브리지로 폴백)
+ * @returns 인증이면 { id }(raw user id), 아니면 null
  */
 export function getAuthUserSnapshot(): { id: string } | null {
+  // ① classbot JWT — Bearer 경로.
   const token = tokenManager.getAccessToken();
-  if (!token) return null;
-  const payload = decodeAccessToken(token);
-  return payload ? { id: payload.sub } : null;
+  if (token) {
+    const payload = decodeAccessToken(token);
+    if (payload) return { id: payload.sub };
+  }
+  // ② OS SSO 쿠키 세션 — x-user-id 경로 (잔여 비-디코더블 토큰이 있어도 세션이 우선).
+  const sso = ssoUserSnapshot();
+  if (sso) return { id: sso.id };
+  // ③ 미인증.
+  return null;
 }
 
 /** 도메인 요청 명의 — 호출부가 x-user-id 전달 여부와 캐시/필터 키를 파생한다. */
@@ -122,20 +148,28 @@ export function teacherRequestIdentity(): RequestIdentity {
   return { isAuthenticated: false, userId: DEMO_TEACHER_ID, demoUserId: DEMO_TEACHER_ID };
 }
 
-/** 토큰 변경(로그인/로그아웃) 구독 — useSyncExternalStore subscribe 어댑터. */
-function subscribeToTokenChange(callback: () => void): () => void {
-  return tokenManager.onTokenChange(callback);
+/**
+ * 신원 변경(로그인/로그아웃) 구독 — useSyncExternalStore subscribe 어댑터.
+ * JWT 토큰 변경 + SSO 세션 스냅샷 publish 둘 다에 반응한다.
+ */
+function subscribeToIdentityChange(callback: () => void): () => void {
+  const offToken = tokenManager.onTokenChange(callback);
+  const offIdentity = subscribeDomainIdentity(callback);
+  return () => {
+    offToken();
+    offIdentity();
+  };
 }
 
 /**
- * Ph7 sync 훅용 resolved 학생 사용자 id (reactive) — 토큰 변경(로그인/로그아웃·
- * 사용자 전환)에 반응해 **같은 마운트에서도** effect 재실행(재동기화)을 트리거한다
- * (Codex #196 R3 ②). 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0.
+ * Ph7 sync 훅용 resolved 학생 사용자 id (reactive) — 신원 변경(로그인/로그아웃·
+ * 사용자 전환·SSO 세션 확립)에 반응해 **같은 마운트에서도** effect 재실행(재동기화)을
+ * 트리거한다 (Codex #196 R3 ②). 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0.
  * @returns resolved user id (인증: raw sub, 데모: seed 도메인 키, 플래그 OFF: '')
  */
 export function useStudentSyncUserId(): string {
   return useSyncExternalStore(
-    subscribeToTokenChange,
+    subscribeToIdentityChange,
     () => (USE_REAL_CORE_BE ? studentRequestIdentity().userId : ''),
     () => '',
   );
@@ -169,28 +203,31 @@ interface DomainErrorBody {
 export async function domainFetch<T>(path: string, options: DomainFetchOptions = {}): Promise<T> {
   const { method = 'GET', body, demoUserId } = options;
 
-  // 토큰 보유 — Bearer 자동 첨부 + 401 refresh (api-client 경로).
+  // x-user-id 명의 — ② SSO 세션(raw sub, 데모 브리지 미적용)이 데모 명의보다 우선.
+  const xUserId = ssoUserSnapshot()?.id ?? demoUserId;
+
+  // ① 토큰 보유 — Bearer 자동 첨부 + 401 refresh (api-client 경로).
   if (tokenManager.getAccessToken()) {
     try {
       return await authRequest<T>(path, { method, body });
     } catch (e) {
-      // 데모 폴백 게이트: 호출부가 demoUserId 를 전달한(= 앱 미인증) 요청의
-      // 잔여 토큰 401 만 데모 x-user-id 경로로 1회 폴백한다. 인증 사용자의 401 과
-      // 403/404 등 진짜 도메인 에러는 가리지 않고 전파(Codex #196 R1·R2 ①).
-      const canFallback =
-        demoUserId !== undefined && e instanceof ApiError && e.status === 401;
+      // x-user-id 폴백 게이트: 폴백할 명의(SSO sub 또는 호출부가 전달한 데모 키)가
+      // 있는 요청의 잔여 토큰 401 만 x-user-id 경로로 1회 폴백한다. 명의 없는 인증
+      // 사용자의 401 과 403/404 등 진짜 도메인 에러는 가리지 않고 전파 — 인증
+      // 사용자의 요청이 데모 명의로 오귀속되지 않는다(Codex #196 R1·R2 ①).
+      const canFallback = xUserId !== undefined && e instanceof ApiError && e.status === 401;
       if (!canFallback) {
         throw e;
       }
     }
   }
 
-  // 미인증 데모 — x-user-id 폴백 (Ph7 과도기 규약).
+  // ②③ x-user-id 경로 — SSO 세션(raw sub) 또는 미인증 데모(Ph7 과도기 규약).
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(demoUserId !== undefined ? { 'x-user-id': demoUserId } : {}),
+      ...(xUserId !== undefined ? { 'x-user-id': xUserId } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
