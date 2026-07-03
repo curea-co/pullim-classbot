@@ -16,9 +16,14 @@ classbot 자체 JWT(Bearer)만 인증 경로로 인식해, **SSO 세션 사용�
 
 - body `{ name, role }` + 신원(`x-user-id` = OS sub — Ph7 과도기 규약 그대로).
 - 도메인 `users` 에 `(id=sub, name, role, profile:{})` **upsert** (auth 모듈 `provisionDomainUser` 의
-  `ON CONFLICT DO NOTHING` 패턴 + name 갱신). role 은 `student|teacher` 만(admin/parent 거부 400).
-- FE 가 SSO 세션 확립 직후(auth-context 의 getSession 성공 시) 1회 호출 — 실패해도 UX 비차단
-  (도메인 쓰기 시점에 FK 에러로 드러나면 재시도).
+  `ON CONFLICT DO NOTHING` 패턴 + name 갱신). role 은 재호출 시 **최초 값 유지**(역할 승격 방지).
+- role 은 `student|teacher` 만(400). **parent 거부 근거**: 이 추출본은 보호자 표면이 제거된
+  클래스봇 단일 도메인(CLAUDE.md — `(parent)/parent/*` 부재)이라 parent 의 SSO 진입 유스케이스가
+  없다. 도메인 `users.role` enum 에 parent 가 있는 것은 시드(가족 링크)용 — SSO 프로비저닝
+  경로와는 별개. 보호자 표면 도입 시 이 목록을 확장한다.
+- FE 가 SSO 세션 확립 직후(auth-context 의 getSession 성공 시) 호출 — 실패해도 UX 비차단.
+  **dedup 은 성공 시에만 마킹**(실패는 다음 트리거에서 재시도) — sync 실패 후 첫 도메인 쓰기가
+  FK 로 실패하는 창을 최소화. 쓰기 시점 FK 에러는 최후 방어선.
 
 ### 2.2 FE 신원 확장 — `domain-fetch` 의 SSO 경로
 
