@@ -181,3 +181,8 @@ describe('syncMeOnce — 플래그 게이트 (회귀 0)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+it('허용 외 role(admin)은 시도 자체를 하지 않는다 — 반복 실패 루프 방지 (Codex #200)', async () => {
+  await syncMeOnce({ id: 'uuid-admin', email: 'a@b.c', role: 'admin' } as never);
+  expect(global.fetch).not.toHaveBeenCalled();
+});

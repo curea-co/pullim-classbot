@@ -39,6 +39,9 @@ const inFlight = new Map<string, Promise<void>>();
  */
 export function syncMeOnce(user: SsoIdentityUser): Promise<void> {
   if (!USE_REAL_CORE_BE || !OS_SSO_ENABLED) return Promise.resolve();
+  // 프로비저닝 허용 role 만 시도 — admin 등은 도메인 표면이 없고 BE 가 400 으로 거부하므로
+  // 반복 실패 루프를 만들지 않는다 (Codex #200, 설계 §2.1 role 목록과 동일 게이트).
+  if (user.role !== 'student' && user.role !== 'teacher') return Promise.resolve();
   if (syncedUserIds.has(user.id)) return Promise.resolve();
 
   const running = inFlight.get(user.id);
