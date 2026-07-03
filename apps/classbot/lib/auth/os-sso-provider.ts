@@ -65,10 +65,13 @@ export class OsSsoAuthProvider implements IAuthProvider {
         return null;
       }
       const me = (await res.json()) as MeResponse;
-      const user: AuthUser = {
+      // name(displayName)은 AuthUser 계약 외 부가 필드 — domain-fetch me/sync 의
+      // 표시명으로 auth-context 배선을 그대로 통과한다(구조적 서브타입).
+      const user: AuthUser & { name: string } = {
         id: me.sub,
         email: me.email,
         role: mapRole(me.role, me.globalRole),
+        name: me.displayName,
       };
       this.emit(user);
       return user;
