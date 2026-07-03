@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 
 import { useAuth } from '@/lib/auth/auth-context';
-import { osLoginUrl } from '@/lib/auth/os-sso';
+import { osLoginUrl, resolveReturnTarget } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 
 interface AuthGuardProps {
@@ -28,7 +28,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (isReady && !user && typeof window !== 'undefined') {
       const current = window.location.pathname + window.location.search;
       if (OS_SSO_ENABLED) {
-        window.location.assign(osLoginUrl(current));
+        // cross-host(Dev)면 앱 오리진 절대 URL 로 승격 — goLogin/OsSsoRedirect 와 동일 계약 (B-7)
+        const appOrigin = window.location.origin;
+        window.location.assign(osLoginUrl(resolveReturnTarget(current, appOrigin), appOrigin));
       } else {
         router.replace('/login?next=' + encodeURIComponent(current));
       }
