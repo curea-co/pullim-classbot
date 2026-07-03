@@ -60,8 +60,14 @@ test.describe('SSO 통합 계약 — 리다이렉트·세션복원·로그아웃
 
     const url = new URL(page.url());
     expect(url.pathname).toBe('/login');
-    // osLoginUrl 규약: 현재 내부 경로(`/classbot`)를 next 로 부착(open-redirect 방지 통과 경로).
-    expect(url.searchParams.get('next')).toBe('/classbot');
+    // resolveReturnTarget 계약(B-7): OS 와 same-origin 이면 내부 경로(`/classbot`),
+    // cross-host(Dev 등)면 앱 오리진 절대 URL(`${base}/classbot`)로 승격된다 — 둘 다 유효.
+    const next = url.searchParams.get('next');
+    const appOrigin = new URL(base).origin;
+    expect([`/classbot`, `${appOrigin}/classbot`]).toContain(next);
+    if (next?.startsWith('http')) {
+      expect(new URL(next).origin).toBe(appOrigin); // 절대 next 는 반드시 앱 자신의 오리진
+    }
     // 계약의 핵심은 "OS 호스트로 이동"이다 — classbot origin 에 머무르면(예: NEXT_PUBLIC_OS_URL 오설정)
     // pathname/next 만으론 못 잡으므로 origin 이 classbot 을 벗어났는지 확인한다.
     expect(url.origin).not.toBe(new URL(base).origin);

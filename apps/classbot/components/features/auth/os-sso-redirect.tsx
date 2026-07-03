@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { osLoginUrl, osSignupUrl } from '@/lib/auth/os-sso';
+import { osLoginUrl, osSignupUrl, resolveReturnTarget } from '@/lib/auth/os-sso';
 
 /**
  * OS SSO 모드 전용 리다이렉트 가드.
@@ -22,9 +22,13 @@ export function OsSsoRedirect({ mode = 'login' }: { mode?: 'login' | 'signup' })
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const next = searchParams.get('next') ?? '/';
+    const appOrigin = window.location.origin;
+    // cross-host(예: Dev)면 앱 오리진 절대 URL 로 승격해 OS 가 앱으로 복귀할 수 있게 한다(B-7).
+    const next = resolveReturnTarget(searchParams.get('next') ?? '/', appOrigin);
     // 로그인 진입은 OS 로그인, 회원가입 진입은 OS 회원가입으로 위임(가입 플로우 보존).
-    window.location.assign(mode === 'signup' ? osSignupUrl(next) : osLoginUrl(next));
+    window.location.assign(
+      mode === 'signup' ? osSignupUrl(next, appOrigin) : osLoginUrl(next, appOrigin),
+    );
   }, [searchParams, mode]);
 
   return null;

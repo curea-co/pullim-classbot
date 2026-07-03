@@ -14,7 +14,7 @@ describe('OsSsoAuthProvider', () => {
     jest.restoreAllMocks();
   });
 
-  it('getSession: /me 200 → AuthUser 매핑(sub→id, teacher→teacher), credentials include', async () => {
+  it('getSession: /me 200 → AuthUser 매핑(sub→id, teacher→teacher, displayName→name), credentials include', async () => {
     const fetchMock = jest.fn().mockResolvedValue(
       jsonRes(200, {
         sub: 'user_1',
@@ -28,7 +28,7 @@ describe('OsSsoAuthProvider', () => {
 
     const user = await new OsSsoAuthProvider().getSession();
 
-    expect(user).toEqual({ id: 'user_1', email: 'a@pullim.com', role: 'teacher' });
+    expect(user).toEqual({ id: 'user_1', email: 'a@pullim.com', role: 'teacher', name: '김교사' });
     expect(fetchMock).toHaveBeenCalledWith(`${API_BASE}/me`, {
       credentials: 'include',
       headers: { Accept: 'application/json' },

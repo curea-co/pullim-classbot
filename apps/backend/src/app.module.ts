@@ -16,6 +16,7 @@ import { AssignmentModule } from "./modules/assignment/assignment.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { ClassroomModule } from "./modules/classroom/classroom.module";
 import { InterventionModule } from "./modules/intervention/intervention.module";
+import { MeModule } from "./modules/me/me.module";
 import { ReplayModule } from "./modules/replay/replay.module";
 
 @Module({
@@ -50,6 +51,7 @@ import { ReplayModule } from "./modules/replay/replay.module";
     AuthModule,
     ClassroomModule,
     InterventionModule,
+    MeModule,
     ReplayModule,
   ],
   controllers: [AppController],
