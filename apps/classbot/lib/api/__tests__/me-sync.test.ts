@@ -62,12 +62,19 @@ describe('syncMeOnce — POST /me/sync (플래그 ON)', () => {
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
-  it('같은 사용자 재호출은 dedup — fetch 는 1회뿐 (동시 호출 포함)', async () => {
+  it('성공 후 재호출은 dedup — fetch 는 1회뿐', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }));
 
-    // 동시(refreshSession 경합) + 순차(재세션 통지) 모두 1회로 수렴.
-    await Promise.all([syncMeOnce(OS_USER), syncMeOnce(OS_USER)]);
     await syncMeOnce(OS_USER);
+    await syncMeOnce(OS_USER);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('동시 2회 호출은 in-flight 공유로 여전히 1회 (refreshSession 경합)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }));
+
+    await Promise.all([syncMeOnce(OS_USER), syncMeOnce(OS_USER)]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -112,6 +119,47 @@ describe('syncMeOnce — POST /me/sync (플래그 ON)', () => {
     await expect(syncMeOnce(OS_USER)).resolves.toBeUndefined();
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
+  });
+
+  it('실패(HTTP 500) 후 다음 트리거는 재시도한다 — 성공 시에만 dedup 마킹', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(500, { error: { message: 'boom' } }))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+
+    await syncMeOnce(OS_USER); // 실패 — 마킹되지 않아야 함
+    await syncMeOnce(OS_USER); // 재시도 → 성공 — 이제 마킹
+    await syncMeOnce(OS_USER); // dedup
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
+  it('네트워크 오류 후 다음 트리거도 재시도한다', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+
+    await syncMeOnce(OS_USER);
+    await syncMeOnce(OS_USER);
+    await syncMeOnce(OS_USER);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
+  it('동시 2회가 실패해도 시도는 1회 공유 — 이후 트리거에서 재시도', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(500, { error: { message: 'boom' } }))
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+
+    await Promise.all([syncMeOnce(OS_USER), syncMeOnce(OS_USER)]); // in-flight 공유 → 1회 실패
+    await syncMeOnce(OS_USER); // 재시도 → 성공
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
 });
