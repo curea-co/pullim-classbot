@@ -25,6 +25,9 @@ import { RichText } from '@/components/classbot/rich-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
+import { USE_REAL_CORE_BE } from '@/lib/features';
+import { streamChat, fetchChatHistory, type ChatHistoryMessage } from '@/lib/api/chat-stream';
+import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
 import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
@@ -69,6 +72,18 @@ type Turn = {
   text: string;
   /** epoch ms — 메시지 그루핑/디바이더 계산용 ([04 § 9.8]) */
   at: number;
+  /**
+   * 실챗(flag-ON) SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
+   * 제외(토큰마다 중복 announce 방지) → done/error 에서 false 로 바뀌며 1회 announce.
+   * flag-OFF mock 턴은 미설정(undefined).
+   */
+  streaming?: boolean;
+  /**
+   * 진입 시 이미 존재하던 턴(초기 오프너 인사/lesson-intro + 서버 히스토리 seed) 표식.
+   * a11y announce 게이트에서 제외 — 과거 메시지를 "새 메시지"처럼 재announce 하지 않는다.
+   * 신규 도착(mock 신규 봇 턴·실챗 done)은 미설정(undefined) → announce 대상.
+   */
+  seeded?: boolean;
   /** 메시지 타입 (기본 text) */
   kind?: MessageKind;
   /** 타입별 payload */
@@ -266,6 +281,8 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         role: 'bot',
         text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
         at: now,
+        // 초기 오프너 — announce 제외(진입 시 이미 존재하던 턴).
+        seeded: true,
       },
       {
         id: `t1_${bot.id}`,
@@ -274,6 +291,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         at: now + 1,
         kind: 'lesson-intro',
         payload: { topic: lesson.topic, keyCallout: lesson.keyCallout } satisfies LessonIntroPayload,
+        seeded: true,
       },
     ];
   });
@@ -283,6 +301,25 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   useEffect(() => {
     setValue(initialAsk ?? '');
   }, [initialAsk]);
+
+  // 플래그 ON — 진입 시 서버 완결 히스토리를 **초기 오프너(인사+lesson-intro) 뒤에 이어붙인다**
+  // (base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면 오프너만
+  // 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
+  useEffect(() => {
+    if (!USE_REAL_CORE_BE) return;
+    let cancelled = false;
+    const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
+    void fetchChatHistory(bot.id)
+      .then(msgs => {
+        if (cancelled || msgs.length === 0) return;
+        // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
+        setTurns(prev => appendHistoryTurns(prev, msgs.map(historyMessageToTurn), isOpenerTurn));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [bot.id]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -331,9 +368,11 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
 
   // A5: aria-live 미러링 — 단일 소스. 마지막 bot turn 만 감지해 1회 announce(중복 방지).
   // pending(타이핑 점)은 announce 안 함. send()/lessonRequest 양쪽에서 부르지 않고 여기로 통합.
+  // 실챗(flag-ON) 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
+  // done/error 에서 streaming=false 로 바뀔 때 최종 content 로 1회만 announce.
   useEffect(() => {
     const last = turns[turns.length - 1];
-    if (last?.role === 'bot') {
+    if (shouldAnnounceTurn(last)) {
       announceRef.current?.(plainAnnounceText(last));
     }
   }, [turns]);
@@ -362,15 +401,34 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   }, [lessonRequest, bot.id, lesson, clearLessonRequest, me.id]);
 
   function send(text: string, forcedKey?: QuickReplyKey) {
-    if (!text.trim() || pending) return;
+    const trimmed = text.trim();
+    if (!trimmed || pending) return;
     const now = Date.now();
-    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: text.trim(), at: now }]);
+    // 학생 발화 = 입력 텍스트(빠른칩이면 칩 라벨). 표시·전송·영속이 모두 동일 텍스트라 서버
+    // 히스토리도 화면과 일치한다(내부 프롬프트로 치환하지 않는다).
+    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
     setPending(true);
+
+    // 플래그 ON — pullim-api SSE 실챗(ADR-064). 서버가 user/assistant turn 을 영속하므로
+    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지).
+    //
+    // ⛔ 의도된 설계 — flag-ON 은 스트림 텍스트만, 구조화 리치카드는 재구축하지 않는다:
+    //   flag-OFF 의 concept/example/quiz/summary 리치카드(buildLessonTurn/buildRichBotTurn)는
+    //   flag-ON 에서 스트림 텍스트로 대체된다. 구조화 리치카드는 LLM tool-calling 기반이라
+    //   ADR-064 **v2 defer**(사용자 승인 게이트웨이·모델 결정 필요) — 이번 카드 범위 밖이다.
+    //   대신 빠른칩은 **칩 라벨('예제 풀어줘' 등, 이미 자연어)을 그대로 message 로** 전송해
+    //   "칩 누르면 그 주제로 학습 진행" 계약을 보존하고(forcedKey 는 후속 칩 추천 상태로만 스레딩),
+    //   flag-OFF 는 리치 mock 을 그대로 둔다(불변).
+    //   스펙 정합: proc/spec/2026-06-23_chat-guided-lesson.md [2026-07-06 개정] + pullim-api api.md §3.8.
+    if (USE_REAL_CORE_BE) {
+      void sendReal(trimmed, forcedKey);
+      return;
+    }
 
     // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
     // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
     if (me.isAuthenticated) {
-      void persistChatMessage(bot.id, text.trim());
+      void persistChatMessage(bot.id, trimmed);
     }
 
     setTimeout(() => {
@@ -400,6 +458,28 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       setLastBotReplyKey(forcedKey);
       setPending(false);
     }, 900);
+  }
+
+  // 플래그 ON — pullim-api SSE 실챗(ADR-064). 빈 assistant 버블(streaming=true)을 먼저 붙이고
+  // 토큰을 증분 append(실 스트림 타이핑 효과 · streaming 유지 → announce 제외), done 에서 최종
+  // content 로 고정하며 streaming=false(announce 1회) + 빠른칩 forcedKey 보존, 실패는 카피로 교체.
+  // 콜백 상태전이는 buildRealSendCallbacks(순수 테스트 단위)에 위임. clientTurnId=crypto.randomUUID
+  // (멱등 키) — 재전송 시 서버가 dedup·done 재생.
+  async function sendReal(text: string, forcedKey?: QuickReplyKey) {
+    const at = Date.now();
+    const botTurnId = `b${at}`;
+    setTurns(t => [...t, { id: botTurnId, role: 'bot', text: '', at, kind: 'text', streaming: true }]);
+    const clientTurnId = crypto.randomUUID();
+    const patch = (next: string, streaming: boolean) =>
+      setTurns(t => t.map(x => (x.id === botTurnId ? { ...x, text: next, streaming } : x)));
+    const callbacks = buildRealSendCallbacks({
+      setStreamingText: next => patch(next, true),
+      finalizeText: next => patch(next, false),
+      forcedKey,
+      setLastReplyKey: setLastBotReplyKey,
+      setPending,
+    });
+    await streamChat(bot.id, text, clientTurnId, callbacks);
   }
 
   function submit() {
@@ -538,7 +618,12 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
               turns.map 사이가 아니라 turns 블록 뒤 단일 노드 — selector 카운트 무영향.
             */}
             <MisconceptionCoaching botId={bot.id} userId={me.id} onAppear={handleCardReveal} />
-            {pending && <PendingBubble bot={bot} />}
+            {/*
+              로딩 표시 단일화 — 실챗(flag-ON)은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
+              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). flag-OFF mock 은 스트리밍 턴이
+              없어 기존처럼 pending → PendingBubble.
+            */}
+            {pending && !turns.some(t => t.streaming) && <PendingBubble bot={bot} />}
           </div>
 
           {showNewMessageBanner && (
@@ -670,6 +755,25 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
   } catch {
     // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
   }
+}
+
+/**
+ * 서버 히스토리 메시지(role/content/createdAt) → 챗 Turn(플래그 ON seed).
+ * role: user→student, assistant→bot. 실챗은 평문 텍스트 버블(리치 카드는 v2 유예).
+ * @param m - 완결 히스토리 메시지
+ * @param i - 인덱스(안정 key 파생)
+ */
+function historyMessageToTurn(m: ChatHistoryMessage, i: number): Turn {
+  const at = Date.parse(m.createdAt);
+  return {
+    id: `${HISTORY_TURN_ID_PREFIX}${i}`,
+    role: m.role === 'user' ? 'student' : 'bot',
+    text: m.content,
+    at: Number.isNaN(at) ? Date.now() + i : at,
+    kind: 'text',
+    // 진입 시 주입되는 과거 메시지 — announce 제외(새 메시지처럼 재announce 방지).
+    seeded: true,
+  };
 }
 
 /* ─── 메시지 타입 dispatch ([08 § 15.1.3]) ─── */
@@ -1001,6 +1105,19 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // 봇 기본 텍스트 — 리치 텍스트 렌더
   if (!turn.kind || turn.kind === 'text') {
+    // 실챗(flag-ON) 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
+    // (점 애니메이션)를 렌더해 로딩 표시가 끊기지 않게 한다. 첫 토큰부터는 아래 텍스트 렌더로 전환.
+    if (turn.streaming && turn.text === '') {
+      return (
+        <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+          <div aria-hidden className="flex items-center gap-1">
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '0ms' }} />
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '220ms' }} />
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '440ms' }} />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
         <RichText text={turn.text} />
