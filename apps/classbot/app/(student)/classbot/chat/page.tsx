@@ -419,6 +419,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     //   대신 빠른칩은 **칩 라벨('예제 풀어줘' 등, 이미 자연어)을 그대로 message 로** 전송해
     //   "칩 누르면 그 주제로 학습 진행" 계약을 보존하고(forcedKey 는 후속 칩 추천 상태로만 스레딩),
     //   flag-OFF 는 리치 mock 을 그대로 둔다(불변).
+    //   스펙 정합: proc/spec/2026-06-23_chat-guided-lesson.md [2026-07-06 개정] + pullim-api api.md §3.8.
     if (USE_REAL_CORE_BE) {
       void sendReal(trimmed, forcedKey);
       return;
@@ -1104,6 +1105,19 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // 봇 기본 텍스트 — 리치 텍스트 렌더
   if (!turn.kind || turn.kind === 'text') {
+    // 실챗(flag-ON) 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
+    // (점 애니메이션)를 렌더해 로딩 표시가 끊기지 않게 한다. 첫 토큰부터는 아래 텍스트 렌더로 전환.
+    if (turn.streaming && turn.text === '') {
+      return (
+        <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
+          <div aria-hidden className="flex items-center gap-1">
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '0ms' }} />
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '220ms' }} />
+            <span className="pullim-anim-typing-dot h-1.5 w-1.5 rounded-full" style={{ backgroundColor: botLinerHex, animationDelay: '440ms' }} />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3')} style={linerStyle}>
         <RichText text={turn.text} />
