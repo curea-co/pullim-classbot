@@ -125,6 +125,23 @@ describe('streamChat — SSE 파싱(token → done)', () => {
     expect(cb.onError).not.toHaveBeenCalled();
   });
 
+  it('CRLF(\\r\\n\\r\\n) 프레임 구분자도 정규화해 token/done 정상 파싱', async () => {
+    fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
+      sseRes([
+        'event: token\r\ndata: {"delta":"안"}\r\n\r\n',
+        'event: token\r\ndata: {"delta":"녕"}\r\n\r\n',
+        'event: done\r\ndata: {"content":"안녕"}\r\n\r\n',
+      ]),
+    );
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(cb.tokens).toEqual(['안', '녕']);
+    expect(cb.onDone).toHaveBeenCalledWith({ messageId: undefined, content: '안녕', usage: undefined });
+    expect(cb.onError).not.toHaveBeenCalled();
+  });
+
   it('청크 경계가 프레임 중간을 갈라도 버퍼 재조립으로 정확히 파싱', async () => {
     fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
       sseRes([

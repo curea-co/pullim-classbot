@@ -158,6 +158,10 @@ async function consumeSse(body: ReadableStream<Uint8Array>, cb: ChatStreamCallba
   for (;;) {
     const { done, value } = await reader.read();
     if (value) buffer += decoder.decode(value, { stream: true });
+    // CRLF 정규화 — 서버/프록시가 `\r\n\r\n` 로 프레임을 구분해도 아래 `\n\n` split 이 동작하도록.
+    // (청크 경계가 `\r\n` 중간을 갈라도 다음 루프에서 재결합돼 정규화된다.) parseFrame 의 `\r`
+    // 제거도 방어적으로 유지.
+    buffer = buffer.replace(/\r\n/g, '\n');
 
     let sep: number;
     while ((sep = buffer.indexOf('\n\n')) !== -1) {

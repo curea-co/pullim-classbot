@@ -10,6 +10,7 @@ import {
   type QuickReplyKey, type LessonFlowKey,
   type ClassBot,
   LESSON_FLOW_KEYS,
+  forcedKeyToChatPrompt,
 } from '@/lib/mock';
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
@@ -382,15 +383,20 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   function send(text: string, forcedKey?: QuickReplyKey) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
+    // 플래그 ON + 빠른칩(forcedKey) — 칩 의도를 자연어 프롬프트로 변환해 실제 발화로 삼는다
+    // (칩 계약 보존). 매핑 없으면 칩 라벨(trimmed) 폴백. flag-OFF 는 항상 trimmed(기존 mock 불변).
+    const outgoing =
+      USE_REAL_CORE_BE && forcedKey ? (forcedKeyToChatPrompt(forcedKey) ?? trimmed) : trimmed;
     const now = Date.now();
-    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
+    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: outgoing, at: now }]);
     setPending(true);
 
     // 플래그 ON — pullim-api SSE 실챗(ADR-064). 서버가 user/assistant turn 을 영속하므로
-    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지). 리치 카드는
-    // v2(tool-calling) 유예 — 실챗은 스트림 텍스트 버블만 낸다(forcedKey 무시).
+    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지). 리치 카드(구조화
+    // concept/example/quiz 턴)는 v2(tool-calling) 유예 — 실챗은 스트림 텍스트 버블만 내되,
+    // 빠른칩 의도는 위 outgoing(forcedKey→프롬프트)로 전달해 가이드 수업 계약을 지킨다.
     if (USE_REAL_CORE_BE) {
-      void sendReal(trimmed);
+      void sendReal(outgoing);
       return;
     }
 
