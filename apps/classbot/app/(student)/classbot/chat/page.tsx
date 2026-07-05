@@ -25,6 +25,8 @@ import { RichText } from '@/components/classbot/rich-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
+import { USE_REAL_CORE_BE } from '@/lib/features';
+import { streamChat, fetchChatHistory, type ChatHistoryMessage } from '@/lib/api/chat-stream';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
 import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
@@ -283,6 +285,22 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   useEffect(() => {
     setValue(initialAsk ?? '');
   }, [initialAsk]);
+
+  // 플래그 ON — 진입 시 서버 완결 히스토리로 트랜스크립트 seed(mock 인사 대체). 비면 mock 인사 유지
+  // (첫 진입 환영), 실패는 조용히 mock 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
+  useEffect(() => {
+    if (!USE_REAL_CORE_BE) return;
+    let cancelled = false;
+    void fetchChatHistory(bot.id)
+      .then(msgs => {
+        if (cancelled || msgs.length === 0) return;
+        setTurns(msgs.map(historyMessageToTurn));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [bot.id]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -362,15 +380,24 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   }, [lessonRequest, bot.id, lesson, clearLessonRequest, me.id]);
 
   function send(text: string, forcedKey?: QuickReplyKey) {
-    if (!text.trim() || pending) return;
+    const trimmed = text.trim();
+    if (!trimmed || pending) return;
     const now = Date.now();
-    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: text.trim(), at: now }]);
+    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
     setPending(true);
+
+    // 플래그 ON — pullim-api SSE 실챗(ADR-064). 서버가 user/assistant turn 을 영속하므로
+    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지). 리치 카드는
+    // v2(tool-calling) 유예 — 실챗은 스트림 텍스트 버블만 낸다(forcedKey 무시).
+    if (USE_REAL_CORE_BE) {
+      void sendReal(trimmed);
+      return;
+    }
 
     // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
     // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
     if (me.isAuthenticated) {
-      void persistChatMessage(bot.id, text.trim());
+      void persistChatMessage(bot.id, trimmed);
     }
 
     setTimeout(() => {
@@ -400,6 +427,35 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       setLastBotReplyKey(forcedKey);
       setPending(false);
     }, 900);
+  }
+
+  // 플래그 ON — pullim-api SSE 실챗(ADR-064). 빈 assistant 버블을 먼저 붙이고 토큰을 증분
+  // append(실 스트림 타이핑 효과), done 에서 최종 content 로 고정, 실패는 사용자향 카피로 교체.
+  // clientTurnId = crypto.randomUUID(멱등 키) — 재전송 시 서버가 dedup·done 재생.
+  async function sendReal(text: string) {
+    const at = Date.now();
+    const botTurnId = `b${at}`;
+    setTurns(t => [...t, { id: botTurnId, role: 'bot', text: '', at, kind: 'text' }]);
+    const clientTurnId = crypto.randomUUID();
+    let acc = '';
+    const patch = (next: string) =>
+      setTurns(t => t.map(x => (x.id === botTurnId ? { ...x, text: next } : x)));
+    await streamChat(bot.id, text, clientTurnId, {
+      onToken: delta => {
+        acc += delta;
+        patch(acc);
+      },
+      onDone: done => {
+        patch(done.content || acc);
+        setLastBotReplyKey(undefined); // 실챗은 흐름키 없음 → 후속 가이드 칩 추천 안 함
+        setPending(false);
+      },
+      onError: err => {
+        // 부분 토큰이 있으면 보존하고 뒤에 안내를, 없으면 안내만.
+        patch(acc ? `${acc}\n\n${err.message}` : err.message);
+        setPending(false);
+      },
+    });
   }
 
   function submit() {
@@ -670,6 +726,23 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
   } catch {
     // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
   }
+}
+
+/**
+ * 서버 히스토리 메시지(role/content/createdAt) → 챗 Turn(플래그 ON seed).
+ * role: user→student, assistant→bot. 실챗은 평문 텍스트 버블(리치 카드는 v2 유예).
+ * @param m - 완결 히스토리 메시지
+ * @param i - 인덱스(안정 key 파생)
+ */
+function historyMessageToTurn(m: ChatHistoryMessage, i: number): Turn {
+  const at = Date.parse(m.createdAt);
+  return {
+    id: `h${i}`,
+    role: m.role === 'user' ? 'student' : 'bot',
+    text: m.content,
+    at: Number.isNaN(at) ? Date.now() + i : at,
+    kind: 'text',
+  };
 }
 
 /* ─── 메시지 타입 dispatch ([08 § 15.1.3]) ─── */
