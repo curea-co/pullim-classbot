@@ -28,6 +28,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage } from '@/lib/api/chat-stream';
+import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks } from '@/lib/api/chat-turns';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
 import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
@@ -72,6 +73,12 @@ type Turn = {
   text: string;
   /** epoch ms — 메시지 그루핑/디바이더 계산용 ([04 § 9.8]) */
   at: number;
+  /**
+   * 실챗(flag-ON) SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
+   * 제외(토큰마다 중복 announce 방지) → done/error 에서 false 로 바뀌며 1회 announce.
+   * flag-OFF mock 턴은 미설정(undefined).
+   */
+  streaming?: boolean;
   /** 메시지 타입 (기본 text) */
   kind?: MessageKind;
   /** 타입별 payload */
@@ -287,15 +294,16 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     setValue(initialAsk ?? '');
   }, [initialAsk]);
 
-  // 플래그 ON — 진입 시 서버 완결 히스토리로 트랜스크립트 seed(mock 인사 대체). 비면 mock 인사 유지
-  // (첫 진입 환영), 실패는 조용히 mock 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
+  // 플래그 ON — 진입 시 서버 완결 히스토리를 **초기 오프너(인사+lesson-intro) 뒤에 이어붙인다**
+  // (base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면 오프너만
+  // 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
     void fetchChatHistory(bot.id)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
-        setTurns(msgs.map(historyMessageToTurn));
+        setTurns(prev => appendHistoryTurns(prev, msgs.map(historyMessageToTurn)));
       })
       .catch(() => {});
     return () => {
@@ -350,9 +358,11 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
 
   // A5: aria-live 미러링 — 단일 소스. 마지막 bot turn 만 감지해 1회 announce(중복 방지).
   // pending(타이핑 점)은 announce 안 함. send()/lessonRequest 양쪽에서 부르지 않고 여기로 통합.
+  // 실챗(flag-ON) 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
+  // done/error 에서 streaming=false 로 바뀔 때 최종 content 로 1회만 announce.
   useEffect(() => {
     const last = turns[turns.length - 1];
-    if (last?.role === 'bot') {
+    if (shouldAnnounceTurn(last)) {
       announceRef.current?.(plainAnnounceText(last));
     }
   }, [turns]);
@@ -396,7 +406,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     // concept/example/quiz 턴)는 v2(tool-calling) 유예 — 실챗은 스트림 텍스트 버블만 내되,
     // 빠른칩 의도는 위 outgoing(forcedKey→프롬프트)로 전달해 가이드 수업 계약을 지킨다.
     if (USE_REAL_CORE_BE) {
-      void sendReal(outgoing);
+      void sendReal(outgoing, forcedKey);
       return;
     }
 
@@ -435,33 +445,26 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     }, 900);
   }
 
-  // 플래그 ON — pullim-api SSE 실챗(ADR-064). 빈 assistant 버블을 먼저 붙이고 토큰을 증분
-  // append(실 스트림 타이핑 효과), done 에서 최종 content 로 고정, 실패는 사용자향 카피로 교체.
-  // clientTurnId = crypto.randomUUID(멱등 키) — 재전송 시 서버가 dedup·done 재생.
-  async function sendReal(text: string) {
+  // 플래그 ON — pullim-api SSE 실챗(ADR-064). 빈 assistant 버블(streaming=true)을 먼저 붙이고
+  // 토큰을 증분 append(실 스트림 타이핑 효과 · streaming 유지 → announce 제외), done 에서 최종
+  // content 로 고정하며 streaming=false(announce 1회) + 빠른칩 forcedKey 보존, 실패는 카피로 교체.
+  // 콜백 상태전이는 buildRealSendCallbacks(순수 테스트 단위)에 위임. clientTurnId=crypto.randomUUID
+  // (멱등 키) — 재전송 시 서버가 dedup·done 재생.
+  async function sendReal(text: string, forcedKey?: QuickReplyKey) {
     const at = Date.now();
     const botTurnId = `b${at}`;
-    setTurns(t => [...t, { id: botTurnId, role: 'bot', text: '', at, kind: 'text' }]);
+    setTurns(t => [...t, { id: botTurnId, role: 'bot', text: '', at, kind: 'text', streaming: true }]);
     const clientTurnId = crypto.randomUUID();
-    let acc = '';
-    const patch = (next: string) =>
-      setTurns(t => t.map(x => (x.id === botTurnId ? { ...x, text: next } : x)));
-    await streamChat(bot.id, text, clientTurnId, {
-      onToken: delta => {
-        acc += delta;
-        patch(acc);
-      },
-      onDone: done => {
-        patch(done.content || acc);
-        setLastBotReplyKey(undefined); // 실챗은 흐름키 없음 → 후속 가이드 칩 추천 안 함
-        setPending(false);
-      },
-      onError: err => {
-        // 부분 토큰이 있으면 보존하고 뒤에 안내를, 없으면 안내만.
-        patch(acc ? `${acc}\n\n${err.message}` : err.message);
-        setPending(false);
-      },
+    const patch = (next: string, streaming: boolean) =>
+      setTurns(t => t.map(x => (x.id === botTurnId ? { ...x, text: next, streaming } : x)));
+    const callbacks = buildRealSendCallbacks({
+      setStreamingText: next => patch(next, true),
+      finalizeText: next => patch(next, false),
+      forcedKey,
+      setLastReplyKey: setLastBotReplyKey,
+      setPending,
     });
+    await streamChat(bot.id, text, clientTurnId, callbacks);
   }
 
   function submit() {
