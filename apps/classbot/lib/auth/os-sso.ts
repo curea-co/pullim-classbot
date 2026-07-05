@@ -33,6 +33,30 @@ export const OS_URL = process.env.NEXT_PUBLIC_OS_URL || DEFAULT_OS_URL;
 export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
 
 /**
+ * pullim-api CSRF 토큰을 발급받는다(`GET /auth/csrf` → `{ csrfToken }`).
+ *
+ * OS 쿠키 세션의 write 표면은 `CsrfGuard`(double-submit)를 통과해야 한다 — CSRF 쿠키 + 동일 값을
+ * `X-CSRF-Token` 헤더로 재전송. 이 헬퍼가 헤더로 실을 토큰의 단일 발급 지점이다(로그아웃·classbot
+ * write 공용). 실패(비200·네트워크)는 null — 헤더 없이 진행하면 서버가 거부한다(fail-closed).
+ *
+ * @returns CSRF 토큰 또는 null
+ */
+export async function fetchOsCsrfToken(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/csrf`, {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    // 백엔드 계약(pullim-api CsrfResponseDto): { csrfToken }.
+    const body = (await res.json()) as { csrfToken?: string };
+    return body.csrfToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 풀림 OS 로그인 URL 을 만든다. 로그인 성공 후 `next` 경로로 복귀한다.
  *
  * @param next - 로그인 후 돌아올 내부 경로(예: `/classbot`). open-redirect 방지를 위해

@@ -12,7 +12,6 @@ import {
 import { authService, type AuthUser } from '@pullim-classbot/auth';
 
 import { setDomainIdentitySnapshot } from '@/lib/api/identity-snapshot';
-import { syncMeOnce } from '@/lib/api/me-sync';
 import { OsSsoAuthProvider } from '@/lib/auth/os-sso-provider';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 
@@ -47,13 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = provider.onAuthStateChange((next) => {
-      // 도메인 fetch 신원 스냅샷 publish — OS SSO 세션은 HttpOnly 쿠키라 domain-fetch 가
-      // 토큰을 못 읽으므로, 여기서 publish 한 사용자로 x-user-id(raw sub) 명의를 파생한다.
-      // (publish 는 인증 모드와 무관하게 항상 안전 — 소비는 OS_SSO_ENABLED 게이트.)
+      // 도메인 fetch 신원 스냅샷 publish — 정본 서버는 OS access 쿠키에서 sub 를 파생하므로 FE 는
+      // 요청 명의를 보내지 않는다. 이 스냅샷은 인박스/목록을 인증 사용자로 로컬 필터·재동기화하는
+      // 캐시 키로만 소비된다(domain-fetch `useSyncUserId`/`currentSessionUserId`).
       setDomainIdentitySnapshot(next);
-      // SSO 세션 확립 시 classbot BE 에 사용자 upsert — 사용자당 1회, 실패 비차단.
-      // (USE_REAL_CORE_BE && OS_SSO_ENABLED 이중 게이트는 syncMeOnce 내부에서.)
-      if (next) void syncMeOnce(next);
       setUser(next);
     });
     void provider.getSession().finally(() => setIsReady(true));

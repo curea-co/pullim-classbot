@@ -7,10 +7,11 @@
  * - mock 시드 + dispatched 합산은 lib/mock/classbot.ts의 getMyAssignments() 헬퍼에서
  * - 새 과제 id 패턴: `as_user_${Date.now()}` (시드 id와 충돌 회피)
  *
- * Ph7(`USE_REAL_CORE_BE`): 쓰기(dispatch/recordSubmission)는 스토어 선반영 후
- * BE 로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMergedAssignments 등)는
- * `GET /api/assignments?audience=student` 를 스토어 캐시로 동기화한다.
- * 플래그 OFF 면 기존 mock/localStorage 동작 100% 불변.
+ * `USE_REAL_CORE_BE`(정본 배선): 쓰기(dispatch/recordSubmission)는 스토어 선반영 후 pullim-api
+ * 정본 라우트(OS 쿠키 + CSRF)로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMergedAssignments
+ * 등)는 `GET /classbot/assignments?audience=student` 를 스토어 캐시로 동기화한다.
+ * dispatch=`POST /classbot/classes/:classId/assignments`, submit=`POST /classbot/assignments/:id/submit`
+ * (**`{ answers }` 만** — scorePercent 는 서버 권위 채점값). 플래그 OFF 면 기존 mock/localStorage 100% 불변.
  */
 
 import { useEffect } from 'react';
@@ -21,11 +22,9 @@ import {
   studentAssignments, getAssignmentById as getSeedAssignmentById,
   getQuestionsByAssignment, getQuestionsByIds,
 } from '@/lib/mock';
+import { classBots } from '@/lib/mock/classbot';
 import { USE_REAL_CORE_BE } from '@/lib/features';
-import {
-  domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
-  toDomainUserId, fromDomainUserId, useStudentSyncUserId, type RequestIdentity,
-} from '@/lib/api/domain-fetch';
+import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
 
@@ -136,118 +135,140 @@ export const useAssignmentStore = create<AssignmentStore>()(
  * ───────────────────────────────────────────────────────────── */
 
 /**
- * BE 과제 한 행 — `AssignmentResponseDto`(FE AssignmentReadRow 상위집합) 소비형.
- * 시각 필드는 ISO-8601 문자열(spec §3), 라벨은 assignedAtLabel.
+ * 정본 과제 요약 응답 — `AssignmentSummaryResponseDto`(문항·answerKey 미포함, bot==class → classId).
+ * 시각 필드는 ISO-8601 문자열, dDay 는 정수.
  */
-interface BackendAssignmentRow {
+interface AssignmentSummaryResponse {
   id: string;
-  botId: string;
-  studentId: string | null;
+  classId: string;
   title: string;
   scope: string;
   subject: string;
   grade: string;
-  chapterFrom: string;
-  chapterTo: string;
-  achievementCodes: string[];
+  mode: Assignment['mode'];
   questionCount: number;
   difficulty: Assignment['difficulty'];
-  mode: Assignment['mode'];
-  scopeOverride: Assignment['scopeOverride'] | null;
-  source: Assignment['source'];
-  assignedBy: string;
-  assignedAtLabel: string;
   dueLabel: string;
-  dDay: string;
-  completedCount: number;
-  recentAccuracy: number | null;
+  dDay: number;
+  dispatchStatus: DispatchStatus;
+  dispatchedAt: string | null;
+  examTimeLimitMin: number | null;
   state: Assignment['state'];
-  reasonHint: string | null;
-  solveHref: string;
-  targetStudentIds?: string[] | null;
-  dispatchedAt?: string | null;
-  examTimeLimitMin?: number | null;
-  requizQuestionIds?: string[] | null;
+  chapterFrom: string | null;
+  chapterTo: string | null;
+  achievementCodes: string[] | null;
+}
+
+/** 정본 제출 응답 — `SubmissionResponseDto`(서버 권위 채점값). */
+interface SubmissionResponse {
+  submissionId: string;
+  assignmentId: string;
+  studentId: string;
+  /** 🔒 서버가 answers↔answer_key 대조로 재계산한 점수(essay 포함 시 null=미채점). */
+  scorePercent: number | null;
+  gradedAt: string | null;
+  submittedAt: string;
+}
+
+/** dDay 정수 → 학생 UI 라벨("D-1"·"오늘"). 서버는 정수, FE 표시는 문자열. */
+function dDayLabel(dDay: number): string {
+  return dDay <= 0 ? '오늘' : `D-${dDay}`;
+}
+
+/** "D-1"·"오늘" 라벨 → dDay 정수(서버 계약). 파싱 실패는 0. */
+function parseDDay(label: string): number {
+  const m = /(\d+)/.exec(label);
+  return m ? Number(m[1]) : 0;
 }
 
 /**
- * BE 행 → 스토어 UserAssignment.
- * 학생 키 역변환(student_001→s1)은 **미인증 데모 읽기에서만** 적용한다 — 인증
- * 사용자 행의 raw user id 를 roster 키로 붕괴시키지 않는다 (Codex #196 R2 ②).
+ * 문항 → 서버 전용 채점 정답키. mc=정답 인덱스(number), short/numeric=정답값(string),
+ * essay=미지정(자동채점 불가). 서버가 이 값으로 채점하므로 요청에만 싣고 학생 조회 응답엔 미노출.
  */
-function toUserAssignment(row: BackendAssignmentRow, mapToRosterKeys: boolean): UserAssignment {
+function answerKeyOf(q: AssignmentQuestion): number | string | undefined {
+  if (q.type === 'mc') return q.answerIndex;
+  if (q.type === 'short' || q.type === 'numeric') return q.answerKey;
+  return undefined;
+}
+
+/**
+ * 정본 요약 응답 → 스토어 UserAssignment. 서버가 소유하는 필드는 그대로, 봇 카탈로그·워크스페이스
+ * 링크 등 **FE 표시 전용 필드**(assignedBy·source·solveHref)는 mock 카탈로그·파생으로 채운다
+ * (봇 카탈로그·문항 본문 = mock 권위, M3 경계). targetStudentIds 는 요약 응답에 없다 — 접근 술어는
+ * 서버가 집행하므로 표시상 반 전체(빈 배열)로 둔다.
+ */
+function toUserAssignment(row: AssignmentSummaryResponse): UserAssignment {
+  const bot = classBots.find((b) => b.id === row.classId);
   return {
     id: row.id,
-    botId: row.botId,
+    botId: row.classId,
     title: row.title,
     scope: row.scope,
     subject: row.subject,
     grade: row.grade,
-    chapterFrom: row.chapterFrom,
-    chapterTo: row.chapterTo,
+    chapterFrom: row.chapterFrom ?? '',
+    chapterTo: row.chapterTo ?? '',
     achievementCodes: row.achievementCodes ?? [],
     questionCount: row.questionCount,
     difficulty: row.difficulty,
     mode: row.mode,
-    ...(row.scopeOverride != null ? { scopeOverride: row.scopeOverride } : {}),
-    source: row.source,
-    assignedBy: row.assignedBy,
-    assignedAt: row.assignedAtLabel,
+    source: 'teacher-assigned',
+    assignedBy: bot?.name ?? '',
+    assignedAt: row.dispatchedAt ?? '',
     dueLabel: row.dueLabel,
-    dDay: row.dDay,
-    completedCount: row.completedCount,
-    ...(row.recentAccuracy != null ? { recentAccuracy: row.recentAccuracy } : {}),
+    dDay: dDayLabel(row.dDay),
+    completedCount: 0,
     state: row.state,
-    ...(row.reasonHint ? { reasonHint: row.reasonHint } : {}),
-    solveHref: row.solveHref,
-    dispatchStatus: 'sent',
-    targetStudentIds: mapToRosterKeys
-      ? (row.targetStudentIds ?? []).map(fromDomainUserId)
-      : (row.targetStudentIds ?? []),
+    solveHref: `/classbot/assignment/${row.id}/solve?step=1`,
+    dispatchStatus: row.dispatchStatus,
+    targetStudentIds: [],
     ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
     ...(row.examTimeLimitMin != null ? { examTimeLimitMin: row.examTimeLimitMin } : {}),
-    ...(row.requizQuestionIds && row.requizQuestionIds.length > 0
-      ? { requizQuestionIds: row.requizQuestionIds }
-      : {}),
   };
 }
 
 /**
- * 교사 발사 → `POST /api/assignments` (dueLabel/dDay 직접 전달 경로).
- * 성공 시 로컬 낙관 항목을 서버 생성 행으로 재키잉해 — 이후 상세/제출/읽기 동기화가
- * BE 와 같은 id 를 쓰게 한다. 실패 시 콘솔 경고 + 로컬 유지 (graceful degrade).
+ * 교사 발사 → `POST /classbot/classes/:classId/assignments`(classId = bot==class 의 botId).
+ * body 는 정본 `DispatchAssignmentDto` — 문항은 answerKey 를 동봉(서버 전용 채점 소스),
+ * targetStudentIds 빈 배열 = 반 전체. 성공 시 낙관 항목을 서버 생성 행으로 재키잉한다. 실패 시 경고 + 로컬 유지.
  */
 async function dispatchToBackend(a: UserAssignment): Promise<void> {
   const body = {
-    botId: a.botId,
     title: a.title,
     scope: a.scope,
+    subject: a.subject,
+    grade: a.grade,
+    mode: a.mode,
+    questionCount: a.questionCount,
+    difficulty: a.difficulty,
+    dueLabel: a.dueLabel,
+    dDay: parseDDay(a.dDay),
+    state: a.state,
     chapterFrom: a.chapterFrom,
     chapterTo: a.chapterTo,
     achievementCodes: a.achievementCodes,
-    questionCount: a.questionCount,
-    difficulty: a.difficulty,
-    mode: a.mode,
-    targetStudentIds: a.targetStudentIds.map(toDomainUserId),
-    dueLabel: a.dueLabel,
-    dDay: a.dDay,
-    ...(a.reasonHint ? { reasonHint: a.reasonHint } : {}),
-    ...(a.examTimeLimitMin != null ? { examTimeLimitMin: a.examTimeLimitMin } : {}),
-    ...(a.requizQuestionIds && a.requizQuestionIds.length > 0
-      ? { requizQuestionIds: a.requizQuestionIds }
-      : {}),
+    examTimeLimitMin: a.examTimeLimitMin ?? null,
+    // 빈 배열 = 반 전체(assignment_targets 0행). 서버가 각 id 를 :classId 멤버로 검증.
+    targetStudentIds: a.targetStudentIds,
+    questions: getQuestionsForAssignment(a).map((q, i) => {
+      const key = answerKeyOf(q);
+      return {
+        order: q.order ?? i,
+        type: q.type,
+        prompt: q.prompt,
+        ...(q.options ? { options: q.options } : {}),
+        ...(key !== undefined ? { answerKey: key } : {}),
+      };
+    }),
   };
-  const identity = teacherRequestIdentity();
   try {
-    const created = await domainFetch<BackendAssignmentRow>('/assignments', {
-      method: 'POST',
-      body,
-      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 교사 키.
-      demoUserId: identity.demoUserId,
-    });
+    const created = await domainFetch<AssignmentSummaryResponse>(
+      `/classes/${encodeURIComponent(a.botId)}/assignments`,
+      { method: 'POST', body },
+    );
     useAssignmentStore.setState((s) => ({
       dispatched: s.dispatched.map((d) =>
-        d.id === a.id ? { ...d, ...toUserAssignment(created, !identity.isAuthenticated) } : d,
+        d.id === a.id ? { ...d, ...toUserAssignment(created) } : d,
       ),
     }));
   } catch (e) {
@@ -255,25 +276,33 @@ async function dispatchToBackend(a: UserAssignment): Promise<void> {
   }
 }
 
-/** 학생 제출 → `POST /api/assignments/:id/submissions`. 실패 시 경고 + 로컬 유지. */
+/**
+ * 학생 제출 → `POST /classbot/assignments/:id/submit`. **body 는 `{ answers }` 만** — 점수는 보내지
+ * 않는다(서버가 answer_key 대조로 재계산). 응답의 서버 권위 scorePercent 로 로컬 제출 점수를 갱신한다.
+ * 실패 시 경고 + 로컬 유지(낙관 mock 점수 보존).
+ */
 async function submitToBackend(submission: Submission): Promise<void> {
   try {
-    await domainFetch<unknown>(
-      `/assignments/${encodeURIComponent(submission.assignmentId)}/submissions`,
-      {
-        method: 'POST',
-        body: { answers: submission.answers, scorePercent: submission.scorePercent },
-        // 인증이면 Bearer 신원(데모 명의 미전달), 미인증만 payload roster 키를 seed 변환.
-        demoUserId: getAuthUserSnapshot() ? undefined : toDomainUserId(submission.studentId),
-      },
+    const res = await domainFetch<SubmissionResponse>(
+      `/assignments/${encodeURIComponent(submission.assignmentId)}/submit`,
+      { method: 'POST', body: { answers: submission.answers } },
     );
+    // 서버 권위 점수 소비(essay 미채점=null 은 낙관값 유지).
+    if (typeof res.scorePercent === 'number') {
+      const serverScore = res.scorePercent;
+      useAssignmentStore.setState((s) => ({
+        submissions: s.submissions.map((sub) =>
+          sub.id === submission.id ? { ...sub, scorePercent: serverScore } : sub,
+        ),
+      }));
+    }
   } catch (e) {
     console.warn('[assignments] BE 제출 기록 실패 — 로컬 유지:', e);
   }
 }
 
 // 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
 let backendAssignmentSync: {
   key: string;
   promise: Promise<UserAssignment[] | null>;
@@ -284,15 +313,11 @@ export function resetBackendAssignmentSyncForTests(): void {
   backendAssignmentSync = null;
 }
 
-async function fetchBackendAssignments(
-  identity: RequestIdentity,
-): Promise<UserAssignment[] | null> {
+async function fetchBackendAssignments(): Promise<UserAssignment[] | null> {
   try {
-    const res = await domainFetch<{ assignments: BackendAssignmentRow[] }>(
-      '/assignments?audience=student',
-      { demoUserId: identity.demoUserId },
-    );
-    return res.assignments.map((row) => toUserAssignment(row, !identity.isAuthenticated));
+    // 정본 라우트는 bare array(`AssignmentSummaryResponseDto[]`)를 반환한다 — 래핑 객체 아님.
+    const rows = await domainFetch<AssignmentSummaryResponse[]>('/assignments?audience=student');
+    return rows.map(toUserAssignment);
   } catch (e) {
     console.warn('[assignments] BE 과제 목록 동기화 실패 — 로컬 유지:', e);
     return null;
@@ -300,21 +325,20 @@ async function fetchBackendAssignments(
 }
 
 /**
- * 플래그 ON 읽기 동기화 — `GET /api/assignments?audience=student` 를 dispatched
+ * 플래그 ON 읽기 동기화 — `GET /classbot/assignments?audience=student` 를 dispatched
  * 캐시에 병합한다. 같은 id 는 BE 행이 진실, BE 에 없는 로컬 행은 유지(쓰기 실패분 보존).
- * 플래그 OFF 면 완전 no-op. 데모 read 폴백(assignment/page.tsx demoData)은 불변.
+ * 플래그 OFF 면 완전 no-op.
  */
 function useBackendAssignmentSync(): void {
-  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
-  const syncUserId = useStudentSyncUserId();
+  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
+  const syncUserId = useSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    const identity = studentRequestIdentity();
-    if (backendAssignmentSync?.key !== identity.userId) {
+    if (backendAssignmentSync?.key !== syncUserId) {
       backendAssignmentSync = {
-        key: identity.userId,
-        promise: fetchBackendAssignments(identity),
+        key: syncUserId,
+        promise: fetchBackendAssignments(),
       };
     }
     void backendAssignmentSync.promise.then((rows) => {
