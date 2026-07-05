@@ -173,6 +173,12 @@ async function consumeSse(body: ReadableStream<Uint8Array>, cb: ChatStreamCallba
     if (done) break;
   }
 
+  // 스트림 종료 flush — decoder 내부에 남은 멀티바이트(UTF-8) 조각을 방출한다. 단일 decoder +
+  // stream:true 로 청크 경계에 걸친 한글 등 멀티바이트는 이미 다음 청크와 합쳐 디코드되지만,
+  // 마지막 청크가 문자 중간에서 끝난 경우의 잔여 바이트는 이 최종 flush 로 마감한다.
+  buffer += decoder.decode();
+  buffer = buffer.replace(/\r\n/g, '\n');
+
   // blank-line 종결자 없이 남은 마지막 프레임 flush.
   if (buffer.trim() && handleFrame(buffer, cb)) return;
 

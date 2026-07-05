@@ -13,17 +13,19 @@ import type { ChatStreamCallbacks } from './chat-stream';
 export const HISTORY_TURN_ID_PREFIX = 'h';
 
 /**
- * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 바로 뒤에 이어붙인다**.
+ * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 바로 뒤에 splice** 한다.
  * base spec §5 필수 초기 메시지 계약 — 인사/lesson-intro 는 항상 선두 유지, 서버 대화는 그 뒤.
  *
- * ⚠️ 비동기 seed 순서 경쟁 방어: 히스토리 fetch 가 늦게 끝나는 동안 사용자가 먼저 메시지를 보내면
- * prev 에 이미 새 턴이 섞여 있다. 그 경우 과거 히스토리를 새 턴 뒤에 붙이면 순서가 붕괴하므로,
- * **prev 가 오프너만 있는 초기 상태일 때만** seed 한다(그 외 — 새 턴 존재 or 이미 seed됨 — 스킵).
+ * ⚠️ 비동기 seed 순서 경쟁 방어(유실 없이): 히스토리 fetch 가 늦게 끝나는 동안 사용자가 먼저
+ * 메시지를 보내면 prev 에 이미 새 턴(오프너 아님)이 섞여 있다. 그 경우에도 히스토리를 버리지 않고
+ * **선두 오프너 prefix 직후에 삽입**하고 기존 새 턴들은 히스토리 뒤로 보존한다:
+ *   결과 = [오프너 prefix] + [서버 히스토리] + [오프너 이후 새 턴들].
+ * 이미 히스토리(`h*`)가 삽입돼 있으면 재실행(strict-mode 이중 mount) 시 재삽입하지 않는다(idempotent).
  *
- * @param prev - 현재 turns(진입 직후 = 초기 오프너 턴들)
+ * @param prev - 현재 turns(오프너 prefix + 선택적 새 턴)
  * @param historyTurns - 서버 히스토리를 매핑한 turn 배열
  * @param isOpenerTurn - 초기 오프너(인사/lesson-intro) 턴 판별자
- * @returns 오프너 선두 유지 + 히스토리 append(오프너-only 상태에서만), 아니면 prev 그대로
+ * @returns 오프너 prefix 유지 + 히스토리 삽입 + 새 턴 보존, 빈 히스토리/이미 seed면 prev 그대로
  */
 export function appendHistoryTurns<T extends { id: string }>(
   prev: T[],
@@ -31,9 +33,13 @@ export function appendHistoryTurns<T extends { id: string }>(
   isOpenerTurn: (turn: T) => boolean,
 ): T[] {
   if (historyTurns.length === 0) return prev;
-  // 오프너만 있는 초기 상태에서만 seed. 새 턴이 이미 생겼거나(순서 경쟁) 이미 seed됐으면 스킵.
-  if (!prev.every(isOpenerTurn)) return prev;
-  return [...prev, ...historyTurns];
+  // 이미 히스토리 seed됨 → 재삽입 안 함(idempotent).
+  if (prev.some(t => t.id.startsWith(HISTORY_TURN_ID_PREFIX))) return prev;
+  // 선두의 연속된 오프너 prefix 경계를 찾는다(오프너는 항상 최상단).
+  let boundary = 0;
+  while (boundary < prev.length && isOpenerTurn(prev[boundary])) boundary++;
+  // [오프너 prefix] + [히스토리] + [오프너 이후 사용자 새 턴들(있으면)] — 유실·순서붕괴 없음.
+  return [...prev.slice(0, boundary), ...historyTurns, ...prev.slice(boundary)];
 }
 
 /**

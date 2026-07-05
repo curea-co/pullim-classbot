@@ -63,6 +63,23 @@ function errorStatusRes(status: number): Response {
   return { ok: false, status, body: null } as unknown as Response;
 }
 
+/** raw byte 청크(Uint8Array[])를 흘려주는 SSE 응답 — 멀티바이트 경계 쪼갬 테스트용. */
+function sseResBytes(chunks: Uint8Array[]): Response {
+  let i = 0;
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      getReader() {
+        return {
+          read: async () =>
+            i < chunks.length ? { done: false, value: chunks[i++] } : { done: true, value: undefined },
+        };
+      },
+    },
+  } as unknown as Response;
+}
+
 /** 콜백 스파이 묶음. */
 function spies(): ChatStreamCallbacks & { tokens: string[] } {
   const tokens: string[] = [];
@@ -139,6 +156,25 @@ describe('streamChat — SSE 파싱(token → done)', () => {
 
     expect(cb.tokens).toEqual(['안', '녕']);
     expect(cb.onDone).toHaveBeenCalledWith({ messageId: undefined, content: '안녕', usage: undefined });
+    expect(cb.onError).not.toHaveBeenCalled();
+  });
+
+  it('UTF-8 멀티바이트(한글)가 청크 바이트 중간에서 쪼개져도 정확히 디코드', async () => {
+    // 전체 SSE 텍스트를 바이트로 인코딩한 뒤, 한글 문자의 UTF-8 3바이트 시퀀스 중간에서 쪼갠다.
+    const full = 'event: token\ndata: {"delta":"한글"}\n\nevent: done\ndata: {"content":"한글 답변"}\n\n';
+    const enc = new TextEncoder();
+    const bytes = enc.encode(full);
+    // 첫 '한'(UTF-8 3바이트)의 시작 오프셋 + 1 → 멀티바이트 시퀀스 중간에서 절단.
+    const cut = enc.encode(full.slice(0, full.indexOf('한'))).length + 1;
+    fetchMock
+      .mockResolvedValueOnce(csrfRes('t'))
+      .mockResolvedValueOnce(sseResBytes([bytes.slice(0, cut), bytes.slice(cut)]));
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(cb.tokens).toEqual(['한글']); // 깨짐(replacement char) 없음
+    expect(cb.onDone).toHaveBeenCalledWith({ messageId: undefined, content: '한글 답변', usage: undefined });
     expect(cb.onError).not.toHaveBeenCalled();
   });
 

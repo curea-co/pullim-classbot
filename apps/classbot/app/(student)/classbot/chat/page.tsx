@@ -10,7 +10,6 @@ import {
   type QuickReplyKey, type LessonFlowKey,
   type ClassBot,
   LESSON_FLOW_KEYS,
-  forcedKeyToChatPrompt,
 } from '@/lib/mock';
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
@@ -404,12 +403,10 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   function send(text: string, forcedKey?: QuickReplyKey) {
     const trimmed = text.trim();
     if (!trimmed || pending) return;
-    // 플래그 ON + 빠른칩(forcedKey) — 칩 의도를 자연어 프롬프트로 변환해 실제 발화로 삼는다
-    // (칩 계약 보존). 매핑 없으면 칩 라벨(trimmed) 폴백. flag-OFF 는 항상 trimmed(기존 mock 불변).
-    const outgoing =
-      USE_REAL_CORE_BE && forcedKey ? (forcedKeyToChatPrompt(forcedKey) ?? trimmed) : trimmed;
     const now = Date.now();
-    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: outgoing, at: now }]);
+    // 학생 발화 = 입력 텍스트(빠른칩이면 칩 라벨). 표시·전송·영속이 모두 동일 텍스트라 서버
+    // 히스토리도 화면과 일치한다(내부 프롬프트로 치환하지 않는다).
+    setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
     setPending(true);
 
     // 플래그 ON — pullim-api SSE 실챗(ADR-064). 서버가 user/assistant turn 을 영속하므로
@@ -419,10 +416,11 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     //   flag-OFF 의 concept/example/quiz/summary 리치카드(buildLessonTurn/buildRichBotTurn)는
     //   flag-ON 에서 스트림 텍스트로 대체된다. 구조화 리치카드는 LLM tool-calling 기반이라
     //   ADR-064 **v2 defer**(사용자 승인 게이트웨이·모델 결정 필요) — 이번 카드 범위 밖이다.
-    //   대신 빠른칩 의도는 outgoing(forcedKey→forcedKeyToChatPrompt 프롬프트)로 전달해 "칩 누르면
-    //   그 주제로 학습 진행" 계약을 보존하고, flag-OFF 는 리치 mock 을 그대로 둔다(불변).
+    //   대신 빠른칩은 **칩 라벨('예제 풀어줘' 등, 이미 자연어)을 그대로 message 로** 전송해
+    //   "칩 누르면 그 주제로 학습 진행" 계약을 보존하고(forcedKey 는 후속 칩 추천 상태로만 스레딩),
+    //   flag-OFF 는 리치 mock 을 그대로 둔다(불변).
     if (USE_REAL_CORE_BE) {
-      void sendReal(outgoing, forcedKey);
+      void sendReal(trimmed, forcedKey);
       return;
     }
 

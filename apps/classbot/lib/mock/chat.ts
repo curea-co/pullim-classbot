@@ -42,41 +42,6 @@ export type ClassbotQuickPrompt = {
   expectedReplyKey: QuickReplyKey;
 };
 
-/**
- * 빠른칩 forcedKey → **자연어 프롬프트**(플래그 ON 실챗 전용).
- *
- * flag-OFF(mock)는 forcedKey 로 구조화 리치 턴(concept/example/quiz)을 만들지만, flag-ON 실챗
- * BE 는 현재 plain 스트림 텍스트만 낸다(리치카드·tool-calling 은 ADR-064 v2 defer). 그래서
- * flag-ON 에서 가이드 칩(개념 더보기/예제/퀴즈/다음)을 눌러도 구조화 카드를 BE 가 못 만든다 →
- * 칩 의도를 자연어 프롬프트로 변환해 스트림 텍스트로 답하게 하여 **칩 계약(누르면 그 주제로
- * 학습 진행)은 보존**한다(응답 형식만 텍스트).
- *
- * 매핑이 없는 키(과목별 극값/빈칸추론 등·안심 칩)는 칩 라벨 자체가 이미 자연어라 undefined 를
- * 반환해 호출부가 칩 라벨(입력 텍스트)로 폴백하게 한다.
- *
- * @param key - 눌린 빠른칩의 expectedReplyKey
- * @returns 대응 자연어 프롬프트 또는 undefined(칩 라벨 폴백)
- */
-export function forcedKeyToChatPrompt(key: QuickReplyKey): string | undefined {
-  switch (key) {
-    case 'lesson_concept':
-      return '지금 개념을 더 자세히 설명해줘.';
-    case 'lesson_example':
-      return '관련 예제를 하나 풀어서 보여줘.';
-    case 'lesson_quiz':
-      return '관련 퀴즈를 하나 내줘.';
-    case 'lesson_next':
-      return '다음 개념으로 넘어가서 설명해줘.';
-    case 'today_summary':
-      return '오늘 배운 내용을 정리해줘.';
-    case 'exam_prep':
-      return '시험 대비로 무엇을 공부하면 좋을지 알려줘.';
-    default:
-      // 과목별 키(extremum·blank_inference…)·reassurance 는 칩 라벨이 이미 자연어 → 폴백.
-      return undefined;
-  }
-}
-
 /** cb_001 수학이 형 — 친근 톤 (반말) */
 const repliesFriendly: Record<ReplyKey, string> = {
   extremum:

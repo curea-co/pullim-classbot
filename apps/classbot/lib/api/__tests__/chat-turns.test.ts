@@ -36,17 +36,18 @@ describe('appendHistoryTurns — 초기 오프너 보존 + 순서 경쟁 방어'
     expect(appendHistoryTurns(opener, [], isOpener)).toBe(opener);
   });
 
-  it('순서 경쟁 — seed 전에 사용자 새 턴이 생겼으면 과거를 새 턴 뒤에 섞지 않고 스킵', () => {
+  it('순서 경쟁 — 늦은 seed 여도 히스토리 유실 없이 오프너 직후 splice, 새 턴은 뒤로 보존', () => {
     // fetch resolve 전에 사용자가 먼저 보낸 새 턴이 prev 에 있는 상태.
     const withNewTurn: MiniTurn[] = [...opener, { id: 's123', role: 'student', text: '질문!' }];
     const result = appendHistoryTurns(withNewTurn, history, isOpener);
-    expect(result).toBe(withNewTurn); // 동일 참조 — seed 스킵(과거가 새 턴 뒤에 붙지 않음)
+    // [오프너 prefix] + [서버 히스토리] + [오프너 이후 새 턴] — 유실·순서붕괴 없음.
+    expect(result.map(t => t.id)).toEqual(['t0_cb', 't1_cb', 'h0', 'h1', 's123']);
   });
 
-  it('이미 히스토리 seed(h*)가 붙어 있으면 재실행 시 중복 append 안 함', () => {
+  it('이미 히스토리 seed(h*)가 붙어 있으면 재실행 시 재삽입 안 함(idempotent)', () => {
     const seeded = appendHistoryTurns(opener, history, isOpener);
     const again = appendHistoryTurns(seeded, history, isOpener);
-    expect(again).toBe(seeded); // h* 는 오프너 아님 → every(isOpener) 실패 → 스킵
+    expect(again).toBe(seeded); // h* 존재 → 재삽입 스킵(동일 참조)
     expect(again.filter(t => t.id.startsWith('h'))).toHaveLength(2);
   });
 });
