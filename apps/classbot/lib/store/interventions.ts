@@ -5,20 +5,18 @@
  * 결과 "선생님 한마디"는 전부 이 스토어를 **읽는** 단방향 흐름. localStorage persist —
  * 기존 스토어 문법(assignments·class-enrollment)과 동일. 소비 컴포넌트는 `useStoresHydrated` 게이트.
  *
- * Ph7(`USE_REAL_CORE_BE`): 쓰기(send/markRead/markAllRead)는 스토어 선반영 후 BE 로
- * 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMyInterventions/useUnreadCount)는
- * `GET /api/interventions?audience=student` 를 스토어 캐시로 병합한다.
- * 플래그 OFF 면 기존 mock/localStorage 동작 100% 불변.
+ * `USE_REAL_CORE_BE`(정본 배선): 쓰기(send/markRead/markAllRead)는 스토어 선반영 후 pullim-api
+ * 정본 라우트(OS 쿠키 + CSRF)로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기
+ * (useMyInterventions/useUnreadCount)는 `GET /classbot/interventions?audience=student` 를 스토어
+ * 캐시로 병합한다. send=`POST /classbot/classes/:classId/interventions {events}`,
+ * read/read-all=`PATCH /classbot/interventions/:id/read`·`/read-all`. 플래그 OFF 면 mock 100% 불변.
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useCurrentUser, resolveRosterMe } from '@/lib/current-user';
 import { USE_REAL_CORE_BE } from '@/lib/features';
-import {
-  domainFetch, getAuthUserSnapshot, studentRequestIdentity, teacherRequestIdentity,
-  toDomainUserId, fromDomainUserId, useStudentSyncUserId, type RequestIdentity,
-} from '@/lib/api/domain-fetch';
+import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 
 export type InterventionType = 'remind' | 'requiz' | 'comment' | 'crisis';
 
@@ -85,7 +83,7 @@ export const useInterventionStore = create<InterventionStore>()(
               : e,
           ),
         }));
-        if (USE_REAL_CORE_BE) void markAllReadOnBackend(studentId);
+        if (USE_REAL_CORE_BE) void markAllReadOnBackend();
       },
     }),
     { name: 'pullim-interventions' },
@@ -96,8 +94,8 @@ export const useInterventionStore = create<InterventionStore>()(
  * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
  * ───────────────────────────────────────────────────────────── */
 
-/** BE 개입 한 행 — `InterventionResponseDto` (camelCase 1:1, 시각은 ISO-8601). */
-interface BackendInterventionRow {
+/** 정본 개입 응답 — `InterventionResponseDto`(botId=classId, camelCase 1:1, 시각 ISO-8601). */
+interface InterventionResponse {
   id: string;
   type: InterventionType;
   botId: string;
@@ -108,17 +106,13 @@ interface BackendInterventionRow {
   readAt: string | null;
 }
 
-/**
- * BE 행 → 스토어 이벤트.
- * 수신자 키 역변환(student_001→s1)은 **미인증 데모 읽기에서만** 적용한다 — 인증
- * 사용자 행의 raw user id 를 roster 키로 붕괴시키지 않는다 (Codex #196 R2 ②).
- */
-function toEvent(row: BackendInterventionRow, mapToRosterKeys: boolean): InterventionEvent {
+/** 정본 응답 행 → 스토어 이벤트(정본 서버는 raw user id 를 쓰므로 roster 브리지 없음). */
+function toEvent(row: InterventionResponse): InterventionEvent {
   return {
     id: row.id,
     type: row.type,
     botId: row.botId,
-    studentId: mapToRosterKeys ? fromDomainUserId(row.studentId) : row.studentId,
+    studentId: row.studentId,
     ...(row.assignmentId ? { assignmentId: row.assignmentId } : {}),
     message: row.message,
     createdAt: row.createdAt,
@@ -127,36 +121,31 @@ function toEvent(row: BackendInterventionRow, mapToRosterKeys: boolean): Interve
 }
 
 /**
- * 교사 발신 → `POST /api/interventions` (bulk `{ events: [...] }` 계약).
- * 성공 시 낙관 이벤트를 서버 생성 행(id/createdAt)으로 재키잉 — 이후 markRead 가
- * BE 와 같은 id 를 쓰게 한다. 실패 시 콘솔 경고 + 로컬 유지 (graceful degrade).
+ * 교사 발신 → `POST /classbot/classes/:classId/interventions`(classId = bot==class 의 botId).
+ * bulk `{ events: [...] }` 계약. 성공 시 낙관 이벤트를 서버 생성 행(id/createdAt)으로 재키잉 —
+ * 이후 markRead 가 BE 와 같은 id 를 쓰게 한다. 실패 시 콘솔 경고 + 로컬 유지 (graceful degrade).
  */
 async function sendToBackend(input: InterventionInput, localId: string): Promise<void> {
   const body = {
     events: [
       {
         type: input.type,
-        botId: input.botId,
-        studentId: toDomainUserId(input.studentId),
+        studentId: input.studentId,
         ...(input.assignmentId ? { assignmentId: input.assignmentId } : {}),
         message: input.message ?? '',
       },
     ],
   };
-  const identity = teacherRequestIdentity();
   try {
-    const res = await domainFetch<{ interventions: BackendInterventionRow[] }>('/interventions', {
-      method: 'POST',
-      body,
-      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 교사 키.
-      demoUserId: identity.demoUserId,
-    });
-    const created = res.interventions[0];
-    if (created) {
+    // 정본 라우트는 생성된 개입 목록을 bare array(`InterventionResponseDto[]`)로 반환한다.
+    const created = await domainFetch<InterventionResponse[]>(
+      `/classes/${encodeURIComponent(input.botId)}/interventions`,
+      { method: 'POST', body },
+    );
+    const first = created[0];
+    if (first) {
       useInterventionStore.setState((s) => ({
-        events: s.events.map((e) =>
-          e.id === localId ? toEvent(created, !identity.isAuthenticated) : e,
-        ),
+        events: s.events.map((e) => (e.id === localId ? toEvent(first) : e)),
       }));
     }
   } catch (e) {
@@ -164,33 +153,28 @@ async function sendToBackend(input: InterventionInput, localId: string): Promise
   }
 }
 
-/** 읽음 처리 → `PATCH /api/interventions/:id/read`. 실패 시 경고 + 로컬 유지. */
+/** 읽음 처리 → `PATCH /classbot/interventions/:id/read`(CSRF). 실패 시 경고 + 로컬 유지. */
 async function markReadOnBackend(id: string): Promise<void> {
   try {
     await domainFetch<unknown>(`/interventions/${encodeURIComponent(id)}/read`, {
       method: 'PATCH',
-      demoUserId: studentRequestIdentity().demoUserId,
     });
   } catch (e) {
     console.warn('[interventions] BE 읽음 처리 실패 — 로컬 유지:', e);
   }
 }
 
-/** 전체 읽음 → `PATCH /api/interventions/read-all` (요청 학생 스코프, 멱등). */
-async function markAllReadOnBackend(studentId: string): Promise<void> {
+/** 전체 읽음 → `PATCH /classbot/interventions/read-all`(CSRF, 수신 본인 스코프). 실패 시 경고 + 로컬 유지. */
+async function markAllReadOnBackend(): Promise<void> {
   try {
-    await domainFetch<unknown>('/interventions/read-all', {
-      method: 'PATCH',
-      // 인증이면 Bearer 신원(데모 명의 미전달), 미인증만 인자 roster 키를 seed 변환.
-      demoUserId: getAuthUserSnapshot() ? undefined : toDomainUserId(studentId),
-    });
+    await domainFetch<{ updated: number }>('/interventions/read-all', { method: 'PATCH' });
   } catch (e) {
     console.warn('[interventions] BE 전체 읽음 처리 실패 — 로컬 유지:', e);
   }
 }
 
 // 사용자당 1회 fetch 단일 비행 — 벨/배지 등 여러 마운트에서 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
 let backendInterventionSync: {
   key: string;
   promise: Promise<InterventionEvent[] | null>;
@@ -201,15 +185,11 @@ export function resetBackendInterventionSyncForTests(): void {
   backendInterventionSync = null;
 }
 
-async function fetchBackendInterventions(
-  identity: RequestIdentity,
-): Promise<InterventionEvent[] | null> {
+async function fetchBackendInterventions(): Promise<InterventionEvent[] | null> {
   try {
-    const res = await domainFetch<{ interventions: BackendInterventionRow[] }>(
-      '/interventions?audience=student',
-      { demoUserId: identity.demoUserId },
-    );
-    return res.interventions.map((row) => toEvent(row, !identity.isAuthenticated));
+    // 정본 라우트는 bare array(`InterventionResponseDto[]`)를 반환한다 — 래핑 객체 아님.
+    const rows = await domainFetch<InterventionResponse[]>('/interventions?audience=student');
+    return rows.map(toEvent);
   } catch (e) {
     console.warn('[interventions] BE 인박스 동기화 실패 — 로컬 유지:', e);
     return null;
@@ -222,16 +202,15 @@ async function fetchBackendInterventions(
  * 플래그 OFF 면 완전 no-op.
  */
 function useBackendInterventionSync(): void {
-  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
-  const syncUserId = useStudentSyncUserId();
+  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
+  const syncUserId = useSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    const identity = studentRequestIdentity();
-    if (backendInterventionSync?.key !== identity.userId) {
+    if (backendInterventionSync?.key !== syncUserId) {
       backendInterventionSync = {
-        key: identity.userId,
-        promise: fetchBackendInterventions(identity),
+        key: syncUserId,
+        promise: fetchBackendInterventions(),
       };
     }
     void backendInterventionSync.promise.then((rows) => {

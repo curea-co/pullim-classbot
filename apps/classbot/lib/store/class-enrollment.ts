@@ -5,9 +5,10 @@
  * 출시 기준 mock `studentEnrollments`는 빈 배열이므로, 학생의 교사 배정은 이 스토어가 권위.
  * `getMyBots()`(static)의 reactive 대체로 `useMyClassBots()`를 쓴다.
  *
- * Ph7(`USE_REAL_CORE_BE`): 쓰기(join)는 `joinClass()` 가 BE `POST /api/enrollments` 로
- * 보내고, 읽기(`useMyClassBots`)는 `GET /api/bots?role=student` 를 스토어로 동기화한다 —
- * "BE 가 진실, 스토어는 캐시" 최소 배선. 플래그 OFF/BE 실패 시 기존 mock 경로 그대로.
+ * `USE_REAL_CORE_BE`(정본 배선): 쓰기(join)는 `joinClass()` 가 pullim-api 정본 라우트
+ * `POST /classbot/enrollments`(OS 쿠키 + CSRF)로 보내고, 읽기(`useMyClassBots`)는
+ * `GET /classbot/bots?role=student` 를 스토어로 동기화한다 — "BE 가 진실, 스토어는 캐시" 최소 배선.
+ * 플래그 OFF/BE 실패(5xx·네트워크) 시 기존 mock 경로 그대로.
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
@@ -16,12 +17,7 @@ import { ApiError } from '@pullim-classbot/api-client';
 import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
 import { resolveClassCode } from '@/lib/mock/class-codes';
 import { USE_REAL_CORE_BE } from '@/lib/features';
-import {
-  domainFetch,
-  studentRequestIdentity,
-  useStudentSyncUserId,
-  type RequestIdentity,
-} from '@/lib/api/domain-fetch';
+import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 
 export type JoinResult =
   | { ok: true; enrollment: StudentEnrollment }
@@ -71,16 +67,54 @@ export const useClassEnrollmentStore = create<ClassEnrollmentStore>()(
  * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
  * ───────────────────────────────────────────────────────────── */
 
+/** 정본 `POST /classbot/enrollments` 응답 — membership 뷰(bot==class 이므로 classId==botId). */
+interface EnrollmentResponse {
+  membershipId: string;
+  classId: string;
+  memberId: string;
+  enrolledAt: string;
+}
+
+/** 정본 `GET /classbot/bots` 한 행 — `BotCardResponseDto`(class 코어 + profile). 소비 필드만. */
+interface BotCardResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  role: 'teacher' | 'student';
+}
+
+/**
+ * classId → StudentEnrollment 브리지. 봇 **카탈로그**(라벨·교사명·학원)는 여전히 mock `classBots` 가
+ * 권위이므로(봇 생성 API 미배선 — M3 경계), classId 로 카탈로그를 조회해 표시 필드를 채운다.
+ * 카탈로그 미스면 서버가 준 name(있으면)·빈 값으로 폴백한다.
+ */
+function enrollmentFromClass(
+  classId: string,
+  opts: { enrolledAt?: string; name?: string } = {},
+): StudentEnrollment {
+  const bot = classBots.find((b) => b.id === classId);
+  return {
+    botId: classId,
+    classroomId: classId,
+    classroomLabel: bot?.name ?? opts.name ?? '',
+    assignedBy: bot?.teacherName ?? '',
+    assignedAt: opts.enrolledAt ?? '',
+    via: bot?.organization ?? '',
+  };
+}
+
 /**
  * 참여 코드 join — 플래그 스위치 진입점 (컴포넌트는 이것만 호출).
  *
  * OFF: 기존 스토어 join(mock resolveClassCode) 그대로.
- * ON : `POST /api/enrollments` — 201/200 응답 enrollment(StudentEnrollment 1:1)를
- *      스토어에도 반영해 기존 파생 로직(useMyClassBots 등)을 유지한다.
+ * ON : `POST /classbot/enrollments`(OS 쿠키 + CSRF) — 신규 201·이미 멤버 멱등 200 모두
+ *      membership 뷰를 반환한다. classId(=botId)로 StudentEnrollment 를 구성해 스토어에도 반영해
+ *      기존 파생 로직(useMyClassBots 등)을 유지한다.
  *      **BE 의 거부(4xx)는 실패로 전파한다** — 404(무효 코드)는 기존 에러 카피,
  *      401/403 등은 일반 실패 카피. mock join 폴백(graceful degrade)은
  *      **네트워크 실패/5xx(BE 다운)** 에만 좁혀 적용한다 — BE 가 명시적으로 거부한
- *      join 을 mock 성공으로 가장하지 않는다 (Codex #196 R3 ①).
+ *      join 을 mock 성공으로 가장하지 않는다.
  * @param code - 참여 코드
  * @returns JoinResult (기존 계약 그대로)
  */
@@ -89,12 +123,11 @@ export async function joinClass(code: string): Promise<JoinResult> {
     return useClassEnrollmentStore.getState().join(code);
   }
   try {
-    const enrollment = await domainFetch<StudentEnrollment>('/enrollments', {
+    const res = await domainFetch<EnrollmentResponse>('/enrollments', {
       method: 'POST',
       body: { code },
-      // 인증이면 Bearer 전용(데모 명의 미전달 — 오귀속 차단), 미인증만 데모 키.
-      demoUserId: studentRequestIdentity().demoUserId,
     });
+    const enrollment = enrollmentFromClass(res.classId, { enrolledAt: res.enrolledAt });
     useClassEnrollmentStore.setState((s) => {
       const already = s.enrollments.some((e) => e.botId === enrollment.botId);
       return {
@@ -118,17 +151,8 @@ export async function joinClass(code: string): Promise<JoinResult> {
   }
 }
 
-/** BE `GET /api/bots?role=student` 한 행 — 소비하는 필드만 (EnrolledBotRow 부분집합). */
-interface EnrolledBotResponseRow {
-  id: string;
-  classroomId: string;
-  classroomLabel: string;
-  assignedBy: string;
-  via: string;
-}
-
 // 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(resolved user id 변경) 재동기화한다 (Codex #196 R2 ③).
+// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
 let backendEnrollmentSync: {
   key: string;
   promise: Promise<StudentEnrollment[] | null>;
@@ -139,22 +163,11 @@ export function resetBackendEnrollmentSyncForTests(): void {
   backendEnrollmentSync = null;
 }
 
-async function fetchBackendEnrollments(
-  identity: RequestIdentity,
-): Promise<StudentEnrollment[] | null> {
+async function fetchBackendEnrollments(): Promise<StudentEnrollment[] | null> {
   try {
-    const res = await domainFetch<{ bots: EnrolledBotResponseRow[] }>('/bots?role=student', {
-      demoUserId: identity.demoUserId,
-    });
-    return res.bots.map((row) => ({
-      botId: row.id,
-      classroomId: row.classroomId,
-      classroomLabel: row.classroomLabel,
-      assignedBy: row.assignedBy,
-      // 읽기 행(EnrolledBotRow)에는 assignedAt 이 없다 — UI 미소비 필드라 빈 값.
-      assignedAt: '',
-      via: row.via,
-    }));
+    // 정본 라우트는 bare array(`BotCardResponseDto[]`)를 반환한다 — 래핑 객체 아님.
+    const bots = await domainFetch<BotCardResponse[]>('/bots?role=student');
+    return bots.map((row) => enrollmentFromClass(row.id, { name: row.name }));
   } catch (e) {
     console.warn('[class-enrollment] BE 봇 목록 동기화 실패 — 로컬 유지:', e);
     return null;
@@ -167,16 +180,15 @@ async function fetchBackendEnrollments(
  * 플래그 OFF 면 완전 no-op.
  */
 function useBackendEnrollmentSync(): void {
-  // 토큰 변경(사용자 전환)에 반응 — 같은 마운트에서도 effect 재실행 (Codex #196 R3 ②).
-  const syncUserId = useStudentSyncUserId();
+  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
+  const syncUserId = useSyncUserId();
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
-    const identity = studentRequestIdentity();
-    if (backendEnrollmentSync?.key !== identity.userId) {
+    if (backendEnrollmentSync?.key !== syncUserId) {
       backendEnrollmentSync = {
-        key: identity.userId,
-        promise: fetchBackendEnrollments(identity),
+        key: syncUserId,
+        promise: fetchBackendEnrollments(),
       };
     }
     void backendEnrollmentSync.promise.then((rows) => {

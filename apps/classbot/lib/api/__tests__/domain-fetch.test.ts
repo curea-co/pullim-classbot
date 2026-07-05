@@ -1,28 +1,45 @@
 /**
- * domain-fetch 헬퍼 — Ph7 코어 스토어 전환의 BE fetch/신원 규약 단위 테스트.
- * fetch 는 전부 jest mock (실 BE 불요).
+ * domain-fetch — pullim-api classbot 정본 라우트 + OS 쿠키 인증 단위 테스트.
+ * fetch 는 전부 jest mock (실 BE 불요). 검증: `${API_BASE}/classbot/*` 대상, credentials:'include',
+ * 쓰기는 GET /auth/csrf 후 X-CSRF-Token 첨부, x-user-id·Authorization 미전송, 에러 봉투 파싱.
  */
-import { tokenManager, ApiError, BASE_URL } from '@pullim-classbot/api-client';
+import { renderHook } from '@testing-library/react';
+
+// 가변 플래그 getter — useSyncUserId 의 ON/OFF 분기 검증용(replay-detail 패턴).
+let _useRealCoreBE = false;
+jest.mock('@/lib/features', () => ({
+  get USE_REAL_CORE_BE() {
+    return _useRealCoreBE;
+  },
+  get USE_REAL_REQUIZ_BE() {
+    return false;
+  },
+}));
+
+import { ApiError } from '@pullim-classbot/api-client';
+import { API_BASE } from '@/lib/auth/os-sso';
 import {
   domainFetch,
-  toDomainUserId,
-  fromDomainUserId,
-  demoStudentDomainId,
-  getAuthUserSnapshot,
-  studentRequestIdentity,
-  teacherRequestIdentity,
-  DEMO_TEACHER_ID,
+  currentSessionUserId,
+  setDomainIdentitySnapshot,
+  useSyncUserId,
 } from '../domain-fetch';
 
 const fetchMock = jest.fn();
 
+/** classbot 정본 base(env 미설정 = 로컬 SSO api 호스트). */
+const CLASSBOT_BASE = `${API_BASE}/classbot`;
+const CSRF_URL = `${API_BASE}/auth/csrf`;
+
 beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
   fetchMock.mockReset();
-  tokenManager.clearTokens();
+  _useRealCoreBE = false;
+  setDomainIdentitySnapshot(null);
 });
 
-function jsonResponse(status: number, body: unknown): Response {
+/** domainFetch 계약(text() 파싱) 응답. */
+function domainRes(status: number, body: unknown): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -30,114 +47,87 @@ function jsonResponse(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
-/** 디코더블 access token (검증 없음 — decodeAccessToken 은 sub/role 만 요구). */
-function fakeJwt(sub: string): string {
-  const payload = Buffer.from(
-    JSON.stringify({ sub, email: `${sub}@test.io`, role: 'student', exp: 9999999999 }),
-  ).toString('base64url');
-  return `header.${payload}.sig`;
+/** CSRF 헬퍼 계약(json() 파싱) 응답. */
+function csrfRes(token: string): Response {
+  return { ok: true, status: 200, json: async () => ({ csrfToken: token }) } as unknown as Response;
 }
 
-describe('identity bridge (roster ↔ seed 도메인 id)', () => {
-  it('maps demo roster me (s1) to seed domain id student_001 and back', () => {
-    expect(toDomainUserId('s1')).toBe('student_001');
-    expect(fromDomainUserId('student_001')).toBe('s1');
-  });
+describe('domainFetch — 읽기(GET): OS 쿠키, CSRF 없음', () => {
+  it('hits ${API_BASE}/classbot/... with credentials include, no x-user-id / Authorization / CSRF', async () => {
+    fetchMock.mockResolvedValueOnce(domainRes(200, [{ id: 'cb_001' }]));
 
-  it('passes non-hero roster ids through unchanged (s2~s18 = seed 그대로)', () => {
-    expect(toDomainUserId('s7')).toBe('s7');
-    expect(fromDomainUserId('s7')).toBe('s7');
-  });
+    const result = await domainFetch<{ id: string }[]>('/bots?role=student');
 
-  it('demoStudentDomainId resolves the demo fallback user to student_001', () => {
-    expect(demoStudentDomainId()).toBe('student_001');
-    expect(demoStudentDomainId('student_001')).toBe('student_001');
-  });
-
-  it('DEMO_TEACHER_ID matches the seed teacher (김수학)', () => {
-    expect(DEMO_TEACHER_ID).toBe('teacher_001');
-  });
-});
-
-describe('request identity (앱 인증 상태 게이트 — Codex #196 R2 ①②)', () => {
-  it('getAuthUserSnapshot: null without token / null for garbage / sub for a decodable token', () => {
-    expect(getAuthUserSnapshot()).toBeNull();
-
-    tokenManager.setTokens('garbage-not-a-jwt', 'r');
-    expect(getAuthUserSnapshot()).toBeNull();
-
-    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r');
-    expect(getAuthUserSnapshot()).toEqual({ id: 'u-uuid-1' });
-  });
-
-  it('unauthenticated: identities carry demo keys as demoUserId', () => {
-    expect(studentRequestIdentity()).toEqual({
-      isAuthenticated: false,
-      userId: 'student_001',
-      demoUserId: 'student_001',
-    });
-    expect(teacherRequestIdentity()).toEqual({
-      isAuthenticated: false,
-      userId: 'teacher_001',
-      demoUserId: 'teacher_001',
-    });
-  });
-
-  it('authenticated: identities keep the raw user id and never expose demoUserId', () => {
-    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r');
-    expect(studentRequestIdentity()).toEqual({
-      isAuthenticated: true,
-      userId: 'u-uuid-1',
-      demoUserId: undefined,
-    });
-    expect(teacherRequestIdentity()).toEqual({
-      isAuthenticated: true,
-      userId: 'u-uuid-1',
-      demoUserId: undefined,
-    });
-  });
-});
-
-describe('domainFetch — 미인증 데모 (x-user-id 폴백)', () => {
-  it('sends x-user-id to the BE base URL and parses JSON', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { bots: [] }));
-
-    const result = await domainFetch<{ bots: unknown[] }>('/bots?role=student', {
-      demoUserId: 'student_001',
-    });
-
-    expect(result).toEqual({ bots: [] });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([{ id: 'cb_001' }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // read 는 CSRF 왕복 없음
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${BASE_URL}/bots?role=student`);
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
-    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+    expect(url).toBe(`${CLASSBOT_BASE}/bots?role=student`);
     expect(init.method).toBe('GET');
+    expect(init.credentials).toBe('include');
+    const headers = init.headers as Record<string, string>;
+    expect(headers['x-user-id']).toBeUndefined();
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers['X-CSRF-Token']).toBeUndefined();
     expect(init.body).toBeUndefined();
   });
+});
 
-  it('serializes POST body as JSON', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(201, { botId: 'cb_001' }));
+describe('domainFetch — 쓰기(POST/PATCH): CSRF double-submit', () => {
+  it('fetches /auth/csrf then POSTs with X-CSRF-Token + credentials include + JSON body', async () => {
+    fetchMock
+      .mockResolvedValueOnce(csrfRes('csrf-xyz')) // GET /auth/csrf
+      .mockResolvedValueOnce(domainRes(201, { membershipId: 'm1', classId: 'cb_001' })); // POST
 
-    await domainFetch('/enrollments', {
-      method: 'POST',
-      body: { code: 'MATH-2024' },
-      demoUserId: 'student_001',
-    });
+    await domainFetch('/enrollments', { method: 'POST', body: { code: 'MATH-2024' } });
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // ① CSRF 발급
+    const [csrfUrl, csrfInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(csrfUrl).toBe(CSRF_URL);
+    expect(csrfInit.credentials).toBe('include');
+    // ② 정본 write
+    const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(url).toBe(`${CLASSBOT_BASE}/enrollments`);
     expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('include');
     expect(init.body).toBe(JSON.stringify({ code: 'MATH-2024' }));
+    const headers = init.headers as Record<string, string>;
+    expect(headers['X-CSRF-Token']).toBe('csrf-xyz');
+    expect(headers['x-user-id']).toBeUndefined();
+    expect(headers.Authorization).toBeUndefined();
   });
 
-  it('throws ApiError with the domain error envelope ({ error: { code, message } })', async () => {
+  it('PATCH also attaches the CSRF token', async () => {
+    fetchMock
+      .mockResolvedValueOnce(csrfRes('csrf-abc'))
+      .mockResolvedValueOnce(domainRes(200, { updated: 3 }));
+
+    await domainFetch('/interventions/read-all', { method: 'PATCH' });
+
+    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(init.method).toBe('PATCH');
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-abc');
+  });
+
+  it('proceeds without X-CSRF-Token when CSRF issuance fails (fail-closed — 서버가 거부)', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) } as unknown as Response)
+      .mockResolvedValueOnce(domainRes(201, {}));
+
+    await domainFetch('/enrollments', { method: 'POST', body: { code: 'X' } });
+
+    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBeUndefined();
+  });
+});
+
+describe('domainFetch — 에러 봉투', () => {
+  it('throws ApiError from the spec envelope ({ error: { code, message } })', async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse(404, { error: { code: 'NOT_FOUND', message: '유효하지 않은 참여 코드입니다.' } }),
+      domainRes(404, { error: { code: 'NOT_FOUND', message: '유효하지 않은 참여 코드입니다.' } }),
     );
 
-    await expect(
-      domainFetch('/enrollments', { method: 'POST', body: { code: 'NOPE' }, demoUserId: 'student_001' }),
-    ).rejects.toMatchObject({
+    await expect(domainFetch('/bots')).rejects.toMatchObject({
       name: 'ApiError',
       status: 404,
       code: 'NOT_FOUND',
@@ -145,88 +135,45 @@ describe('domainFetch — 미인증 데모 (x-user-id 폴백)', () => {
     });
   });
 
-  it('throws ApiError with HTTP status fallback when the body is not JSON', async () => {
+  it('throws ApiError from the NestJS default shape ({ statusCode, message })', async () => {
+    fetchMock.mockResolvedValueOnce(domainRes(403, { statusCode: 403, message: 'Forbidden' }));
+
+    const err = await domainFetch('/bots').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 403, message: 'Forbidden' });
+  });
+
+  it('falls back to HTTP status when the body is not JSON', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 502,
       text: async () => 'Bad Gateway',
     } as unknown as Response);
 
-    const err = await domainFetch('/bots', { demoUserId: 'student_001' }).catch((e) => e);
+    const err = await domainFetch('/bots').catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 502, message: 'HTTP 502' });
   });
 });
 
-describe('domainFetch — 인증 사용자 (Bearer 경로)', () => {
-  afterEach(() => tokenManager.clearTokens());
-
-  it('sends Authorization Bearer via authRequest when an access token exists', async () => {
-    tokenManager.setTokens('access-abc', 'refresh-def');
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { assignments: [] }));
-
-    const result = await domainFetch<{ assignments: unknown[] }>('/assignments?audience=student', {
-      demoUserId: 'student_001',
-    });
-
-    expect(result).toEqual({ assignments: [] });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${BASE_URL}/assignments?audience=student`);
-    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer access-abc');
-    // 인증 경로에서는 x-user-id 폴백을 쓰지 않는다.
-    expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+describe('세션 신원(로컬 필터·재동기화 키)', () => {
+  it('currentSessionUserId: null without snapshot, raw sub after publish', () => {
+    expect(currentSessionUserId()).toBeNull();
+    setDomainIdentitySnapshot({ id: 'os-sub-1', email: 'a@b.c', role: 'teacher' });
+    expect(currentSessionUserId()).toBe('os-sub-1');
+    setDomainIdentitySnapshot(null);
+    expect(currentSessionUserId()).toBeNull();
   });
 
-  it('미인증(잔여 토큰): falls back to the demo x-user-id path once on final 401 (demoUserId 전달됨)', async () => {
-    // 잔여 stale 토큰 — Bearer 401 → refresh 401 → authRequest 최종 실패(401).
-    // 호출부는 앱 미인증(비-디코더블 토큰) 판정으로 demoUserId 를 전달한 상태.
-    tokenManager.setTokens('stale-access', 'stale-refresh');
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // Bearer 시도
-      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // refresh 시도
-      .mockResolvedValueOnce(jsonResponse(200, { bots: [] })); // 데모 폴백
+  it('useSyncUserId: "" when flag OFF; session id / "anon" when flag ON', () => {
+    // flag OFF — 상수 '' (신원 해석 비용 0)
+    expect(renderHook(() => useSyncUserId()).result.current).toBe('');
 
-    const result = await domainFetch<{ bots: unknown[] }>('/bots?role=student', {
-      demoUserId: 'student_001',
-    });
-
-    expect(result).toEqual({ bots: [] });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
-    expect(url).toBe(`${BASE_URL}/bots?role=student`);
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
-    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
-  });
-
-  it('인증 사용자: propagates a final 401 without demo fallback when demoUserId is absent (오귀속 차단)', async () => {
-    // 앱 인증 상태(디코더블 토큰) — 호출부가 demoUserId 를 전달하지 않는다.
-    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'stale-refresh');
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })) // Bearer 시도
-      .mockResolvedValueOnce(jsonResponse(401, { statusCode: 401, message: 'Unauthorized' })); // refresh 시도
-
-    await expect(domainFetch('/bots?role=student', {})).rejects.toMatchObject({ status: 401 });
-    // Bearer + refresh 2회뿐 — 데모 x-user-id 요청은 나가지 않는다
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    for (const [, init] of fetchMock.mock.calls as [string, RequestInit][]) {
-      expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
-    }
-  });
-
-  it('propagates non-401 domain errors from the authenticated path without demo fallback', async () => {
-    tokenManager.setTokens('access-abc', 'refresh-def');
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(403, { statusCode: 403, message: '본인 대상 과제에만 제출할 수 있습니다.' }),
-    );
-
-    await expect(
-      domainFetch('/assignments/as_1/submissions', {
-        method: 'POST',
-        body: { answers: {}, scorePercent: 0 },
-        demoUserId: 'student_001',
-      }),
-    ).rejects.toMatchObject({ status: 403 });
-    // 진짜 도메인 에러(403)는 데모 폴백으로 가리지 않는다 — 인증 호출 1회뿐
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    _useRealCoreBE = true;
+    // flag ON + 미인증 → 'anon'
+    expect(renderHook(() => useSyncUserId()).result.current).toBe('anon');
+    // flag ON + 세션 → raw sub
+    setDomainIdentitySnapshot({ id: 'os-sub-9', email: 'a@b.c', role: 'student' });
+    expect(renderHook(() => useSyncUserId()).result.current).toBe('os-sub-9');
   });
 });

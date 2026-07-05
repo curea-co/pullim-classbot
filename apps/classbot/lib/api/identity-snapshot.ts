@@ -27,7 +27,7 @@ export interface SsoIdentityUser {
 
 let sessionUser: SsoIdentityUser | null = null;
 
-/** 스냅샷 변경 구독자 — useStudentSyncUserId 재동기화 트리거용. */
+/** 스냅샷 변경 구독자 — useSyncUserId 재동기화 트리거용. */
 const listeners = new Set<() => void>();
 
 /**
