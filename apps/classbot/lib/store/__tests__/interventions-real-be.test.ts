@@ -1,8 +1,8 @@
 /**
- * interventions Ph7 배선 — USE_REAL_CORE_BE 플래그 스위치 단위 테스트.
- * BE 계약(PR #195): POST bulk {events}, GET ?audience=student,
- * PATCH /:id/read, PATCH /read-all — 응답 필드 camelCase 1:1(InterventionEvent).
- * fetch 는 jest mock (BE 미머지 — 라이브 통합은 후속).
+ * interventions 정본 배선 — USE_REAL_CORE_BE 플래그 스위치 단위 테스트.
+ * 정본 계약: POST /classbot/classes/:classId/interventions {events}(CSRF),
+ * GET /classbot/interventions?audience=student(bare array), PATCH /:id/read · /read-all.
+ * fetch 는 jest mock (실 BE 불요).
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
 
@@ -10,6 +10,9 @@ let _useRealCoreBE = false;
 jest.mock('@/lib/features', () => ({
   get USE_REAL_CORE_BE() {
     return _useRealCoreBE;
+  },
+  get USE_REAL_REQUIZ_BE() {
+    return false;
   },
 }));
 
@@ -26,7 +29,7 @@ jest.mock('@/lib/current-user', () => ({
   useCurrentUser: () => _currentUser,
 }));
 
-import { tokenManager } from '@pullim-classbot/api-client';
+import { setDomainIdentitySnapshot } from '@/lib/api/domain-fetch';
 import {
   useInterventionStore,
   useMyInterventions,
@@ -38,20 +41,45 @@ import {
 
 const fetchMock = jest.fn();
 
-/** 디코더블 access token (검증 없음 — decodeAccessToken 은 sub/role 만 요구). */
-function fakeJwt(sub: string): string {
-  const payload = Buffer.from(
-    JSON.stringify({ sub, email: `${sub}@test.io`, role: 'student', exp: 9999999999 }),
-  ).toString('base64url');
-  return `header.${payload}.sig`;
+function domainRes(status: number, body: unknown): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: async () => JSON.stringify(body),
+  } as unknown as Response;
+}
+function csrfRes(): Response {
+  return { ok: true, status: 200, json: async () => ({ csrfToken: 'csrf-t' }) } as unknown as Response;
+}
+
+type QItem = { kind: 'res'; res: Response } | { kind: 'reject'; err: unknown };
+let domainQueue: QItem[] = [];
+function qRes(status: number, body: unknown): void {
+  domainQueue.push({ kind: 'res', res: domainRes(status, body) });
+}
+function qReject(err: unknown): void {
+  domainQueue.push({ kind: 'reject', err });
+}
+function domainCalls(): [string, RequestInit][] {
+  return fetchMock.mock.calls.filter(([u]) => !String(u).endsWith('/auth/csrf')) as [
+    string,
+    RequestInit,
+  ][];
 }
 
 beforeEach(() => {
+  domainQueue = [];
+  fetchMock.mockImplementation((url: unknown) => {
+    if (String(url).endsWith('/auth/csrf')) return Promise.resolve(csrfRes());
+    const item = domainQueue.shift();
+    if (!item) return Promise.reject(new Error(`no queued domain response for ${String(url)}`));
+    return item.kind === 'res' ? Promise.resolve(item.res) : Promise.reject(item.err);
+  });
   global.fetch = fetchMock as unknown as typeof fetch;
-  fetchMock.mockReset();
+  fetchMock.mockClear();
   _useRealCoreBE = false;
   _currentUser = { id: 'student_001', role: 'student', name: '서연', isAuthenticated: false };
-  tokenManager.clearTokens();
+  setDomainIdentitySnapshot(null);
   resetBackendInterventionSyncForTests();
   useInterventionStore.setState({ events: [] });
   jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -61,14 +89,6 @@ afterEach(() => {
   (console.warn as jest.Mock).mockRestore();
 });
 
-function jsonResponse(status: number, body: unknown) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    text: async () => JSON.stringify(body),
-  } as unknown as Response;
-}
-
 const INPUT = {
   type: 'remind' as const,
   botId: 'cb_001',
@@ -77,16 +97,16 @@ const INPUT = {
   message: "'수열의 극한' 과제가 아직 제출 전이에요",
 };
 
+/** 정본 InterventionResponseDto (raw studentId — roster 브리지 없음). */
 const BE_ROW = {
   id: 'iv_9f8e7d6c',
   type: 'remind' as const,
   botId: 'cb_001',
-  studentId: 'student_001',
+  studentId: 's1',
   assignmentId: 'as_user_ab12cd34',
   message: "'수열의 극한' 과제가 아직 제출 전이에요",
   createdAt: '2026-07-03T09:00:00.000Z',
   readAt: null,
-  createdBy: 'teacher_001',
 };
 
 describe('flag OFF — 기존 동작 불변', () => {
@@ -109,47 +129,45 @@ describe('flag OFF — 기존 동작 불변', () => {
   });
 });
 
-describe('flag ON — send 쓰기', () => {
+describe('flag ON — send (POST /classbot/classes/:classId/interventions)', () => {
   beforeEach(() => {
     _useRealCoreBE = true;
   });
 
-  it('optimistically stores, POSTs bulk {events} as teacher_001, and re-keys to the server row', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(201, { interventions: [BE_ROW] }));
+  it('POSTs bulk {events} to the class-scoped path with CSRF; re-keys to the server row', async () => {
+    qRes(201, [BE_ROW]);
 
     act(() => {
       useInterventionStore.getState().send(INPUT);
     });
-    // 낙관적 선반영
-    expect(useInterventionStore.getState().events).toHaveLength(1);
+    expect(useInterventionStore.getState().events).toHaveLength(1); // 낙관적 선반영
 
-    await waitFor(() =>
-      expect(useInterventionStore.getState().events[0].id).toBe('iv_9f8e7d6c'),
-    );
+    await waitFor(() => expect(useInterventionStore.getState().events[0].id).toBe('iv_9f8e7d6c'));
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/interventions$/);
+    const [url, init] = domainCalls()[0];
+    expect(url).toMatch(/\/classbot\/classes\/cb_001\/interventions$/);
     expect(init.method).toBe('POST');
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('teacher_001');
+    expect(init.credentials).toBe('include');
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-t');
+    expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+    // classId 는 path 로 이동 — event 에 botId 없음. studentId 는 원본 그대로(브리지 없음).
     expect(JSON.parse(init.body as string)).toEqual({
       events: [
         {
           type: 'remind',
-          botId: 'cb_001',
-          studentId: 'student_001', // s1 → 도메인 id 변환
+          studentId: 's1',
           assignmentId: 'as_user_ab12cd34',
           message: "'수열의 극한' 과제가 아직 제출 전이에요",
         },
       ],
     });
-    // 재키잉된 이벤트 — studentId 는 roster 키로 역변환 (수신자 조인 정합)
     const e = useInterventionStore.getState().events[0];
     expect(e.studentId).toBe('s1');
     expect(e.createdAt).toBe('2026-07-03T09:00:00.000Z');
   });
 
   it('keeps the optimistic event and warns when the BE write fails', async () => {
-    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+    qReject(new TypeError('fetch failed'));
 
     act(() => {
       useInterventionStore.getState().send(INPUT);
@@ -162,87 +180,78 @@ describe('flag ON — send 쓰기', () => {
   });
 });
 
-describe('flag ON — markRead / markAllRead 쓰기', () => {
+describe('flag ON — markRead / markAllRead (PATCH)', () => {
   beforeEach(() => {
     _useRealCoreBE = true;
   });
 
-  it('markRead PATCHes /interventions/:id/read as the seed-mapped student', async () => {
-    useInterventionStore.setState({
-      events: [{ ...BE_ROW, studentId: 's1', assignmentId: 'as_user_ab12cd34' }],
-    });
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { ...BE_ROW, readAt: '2026-07-03T10:00:00.000Z' }));
+  it('markRead PATCHes /classbot/interventions/:id/read with CSRF', async () => {
+    useInterventionStore.setState({ events: [{ ...BE_ROW }] });
+    qRes(200, { ...BE_ROW, readAt: '2026-07-03T10:00:00.000Z' });
 
     act(() => {
       useInterventionStore.getState().markRead('iv_9f8e7d6c');
     });
 
-    // 낙관적 읽음 처리 유지
-    expect(useInterventionStore.getState().events[0].readAt).toBeTruthy();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/interventions\/iv_9f8e7d6c\/read$/);
+    expect(useInterventionStore.getState().events[0].readAt).toBeTruthy(); // 낙관적 읽음
+    await waitFor(() => expect(domainCalls()).toHaveLength(1));
+    const [url, init] = domainCalls()[0];
+    expect(url).toMatch(/\/classbot\/interventions\/iv_9f8e7d6c\/read$/);
     expect(init.method).toBe('PATCH');
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-t');
   });
 
-  it('markAllRead PATCHes /interventions/read-all', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { updated: 0 }));
+  it('markAllRead PATCHes /classbot/interventions/read-all with CSRF', async () => {
+    qRes(200, { updated: 0 });
 
     act(() => {
       useInterventionStore.getState().markAllRead('s1');
     });
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/interventions\/read-all$/);
+    await waitFor(() => expect(domainCalls()).toHaveLength(1));
+    const [url, init] = domainCalls()[0];
+    expect(url).toMatch(/\/classbot\/interventions\/read-all$/);
     expect(init.method).toBe('PATCH');
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-t');
   });
 });
 
-describe('flag ON — 읽기 동기화 (useMyInterventions/useUnreadCount)', () => {
+describe('flag ON — 읽기 동기화 (GET /classbot/interventions?audience=student)', () => {
   beforeEach(() => {
     _useRealCoreBE = true;
   });
 
-  it('merges the BE inbox into the store (studentId 역변환) and derives the unread badge', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(200, { interventions: [BE_ROW] }));
+  it('merges the bare-array inbox into the store and derives the unread badge', async () => {
+    qRes(200, [BE_ROW]);
 
     const { result } = renderHook(() => useMyInterventions('s1'));
     const { result: unread } = renderHook(() => useUnreadCount('s1'));
 
     await waitFor(() => expect(result.current).toHaveLength(1));
     expect(result.current[0].id).toBe('iv_9f8e7d6c');
-    expect(result.current[0].studentId).toBe('s1'); // student_001 → s1 역변환
+    expect(result.current[0].studentId).toBe('s1');
     expect(unread.current).toBe(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/interventions\?audience=student$/);
-    expect((init.headers as Record<string, string>)['x-user-id']).toBe('student_001');
-    // 단일 비행 — 두 훅이 마운트돼도 1회 fetch
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = domainCalls()[0];
+    expect(url).toMatch(/\/classbot\/interventions\?audience=student$/);
+    expect(init.credentials).toBe('include');
+    expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
+    expect(domainCalls()).toHaveLength(1); // 단일 비행
   });
 
   it('keeps local events with the same id (낙관 readAt 보존) and appends BE-only rows', async () => {
-    const localRead = {
-      id: 'iv_9f8e7d6c',
-      type: 'remind' as const,
-      botId: 'cb_001',
-      studentId: 's1',
-      assignmentId: 'as_user_ab12cd34',
-      message: BE_ROW.message,
-      createdAt: '2026-07-03T09:00:00.000Z',
-      readAt: '2026-07-03T09:30:00.000Z', // 로컬에서 이미 읽음 (BE 미반영)
-    };
+    const localRead = { ...BE_ROW, readAt: '2026-07-03T09:30:00.000Z' };
     useInterventionStore.setState({ events: [localRead] });
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(200, {
-        interventions: [
-          BE_ROW, // 같은 id — 로컬(readAt 있음) 유지
-          { ...BE_ROW, id: 'iv_new', type: 'crisis', assignmentId: null, message: '힘내!', createdAt: '2026-07-03T11:00:00.000Z' },
-        ],
-      }),
-    );
+    qRes(200, [
+      BE_ROW, // 같은 id — 로컬(readAt 있음) 유지
+      {
+        ...BE_ROW,
+        id: 'iv_new',
+        type: 'crisis',
+        assignmentId: null,
+        message: '힘내!',
+        createdAt: '2026-07-03T11:00:00.000Z',
+      },
+    ]);
 
     const { result } = renderHook(() => useMyInterventions('s1'));
 
@@ -251,35 +260,26 @@ describe('flag ON — 읽기 동기화 (useMyInterventions/useUnreadCount)', () 
     expect(byId['iv_9f8e7d6c'].readAt).toBe('2026-07-03T09:30:00.000Z');
     expect(byId['iv_new'].type).toBe('crisis');
     expect(byId['iv_new'].assignmentId).toBeUndefined(); // null → 부재
-    // 최신순 — createdAt 정렬 후 reverse
-    expect(result.current[0].id).toBe('iv_new');
+    expect(result.current[0].id).toBe('iv_new'); // 최신순
   });
 
   it('syncs the inbox on useAssignmentComment too (결과 페이지 직링크 진입)', async () => {
-    // 직링크 진입 — 벨(useMyInterventions) 미마운트 상태에서 코멘트 훅만 마운트
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(200, {
-        interventions: [
-          { ...BE_ROW, id: 'iv_cmt', type: 'comment', message: '이 부분 다시 보자!' },
-        ],
-      }),
-    );
+    qRes(200, [{ ...BE_ROW, id: 'iv_cmt', type: 'comment', message: '이 부분 다시 보자!' }]);
 
     const { result } = renderHook(() => useAssignmentComment('as_user_ab12cd34', 's1'));
 
-    expect(result.current).toBeNull(); // 동기화 전 — 로컬 비어 있음
+    expect(result.current).toBeNull(); // 동기화 전
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(result.current?.id).toBe('iv_cmt');
-    expect(result.current?.message).toBe('이 부분 다시 보자!');
-    expect(result.current?.studentId).toBe('s1'); // student_001 → s1 역변환
+    expect(result.current?.studentId).toBe('s1');
   });
 
   it('leaves the local store untouched when the BE read fails (graceful)', async () => {
     act(() => {
       useInterventionStore.getState().send(INPUT);
     });
-    fetchMock.mockReset();
-    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+    domainQueue = [];
+    qReject(new TypeError('fetch failed'));
 
     const { result } = renderHook(() => useMyInterventions('s1'));
 
@@ -288,23 +288,23 @@ describe('flag ON — 읽기 동기화 (useMyInterventions/useUnreadCount)', () 
   });
 });
 
-describe('수신자/필터 키 규칙 (Codex #196 R2 ②)', () => {
-  it('useInterventionRecipientId: flag ON + 인증 → raw user id, 미인증/flag OFF → roster 브리지', () => {
+describe('수신자/필터 키 규칙 (로컬 필터 신원)', () => {
+  it('useInterventionRecipientId: flag ON + 인증 → raw id, 미인증/flag OFF → roster 브리지', () => {
     // flag OFF + 인증 — 기존 mock 규약(브리지) 그대로 (회귀 0)
     _currentUser = { id: 'u-uuid-1', role: 'student', name: 'u', isAuthenticated: true };
     expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('s1');
 
     _useRealCoreBE = true;
-    // flag ON + 인증 — raw user id 유지 (BE 가 JWT 신원 행을 반환)
+    // flag ON + 인증 — raw user id 유지 (BE 가 세션 신원 행을 반환)
     expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('u-uuid-1');
     // flag ON + 미인증 데모 — 브리지(student_001 → s1)
     _currentUser = { id: 'student_001', role: 'student', name: '서연', isAuthenticated: false };
     expect(renderHook(() => useInterventionRecipientId()).result.current).toBe('s1');
   });
 
-  it('인증 uuid 사용자의 인박스는 raw id 로 유지되고 s1 행과 섞이지 않는다', async () => {
+  it('인증 사용자의 인박스는 raw id 로 유지되고 s1 행과 섞이지 않는다 (브리지 없음)', async () => {
     _useRealCoreBE = true;
-    tokenManager.setTokens(fakeJwt('u-uuid-1'), 'r'); // 앱 인증 세션
+    setDomainIdentitySnapshot({ id: 'u-uuid-1', email: 'a@b.c', role: 'student' });
     // 로컬에 데모(s1) 키 행이 남아 있어도 인증 사용자 인박스에 흘러들지 않아야 한다
     useInterventionStore.setState({
       events: [
@@ -320,23 +320,15 @@ describe('수신자/필터 키 규칙 (Codex #196 R2 ②)', () => {
         },
       ],
     });
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse(200, {
-        interventions: [{ ...BE_ROW, id: 'iv_auth', studentId: 'u-uuid-1' }],
-      }),
-    );
+    qRes(200, [{ ...BE_ROW, id: 'iv_auth', studentId: 'u-uuid-1' }]);
 
     const { result } = renderHook(() => useMyInterventions('u-uuid-1'));
 
     await waitFor(() => expect(result.current).toHaveLength(1));
-    // 인증 행은 raw id 유지 — roster 키(s1)로 붕괴되지 않는다
     expect(result.current[0].id).toBe('iv_auth');
-    expect(result.current[0].studentId).toBe('u-uuid-1');
-    // Bearer 경로 — x-user-id 미전송
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>).Authorization).toBe(
-      `Bearer ${fakeJwt('u-uuid-1')}`,
-    );
+    expect(result.current[0].studentId).toBe('u-uuid-1'); // raw id 유지
+    const [, init] = domainCalls()[0];
+    expect(init.credentials).toBe('include');
     expect((init.headers as Record<string, string>)['x-user-id']).toBeUndefined();
     // s1 행은 s1 인박스에만 남는다
     const { result: demoInbox } = renderHook(() => useMyInterventions('s1'));

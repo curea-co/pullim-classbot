@@ -24,6 +24,18 @@
 
 ## 3. 인증 규약 개정 — 무신원 mock 폴백 폐지
 
+> ## ⚠️ SUPERSEDED (2026-07-05) — standalone 백엔드 모델 은퇴
+>
+> 본 §3 이 기술한 **standalone 백엔드**(`apps/backend`) 모델 — classbot 자체 JWT(`request.user`) + `x-user-id`
+> 헤더 폴백(`apps/backend/src/common/utils/domain-user.util.ts`), `/api/*` 표면 — 은 **정본이 아니다**.
+> classbot 코어 루프 BE **정본은 pullim-api `src/classbot`**(OS ES256 access 쿠키 + `JwtVerifyGuard` 서버 검증,
+> `x-user-id`/Bearer 미수신, 경로 `/classbot/*`)이다(ADR-063). 여기 기술된 standalone `/api/*` 표면(`/api/enrollments`·
+> `/api/bots/{id}/join-codes` 등)은 **은퇴 대상**이며 별도 PR **#202** 에서 제거된다. FE 는 이미 정본 라우트 + OS
+> 쿠키로 재배선됐다(#203 — `x-user-id` 폴백·자체 JWT 미사용). 아래 원문은 은퇴 전 이력 보존용이다.
+>
+> - 정본 표면·인가: [`pullim-api/docs/design/services/classbot/api.md`](../../../pullim-api/docs/design/services/classbot/api.md) · [`authz.md`](../../../pullim-api/docs/design/services/classbot/authz.md)
+> - §1(`join_codes` 엔티티)·§2(엔드포인트 추가)도 pullim-api 정본 스키마·라우트로 대체됨 — standalone 테이블/표면은 은퇴.
+
 **M2부터 도메인 라우트는 신원 필수다**: JWT(request.user) 우선, Ph7 과도기 동안 `x-user-id` 헤더 폴백 허용(구현: `apps/backend/src/common/utils/domain-user.util.ts` — Ph7 완료 시 폴백 제거 대상). 둘 다 없으면 **401 `{ error: { code: 'UNAUTHORIZED', message } }`**.
 
 원본 spec §3 의 무신원 mock 폴백(x-user-id 부재 시 `student_001`/`teacher_001` 로 fallback)은 **데모 전제 규약으로 폐지한다** — 익명 쓰기(enrollment 생성 등)가 고정 mock 신원으로 기록되는 보안 구멍을 차단한다(실출시 전제, PR #191 리뷰 확정). 본 절이 원본 §3 해당 문장을 대체한다.
