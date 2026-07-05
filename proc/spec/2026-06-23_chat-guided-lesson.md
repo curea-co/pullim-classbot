@@ -5,6 +5,25 @@
 - 권위 기획: `input/docs-archive/07_풀림_클래스봇_핸드오프.md`
 - 선행: 봇대화 2단 레이아웃 + 라이브 컴팩트 바 (직전 작업)
 
+> ### [2026-07-06 개정 — 실챗(ADR-064) 정합]
+>
+> **이 문서의 리치 가이드수업 계약(빠른칩 → concept/example/quiz/summary **구조화 리치 턴** +
+> concept index 로컬상태, 아래 §5·§6)은 `flag-OFF`(=`USE_REAL_CORE_BE` 미설정) **mock 데모 경로**의
+> 계약이다.**
+>
+> `flag-ON` 실챗(`USE_REAL_CORE_BE=true`)은 pullim-api chat(ADR-064,
+> `POST /classbot/classes/:classId/chat` SSE)으로 **스트림 텍스트** 응답한다. 구조화 리치카드·
+> tool-calling 은 **ADR-064 v2 defer**(사용자 승인 게이트웨이·모델 결정 필요)로, `flag-ON` 에서는
+> 리치 턴을 재구축하지 않는다.
+>
+> 빠른칩 계약은 `flag-ON` 에서도 보존된다 — **칩 라벨('예제 풀어줘' 등, 이미 자연어)을 그대로
+> 발화(message)로 전송**해 "칩 → 그 주제로 학습 진행"을 지키되, 응답 형식만 스트림 텍스트다
+> (구조화 카드 아님). 학생 발화·전송·서버 히스토리가 모두 칩 라벨로 일치한다.
+>
+> 리치 구조화 턴의 실챗 재도입은 **v2 tool-calling 카드**에서 다룬다. 계약 SoT = pullim-api
+> `docs/design/services/classbot/api.md §3.8` + ADR-064. 코드 구현부: `chat/page.tsx` flag-ON
+> `send()` 분기(기각 근거 주석) + `lib/api/chat-stream.ts`.
+
 ## 1. 배경 / 문제
 
 봇 대화(수학이 형 등)의 학습가이드가 "정적 카드 덤프"로 떠 있어 대화와 분리돼 있었다. 또한:
