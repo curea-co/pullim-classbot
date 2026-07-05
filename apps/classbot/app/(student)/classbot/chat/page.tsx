@@ -28,7 +28,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage } from '@/lib/api/chat-stream';
-import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks } from '@/lib/api/chat-turns';
+import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
 import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
@@ -79,6 +79,12 @@ type Turn = {
    * flag-OFF mock 턴은 미설정(undefined).
    */
   streaming?: boolean;
+  /**
+   * 진입 시 이미 존재하던 턴(초기 오프너 인사/lesson-intro + 서버 히스토리 seed) 표식.
+   * a11y announce 게이트에서 제외 — 과거 메시지를 "새 메시지"처럼 재announce 하지 않는다.
+   * 신규 도착(mock 신규 봇 턴·실챗 done)은 미설정(undefined) → announce 대상.
+   */
+  seeded?: boolean;
   /** 메시지 타입 (기본 text) */
   kind?: MessageKind;
   /** 타입별 payload */
@@ -276,6 +282,8 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         role: 'bot',
         text: composeFirstGreeting(bot.greeting, me.name, bot.tone),
         at: now,
+        // 초기 오프너 — announce 제외(진입 시 이미 존재하던 턴).
+        seeded: true,
       },
       {
         id: `t1_${bot.id}`,
@@ -284,6 +292,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
         at: now + 1,
         kind: 'lesson-intro',
         payload: { topic: lesson.topic, keyCallout: lesson.keyCallout } satisfies LessonIntroPayload,
+        seeded: true,
       },
     ];
   });
@@ -300,10 +309,12 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
   useEffect(() => {
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
+    const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
     void fetchChatHistory(bot.id)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
-        setTurns(prev => appendHistoryTurns(prev, msgs.map(historyMessageToTurn)));
+        // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
+        setTurns(prev => appendHistoryTurns(prev, msgs.map(historyMessageToTurn), isOpenerTurn));
       })
       .catch(() => {});
     return () => {
@@ -402,9 +413,14 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     setPending(true);
 
     // 플래그 ON — pullim-api SSE 실챗(ADR-064). 서버가 user/assistant turn 을 영속하므로
-    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지). 리치 카드(구조화
-    // concept/example/quiz 턴)는 v2(tool-calling) 유예 — 실챗은 스트림 텍스트 버블만 내되,
-    // 빠른칩 의도는 위 outgoing(forcedKey→프롬프트)로 전달해 가이드 수업 계약을 지킨다.
+    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지).
+    //
+    // ⛔ 의도된 설계 — flag-ON 은 스트림 텍스트만, 구조화 리치카드는 재구축하지 않는다:
+    //   flag-OFF 의 concept/example/quiz/summary 리치카드(buildLessonTurn/buildRichBotTurn)는
+    //   flag-ON 에서 스트림 텍스트로 대체된다. 구조화 리치카드는 LLM tool-calling 기반이라
+    //   ADR-064 **v2 defer**(사용자 승인 게이트웨이·모델 결정 필요) — 이번 카드 범위 밖이다.
+    //   대신 빠른칩 의도는 outgoing(forcedKey→forcedKeyToChatPrompt 프롬프트)로 전달해 "칩 누르면
+    //   그 주제로 학습 진행" 계약을 보존하고, flag-OFF 는 리치 mock 을 그대로 둔다(불변).
     if (USE_REAL_CORE_BE) {
       void sendReal(outgoing, forcedKey);
       return;
@@ -603,7 +619,12 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
               turns.map 사이가 아니라 turns 블록 뒤 단일 노드 — selector 카운트 무영향.
             */}
             <MisconceptionCoaching botId={bot.id} userId={me.id} onAppear={handleCardReveal} />
-            {pending && <PendingBubble bot={bot} />}
+            {/*
+              로딩 표시 단일화 — 실챗(flag-ON)은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
+              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). flag-OFF mock 은 스트리밍 턴이
+              없어 기존처럼 pending → PendingBubble.
+            */}
+            {pending && !turns.some(t => t.streaming) && <PendingBubble bot={bot} />}
           </div>
 
           {showNewMessageBanner && (
@@ -746,11 +767,13 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
 function historyMessageToTurn(m: ChatHistoryMessage, i: number): Turn {
   const at = Date.parse(m.createdAt);
   return {
-    id: `h${i}`,
+    id: `${HISTORY_TURN_ID_PREFIX}${i}`,
     role: m.role === 'user' ? 'student' : 'bot',
     text: m.content,
     at: Number.isNaN(at) ? Date.now() + i : at,
     kind: 'text',
+    // 진입 시 주입되는 과거 메시지 — announce 제외(새 메시지처럼 재announce 방지).
+    seeded: true,
   };
 }
 

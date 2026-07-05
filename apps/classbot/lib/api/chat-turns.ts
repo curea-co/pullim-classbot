@@ -9,35 +9,51 @@ import type { QuickReplyKey } from '@/lib/mock';
 
 import type { ChatStreamCallbacks } from './chat-stream';
 
-/** 히스토리 seed 로 붙는 turn 의 id 프리픽스 — dedup·announce 게이트 식별자. */
+/** 히스토리 seed 로 붙는 turn 의 id 프리픽스 — 진입 시 대량 주입되는 과거 대화 식별자. */
 export const HISTORY_TURN_ID_PREFIX = 'h';
 
 /**
- * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 뒤에 이어붙인다**.
+ * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 바로 뒤에 이어붙인다**.
  * base spec §5 필수 초기 메시지 계약 — 인사/lesson-intro 는 항상 선두 유지, 서버 대화는 그 뒤.
- * 이미 히스토리 turn(`h*`)이 붙어 있으면 재실행(strict-mode 이중 mount 등) 시 중복 append 를 막는다.
  *
- * @param prev - 현재 turns(진입 직후 = 초기 오프너 2턴)
+ * ⚠️ 비동기 seed 순서 경쟁 방어: 히스토리 fetch 가 늦게 끝나는 동안 사용자가 먼저 메시지를 보내면
+ * prev 에 이미 새 턴이 섞여 있다. 그 경우 과거 히스토리를 새 턴 뒤에 붙이면 순서가 붕괴하므로,
+ * **prev 가 오프너만 있는 초기 상태일 때만** seed 한다(그 외 — 새 턴 존재 or 이미 seed됨 — 스킵).
+ *
+ * @param prev - 현재 turns(진입 직후 = 초기 오프너 턴들)
  * @param historyTurns - 서버 히스토리를 매핑한 turn 배열
- * @returns 오프너 선두 유지 + 히스토리 append(멱등)
+ * @param isOpenerTurn - 초기 오프너(인사/lesson-intro) 턴 판별자
+ * @returns 오프너 선두 유지 + 히스토리 append(오프너-only 상태에서만), 아니면 prev 그대로
  */
-export function appendHistoryTurns<T extends { id: string }>(prev: T[], historyTurns: T[]): T[] {
+export function appendHistoryTurns<T extends { id: string }>(
+  prev: T[],
+  historyTurns: T[],
+  isOpenerTurn: (turn: T) => boolean,
+): T[] {
   if (historyTurns.length === 0) return prev;
-  if (prev.some(t => t.id.startsWith(HISTORY_TURN_ID_PREFIX))) return prev; // 이미 seed됨 — 멱등
+  // 오프너만 있는 초기 상태에서만 seed. 새 턴이 이미 생겼거나(순서 경쟁) 이미 seed됐으면 스킵.
+  if (!prev.every(isOpenerTurn)) return prev;
   return [...prev, ...historyTurns];
 }
 
 /**
- * A5 aria-live announce 게이트 — **완결된 봇 턴만** 1회 announce 한다.
- * 스트리밍 중(토큰 patch 진행) 턴은 매 토큰마다 turns 가 바뀌어도 announce 하지 않는다
- * (빈버블+부분토큰 N회 중복 announce 방지). 완결(done/error)에서 streaming=false 로 바뀌면 그때 1회.
- * flag-OFF mock 턴은 streaming 미설정(undefined) → 기존처럼 announce(불변).
+ * A5 aria-live announce 게이트 — **신규 도착한 완결 봇 턴만** 1회 announce 한다.
+ * 제외 대상:
+ *  - 스트리밍 중(streaming=true) 턴 — 토큰마다 turns 가 바뀌어도 announce 안 함(N회 중복 방지).
+ *    done/error 에서 streaming=false 로 바뀌면 그때 1회.
+ *  - seeded 턴(초기 오프너 + 히스토리 seed) — 진입 시 존재하던 과거 메시지를 "새 메시지"처럼
+ *    재announce 하지 않는다(기존 대화 있는 방 입장 시 마지막 과거 응답 오announce 방지).
+ * flag-OFF mock 신규 봇 턴은 streaming/seeded 미설정(undefined) → 기존처럼 announce(불변).
  *
  * @param turn - 마지막 turn(없을 수 있음)
  * @returns announce 해야 하면 true
  */
-export function shouldAnnounceTurn(turn?: { role?: string; streaming?: boolean }): boolean {
-  return turn?.role === 'bot' && !turn.streaming;
+export function shouldAnnounceTurn(turn?: {
+  role?: string;
+  streaming?: boolean;
+  seeded?: boolean;
+}): boolean {
+  return turn?.role === 'bot' && !turn.streaming && !turn.seeded;
 }
 
 /** buildRealSendCallbacks 의존성 — page 가 Turn 타입에 맞춰 주입하는 setter 묶음. */
