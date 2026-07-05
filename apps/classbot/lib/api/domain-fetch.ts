@@ -1,239 +1,95 @@
 /**
- * 도메인 fetch — classbot BE(:4032, `NEXT_PUBLIC_API_URL`) 도메인 라우트를 친다.
+ * 도메인 fetch — pullim-api classbot **정본 라우트**(`api.pullim.ai/classbot/*`)를 친다.
  *
- * Ph7 코어 스토어 전환(`USE_REAL_CORE_BE`)용 얇은 헬퍼. `lib/api/read-fetch.ts` 는
- * **같은 오리진 Next route handler**(`/api/*`) 전용이라 별도 헬퍼가 필요하다 —
- * 이쪽은 `@pullim-classbot/api-client` 의 `BASE_URL`(NestJS BE) 로 간다.
+ * 코어 스토어 전환(`USE_REAL_CORE_BE`)용 얇은 헬퍼. `lib/api/read-fetch.ts` 는 같은 오리진 Next
+ * route handler(`/api/*`) 전용이라 별도 헬퍼가 필요하다 — 이쪽은 **OS API 호스트**(`NEXT_PUBLIC_OS_API_URL`,
+ * `lib/auth/os-sso.ts` `API_BASE`)의 `/classbot/*` 서비스 경계 프리픽스로 간다(글로벌 `/api` 프리픽스 없음).
  *
- * 신원 규약 (M2 개정 §3 — JWT 우선 + `x-user-id` 폴백, 무신원 401) — 3-way:
- *  - **① classbot JWT 인증**(앱 인증 세션 = 디코더블 access token, `getAuthUserSnapshot`):
- *    `authRequest`(Bearer 자동 첨부 + 401 refresh) 경로만. 401 도 데모로 폴백하지 않고
- *    전파한다 — 인증 사용자의 요청이 데모 명의로 오귀속되는 것을 차단(Codex #196 R2 ①).
- *  - **② OS SSO 쿠키 세션**(`OS_SSO_ENABLED` && OS 세션 인증): OS 세션은 HttpOnly
- *    쿠키라 JS 가 토큰을 못 읽어 Bearer 첨부가 불가하다. auth-context 가
- *    `setDomainIdentitySnapshot` 으로 publish 한 세션 사용자의 **raw sub(uuid)** 를
- *    `x-user-id` 로 전송한다 — 인증 사용자이므로 데모 브리지(roster↔seed 변환)는
- *    적용하지 않는다(#196 규칙 "인증=raw id" 유지).
- *  - **③ 미인증 데모**: `x-user-id` 헤더로 도메인 사용자 키를 전송. 잔여(비-디코더블)
- *    토큰으로 authRequest 가 401 로 끝나면 데모 경로로 1회 폴백한다 — 폴백은
- *    호출부가 `demoUserId` 를 전달한(= 앱 미인증) 경우에만 열린다.
- *    학생 키는 개입 수신자 규약(`resolveRosterMe`)과 동일한 roster 브리지를 거친 뒤
- *    **DB seed 변환**(scripts/seed.ts: roster `s1`(서연) ↔ 도메인 `student_001`)을
- *    적용한다 — seed 는 s1 만 student_001 로 치환해 적재하므로, raw roster 키(s1)를
- *    보내면 BE `findUserById` 가 실패(401 알 수 없는 사용자)한다. 매핑은 s1 1건뿐이라
- *    s2~s18 은 그대로 통과 — 제출/enrollment 조인 정합이 유지된다.
+ * 신원 계약 (정본 — 표준화된 OS 쿠키 세션):
+ *  - **OS access 쿠키 세션이 신원이다.** OS 로그인이 set 한 access 쿠키(`Domain=.pullim.ai`, HttpOnly)가
+ *    `credentials:'include'` 로 OS API 호스트에 cross-origin 자동 첨부되고, 서버가 그 쿠키에서 `sub` 를
+ *    파생한다(`JwtVerifyGuard` + `EntitlementGuard('classbot')`). **FE 는 x-user-id·Bearer 를 보내지 않는다.**
+ *  - **CSRF(쓰기)**: pullim-api `CsrfGuard` 는 write(POST·PATCH·PUT·DELETE)에 double-submit `X-CSRF-Token`
+ *    헤더 + CSRF 쿠키를 요구한다. `fetchOsCsrfToken`(로그아웃과 공용) 으로 토큰을 받아 헤더로 실는다.
+ *    read(GET)는 CSRF 불필요.
+ *  - 서버가 신원을 소유하므로 FE 는 사용자 id 를 **로컬 필터·재동기화 캐시 키**(인박스/목록을 인증
+ *    사용자로 스코프)용으로만 보유한다 — auth-context 가 publish 한 OS 세션 스냅샷에서 읽는다.
+ *
+ * ⚠️ 구(舊) standalone NestJS(:4032) 모델(x-user-id + me/sync 프로비저닝 + seed roster 브리지)은
+ *   전량 폐기됐다 — 정본 서버는 사용자 프로비저닝이 없고 OS 세션 쿠키의 `sub` 로 신원을 파생한다.
  */
 
 import { useSyncExternalStore } from 'react';
 
-import {
-  ApiError,
-  BASE_URL,
-  authRequest,
-  decodeAccessToken,
-  tokenManager,
-} from '@pullim-classbot/api-client';
+import { ApiError } from '@pullim-classbot/api-client';
 
 import {
   peekDomainIdentitySnapshot,
   subscribeDomainIdentity,
-  type SsoIdentityUser,
 } from '@/lib/api/identity-snapshot';
-import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
-import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
+import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 
 // 스냅샷 publish/타입은 leaf(identity-snapshot)가 소유 — 호출부 편의로 재수출한다.
 // (auth-context 는 순환 방지를 위해 leaf 를 직접 import 한다.)
 export { setDomainIdentitySnapshot, type SsoIdentityUser } from '@/lib/api/identity-snapshot';
 
-/** 데모 교사 표면의 도메인 id — mock `currentTeacher`(김수학) 의 seed id. */
-export const DEMO_TEACHER_ID = 'teacher_001';
+/** classbot 정본 표면 base — OS API 호스트의 서비스 경계 프리픽스(`/classbot/*`). */
+const CLASSBOT_API_BASE = `${API_BASE}/classbot`;
+
+/** CsrfGuard 가 double-submit 토큰을 요구하는 쓰기 메서드. */
+const CSRF_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 /**
- * 데모 "나"(서연) 의 roster id — seed 에서 유일하게 도메인 id 로 치환되는 키.
- * 모듈 로드 시점이 아니라 호출 시점에 해석한다 — `@/lib/current-user` 를 부분 mock
- * 하는 기존 테스트(예: replay-detail)가 이 모듈을 간접 import 해도 깨지지 않도록.
+ * 현재 OS 세션 사용자 id (비훅) — 인박스/목록 로컬 필터·재동기화 캐시 키. 미인증 null.
+ * 서버가 신원을 소유하므로 요청 명의로는 쓰지 않는다(쿠키가 명의). auth-context 가 OS `/me` 세션을
+ * `setDomainIdentitySnapshot` 으로 publish 한 값.
+ * @returns 세션 사용자 raw sub(uuid) 또는 null
  */
-function demoRosterId(): string {
-  return resolveRosterMe(DEMO_FALLBACK_USER_ID).id;
-}
-
-/**
- * FE roster 학생 키 → BE 도메인 user id (seed 변환: s1 → student_001).
- * @param rosterOrUserId - roster id(s1..s18) 또는 도메인 user id
- * @returns BE users 테이블과 조인 가능한 도메인 id
- */
-export function toDomainUserId(rosterOrUserId: string): string {
-  return rosterOrUserId === demoRosterId() ? DEMO_FALLBACK_USER_ID : rosterOrUserId;
-}
-
-/**
- * BE 도메인 user id → FE roster 학생 키 (역변환: student_001 → s1).
- * **미인증 데모** 읽기 경로 전용 — BE 응답을 roster 키로 조인하는 기존 FE 읽기
- * 경로(벨 인박스·제출 시트)와 정합. 인증 사용자 행은 raw user id 를 유지해야
- * 하므로 이 변환을 적용하지 않는다(Codex #196 R2 ②).
- * @param domainId - BE 도메인 user id
- * @returns FE roster 키
- */
-export function fromDomainUserId(domainId: string): string {
-  return domainId === DEMO_FALLBACK_USER_ID ? demoRosterId() : domainId;
-}
-
-/**
- * 미인증 데모 학생의 `x-user-id` 명의 — 개입 수신자 규약(resolveRosterMe)으로
- * roster 행을 해석한 뒤 seed 변환을 적용한다.
- * @param currentUserId - 현재 사용자 id (기본: 데모 폴백 student_001)
- * @returns BE 도메인 user id
- */
-export function demoStudentDomainId(currentUserId: string = DEMO_FALLBACK_USER_ID): string {
-  return toDomainUserId(resolveRosterMe(currentUserId).id);
-}
-
-/** SSO 세션 신원 — `OS_SSO_ENABLED` && 스냅샷 보유일 때만 값. (② 게이트 단일 지점) */
-function ssoUserSnapshot(): SsoIdentityUser | null {
-  return OS_SSO_ENABLED ? peekDomainIdentitySnapshot() : null;
-}
-
-/**
- * 앱 인증 세션 스냅샷 (비훅) — 스토어 액션·sync 훅처럼 React 컨텍스트 밖(또는
- * AuthProvider 부재 테스트)에서 인증 여부를 판정하는 단일 지점. 3-way:
- *  ① 디코더블 access token 보유 → JWT claim sub (`ApiAuthProvider.getSession` 과 동일 파생)
- *  ② `OS_SSO_ENABLED` && auth-context 가 publish 한 OS 세션 → OS sub (raw uuid)
- *  ③ 둘 다 아니면 null (미인증 — 호출부가 데모 브리지로 폴백)
- * @returns 인증이면 { id }(raw user id), 아니면 null
- */
-export function getAuthUserSnapshot(): { id: string } | null {
-  // ① classbot JWT — Bearer 경로.
-  const token = tokenManager.getAccessToken();
-  if (token) {
-    const payload = decodeAccessToken(token);
-    if (payload) return { id: payload.sub };
-  }
-  // ② OS SSO 쿠키 세션 — x-user-id 경로 (잔여 비-디코더블 토큰이 있어도 세션이 우선).
-  const sso = ssoUserSnapshot();
-  if (sso) return { id: sso.id };
-  // ③ 미인증.
-  return null;
-}
-
-/** 도메인 요청 명의 — 호출부가 x-user-id 전달 여부와 캐시/필터 키를 파생한다. */
-export interface RequestIdentity {
-  /** 앱 인증 세션 여부 — true 면 Bearer 전용(데모 폴백 금지). */
-  isAuthenticated: boolean;
-  /** 요청 사용자 키 — 인증: raw user id(sub), 데모: seed 도메인 키. 캐시 키로도 사용. */
-  userId: string;
-  /** domainFetch 에 넘길 데모 명의 — **미인증일 때만** 값이 있다 (Codex #196 R2 ①). */
-  demoUserId: string | undefined;
-}
-
-/**
- * 학생 표면의 요청 신원 — 인증이면 raw user id(Bearer 전용), 미인증이면 데모 학생 키.
- * @returns RequestIdentity
- */
-export function studentRequestIdentity(): RequestIdentity {
-  const auth = getAuthUserSnapshot();
-  if (auth) return { isAuthenticated: true, userId: auth.id, demoUserId: undefined };
-  const demoId = demoStudentDomainId();
-  return { isAuthenticated: false, userId: demoId, demoUserId: demoId };
-}
-
-/**
- * 교사 표면의 요청 신원 — 인증이면 raw user id(Bearer 전용), 미인증이면 데모 교사 키.
- * @returns RequestIdentity
- */
-export function teacherRequestIdentity(): RequestIdentity {
-  const auth = getAuthUserSnapshot();
-  if (auth) return { isAuthenticated: true, userId: auth.id, demoUserId: undefined };
-  return { isAuthenticated: false, userId: DEMO_TEACHER_ID, demoUserId: DEMO_TEACHER_ID };
-}
-
-/**
- * 신원 변경(로그인/로그아웃) 구독 — useSyncExternalStore subscribe 어댑터.
- * JWT 토큰 변경 + SSO 세션 스냅샷 publish 둘 다에 반응한다.
- */
-function subscribeToIdentityChange(callback: () => void): () => void {
-  const offToken = tokenManager.onTokenChange(callback);
-  const offIdentity = subscribeDomainIdentity(callback);
-  return () => {
-    offToken();
-    offIdentity();
-  };
-}
-
-/**
- * Ph7 sync 훅용 resolved 학생 사용자 id (reactive) — 신원 변경(로그인/로그아웃·
- * 사용자 전환·SSO 세션 확립)에 반응해 **같은 마운트에서도** effect 재실행(재동기화)을
- * 트리거한다 (Codex #196 R3 ②). 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0.
- * @returns resolved user id (인증: raw sub, 데모: seed 도메인 키, 플래그 OFF: '')
- */
-export function useStudentSyncUserId(): string {
-  return useSyncExternalStore(
-    subscribeToIdentityChange,
-    () => (USE_REAL_CORE_BE ? studentRequestIdentity().userId : ''),
-    () => '',
-  );
+export function currentSessionUserId(): string | null {
+  return peekDomainIdentitySnapshot()?.id ?? null;
 }
 
 interface DomainFetchOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
-  /**
-   * 미인증 데모 요청의 `x-user-id` 명의. **앱이 미인증일 때만 전달할 것** —
-   * 값이 없으면 인증 실패(401)도 데모로 폴백하지 않고 전파한다(오귀속 차단).
-   */
-  demoUserId?: string;
 }
 
-/** 도메인 라우트 에러 봉투 — spec §3 `{ error: { code, message } }`. */
+/** 도메인 라우트 에러 봉투 — pullim-api 는 NestJS 기본형({statusCode,message,error}). spec 봉투도 방어. */
 interface DomainErrorBody {
   error?: { code?: string; message?: string };
-  /** NestJS 기본형 폴백. */
+  /** NestJS 기본형. */
   message?: string | string[];
 }
 
 /**
- * classbot BE 도메인 라우트를 호출한다.
+ * classbot 정본 라우트를 OS 쿠키 세션으로 호출한다.
  *
- * @param path - `/enrollments` 같은 BASE_URL 상대 경로 (BASE_URL 이 `/api` 포함)
- * @param options - method/body + 데모 명의(미인증일 때만)
+ * @param path - `/enrollments` 같은 `/classbot` 상대 경로 (base 는 `${API_BASE}/classbot`)
+ * @param options - method/body. 쓰기면 CSRF 토큰을 자동 첨부한다.
  * @returns 파싱된 JSON 본문
  * @throws {ApiError} 비정상 응답 (status + 도메인 봉투 message/code)
  */
 export async function domainFetch<T>(path: string, options: DomainFetchOptions = {}): Promise<T> {
-  const { method = 'GET', body, demoUserId } = options;
+  const { method = 'GET', body } = options;
 
-  // x-user-id 명의 — ② SSO 세션(raw sub, 데모 브리지 미적용)이 데모 명의보다 우선.
-  const xUserId = ssoUserSnapshot()?.id ?? demoUserId;
-
-  // ① 토큰 보유 — Bearer 자동 첨부 + 401 refresh (api-client 경로).
-  if (tokenManager.getAccessToken()) {
-    try {
-      return await authRequest<T>(path, { method, body });
-    } catch (e) {
-      // x-user-id 폴백 게이트: 폴백할 명의(SSO sub 또는 호출부가 전달한 데모 키)가
-      // 있는 요청의 잔여 토큰 401 만 x-user-id 경로로 1회 폴백한다. 명의 없는 인증
-      // 사용자의 401 과 403/404 등 진짜 도메인 에러는 가리지 않고 전파 — 인증
-      // 사용자의 요청이 데모 명의로 오귀속되지 않는다(Codex #196 R1·R2 ①).
-      const canFallback = xUserId !== undefined && e instanceof ApiError && e.status === 401;
-      if (!canFallback) {
-        throw e;
-      }
-    }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // 쓰기(CsrfGuard): GET /auth/csrf 로 받은 토큰을 X-CSRF-Token 으로 재전송(double-submit). read 는 불필요.
+  if (CSRF_METHODS.has(method)) {
+    const csrf = await fetchOsCsrfToken();
+    if (csrf) headers['X-CSRF-Token'] = csrf;
   }
 
-  // ②③ x-user-id 경로 — SSO 세션(raw sub) 또는 미인증 데모(Ph7 과도기 규약).
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${CLASSBOT_API_BASE}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(xUserId !== undefined ? { 'x-user-id': xUserId } : {}),
-    },
+    // OS access 쿠키(Domain=.pullim.ai, HttpOnly)를 cross-origin 자동 첨부 — 서버가 sub 를 파생.
+    credentials: 'include',
+    headers,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
   });
 
-  // 본문이 비었거나 JSON 이 아닐 수 있으므로 방어적으로 파싱 (auth-fetch 계약).
+  // 본문이 비었거나 JSON 이 아닐 수 있으므로 방어적으로 파싱.
   let json: unknown = null;
   const text = await res.text();
   if (text) {
@@ -254,4 +110,18 @@ export async function domainFetch<T>(path: string, options: DomainFetchOptions =
   }
 
   return json as T;
+}
+
+/**
+ * 코어 스토어 sync 훅용 reactive 세션 사용자 id — 신원 변경(OS 세션 확립/로그아웃)에 반응해
+ * **같은 마운트에서도** effect 재실행(재동기화)을 트리거하고, 단일 비행 캐시 키가 된다.
+ * 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0. 플래그 ON·미인증은 'anon'.
+ * @returns 세션 사용자 id (인증: raw sub, 미인증: 'anon', 플래그 OFF: '')
+ */
+export function useSyncUserId(): string {
+  return useSyncExternalStore(
+    subscribeDomainIdentity,
+    () => (USE_REAL_CORE_BE ? (currentSessionUserId() ?? 'anon') : ''),
+    () => '',
+  );
 }

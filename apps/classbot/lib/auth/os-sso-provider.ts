@@ -15,7 +15,7 @@
 import { AuthError, type AuthUser, type IAuthProvider } from '@pullim-classbot/auth';
 import type { UserRole } from '@pullim-classbot/types';
 
-import { API_BASE } from '@/lib/auth/os-sso';
+import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
 
 /** pullim-api `GET /me` 응답(필요 필드만). */
 interface MeResponse {
@@ -117,20 +117,9 @@ export class OsSsoAuthProvider implements IAuthProvider {
     };
   }
 
-  /** CSRF 토큰을 발급받는다(실패 시 null — 헤더 없이 진행하면 서버가 거부). */
-  private async csrfToken(): Promise<string | null> {
-    try {
-      const res = await fetch(`${API_BASE}/auth/csrf`, {
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      });
-      if (!res.ok) return null;
-      // 백엔드 계약(pullim-api CsrfResponseDto): { csrfToken }. (과거 `token` 은 오기 — 라이브 검증으로 확인)
-      const body = (await res.json()) as { csrfToken?: string };
-      return body.csrfToken ?? null;
-    } catch {
-      return null;
-    }
+  /** CSRF 토큰을 발급받는다 — os-sso 의 공용 헬퍼에 위임(로그아웃·classbot write 단일 발급 경로). */
+  private csrfToken(): Promise<string | null> {
+    return fetchOsCsrfToken();
   }
 
   /** 현재 사용자를 갱신하고 구독자에게 통지한다. */
