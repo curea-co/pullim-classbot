@@ -7,7 +7,7 @@
  */
 import type { QuickReplyKey } from '@/lib/mock';
 
-import type { ChatStreamCallbacks } from './chat-stream';
+import type { ChatStreamCallbacks, ChatCard } from './chat-stream';
 
 /** 히스토리 seed 로 붙는 turn 의 id 프리픽스 — 진입 시 대량 주입되는 과거 대화 식별자. */
 export const HISTORY_TURN_ID_PREFIX = 'h';
@@ -64,10 +64,22 @@ export function shouldAnnounceTurn(turn?: {
 
 /** buildRealSendCallbacks 의존성 — page 가 Turn 타입에 맞춰 주입하는 setter 묶음. */
 export interface RealSendCallbackDeps {
-  /** 스트리밍 중 봇 턴 텍스트 patch(streaming=true 유지). */
+  /**
+   * 현재 열린 스트리밍 텍스트 세그먼트를 patch(streaming=true 유지). 열린 버블이 없으면
+   * (직전 카드로 닫혀 있으면) page 가 새 스트리밍 버블을 lazy 생성한다.
+   */
   setStreamingText: (text: string) => void;
-  /** 완결 — 최종 텍스트 patch + streaming=false(announce 1회 트리거). */
+  /**
+   * 현재 열린 스트리밍 텍스트 세그먼트를 완결(streaming=false, announce 1회 트리거).
+   * **빈 문자열이면 그 세그먼트를 제거**한다(카드로 끝나 남은 트레일링 빈 타이핑 버블 청소).
+   */
   finalizeText: (text: string) => void;
+  /**
+   * v2 리치 카드(ADR-065) — 원자적 카드 turn 을 append. page 가 `chat-cards.adaptCardToTurn`
+   * 으로 렌더 가능한 Turn 으로 적응(형식 불일치면 graceful skip). 카드는 텍스트 세그먼트 사이에
+   * 순서대로 삽입된다(카드 앞 텍스트는 finalize, 카드 뒤 텍스트는 새 세그먼트).
+   */
+  appendCard: (card: ChatCard) => void;
   /** 완료 시 보존할 학습 단계 키(빠른칩 forcedKey, 자유발화면 undefined). */
   forcedKey?: QuickReplyKey;
   /** lastBotReplyKey setter — 빠른칩으로 시작한 학습 단계를 이어가도록 보존. */
@@ -77,23 +89,36 @@ export interface RealSendCallbackDeps {
 }
 
 /**
- * 실챗 SSE 콜백(onToken/onDone/onError)을 만든다 — 토큰 누적·완결 고정·에러 안내를 순수 로직으로.
+ * 실챗 SSE 콜백(onToken/onCard/onDone/onError)을 만든다 — 토큰 누적·카드 삽입·완결 고정·에러 안내를
+ * 순수 로직으로. **v2(ADR-065)**: 텍스트는 스트리밍 세그먼트로, 카드는 원자적 turn 으로 순서대로 교차.
  *
- * - onToken: 델타 누적 → setStreamingText(streaming 유지 → announce 안 됨)
- * - onDone: 최종 content(없으면 누적본) 고정 + streaming=false + **forcedKey 보존** + pending 해제
- * - onError: 부분 토큰 보존 후 안내 카피 append(없으면 안내만) + streaming=false + pending 해제
+ * - onToken: 델타를 현재 세그먼트에 누적 → setStreamingText(streaming 유지 → announce 안 됨)
+ * - onCard: 현재 텍스트 세그먼트를 finalize(비었으면 제거) → appendCard(카드 turn) → 누적 리셋
+ *   (이후 토큰은 카드 **뒤** 새 세그먼트로). 카드/텍스트가 도착 순서대로 트랜스크립트에 인터리브.
+ * - onDone: 마지막 세그먼트 완결(내용 없으면=카드로 끝나 빈 세그먼트 → 제거) + **forcedKey 보존** + pending 해제.
+ *   (텍스트/카드는 이미 token/card 프레임으로 화면 반영 — done 은 마감·순서 확정 신호.)
+ * - onError: 현재 세그먼트에 부분 토큰이 있으면 보존 후 안내 append, 없으면 안내만 + streaming=false + pending 해제
  *
  * @param deps - page 주입 setter/상태
  * @returns streamChat 에 넘길 콜백
  */
 export function buildRealSendCallbacks(deps: RealSendCallbackDeps): ChatStreamCallbacks {
+  // acc = 현재 열린 텍스트 세그먼트의 누적본(카드 사이 텍스트마다 리셋).
   let acc = '';
   return {
     onToken: delta => {
       acc += delta;
       deps.setStreamingText(acc);
     },
+    onCard: card => {
+      // 카드 앞의 텍스트 세그먼트를 닫고(비었으면 트레일링 빈 버블 제거), 카드 turn 을 삽입한 뒤
+      // 누적을 리셋 → 이후 토큰은 카드 뒤 새 세그먼트로 스트리밍된다(순서 보존).
+      deps.finalizeText(acc);
+      deps.appendCard(card);
+      acc = '';
+    },
     onDone: done => {
+      // done.content 는 구버전 하위호환(v2 는 blocks 만) — 있으면 우선, 없으면 마지막 세그먼트 누적본.
       deps.finalizeText(done.content || acc);
       // 빠른칩으로 시작한 학습 단계 키 보존 → 후속 빠른칩 흐름 유지(자유발화면 undefined).
       deps.setLastReplyKey(deps.forcedKey);

@@ -20,6 +20,7 @@ import {
   fetchChatHistory,
   CHAT_ERROR_COPY,
   type ChatStreamCallbacks,
+  type ChatCard,
 } from '../chat-stream';
 
 const fetchMock = jest.fn();
@@ -81,11 +82,14 @@ function sseResBytes(chunks: Uint8Array[]): Response {
 }
 
 /** 콜백 스파이 묶음. */
-function spies(): ChatStreamCallbacks & { tokens: string[] } {
+function spies(): ChatStreamCallbacks & { tokens: string[]; cards: ChatCard[] } {
   const tokens: string[] = [];
+  const cards: ChatCard[] = [];
   return {
     tokens,
+    cards,
     onToken: jest.fn((d: string) => tokens.push(d)),
+    onCard: jest.fn((c: ChatCard) => cards.push(c)),
     onDone: jest.fn(),
     onError: jest.fn(),
   };
@@ -192,6 +196,66 @@ describe('streamChat — SSE 파싱(token → done)', () => {
 
     expect(cb.tokens).toEqual(['A']);
     expect(cb.onDone).toHaveBeenCalledWith({ messageId: undefined, content: 'A', usage: undefined });
+  });
+});
+
+describe('streamChat — v2 리치 카드 프레임(ADR-065)', () => {
+  it('event: card 프레임 → onCard({cardType, payload}), token 과 순서대로 인터리브', async () => {
+    fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
+      sseRes([
+        'event: token\ndata: {"delta":"먼저 "}\n\n',
+        'event: card\ndata: {"cardType":"concept","payload":{"id":"c1","title":"도함수"}}\n\n',
+        'event: token\ndata: {"delta":"이제 퀴즈"}\n\n',
+        'event: card\ndata: {"cardType":"quiz","payload":{"question":"Q"}}\n\n',
+        'event: done\ndata: {"blocks":[{"messageId":"m1","kind":"text"},{"messageId":"m2","kind":"card","cardType":"concept"}],"usage":{"model":"claude-sonnet-4-6"}}\n\n',
+      ]),
+    );
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(cb.tokens).toEqual(['먼저 ', '이제 퀴즈']);
+    expect(cb.cards).toEqual([
+      { cardType: 'concept', payload: { id: 'c1', title: '도함수' } },
+      { cardType: 'quiz', payload: { question: 'Q' } },
+    ]);
+    // 카드는 종료 프레임 아님 — done 까지 스트림 계속.
+    expect(cb.onDone).toHaveBeenCalledTimes(1);
+    expect(cb.onError).not.toHaveBeenCalled();
+  });
+
+  it('done.blocks 순서 보존 목록을 파싱해 onDone 에 실어준다(kind 정규화)', async () => {
+    fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
+      sseRes([
+        'event: done\ndata: {"blocks":[{"messageId":"a","kind":"text"},{"messageId":"b","kind":"card","cardType":"summary"},{"messageId":"c","kind":"bogus"}],"usage":{"outputTokens":9}}\n\n',
+      ]),
+    );
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(cb.onDone).toHaveBeenCalledWith({
+      messageId: undefined,
+      content: '',
+      usage: { outputTokens: 9 },
+      blocks: [
+        { messageId: 'a', kind: 'text', cardType: undefined },
+        { messageId: 'b', kind: 'card', cardType: 'summary' },
+        { messageId: 'c', kind: 'text', cardType: undefined }, // 임의 kind → text 정규화
+      ],
+    });
+  });
+
+  it('cardType 없는 card 프레임은 스킵(onCard 미호출·크래시 없음)', async () => {
+    fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
+      sseRes(['event: card\ndata: {"payload":{"x":1}}\n\n', 'event: done\ndata: {"blocks":[]}\n\n']),
+    );
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(cb.onCard).not.toHaveBeenCalled();
+    expect(cb.onDone).toHaveBeenCalledTimes(1);
   });
 });
 
