@@ -77,6 +77,7 @@ describe('buildRealSendCallbacks — 스트리밍 상태전이 + forcedKey 보�
     return {
       setStreamingText: jest.fn(),
       finalizeText: jest.fn(),
+      appendCard: jest.fn(),
       forcedKey,
       setLastReplyKey: jest.fn(),
       setPending: jest.fn(),
@@ -139,5 +140,46 @@ describe('buildRealSendCallbacks — 스트리밍 상태전이 + forcedKey 보�
     const cb = buildRealSendCallbacks(deps);
     cb.onError({ code: 'rate_limit', message: '잠시 후 다시.' });
     expect(deps.finalizeText).toHaveBeenCalledWith('잠시 후 다시.');
+  });
+
+  it('card: 앞 텍스트 세그먼트 finalize → appendCard → 누적 리셋(카드 뒤 토큰은 새 세그먼트)', () => {
+    const deps = makeDeps();
+    const cb = buildRealSendCallbacks(deps);
+    cb.onToken('AB');
+    cb.onCard({ cardType: 'concept', payload: { id: 'c1' } });
+    // 카드 앞 세그먼트 'AB' 를 완결하고 카드를 삽입.
+    expect(deps.finalizeText).toHaveBeenLastCalledWith('AB');
+    expect(deps.appendCard).toHaveBeenCalledWith({ cardType: 'concept', payload: { id: 'c1' } });
+    // 카드 뒤 토큰은 새 세그먼트로 누적(직전 'AB' 를 잇지 않음).
+    cb.onToken('CD');
+    expect(deps.setStreamingText).toHaveBeenLastCalledWith('CD');
+  });
+
+  it('card: text→card→text→done 순서가 setter 호출 순서로 정확히 인터리브', () => {
+    const calls: string[] = [];
+    const deps = {
+      setStreamingText: jest.fn((t: string) => calls.push(`text:${t}`)),
+      finalizeText: jest.fn((t: string) => calls.push(`final:${t}`)),
+      appendCard: jest.fn((c: { cardType: string }) => calls.push(`card:${c.cardType}`)),
+      forcedKey: undefined,
+      setLastReplyKey: jest.fn(),
+      setPending: jest.fn(),
+    };
+    const cb = buildRealSendCallbacks(deps);
+    cb.onToken('AB');
+    cb.onCard({ cardType: 'quiz', payload: {} });
+    cb.onToken('CD');
+    cb.onDone({ content: '', usage: undefined });
+    expect(calls).toEqual(['text:AB', 'final:AB', 'card:quiz', 'text:CD', 'final:CD']);
+  });
+
+  it('card 로 끝나면 done 이 빈 세그먼트 finalize(page 가 트레일링 빈 버블 제거)', () => {
+    const deps = makeDeps();
+    const cb = buildRealSendCallbacks(deps);
+    cb.onCard({ cardType: 'summary', payload: { text: '정리' } });
+    cb.onDone({ content: '', usage: undefined });
+    // 카드 앞 빈 세그먼트 finalize('') + 카드 뒤 done 빈 세그먼트 finalize('').
+    expect(deps.finalizeText.mock.calls).toEqual([[''], ['']]);
+    expect(deps.appendCard).toHaveBeenCalledWith({ cardType: 'summary', payload: { text: '정리' } });
   });
 });

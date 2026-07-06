@@ -5,24 +5,30 @@
 - 권위 기획: `input/docs-archive/07_풀림_클래스봇_핸드오프.md`
 - 선행: 봇대화 2단 레이아웃 + 라이브 컴팩트 바 (직전 작업)
 
-> ### [2026-07-06 개정 — 실챗(ADR-064) 정합]
+> ### [2026-07-06 개정 — 실챗(ADR-064) 정합 · v2 리치 카드(ADR-065) 반영]
 >
 > **이 문서의 리치 가이드수업 계약(빠른칩 → concept/example/quiz/summary **구조화 리치 턴** +
 > concept index 로컬상태, 아래 §5·§6)은 `flag-OFF`(=`USE_REAL_CORE_BE` 미설정) **mock 데모 경로**의
 > 계약이다.**
 >
-> `flag-ON` 실챗(`USE_REAL_CORE_BE=true`)은 pullim-api chat(ADR-064,
-> `POST /classbot/classes/:classId/chat` SSE)으로 **스트림 텍스트** 응답한다. 구조화 리치카드·
-> tool-calling 은 **ADR-064 v2 defer**(사용자 승인 게이트웨이·모델 결정 필요)로, `flag-ON` 에서는
-> 리치 턴을 재구축하지 않는다.
+> **[2026-07-06 v2 갱신] `flag-ON` 실챗도 리치 카드를 렌더한다(ADR-065 tool-calling).** 초기(ADR-064 v1)엔
+> 스트림 텍스트만이었고 구조화 카드는 defer 였으나, v2 로 pullim-api chat 이 LLM per-kind tool 로
+> 구조화 카드를 방출한다 — SSE **`event: card`**(`data: { cardType, payload }`, tool_use 완결 시 원자 1회)로
+> 도착하고, 자유 텍스트는 `event: token` 으로 스트리밍된다. `done` 은 순서 보존 blocks 기반 단일 계약이다
+> (api.md §3.8). cardType(lesson-intro|concept|example|quiz|summary|self-explain|problem-card)은 FE
+> `MessageKind` 와 1:1 이고 payload 는 mock shape 과 1:1(data-model §1.6)이라, FE 는 `adaptCardToTurn`
+> 으로 적응해 **flag-OFF 와 동일한 `MessageBody` 렌더러를 재사용**한다(카드/텍스트 도착 순서대로 인터리브).
+> quiz/self-explain 은 정답·해설·모범답안을 payload 에 동봉(형성평가·클라이언트 즉시 채점, §1.6).
 >
 > 빠른칩 계약은 `flag-ON` 에서도 보존된다 — **칩 라벨('예제 풀어줘' 등, 이미 자연어)을 그대로
-> 발화(message)로 전송**해 "칩 → 그 주제로 학습 진행"을 지키되, 응답 형식만 스트림 텍스트다
-> (구조화 카드 아님). 학생 발화·전송·서버 히스토리가 모두 칩 라벨로 일치한다.
+> 발화(message)로 전송**해 "칩 → 그 주제로 학습 진행"을 지킨다. v1 과 달리 응답 형식이 리치 카드로
+> 복원됐다(forcedKey 는 후속 칩 추천 상태로 스레딩). flag-OFF 는 리치 mock 을 그대로 둔다(불변).
 >
-> 리치 구조화 턴의 실챗 재도입은 **v2 tool-calling 카드**에서 다룬다. 계약 SoT = pullim-api
-> `docs/design/services/classbot/api.md §3.8` + ADR-064. 코드 구현부: `chat/page.tsx` flag-ON
-> `send()` 분기(기각 근거 주석) + `lib/api/chat-stream.ts`.
+> 계약 SoT = pullim-api `docs/design/services/classbot/api.md §3.8`(SSE card/done) +
+> `data-model.md §1.6`(카드 payload 스키마) + ADR-065. 코드 구현부: `chat/page.tsx` flag-ON
+> `send()`/`sendReal` + `lib/api/chat-stream.ts`(card 프레임·done blocks) + `lib/api/chat-cards.ts`
+> (cardType→MessageKind·payload 적응·형식 방어) + `lib/api/chat-turns.ts`(카드/텍스트 인터리브).
+> 라이브 검증(pullim-api dev 카드 방출 + OS 세션)은 후속 — 이 FE PR 은 계약 배선·유닛 커버리지까지.
 
 ## 1. 배경 / 문제
 
