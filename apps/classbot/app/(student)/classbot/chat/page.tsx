@@ -27,7 +27,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
-import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, historySummaryGoalKey, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
+import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, historySummaryGoalKey, rebindHistorySummaryGoalKeys, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { adaptCardToTurn, type AdaptedCardTurn, type CardAdaptContext } from '@/lib/api/chat-cards';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
@@ -318,7 +318,14 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
         // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
-        setTurns(prev => appendHistoryTurns(prev, msgs.map((m, i) => historyMessageToTurn(m, i, goalKeyForDay)), isOpenerTurn));
+        // 재바인딩(Codex #210 R3): 세션 하이드레이션 전 폴백 id 로 seed 됐다가 me.id 로 effect 가
+        // 재실행되면 append 는 skip(h* 존재)돼도 summary goalKey 는 현재 사용자 키로 보정된다(멱등).
+        setTurns(prev =>
+          rebindHistorySummaryGoalKeys(
+            appendHistoryTurns(prev, msgs.map((m, i) => historyMessageToTurn(m, i, goalKeyForDay)), isOpenerTurn),
+            todayGoalKey,
+          ),
+        );
       })
       .catch(() => {});
     return () => {

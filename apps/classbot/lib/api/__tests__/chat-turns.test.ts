@@ -10,6 +10,7 @@ import {
   shouldAnnounceTurn,
   buildRealSendCallbacks,
   historySummaryGoalKey,
+  rebindHistorySummaryGoalKeys,
 } from '../chat-turns';
 
 type MiniTurn = { id: string; role: 'student' | 'bot'; text: string; streaming?: boolean; seeded?: boolean };
@@ -195,5 +196,32 @@ describe('historySummaryGoalKey — 오늘 메시지에만 배너 goalKey(Codex 
   it('지난 날 시각 → undefined(과거 summary 는 평문 폴백 — 거짓 0/N 배너 방지)', () => {
     const yesterday = Date.now() - 24 * 60 * 60 * 1000;
     expect(historySummaryGoalKey(yesterday, todayGoalKey)).toBeUndefined();
+  });
+});
+
+describe('rebindHistorySummaryGoalKeys — 세션 하이드레이션 레이스 보정(Codex #210 R3)', () => {
+  const now = Date.now();
+  const staleKey = 'student_001::cb_001::stale';
+  const realKey = 's-real::cb_001::today';
+  const seededSummary = { id: 'h2', at: now, kind: 'summary', payload: { goalKey: staleKey, nextLine: '다음' } };
+
+  it('폴백 id 로 seed 된 오늘 summary 의 goalKey 를 현재 키로 재바인딩', () => {
+    const turns = [{ id: 'h0', at: now, kind: 'text', payload: undefined }, seededSummary];
+    const out = rebindHistorySummaryGoalKeys(turns, realKey);
+    expect(out[1].payload).toEqual({ goalKey: realKey, nextLine: '다음' });
+    expect(out[0]).toBe(turns[0]); // 다른 turn 은 그대로
+  });
+
+  it('goalKey 없는 summary(지난 날 평문 폴백)·비히스토리 turn 은 건드리지 않음', () => {
+    const turns = [
+      { id: 'h1', at: now - 86400000, kind: 'summary', payload: undefined },
+      { id: 'b123', at: now, kind: 'summary', payload: { goalKey: staleKey } }, // 실시간 turn(h* 아님)
+    ];
+    expect(rebindHistorySummaryGoalKeys(turns, realKey)).toBe(turns); // 무변경 → 동일 참조
+  });
+
+  it('이미 올바른 키면 동일 참조 반환(불필요 리렌더 방지)', () => {
+    const turns = [{ id: 'h2', at: now, kind: 'summary', payload: { goalKey: realKey } }];
+    expect(rebindHistorySummaryGoalKeys(turns, realKey)).toBe(turns);
   });
 });

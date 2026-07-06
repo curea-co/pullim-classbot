@@ -31,6 +31,38 @@ export function historySummaryGoalKey(at: number, todayGoalKey: string): string 
 }
 
 /**
+ * seed 된 히스토리 summary 카드의 goalKey 를 현재 사용자 키로 **재바인딩**한다(Codex #210 R3).
+ *
+ * `useCurrentUser()` 는 세션 하이드레이션 전 데모 폴백(`student_001`)을 돌려주므로, 히스토리
+ * fetch 가 그 시점에 끝나면 summary 배너가 폴백 id 의 goalKey 로 seed 될 수 있다. 이후 실제
+ * me.id 로 effect 가 재실행돼도 `appendHistoryTurns` 의 idempotent 가드(h* 존재 → skip)가
+ * 재주입을 막아 잘못된 키가 고정된다 — 그래서 append 결과에 이 보정을 항상 통과시켜, seed 가
+ * skip 된 재실행에서도 오늘 summary 의 goalKey 가 현재 사용자 키로 수렴하게 한다(멱등).
+ *
+ * 대상: 히스토리(`h*`) + kind='summary' + payload.goalKey 보유 + 오늘 메시지만.
+ * 무변경이면 **입력 배열 참조 그대로** 반환(불필요 리렌더 방지).
+ *
+ * @param turns - 현재 turns
+ * @param todayGoalKey - 오늘 세션 목표 키(현재 사용자 기준)
+ * @returns 재바인딩된 turns(무변경 시 동일 참조)
+ */
+export function rebindHistorySummaryGoalKeys<
+  T extends { id: string; at: number; kind?: string; payload?: unknown },
+>(turns: T[], todayGoalKey: string): T[] {
+  let changed = false;
+  const next = turns.map(t => {
+    if (!t.id.startsWith(HISTORY_TURN_ID_PREFIX) || t.kind !== 'summary') return t;
+    const p = t.payload as { goalKey?: string } | undefined;
+    if (!p?.goalKey) return t;
+    const key = historySummaryGoalKey(t.at, todayGoalKey);
+    if (!key || key === p.goalKey) return t;
+    changed = true;
+    return { ...t, payload: { ...p, goalKey: key } };
+  });
+  return changed ? next : turns;
+}
+
+/**
  * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 바로 뒤에 splice** 한다.
  * base spec §5 필수 초기 메시지 계약 — 인사/lesson-intro 는 항상 선두 유지, 서버 대화는 그 뒤.
  *
