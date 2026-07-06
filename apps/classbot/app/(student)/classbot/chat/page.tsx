@@ -28,7 +28,7 @@ import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
 import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
-import { adaptCardToTurn, type AdaptedCardTurn } from '@/lib/api/chat-cards';
+import { adaptCardToTurn, type AdaptedCardTurn, type CardAdaptContext } from '@/lib/api/chat-cards';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
 import { useReducedMotion } from '@/lib/hooks/use-reduced-motion';
@@ -45,7 +45,7 @@ import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
-import { todayKey } from '@/lib/store/today-key';
+import { todayKey, dayKeyOf } from '@/lib/store/today-key';
 import { useMisconceptionStore } from '@/lib/store/misconception';
 import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
@@ -310,17 +310,19 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
+    // summary 히스토리 카드의 달성도 배너 goalKey — 그 메시지가 속한 날 기준(오늘이면 라이브 배너와 일치).
+    const goalKeyForDay = (at: number) => `${me.id}::${bot.id}::${dayKeyOf(new Date(at))}`;
     void fetchChatHistory(bot.id)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
         // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
-        setTurns(prev => appendHistoryTurns(prev, msgs.map(historyMessageToTurn), isOpenerTurn));
+        setTurns(prev => appendHistoryTurns(prev, msgs.map((m, i) => historyMessageToTurn(m, i, goalKeyForDay)), isOpenerTurn));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [bot.id]);
+  }, [bot.id, me.id]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -473,14 +475,20 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     // 스트리밍 세그먼트/카드 turn 제어는 모듈 스코프 컨트롤러(createRealChatTurnController)에 위임한다
     // — 컴포넌트 내부에서 커서(let)를 재대입하면 React Compiler 가 immutable 위반으로 막으므로
     // (buildLessonTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
-    const controller = createRealChatTurnController(setTurns, Date.now(), adapted => {
-      // 카드 append 후 진행 마킹(A1·B7) + 컨텍스트 앵커 — mock 경로와 동일한 부수효과(컴포넌트 스코프).
-      const phase = kindToLessonPhase(adapted.kind);
-      if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
-      const step = kindToSessionStep(adapted.kind);
-      if (step) useSessionGoalStore.getState().mark(goalKey, step);
-      if (adapted.kind === 'concept') setActiveConceptId(adapted.payload.concept.id);
-    });
+    const controller = createRealChatTurnController(
+      setTurns,
+      Date.now(),
+      adapted => {
+        // 카드 append 후 진행 마킹(A1·B7) + 컨텍스트 앵커 — mock 경로와 동일한 부수효과(컴포넌트 스코프).
+        const phase = kindToLessonPhase(adapted.kind);
+        if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
+        const step = kindToSessionStep(adapted.kind);
+        if (step) useSessionGoalStore.getState().mark(goalKey, step);
+        if (adapted.kind === 'concept') setActiveConceptId(adapted.payload.concept.id);
+      },
+      // summary 카드 달성도 배너 바인딩 — mock 경로(452-455)와 동일하게 오늘 goalKey 주입(B7 finding#2).
+      { goalKey },
+    );
     const clientTurnId = crypto.randomUUID();
     const callbacks = buildRealSendCallbacks({
       setStreamingText: controller.setStreamingText,
@@ -774,16 +782,20 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
  * **v2(ADR-065)**: assistant 카드 블록(cardType 有)은 `adaptCardToTurn` 으로 리치 카드 turn 을 재구성해
  * `MessageBody` 가 그대로 재렌더한다(평문으로 뭉개지 않음). cardType 없거나 payload 형식 불일치면
  * 평문 텍스트 버블로 graceful 폴백(content, 없으면 빈 버블 회피).
+ * summary 카드는 **그 메시지가 속한 날**의 goalKey(`goalKeyForDay(createdAt)`)를 주입해 달성도
+ * 배너(SummaryProgress)를 복원한다 — 같은 날 재입장이면 오늘 goalKey 와 일치해 라이브 store 를,
+ * 지난 날이면 그 날 키의 persist 상태를 읽는다(mock 렌더 계약과 동형, B7 finding#2).
  * @param m - 완결 히스토리 메시지
  * @param i - 인덱스(안정 key 파생)
+ * @param goalKeyForDay - 시각 → 그 날의 세션 목표 키(컴포넌트가 me/bot 으로 구성)
  */
-function historyMessageToTurn(m: ChatHistoryMessage, i: number): Turn {
+function historyMessageToTurn(m: ChatHistoryMessage, i: number, goalKeyForDay?: (at: number) => string): Turn {
   const at = Date.parse(m.createdAt);
   const safeAt = Number.isNaN(at) ? Date.now() + i : at;
   const id = `${HISTORY_TURN_ID_PREFIX}${i}`;
   // 진입 시 주입되는 과거 메시지 — announce 제외(새 메시지처럼 재announce 방지).
   if (m.role === 'assistant' && m.cardType) {
-    const adapted = adaptCardToTurn(m.cardType, m.cardPayload);
+    const adapted = adaptCardToTurn(m.cardType, m.cardPayload, goalKeyForDay ? { goalKey: goalKeyForDay(safeAt) } : undefined);
     if (adapted) {
       return { id, role: 'bot', at: safeAt, seeded: true, text: adapted.text, kind: adapted.kind, payload: adapted.payload };
     }
@@ -814,11 +826,13 @@ function historyMessageToTurn(m: ChatHistoryMessage, i: number): Turn {
  * @param setTurns - turns 상태 setter(함수형 updater 만 사용)
  * @param baseAt - turn id/at 기준 epoch ms
  * @param onCardTurn - 카드 turn append 직후 컴포넌트 부수효과 훅
+ * @param adaptCtx - 카드 적응 컨텍스트(오늘 goalKey) — summary 달성도 배너 바인딩
  */
 function createRealChatTurnController(
   setTurns: Dispatch<SetStateAction<Turn[]>>,
   baseAt: number,
   onCardTurn: (adapted: AdaptedCardTurn) => void,
+  adaptCtx?: CardAdaptContext,
 ): {
   setStreamingText: (next: string) => void;
   finalizeText: (next: string) => void;
@@ -858,7 +872,7 @@ function createRealChatTurnController(
   };
 
   const appendCard = (card: ChatCard) => {
-    const adapted = adaptCardToTurn(card.cardType, card.payload);
+    const adapted = adaptCardToTurn(card.cardType, card.payload, adaptCtx);
     if (!adapted) return; // 형식 불일치 카드 → graceful skip(트랜스크립트 안 깨짐).
     setTurns(t => [
       ...t,

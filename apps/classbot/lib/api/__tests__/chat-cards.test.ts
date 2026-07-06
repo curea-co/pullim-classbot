@@ -71,6 +71,25 @@ describe('adaptCardToTurn — 정상 payload 적응', () => {
     expect(r).toEqual({ kind: 'summary', text: '오늘 정리\n\n다음엔 적분', payload: undefined });
   });
 
+  it('summary + ctx.goalKey → payload { goalKey, nextLine } — 달성도 배너(SummaryProgress) 바인딩(mock 렌더 동형)', () => {
+    const r = adaptCardToTurn('summary', { text: '오늘 정리', nextLine: '다음엔 적분' }, { goalKey: 's1::cb_001::2026-07-06' });
+    expect(r).toEqual({
+      kind: 'summary',
+      text: '오늘 정리',
+      payload: { goalKey: 's1::cb_001::2026-07-06', nextLine: '다음엔 적분' },
+    });
+  });
+
+  it('summary + ctx.goalKey, nextLine 없음 → payload { goalKey } 만', () => {
+    const r = adaptCardToTurn('summary', { text: '오늘 정리' }, { goalKey: 'k' });
+    expect(r).toEqual({ kind: 'summary', text: '오늘 정리', payload: { goalKey: 'k' } });
+  });
+
+  it('ctx.goalKey 는 summary 외 kind 에 영향 없음', () => {
+    const r = adaptCardToTurn('lesson-intro', { topic: 't', keyCallout: 'k' }, { goalKey: 'k' });
+    expect(r).toEqual({ kind: 'lesson-intro', text: '', payload: { topic: 't', keyCallout: 'k' } });
+  });
+
   it('self-explain → { prompt } — BE 미포함 등급 피드백은 기본 카피로 채움', () => {
     const r = adaptCardToTurn('self-explain', {
       conceptId: 'c1',

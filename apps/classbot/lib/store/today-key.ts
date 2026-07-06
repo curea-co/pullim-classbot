@@ -8,7 +8,16 @@
  * @returns 로컬 `YYYY-MM-DD` (zero-padded)
  */
 export function todayKey(): string {
-  const d = new Date();
+  return dayKeyOf(new Date());
+}
+
+/**
+ * 임의 시각의 로컬 날짜 키 — 히스토리 turn(createdAt)이 속한 "그 날"의 세션 목표 키 파생용.
+ * 같은 날 재입장 시 summary 카드의 달성도 배너가 오늘 goalKey 와 일치해 라이브 store 를 읽는다.
+ * @param d - 대상 시각
+ * @returns 로컬 `YYYY-MM-DD` (zero-padded)
+ */
+export function dayKeyOf(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');

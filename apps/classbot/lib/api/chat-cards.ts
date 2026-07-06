@@ -50,13 +50,23 @@ export type AdaptedCardTurn =
   | { kind: 'concept'; text: string; payload: { concept: LessonConcept } }
   | { kind: 'example'; text: string; payload: { title: string; steps: LessonStep[] } }
   | { kind: 'quiz'; text: string; payload: { quiz: LessonQuiz; conceptId?: string } }
-  | { kind: 'summary'; text: string; payload?: undefined }
+  | { kind: 'summary'; text: string; payload?: { goalKey: string; nextLine?: string } }
   | { kind: 'self-explain'; text: string; payload: { prompt: SelfExplainPrompt } }
   | {
       kind: 'problem-card';
       text: string;
       payload: { problemNumber: string; title: string; ctaLabel: string; ctaHref: string };
     };
+
+/**
+ * 적응 컨텍스트 — BE 계약(§1.6)에 없는 **FE 로컬 파생값** 주입 채널.
+ * `goalKey`(세션 목표 키, `me::bot::YYYY-MM-DD`)를 주면 summary 카드가 mock 경로(B7 finding#2)와
+ * 동일하게 `payload { goalKey, nextLine }` 를 실어 `SummaryProgress` 달성도 배너가 라이브 store 를
+ * 읽는다. 없으면(방어) nextLine 을 본문에 합성한 평문 폴백.
+ */
+export interface CardAdaptContext {
+  goalKey?: string;
+}
 
 /* ─── 형식 가드(순수) ─── */
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -162,9 +172,10 @@ function coerceSelfExplain(p: Record<string, unknown>): SelfExplainPrompt | null
  *
  * @param cardType - SSE card 프레임 cardType
  * @param payload - SSE card 프레임 payload(tool input · 미검증 raw)
+ * @param ctx - FE 로컬 파생값(goalKey 등) 주입 — summary 달성도 배너 바인딩용
  * @returns 렌더 가능한 { kind, text, payload } 또는 null(형식 불일치)
  */
-export function adaptCardToTurn(cardType: string, payload: unknown): AdaptedCardTurn | null {
+export function adaptCardToTurn(cardType: string, payload: unknown, ctx?: CardAdaptContext): AdaptedCardTurn | null {
   const kind = cardTypeToMessageKind(cardType);
   if (!kind) return null;
   const p = asObj(payload);
@@ -191,10 +202,14 @@ export function adaptCardToTurn(cardType: string, payload: unknown): AdaptedCard
     }
     case 'summary': {
       if (!isStr(p.text)) return null;
-      // FE goalKey→live store 바인딩 대신 카드가 text/nextLine 을 직접 싣는다(§1.6 · ADR-065 open ⑩).
-      // 진행 달성도 바(goalKey)는 실챗 카드엔 없으므로 본문 텍스트로 렌더(payload 없음).
-      const text = isStr(p.nextLine) && p.nextLine ? `${p.text}\n\n${p.nextLine}` : p.text;
-      return { kind, text, payload: undefined };
+      const nextLine = isStr(p.nextLine) && p.nextLine ? p.nextLine : undefined;
+      // BE 카드는 text/nextLine 만 싣고(§1.6 · ADR-065 open ⑩) goalKey 는 FE 가 로컬 파생해 주입한다
+      // (ctx) — mock 경로(B7 finding#2)와 동일하게 SummaryProgress 달성도 배너가 라이브 store 를 읽는다.
+      if (ctx?.goalKey) {
+        return { kind, text: p.text, payload: { goalKey: ctx.goalKey, ...(nextLine ? { nextLine } : {}) } };
+      }
+      // ctx 없음(방어) — nextLine 을 본문에 합성한 평문 폴백(배너 없이도 정보 유실 없음).
+      return { kind, text: nextLine ? `${p.text}\n\n${nextLine}` : p.text, payload: undefined };
     }
     case 'self-explain': {
       const prompt = coerceSelfExplain(p);
