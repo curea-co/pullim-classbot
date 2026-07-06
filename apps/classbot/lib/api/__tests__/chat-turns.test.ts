@@ -9,6 +9,8 @@ import {
   appendHistoryTurns,
   shouldAnnounceTurn,
   buildRealSendCallbacks,
+  historySummaryGoalKey,
+  rebindHistorySummaryGoalKeys,
 } from '../chat-turns';
 
 type MiniTurn = { id: string; role: 'student' | 'bot'; text: string; streaming?: boolean; seeded?: boolean };
@@ -77,6 +79,7 @@ describe('buildRealSendCallbacks — 스트리밍 상태전이 + forcedKey 보�
     return {
       setStreamingText: jest.fn(),
       finalizeText: jest.fn(),
+      appendCard: jest.fn(),
       forcedKey,
       setLastReplyKey: jest.fn(),
       setPending: jest.fn(),
@@ -139,5 +142,86 @@ describe('buildRealSendCallbacks — 스트리밍 상태전이 + forcedKey 보�
     const cb = buildRealSendCallbacks(deps);
     cb.onError({ code: 'rate_limit', message: '잠시 후 다시.' });
     expect(deps.finalizeText).toHaveBeenCalledWith('잠시 후 다시.');
+  });
+
+  it('card: 앞 텍스트 세그먼트 finalize → appendCard → 누적 리셋(카드 뒤 토큰은 새 세그먼트)', () => {
+    const deps = makeDeps();
+    const cb = buildRealSendCallbacks(deps);
+    cb.onToken('AB');
+    cb.onCard({ cardType: 'concept', payload: { id: 'c1' } });
+    // 카드 앞 세그먼트 'AB' 를 완결하고 카드를 삽입.
+    expect(deps.finalizeText).toHaveBeenLastCalledWith('AB');
+    expect(deps.appendCard).toHaveBeenCalledWith({ cardType: 'concept', payload: { id: 'c1' } });
+    // 카드 뒤 토큰은 새 세그먼트로 누적(직전 'AB' 를 잇지 않음).
+    cb.onToken('CD');
+    expect(deps.setStreamingText).toHaveBeenLastCalledWith('CD');
+  });
+
+  it('card: text→card→text→done 순서가 setter 호출 순서로 정확히 인터리브', () => {
+    const calls: string[] = [];
+    const deps = {
+      setStreamingText: jest.fn((t: string) => calls.push(`text:${t}`)),
+      finalizeText: jest.fn((t: string) => calls.push(`final:${t}`)),
+      appendCard: jest.fn((c: { cardType: string }) => calls.push(`card:${c.cardType}`)),
+      forcedKey: undefined,
+      setLastReplyKey: jest.fn(),
+      setPending: jest.fn(),
+    };
+    const cb = buildRealSendCallbacks(deps);
+    cb.onToken('AB');
+    cb.onCard({ cardType: 'quiz', payload: {} });
+    cb.onToken('CD');
+    cb.onDone({ content: '', usage: undefined });
+    expect(calls).toEqual(['text:AB', 'final:AB', 'card:quiz', 'text:CD', 'final:CD']);
+  });
+
+  it('card 로 끝나면 done 이 빈 세그먼트 finalize(page 가 트레일링 빈 버블 제거)', () => {
+    const deps = makeDeps();
+    const cb = buildRealSendCallbacks(deps);
+    cb.onCard({ cardType: 'summary', payload: { text: '정리' } });
+    cb.onDone({ content: '', usage: undefined });
+    // 카드 앞 빈 세그먼트 finalize('') + 카드 뒤 done 빈 세그먼트 finalize('').
+    expect(deps.finalizeText.mock.calls).toEqual([[''], ['']]);
+    expect(deps.appendCard).toHaveBeenCalledWith({ cardType: 'summary', payload: { text: '정리' } });
+  });
+});
+
+describe('historySummaryGoalKey — 오늘 메시지에만 배너 goalKey(Codex #210: 로컬 store 는 과거 권위 아님)', () => {
+  const todayGoalKey = 's1::cb_001::today';
+
+  it('오늘 시각 → todayGoalKey 반환(같은 날 재입장 시 라이브 배너와 일치)', () => {
+    expect(historySummaryGoalKey(Date.now(), todayGoalKey)).toBe(todayGoalKey);
+  });
+
+  it('지난 날 시각 → undefined(과거 summary 는 평문 폴백 — 거짓 0/N 배너 방지)', () => {
+    const yesterday = Date.now() - 24 * 60 * 60 * 1000;
+    expect(historySummaryGoalKey(yesterday, todayGoalKey)).toBeUndefined();
+  });
+});
+
+describe('rebindHistorySummaryGoalKeys — 세션 하이드레이션 레이스 보정(Codex #210 R3)', () => {
+  const now = Date.now();
+  const staleKey = 'student_001::cb_001::stale';
+  const realKey = 's-real::cb_001::today';
+  const seededSummary = { id: 'h2', at: now, kind: 'summary', payload: { goalKey: staleKey, nextLine: '다음' } };
+
+  it('폴백 id 로 seed 된 오늘 summary 의 goalKey 를 현재 키로 재바인딩', () => {
+    const turns = [{ id: 'h0', at: now, kind: 'text', payload: undefined }, seededSummary];
+    const out = rebindHistorySummaryGoalKeys(turns, realKey);
+    expect(out[1].payload).toEqual({ goalKey: realKey, nextLine: '다음' });
+    expect(out[0]).toBe(turns[0]); // 다른 turn 은 그대로
+  });
+
+  it('goalKey 없는 summary(지난 날 평문 폴백)·비히스토리 turn 은 건드리지 않음', () => {
+    const turns = [
+      { id: 'h1', at: now - 86400000, kind: 'summary', payload: undefined },
+      { id: 'b123', at: now, kind: 'summary', payload: { goalKey: staleKey } }, // 실시간 turn(h* 아님)
+    ];
+    expect(rebindHistorySummaryGoalKeys(turns, realKey)).toBe(turns); // 무변경 → 동일 참조
+  });
+
+  it('이미 올바른 키면 동일 참조 반환(불필요 리렌더 방지)', () => {
+    const turns = [{ id: 'h2', at: now, kind: 'summary', payload: { goalKey: realKey } }];
+    expect(rebindHistorySummaryGoalKeys(turns, realKey)).toBe(turns);
   });
 });

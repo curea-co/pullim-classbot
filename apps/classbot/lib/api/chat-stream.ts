@@ -9,9 +9,10 @@
  * 신원 계약은 domain-fetch 와 동일 — OS access 쿠키(`credentials:'include'`) + write CSRF
  * double-submit(`X-CSRF-Token`, `fetchOsCsrfToken` 재사용). FE 는 x-user-id·Bearer 를 보내지 않는다.
  *
- * 이벤트(§3.8):
- *  - `event: token` · `data: { "delta": "..." }`  — 증분 토큰(반복)
- *  - `event: done`  · `data: { "messageId", "content", "usage" }` — 완결(종료)
+ * 이벤트(§3.8 · ADR-065 v2):
+ *  - `event: token` · `data: { "delta": "..." }`  — 자유 텍스트 증분 토큰(반복)
+ *  - `event: card`  · `data: { "cardType", "payload" }` — v2 리치 카드(tool_use 완결 시 원자 1회·반복)
+ *  - `event: done`  · `data: { "blocks": [{messageId,kind,cardType?}], "usage" }` — 완결(종료·단일 계약)
  *  - `event: error` · `data: { "code" }` — 스트림 중도 실패(종료·재시도 가능)
  *
  * 스트림 개시 **전** 실패는 실 HTTP 상태로 온다 — 429(rate-limit)·403(비멤버)·503(미가용).
@@ -34,11 +35,36 @@ export interface ChatUsage {
   model?: string;
 }
 
-/** done 이벤트 payload — 완결된 assistant turn. */
+/**
+ * done 이벤트의 순서 보존 블록(ADR-065 v2) — assistant 응답 turn 의 영속 블록 1개.
+ * kind='text' 는 텍스트 블록, 'card' 는 카드 블록(cardType 동반). messageId=블록 영속 id.
+ */
+export interface ChatDoneBlock {
+  messageId?: string;
+  kind: 'text' | 'card';
+  cardType?: string;
+}
+
+/**
+ * done 이벤트 payload — 완결된 assistant turn.
+ * **v2(ADR-065)**: `blocks` = 순서 보존 블록 목록(text/card). text-only 응답도 단일 text 블록 1개로
+ * 표현된다(done 단일 계약). 구버전 top-level `{messageId, content}` 는 하위호환 파싱으로 유지하되,
+ * v2 서버는 `blocks` 만 보낸다 — 텍스트/카드는 이미 token/card 프레임으로 스트리밍돼 화면에 반영됨.
+ */
 export interface ChatDone {
   messageId?: string;
   content: string;
   usage?: ChatUsage;
+  blocks?: ChatDoneBlock[];
+}
+
+/**
+ * card 이벤트 payload — tool_use 블록 완결 시 원자적으로 1회 도착(ADR-065 §3.8 🃏).
+ * `payload` 는 미검증 raw(tool input) — 렌더 적응·형식 방어는 `chat-cards.adaptCardToTurn` 담당.
+ */
+export interface ChatCard {
+  cardType: string;
+  payload: unknown;
 }
 
 /**
@@ -63,9 +89,14 @@ export const CHAT_ERROR_COPY: Record<ChatStreamErrorCode, string> = {
 };
 
 export interface ChatStreamCallbacks {
-  /** 증분 토큰 델타. */
+  /** 증분 토큰 델타(자유 텍스트). */
   onToken: (delta: string) => void;
-  /** 완결(done) — 최종 content/messageId/usage. */
+  /**
+   * v2 리치 카드(ADR-065) — tool_use 블록 완결 시 원자적으로 1회 도착. 텍스트 스트림과 순서대로
+   * 교차한다(카드 사이 텍스트는 별도 버블). 종료 프레임 아님(스트림 계속).
+   */
+  onCard: (card: ChatCard) => void;
+  /** 완결(done) — blocks(순서/영속 id) + usage. 구버전 content/messageId 도 하위호환 파싱. */
   onDone: (done: ChatDone) => void;
   /** 개시 전 실패(403/429/503) 또는 스트림 중도 실패. */
   onError: (err: ChatStreamError) => void;
@@ -87,6 +118,26 @@ function safeJson(data: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * done.blocks(ADR-065 순서 보존 블록) 방어 파싱 — 배열 아니면 undefined, 항목별 kind/messageId/cardType
+ * 만 안전 추출. kind 는 'card' 아니면 'text' 로 정규화(임의 문자열 차단).
+ */
+function parseDoneBlocks(raw: unknown): ChatDoneBlock[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const blocks: ChatDoneBlock[] = [];
+  for (const b of raw) {
+    if (b && typeof b === 'object') {
+      const o = b as Record<string, unknown>;
+      blocks.push({
+        messageId: typeof o.messageId === 'string' ? o.messageId : undefined,
+        kind: o.kind === 'card' ? 'card' : 'text',
+        cardType: typeof o.cardType === 'string' ? o.cardType : undefined,
+      });
+    }
+  }
+  return blocks;
 }
 
 interface SseFrame {
@@ -128,12 +179,20 @@ function handleFrame(frame: string, cb: ChatStreamCallbacks): boolean {
     if (typeof delta === 'string') cb.onToken(delta);
     return false;
   }
+  if (parsed.event === 'card') {
+    // v2 리치 카드(ADR-065) — 원자적 카드. cardType 없으면 무의미 프레임 → 스킵(크래시 방지).
+    const d = safeJson(parsed.data);
+    const cardType = d && typeof d.cardType === 'string' ? d.cardType : undefined;
+    if (cardType) cb.onCard({ cardType, payload: d?.payload });
+    return false; // 종료 프레임 아님 — 스트림 계속
+  }
   if (parsed.event === 'done') {
     const d = safeJson(parsed.data) ?? {};
     cb.onDone({
       messageId: typeof d.messageId === 'string' ? d.messageId : undefined,
       content: typeof d.content === 'string' ? d.content : '',
       usage: (d.usage as ChatUsage | undefined) ?? undefined,
+      blocks: parseDoneBlocks(d.blocks),
     });
     return true;
   }
@@ -248,11 +307,21 @@ export async function streamChat(
   }
 }
 
-/** 히스토리 메시지 — 완결된 turn 만(§3.8). id/token_usage/clientTurnId 노출 안 함. */
+/**
+ * 히스토리 메시지 — 완결된 turn 만(§3.8). id/token_usage/clientTurnId 노출 안 함.
+ * **v2(ADR-065)**: assistant 카드 블록은 `cardType`+`cardPayload`(+`blockIndex`)를 그대로 반환해
+ * FE 가 cardType→MessageKind 매핑으로 `MessageBody` 재렌더. 텍스트 블록은 content 만(cardType null).
+ */
 export interface ChatHistoryMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  /** v2 카드 블록 kind(§1.6) — null/undefined = 텍스트 블록. */
+  cardType?: string;
+  /** v2 카드 블록 payload(§1.6 tool input) — 카드 블록에만. */
+  cardPayload?: unknown;
+  /** assistant 응답 turn 내 블록 순서(0-based) — 카드/텍스트 혼합 turn 정렬. */
+  blockIndex?: number;
 }
 
 /**
