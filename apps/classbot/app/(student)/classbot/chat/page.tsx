@@ -27,7 +27,7 @@ import { useCurrentUser } from '@/lib/current-user';
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';
 import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
-import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
+import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, historySummaryGoalKey, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { adaptCardToTurn, type AdaptedCardTurn, type CardAdaptContext } from '@/lib/api/chat-cards';
 import { composeFirstGreeting } from '@/lib/mock/classbot-greeting';
 import { getDynamicQuickReplies, quickReplyChipKind } from '@/lib/mock/classbot-dynamic-replies';
@@ -45,7 +45,7 @@ import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
-import { todayKey, dayKeyOf } from '@/lib/store/today-key';
+import { todayKey } from '@/lib/store/today-key';
 import { useMisconceptionStore } from '@/lib/store/misconception';
 import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
@@ -310,8 +310,10 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
     if (!USE_REAL_CORE_BE) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
-    // summary 히스토리 카드의 달성도 배너 goalKey — 그 메시지가 속한 날 기준(오늘이면 라이브 배너와 일치).
-    const goalKeyForDay = (at: number) => `${me.id}::${bot.id}::${dayKeyOf(new Date(at))}`;
+    // summary 히스토리 배너 goalKey — **오늘 메시지에만**(로컬 store 는 과거 권위 아님, Codex #210:
+    // 지난 날 키 주입은 타 기기/스토리지 초기화 시 거짓 0/N 배너). 지난 날은 undefined → 평문 폴백.
+    const todayGoalKey = `${me.id}::${bot.id}::${todayKey()}`;
+    const goalKeyForDay = (at: number) => historySummaryGoalKey(at, todayGoalKey);
     void fetchChatHistory(bot.id)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
@@ -782,14 +784,15 @@ async function persistChatMessage(botId: string, text: string): Promise<void> {
  * **v2(ADR-065)**: assistant 카드 블록(cardType 有)은 `adaptCardToTurn` 으로 리치 카드 turn 을 재구성해
  * `MessageBody` 가 그대로 재렌더한다(평문으로 뭉개지 않음). cardType 없거나 payload 형식 불일치면
  * 평문 텍스트 버블로 graceful 폴백(content, 없으면 빈 버블 회피).
- * summary 카드는 **그 메시지가 속한 날**의 goalKey(`goalKeyForDay(createdAt)`)를 주입해 달성도
- * 배너(SummaryProgress)를 복원한다 — 같은 날 재입장이면 오늘 goalKey 와 일치해 라이브 store 를,
- * 지난 날이면 그 날 키의 persist 상태를 읽는다(mock 렌더 계약과 동형, B7 finding#2).
+ * summary 카드의 달성도 배너 goalKey 는 **오늘 메시지에만** 주입한다(`historySummaryGoalKey`,
+ * Codex #210) — 같은 날 재입장이면 상단 SessionGoalBanner 와 같은 라이브 store 를 읽어 항상 일치
+ * (B7 finding#2 의도). 지난 날 summary 는 undefined → 평문 폴백(로컬 persist 는 과거 권위 아님 —
+ * 타 기기/스토리지 초기화 시 거짓 0/N 배너 방지).
  * @param m - 완결 히스토리 메시지
  * @param i - 인덱스(안정 key 파생)
- * @param goalKeyForDay - 시각 → 그 날의 세션 목표 키(컴포넌트가 me/bot 으로 구성)
+ * @param goalKeyForDay - 시각 → 오늘이면 세션 목표 키, 지난 날이면 undefined
  */
-function historyMessageToTurn(m: ChatHistoryMessage, i: number, goalKeyForDay?: (at: number) => string): Turn {
+function historyMessageToTurn(m: ChatHistoryMessage, i: number, goalKeyForDay?: (at: number) => string | undefined): Turn {
   const at = Date.parse(m.createdAt);
   const safeAt = Number.isNaN(at) ? Date.now() + i : at;
   const id = `${HISTORY_TURN_ID_PREFIX}${i}`;

@@ -9,6 +9,7 @@ import {
   appendHistoryTurns,
   shouldAnnounceTurn,
   buildRealSendCallbacks,
+  historySummaryGoalKey,
 } from '../chat-turns';
 
 type MiniTurn = { id: string; role: 'student' | 'bot'; text: string; streaming?: boolean; seeded?: boolean };
@@ -181,5 +182,18 @@ describe('buildRealSendCallbacks — 스트리밍 상태전이 + forcedKey 보�
     // 카드 앞 빈 세그먼트 finalize('') + 카드 뒤 done 빈 세그먼트 finalize('').
     expect(deps.finalizeText.mock.calls).toEqual([[''], ['']]);
     expect(deps.appendCard).toHaveBeenCalledWith({ cardType: 'summary', payload: { text: '정리' } });
+  });
+});
+
+describe('historySummaryGoalKey — 오늘 메시지에만 배너 goalKey(Codex #210: 로컬 store 는 과거 권위 아님)', () => {
+  const todayGoalKey = 's1::cb_001::today';
+
+  it('오늘 시각 → todayGoalKey 반환(같은 날 재입장 시 라이브 배너와 일치)', () => {
+    expect(historySummaryGoalKey(Date.now(), todayGoalKey)).toBe(todayGoalKey);
+  });
+
+  it('지난 날 시각 → undefined(과거 summary 는 평문 폴백 — 거짓 0/N 배너 방지)', () => {
+    const yesterday = Date.now() - 24 * 60 * 60 * 1000;
+    expect(historySummaryGoalKey(yesterday, todayGoalKey)).toBeUndefined();
   });
 });
