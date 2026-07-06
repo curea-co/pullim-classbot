@@ -6,11 +6,61 @@
  * 게이트에서 제외되는지, (3) done 완결 시 forcedKey(학습 단계 키)가 보존되는지 검증한다.
  */
 import type { QuickReplyKey } from '@/lib/mock';
+import { dayKeyOf, todayKey } from '@/lib/store/today-key';
 
 import type { ChatStreamCallbacks, ChatCard } from './chat-stream';
 
 /** 히스토리 seed 로 붙는 turn 의 id 프리픽스 — 진입 시 대량 주입되는 과거 대화 식별자. */
 export const HISTORY_TURN_ID_PREFIX = 'h';
+
+/**
+ * 히스토리 summary 카드의 달성도 배너 goalKey — **오늘 메시지에만** 주입한다(Codex #210).
+ *
+ * session-goal store 는 기기-로컬 persist(같은 날 유지용)라 **과거 히스토리의 권위가 아니다** —
+ * 지난 날 goalKey 를 주입하면 다른 기기/스토리지 초기화 후 재입장 시 원래 달성했던 과거 summary 가
+ * 0/N 으로 보이는 거짓 UI 가 된다. 오늘 메시지(같은 날 재입장)만 상단 SessionGoalBanner 와 같은
+ * 라이브 store 를 읽어 항상 일치(B7 finding#2 의도 그대로), 지난 날은 undefined → 평문 폴백
+ * (nextLine 본문 합성 — 정보 유실 없음).
+ *
+ * @param at - 히스토리 메시지 시각(epoch ms)
+ * @param todayGoalKey - 오늘 세션 목표 키(`me::bot::YYYY-MM-DD`)
+ * @returns 오늘 메시지면 todayGoalKey, 지난 날이면 undefined
+ */
+export function historySummaryGoalKey(at: number, todayGoalKey: string): string | undefined {
+  return dayKeyOf(new Date(at)) === todayKey() ? todayGoalKey : undefined;
+}
+
+/**
+ * seed 된 히스토리 summary 카드의 goalKey 를 현재 사용자 키로 **재바인딩**한다(Codex #210 R3).
+ *
+ * `useCurrentUser()` 는 세션 하이드레이션 전 데모 폴백(`student_001`)을 돌려주므로, 히스토리
+ * fetch 가 그 시점에 끝나면 summary 배너가 폴백 id 의 goalKey 로 seed 될 수 있다. 이후 실제
+ * me.id 로 effect 가 재실행돼도 `appendHistoryTurns` 의 idempotent 가드(h* 존재 → skip)가
+ * 재주입을 막아 잘못된 키가 고정된다 — 그래서 append 결과에 이 보정을 항상 통과시켜, seed 가
+ * skip 된 재실행에서도 오늘 summary 의 goalKey 가 현재 사용자 키로 수렴하게 한다(멱등).
+ *
+ * 대상: 히스토리(`h*`) + kind='summary' + payload.goalKey 보유 + 오늘 메시지만.
+ * 무변경이면 **입력 배열 참조 그대로** 반환(불필요 리렌더 방지).
+ *
+ * @param turns - 현재 turns
+ * @param todayGoalKey - 오늘 세션 목표 키(현재 사용자 기준)
+ * @returns 재바인딩된 turns(무변경 시 동일 참조)
+ */
+export function rebindHistorySummaryGoalKeys<
+  T extends { id: string; at: number; kind?: string; payload?: unknown },
+>(turns: T[], todayGoalKey: string): T[] {
+  let changed = false;
+  const next = turns.map(t => {
+    if (!t.id.startsWith(HISTORY_TURN_ID_PREFIX) || t.kind !== 'summary') return t;
+    const p = t.payload as { goalKey?: string } | undefined;
+    if (!p?.goalKey) return t;
+    const key = historySummaryGoalKey(t.at, todayGoalKey);
+    if (!key || key === p.goalKey) return t;
+    changed = true;
+    return { ...t, payload: { ...p, goalKey: key } };
+  });
+  return changed ? next : turns;
+}
 
 /**
  * 서버 완결 히스토리 turn 을 **초기 오프너 턴(인사+lesson-intro) 바로 뒤에 splice** 한다.
