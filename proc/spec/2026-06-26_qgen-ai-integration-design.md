@@ -48,6 +48,17 @@
 
 ## 2. Slice 1 데이터 흐름 & qgen-ai 계약 (문제/지문 생성)
 
+> **개정 노트 (2026-07-07, ADR-066 ⑥ · FE 재배선 PR):** FE 재응시 호출은 구 standalone
+> NestJS(`:4032`, `POST /replay/:id/requiz`, Bearer/`authRequest`) 에서 **pullim-api 정본
+> 라우트로 재배선**됐다: `POST {NEXT_PUBLIC_OS_API_URL}/classbot/replay/:id/requiz`,
+> 신원 = **OS access 쿠키(`credentials:'include'`) + write CSRF(`X-CSRF-Token`)** — Bearer/x-user-id 폐기(M1 피벗).
+> transport 는 `hooks/api/replay/use-requiz.ts`(chat-stream/domain-fetch 와 동일 규약). body 없음(고정
+> 데모 좌표는 BE 소유). 201 → `ReplayRequizResponse`; qgen 실패는 BE 가 `degraded:true` 201 로 흡수하고,
+> 상류 401/403→502·429→503·per-user rate-limit→429 는 비-2xx throw → `replay-detail` onError→mock 폴백이
+> graceful 흡수. flag `USE_REAL_REQUIZ_BE`(`NEXT_PUBLIC_REQUIZ_REAL_BE`) OFF 면 mock 100% 불변.
+> standalone `apps/backend/src/modules/replay/**` 은퇴는 후속 PR-D. 아래 다이어그램의 `/api/replay/:id/requiz`
+> (classbot BE) 표기는 이 재배선 이전 기준이다.
+
 **리플레이 재응시 end-to-end:**
 ```
 학생이 약점에서 "다시 풀기"

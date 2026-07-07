@@ -18,8 +18,9 @@ jest.mock('@/lib/features', () => ({
 }));
 
 const mockMutate = jest.fn();
+let _isPending = false;
 jest.mock('@/hooks/api/replay/use-requiz', () => ({
-  useRequiz: () => ({ mutate: mockMutate }),
+  useRequiz: () => ({ mutate: mockMutate, isPending: _isPending }),
 }));
 
 // ReplayRecap(자식) 이 B1B2 '질문' 약점 합류에 useCurrentUser/router 를 쓴다 →
@@ -33,6 +34,7 @@ beforeEach(() => {
   useReplayStore.setState({ resolvedWeakPoints: {} });
   useStudentModeStore.setState({ mode: 'class' }); // 리플레이는 class 모드 콘텐츠
   _useRealRequizBE = false;
+  _isPending = false;
   mockMutate.mockReset();
 });
 
@@ -152,4 +154,47 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
+
+  // flag ON + degraded:true → 경량 배지 노출(BE mock 폴백 구분)
+  it('flag ON + onSuccess degraded → shows "연습용 예시 문제" badge', async () => {
+    mockMutate.mockImplementation(
+      (_vars: void, opts: { onSuccess?: (res: unknown) => void; onError?: () => void }) => {
+        opts.onSuccess?.({
+          degraded: true,
+          questions: [
+            {
+              subjectLabel: 'BE 폴백 · 예시 문항',
+              stem: '예시 발문',
+              options: ['보기1', '보기2', '보기3', '보기4', '보기5'],
+              answerIndex: 0,
+              explanation: '예시 해설',
+            },
+          ],
+        });
+      }
+    );
+
+    render(<ReplayDetail replay={mathReplay} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
+    });
+
+    expect(screen.getByText('연습용 예시 문제')).toBeTruthy();
+    expect(screen.getByText('BE 폴백 · 예시 문항')).toBeTruthy();
+  });
+
+  // isPending 동안 로딩 인디케이터 노출(ADR-066 ⑥) — LLM 생성 대기 UX
+  it('shows a loading indicator while requiz is pending', () => {
+    _isPending = true;
+    render(<ReplayDetail replay={mathReplay} />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.getByText(/문제를 만들고 있어요|만들고 있어요/)).toBeTruthy();
+  });
+});
+
+// flag OFF: 로딩 인디케이터는 뜨지 않는다(pending 아님) — mock 즉시 경로
+it('flag OFF: no loading indicator (mock is synchronous)', () => {
+  render(<ReplayDetail replay={mathReplay} />);
+  expect(screen.queryByRole('status')).toBeNull();
 });

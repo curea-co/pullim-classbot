@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, GraduationCap } from 'lucide-react';
+import { X, GraduationCap, Loader2 } from 'lucide-react';
 import { type Replay } from '@/lib/mock';
 import { type WeakPoint } from '@/lib/mock/classbot-replay-recap';
 import { getReplayQuiz, type ExamQuestion } from '@/lib/mock/classbot-replay-exam';
@@ -20,7 +20,7 @@ import { ExamSheet } from './exam-sheet';
 export function ReplayDetail({ replay }: { replay: Replay }) {
   const { mode, setMode, hydrated } = useStudentMode();
   const [seek, setSeek] = useState<{ atSec: number } | undefined>(undefined);
-  const [active, setActive] = useState<{ key: string; question: ExamQuestion } | null>(null);
+  const [active, setActive] = useState<{ key: string; question: ExamQuestion; degraded?: boolean } | null>(null);
   const resolveWeakPoint = useReplayStore(s => s.resolveWeakPoint);
   const requiz = useRequiz(replay.id);
 
@@ -42,7 +42,7 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
           const q = res.questions[0];
           if (q) {
             setSeek({ atSec: w.atSec });
-            setActive({ key: w.key, question: q });
+            setActive({ key: w.key, question: q, degraded: res.degraded });
           } else {
             fallbackMock(w);
           }
@@ -74,6 +74,18 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
       {/* 플레이어 — 다시보기/다시풀기 시 약점 시점으로 seek */}
       <ReplayPlayer replay={replay} seekSignal={seek} />
 
+      {/* 재응시 문항 생성 중 — 실 BE(LLM)는 ~30–60s 걸릴 수 있어 빈 화면 오해를 막는다(ADR-066 ⑥). */}
+      {requiz.isPending && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-3 rounded-2xl border border-pullim-slate-200 bg-card p-4 text-sm text-pullim-slate-600"
+        >
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-pullim-blue-500" aria-hidden="true" />
+          <span>비슷한 문제를 만들고 있어요… 최대 1분 정도 걸릴 수 있어요.</span>
+        </div>
+      )}
+
       {/* 다시 풀기 시험지 — 플레이어 바로 아래에 인라인으로 붙여 'seek된 맥락 + 풀이'를 같이 본다 */}
       {active && (
         <section className="relative">
@@ -85,6 +97,12 @@ export function ReplayDetail({ replay }: { replay: Replay }) {
           >
             <X className="h-4 w-4" />
           </button>
+          {/* degraded=true → BE 가 mock 폴백으로 흡수한 예시 문항. 경량 배지로만 구분(UX 유지). */}
+          {active.degraded && (
+            <p className="mb-2 inline-flex rounded-full bg-pullim-slate-100 px-2.5 py-0.5 text-2xs font-bold text-pullim-slate-500">
+              연습용 예시 문제
+            </p>
+          )}
           {/* key=약점 → 문항 교체 시 ExamSheet 상태 초기화 */}
           <ExamSheet key={active.key} question={active.question} onResult={handleResult} />
         </section>
