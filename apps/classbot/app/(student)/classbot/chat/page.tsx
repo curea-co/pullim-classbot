@@ -42,6 +42,7 @@ import { BotIdentityCard } from '@/components/classbot/bot-identity-card';
 import { ChatStudyInline } from '@/components/classbot/chat-study-inline';
 import { ContextAnchor } from '@/components/classbot/context-anchor';
 import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
+import { AiDisclosureNotice } from '@/components/classbot/ai-disclosure-notice';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
@@ -238,6 +239,9 @@ function ClassbotChatPageInner() {
           </ul>
         </section>
       )}
+
+      {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇/플래그 무관 항상. */}
+      <AiDisclosureNotice />
 
       {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
       <ChatPanel key={bot.id} bot={bot} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
