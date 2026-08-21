@@ -37,8 +37,10 @@ export default function MyReportPage() {
         <p className="text-pullim-slate-200 mt-2 text-sm leading-relaxed">
           서연 학생, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어요. 다음 주도 천천히 같이 가요.
         </p>
+        {/* 선생님이 적은 면담 메모를 그대로 보여 주는 자리다 — 서명도 선생님이어야 한다.
+            봇 이름으로 서명하면 머리말(「선생님이 한 마디」)과 어긋나 봇이 지어낸 말로 읽힌다. */}
         <div className="text-pullim-slate-400 mt-3 text-micro font-mono">
-          — 수학봇 · 오늘 18:00
+          — 김보람 선생님 · 오늘 18:00
         </div>
       </section>
 

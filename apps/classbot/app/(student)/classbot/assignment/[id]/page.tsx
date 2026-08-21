@@ -105,7 +105,9 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       </Link>
 
       {/* 과제 대화 진입 — 혼자 풀다 막히면 이 과제에 매인 대화로 간다.
-          라우트는 같은 PR 의 `assignment/[id]/chat` 이라 진입점과 화면이 함께 들어온다. */}
+          시험 모드는 봇 응답 자체가 막히므로 진입점을 내보내지 않는다(풀이 화면과 같은 기준).
+          라우트 쪽에서도 한 번 더 막는다 — 딥링크로 들어올 수 있기 때문이다. */}
+      {!isExam && (
       <Link
         href={`/classbot/assignment/${a.id}/chat`}
         data-testid="assignment-chat-cta"
@@ -120,6 +122,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
+      )}
 
       <FlywheelNote>
         쓰는 동안 자동으로 저장돼요. 마음 편히 풀어요. 제출하면 선생님 채점 큐로 흘러가요.

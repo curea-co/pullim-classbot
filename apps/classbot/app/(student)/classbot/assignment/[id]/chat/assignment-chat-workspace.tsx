@@ -30,7 +30,7 @@ import {
   type AssignmentChatTurn,
 } from '@/lib/store/assignment-chat';
 import { useAssignmentStore } from '@/lib/store/assignments';
-import { useCurrentUser, useRosterMe } from '@/lib/current-user';
+import { useRosterMe } from '@/lib/current-user';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +54,7 @@ export function AssignmentChatWorkspace({
   bot: ChatBotFace;
 }) {
   const me = useRosterMe();
-  const user = useCurrentUser();
+
   const turns = useAssignmentChatTurns(assignment.id);
   const seed = useAssignmentChatStore(s => s.seed);
   const append = useAssignmentChatStore(s => s.append);
@@ -154,8 +154,10 @@ export function AssignmentChatWorkspace({
         <section className="bg-card flex min-h-0 flex-col rounded-2xl border">
           <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
             <span className="text-pullim-slate-700 font-bold">{bot.name}과 이 과제 풀기</span>
+            {/* 대화가 "이 과제에 매여 있다"는 범위만 말한다. 어디에 저장되는지는
+                아래 입력창 밑 안내가 맡는다 — 지금은 이 기기 localStorage 뿐이다. */}
             <span className="text-pullim-slate-400 ml-auto text-2xs">
-              여기 나눈 이야기는 이 과제에 남아요
+              이 대화는 이 과제에만 매여 있어요
             </span>
           </header>
 
@@ -178,11 +180,12 @@ export function AssignmentChatWorkspace({
               placeholder={`${bot.name}에게 물어보세요…`}
               disabled={!value.trim()}
             />
-            {!user.isAuthenticated && (
-              <p className="text-pullim-slate-400 mt-1.5 text-micro">
-                로그인 전이라 이 대화는 이 기기에만 남아요.
-              </p>
-            )}
+            {/* 로그인 여부와 무관하게 아직 이 기기에만 남는다 — 서버 영속이 없다
+                (`lib/store/assignment-chat.ts`). 로그인 상태에서만 안내를 감추면
+                로그인한 학생이 기기를 옮겼을 때 사라지는 걸 예고받지 못한다. */}
+            <p className="text-pullim-slate-400 mt-1.5 text-micro">
+              이 대화는 아직 이 기기에만 남아요. 다른 기기에서는 이어지지 않아요.
+            </p>
           </div>
         </section>
       </ContextRail>

@@ -49,9 +49,9 @@ export function buildAssignmentChatSeed(ctx: AssignmentChatContext): AssignmentC
       text: `${ctx.studentName}, 「${ctx.title}」 같이 풀어 보자. ${ctx.questionCount}문항이고 ${ctx.dueLabel}까지야.`,
     },
     {
-      // 선생님이 이 대화를 본다고 말하지 않는다 — 아직 서버 영속도 교사용 조회도 없다
-      // (`lib/store/assignment-chat.ts` 참고). 기능이 붙기 전까지 학생에게 없는 약속을 하지 않는다.
-      text: `여기서 나눈 이야기는 이 과제에 남아. 막히면 답을 달라고 하지 말고 어디서 막혔는지부터 말해 줘.`,
+      // 봇 입으로 저장·열람을 약속하지 않는다 — 아직 서버 영속도 교사용 조회도 없다
+      // (`lib/store/assignment-chat.ts` 참고). 어디에 남는지는 화면 안내가 정확히 말한다.
+      text: `막히면 답을 달라고 하지 말고 어디서 막혔는지부터 말해 줘. 거기서부터 같이 가자.`,
       tag: '확인',
     },
   ];
