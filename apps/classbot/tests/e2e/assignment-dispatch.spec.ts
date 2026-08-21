@@ -28,8 +28,8 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
               {
                 botId: 'cb_001',
                 classroomId: 'cr_math_a',
-                classroomLabel: '고2 미적분 A반',
-                assignedBy: '김수학 선생님',
+                classroomLabel: '중2 수학 A반',
+                assignedBy: '김보람 선생님',
                 assignedAt: '2026-06-24 09:00',
                 via: '대치프리미엄 수학학원',
               },
@@ -52,7 +52,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
 
     // [3] 폼 입력 — 봇 자동 채움(cb_001) + 제목 + 모드 + 단원·문항·대상·일정
     await expect(page.getByTestId('bot-select')).toHaveValue('cb_001');
-    await page.getByTestId('title-input').fill('E2E 테스트 과제 — 도함수 마무리');
+    await page.getByTestId('title-input').fill('E2E 테스트 과제 — 기울기 마무리');
     await page.getByTestId('mode-practice').click();
 
     // [4] 발사 버튼 활성 확인 → 발사
@@ -70,7 +70,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
 
     // [6] V15 home은 과제 제목 노출 안 함(요약 카운트만) — /classbot/assignment에서 검증.
     await page.goto(BASE + '/classbot/assignment');
-    await expect(page.getByText('E2E 테스트 과제 — 도함수 마무리')).toBeVisible();
+    await expect(page.getByText('E2E 테스트 과제 — 기울기 마무리')).toBeVisible();
 
     // [8] 과제 카드 Link 클릭 → 개요 페이지 (href로 직접 매칭)
     const overviewLink = page.locator('a[href^="/classbot/assignment/as_user_"]:not([href*="/solve"]):not([href*="/result"])').first();
@@ -83,7 +83,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/solve/);
 
     // [10] 풀이 워크스페이스 — 문항 노출 확인 (fallback 시드 사용 시 cb_001의 q_today_1)
-    await expect(page.getByText(/극댓값|도함수|f\(x\)|x³/).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/기울기|y절편|y = 2x/).first()).toBeVisible({ timeout: 10000 });
 
     // [11] 모든 문항을 차례로 통과해서 마지막 단계 도달 → 제출 → 결과 페이지
     for (let i = 0; i < 10; i++) {

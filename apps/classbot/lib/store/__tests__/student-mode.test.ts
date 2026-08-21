@@ -2,15 +2,15 @@ import { renderHook, act } from '@testing-library/react';
 import { useStudentMode, useStudentModeStore } from '../student-mode';
 import { useClassEnrollmentStore } from '../class-enrollment';
 
-// 교사 enrollment 권위는 class-enrollment 스토어 — 기본 모드 해석도 이 스토어를 본다.
+// 자기주도 보류 — 저장값이 없으면 enrollment 유무와 무관하게 class(교사 수업)로 고정된다.
 beforeEach(() => {
   useStudentModeStore.setState({ mode: null });
   useClassEnrollmentStore.setState({ enrollments: [] });
 });
 
-it('defaults to self when the student has no teacher enrollments', () => {
+it('defaults to class even when the student has no teacher enrollments (자기주도 보류)', () => {
   const { result } = renderHook(() => useStudentMode());
-  expect(result.current.mode).toBe('self');
+  expect(result.current.mode).toBe('class');
 });
 
 it('defaults to class when the student has a teacher enrollment', () => {

@@ -9,7 +9,7 @@ describe('resolveClassCode', () => {
     const e = resolveClassCode('  math-2024 ');
     expect(e).not.toBeNull();
     expect(e!.botId).toBe('cb_001');
-    expect(e!.assignedBy).toBe('김수학 선생님');
+    expect(e!.assignedBy).toBe('김보람 선생님');
     expect(e!.classroomLabel).toBeTruthy();
   });
 

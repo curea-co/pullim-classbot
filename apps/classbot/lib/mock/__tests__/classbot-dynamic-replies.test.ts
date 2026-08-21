@@ -15,7 +15,7 @@ describe('quickReplyChipKind', () => {
     expect(quickReplyChipKind(key)).toBe('guide');
   });
 
-  it.each(['today_summary', 'exam_prep', 'reassurance', 'extremum'] as const)(
+  it.each(['today_summary', 'exam_prep', 'reassurance', 'slope'] as const)(
     '비흐름키 %s → ask',
     key => {
       expect(quickReplyChipKind(key)).toBe('ask');

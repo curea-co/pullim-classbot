@@ -8,7 +8,7 @@ import type { ClassbotQuickPrompt } from './chat';
 
 export type ClassBot = {
   id: string;
-  name: string;          // 교사가 자유 설정 ("수학이 형")
+  name: string;          // 교사가 자유 설정 ("수학봇")
   /** 학생 UI 아바타 — 봇 정체성 시각화 */
   avatarEmoji: string;
   teacherName: string;
@@ -44,9 +44,9 @@ export type ClassBot = {
 export type StudentEnrollment = {
   botId: string;
   classroomId: string;
-  classroomLabel: string;       // "고2 미적분 A반" — 학생 UI 노출
+  classroomLabel: string;       // "중2 수학 A반" — 학생 UI 노출
   /** 봇을 만들고 학생을 배정한 사람 */
-  assignedBy: string;           // "김수학 선생님"
+  assignedBy: string;           // "김보람 선생님"
   assignedAt: string;           // "2026-03-04 17:20"
   /** 학생 시점 별명 — 학원 등 */
   via: string;                  // "대치프리미엄 수학학원"
@@ -56,27 +56,27 @@ export type StudentEnrollment = {
 export const classBots: ClassBot[] = [
   {
     id: 'cb_001',
-    name: '수학이 형',
+    name: '수학봇',
     avatarEmoji: '🧑‍🏫',
-    teacherName: '김수학 선생님',
+    teacherName: '김보람 선생님',
     organization: '대치프리미엄 수학학원',
-    subject: '수학Ⅱ',
-    grade: '고2',
+    subject: '수학',
+    grade: '중2',
     tone: '친근',
     greeting:
-      '서연 안녕! 수학이 형이야 🙌 오늘 미적분 III장 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
+      '서연 안녕! 수학봇이야 🙌 오늘 일차함수 그래프 진행 중인데 궁금한 거 있으면 편하게 물어봐. ' +
       '오늘은 개념 설명까지 도와줄 수 있어 (L3). 답은 직접 알려주진 않을 거지만, 길은 알려줄게.',
     quickPrompts: [
-      { text: '극값 어떻게 찾아요?',         expectedReplyKey: 'extremum' },
+      { text: '기울기 어떻게 구해요?',       expectedReplyKey: 'slope' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
-      { text: '4월 학평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '중간고사 뭐부터 해야 해요?',   expectedReplyKey: 'exam_prep' },
       { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
     ],
     scope: 3,
     isLive: true,
     currentLesson: {
-      title: '도함수의 활용 — 극값과 변곡점',
-      chapter: '미적분 III장',
+      title: '일차함수 — 기울기와 그래프',
+      chapter: '중2 수학 · 일차함수',
       startedAt: '19:00',
       durationMin: 50,
       studentCount: 14,
@@ -85,27 +85,27 @@ export const classBots: ClassBot[] = [
   },
   {
     id: 'cb_002',
-    name: '영어 누나',
+    name: '영어봇',
     avatarEmoji: '👩‍🏫',
-    teacherName: '박영어 선생님',
+    teacherName: '박서윤 선생님',
     organization: '대치프리미엄 수학학원',
     subject: '영어',
-    grade: '고2',
+    grade: '중3',
     tone: '정중',
     greeting:
-      '서연 안녕하세요. 영어 누나예요. 오늘 빈칸 추론 7유형 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
+      '서연 안녕하세요. 영어봇이에요. 오늘 문장 흐름 파악 진행 중인데, 막힌 문장 있으면 가져와봐요. ' +
       '오늘은 풀이 단계까지 잡아줄 수 있어요 (L4).',
     quickPrompts: [
-      { text: '빈칸 추론 어떻게 풀어요?', expectedReplyKey: 'blank_inference' },
+      { text: '문장 흐름 어떻게 잡아요?', expectedReplyKey: 'sentence_flow' },
       { text: '오늘 수업 요약해줘요',     expectedReplyKey: 'today_summary' },
-      { text: '수능까지 뭐 해야 해요?',   expectedReplyKey: 'exam_prep' },
+      { text: '기말고사 뭐부터 해요?',     expectedReplyKey: 'exam_prep' },
       { text: '저 잘하고 있는 거예요?',   expectedReplyKey: 'reassurance' },
     ],
     scope: 4,
     isLive: true,
     currentLesson: {
-      title: '빈칸 추론 — 접속사 논리 관계',
-      chapter: '수능 빈칸 7유형',
+      title: '문장 흐름 파악 — 연결어로 방향 잡기',
+      chapter: '중3 영어 · 읽기',
       startedAt: '20:00',
       durationMin: 50,
       studentCount: 11,
@@ -114,20 +114,20 @@ export const classBots: ClassBot[] = [
   },
   {
     id: 'cb_003',
-    name: '과학 쌤',
+    name: '과학봇',
     avatarEmoji: '🧑‍🔬',
-    teacherName: '정과학 선생님',
+    teacherName: '정민호 선생님',
     organization: '서울 모 고등학교',
     subject: '통합과학',
-    grade: '고1',          // 고1 때 같이 했던 학교 봇 — 복습용 유지
+    grade: '고1',          // 학교 통합과학 진도 복습용 — 유지
     tone: '스파르타',
     greeting:
-      '서연. 과학 쌤이다. 학교 1학년 때 통합과학 진도 복습용으로 남겨놨어. ' +
+      '서연. 과학봇이다. 학교에서 나간 통합과학 진도 복습용으로 남겨놨어. ' +
       '개념 설명까진 해줄게 (L3). 답은 직접 풀어.',
     quickPrompts: [
       { text: '전기회로 어디부터?',     expectedReplyKey: 'circuit' },
       { text: '오늘 수업 요약',         expectedReplyKey: 'today_summary' },
-      { text: '내신 대비 뭐 해야 해?',  expectedReplyKey: 'exam_prep' },
+      { text: '단원평가 뭐 해야 해?',   expectedReplyKey: 'exam_prep' },
       { text: '저 잘하고 있는 거예요?', expectedReplyKey: 'reassurance' },
     ],
     scope: 3,
@@ -136,20 +136,20 @@ export const classBots: ClassBot[] = [
   },
   {
     id: 'cb_004',
-    name: '국어 누나',
+    name: '국어봇',
     avatarEmoji: '👩‍💼',
-    teacherName: '최국어 선생님',
+    teacherName: '최다인 선생님',
     organization: '대치프리미엄 수학학원',
     subject: '국어',
-    grade: '고2',
+    grade: '중3',
     tone: '차분',
     greeting:
-      '서연 학생, 안녕하세요. 국어 누나예요. 오늘 비문학 독해 — 주장과 근거 추적을 진행했어요. ' +
+      '서연 학생, 안녕하세요. 국어봇이에요. 오늘 비문학 독해 — 주장과 근거 추적을 진행했어요. ' +
       '막힌 문장이 있으면 단락 번호로 알려주세요. 단계별로 같이 풀어드릴게요 (L4).',
     quickPrompts: [
       { text: '비문학 주제 어떻게 잡아요?', expectedReplyKey: 'reading_inference' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
-      { text: '6월 모평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '기말고사 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
       { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
     ],
     scope: 4,
@@ -158,20 +158,20 @@ export const classBots: ClassBot[] = [
   },
   {
     id: 'cb_005',
-    name: '사회 코치',
+    name: '사회봇',
     avatarEmoji: '🧑‍🎓',
-    teacherName: '강사회 선생님',
+    teacherName: '강윤호 선생님',
     organization: '대치프리미엄 수학학원',
     subject: '사회',
-    grade: '고2',
+    grade: '고1',
     tone: '열정',
     greeting:
-      '서연아! 사회 코치야 🔥 오늘 현대사회 쟁점 — 갈등 사례 분석 진도 나갔지? 막힌 부분 있으면 지금 바로 들고와. ' +
+      '서연아! 사회봇이야 🔥 오늘 현대사회 쟁점 — 갈등 사례 분석 진도 나갔지? 막힌 부분 있으면 지금 바로 들고와. ' +
       '개념은 진짜 빡세게 잡아줄게 (L3). 답은 네가 풀어내는 거야. 가보자!',
     quickPrompts: [
       { text: '시사 이슈 어떻게 분석해요?', expectedReplyKey: 'social_inference' },
       { text: '오늘 수업 요약해줘요',         expectedReplyKey: 'today_summary' },
-      { text: '6월 모평 대비 뭐 해야 해요?', expectedReplyKey: 'exam_prep' },
+      { text: '수행평가 뭐부터 해요?',        expectedReplyKey: 'exam_prep' },
       { text: '저 잘하고 있는 거예요?',       expectedReplyKey: 'reassurance' },
     ],
     scope: 3,
@@ -194,7 +194,7 @@ export const studentEnrollments: StudentEnrollment[] = [];
 export type BotCurriculumUnit = {
   id: string;
   label: string;
-  /** "미적분 III · 도함수의 활용 · 극값" 등 3-depth full path */
+  /** "중2 수학 · 일차함수 · 기울기와 y절편" 등 3-depth full path */
   fullPath: string;
   /** 성취 코드 */
   achievementCodes: string[];
@@ -202,15 +202,15 @@ export type BotCurriculumUnit = {
 
 export const botCurriculum: Record<string, BotCurriculumUnit[]> = {
   cb_001: [
-    { id: 'math2-ch2-limit',      label: '함수의 극한',         fullPath: '미적분 II · 함수의 극한',           achievementCodes: ['수2-2-1'] },
-    { id: 'math2-ch2-continuity', label: '연속성',              fullPath: '미적분 II · 함수의 연속성',         achievementCodes: ['수2-2-2'] },
-    { id: 'math2-ch3-deriv',      label: '미분계수와 도함수',   fullPath: '미적분 III · 미분계수와 도함수',    achievementCodes: ['수2-3-1'] },
-    { id: 'math2-ch3-extremum',   label: '극값',                fullPath: '미적분 III · 도함수의 활용 · 극값', achievementCodes: ['수2-3-2'] },
-    { id: 'math2-ch3-inflection', label: '변곡점',              fullPath: '미적분 III · 도함수의 활용 · 변곡점', achievementCodes: ['수2-3-3'] },
+    { id: 'math-linear-meaning', label: '일차함수의 뜻',   fullPath: '중2 수학 · 일차함수 · 일차함수와 그 그래프', achievementCodes: ['수-일차-1'] },
+    { id: 'math-linear-slope',   label: '기울기와 y절편',  fullPath: '중2 수학 · 일차함수 · 기울기와 y절편',       achievementCodes: ['수-일차-2'] },
+    { id: 'math-linear-graph',   label: '그래프 그리기',   fullPath: '중2 수학 · 일차함수 · 그래프 그리기',        achievementCodes: ['수-일차-3'] },
+    { id: 'math-linear-pair',    label: '두 직선의 관계',  fullPath: '중2 수학 · 일차함수 · 두 직선의 위치 관계',  achievementCodes: ['수-일차-4'] },
+    { id: 'math-linear-apply',   label: '생활 속 활용',    fullPath: '중2 수학 · 일차함수 · 활용',                achievementCodes: ['수-일차-5'] },
   ],
   cb_002: [
-    { id: 'eng-blank-7',  label: '빈칸 추론 7유형',  fullPath: '수능 영어 · 빈칸 추론 7유형',  achievementCodes: ['영-수능-3'] },
-    { id: 'eng-summary',  label: '요약문 완성',      fullPath: '수능 영어 · 요약문',           achievementCodes: ['영-수능-4'] },
+    { id: 'eng-flow',       label: '문장 흐름 파악',    fullPath: '중3 영어 · 읽기 · 글의 흐름 파악',        achievementCodes: ['영-읽기-1'] },
+    { id: 'eng-word-guess', label: '어휘 뜻 짐작하기',  fullPath: '중3 영어 · 어휘 · 문맥으로 뜻 짐작하기',  achievementCodes: ['영-어휘-1'] },
   ],
   cb_003: [
     { id: 'sci-force',  label: '힘과 운동',  fullPath: '통합과학 · 힘과 운동',  achievementCodes: ['과-통합-1'] },
@@ -245,7 +245,7 @@ export function getLiveBots(): ClassBot[] {
   return getMyBots().filter(({ bot }) => bot.isLive).map(({ bot }) => bot);
 }
 
-/** 단일 봇 alias — 기존 코드 호환용 (수학이 형) */
+/** 단일 봇 alias — 기존 코드 호환용 (수학봇) */
 export const myClassBot: ClassBot = classBots[0];
 
 /** 클래스 학생 명단 + 실시간 상태 (교사 뷰) */
@@ -310,19 +310,19 @@ export type BotQuestionFeed = {
 export const liveFeed: BotQuestionFeed[] = [
   {
     id: 'q1', studentName: '서연', studentId: 's1', agoMin: 0,
-    question: '극값과 극점이 다른 거예요?',
+    question: '기울기랑 y절편이 뭐가 달라요?',
     scopeUsed: 3,
     shared: false,
     tier: 'T2',
-    botAnswerPreview: '좋은 질문! 극점은 x좌표(위치), 극값은 그때의 함수값이야. 그러니까 같은 점을 가리키지만 보는 각도가 달라.',
+    botAnswerPreview: '좋은 질문! 기울기는 얼마나 가파른지, y절편은 y축과 만나는 높이야. 같은 식에서 나오지만 보는 곳이 달라.',
   },
   {
     id: 'q2', studentName: '하윤', studentId: 's5', agoMin: 1,
-    question: 'f\'(x)가 0이면 무조건 극값인가요?',
+    question: 'y = 3x 처럼 뒤에 수가 없으면 y절편은 없는 거예요?',
     scopeUsed: 3,
     shared: true,
     tier: 'T2',
-    botAnswerPreview: '아니야, 그게 함정이야. 부호가 안 바뀌면 극값이 아니야. 예: y = x³의 x = 0에서 f\'(0) = 0이지만 부호가 안 바뀌어서 변곡점일 뿐이야.',
+    botAnswerPreview: '없는 게 아니라 0이야. y = 3x + 0 이라서 그래프가 원점을 지나. y절편이 0인 거지 없는 게 아니야.',
   },
   {
     id: 'q3', studentName: '도현', studentId: 's4', agoMin: 3,
@@ -330,23 +330,23 @@ export const liveFeed: BotQuestionFeed[] = [
     scopeUsed: 3,
     shared: false,
     tier: 'T2',
-    botAnswerPreview: '도현아 잠깐 호흡하고. 외우는 건 임시방편일 뿐이야. 부호 변화 표 그리는 연습 5번만 해보자.',
+    botAnswerPreview: '도현아 잠깐 호흡하고. 외우는 건 임시방편일 뿐이야. 두 점으로 기울기 구하는 연습 5번만 해보자.',
   },
   {
     id: 'q4', studentName: '민준', studentId: 's2', agoMin: 4,
-    question: '변곡점도 시험에 나와요?',
+    question: '기울기도 시험에 나와요?',
     scopeUsed: 3,
     shared: false,
     tier: 'T1',
-    botAnswerPreview: '응, 6월 모평·9월 모평에 매년 나와. 함수 그래프 개형 문제에서 핵심.',
+    botAnswerPreview: '응, 중간고사·기말고사마다 나와. 그래프 모양을 묻는 문제에서 핵심이야.',
   },
   {
     id: 'q5', studentName: '주원', studentId: 's6', agoMin: 6,
-    question: 'f"(x) = 0 인 점은 다 변곡점인가요?',
+    question: 'x가 2 늘 때 y도 2 늘면 기울기가 1이에요?',
     scopeUsed: 3,
     shared: false,
     tier: 'T2',
-    botAnswerPreview: '아니, 부호가 바뀌어야 변곡점. 위로 볼록 ↔ 아래로 볼록의 경계를 묻는 거야.',
+    botAnswerPreview: '맞아. 기울기는 x가 1 늘 때 y의 변화량이라, 2 늘어 2 늘면 나눠서 1이야.',
   },
 ];
 
@@ -367,10 +367,10 @@ export type LiveQuiz = {
 
 export const currentQuiz: LiveQuiz = {
   id: 'qz1',
-  question: 'f(x) = x³ − 6x² + 9x + 1 의 극댓값과 극솟값의 합은?',
-  options: ['1', '5', '6', '8'],
-  distribution: [12, 18, 58, 12],
-  answerIndex: 2,  // 6
+  question: '두 점 (1, 3)과 (3, 7)을 지나는 직선의 기울기는?',
+  options: ['1', '2', '3', '4'],
+  distribution: [12, 58, 18, 12],
+  answerIndex: 1,  // 2
   responded: 11,
   total: 14,
   remainingSec: 47,
@@ -387,7 +387,7 @@ export type StudentBotIntent = {
 
 export const studentIntents: StudentBotIntent[] = [
   { id: 'review',   label: '오늘 수업 복습',     description: '오늘 진행한 내용 다시 짚어줘',  scopeRequired: 3 },
-  { id: 'concept',  label: '개념 질문',          description: '미분 관련 모르는 개념을 물어봐', scopeRequired: 3 },
+  { id: 'concept',  label: '개념 질문',          description: '모르는 개념을 바로 물어봐', scopeRequired: 3 },
   { id: 'problem',  label: '문제 풀이 도움',     description: '풀다가 막힌 문제 도와달라고 해', scopeRequired: 4 },
   { id: 'homework', label: '오늘 숙제 확인',     description: '제출 마감과 진행 상황 확인',     scopeRequired: 3 },
   { id: 'message',  label: '선생님께 메시지',    description: '봇 통해서 선생님께 전달',       scopeRequired: 3 },
@@ -409,9 +409,9 @@ export type UpcomingLesson = {
 export const upcomingLessons: UpcomingLesson[] = [
   {
     id: 'les_now',
-    title: '도함수의 활용 — 극값과 변곡점',
-    chapter: '미적분 III장',
-    botName: '수학이 형',
+    title: '일차함수 — 기울기와 그래프',
+    chapter: '중2 수학 · 일차함수',
+    botName: '수학봇',
     start: '19:00',
     studentCount: 14,
     status: 'live',
@@ -419,9 +419,9 @@ export const upcomingLessons: UpcomingLesson[] = [
   },
   {
     id: 'les_next',
-    title: '적분의 기본 정리',
-    chapter: '미적분 IV장',
-    botName: '수학이 형',
+    title: '일차함수와 일차방정식',
+    chapter: '중2 수학 · 일차함수',
+    botName: '수학봇',
     start: '내일 19:00',
     studentCount: 18,
     status: 'upcoming',
@@ -429,9 +429,9 @@ export const upcomingLessons: UpcomingLesson[] = [
   },
   {
     id: 'les_later',
-    title: '수능 기출 모의 — 미적분 15문항',
+    title: '단원 마무리 — 일차함수 15문항',
     chapter: '종합',
-    botName: '수학이 형',
+    botName: '수학봇',
     start: '목 20:00',
     studentCount: 18,
     status: 'upcoming',
@@ -456,7 +456,7 @@ export const pendingItems: PendingItem[] = [
 
 /** 교사 프로필 */
 export const currentTeacher = {
-  name: '김수학',
+  name: '김보람',
   title: '수학과 전임강사',
   organization: '대치프리미엄 수학학원',
   yearsOfExperience: 7,
@@ -632,21 +632,21 @@ export type QuizHistoryItem = {
 };
 
 export const quizHistory: QuizHistoryItem[] = [
-  { id: 'qh1', question: 'f(x) = x³ − 6x² + 9x + 1의 극댓값과 극솟값의 합은?',
+  { id: 'qh1', question: '두 점 (1, 3)과 (3, 7)을 지나는 직선의 기울기는?',
     type: 'mcq', status: 'live', startedAt: '19:22',
-    responded: 11, total: 14, correctRate: 58, scope: '미적분 III · 극값', tier: 'T2' },
-  { id: 'qh2', question: 'f"(x) = 0 인 점은 항상 변곡점이다 (O/X)',
+    responded: 11, total: 14, correctRate: 58, scope: '일차함수 · 기울기', tier: 'T2' },
+  { id: 'qh2', question: '기울기가 음수면 그래프는 오른쪽 아래로 내려간다 (O/X)',
     type: 'ox', status: 'closed', startedAt: '19:08',
-    responded: 14, total: 14, correctRate: 71, scope: '미적분 III · 변곡점', tier: 'T1' },
-  { id: 'qh3', question: '극값과 극점의 차이를 한 줄로 설명하시오',
+    responded: 14, total: 14, correctRate: 71, scope: '일차함수 · 그래프', tier: 'T1' },
+  { id: 'qh3', question: '기울기와 y절편의 차이를 한 줄로 설명하시오',
     type: 'short', status: 'closed', startedAt: '19:00',
-    responded: 14, total: 14, correctRate: 86, scope: '미적분 III · 정의', tier: 'T2' },
-  { id: 'qh4', question: '부호 변화 표를 그릴 때 가장 먼저 해야 할 일은?',
+    responded: 14, total: 14, correctRate: 86, scope: '일차함수 · 정의', tier: 'T2' },
+  { id: 'qh4', question: '일차함수의 그래프를 그릴 때 가장 먼저 해야 할 일은?',
     type: 'mcq', status: 'closed', startedAt: '어제 19:32',
-    responded: 18, total: 18, correctRate: 78, scope: '미적분 III · 풀이 절차', tier: 'T2' },
-  { id: 'qh5', question: '오늘 배운 미분 표기 4종을 짝지으세요',
+    responded: 18, total: 18, correctRate: 78, scope: '일차함수 · 풀이 절차', tier: 'T2' },
+  { id: 'qh5', question: '오늘 배운 그래프 4개를 각각의 식과 짝지으세요',
     type: 'match', status: 'draft', startedAt: '대기',
-    responded: 0, total: 18, correctRate: 0, scope: '미적분 III · 표기법', tier: 'T2' },
+    responded: 0, total: 18, correctRate: 0, scope: '일차함수 · 식과 그래프', tier: 'T2' },
 ];
 
 export type QuizDraftSuggestion = {
@@ -658,9 +658,9 @@ export type QuizDraftSuggestion = {
 };
 
 export const quizDrafts: QuizDraftSuggestion[] = [
-  { id: 'qd1', topic: '극값 판정 — 부호 변화 표', difficulty: '중', estimateSec: 60, reasonChip: '오답 클러스터 1위' },
-  { id: 'qd2', topic: '변곡점 vs 극값 구분', difficulty: '상', estimateSec: 90, reasonChip: '핵심 메시지 ②' },
-  { id: 'qd3', topic: '미분 표기법 매칭', difficulty: '하', estimateSec: 30, reasonChip: '복습 워밍업' },
+  { id: 'qd1', topic: '기울기 구하기 — 두 점 이용', difficulty: '중', estimateSec: 60, reasonChip: '오답 클러스터 1위' },
+  { id: 'qd2', topic: '기울기 vs y절편 구분', difficulty: '상', estimateSec: 90, reasonChip: '핵심 메시지 ②' },
+  { id: 'qd3', topic: '식과 그래프 짝짓기', difficulty: '하', estimateSec: 30, reasonChip: '복습 워밍업' },
 ];
 
 /* ============================================================
@@ -686,32 +686,32 @@ export type LiveSessionRow = {
 
 export const liveSessions: LiveSessionRow[] = [
   {
-    id: 'ls_a', botName: '수학이 형', botEmoji: '🧑‍🏫',
-    classroom: '고2 미적분 A반', subject: '수학Ⅱ',
+    id: 'ls_a', botName: '수학봇', botEmoji: '🧑‍🏫',
+    classroom: '중2 수학 A반', subject: '수학',
     status: 'live', startedAt: '19:00', durationMin: 50,
     participantCount: 14, totalCount: 18, scope: 3, intensity: 3, alertCount: 2,
   },
   {
-    id: 'ls_b', botName: '영어 누나', botEmoji: '👩‍🏫',
-    classroom: '고2 영어독해 B반', subject: '영어',
+    id: 'ls_b', botName: '영어봇', botEmoji: '👩‍🏫',
+    classroom: '중3 영어 B반', subject: '영어',
     status: 'live', startedAt: '19:00', durationMin: 50,
     participantCount: 11, totalCount: 12, scope: 4, intensity: 2, alertCount: 0,
   },
   {
-    id: 'ls_c', botName: '과학 쌤', botEmoji: '🧑‍🔬',
+    id: 'ls_c', botName: '과학봇', botEmoji: '🧑‍🔬',
     classroom: '고1 통합과학 C반', subject: '통합과학',
     status: 'starting', startedAt: '20:00', durationMin: 60,
     participantCount: 0, totalCount: 17, scope: 3, intensity: 0, alertCount: 0,
   },
   {
-    id: 'ls_d', botName: '수학이 형', botEmoji: '🧑‍🏫',
-    classroom: '고2 미적분 A반', subject: '수학Ⅱ',
+    id: 'ls_d', botName: '수학봇', botEmoji: '🧑‍🏫',
+    classroom: '중2 수학 A반', subject: '수학',
     status: 'ended', startedAt: '어제 19:00', durationMin: 50,
     participantCount: 16, totalCount: 18, scope: 3, intensity: 0, alertCount: 1,
   },
   {
-    id: 'ls_e', botName: '수학이 형', botEmoji: '🧑‍🏫',
-    classroom: '고2 미적분 A반', subject: '수학Ⅱ',
+    id: 'ls_e', botName: '수학봇', botEmoji: '🧑‍🏫',
+    classroom: '중2 수학 A반', subject: '수학',
     status: 'ended', startedAt: '4/15 19:00', durationMin: 45,
     participantCount: 17, totalCount: 18, scope: 3, intensity: 0, alertCount: 0,
   },
@@ -728,7 +728,7 @@ export type ReportSummary = {
   id: string;
   kind: ReportKind;
   title: string;
-  subject: string;     // "고2 미적분 A반 — 윤서" / "주간 4/22~4/28"
+  subject: string;     // "고1 공통수학 A반 — 윤서" / "주간 4/22~4/28"
   generatedAt: string; // "19:50 자동 생성"
   status: 'pending-approval' | 'approved' | 'sent' | 'draft';
   /** 8 KPI 요약 — 0~100 0번이 가장 중요 */
@@ -751,13 +751,13 @@ export const reports: ReportSummary[] = [
       { label: '봇 질문', value: '38회', trend: 'flat' },
       { label: '감정', value: '안정', trend: 'flat' },
     ],
-    summary: '미분 단원에서 정답률이 73% → 81%로 상승. 봇 질문 빈도 양호. 자살·우울 키워드 없음.',
+    summary: '일차함수 단원에서 정답률이 73% → 81%로 상승. 봇 질문 빈도 양호. 자살·우울 키워드 없음.',
     alerts: [],
   },
   {
     id: 'rep_b', kind: 'student',
     title: '학생 개인 리포트 (도현)',
-    subject: '고2 미적분 A반 · 도현', generatedAt: '오늘 19:30',
+    subject: '중2 수학 A반 · 도현', generatedAt: '오늘 19:30',
     status: 'pending-approval',
     kpis: [
       { label: '학습 시간', value: '4h 10m', trend: 'down' },
@@ -770,7 +770,7 @@ export const reports: ReportSummary[] = [
   },
   {
     id: 'rep_c', kind: 'lesson-end',
-    title: '수업 종료 리포트 — 도함수의 활용',
+    title: '수업 종료 리포트 — 일차함수의 그래프',
     subject: '4/29 19:00~19:50 · 14명 참여', generatedAt: '19:50 자동 생성',
     status: 'draft',
     kpis: [
@@ -779,11 +779,11 @@ export const reports: ReportSummary[] = [
       { label: '주제 이탈', value: '0건', trend: 'flat' },
       { label: '집중도', value: '86%', trend: 'up' },
     ],
-    summary: '핵심 메시지 3개 모두 학생 80% 이상 회상 가능. 부호 변화 표 절차 오답 패턴이 클러스터 1위.',
+    summary: '핵심 메시지 3개 모두 학생 80% 이상 회상 가능. 기울기 계산 절차 오답 패턴이 클러스터 1위.',
   },
   {
     id: 'rep_d', kind: 'class',
-    title: '학급 비교 — 고2 미적분 A vs B',
+    title: '학급 비교 — 중2 수학 A vs B',
     subject: '4/22 ~ 4/28', generatedAt: '오늘 09:00',
     status: 'approved',
     kpis: [
@@ -796,7 +796,7 @@ export const reports: ReportSummary[] = [
   },
   {
     id: 'rep_e', kind: 'period',
-    title: '월간 추이 — 고2 미적분 A반',
+    title: '월간 추이 — 중2 수학 A반',
     subject: '4월 한 달', generatedAt: '4/29 자동 생성',
     status: 'draft',
     kpis: [
@@ -815,7 +815,7 @@ export const reports: ReportSummary[] = [
     kpis: [
       { label: '활성 학생', value: '14/18' },
       { label: '질문 (1H)', value: '24건' },
-      { label: '오답 클러스터', value: '#부호변화' },
+      { label: '오답 클러스터', value: '#기울기부호' },
       { label: '위기 신호', value: '2명', trend: 'flat' },
     ],
     summary: '예은 22분 무응답 + 도현 감정 체크인 "힘듦" 누적. 즉시 개입 권장.',
@@ -859,28 +859,28 @@ export type GradingItem = {
 export const gradingQueue: GradingItem[] = [
   {
     id: 'gr_001', studentName: '윤서', studentId: 's13',
-    assignmentTitle: '극값과 변곡점 — 서술형 3제',
+    assignmentTitle: '일차함수 그래프 — 서술형 3제',
     submittedAt: '어제 22:14',
-    type: 'essay', topic: '미적분 III · 극값',
+    type: 'essay', topic: '중2 수학 · 일차함수',
     draftScore: 17, maxScore: 20, tier: 'T2', aiConfidence: 88,
-    responsePreview: 'f\'(x) = 0인 점에서 부호 변화가 있는지 확인해야 한다. y = x³의 x = 0에서는 ...',
-    draftComment: '핵심 개념(부호 변화)을 정확히 파악. 예시 활용도 적절. 일부 표기 오류 있음 (- 1점).',
+    responsePreview: '기울기는 y의 변화량을 x의 변화량으로 나눈 값이다. y = 2x − 3 에서는 ...',
+    draftComment: '핵심 개념(변화량의 비)을 정확히 파악. 예시 활용도 적절. 일부 표기 오류 있음 (- 1점).',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 36, reason: '정의 정확' },
-      { criterion: '예시 적절성', weight: 30, score: 27, reason: 'y=x³ 함정 예시 좋음' },
-      { criterion: '표기 정확성', weight: 20, score: 14, reason: 'f\'(x) → f`(x) 오타 1회' },
+      { criterion: '예시 적절성', weight: 30, score: 27, reason: 'y=2x−3 예시 좋음' },
+      { criterion: '표기 정확성', weight: 20, score: 14, reason: '좌표 (0, −3) 표기 오타 1회' },
       { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '단계 명확' },
     ],
     status: 'queue',
   },
   {
     id: 'gr_002', studentName: '서연', studentId: 's1',
-    assignmentTitle: '극값과 변곡점 — 서술형 3제',
+    assignmentTitle: '일차함수 그래프 — 서술형 3제',
     submittedAt: '어제 21:50',
-    type: 'essay', topic: '미적분 III · 극값',
+    type: 'essay', topic: '중2 수학 · 일차함수',
     draftScore: 19, maxScore: 20, tier: 'T2', aiConfidence: 92,
-    responsePreview: '극값은 부호 변화가 있는 지점, 변곡점은 이계도함수 부호 변화 지점이다. ...',
-    draftComment: '거의 완벽. 변곡점 정의에서 "이계도함수" 명시까지 이끌어낸 점 우수.',
+    responsePreview: '기울기는 그래프가 얼마나 가파른지, y절편은 y축과 만나는 높이다. ...',
+    draftComment: '거의 완벽. y절편이 x = 0일 때의 y값이라는 점까지 짚어낸 점 우수.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 40, reason: '완벽' },
       { criterion: '예시 적절성', weight: 30, score: 28, reason: '예시 1개 더 있으면 만점' },
@@ -891,14 +891,14 @@ export const gradingQueue: GradingItem[] = [
   },
   {
     id: 'gr_003', studentName: '민준', studentId: 's2',
-    assignmentTitle: '극값과 변곡점 — 서술형 3제',
+    assignmentTitle: '일차함수 그래프 — 서술형 3제',
     submittedAt: '오늘 06:30',
-    type: 'essay', topic: '미적분 III · 극값',
+    type: 'essay', topic: '중2 수학 · 일차함수',
     draftScore: 12, maxScore: 20, tier: 'T2', aiConfidence: 64,
-    responsePreview: 'f\'(x) = 0이면 극값이다. 따라서 ...',
-    draftComment: '핵심 함정(부호 변화 미체크)을 놓침. y=x³ 반례 인지 필요.',
+    responsePreview: 'x 앞의 수가 크면 무조건 가파르다. 따라서 ...',
+    draftComment: '핵심(부호는 방향, 절댓값은 가파르기)을 놓침. y = −5x 반례 인지 필요.',
     rubric: [
-      { criterion: '개념 정확성', weight: 40, score: 18, reason: '부호 변화 누락' },
+      { criterion: '개념 정확성', weight: 40, score: 18, reason: '부호와 절댓값 구분 누락' },
       { criterion: '예시 적절성', weight: 30, score: 16, reason: '반례 부재' },
       { criterion: '표기 정확성', weight: 20, score: 18, reason: '소소한 오타' },
       { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '결론 도약' },
@@ -907,11 +907,11 @@ export const gradingQueue: GradingItem[] = [
   },
   {
     id: 'gr_004', studentName: '도현', studentId: 's4',
-    assignmentTitle: '극값과 변곡점 — 서술형 3제',
+    assignmentTitle: '일차함수 그래프 — 서술형 3제',
     submittedAt: '오늘 07:12',
-    type: 'essay', topic: '미적분 III · 극값',
+    type: 'essay', topic: '중2 수학 · 일차함수',
     draftScore: 8, maxScore: 20, tier: 'T2', aiConfidence: 58,
-    responsePreview: '잘 모르겠음. 미분이 너무 어렵다.',
+    responsePreview: '잘 모르겠음. 그래프가 너무 어렵다.',
     draftComment: '응답 부족. 학습 부담 신호 — 1:1 면담 필요. 점수보다 케어 우선.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 12, reason: '응답 부족' },
@@ -923,12 +923,12 @@ export const gradingQueue: GradingItem[] = [
   },
   {
     id: 'gr_005', studentName: '하윤', studentId: 's5',
-    assignmentTitle: '극값과 변곡점 — 서술형 3제',
+    assignmentTitle: '일차함수 그래프 — 서술형 3제',
     submittedAt: '어제 23:01',
-    type: 'essay', topic: '미적분 III · 극값',
+    type: 'essay', topic: '중2 수학 · 일차함수',
     draftScore: 18, maxScore: 20, tier: 'T2', aiConfidence: 90,
-    responsePreview: '극값 판정의 핵심은 도함수 부호 변화. 이계도함수는 변곡점 판정에 사용. 두 개념 혼동 주의.',
-    draftComment: '핵심 메시지 3개 중 2개 정확히 회상. 변곡점 판정에서 부호 변화 명시 부족.',
+    responsePreview: '기울기는 변화량의 비. y절편은 x = 0일 때의 y값. 두 값이 하는 일이 다름에 주의.',
+    draftComment: '핵심 메시지 3개 중 2개 정확히 회상. 기울기 부호가 그래프 방향을 정한다는 설명 부족.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 38, reason: '정확' },
       { criterion: '예시 적절성', weight: 30, score: 25, reason: '예시 보강 가능' },
@@ -939,11 +939,11 @@ export const gradingQueue: GradingItem[] = [
   },
   {
     id: 'gr_006', studentName: '주원', studentId: 's6',
-    assignmentTitle: '미분 — 정의 단답',
+    assignmentTitle: '일차함수 — 정의 단답',
     submittedAt: '어제 21:00',
-    type: 'short', topic: '미적분 III · 정의',
+    type: 'short', topic: '중2 수학 · 일차함수',
     draftScore: 10, maxScore: 10, tier: 'T1', aiConfidence: 99,
-    responsePreview: '평균변화율의 극한',
+    responsePreview: 'y의 변화량 ÷ x의 변화량',
     draftComment: '정확. T1 즉시 채점.',
     rubric: [
       { criterion: '키워드 일치', weight: 100, score: 100, reason: '완벽' },
@@ -991,36 +991,36 @@ export type Template = {
 
 export const templates: Template[] = [
   {
-    id: 'tpl_001', kind: 'bot', title: '대치 미적분 — 풀이 절차 강조형',
-    authorName: '김수학', authorOrganization: '대치프리미엄 수학학원',
-    pricing: { krw: 39000 }, subject: '수학Ⅱ', grade: '고2',
+    id: 'tpl_001', kind: 'bot', title: '중등 일차함수 — 풀이 절차 강조형',
+    authorName: '김보람', authorOrganization: '대치프리미엄 수학학원',
+    pricing: { krw: 39000 }, subject: '수학', grade: '중2',
     downloads: 1240, rating: 4.7, ratingCount: 92,
-    description: '극값·변곡점 단원 5회차 강의 + 부호 변화 표 시연 자동 삽입. Scope L3 기본.',
-    highlights: ['오답 클러스터 자동 감지', '부호 변화 표 시연 5종', '12회 수업 분량'],
+    description: '일차함수 단원 5회차 강의 + 그래프 그리기 시연 자동 삽입. Scope L3 기본.',
+    highlights: ['오답 클러스터 자동 감지', '그래프 시연 5종', '12회 수업 분량'],
     updatedAt: '3일 전',
   },
   {
-    id: 'tpl_002', kind: 'bot', title: '공식 — EBS 수능특강 영어 빈칸',
+    id: 'tpl_002', kind: 'bot', title: '공식 — 중학 영어 문장 흐름 읽기',
     authorName: '풀림 공식', authorOrganization: 'curea',
-    isOfficial: true, pricing: 'free', subject: '영어', grade: '고3',
+    isOfficial: true, pricing: 'free', subject: '영어', grade: '중3',
     downloads: 8420, rating: 4.9, ratingCount: 412,
-    description: '수능특강 빈칸 추론 220문항 RAG 인덱스 + 5단계 사고 유도 모드 사전 설정.',
-    highlights: ['EBS 공식 라이센스', '5단계 힌트 사전 튜닝', '주제 이탈 차단 강화'],
+    description: '교과서 지문 220개 RAG 인덱스 + 5단계 사고 유도 모드 사전 설정.',
+    highlights: ['교과서 지문 기반', '5단계 힌트 사전 튜닝', '주제 이탈 차단 강화'],
     updatedAt: '오늘',
   },
   {
-    id: 'tpl_003', kind: 'lesson', title: '도함수의 활용 — 8차시 교안 패키지',
-    authorName: '박미적분', authorOrganization: '서울 모 고등학교',
-    pricing: 'free', subject: '수학Ⅱ', grade: '고2',
+    id: 'tpl_003', kind: 'lesson', title: '일차함수 — 8차시 교안 패키지',
+    authorName: '박현수', authorOrganization: '서울 모 중학교',
+    pricing: 'free', subject: '수학', grade: '중2',
     downloads: 530, rating: 4.5, ratingCount: 38,
-    description: '극한·미분·도함수 활용까지 8차시 슬라이드 + 워크북 + 채점 루브릭 포함.',
+    description: '함수의 뜻부터 그래프 활용까지 8차시 슬라이드 + 워크북 + 채점 루브릭 포함.',
     highlights: ['8차시 슬라이드', '워크북 PDF', '루브릭 4종'],
     updatedAt: '1주일 전',
   },
   {
-    id: 'tpl_004', kind: 'quiz', title: '중간고사 대비 — 30문항 미적분 풀세트',
-    authorName: '이수학', authorOrganization: '강남 분당 라인 강사',
-    pricing: { krw: 9900 }, subject: '수학Ⅱ', grade: '고2',
+    id: 'tpl_004', kind: 'quiz', title: '중간고사 대비 — 30문항 일차함수 풀세트',
+    authorName: '이수아', authorOrganization: '온라인 강사',
+    pricing: { krw: 9900 }, subject: '수학', grade: '중2',
     downloads: 2870, rating: 4.6, ratingCount: 215,
     description: '4월 중간고사 출제 경향 분석 기반. 객관식 22 + 단답 6 + 서술 2.',
     highlights: ['난이도 IRT 설정 완료', '오답 해설 자동 생성', '학교별 변형 지원'],
@@ -1032,12 +1032,12 @@ export const templates: Template[] = [
     isOfficial: true, pricing: 'free', subject: '한국사', grade: '고1',
     downloads: 3100, rating: 4.8, ratingCount: 158,
     description: '근현대사 흐름을 시대순 시각화 + 인물·사건 RAG. Scope L4 (사고 유도).',
-    highlights: ['시대 타임라인 시각화', '인물 관계도', '수능 빈출 키워드 인덱싱'],
+    highlights: ['시대 타임라인 시각화', '인물 관계도', '시험 빈출 키워드 인덱싱'],
     updatedAt: '2주일 전',
   },
   {
     id: 'tpl_006', kind: 'quiz', title: 'O/X 30문항 — 통합과학 단원 점검',
-    authorName: '정과학', authorOrganization: '온라인 강사',
+    authorName: '정민호', authorOrganization: '온라인 강사',
     pricing: 'free', subject: '통합과학', grade: '고1',
     downloads: 720, rating: 4.3, ratingCount: 47,
     description: '통합과학 1학기 8개 단원 빠른 점검용 O/X 30문항. T1 즉시 채점.',
@@ -1056,9 +1056,9 @@ export type MyTemplateUpload = {
 };
 
 export const myTemplateUploads: MyTemplateUpload[] = [
-  { id: 'mt1', title: '대치 미적분 — 풀이 절차 강조형',  kind: 'bot',     status: 'published', downloads: 1240, earnings: 33_852_000 },
-  { id: 'mt2', title: '극값과 변곡점 — 서술형 루브릭 v2', kind: 'lesson',  status: 'review',    downloads: 0 },
-  { id: 'mt3', title: '미분 표기법 매칭 퀴즈',            kind: 'quiz',    status: 'draft',     downloads: 0 },
+  { id: 'mt1', title: '중등 일차함수 — 풀이 절차 강조형', kind: 'bot',     status: 'published', downloads: 1240, earnings: 33_852_000 },
+  { id: 'mt2', title: '일차함수 그래프 — 서술형 루브릭 v2', kind: 'lesson',  status: 'review',    downloads: 0 },
+  { id: 'mt3', title: '식과 그래프 짝짓기 퀴즈',           kind: 'quiz',    status: 'draft',     downloads: 0 },
 ];
 
 /* ============================================================
@@ -1128,10 +1128,10 @@ export type BotSettingsState = {
 
 export const botSettings: BotSettingsState = {
   identity: {
-    name: '수학이 형',
+    name: '수학봇',
     avatarEmoji: '🧑‍🏫',
     persona: '친근',
-    greeting: '서연 안녕! 수학이 형이야 🙌 오늘도 같이 풀어보자.',
+    greeting: '서연 안녕! 수학봇이야 🙌 오늘도 같이 풀어보자.',
   },
   voice: {
     enabled: true,
@@ -1140,9 +1140,9 @@ export const botSettings: BotSettingsState = {
     autoDeleteDays: 30,
   },
   curriculum: {
-    subject: '수학Ⅱ',
-    chapter: '미적분 III · 도함수의 활용',
-    achievementCodes: ['수2-3-1', '수2-3-2', '수2-3-3'],
+    subject: '수학',
+    chapter: '중2 수학 · 일차함수',
+    achievementCodes: ['수-일차-1', '수-일차-2', '수-일차-3'],
     assetCount: 47,
     lastIndexedAt: '오늘 14:20',
   },
@@ -1159,7 +1159,7 @@ export const botSettings: BotSettingsState = {
     default: 3,
     examMode: 1,
     lastChangedAt: '어제 18:55',
-    lastChangedBy: '김수학 선생님',
+    lastChangedBy: '김보람 선생님',
   },
   evaluation: {
     rubricCount: 4,
@@ -1193,7 +1193,7 @@ export type Assignment = {
   botId: string;
   /** 학생이 보는 짧은 제목 */
   title: string;
-  /** 단원 한 줄 — "미적분 III · 극값~변곡점" */
+  /** 단원 한 줄 — "중2 수학 · 일차함수" */
   scope: string;
   subject: string;
   grade: string;
@@ -1250,12 +1250,25 @@ export const studentAssignmentStats = {
 
 export type QuestionType = 'mc' | 'short' | 'essay' | 'numeric';
 
+/** 채점 방식 — 유형에서 파생되는 값. 별도 입력 필드로 두지 않는다(어긋난 상태 방지). */
+export type GradingMode = 'auto' | 'teacher';
+
+/** 서술형 채점 기준 한 줄 — 출제 시점에 교사가 적어 둔다. weight 합 = 문항 배점. */
+export type QuestionRubricCriterion = {
+  /** 기준 문구 — 채점 허브 루브릭(GradingItem.rubric)의 criterion 과 같은 뜻 */
+  criterion: string;
+  /** 이 기준에 배정한 점수(문항 배점 안에서 나눠 갖는다) */
+  weight: number;
+};
+
 export type AssignmentQuestion = {
   id: string;
   assignmentId: string;
   order: number;          // 1-indexed
   type: QuestionType;
   prompt: string;
+  /** 문항 배점 — 과제 안에서 합이 100이 되도록 출제 때 정한다 */
+  points: number;
   /** 객관식 보기 */
   options?: string[];
   answerIndex?: number;   // 객관식 정답 인덱스
@@ -1263,127 +1276,138 @@ export type AssignmentQuestion = {
   answerKey?: string;
   /** 서술형 기준 응답 (Scope L5에서만 노출) */
   modelAnswer?: string;
+  /** 서술형 채점 기준 — 출제 때 정하고 채점 허브가 그대로 쓴다 */
+  rubric?: QuestionRubricCriterion[];
   /** 봇 힌트 5단계 (practice 모드 한정) */
   hints?: string[];
 };
 
+/**
+ * 문항 유형 → 채점 방식. **여기 한 곳에서만 판단한다.**
+ * 배지·정답 입력·배점 집계·mock 채점이 전부 이 함수를 본다 —
+ * 유형과 채점 방식이 어긋난 상태(예: 서술형인데 자동 채점)를 만들 수 없게 하려는 것.
+ */
+export function gradingModeOf(q: { type: QuestionType }): GradingMode {
+  return q.type === 'essay' ? 'teacher' : 'auto';
+}
+
 export const assignmentQuestions: AssignmentQuestion[] = [
   // as_today (practice, 20문항 중 시드 5문항만)
   {
-    id: 'q_today_1', assignmentId: 'as_today', order: 1, type: 'mc',
-    prompt: 'f(x) = x³ − 3x² + 1 의 극댓값은?',
-    options: ['1', '−3', '5', '−2'],
+    id: 'q_today_1', assignmentId: 'as_today', order: 1, type: 'mc', points: 20,
+    prompt: 'y = 2x − 3 의 그래프의 기울기는?',
+    options: ['2', '−3', '3', '−2'],
     answerIndex: 0,
-    modelAnswer: 'f\'(x) = 3x² − 6x = 3x(x−2). 부호 변화로 x=0에서 극대, x=2에서 극소. f(0) = 1.',
+    modelAnswer: 'y = ax + b 꼴에서 x 앞의 수 a가 기울기다. 여기서는 a = 2.',
     hints: [
-      '도함수를 먼저 구해봐.',
-      '도함수가 0이 되는 x를 찾고, 그 주변 부호 변화를 봐.',
-      'x=0, x=2가 후보. 좌우 부호 변화 표를 그려봐.',
-      'x=0에서 좌 +, 우 −이니 극대. 그때 함수값을 계산하면?',
-      'f(0) = 0³ − 3·0² + 1 = 1. 답은 1.',
+      '식을 y = ax + b 꼴로 놓고 봐.',
+      'a 자리와 b 자리가 각각 무엇을 뜻하는지 떠올려봐.',
+      'x 앞에 붙은 수가 기울기, 뒤에 더해진 수가 y절편이야.',
+      'y = 2x − 3 에서 x 앞의 수는 2, 뒤에 더해진 수는 −3.',
+      '기울기는 2. −3은 y절편이야.',
     ],
   },
   {
-    id: 'q_today_2', assignmentId: 'as_today', order: 2, type: 'mc',
-    prompt: 'f\'(a) = 0 이지만 x=a가 극값이 아닌 경우는?',
-    options: ['좌우 부호 동일', '함수가 불연속', '이계도함수 = 0', '정의역 끝점'],
+    id: 'q_today_2', assignmentId: 'as_today', order: 2, type: 'mc', points: 20,
+    prompt: '두 점 (1, 2)와 (4, 8)을 지나는 직선의 기울기는?',
+    options: ['2', '3', '6', '1/2'],
     answerIndex: 0,
-    modelAnswer: '도함수가 0이어도 좌우 부호가 같으면 극값이 아니다. y = x³의 x = 0이 대표적 반례.',
+    modelAnswer: '기울기 = (y의 변화량) ÷ (x의 변화량) = (8 − 2) ÷ (4 − 1) = 6 ÷ 3 = 2.',
     hints: [
-      'y = x³ 그래프를 떠올려봐.',
-      'x = 0에서 도함수는 0이지만 그래프는 단조 증가야.',
-      '부호 변화가 없으면 극값일까?',
-      '좌우 부호가 같으면 극값이 아니야 — 변곡점일 수 있어.',
-      '답: 좌우 부호 동일. y = x³가 대표 예시.',
+      '기울기는 두 점만 있으면 구할 수 있어.',
+      'y가 얼마나 변했는지, x가 얼마나 변했는지 각각 적어봐.',
+      'y는 2에서 8로, x는 1에서 4로 갔어.',
+      'y의 변화량 6을 x의 변화량 3으로 나누면?',
+      '6 ÷ 3 = 2. 기울기는 2야.',
     ],
   },
   {
-    id: 'q_today_3', assignmentId: 'as_today', order: 3, type: 'short',
-    prompt: '함수 f(x) = x⁴ − 4x³ 의 변곡점의 x좌표를 모두 구하시오.',
-    answerKey: '0, 2',
-    modelAnswer: 'f"(x) = 12x² − 24x = 12x(x−2). x=0, x=2 양쪽에서 부호가 바뀌므로 둘 다 변곡점.',
+    id: 'q_today_3', assignmentId: 'as_today', order: 3, type: 'short', points: 20,
+    prompt: 'y = −x + 5 의 그래프가 y축과 만나는 점의 좌표를 구하시오.',
+    answerKey: '(0, 5)',
+    modelAnswer: 'y축 위의 점은 x = 0이다. x = 0을 넣으면 y = 5이므로 (0, 5).',
     hints: [
-      '변곡점 판정은 이계도함수 부호 변화로.',
-      '먼저 f"(x)를 구해봐.',
-      'f"(x) = 12x(x−2). 0이 되는 x는?',
-      'x=0, x=2 후보. 각각 좌우 부호 변화를 확인해봐.',
-      '둘 다 부호 변화가 있으니 변곡점은 x=0, 2.',
+      'y축 위에 있는 점은 x좌표가 얼마일까?',
+      'y축 위의 점은 항상 x = 0이야.',
+      'x = 0을 식에 그대로 넣어봐.',
+      'y = −0 + 5 = 5.',
+      '답은 (0, 5). 이 5가 바로 y절편이야.',
     ],
   },
   {
-    id: 'q_today_4', assignmentId: 'as_today', order: 4, type: 'essay',
-    prompt: '극값과 변곡점의 차이를 정의·판정 방법·대표 예시 3가지로 서술하시오.',
-    modelAnswer: '극값은 함수 값의 국소 최대·최소(도함수 부호 변화), 변곡점은 그래프의 휘는 방향이 바뀌는 점(이계도함수 부호 변화). 예: f(x) = x³의 x=0은 도함수 0이지만 극값 아닌 변곡점.',
+    id: 'q_today_4', assignmentId: 'as_today', order: 4, type: 'essay', points: 20,
+    prompt: '기울기와 y절편이 각각 그래프의 무엇을 정하는지 예를 들어 서술하시오.',
+    modelAnswer: '기울기는 직선이 기울어진 정도와 방향을 정한다(양수면 오른쪽 위로, 음수면 오른쪽 아래로, 절댓값이 클수록 가파르다). y절편은 직선이 y축과 만나는 높이를 정한다. 예: y = 2x − 3 은 오른쪽 위로 올라가며 (0, −3)을 지난다.',
     hints: [
-      '정의부터 — 극값은 "값", 변곡점은 "휘어짐".',
-      '판정 — 극값은 1차, 변곡점은 2차 도함수.',
-      '예시는 부호 변화 있는 것과 없는 것 비교가 좋아.',
-      'y = x³의 x = 0 예시는 둘의 차이를 한 번에 보여줘.',
-      '3요소(정의·판정·예시)를 한 단락으로 정리하면 만점.',
+      '두 값이 하는 일이 서로 다르다는 데서 출발해.',
+      '기울기는 "방향과 가파르기", y절편은 "출발 높이"야.',
+      '기울기 부호가 바뀌면 그래프가 어느 쪽으로 기우는지 적어봐.',
+      'y절편은 x = 0일 때의 y값이라는 것도 함께 써줘.',
+      '두 가지 역할 + 식 하나 예시까지 쓰면 만점이야.',
     ],
   },
   {
-    id: 'q_today_5', assignmentId: 'as_today', order: 5, type: 'mc',
-    prompt: 'f(x) = x³ − 6x² + 9x + 1 의 극댓값과 극솟값의 합은?',
-    options: ['1', '5', '6', '8'],
-    answerIndex: 2,
-    modelAnswer: 'f\'(x) = 3x² − 12x + 9 = 3(x−1)(x−3). x=1 극대 (f(1)=5), x=3 극소 (f(3)=1). 합 = 6.',
+    id: 'q_today_5', assignmentId: 'as_today', order: 5, type: 'mc', points: 20,
+    prompt: 'y = 3x + 1 과 기울기가 같고 y절편이 −2인 일차함수의 식은?',
+    options: ['y = 3x − 2', 'y = −2x + 3', 'y = 3x + 2', 'y = −3x − 2'],
+    answerIndex: 0,
+    modelAnswer: '기울기가 같다 = x 앞의 수가 3으로 같다. y절편이 −2이므로 y = 3x − 2.',
     hints: [
-      'f\'(x)를 인수분해해봐.',
-      'x = 1, x = 3이 후보.',
-      'x = 1에서 극대, x = 3에서 극소.',
-      'f(1) = 5, f(3) = 1.',
-      '5 + 1 = 6.',
+      '기울기가 같다는 말이 식에서 무엇을 뜻하는지 봐.',
+      'x 앞의 수가 그대로 3이어야 해.',
+      'y절편은 뒤에 더해지는 수야.',
+      'y절편이 −2이니 뒤에 −2가 붙어.',
+      'y = 3x − 2 가 답이야.',
     ],
   },
   // as_prescription (wrong-conquest, 5문항)
   {
-    id: 'q_pres_1', assignmentId: 'as_prescription', order: 1, type: 'short',
-    prompt: 'f(x) = x³의 x = 0에서 극값인지 답하시오.',
-    answerKey: '아니다',
-    modelAnswer: 'f\'(0) = 0이지만 좌우 부호 변화가 없어 극값이 아니다. 변곡점일 뿐.',
-  },
-  {
-    id: 'q_pres_2', assignmentId: 'as_prescription', order: 2, type: 'short',
-    prompt: 'f(x) = x⁴의 x = 0에서 극값인지 답하시오.',
-    answerKey: '극소',
-    modelAnswer: 'f\'(0) = 0, 좌 −, 우 + 부호 변화가 있어 극소.',
-  },
-  {
-    id: 'q_pres_3', assignmentId: 'as_prescription', order: 3, type: 'mc',
-    prompt: 'f\'(x) = (x−1)²(x−3) 의 극값 개수는?',
-    options: ['0개', '1개', '2개', '3개'],
-    answerIndex: 1,
-    modelAnswer: 'x=1은 중근이라 부호 변화 없음 (극값 아님), x=3에서만 부호 변화 → 극값 1개.',
-  },
-  {
-    id: 'q_pres_4', assignmentId: 'as_prescription', order: 4, type: 'short',
-    prompt: 'f\'(x) = x(x+2)² 일 때 극값을 갖는 x좌표는?',
+    id: 'q_pres_1', assignmentId: 'as_prescription', order: 1, type: 'short', points: 20,
+    prompt: 'y = 5x 의 y절편을 구하시오.',
     answerKey: '0',
-    modelAnswer: 'x = −2는 중근이라 부호 변화 없음, x = 0에서만 부호가 −에서 +로 → 극소.',
+    modelAnswer: 'y = 5x + 0 이므로 y절편은 0. 그래프가 원점을 지난다.',
   },
   {
-    id: 'q_pres_5', assignmentId: 'as_prescription', order: 5, type: 'mc',
-    prompt: '도함수가 0인 모든 점이 극값이라는 명제는?',
-    options: ['참', '거짓', '함수에 따라', '판단 불가'],
+    id: 'q_pres_2', assignmentId: 'as_prescription', order: 2, type: 'short', points: 20,
+    prompt: 'y = −2x + 4 의 그래프는 오른쪽 위로 올라가는지 답하시오.',
+    answerKey: '아니다',
+    modelAnswer: '기울기가 −2로 음수이므로 오른쪽 아래로 내려간다.',
+  },
+  {
+    id: 'q_pres_3', assignmentId: 'as_prescription', order: 3, type: 'mc', points: 20,
+    prompt: '기울기가 음수인 일차함수의 그래프 모양은?',
+    options: ['오른쪽 위로 올라간다', '오른쪽 아래로 내려간다', 'x축과 평행하다', 'y축과 평행하다'],
     answerIndex: 1,
-    modelAnswer: '부호 변화가 있어야만 극값. y = x³의 x=0이 반례. 거짓.',
+    modelAnswer: '기울기의 부호가 방향을 정한다. 음수면 x가 커질수록 y가 작아져 오른쪽 아래로 내려간다.',
+  },
+  {
+    id: 'q_pres_4', assignmentId: 'as_prescription', order: 4, type: 'short', points: 20,
+    prompt: '두 점 (0, 1)과 (2, 5)를 지나는 직선의 기울기를 구하시오.',
+    answerKey: '2',
+    modelAnswer: '(5 − 1) ÷ (2 − 0) = 4 ÷ 2 = 2.',
+  },
+  {
+    id: 'q_pres_5', assignmentId: 'as_prescription', order: 5, type: 'mc', points: 20,
+    prompt: '「기울기가 큰 수일수록 그래프가 가파르다」는 명제는?',
+    options: ['참', '거짓 — 절댓값이 클수록 가파르다', '함수에 따라 다르다', '판단 불가'],
+    answerIndex: 1,
+    modelAnswer: 'y = −5x 는 기울기가 −5로 작은 수지만 매우 가파르다. 가파르기를 정하는 것은 기울기의 절댓값이다.',
   },
   // as_exam_prep (exam, 첫 3문항만 시드)
   {
-    id: 'q_exam_1', assignmentId: 'as_exam_prep', order: 1, type: 'mc',
-    prompt: 'lim(x→0) (sin 2x) / x 의 값은?',
-    options: ['0', '1', '2', '∞'],
+    id: 'q_exam_1', assignmentId: 'as_exam_prep', order: 1, type: 'mc', points: 40,
+    prompt: 'y = ax + b 에서 a < 0, b > 0 일 때 그래프가 지나지 않는 사분면은?',
+    options: ['제1사분면', '제2사분면', '제3사분면', '제4사분면'],
     answerIndex: 2,
   },
   {
-    id: 'q_exam_2', assignmentId: 'as_exam_prep', order: 2, type: 'short',
-    prompt: 'f(x) = x³ − 3x 의 극댓값을 구하시오.',
-    answerKey: '2',
+    id: 'q_exam_2', assignmentId: 'as_exam_prep', order: 2, type: 'short', points: 30,
+    prompt: '두 점 (−1, 4)와 (2, −2)를 지나는 직선의 기울기를 구하시오.',
+    answerKey: '−2',
   },
   {
-    id: 'q_exam_3', assignmentId: 'as_exam_prep', order: 3, type: 'essay',
-    prompt: '함수의 연속성과 미분가능성의 관계를 예시와 함께 서술하시오.',
+    id: 'q_exam_3', assignmentId: 'as_exam_prep', order: 3, type: 'essay', points: 30,
+    prompt: '일차함수 y = ax + b 에서 a와 b가 그래프의 무엇을 각각 정하는지 예를 들어 서술하시오.',
   },
 ];
 
@@ -1417,34 +1441,34 @@ export type GradingHistoryEntry = {
 };
 
 export const gradingHistory: GradingHistoryEntry[] = [
-  { studentId: 's13', assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 8,  maxScore: 10 },
-  { studentId: 's13', assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 16, maxScore: 20 },
-  { studentId: 's13', assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 9,  maxScore: 10 },
-  { studentId: 's1',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 9,  maxScore: 10 },
-  { studentId: 's1',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 18, maxScore: 20 },
-  { studentId: 's1',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 10, maxScore: 10 },
-  { studentId: 's2',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 6,  maxScore: 10 },
-  { studentId: 's2',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 11, maxScore: 20 },
-  { studentId: 's2',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 7,  maxScore: 10 },
-  { studentId: 's4',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 5,  maxScore: 10 },
-  { studentId: 's4',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 9,  maxScore: 20 },
-  { studentId: 's4',  assignmentTitle: '도함수 활용 — 객관식 10',   gradedAt: '3일 전', score: 6,  maxScore: 10 },
-  { studentId: 's5',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 10, maxScore: 10 },
-  { studentId: 's5',  assignmentTitle: '극한 — 서술형 2제',         gradedAt: '5일 전', score: 19, maxScore: 20 },
-  { studentId: 's6',  assignmentTitle: '미분 — 정의 단답',          gradedAt: '1주 전', score: 8,  maxScore: 10 },
+  { studentId: 's13', assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 8,  maxScore: 10 },
+  { studentId: 's13', assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 16, maxScore: 20 },
+  { studentId: 's13', assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 9,  maxScore: 10 },
+  { studentId: 's1',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 9,  maxScore: 10 },
+  { studentId: 's1',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 18, maxScore: 20 },
+  { studentId: 's1',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 10, maxScore: 10 },
+  { studentId: 's2',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 6,  maxScore: 10 },
+  { studentId: 's2',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 11, maxScore: 20 },
+  { studentId: 's2',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 7,  maxScore: 10 },
+  { studentId: 's4',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 5,  maxScore: 10 },
+  { studentId: 's4',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 9,  maxScore: 20 },
+  { studentId: 's4',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 6,  maxScore: 10 },
+  { studentId: 's5',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 10, maxScore: 10 },
+  { studentId: 's5',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 19, maxScore: 20 },
+  { studentId: 's6',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 8,  maxScore: 10 },
 ];
 
 /** overridden 시연용 1건 추가 — 변경률 24% (루브릭 재학습 임계 초과) */
 export const overriddenSample: GradingItem = {
   id: 'gr_007', studentName: '나린', studentId: 's9',
-  assignmentTitle: '극값과 변곡점 — 서술형 3제',
+  assignmentTitle: '일차함수 그래프 — 서술형 3제',
   submittedAt: '어제 20:10',
-  type: 'essay', topic: '미적분 III · 극값',
+  type: 'essay', topic: '중2 수학 · 일차함수',
   draftScore: 14, maxScore: 20, tier: 'T2', aiConfidence: 71,
-  responsePreview: '극값은 도함수가 0인 점. 변곡점은 이계도함수가 0인 점.',
-  draftComment: '정의 부분 정확하나 "부호 변화" 누락. 기준 답안에 핵심 누락.',
+  responsePreview: '기울기는 x 앞의 수. y절편은 뒤에 붙은 수.',
+  draftComment: '식에서 찾는 방법은 맞지만 "무엇을 뜻하는지" 누락. 기준 답안에 핵심 누락.',
   rubric: [
-    { criterion: '개념 정확성', weight: 40, score: 26, reason: '부호 변화 누락' },
+    { criterion: '개념 정확성', weight: 40, score: 26, reason: '뜻 설명 누락' },
     { criterion: '예시 적절성', weight: 30, score: 20, reason: '예시 부족' },
     { criterion: '표기 정확성', weight: 20, score: 18, reason: '오타 1회' },
     { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '나열식' },

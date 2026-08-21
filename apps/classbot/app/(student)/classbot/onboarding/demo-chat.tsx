@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 
 type DemoState = 'idle' | 'typing' | 'responded' | 'done';
 
-const BOT_NAME = '수학이 형';
+const BOT_NAME = '수학봇';
 const BOT_REPLY =
-  '안녕 서연! 나는 수학이 형이야. 오늘 진도·극값·도함수·삼각함수 뭐든 편하게 물어봐 😊';
+  '안녕 서연! 나는 수학봇이야. 오늘 진도·기울기·y절편·그래프 뭐든 편하게 물어봐 😊';
 
 /**
  * P3-19 온보딩 단계 3 — 인터랙티브 채팅 데모.
@@ -152,7 +152,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
             onClick={() => { setState('done'); onDone(); }}
             className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 focus-visible:ring-pullim-blue-400/50 inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors focus-visible:ring-2"
           >
-            첫 손맛 느꼈어요! 다음 단계로
+            다음 단계로
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>

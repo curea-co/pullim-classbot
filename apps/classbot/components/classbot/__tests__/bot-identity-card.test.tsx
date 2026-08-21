@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { BotIdentityCard } from '../bot-identity-card';
 import { classBots } from '@/lib/mock';
 
-const bot = classBots[0]; // 수학이 형, isLive=true, scope=3
+const bot = classBots[0]; // 수학봇, isLive=true, scope=3
 
 describe('BotIdentityCard', () => {
   it('renders bot name as h1 by default', () => {

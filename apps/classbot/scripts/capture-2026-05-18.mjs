@@ -18,13 +18,13 @@ const VIEWPORT = { width: 414, height: 896 }; // iPhone 12 Pro 기준
 const targets = [
   // ── 학생 13장 ───────────────────────────────
   { file: '01-student-home.png', label: '학생 홈 — 내 클래스봇 리스트', go: '/classbot' },
-  { file: '02-student-chat-cb001.png', label: 'chat — cb_001 수학이 형 (친근 톤 기본)', go: '/classbot/chat' },
+  { file: '02-student-chat-cb001.png', label: 'chat — cb_001 수학봇 (친근 톤 기본)', go: '/classbot/chat' },
   {
     file: '03-student-chat-cb005.png',
-    label: 'chat — cb_005 사회 코치 (열정 톤, 5번째 봇)',
+    label: 'chat — cb_005 사회봇 (열정 톤, 5번째 봇)',
     go: '/classbot/chat',
     after: async (page) => {
-      await page.getByRole('button', { name: /사회 코치/ }).click();
+      await page.getByRole('button', { name: /사회봇/ }).click();
       await page.waitForTimeout(500);
     },
   },
@@ -33,7 +33,7 @@ const targets = [
     label: 'chat — cb_005 시사 이슈 quickPrompt 클릭 → 열정 톤 reply',
     go: '/classbot/chat',
     after: async (page) => {
-      await page.getByRole('button', { name: /사회 코치/ }).click();
+      await page.getByRole('button', { name: /사회봇/ }).click();
       await page.waitForTimeout(300);
       await page.getByRole('button', { name: '시사 이슈 어떻게 분석해요?' }).click();
       await page.waitForTimeout(600);
