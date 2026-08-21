@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { GradingItem } from '@/lib/mock';
 import { Slider } from '@/components/ui/slider';
 import { ScoreDisplay } from '@/components/classbot/score-display';
+import { cn } from '@/lib/utils';
 
 type RubricItem = GradingItem['rubric'][number];
 
@@ -14,13 +15,20 @@ type RubricItem = GradingItem['rubric'][number];
 export function RubricEditor({
   initialRubric,
   onChange,
+  readOnly = false,
 }: {
   initialRubric: RubricItem[];
   onChange?: (next: RubricItem[], total: number) => void;
+  /**
+   * 확정된 채점은 잠근다. 이게 없으면 승인 뒤에도 슬라이더가 움직여
+   * 내부 state 의 「최종」과 바깥 최종 점수가 한 화면에서 서로 다른 값을 보인다.
+   */
+  readOnly?: boolean;
 }) {
   const [rubric, setRubric] = useState<RubricItem[]>(initialRubric);
 
   function updateScore(idx: number, value: number) {
+    if (readOnly) return;
     const next = rubric.map((r, i) => i === idx ? { ...r, score: value } : r);
     setRubric(next);
     const total = next.reduce((s, r) => s + r.score, 0);
@@ -36,7 +44,9 @@ export function RubricEditor({
         <div>
           <h3 className="text-pullim-slate-900 text-sm font-bold">루브릭 검수</h3>
           <p className="text-pullim-slate-500 text-2xs">
-            항목별 점수를 보고 필요하면 조정해주세요. (가중치 합 {weightSum}%)
+            {readOnly
+              ? `확정한 채점이라 더 고칠 수 없어요. (가중치 합 ${weightSum}%)`
+              : `항목별 점수를 보고 필요하면 조정해주세요. (가중치 합 ${weightSum}%)`}
           </p>
         </div>
         <div className="text-right">
@@ -69,8 +79,9 @@ export function RubricEditor({
                 step={1}
                 value={r.score}
                 onValueChange={(v) => updateScore(i, Array.isArray(v) ? v[0] : v)}
+                disabled={readOnly}
                 aria-label={`${r.criterion} 점수`}
-                className="mt-2"
+                className={cn('mt-2', readOnly && 'opacity-60')}
               />
             </li>
           );

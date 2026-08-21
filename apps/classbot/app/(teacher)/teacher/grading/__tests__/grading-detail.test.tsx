@@ -91,3 +91,40 @@ it('채점 큐 — 확정한 항목은 「대기」에서 빠지고 「완료」
   const row = screen.getByText(item.studentName).closest('a');
   expect(row?.textContent).toContain('승인됨');
 });
+
+/** 루브릭 슬라이더는 Base UI 가 숨은 `input[type=range]` 로 렌더한다 — 항목 순서 그대로. */
+function rubricSliders(container: HTMLElement): HTMLInputElement[] {
+  return Array.from(container.querySelectorAll<HTMLInputElement>('input[type="range"]'));
+}
+
+it('총합은 그대로 두고 항목 배분만 바꿔도 「수정 후 승인」이 열린다', () => {
+  const { container } = renderDetail();
+  // 시드: 36 / 27 / 14 / 8 = 85. 아직 초안 그대로라 「수정 후 승인」은 잠겨 있다.
+  expect(screen.getByRole('button', { name: /수정 후 승인/ }).hasAttribute('disabled')).toBe(true);
+
+  // 1번 −6, 3번 +6 — 총합 85 는 그대로고 배분만 달라진다.
+  const sliders = rubricSliders(container);
+  fireEvent.change(sliders[0], { target: { value: '30' } });
+  fireEvent.change(sliders[2], { target: { value: '20' } });
+
+  // 총합만 비교하던 시절엔 여기서 계속 잠겨 저장할 수 없었다.
+  expect(screen.getByRole('button', { name: /수정 후 승인/ }).hasAttribute('disabled')).toBe(false);
+
+  fireEvent.click(screen.getByRole('button', { name: /수정 후 승인/ }));
+  const decision = useGradingStore.getState().decisions[item.id];
+  expect(decision.kind).toBe('overridden');
+  expect(decision.rubric.map((r) => r.score)).toEqual([30, 27, 20, 8]);
+  // 총합이 같으니 최종 점수는 초안과 같다 — 바뀐 건 배분뿐이다.
+  expect(decision.finalScore).toBe(item.draftScore);
+});
+
+it('확정한 뒤에는 루브릭 슬라이더도 잠긴다', () => {
+  const { container } = renderDetail();
+  expect(rubricSliders(container).every((s) => s.disabled)).toBe(false);
+
+  fireEvent.click(screen.getByRole('button', { name: '그대로 승인' }));
+
+  // 확정 뒤에도 움직이면 슬라이더 안 「최종」과 바깥 최종 점수가 서로 다른 값을 보인다.
+  expect(rubricSliders(container).every((s) => s.disabled)).toBe(true);
+  expect(screen.getByText(/확정한 채점이라 더 고칠 수 없어요/)).toBeTruthy();
+});

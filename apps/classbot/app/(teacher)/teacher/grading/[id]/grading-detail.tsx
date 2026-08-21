@@ -22,9 +22,14 @@ import {
 } from '@/lib/store/grading';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
-/** Initial rubric total (sum of per-item scores, 0-100 pct basis). */
-function initialRubricTotal(item: GradingItem): number {
-  return item.rubric.reduce((s, r) => s + r.score, 0);
+/**
+ * 루브릭이 AI 초안에서 달라졌는지 — **항목별로** 본다.
+ * 총합만 비교하면 40/30/20/10 → 35/35/20/10 처럼 배분만 바꾼 수정이 「안 고침」으로 읽혀
+ * 「수정 후 승인」이 잠긴 채 저장할 수 없다. 항목별 배분 조정이 채점 허브의 핵심이다.
+ */
+function rubricChangedFrom(item: GradingItem, rubric: GradingRubricItem[]): boolean {
+  if (rubric.length !== item.rubric.length) return true;
+  return rubric.some((r, i) => r.score !== item.rubric[i].score);
 }
 
 export function GradingDetail({
@@ -74,9 +79,8 @@ export function GradingDetail({
   const dirty = useMemo(() => {
     const scoreChanged = finalScore !== item.draftScore;
     const commentChanged = finalComment !== item.draftComment;
-    const rubricChanged = rubricTotal !== initialRubricTotal(item);
-    return scoreChanged || commentChanged || rubricChanged;
-  }, [finalScore, finalComment, rubricTotal, item]);
+    return scoreChanged || commentChanged || rubricChangedFrom(item, rubric);
+  }, [finalScore, finalComment, rubric, item]);
 
   const isCrisis = (item.type === 'essay' && item.responsePreview.length < 25) || /모르겠|어려워|힘들/.test(item.responsePreview);
 
@@ -220,6 +224,8 @@ export function GradingDetail({
           onChange={(next) => {
             setRubricDraft(next);
           }}
+          // 확정한 채점은 잠근다 — 저장값이 진실이라 여기서 고쳐도 반영되지 않는다(코멘트와 같은 규칙).
+          readOnly={isApproved}
         />
 
         {/* 코멘트 편집 */}
