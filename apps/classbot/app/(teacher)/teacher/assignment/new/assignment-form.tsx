@@ -107,8 +107,6 @@ export function AssignmentForm() {
   const maxQuestions = maxQuestionsFor(mode);
   const countValid = questions.length >= MIN_QUESTIONS && questions.length <= maxQuestions;
   const atMaxQuestions = questions.length >= maxQuestions;
-  // 배점 합계가 100 이 아니면 발사를 막는다 — 채점 기준이 반쯤 정해진 과제가 나가지 않도록.
-  const questionsValid = countValid && pointsTotal === TOTAL_POINTS;
   // 발문을 일부만 쓴 채 발사하면 쓴 발문이 통째로 버려지고 단원 RAG 로 대체된다 — 그 전에 막는다.
   const partiallyAuthored = isPartiallyAuthored(questions);
   // 정답을 안 정한 자동 채점 문항이 있으면 발사를 막는다 — 그대로 나가면 그 문항이 채점에서
@@ -116,18 +114,23 @@ export function AssignmentForm() {
   const missingAnswers = missingAnswerNumbers(questions);
   const answersValid = missingAnswers.length === 0;
 
-  /** 발사를 막는 이유 한 줄 — null 이면 문항 섹션에 걸린 게 없다. */
-  const blockedReason = !countValid
-    ? questions.length < MIN_QUESTIONS
-      ? '문항을 최소 1개는 넣어야 발사할 수 있어요'
-      : `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요 — 지금 ${questions.length}문항`
-    : pointsTotal !== TOTAL_POINTS
-      ? `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`
-      : partiallyAuthored
-        ? `발문은 전부 쓰거나 전부 비워야 해요 — 지금 ${authoredCount(questions)}/${questions.length}개`
-        : !answersValid
-          ? `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`
-          : null;
+  /**
+   * ② 문항 섹션이 발사를 막는 이유 한 줄 — null 이면 걸린 게 없다.
+   * 먼저 걸리는 것부터 하나만 보여 준다(문항 수 → 배점 → 발문 → 정답).
+   */
+  function questionBlockedReason(): string | null {
+    if (questions.length < MIN_QUESTIONS) return '문항을 최소 1개는 넣어야 발사할 수 있어요';
+    if (questions.length > maxQuestions) {
+      return `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요 — 지금 ${questions.length}문항`;
+    }
+    if (pointsTotal !== TOTAL_POINTS) return `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`;
+    if (partiallyAuthored) {
+      return `발문은 전부 쓰거나 전부 비워야 해요 — 지금 ${authoredCount(questions)}/${questions.length}개`;
+    }
+    if (!answersValid) return `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`;
+    return null;
+  }
+  const blockedReason = questionBlockedReason();
 
   const canDispatch = !!bot && titleValid && targetValid && dueValid && blockedReason === null;
 
