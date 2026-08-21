@@ -29,7 +29,7 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
     <WeaknessReviewCard botId={bot.id} userId={userId} />
     <section
       data-slot="chat-study-inline"
-      className="border-pullim-blue-200 from-pullim-blue-50/70 rounded-2xl border bg-gradient-to-br to-white"
+      className="@container border-pullim-blue-200 from-pullim-blue-50/70 rounded-2xl border bg-gradient-to-br to-white"
     >
       {/* 헤더 — 토글 */}
       <button
@@ -69,7 +69,7 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
               핵심 개념
               <span className="text-pullim-slate-400 font-normal">· 눌러서 대화로 이어가기</span>
             </div>
-            <ul className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid gap-2 @md:grid-cols-2">
               {concepts.map((c, i) => (
                 <li key={c.id}>
                   <button
@@ -135,7 +135,7 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
                 내 말로 설명
                 <span className="text-pullim-slate-400 font-normal">· 개념을 직접 설명해보기</span>
               </div>
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid gap-2 @md:grid-cols-2">
                 {selfExplains.map(se => {
                   const concept = concepts.find(c => c.id === se.conceptId);
                   return (

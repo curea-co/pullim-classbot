@@ -152,7 +152,7 @@ function QuizLaunchModal({
               value={question}
               onChange={e => setQuestion(e.target.value.slice(0, 200))}
               rows={2}
-              placeholder="예: f'(x) = 0이면 무조건 극값인가?"
+              placeholder="예: 기울기가 음수면 그래프는 어느 쪽으로 갈까?"
               className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border p-2 text-xs outline-none"
             />
           </div>

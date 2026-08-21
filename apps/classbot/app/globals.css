@@ -96,11 +96,11 @@
   --color-pullim-lemon-ink:  #5C6B0A;
 
   /* 클래스봇 5종 시그니처 컬러 ([07-branding § 4.6.2], [08 § 15.2.1]) */
-  --color-bot-math:    oklch(0.967 0.197 116); /* 수학이 형 — lime */
-  --color-bot-english: oklch(0.720 0.170 28);  /* 영어 누나 — coral */
-  --color-bot-science: oklch(0.760 0.130 178); /* 과학 쌤 — mint */
-  --color-bot-korean:  oklch(0.620 0.220 286); /* 국어 누나 — violet */
-  --color-bot-social:  oklch(0.680 0.160 55);  /* 사회 코치 — amber */
+  --color-bot-math:    oklch(0.967 0.197 116); /* 수학봇 — lime */
+  --color-bot-english: oklch(0.720 0.170 28);  /* 영어봇 — coral */
+  --color-bot-science: oklch(0.760 0.130 178); /* 과학봇 — mint */
+  --color-bot-korean:  oklch(0.620 0.220 286); /* 국어봇 — violet */
+  --color-bot-social:  oklch(0.680 0.160 55);  /* 사회봇 — amber */
 
   /* 학습 히트맵 6단계 — gray-100, primary-{100,300,500,700,900} */
   --color-pullim-heat-0: oklch(0.967 0.001 286);

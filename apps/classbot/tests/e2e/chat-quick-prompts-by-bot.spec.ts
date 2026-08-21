@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { enrollFirstTutor } from './helpers';
+import { joinDemoClass } from './helpers';
 
 /**
  * 봇 주도 가이드 수업 — 흐름칩 + 힌트 사다리 + 오답 처방 (출시 빈 상태 기준 재작성).
  *
- * 신규 사용자는 봇 마켓에서 공식 튜터를 등록한 뒤 챗에서 가이드 수업을 진행한다.
+ * 신규 사용자는 참여 코드로 교사 클래스에 들어간 뒤 챗에서 가이드 수업을 진행한다.
  * 흐름칩(개념→예제→퀴즈)이 서로 다른 리치 답변을 만들고, 인라인 퀴즈는
  * 단계적 힌트 + 오답 처방을 제공한다.
  */
-test.describe('가이드 수업 흐름칩 (등록 후)', () => {
+test.describe('가이드 수업 흐름칩 (참여 후)', () => {
   test('흐름칩 노출 + 칩별 답변(개념/예제/퀴즈)', async ({ page }) => {
-    await enrollFirstTutor(page);
+    await joinDemoClass(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
     const chat = page.locator('[data-slot="chat-scroll"]');
@@ -33,7 +33,7 @@ test.describe('가이드 수업 흐름칩 (등록 후)', () => {
   });
 
   test('인라인 퀴즈 — 힌트 사다리 + 오답 처방', async ({ page }) => {
-    await enrollFirstTutor(page);
+    await joinDemoClass(page);
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
     await page.waitForSelector('[data-slot="chat-scroll"]', { timeout: 15000 });
     const chat = page.locator('[data-slot="chat-scroll"]');
@@ -45,11 +45,11 @@ test.describe('가이드 수업 흐름칩 (등록 후)', () => {
     await chat.getByRole('button', { name: /힌트 보기/ }).click();
     await expect(chat.getByText(/힌트 1 ·/)).toBeVisible();
 
-    // 첫 등록 튜터(수학 마스터 → 극값 판정 리치 수업) — 정답은 ①('2'), ②('−2')는 오답.
-    // 오답(②) 제출 → distractor 처방(극솟값) + 처방 버튼(다시 풀기·개념 다시 보기)
+    // 참여 클래스 봇 cb_001(수학봇 → 일차함수의 그래프 리치 수업) — 정답은 ①('2'), ②('−3')는 오답.
+    // 오답(②) 제출 → distractor 처방(y절편) + 처방 버튼(다시 풀기·개념 다시 보기)
     await chat.getByRole('radio').nth(1).click();
     await page.getByRole('button', { name: '제출하기' }).click();
-    await expect(chat.getByText(/극솟값/)).toBeVisible({ timeout: 2000 });
+    await expect(chat.getByText(/y절편/)).toBeVisible({ timeout: 2000 });
     await expect(chat.getByRole('button', { name: /다시 풀기/ })).toBeVisible();
     await expect(chat.getByRole('button', { name: /개념 다시 보기/ })).toBeVisible();
   });

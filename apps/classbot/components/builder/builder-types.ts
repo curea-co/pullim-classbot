@@ -49,14 +49,14 @@ export type BuilderForm = {
 
 export const initialForm: BuilderForm = {
   name: '',
-  subject: '수학Ⅱ',
-  grade: '고2',
+  subject: '수학',
+  grade: '중2',
   tone: 'friendly',
   voiceMode: 'preset',
   voicePreset: 'tts1',
   files: [
-    { name: '미적분_3장_도함수의_활용.pdf', size: '4.2MB', type: 'pdf' },
-    { name: '극값_부호변화표_예시.pptx', size: '2.1MB', type: 'ppt' },
+    { name: '일차함수_2단원_그래프.pdf', size: '4.2MB', type: 'pdf' },
+    { name: '기울기_구하기_예시.pptx', size: '2.1MB', type: 'ppt' },
   ],
   teachingStyle: 'mixed',
   scopeDefault: 3,
@@ -66,7 +66,7 @@ export const initialForm: BuilderForm = {
   filterPii: true,
   filterHarmful: true,
   weeIntegration: true,
-  classrooms: ['고2-A반'],
+  classrooms: ['중2-A반'],
 };
 
 export const toneMeta: Record<BotTone, { label: string; Icon: LucideIcon; description: string }> = {

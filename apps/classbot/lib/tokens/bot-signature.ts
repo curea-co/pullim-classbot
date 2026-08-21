@@ -29,8 +29,7 @@ const sig = (kind: BotSignature['kind']): Omit<BotSignature, 'cssVar'> & { cssVa
 
 const BY_SUBJECT: Record<string, BotSignature> = {
   '수학':       sig('math'),
-  '수학Ⅱ':      sig('math'),
-  '미적분':     sig('math'),
+  '공통수학':   sig('math'),
   '영어':       sig('english'),
   '과학':       sig('science'),
   '통합과학':   sig('science'),
@@ -43,7 +42,7 @@ const BY_SUBJECT: Record<string, BotSignature> = {
 };
 
 const BY_ID: Record<string, BotSignature> = {
-  cb_001: BY_SUBJECT['수학Ⅱ'],
+  cb_001: BY_SUBJECT['수학'],
   cb_002: BY_SUBJECT['영어'],
   cb_003: BY_SUBJECT['통합과학'],
   cb_004: BY_SUBJECT['국어'],

@@ -54,8 +54,8 @@ it('opens the exam sheet on 다시 풀기 and resolves the weak point on a corre
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
   expect(screen.getByRole('button', { name: '제출' })).toBeTruthy();
 
-  // 정답(answerIndex 2 = 'x = 1에서 극댓값을 갖는다') 선택 후 제출
-  fireEvent.click(screen.getByText('x = 1에서 극댓값을 갖는다'));
+  // 정답(answerIndex 2 = 'a = 2 이다') 선택 후 제출
+  fireEvent.click(screen.getByText('a = 2 이다'));
   fireEvent.click(screen.getByRole('button', { name: '제출' }));
 
   expect(useReplayStore.getState().resolvedWeakPoints['rp_demo_math']).toContain('q:1100');
@@ -64,7 +64,7 @@ it('opens the exam sheet on 다시 풀기 and resolves the weak point on a corre
 it('does not resolve on a wrong submit', () => {
   render(<ReplayDetail replay={mathReplay} />);
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
-  fireEvent.click(screen.getByText('x = 1에서 극솟값을 갖는다')); // 오답
+  fireEvent.click(screen.getByText('a = 1/2 이다')); // 오답
   fireEvent.click(screen.getByRole('button', { name: '제출' }));
   expect(useReplayStore.getState().resolvedWeakPoints['rp_demo_math'] ?? []).not.toContain('q:1100');
 });
@@ -73,8 +73,8 @@ it('does not resolve on a wrong submit', () => {
 it('flag OFF: uses mock getReplayQuiz, does not call mutate', () => {
   render(<ReplayDetail replay={mathReplay} />);
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
-  // mock question subjectLabel is '수학 · 도함수의 활용'
-  expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+  // mock question subjectLabel is '수학 · 일차함수의 그래프'
+  expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
@@ -113,7 +113,7 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     // BE question rendered
     expect(screen.getByText(beSubjectLabel)).toBeTruthy();
     // mock question subjectLabel NOT rendered
-    expect(screen.queryByText('수학 · 도함수의 활용')).toBeNull();
+    expect(screen.queryByText('수학 · 일차함수의 그래프')).toBeNull();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 
@@ -132,7 +132,7 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     });
 
     // Fallback mock question rendered
-    expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+    expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 
@@ -151,7 +151,7 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     });
 
     // Fallback mock question rendered
-    expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+    expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 

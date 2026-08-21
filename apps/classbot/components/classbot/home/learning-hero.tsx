@@ -6,8 +6,6 @@ import { currentPersona } from '@/lib/mock';
 import type { Assignment } from '@/lib/mock';
 import { Chip } from '@/components/ui/chip';
 
-const DAYS_KO = ['월', '화', '수', '목', '금', '토', '일'] as const;
-
 function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string; href: string } | null {
   if (incomplete.length === 0) return null;
   // Priority: '오늘' > 'D-1' > first
@@ -20,8 +18,7 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
 }
 
 export function LearningHero({ incompleteAssignments }: { incompleteAssignments: Assignment[] }) {
-  const { name, streakDays, weeklyActivity } = currentPersona;
-  const activeDays = weeklyActivity.filter(v => v > 0).length;
+  const { name, streakDays } = currentPersona;
   const nextAction = pickNextAction(incompleteAssignments);
 
   return (
@@ -82,30 +79,6 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
             <ArrowRight className="h-4 w-4 text-white/60 shrink-0" aria-hidden />
           </Link>
         )}
-
-        {/* 주간 진행 mini-row */}
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1">
-            {weeklyActivity.map((intensity, i) => (
-              <div key={i} className="flex flex-col items-center gap-0.5">
-                <div
-                  className={[
-                    'h-5 w-4 rounded-sm',
-                    intensity === 0 ? 'bg-white/15' :
-                    intensity === 1 ? 'bg-pullim-blue-300/60' :
-                    intensity === 2 ? 'bg-pullim-lemon/50' :
-                    'bg-pullim-lemon',
-                  ].join(' ')}
-                  title={`${DAYS_KO[i]}: 강도 ${intensity}`}
-                />
-                <span className="text-micro text-white/50">{DAYS_KO[i]}</span>
-              </div>
-            ))}
-          </div>
-          <span className="text-pullim-blue-100 text-xs font-semibold">
-            이번 주 {activeDays}/7일 학습
-          </span>
-        </div>
       </div>
     </section>
   );

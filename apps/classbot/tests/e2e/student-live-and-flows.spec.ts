@@ -1,31 +1,41 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * 출시 IA — 신규 사용자 빈 상태 → 봇 마켓 등록 플로우 + 교사 핵심 path.
- * (2026-06-24 재작성: 데모 시드 제거로 학생 라이브/스코프 테스트를 마켓 등록 플로우로 교체)
+ * 출시 IA — 신규 사용자 빈 상태 → 참여 코드 등록 플로우 + 교사 핵심 path.
+ * (2026-06-24 재작성: 데모 시드 제거로 학생 라이브/스코프 테스트를 등록 플로우로 교체)
+ * (2026-08-20 재작성: 자기주도 모드 보류로 학생 홈이 교사 수업 모드 고정 → 참여 코드 플로우로 교체)
  */
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
-test.describe('신규 사용자 빈 상태 → 봇 마켓 등록 (출시 IA)', () => {
-  test('빈 홈 — 환영 + 시작 가이드 + 봇 마켓 유도', async ({ page }) => {
+test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)', () => {
+  test('빈 홈 — 교사 수업 hero + 진행 안내 + 과제 빈 상태', async ({ page }) => {
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
-    await expect(page.getByText('환영해요')).toBeVisible();
-    await expect(page.getByText('시작 가이드')).toBeVisible();
-    await expect(page.getByText('아직 등록한 튜터가 없어요')).toBeVisible();
+    await expect(page.getByText('교사 수업', { exact: true })).toBeVisible();
+    await expect(page.getByText('교사 수업은 이렇게 진행돼요')).toBeVisible();
+    await expect(page.getByText('아직 받은 과제가 없어요')).toBeVisible();
   });
 
-  test('봇 마켓 등록 → 홈 내 튜터 반영', async ({ page }) => {
+  test('참여 코드 등록 → 홈 참여 클래스 반영', async ({ page }) => {
+    await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
+
+    await page.getByLabel('참여 코드 입력').fill('MATH-2024');
+    await page.getByRole('button', { name: '참여하기' }).click();
+
+    // 홈에 반영 — 빈 상태 사라지고 참여 중인 클래스 노출 (성공 토스트에도 반 이름이 있어 main 으로 스코프)
+    const main = page.getByRole('main');
+    await expect(main.getByText('참여 중인 클래스')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('중2 수학 A반 · 김보람 선생님')).toBeVisible();
+  });
+
+  // 봇 마켓은 기획 보류로 nav 진입점만 내렸다 — 라우트·등록 동작 자체는 살아 있어야 한다.
+  test('봇 마켓 — 진입점 비노출이어도 URL 직접 진입 시 등록 동작 유지', async ({ page }) => {
     await page.goto(BASE + '/classbot/discover', { waitUntil: 'networkidle' });
     await expect(page.getByText('공식 튜터 마켓')).toBeVisible();
 
     await page.getByRole('button', { name: '등록', exact: true }).first().click();
     await expect(page.getByRole('button', { name: '등록됨' }).first()).toBeVisible();
-
-    // 홈에 반영 — 빈 상태 사라짐
-    await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
-    await expect(page.getByText('아직 등록한 튜터가 없어요')).toHaveCount(0);
   });
 
   test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
@@ -34,25 +44,39 @@ test.describe('신규 사용자 빈 상태 → 봇 마켓 등록 (출시 IA)', (
   });
 });
 
-test.describe('즉석 퀴즈 store 동기화 (F4, B8)', () => {
-  test('교사 퀴즈 발사 모달 — 입력 검증', async ({ page }) => {
+/**
+ * 기획 보류 — 즉석 퀴즈 발사 모달(F4, B8 / SCR-C-20) 검증이 여기 있었다.
+ * 운영 메인에서 퀴즈 pane 을 내리면서 같은 화면의 봇 운영 목록 검증으로 갈아끼웠다. 재개 시 되살린다.
+ */
+test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () => {
+  test('봇 카드 — 학급 배정·안전 등급 배지가 보이고 동선은 더보기 안에 있다', async ({ page }) => {
     await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
 
-    // 새 퀴즈 모달 열기
-    await page.getByRole('button', { name: '새 퀴즈' }).click();
-    await expect(page.getByRole('dialog', { name: '새 즉석 퀴즈' })).toBeVisible();
+    const card = page.getByTestId('bot-ops-card-cb_001');
+    await expect(card).toBeVisible();
+    // 어느 학급에 붙어 있나
+    await expect(card.getByText('중2 수학 A반')).toBeVisible();
+    // 안전 등급은 읽기 전용 배지 하나 — 설명문·변경 링크는 카드에서 걷어냈다
+    await expect(card.getByText('L3', { exact: true })).toBeVisible();
+    // 카드 바닥 링크 묶음은 없앴다 — 나가는 길은 전부 더보기 안
+    await expect(card.getByRole('link')).toHaveCount(0);
+    await card.getByRole('button', { name: /더보기/ }).click();
+    const menu = page.getByRole('menu');
+    for (const label of ['봇 손보기', '봇 설정', '안전 등급 바꾸기', '과제 내기', '학급 관제소']) {
+      await expect(menu.getByRole('menuitem', { name: label })).toBeVisible();
+    }
 
-    // 모든 옵션 채우기 + 발사 (모달 내부 발사 버튼만 — exact 매칭)
-    const dialog = page.getByRole('dialog', { name: '새 즉석 퀴즈' });
-    await dialog.getByLabel('문제').fill('테스트 문제');
-    await dialog.getByPlaceholder('선택지 1').fill('A');
-    await dialog.getByPlaceholder('선택지 2').fill('B');
-    await dialog.getByPlaceholder('선택지 3').fill('C');
-    await dialog.getByPlaceholder('선택지 4').fill('D');
-    await dialog.getByRole('button', { name: '발사', exact: true }).click();
+    // 보류 pane 은 내려갔다
+    await expect(page.getByRole('button', { name: '새 퀴즈' })).toHaveCount(0);
+    await expect(page.getByText('라이브 시작', { exact: true })).toHaveCount(0);
+  });
 
-    // 모달 닫힘 — 발사 후 currentQuiz가 새 문제로 바뀜
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+  test('봇 카드 더보기 → 학급 관제소로 나간다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
+
+    await page.getByTestId('bot-ops-card-cb_001').getByRole('button', { name: /더보기/ }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: '학급 관제소' }).click();
+    await expect(page).toHaveURL(BASE + '/teacher/monitor');
   });
 });
 
