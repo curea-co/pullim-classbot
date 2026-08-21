@@ -27,7 +27,7 @@ export function TeacherClassHome() {
       <EmptyState
         icon={ClipboardList}
         title="아직 받은 과제가 없어요"
-        description="선생님이 클래스에 초대하고 과제를 발송하면 여기에 표시됩니다."
+        description="선생님이 클래스에 초대하고 과제를 내면 여기에 표시돼요."
       />
     </div>
   );

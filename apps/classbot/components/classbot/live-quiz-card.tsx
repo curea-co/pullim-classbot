@@ -110,7 +110,7 @@ export function LiveQuizCard() {
         </Button>
       ) : (
         <p className="text-pullim-slate-600 mt-3 text-center text-xs">
-          {selected === q.answerIndex ? '🎉 정답이에요!' : '아쉽지만 다시 도전해봐요'}
+          {selected === q.answerIndex ? '정답이에요!' : '아쉽지만 다시 도전해봐요'}
           <span className="text-pullim-slate-400"> · 결과가 선생님께 자동 전송됨</span>
         </p>
       )}

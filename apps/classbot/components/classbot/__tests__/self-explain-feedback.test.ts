@@ -1,22 +1,22 @@
 import { scoreExplanation } from '@/app/(student)/classbot/chat/page';
 import { getSelfExplain, getBotLesson } from '@/lib/mock/classbot-lesson';
 
-const KW = ['부호', '극대', '극소', '임계점'];
+const KW = ['부호', '변화량', '기울기', 'y절편'];
 
 describe('scoreExplanation', () => {
   it('returns strong when ≥60% keywords match', () => {
     // 3/4 = 0.75 ≥ 0.6
-    expect(scoreExplanation('부호 변화로 극대 극소를 판정', KW)).toBe('strong');
+    expect(scoreExplanation('부호로 방향을 보고 변화량으로 기울기를 구한다', KW)).toBe('strong');
   });
 
   it('returns partial when ≥30% and <60% keywords match', () => {
     // 2/4 = 0.5
-    expect(scoreExplanation('극대와 극소를 구분', KW)).toBe('partial');
+    expect(scoreExplanation('기울기와 y절편을 구분', KW)).toBe('partial');
   });
 
   it('returns weak when <30% keywords match', () => {
     // 1/4 = 0.25
-    expect(scoreExplanation('극대만 안다', KW)).toBe('weak');
+    expect(scoreExplanation('기울기만 안다', KW)).toBe('weak');
   });
 
   it('returns weak for empty string', () => {

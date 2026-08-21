@@ -20,9 +20,11 @@ export const useStudentModeStore = create<StudentModeStore>()(
 );
 
 /**
- * 효과적 모드 — 저장값 우선, 없으면 교사 enrollment 유무로 default (있음→class, 없음→self).
- * enrollment 권위는 class-enrollment 스토어(`pullim-class-enrollment`). spec §1 준수 —
- * 정적 `getMyBots()`(빈 배열)가 아니라 실제 참여 상태를 본다.
+ * 효과적 모드 — 저장값 우선, 없으면 항상 `class`(교사 수업).
+ *
+ * 기획 보류 — 자기주도 모드가 보류되어 헤더 토글(StudentModeToggle)을 비노출로 내렸다.
+ * 그에 맞춰 default 도 `class` 로 고정한다(이전: 교사 enrollment 0개면 `self`).
+ * 스토어 구조·`setMode` 계약은 그대로 두어 재개 시 이 한 줄만 되돌리면 된다.
  *
  * `hydrated`: persist 스토어(student-mode·class-enrollment)는 SSR·첫 클라이언트 페인트 시점엔
  * 빈 초기 상태로 평가된다(localStorage 미반영). 그 시점의 `mode`는 신뢰할 수 없으므로,
@@ -35,9 +37,8 @@ export const useStudentModeStore = create<StudentModeStore>()(
 export function useStudentMode(): { mode: StudentMode; setMode: (m: StudentMode) => void; toggle: () => void; hydrated: boolean } {
   const stored = useStudentModeStore((s) => s.mode);
   const setMode = useStudentModeStore((s) => s.setMode);
-  const enrollmentCount = useClassEnrollmentStore((s) => s.enrollments.length);
   const hydrated = useStoresHydrated(useStudentModeStore, useClassEnrollmentStore, useSelfLearningStore);
-  const mode: StudentMode = stored ?? (enrollmentCount > 0 ? 'class' : 'self');
+  const mode: StudentMode = stored ?? 'class';
   const toggle = () => setMode(mode === 'class' ? 'self' : 'class');
   return { mode, setMode, toggle, hydrated };
 }

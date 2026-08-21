@@ -60,7 +60,7 @@ export function TodoPanel({
       )}
       {isEmpty ? (
         <div className="border-pullim-slate-100 rounded-xl border border-dashed bg-pullim-slate-50 px-4 py-6 text-center">
-          <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요 🎉</p>
+          <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요</p>
           <p className="text-pullim-slate-400 mt-1 text-xs">봇과 자유롭게 대화하며 한 발 더 나가볼까요?</p>
         </div>
       ) : (

@@ -12,12 +12,14 @@ import { test, expect, devices } from '@playwright/test';
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 test.describe('모바일 viewport 검증', () => {
-  test('iPhone SE (375px) — 교사 라이브 시작 CTA 노출', async ({ browser }) => {
+  test('iPhone SE (375px) — 교사 운영 메인 봇 목록·과제 CTA 노출', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     await page.goto(BASE + '/teacher/classbot');
-    // 신규(라이브 비활성) 교사 — "라이브 시작" CTA 가 모바일에서 보여야 함
-    await expect(page.getByText('라이브 시작', { exact: true })).toBeVisible();
+    // 기획 보류 — 라이브 시작 CTA(SCR-C-19). 재개 시 되살린다.
+    // 운영 메인의 본체(봇 목록)와 핵심 CTA(새 과제)가 모바일에서 보여야 함
+    await expect(page.getByTestId('bot-ops-list')).toBeVisible();
+    await expect(page.getByTestId('new-assignment-cta')).toBeVisible();
     await context.close();
   });
 
@@ -25,11 +27,11 @@ test.describe('모바일 viewport 검증', () => {
     const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
     const page = await context.newPage();
     await page.goto(BASE + '/classbot');
-    // 내 튜터 헤더 보임 (홈 재구성: 내 클래스봇 → 내 튜터)
-    await expect(page.getByText('내 튜터')).toBeVisible();
-    // 신규 빈 상태 홈 — 봇 마켓(튜터 찾기) 핵심 CTA (discover 링크 prefix 매칭)
-    const main = page.getByRole('main');
-    await expect(main.locator('a[href^="/classbot/discover"]').last()).toBeVisible();
+    // 교사 수업 모드 고정(자기주도 보류) — 신규 사용자 홈은 참여 코드 입력 hero
+    await expect(page.getByText('교사 수업', { exact: true })).toBeVisible();
+    // 신규 빈 상태 홈 — 참여 코드 핵심 CTA
+    await expect(page.getByLabel('참여 코드 입력')).toBeVisible();
+    await expect(page.getByRole('button', { name: '참여하기' })).toBeVisible();
     await context.close();
   });
 
@@ -91,8 +93,8 @@ test.describe('키보드 Tab 포커스 가시성', () => {
               {
                 botId: 'cb_001',
                 classroomId: 'cr_math_a',
-                classroomLabel: '고2 미적분 A반',
-                assignedBy: '김수학 선생님',
+                classroomLabel: '중2 수학 A반',
+                assignedBy: '김보람 선생님',
                 assignedAt: '2026-06-24 09:00',
                 via: '대치프리미엄 수학학원',
               },

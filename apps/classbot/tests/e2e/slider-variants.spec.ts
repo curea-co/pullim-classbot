@@ -6,7 +6,9 @@ import type { Locator, Page } from '@playwright/test';
  *
  * 검증 대상:
  *  1. thumb danger variant — 시험 모드 시간 슬라이더의 thumb 가 풀림 danger 토큰 색인지.
- *  2. (회귀) 문항 수 슬라이더의 thumb 는 풀림 blue-600 토큰 색인지.
+ *  2. (회귀) 기본 variant 슬라이더의 thumb 는 풀림 blue-600 토큰 색인지.
+ *     — 문항 수 슬라이더가 문항 목록 편집(유형·발문·배점)으로 바뀌면서, 같은 화면의 기본 variant
+ *       슬라이더는 서술형 문항의 채점 기준 가중치 슬라이더다.
  *
  * NOTE: CUDS 토큰이 OKLCH로 이전되며 (a) getComputedStyle 가 `lab()`/`oklab()`을 반환하고
  * (b) 실제 색값도 바뀌었다(예전 #E5484D/#2854D8 하드코딩은 stale). 그래서 색을 하드코딩하지
@@ -64,13 +66,14 @@ test.describe('Slider primitive variant', () => {
     expectClose(await thumbRgb(thumbDiv), await tokenRgb(page, 'bg-pullim-danger'));
   });
 
-  test('문항 수 슬라이더 thumb 색은 풀림 블루 (회귀)', async ({ page }) => {
+  test('채점 기준 가중치 슬라이더 thumb 색은 풀림 블루 (회귀)', async ({ page }) => {
     await page.goto('/teacher/assignment/new', { waitUntil: 'networkidle' });
 
-    const qSlider = page.locator('#af-qcount');
-    await expect(qSlider).toBeVisible();
+    // 기본 문항 목록에 서술형이 한 문항 있어 채점 기준 슬라이더가 바로 보인다.
+    const rubricSlider = page.getByTestId('rubric-weight-slider').first();
+    await expect(rubricSlider).toBeVisible();
 
-    const thumbDiv = qSlider.locator('input[type="range"]').locator('..');
+    const thumbDiv = rubricSlider.locator('input[type="range"]').locator('..');
     expectClose(await thumbRgb(thumbDiv), await tokenRgb(page, 'bg-pullim-blue-600'));
   });
 });

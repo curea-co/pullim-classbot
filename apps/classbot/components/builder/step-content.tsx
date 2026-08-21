@@ -36,7 +36,7 @@ export function Step1Identity({ form, setForm }: Props) {
           type="text"
           value={form.name}
           onChange={e => setForm({ ...form, name: e.target.value })}
-          placeholder="예: 수학이 형 · 영어 박쌤"
+          placeholder="예: 수학봇 · 영어봇"
           className="h-10 text-sm"
         />
         <p className="text-pullim-slate-400 mt-1 text-micro">학생이 부를 이름. 친근할수록 학생 참여 ↑</p>
@@ -51,7 +51,7 @@ export function Step1Identity({ form, setForm }: Props) {
             onChange={e => setForm({ ...form, subject: e.target.value })}
             className="border-pullim-slate-200 focus-visible:border-pullim-blue-500 focus-visible:ring-3 focus-visible:ring-pullim-blue-400/30 w-full rounded-lg border px-3 py-2 text-sm outline-none"
           >
-            {['수학Ⅰ', '수학Ⅱ', '미적분', '확률과 통계', '영어 독해', '영어 어법', '국어 비문학', '물리Ⅰ', '화학Ⅰ', '생명과학Ⅰ'].map(s => (
+            {['수학', '공통수학', '영어', '국어', '과학', '통합과학', '사회', '통합사회', '역사', '정보'].map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -64,7 +64,7 @@ export function Step1Identity({ form, setForm }: Props) {
             onChange={e => setForm({ ...form, grade: e.target.value })}
             className="border-pullim-slate-200 focus-visible:border-pullim-blue-500 focus-visible:ring-3 focus-visible:ring-pullim-blue-400/30 w-full rounded-lg border px-3 py-2 text-sm outline-none"
           >
-            {['중1', '중2', '중3', '고1', '고2', '고3', '재수'].map(g => (
+            {['초5', '초6', '중1', '중2', '중3', '고1'].map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
@@ -489,7 +489,7 @@ export function Step8Deploy({ form, setForm }: Props) {
     const intro = form.tone === 'formal' ? '안녕하세요, 학생.'
       : form.tone === 'friendly' ? '안녕!'
       : '집중해.';
-    setTestReply(`${intro} ${form.name || '봇'}이에요. ${testInput.includes('극값') ? '극값을 묻는 질문이군요. 도함수 부호 변화부터 확인해볼까요?' : '해당 질문에 대한 응답을 시뮬레이션합니다.'}`);
+    setTestReply(`${intro} ${form.name || '봇'}이에요. ${testInput.includes('기울기') ? '기울기를 묻는 질문이군요. 두 점의 변화량부터 확인해볼까요?' : '해당 질문에 대한 응답을 시뮬레이션합니다.'}`);
   }
 
   function deploy() {
@@ -497,7 +497,7 @@ export function Step8Deploy({ form, setForm }: Props) {
       toast.error('배포할 반을 1개 이상 선택해주세요');
       return;
     }
-    toast.success('🚀 배포 완료 (데모)', {
+    toast.success('배포 완료 (데모)', {
       description: `${form.name || '새 봇'} → ${form.classrooms.join(', ')} (${form.classrooms.length}개 반). 운영 화면으로 이동.`,
       duration: 4000,
     });
@@ -531,7 +531,7 @@ export function Step8Deploy({ form, setForm }: Props) {
               id="bld-test-input"
               value={testInput}
               onChange={e => setTestInput(e.target.value)}
-              placeholder='예: "극값 어떻게 찾아요?"'
+              placeholder='예: "기울기 어떻게 구해요?"'
               className="h-10 flex-1 rounded-full px-3.5 text-sm"
             />
             <Button
@@ -553,7 +553,7 @@ export function Step8Deploy({ form, setForm }: Props) {
           <span className="text-pullim-slate-400 ml-1 text-micro font-normal">(1개 이상)</span>
         </h3>
         <ul className="space-y-1.5">
-          {['고2-A반', '고2-B반', '고1-종합반', '재수반'].map(c => {
+          {['중2-A반', '중2-B반', '중3-종합반', '고1-심화반'].map(c => {
             const checked = form.classrooms.includes(c);
             return (
               <li key={c}>

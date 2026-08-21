@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +11,11 @@ export interface KpiStatProps {
   icon?: LucideIcon;
   /** When true, renders labels and values with on-dark (navy) safe colours (AA-legible). */
   onDark?: boolean;
+  /**
+   * 「그래서 뭘 하나」 — 숫자 하나에 다음 행동 하나를 붙인다.
+   * 지표가 무엇이 일어났는지만 보여주고 무엇을 해야 할지는 안 알려준다는 교사 불만에 대한 답.
+   */
+  action?: { label: string; href: string };
 }
 
 export interface KpiStatBarProps {
@@ -42,7 +48,7 @@ const colsClass: Record<2 | 3 | 4 | 6, string> = {
   6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
 };
 
-export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = false }: KpiStatProps) {
+export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = false, action }: KpiStatProps) {
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
       <div className={cn(
@@ -58,6 +64,18 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
       )}>
         {value}
       </div>
+      {action && (
+        <Link
+          href={action.href}
+          className={cn(
+            'mt-0.5 inline-block text-micro font-bold',
+            onDark ? 'text-white/80 hover:text-white' : 'text-pullim-blue-600 hover:text-pullim-blue-700',
+          )}
+        >
+          {action.label}
+          <span className="sr-only"> — {label}</span>
+        </Link>
+      )}
     </li>
   );
 }
