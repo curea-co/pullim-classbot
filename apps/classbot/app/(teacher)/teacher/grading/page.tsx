@@ -1,12 +1,9 @@
 import { ClipboardCheck } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
-import { SectionHeading } from '@/components/shell/section-heading';
 import { FlywheelNote } from '@/components/shell/flywheel-note';
-import { GradingRow } from '@/components/classbot/grading-row';
-import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPills } from '@/components/classbot/filter-pills';
-import { EmptyState } from '@/components/classbot/empty-state';
 import { gradingQueue, gradingStats, overriddenSample, type GradingItem } from '@/lib/mock';
+import { GradingKpiBar, GradingQueueList } from './grading-queue';
 
 type SearchParams = Promise<{ status?: string; type?: string }>;
 
@@ -30,18 +27,9 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
   const statusFilter = params.status ?? 'queue';
   const typeFilter = params.type ?? 'all';
 
+  // 시드 목록만 서버에서 만든다 — 교사가 확정한 채점(localStorage)을 얹어 세고 거르는 건
+  // 클라이언트 컴포넌트(GradingKpiBar · GradingQueueList) 몫이다.
   const allItems: GradingItem[] = [...gradingQueue, overriddenSample];
-
-  const filtered = allItems.filter(item => {
-    if (statusFilter !== 'all' && item.status !== statusFilter) return false;
-    if (typeFilter !== 'all' && item.type !== typeFilter) return false;
-    return true;
-  });
-
-  // AI 신뢰도 낮은 순 정렬 (위기 신호 우선)
-  const sorted = [...filtered].sort((a, b) => a.aiConfidence - b.aiConfidence);
-
-  const todayApproved = allItems.filter(i => i.status === 'approved').length;
 
   return (
     <TeacherPageShell
@@ -54,12 +42,7 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       }}
     >
       {/* KPI */}
-      <KpiStatBar cols={4}>
-        <KpiStat label="대기" value={`${gradingStats.totalQueue}건`} tone="accent" />
-        <KpiStat label="검토중" value={`${gradingStats.inReview}건`} />
-        <KpiStat label="오늘 승인" value={`${todayApproved}건`} />
-        <KpiStat label="평균 변경률" value={`${gradingStats.avgOverrideRate}%`} tone={gradingStats.avgOverrideRate >= 20 ? 'alert' : 'default'} />
-      </KpiStatBar>
+      <GradingKpiBar items={allItems} />
 
       {/* 필터 */}
       <section className="bg-card rounded-2xl border p-3">
@@ -80,24 +63,7 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       </section>
 
       {/* 큐 */}
-      <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading
-          title={`검수 대기 ${sorted.length}건`}
-          description="AI 신뢰도 낮은 순 — 신경 쓸 학생부터 보여요."
-        />
-        {sorted.length === 0 ? (
-          <EmptyState
-            icon={ClipboardCheck}
-            title="검수할 채점이 없어요"
-            description="학생들이 새로 제출하면 여기에 쌓여요."
-            size="md"
-          />
-        ) : (
-          <ul className="space-y-2">
-            {sorted.map(item => <GradingRow key={item.id} item={item} />)}
-          </ul>
-        )}
-      </section>
+      <GradingQueueList items={allItems} statusFilter={statusFilter} typeFilter={typeFilter} />
 
       <FlywheelNote>
         교사 검수 변경률이 누적 <strong>{gradingStats.rubricLearningThreshold}%</strong>를 넘으면 루브릭이 학생 답과 어긋난다는 신호 — 자동으로 재학습 제안이 떠요.
