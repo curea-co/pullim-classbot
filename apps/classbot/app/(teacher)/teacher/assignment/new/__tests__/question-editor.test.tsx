@@ -8,7 +8,8 @@ import { useState } from 'react';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, gradingTally, toAssignmentQuestions, withPoints,
-  missingAnswerNumbers, TOTAL_POINTS, type DraftQuestion,
+  missingAnswerNumbers, isPartiallyAuthored, maxQuestionsFor,
+  MAX_QUESTIONS_EXAM, MAX_QUESTIONS_DEFAULT, TOTAL_POINTS, type DraftQuestion,
 } from '../question-editor';
 
 function Harness({ initial }: { initial: DraftQuestion[] }) {
@@ -172,5 +173,32 @@ describe('missingAnswerNumbers', () => {
       { ...makeQuestion('numeric', 50), prompt: '수치', answerKey: '33400' },
     ];
     expect(missingAnswerNumbers(drafts)).toEqual([]);
+  });
+});
+
+describe('문항 수 상한 (spec 14 §5.1)', () => {
+  it('시험은 60, 연습·오답정복은 50', () => {
+    expect(maxQuestionsFor('exam')).toBe(MAX_QUESTIONS_EXAM);
+    expect(maxQuestionsFor('practice')).toBe(MAX_QUESTIONS_DEFAULT);
+    expect(maxQuestionsFor('wrong-conquest')).toBe(MAX_QUESTIONS_DEFAULT);
+    expect(MAX_QUESTIONS_EXAM).toBe(60);
+    expect(MAX_QUESTIONS_DEFAULT).toBe(50);
+  });
+});
+
+describe('발문 부분 작성', () => {
+  const authored = { ...makeQuestion('mc', 50), prompt: '쓴 발문' };
+  const blank = makeQuestion('short', 50);
+
+  it('일부만 쓴 상태를 잡아낸다 — 이 상태로 발사하면 쓴 발문이 버려진다', () => {
+    expect(isPartiallyAuthored([authored, blank])).toBe(true);
+    // 실제로 버려지는지도 함께 고정한다
+    expect(toAssignmentQuestions('a1', [authored, blank])).toBeNull();
+  });
+
+  it('전부 쓰거나 전부 비운 상태는 부분 작성이 아니다', () => {
+    expect(isPartiallyAuthored([authored, { ...blank, prompt: '이것도 씀' }])).toBe(false);
+    expect(isPartiallyAuthored([blank, blank])).toBe(false);
+    expect(isPartiallyAuthored([])).toBe(false);
   });
 });
