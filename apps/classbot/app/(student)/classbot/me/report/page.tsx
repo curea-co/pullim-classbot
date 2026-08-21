@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Sparkles, Target, ArrowRight } from 'lucide-react';
+import { ClipboardList, Heart, MessageCircle, Sparkles, Target, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -37,8 +37,10 @@ export default function MyReportPage() {
         <p className="text-pullim-slate-200 mt-2 text-sm leading-relaxed">
           서연 학생, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어요. 다음 주도 천천히 같이 가요.
         </p>
+        {/* 선생님이 적은 면담 메모를 그대로 보여 주는 자리다 — 서명도 선생님이어야 한다.
+            봇 이름으로 서명하면 머리말(「선생님이 한 마디」)과 어긋나 봇이 지어낸 말로 읽힌다. */}
         <div className="text-pullim-slate-400 mt-3 text-micro font-mono">
-          — 수학이 형 · 오늘 18:00
+          — 김보람 선생님 · 오늘 18:00
         </div>
       </section>
 
@@ -47,8 +49,8 @@ export default function MyReportPage() {
         href="/classbot/assignment"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 flex items-center gap-3 rounded-2xl p-4 text-white transition-colors"
       >
-        <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg">
-          🎯
+        <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <ClipboardList className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">다음 주 도전</div>
@@ -66,7 +68,7 @@ export default function MyReportPage() {
       <PageHeader
         eyebrow={{ icon: Sparkles, text: '주간 리포트' }}
         title="이번 주의 나"
-        description="봇이 본 나의 한 주 — 1인칭 톤"
+        description="봇이 본 나의 한 주"
       />
 
       {/* [13 § 3.3.5·9.2] 본인 리포트 — 봇 인사이트 텍스트 유지 + CTA만 "다음 주 도전"(`/classbot/assignment`)으로 분기 */}

@@ -20,8 +20,8 @@ import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
-import { StudentModeToggle } from './student-mode-toggle';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -50,19 +50,16 @@ export function AppBrand({ role }: { role: Role }) {
   );
 }
 
-/** 헤더 액션 영역 — 학습 모드 토글(학생) + 스트릭 + 검색 + 알림 + 프로필. */
+/** 헤더 액션 영역 — 스트릭 + 검색 + 알림 + 프로필. */
 export function AppHeaderActions({ role }: { role: Role }) {
   return (
     <>
-      {/* CENTER — 학습 모드 토글 */}
-      {role === 'student' && (
-        <div className="flex shrink-0 items-center justify-center">
-          <StudentModeToggle />
-        </div>
-      )}
+      {/* 기획 보류 — 자기주도 모드 보류로 학습 모드 토글(StudentModeToggle) 비노출. 재개 시 되살린다 */}
 
       {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
       <div className="flex flex-1 items-center justify-end gap-1">
+        {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
+        <DevRoleSwitch role={role} />
         {role === 'student' && <StudentStreakBadge />}
         <button
           aria-label="검색"
@@ -93,7 +90,11 @@ export function AppHeaderActions({ role }: { role: Role }) {
 /**
  * 통합 상단 헤더 — 모든 화면 공유.
  * 좌: 햄버거(모바일) + 로고
- * 우: 스트릭 + 검색 + 알림 + 프로필(역할 전환 포함)
+ * 우: 스트릭 + 검색 + 알림 + 프로필
+ *
+ * 프로필 메뉴에 역할 전환은 없다. 역할은 풀림 통합 계정이 가입 때 정하고 사용자가 바꾸지
+ * 않는다(내 정보에서도 읽기 전용) — 헤더에서 스스로 역할을 바꾸는 진입점은 두지 않는다.
+ * 개발 중 두 화면을 오가려고 둔 장치는 DevRoleSwitch 뿐이고, 운영 호스트에서는 숨는다.
  *
  * 도메인 네비게이션은 사이드바 단일 진실원 (Layer 1 §14.1: nav 이중화 금지).
  */
@@ -140,7 +141,9 @@ function ProfileMenu({ role }: { role: Role }) {
   const profile = {
     name: role === 'teacher' ? `${me.name} 선생님` : me.name,
     sub: roleLabel,
-    profileHref: role === 'teacher' ? '/teacher' : '/classbot',
+    // 학생 '내 정보'는 /classbot/me 로 (nav 에는 올리지 않고 프로필 메뉴가 유일 진입점).
+    // 교사는 전용 프로필 화면이 없어 교사 홈 유지.
+    profileHref: role === 'teacher' ? '/teacher' : '/classbot/me',
   };
 
   // 로그아웃은 로그인 세션에서만 노출되는 항목(비로그인은 '로그인' 항목). 데모 로그아웃 토스트 제거.
