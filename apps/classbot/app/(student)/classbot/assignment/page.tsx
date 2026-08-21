@@ -49,7 +49,7 @@ interface GroupBot {
  * 쓰는 단일 신원 surface 다(봇 메타도 같은 sub-scoped `/api/bots` 조인 — 데모/mock 혼합
  * 없음). 미로그인은 로그인 게이트(D1 로그인월), 로딩/빈/에러 상태를 각각 처리한다.
  * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 `/api/bots` 행을
- * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학이 형 · N개]` 패턴 유지).
+ * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
  */
 export default function StudentAssignmentListPage() {
   const me = useRosterMe();
@@ -132,26 +132,27 @@ function AssignmentListBody({
   return (
     <>
       <PageHeader
-        eyebrow={{ icon: Target, text: '받은 과제' }}
         title={<>받은 과제 <span className="text-pullim-blue-600">{assignments.length}</span>건</>}
       />
 
-      <KpiStatBar cols={3}>
-        <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
-        <KpiStat label="대기" value={`${todo}건`} tone="default" />
-        <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
-      </KpiStatBar>
-
-      <SectionHeading title="모든 과제" description="봇별로 묶어 정렬됐어요. 새로 받은 과제가 위에 와요." />
-
       {assignments.length === 0 ? (
-        <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 발사하면 여기에 표시돼요." />
+        <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 내면 여기에 표시돼요." />
       ) : (
-        <div className="space-y-4">
-          {grouped.map(({ bot, items }) => (
-            <BotGroupSection key={bot.id} bot={bot} items={items} />
-          ))}
-        </div>
+        <>
+          <KpiStatBar cols={3}>
+            <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
+            <KpiStat label="대기" value={`${todo}건`} tone="default" />
+            <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
+          </KpiStatBar>
+
+          <SectionHeading title="모든 과제" description="봇별로 묶고, 새로 받은 과제를 위에 뒀어요." />
+
+          <div className="space-y-4">
+            {grouped.map(({ bot, items }) => (
+              <BotGroupSection key={bot.id} bot={bot} items={items} />
+            ))}
+          </div>
+        </>
       )}
     </>
   );
@@ -256,7 +257,9 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
                 {visual.dDayLabel}
               </span>
               {a.source === 'bot-prescribed' && (
-                <span className="text-pullim-lemon-ink font-bold">✨</span>
+                <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-1.5 py-0.5 font-bold">
+                  봇 처방
+                </span>
               )}
             </div>
 

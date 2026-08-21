@@ -20,7 +20,7 @@ export default function SolvePage({
     if (id.startsWith('as_user_')) {
       return (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중...</p>
+          <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중…</p>
         </div>
       );
     }
