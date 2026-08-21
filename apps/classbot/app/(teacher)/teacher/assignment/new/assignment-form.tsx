@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Send, Save, Eye, AlertCircle, Sparkles, Target,
-  CheckCircle2, Users, Calendar, BookOpen, Shield,
+  ArrowLeft, Send, Save, Eye, Sparkles,
+  CheckCircle2, Users, Calendar, BookOpen, Shield, Plus, Scale, Split,
 } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { BotNote } from '@/components/classbot/bot-note';
@@ -23,6 +23,11 @@ import {
   type Assignment, type ScopeLevel,
 } from '@/lib/mock';
 import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib/store/assignments';
+import {
+  QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
+  evenlySplitPoints, sumPoints, authoredCount, gradingTally, toAssignmentQuestions,
+  TOTAL_POINTS, type DraftQuestion,
+} from './question-editor';
 import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import { cn } from '@/lib/utils';
 
@@ -70,7 +75,7 @@ export function AssignmentForm() {
   const [mode, setMode] = useState<AssignmentMode>('practice');
   const [difficulty, setDifficulty] = useState<'하' | '중' | '상'>('중');
   const [unitId, setUnitId] = useState<string>(() => getBotCurriculum('cb_001')[0]?.id ?? '');
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questions, setQuestions] = useState<DraftQuestion[]>(createDefaultQuestions);
   const [targetIds, setTargetIds] = useState<string[]>(() => classRoster.map(s => s.id));
   const [dueIso, setDueIso] = useState(defaultDueLabel());
   const [botMessage, setBotMessage] = useState('');
@@ -96,11 +101,15 @@ export function AssignmentForm() {
   const titleValid = title.trim().length >= 5 && title.trim().length <= 50;
   const targetValid = targetIds.length >= 1;
   const dueValid = new Date(dueIso).getTime() > Date.now();
-  const canDispatch = !!bot && titleValid && targetValid && dueValid && questionCount >= 1;
+  const pointsTotal = sumPoints(questions);
+  // 배점 합계가 100 이 아니면 발사를 막는다 — 채점 기준이 반쯤 정해진 과제가 나가지 않도록.
+  const questionsValid = questions.length >= 1 && pointsTotal === TOTAL_POINTS;
+  const canDispatch = !!bot && titleValid && targetValid && dueValid && questionsValid;
 
   function buildAssignment(): UserAssignment {
     const id = nextAssignmentId();
-    const scope = mode === 'exam' ? 1 : modeOptions[mode].defaultScope;
+    // 발문을 전부 채웠을 때만 문항을 실어 보낸다 — 하나라도 비면 단원 RAG 자동 추출 규약.
+    const authored = toAssignmentQuestions(id, questions);
     const assignment: UserAssignment = {
       id,
       botId,
@@ -111,7 +120,7 @@ export function AssignmentForm() {
       chapterFrom: selectedUnit?.fullPath ?? '',
       chapterTo: selectedUnit?.fullPath ?? '',
       achievementCodes: selectedUnit?.achievementCodes ?? [],
-      questionCount,
+      questionCount: questions.length,
       difficulty,
       mode,
       scopeOverride: mode === 'exam' ? 1 : undefined,
@@ -128,6 +137,7 @@ export function AssignmentForm() {
       dispatchStatus: 'sent',
       targetStudentIds: targetIds.length === classRoster.length ? [] : targetIds,
       examTimeLimitMin: mode === 'exam' ? examTimeLimit : undefined,
+      questions: authored ?? undefined,
     };
     return assignment;
   }
@@ -146,7 +156,7 @@ export function AssignmentForm() {
   const progress = [
     !!botId,
     titleValid,
-    !!unitId && questionCount >= 1,
+    !!unitId && questionsValid,
     targetValid,
     dueValid,
   ].filter(Boolean).length;
@@ -176,7 +186,6 @@ export function AssignmentForm() {
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">①</span> 정체성</>}
-            description="누가 어떤 톤으로 발사하나요?"
           />
 
           <div className="space-y-3">
@@ -201,7 +210,7 @@ export function AssignmentForm() {
                 id="af-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 50))}
-                placeholder="예: 도함수 활용 마무리 2탄"
+                placeholder="예: 일차함수 그래프 마무리 2탄"
                 data-testid="title-input"
                 aria-invalid={title !== '' && !titleValid}
                 aria-describedby={title !== '' && !titleValid ? 'af-title-err' : undefined}
@@ -212,7 +221,11 @@ export function AssignmentForm() {
               )}
             </Field>
 
-            <Field label="모드">
+            <Field label="봇 개입 강도 (모드)">
+              <p className="text-pullim-slate-500 mb-1.5 text-2xs leading-relaxed">
+                모드는 <b>푸는 동안</b> 봇이 어디까지 도와줄지를 정해요. 점수를 누가 매기는지(채점 방식)는
+                아래 ② 문항의 <b>유형</b>이 정해요 — 서로 다른 축이에요.
+              </p>
               <div role="radiogroup" aria-label="과제 모드" className="grid grid-cols-3 gap-2">
                 {(['practice', 'exam', 'wrong-conquest'] as AssignmentMode[]).map(m => {
                   const meta = modeOptions[m];
@@ -268,7 +281,7 @@ export function AssignmentForm() {
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">②</span> 문항</>}
-            description="어떤 단원에서 몇 문항?"
+            description="유형을 고르면 채점 방식이 자동으로 갈려요."
           />
 
           <div className="space-y-3">
@@ -284,26 +297,47 @@ export function AssignmentForm() {
                   <option key={u.id} value={u.id}>{u.fullPath}</option>
                 ))}
               </select>
-              <BotNote icon={BookOpen} className="mt-1">선택 단원의 RAG 인덱스에서 자동 추출돼요.</BotNote>
+              <BotNote icon={BookOpen} className="mt-1">
+                발문을 비워 두면 선택 단원의 RAG 인덱스에서 자동 추출돼요.
+                {' '}지금 직접 쓴 발문 {authoredCount(questions)}/{questions.length}개.
+              </BotNote>
             </Field>
 
-            <Field label="문항 수" htmlFor="af-qcount">
-              <div className="flex items-center gap-3">
-                <Slider
-                  id="af-qcount"
-                  min={1}
-                  max={mode === 'exam' ? 60 : 50}
-                  step={1}
-                  value={questionCount}
-                  onValueChange={(v) => setQuestionCount(Array.isArray(v) ? v[0] : v)}
-                  aria-valuetext={`${questionCount}문항`}
-                  className="flex-1"
-                />
-                <span className="bg-pullim-slate-100 text-pullim-slate-700 inline-flex h-8 w-12 items-center justify-center rounded-lg font-mono text-sm font-bold">
-                  {questionCount}
-                </span>
-              </div>
-            </Field>
+            <PointsTally questions={questions} />
+
+            <BotNote icon={Scale}>
+              <b>객관식 · 단답 · 수치</b>는 봇이 자동으로 채점하고, <b>서술형</b>은 선생님이 채점 허브에서 직접 봐요.
+              서술형은 기준을 미리 적어 두면 채점이 빨라져요.
+            </BotNote>
+
+            <QuestionListEditor questions={questions} onChange={setQuestions} />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuestions([...questions, makeQuestion('mc', 0)])}
+                data-testid="question-add"
+              >
+                <Plus />
+                문항 더하기
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setQuestions(evenlySplitPoints(questions))}
+                data-testid="question-even-split"
+                className="text-pullim-blue-600 hover:text-pullim-blue-700"
+              >
+                <Split />
+                배점 고르게 나누기
+              </Button>
+              <span className="text-pullim-slate-400 ml-auto font-mono text-micro">
+                {questions.length}문항 · {pointsTotal}점
+              </span>
+            </div>
           </div>
         </section>
 
@@ -360,7 +394,6 @@ export function AssignmentForm() {
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">④</span> 일정</>}
-            description="언제까지?"
           />
 
           <div className="space-y-3">
@@ -450,6 +483,11 @@ export function AssignmentForm() {
           <Save />
           임시저장
         </Button>
+        {!questionsValid && (
+          <span className="text-pullim-danger ml-auto text-2xs font-bold" data-testid="dispatch-blocked">
+            배점 합계 {pointsTotal}/{TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요
+          </span>
+        )}
         <Button
           type="button"
           variant={mode === 'exam' ? 'pullim-danger' : 'pullim'}
@@ -457,7 +495,7 @@ export function AssignmentForm() {
           onClick={handleDispatch}
           disabled={!canDispatch}
           data-testid="dispatch-btn"
-          className="ml-auto"
+          className={cn(!questionsValid ? 'ml-2' : 'ml-auto')}
         >
           <Send />
           발사 →
@@ -469,6 +507,7 @@ export function AssignmentForm() {
         <PreviewModal
           assignment={buildAssignment()}
           bot={bot}
+          questions={questions}
           targetCount={targetIds.length}
           onClose={() => setPreview(false)}
         />
@@ -497,11 +536,13 @@ function Field({
 }
 
 function PreviewModal({
-  assignment, bot, targetCount, onClose,
+  assignment, bot, questions, targetCount, onClose,
 }: {
-  assignment: Assignment; bot: ClassBot; targetCount: number; onClose: () => void;
+  assignment: Assignment; bot: ClassBot; questions: DraftQuestion[];
+  targetCount: number; onClose: () => void;
 }) {
   const meta = modeOptions[assignment.mode];
+  const tally = gradingTally(questions);
   return (
     <div
       role="dialog"
@@ -526,7 +567,10 @@ function PreviewModal({
           <h4 className="text-pullim-slate-900 mt-2 text-base font-bold">{assignment.title}</h4>
           <p className="text-pullim-slate-600 mt-0.5 text-xs">{assignment.scope}</p>
           <p className="text-pullim-slate-500 mt-1 text-2xs">
-            {assignment.questionCount}문항 · 난이도 {assignment.difficulty} · {bot.name}
+            {assignment.questionCount}문항 · {sumPoints(questions)}점 · 난이도 {assignment.difficulty} · {bot.name}
+          </p>
+          <p className="text-pullim-slate-500 mt-0.5 text-2xs">
+            자동 채점 {tally.auto.count}문항 · 선생님이 채점 {tally.teacher.count}문항
           </p>
           {assignment.reasonHint && (
             <p className="bg-white mt-2 rounded-lg p-2 text-2xs">

@@ -15,7 +15,12 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
-import { cn } from '@/lib/utils';
+import {
+  useGradingStore,
+  useGradingDecision,
+  type GradingRubricItem,
+} from '@/lib/store/grading';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
 /** Initial rubric total (sum of per-item scores, 0-100 pct basis). */
 function initialRubricTotal(item: GradingItem): number {
@@ -30,9 +35,29 @@ export function GradingDetail({
   prevId: string | null;
   nextId: string | null;
 }) {
-  const [finalComment, setFinalComment] = useState(item.draftComment);
-  const [rubricTotal, setRubricTotal] = useState(() => initialRubricTotal(item));
-  const [isApproved, setIsApproved] = useState(item.status === 'approved' || item.status === 'overridden');
+  // 확정은 store(localStorage persist)가 진실 — 화면 상태로만 들고 있으면 새로고침에 사라진다.
+  const decision = useGradingDecision(item.id);
+  const hydrated = useStoresHydrated(useGradingStore);
+  const approve = useGradingStore((s) => s.approve);
+  const approveWithEdit = useGradingStore((s) => s.approveWithEdit);
+
+  // 편집 중 값 — 확정 전까지만 쓰인다.
+  const [commentDraft, setCommentDraft] = useState(item.draftComment);
+  const [rubricDraft, setRubricDraft] = useState<GradingRubricItem[]>(item.rubric);
+
+  /**
+   * rehydrate 전에는 확정본을 모른다 — 시드만 보고 판단해 SSR 결과와 같게 두고,
+   * 복원된 뒤에야 확정본이 편집 중 값을 이긴다(잘못된 상태가 번쩍이지 않게).
+   */
+  const decided = hydrated ? decision : undefined;
+  const finalComment = decided?.comment ?? commentDraft;
+  const rubric = decided?.rubric ?? rubricDraft;
+  const rubricTotal = useMemo(() => rubric.reduce((s, r) => s + r.score, 0), [rubric]);
+
+  /** 확정 방식 — store 확정이 시드 status 를 이긴다. null = 아직 미확정. */
+  const seedDecided = item.status === 'approved' || item.status === 'overridden' ? item.status : null;
+  const decidedKind = decided?.kind ?? seedDecided;
+  const isApproved = decidedKind !== null;
 
   /** Derived — not stored — recomputed only when rubricTotal changes. */
   const finalScore = useMemo(
@@ -55,12 +80,27 @@ export function GradingDetail({
 
   const isCrisis = (item.type === 'essay' && item.responsePreview.length < 25) || /모르겠|어려워|힘들/.test(item.responsePreview);
 
+  /** 그대로 승인 — AI 초안(점수·의견·루브릭)을 손대지 않은 확정. */
   function handleApprove() {
-    setIsApproved(true);
+    approve({
+      itemId: item.id,
+      finalScore: item.draftScore,
+      maxScore: item.maxScore,
+      comment: item.draftComment,
+      rubric: item.rubric,
+    });
   }
 
+  /** 수정 후 승인 — 교사가 고친 점수·의견·루브릭과 변경률을 함께 남긴다. */
   function handleApproveWithEdit() {
-    setIsApproved(true);
+    approveWithEdit({
+      itemId: item.id,
+      finalScore,
+      maxScore: item.maxScore,
+      comment: finalComment,
+      rubric,
+      overrideDelta,
+    });
   }
 
   return (
@@ -99,9 +139,10 @@ export function GradingDetail({
         title={<>{item.studentName} 학생 검수</>}
         description={`제출 ${item.submittedAt} · ${item.type === 'essay' ? '서술형' : item.type === 'short' ? '단답' : '수치'} · AI 신뢰도 ${item.aiConfidence}%`}
         action={
-          isApproved ? (
+          decidedKind ? (
             <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold">
-              <Check className="h-3 w-3" /> 승인 완료
+              <Check className="h-3 w-3" />
+              {decidedKind === 'overridden' ? '수정 후 승인 완료' : '승인 완료'}
             </span>
           ) : null
         }
@@ -173,9 +214,11 @@ export function GradingDetail({
 
         {/* 루브릭 */}
         <RubricEditor
-          initialRubric={item.rubric}
-          onChange={(_next, total) => {
-            setRubricTotal(total);
+          // 확정본이 복원되면 remount 해 슬라이더까지 저장값으로 되돌린다.
+          key={decided ? `decided:${decided.decidedAt}` : 'draft'}
+          initialRubric={rubric}
+          onChange={(next) => {
+            setRubricDraft(next);
           }}
         />
 
@@ -187,9 +230,11 @@ export function GradingDetail({
           />
           <Textarea
             value={finalComment}
-            onChange={(e) => setFinalComment(e.target.value)}
+            onChange={(e) => setCommentDraft(e.target.value)}
             rows={4}
             maxLength={500}
+            // 확정한 채점은 잠근다 — 저장값이 진실이라 여기서 고쳐도 반영되지 않는다.
+            readOnly={isApproved}
             aria-label="AI 초안 코멘트"
             className="rounded-xl text-sm leading-relaxed"
           />
@@ -209,7 +254,7 @@ export function GradingDetail({
               type="button"
               size="lg"
               onClick={handleApprove}
-              disabled={isApproved || dirty}
+              disabled={!hydrated || isApproved || dirty}
               className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-800"
             >
               그대로 승인
@@ -219,7 +264,7 @@ export function GradingDetail({
               variant="pullim-lemon"
               size="lg"
               onClick={handleApproveWithEdit}
-              disabled={isApproved || !dirty}
+              disabled={!hydrated || isApproved || !dirty}
             >
               <Check />
               수정 후 승인
