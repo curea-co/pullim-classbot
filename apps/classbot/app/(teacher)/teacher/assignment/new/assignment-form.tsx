@@ -26,7 +26,7 @@ import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, authoredCount, gradingTally, toAssignmentQuestions,
-  TOTAL_POINTS, type DraftQuestion,
+  missingAnswerNumbers, TOTAL_POINTS, type DraftQuestion,
 } from './question-editor';
 import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import { cn } from '@/lib/utils';
@@ -104,7 +104,11 @@ export function AssignmentForm() {
   const pointsTotal = sumPoints(questions);
   // 배점 합계가 100 이 아니면 발사를 막는다 — 채점 기준이 반쯤 정해진 과제가 나가지 않도록.
   const questionsValid = questions.length >= 1 && pointsTotal === TOTAL_POINTS;
-  const canDispatch = !!bot && titleValid && targetValid && dueValid && questionsValid;
+  // 정답을 안 정한 자동 채점 문항이 있으면 발사를 막는다 — 그대로 나가면 그 문항이 채점에서
+  // 통째로 빠지거나(단답·수치), 선생님이 고르지 않은 보기가 정답으로 굳는다(객관식).
+  const missingAnswers = missingAnswerNumbers(questions);
+  const answersValid = missingAnswers.length === 0;
+  const canDispatch = !!bot && titleValid && targetValid && dueValid && questionsValid && answersValid;
 
   function buildAssignment(): UserAssignment {
     const id = nextAssignmentId();
@@ -156,7 +160,7 @@ export function AssignmentForm() {
   const progress = [
     !!botId,
     titleValid,
-    !!unitId && questionsValid,
+    !!unitId && questionsValid && answersValid,
     targetValid,
     dueValid,
   ].filter(Boolean).length;
@@ -483,9 +487,11 @@ export function AssignmentForm() {
           <Save />
           임시저장
         </Button>
-        {!questionsValid && (
+        {(!questionsValid || !answersValid) && (
           <span className="text-pullim-danger ml-auto text-2xs font-bold" data-testid="dispatch-blocked">
-            배점 합계 {pointsTotal}/{TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요
+            {!questionsValid
+              ? `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`
+              : `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`}
           </span>
         )}
         <Button
@@ -495,7 +501,7 @@ export function AssignmentForm() {
           onClick={handleDispatch}
           disabled={!canDispatch}
           data-testid="dispatch-btn"
-          className={cn(!questionsValid ? 'ml-2' : 'ml-auto')}
+          className={cn(!questionsValid || !answersValid ? 'ml-2' : 'ml-auto')}
         >
           <Send />
           발사 →

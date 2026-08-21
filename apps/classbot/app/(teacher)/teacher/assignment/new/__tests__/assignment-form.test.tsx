@@ -62,6 +62,25 @@ it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대�
   });
 });
 
+it('발문을 다 썼는데 자동 채점 문항 정답이 비면 발사를 막고 문항 번호를 알려 준다', () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  // 기본 5문항 중 단답 1문항만 남긴다 — 정답키를 비워 둔 상태
+  for (let i = 4; i >= 0; i--) {
+    if (i === 2) continue; // 3번(단답)만 남긴다
+    fireEvent.click(screen.getByRole('button', { name: `${i + 1}번 문항 지우기` }));
+  }
+  fireEvent.change(screen.getByTestId('question-points-0'), { target: { value: '100' } });
+  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '얼음이 녹는 동안 온도는?' } });
+
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('1번 문항 정답');
+
+  // 정답을 채우면 발사가 열린다
+  fireEvent.change(screen.getByTestId('question-answer-0'), { target: { value: '그대로' } });
+  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+});
+
 it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남긴다', () => {
   render(<AssignmentForm />);
   fillTitle();

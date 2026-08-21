@@ -120,6 +120,30 @@ export function authoredCount(questions: DraftQuestion[]): number {
   return questions.filter((q) => q.prompt.trim().length > 0).length;
 }
 
+/**
+ * 자동 채점 문항이 정답을 갖췄는지. 서술형은 선생님이 직접 보므로 언제나 true.
+ * 객관식은 **고른 보기에 글자가 있어야** 한다 — 비어 있으면 저장할 때 정답이 사라진다.
+ */
+export function hasGradableAnswer(q: DraftQuestion): boolean {
+  if (q.type === 'mc') {
+    const trimmed = q.options.map((o) => o.trim());
+    const filled = trimmed.filter((o) => o.length > 0);
+    return filled.length >= MIN_OPTIONS && (trimmed[q.answerIndex] ?? '').length > 0;
+  }
+  if (q.type === 'short' || q.type === 'numeric') return q.answerKey.trim().length > 0;
+  return true;
+}
+
+/**
+ * 정답이 빠진 자동 채점 문항 번호(1-based) — 발사를 막는 근거.
+ * 발문을 전부 쓴 과제에만 따진다. 발문을 비워 두면 문항 자체를 싣지 않고 단원 RAG 로
+ * 넘기는 기존 규약이라 정답도 따질 게 없다.
+ */
+export function missingAnswerNumbers(questions: DraftQuestion[]): number[] {
+  if (questions.length === 0 || authoredCount(questions) < questions.length) return [];
+  return questions.flatMap((q, i) => (hasGradableAnswer(q) ? [] : [i + 1]));
+}
+
 /** 100점을 문항 수로 고르게 나눈다(나머지는 앞 문항부터). 서술형 기준 가중치도 새 배점에 맞춘다. */
 export function evenlySplitPoints(questions: DraftQuestion[]): DraftQuestion[] {
   if (questions.length === 0) return questions;
@@ -162,7 +186,11 @@ export function toAssignmentQuestions(
       const answerText = trimmed[q.answerIndex] ?? '';
       const options = trimmed.filter((o) => o.length > 0);
       base.options = options;
-      base.answerIndex = Math.max(0, options.indexOf(answerText));
+      // 고른 보기가 비었거나 정리하다 사라졌으면 정답을 아예 싣지 않는다.
+      // 0번으로 되돌리면 선생님이 고르지 않은 보기가 정답으로 굳어 자동 채점의 진실값이 뒤바뀐다.
+      // (발사 검증에서 먼저 막지만, 직렬화 단계에서도 엉뚱한 정답을 만들지 않는다.)
+      const answerIndex = answerText.length > 0 ? options.indexOf(answerText) : -1;
+      if (answerIndex >= 0) base.answerIndex = answerIndex;
       return base;
     }
     if (q.type === 'short' || q.type === 'numeric') {

@@ -8,7 +8,7 @@ import { useState } from 'react';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, gradingTally, toAssignmentQuestions, withPoints,
-  TOTAL_POINTS, type DraftQuestion,
+  missingAnswerNumbers, TOTAL_POINTS, type DraftQuestion,
 } from '../question-editor';
 
 function Harness({ initial }: { initial: DraftQuestion[] }) {
@@ -124,5 +124,53 @@ describe('toAssignmentQuestions', () => {
     expect(questions[1].answerKey).toBe('33400');
     // 문구를 비운 기준은 저장하지 않는다
     expect(questions[2].rubric).toEqual([{ criterion: '근거를 썼어요', weight: 20 }]);
+  });
+
+  it('고른 정답 보기가 비어 있으면 정답을 싣지 않는다 — 0번으로 되돌리지 않는다', () => {
+    const drafts: DraftQuestion[] = [
+      // 3번 보기(비어 있음)를 정답으로 골라 둔 상태
+      { ...makeQuestion('mc', 100), prompt: '객관식', options: ['가', '나', '', ''], answerIndex: 2 },
+    ];
+    const questions = toAssignmentQuestions('as_user_1', drafts)!;
+
+    expect(questions[0].options).toEqual(['가', '나']);
+    // '가'가 정답으로 둔갑하면 안 된다 — 자동 채점 진실값이 조용히 뒤바뀐다
+    expect(questions[0].answerIndex).toBeUndefined();
+  });
+});
+
+describe('missingAnswerNumbers', () => {
+  it('발문을 안 채운 과제는 따지지 않는다 — 단원 RAG 자동 추출 규약', () => {
+    expect(missingAnswerNumbers(createDefaultQuestions())).toEqual([]);
+    expect(missingAnswerNumbers([])).toEqual([]);
+  });
+
+  it('정답을 안 정한 자동 채점 문항 번호를 집어낸다', () => {
+    const drafts: DraftQuestion[] = [
+      // 1번: 고른 보기가 비었다
+      { ...makeQuestion('mc', 25), prompt: '객관식', options: ['가', '나', '', ''], answerIndex: 2 },
+      // 2번: 정답키가 비었다
+      { ...makeQuestion('short', 25), prompt: '단답', answerKey: '  ' },
+      // 3번: 수치 정답키가 비었다
+      { ...makeQuestion('numeric', 25), prompt: '수치', answerKey: '' },
+      // 4번: 서술형은 선생님이 채점하므로 정답키가 없어도 된다
+      { ...makeQuestion('essay', 25), prompt: '서술' },
+    ];
+    expect(missingAnswerNumbers(drafts)).toEqual([1, 2, 3]);
+  });
+
+  it('남은 보기가 둘 미만인 객관식도 막는다', () => {
+    const drafts: DraftQuestion[] = [
+      { ...makeQuestion('mc', 100), prompt: '객관식', options: ['가', '', '', ''], answerIndex: 0 },
+    ];
+    expect(missingAnswerNumbers(drafts)).toEqual([1]);
+  });
+
+  it('정답을 다 정하면 빈 배열', () => {
+    const drafts: DraftQuestion[] = [
+      { ...makeQuestion('mc', 50), prompt: '객관식', options: ['가', '나', '', ''], answerIndex: 1 },
+      { ...makeQuestion('numeric', 50), prompt: '수치', answerKey: '33400' },
+    ];
+    expect(missingAnswerNumbers(drafts)).toEqual([]);
   });
 });

@@ -221,18 +221,6 @@ export function SolveWorkspace({
         </Button>
       )}
 
-      {/* 과제 대화(SCR-C-37) 진입 — 힌트로 안 풀리면 이 과제에 매인 대화로.
-          시험 모드는 봇이 잠기므로 내보내지 않는다. */}
-      {!isExam && (
-        <Link
-          href={`/classbot/assignment/${assignment.id}/chat`}
-          className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-xs font-bold"
-        >
-          <MessageCircle className="h-3 w-3" />
-          {botName}과 대화하며 풀기
-        </Link>
-      )}
-
       {/* 하단 액션 */}
       <div className="bg-card sticky bottom-2 flex items-center gap-2 rounded-2xl border p-3 shadow-pullim-md">
         <Button

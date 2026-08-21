@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, MessageCircle, Play, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Play, AlertCircle, Inbox } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -102,23 +102,6 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         <Play className="h-4 w-4" />
         {ctaLabel}
         <ArrowRight className="h-4 w-4" />
-      </Link>
-
-      {/* 과제 대화(SCR-C-37) 진입 — 혼자 풀다 막히면 이 과제에 매인 대화로 간다.
-          여기서 나눈 이야기는 그 과제에 남아 선생님이 풀이 과정을 볼 수 있다. */}
-      <Link
-        href={`/classbot/assignment/${a.id}/chat`}
-        data-testid="assignment-chat-cta"
-        className="bg-card hover:bg-pullim-slate-50/50 flex w-full items-center gap-3 rounded-2xl border p-3 transition-colors"
-      >
-        <span className="bg-pullim-blue-50 text-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
-          <MessageCircle className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-pullim-slate-900 text-sm font-bold">봇과 같이 풀기</div>
-          <div className="text-pullim-slate-500 text-2xs">막히는 데를 물어보면서 풀어요</div>
-        </div>
-        <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
 
       <FlywheelNote>
