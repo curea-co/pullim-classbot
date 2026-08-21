@@ -11,7 +11,7 @@ import type { Role } from './nav-config';
 
 /**
  * 모바일 햄버거 → 사이드바 drawer.
- * 사이드바 + 역할 전환을 한 곳에서.
+ * 역할 전환은 여기에도 없다 — `role` 은 어느 nav 를 그릴지 고르는 입력일 뿐이다(AppHeader 주석 참고).
  */
 export function MobileDrawer({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);

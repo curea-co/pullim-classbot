@@ -223,9 +223,10 @@ function AssignmentTurnRow({
             <div className={cn(chatBubbleClass(false), 'px-4 py-3')} style={{ borderLeftColor: bot.hex }}>
               <RichText text={turn.text} />
             </div>
+            {/* 선생님에게 전해진다고 말하지 않는다 — 교사용 집계가 아직 없다(위 store 주석). */}
             {turn.redirected && (
               <p className="text-pullim-slate-400 mt-1 text-micro">
-                수업 주제로 되돌렸어요 · 선생님에게는 몇 번 있었는지만 전해져요
+                수업 주제로 되돌렸어요
               </p>
             )}
           </>
