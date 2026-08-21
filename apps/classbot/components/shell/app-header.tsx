@@ -20,8 +20,8 @@ import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
-import { StudentModeToggle } from './student-mode-toggle';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -50,19 +50,16 @@ export function AppBrand({ role }: { role: Role }) {
   );
 }
 
-/** 헤더 액션 영역 — 학습 모드 토글(학생) + 스트릭 + 검색 + 알림 + 프로필. */
+/** 헤더 액션 영역 — 스트릭 + 검색 + 알림 + 프로필. */
 export function AppHeaderActions({ role }: { role: Role }) {
   return (
     <>
-      {/* CENTER — 학습 모드 토글 */}
-      {role === 'student' && (
-        <div className="flex shrink-0 items-center justify-center">
-          <StudentModeToggle />
-        </div>
-      )}
+      {/* 기획 보류 — 자기주도 모드 보류로 학습 모드 토글(StudentModeToggle) 비노출. 재개 시 되살린다 */}
 
       {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
       <div className="flex flex-1 items-center justify-end gap-1">
+        {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
+        <DevRoleSwitch role={role} />
         {role === 'student' && <StudentStreakBadge />}
         <button
           aria-label="검색"
@@ -140,7 +137,9 @@ function ProfileMenu({ role }: { role: Role }) {
   const profile = {
     name: role === 'teacher' ? `${me.name} 선생님` : me.name,
     sub: roleLabel,
-    profileHref: role === 'teacher' ? '/teacher' : '/classbot',
+    // 학생 '내 정보'는 /classbot/me 로 (nav 에는 올리지 않고 프로필 메뉴가 유일 진입점).
+    // 교사는 전용 프로필 화면이 없어 교사 홈 유지.
+    profileHref: role === 'teacher' ? '/teacher' : '/classbot/me',
   };
 
   // 로그아웃은 로그인 세션에서만 노출되는 항목(비로그인은 '로그인' 항목). 데모 로그아웃 토스트 제거.
