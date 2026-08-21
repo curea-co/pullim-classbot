@@ -26,7 +26,8 @@ import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, authoredCount, gradingTally, toAssignmentQuestions,
-  missingAnswerNumbers, TOTAL_POINTS, type DraftQuestion,
+  missingAnswerNumbers, isPartiallyAuthored, maxQuestionsFor,
+  MIN_QUESTIONS, TOTAL_POINTS, type DraftQuestion,
 } from './question-editor';
 import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import { cn } from '@/lib/utils';
@@ -102,13 +103,36 @@ export function AssignmentForm() {
   const targetValid = targetIds.length >= 1;
   const dueValid = new Date(dueIso).getTime() > Date.now();
   const pointsTotal = sumPoints(questions);
-  // 배점 합계가 100 이 아니면 발사를 막는다 — 채점 기준이 반쯤 정해진 과제가 나가지 않도록.
-  const questionsValid = questions.length >= 1 && pointsTotal === TOTAL_POINTS;
+  // 문항 수 상한 — 종전 `문항 수` 슬라이더의 max 를 편집기가 물려받는다(연습·오답정복 50 / 시험 60).
+  const maxQuestions = maxQuestionsFor(mode);
+  const countValid = questions.length >= MIN_QUESTIONS && questions.length <= maxQuestions;
+  const atMaxQuestions = questions.length >= maxQuestions;
+  // 발문을 일부만 쓴 채 발사하면 쓴 발문이 통째로 버려지고 단원 RAG 로 대체된다 — 그 전에 막는다.
+  const partiallyAuthored = isPartiallyAuthored(questions);
   // 정답을 안 정한 자동 채점 문항이 있으면 발사를 막는다 — 그대로 나가면 그 문항이 채점에서
   // 통째로 빠지거나(단답·수치), 선생님이 고르지 않은 보기가 정답으로 굳는다(객관식).
   const missingAnswers = missingAnswerNumbers(questions);
   const answersValid = missingAnswers.length === 0;
-  const canDispatch = !!bot && titleValid && targetValid && dueValid && questionsValid && answersValid;
+
+  /**
+   * ② 문항 섹션이 발사를 막는 이유 한 줄 — null 이면 걸린 게 없다.
+   * 먼저 걸리는 것부터 하나만 보여 준다(문항 수 → 배점 → 발문 → 정답).
+   */
+  function questionBlockedReason(): string | null {
+    if (questions.length < MIN_QUESTIONS) return '문항을 최소 1개는 넣어야 발사할 수 있어요';
+    if (questions.length > maxQuestions) {
+      return `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요 — 지금 ${questions.length}문항`;
+    }
+    if (pointsTotal !== TOTAL_POINTS) return `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`;
+    if (partiallyAuthored) {
+      return `발문은 전부 쓰거나 전부 비워야 해요 — 지금 ${authoredCount(questions)}/${questions.length}개`;
+    }
+    if (!answersValid) return `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`;
+    return null;
+  }
+  const blockedReason = questionBlockedReason();
+
+  const canDispatch = !!bot && titleValid && targetValid && dueValid && blockedReason === null;
 
   function buildAssignment(): UserAssignment {
     const id = nextAssignmentId();
@@ -160,7 +184,7 @@ export function AssignmentForm() {
   const progress = [
     !!botId,
     titleValid,
-    !!unitId && questionsValid && answersValid,
+    !!unitId && blockedReason === null,
     targetValid,
     dueValid,
   ].filter(Boolean).length;
@@ -302,7 +326,8 @@ export function AssignmentForm() {
                 ))}
               </select>
               <BotNote icon={BookOpen} className="mt-1">
-                발문을 비워 두면 선택 단원의 RAG 인덱스에서 자동 추출돼요.
+                발문은 <b>전부 쓰거나 전부 비우거나</b> 둘 중 하나예요 — 전부 비우면 선택 단원의
+                RAG 인덱스에서 자동 추출돼요. 일부만 쓰면 쓴 발문이 버려지니 발사를 막아요.
                 {' '}지금 직접 쓴 발문 {authoredCount(questions)}/{questions.length}개.
               </BotNote>
             </Field>
@@ -323,6 +348,9 @@ export function AssignmentForm() {
                 size="sm"
                 onClick={() => setQuestions([...questions, makeQuestion('mc', 0)])}
                 data-testid="question-add"
+                // 상한에 닿으면 잠근다 — 51번째 문항을 만들어 두고 발사에서 막는 것보다 앞에서 막는다.
+                disabled={atMaxQuestions}
+                title={atMaxQuestions ? `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요` : undefined}
               >
                 <Plus />
                 문항 더하기
@@ -338,8 +366,11 @@ export function AssignmentForm() {
                 <Split />
                 배점 고르게 나누기
               </Button>
-              <span className="text-pullim-slate-400 ml-auto font-mono text-micro">
-                {questions.length}문항 · {pointsTotal}점
+              <span
+                className={cn('ml-auto font-mono text-micro', countValid ? 'text-pullim-slate-400' : 'text-pullim-danger font-bold')}
+                data-testid="question-count"
+              >
+                {questions.length}/{maxQuestions}문항 · {pointsTotal}점
               </span>
             </div>
           </div>
@@ -487,11 +518,9 @@ export function AssignmentForm() {
           <Save />
           임시저장
         </Button>
-        {(!questionsValid || !answersValid) && (
+        {blockedReason && (
           <span className="text-pullim-danger ml-auto text-2xs font-bold" data-testid="dispatch-blocked">
-            {!questionsValid
-              ? `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`
-              : `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`}
+            {blockedReason}
           </span>
         )}
         <Button
@@ -501,7 +530,7 @@ export function AssignmentForm() {
           onClick={handleDispatch}
           disabled={!canDispatch}
           data-testid="dispatch-btn"
-          className={cn(!questionsValid || !answersValid ? 'ml-2' : 'ml-auto')}
+          className={cn(blockedReason ? 'ml-2' : 'ml-auto')}
         >
           <Send />
           발사 →

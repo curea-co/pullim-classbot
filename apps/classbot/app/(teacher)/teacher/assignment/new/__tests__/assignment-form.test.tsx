@@ -91,3 +91,55 @@ it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남�
   // 폴백이 살아 있어 학생 풀이 화면이 비지 않는다
   expect(getQuestionsForAssignment(dispatched).length).toBeGreaterThan(0);
 });
+
+/**
+ * 문항 수 상한 — 종전 `문항 수` 슬라이더가 걸던 `min 1 / max 연습 50 · 시험 60` 이
+ * 문항 목록 편집기로 바뀌면서 사라져 51·61문항이 그대로 발사되던 결함에 대한 회귀.
+ */
+function addQuestions(times: number) {
+  for (let i = 0; i < times; i++) fireEvent.click(screen.getByTestId('question-add'));
+}
+
+it('연습 과제는 50문항이 상한 — 상한에 닿으면 「문항 더하기」가 잠긴다', () => {
+  render(<AssignmentForm />);
+  addQuestions(45); // 기본 5문항 + 45 = 50
+  expect(screen.getByTestId('question-count').textContent).toContain('50/50문항');
+  expect(screen.getByTestId('question-add')).toBeDisabled();
+});
+
+it('시험 과제는 60문항이 상한 — 모드마다 상한이 다르다', () => {
+  render(<AssignmentForm />);
+  fireEvent.click(screen.getByTestId('mode-exam'));
+  expect(screen.getByTestId('question-count').textContent).toContain('5/60문항');
+
+  addQuestions(55); // 5 + 55 = 60
+  expect(screen.getByTestId('question-count').textContent).toContain('60/60문항');
+  expect(screen.getByTestId('question-add')).toBeDisabled();
+});
+
+it('시험에서 51문항을 만든 뒤 연습으로 되돌리면 상한 초과라 발사를 막는다', () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  fireEvent.click(screen.getByTestId('mode-exam'));
+  addQuestions(46); // 5 + 46 = 51 — 시험 상한(60) 안이라 여기까지는 열려 있다
+  expect(screen.getByTestId('question-add')).not.toBeDisabled();
+
+  fireEvent.click(screen.getByTestId('mode-practice')); // 상한이 50 으로 내려간다
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('연습 과제는 50문항까지예요');
+  expect(screen.getByTestId('question-add')).toBeDisabled();
+});
+
+it('발문을 일부만 쓰면 발사를 막는다 — 쓴 발문이 조용히 버려지지 않게', () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  // 5문항 중 1번만 발문을 채운다 → toAssignmentQuestions 가 null 을 돌려 전부 버려지던 자리
+  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '기울기를 구하는 식은?' } });
+
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('발문은 전부 쓰거나 전부 비워야 해요');
+
+  // 다시 비우면(=전부 비움) 단원 자동 추출 경로라 발사가 열린다
+  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '' } });
+  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+});

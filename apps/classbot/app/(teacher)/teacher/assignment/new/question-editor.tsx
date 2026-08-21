@@ -9,12 +9,26 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import {
   gradingModeOf,
-  type AssignmentQuestion, type GradingMode, type QuestionType,
+  type AssignmentMode, type AssignmentQuestion, type GradingMode, type QuestionType,
 } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
 /** 과제 한 개의 배점 합 — 이 값과 어긋나면 발사를 막는다. */
 export const TOTAL_POINTS = 100;
+
+/** 문항 수 하한 — 문항이 하나도 없는 과제는 발사할 수 없다. */
+export const MIN_QUESTIONS = 1;
+/** 문항 수 상한 — 시험은 60, 연습·오답정복은 50 (spec 14 §5.1). */
+export const MAX_QUESTIONS_EXAM = 60;
+export const MAX_QUESTIONS_DEFAULT = 50;
+
+/**
+ * 모드별 문항 수 상한. 종전 `문항 수` 슬라이더의 `max` 를 문항 목록 편집기가 물려받는다 —
+ * 슬라이더를 걷어내면서 상한이 따라오지 않아 51문항·61문항이 그대로 발사되던 결함의 진실원.
+ */
+export function maxQuestionsFor(mode: AssignmentMode): number {
+  return mode === 'exam' ? MAX_QUESTIONS_EXAM : MAX_QUESTIONS_DEFAULT;
+}
 
 const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 5;
@@ -118,6 +132,15 @@ export function gradingTally(questions: DraftQuestion[]): Record<GradingMode, { 
 /** 발문을 채운 문항 수 — 전부 채웠을 때만 과제에 문항을 실어 보낸다. */
 export function authoredCount(questions: DraftQuestion[]): number {
   return questions.filter((q) => q.prompt.trim().length > 0).length;
+}
+
+/**
+ * 발문을 일부만 쓴 상태. 전부 채우거나(직접 출제) 전부 비우거나(단원 RAG 자동 추출) 둘 중 하나여야 한다 —
+ * 중간 상태로 발사하면 `toAssignmentQuestions` 가 `null` 을 돌려 **선생님이 쓴 발문이 조용히 버려진다.**
+ */
+export function isPartiallyAuthored(questions: DraftQuestion[]): boolean {
+  const authored = authoredCount(questions);
+  return authored > 0 && authored < questions.length;
 }
 
 /**
