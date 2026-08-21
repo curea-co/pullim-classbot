@@ -20,7 +20,7 @@ import { persist } from 'zustand/middleware';
 import {
   type Assignment, type AssignmentQuestion,
   studentAssignments, getAssignmentById as getSeedAssignmentById,
-  getQuestionsByAssignment, getQuestionsByIds,
+  getQuestionsByAssignment, getQuestionsByIds, gradingModeOf,
 } from '@/lib/mock';
 import { classBots } from '@/lib/mock/classbot';
 import { USE_REAL_CORE_BE } from '@/lib/features';
@@ -39,6 +39,11 @@ export type UserAssignment = Assignment & {
   examTimeLimitMin?: number;
   /** 오답 재발사(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
   requizQuestionIds?: string[];
+  /**
+   * 교사가 출제 화면에서 직접 작성한 문항(유형·발문·배점·정답·루브릭).
+   * persist 대상 — 저장소는 그대로 localStorage 다. 비어 있으면 mock 시드/RAG 자동 추출로 해석한다.
+   */
+  questions?: AssignmentQuestion[];
 };
 
 /** 학생 제출 기록 — 교사 진행률 / 점수 집계의 원천 */
@@ -387,33 +392,45 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
   return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
 }
 
+/** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */
+const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
+  practice: 'as_today',
+  exam: 'as_exam_prep',
+  'wrong-conquest': 'as_prescription',
+};
+
 /**
- * 과제의 문항 풀 — 시드 문항이 있으면 그대로, 없으면 mode 기반 fallback.
- * 새 과제는 mock 시드를 빌려와 P0 시연을 보장.
+ * 과제의 문항 풀 — 해석 우선순위:
+ *   ① 오답 재발사 문항 → ② 교사가 출제 때 직접 작성한 문항 → ③ 같은 id 의 시드 문항 → ④ mode 시드 폴백.
+ *
+ * ④ 는 남겨 둔다: (a) 교사가 발문을 비워 두면 "단원 RAG 자동 추출" 규약이고(출제 폼이
+ * 전부 작성됐을 때만 ② 를 싣는다), (b) `USE_REAL_CORE_BE` ON 경로에서 서버 요약 응답에는
+ * 문항이 없어(M2 경계) 동기화된 과제가 문항 0개가 되며, (c) 이 변경 전 localStorage 에
+ * 남아 있는 과제도 문항을 갖고 있지 않다. 셋 다 ④ 가 없으면 풀이 화면이 빈 화면이 된다.
  */
 /*
- * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 문항 **본문**은 여전히 mock 풀에서 해석한다 —
- * 문항 콘텐츠의 DB 영속·서버 해석은 M3(QGen 생성 경로) 소관(스키마 PR #192·BE PR #193 명시).
- * M2 의 BE 는 과제 메타(행)만 진실이고, 새 과제의 questions 는 빈 배열 + FE mock fallback.
+ * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 서버에서 되받는 과제의 문항 **본문**은 여전히
+ * mock 풀에서 해석한다 — 문항 콘텐츠의 DB 영속·서버 해석은 M3(QGen 생성 경로) 소관
+ * (스키마 PR #192·BE PR #193 명시). M2 의 BE 는 과제 메타(행)만 진실이다.
  */
 export function getQuestionsForAssignment(
-  assignment: Assignment & { requizQuestionIds?: string[] },
+  assignment: Assignment & { requizQuestionIds?: string[]; questions?: AssignmentQuestion[] },
 ): AssignmentQuestion[] {
   // 오답 재발사 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
   if (assignment.requizQuestionIds && assignment.requizQuestionIds.length > 0) {
     const requizQs = getQuestionsByIds(assignment.requizQuestionIds);
     if (requizQs.length > 0) return requizQs;
   }
+  // 교사가 출제 화면에서 직접 넣은 문항이 진실
+  if (assignment.questions && assignment.questions.length > 0) {
+    return [...assignment.questions].sort((a, b) => a.order - b.order);
+  }
   const seedQs = getQuestionsByAssignment(assignment.id);
   if (seedQs.length > 0) return seedQs;
-  // fallback by mode — 발사된 새 과제용
-  if (assignment.mode === 'wrong-conquest') {
-    return getQuestionsByAssignment('as_prescription').slice(0, assignment.questionCount);
-  }
-  if (assignment.mode === 'exam') {
-    return getQuestionsByAssignment('as_exam_prep').slice(0, assignment.questionCount);
-  }
-  return getQuestionsByAssignment('as_today').slice(0, assignment.questionCount);
+  return getQuestionsByAssignment(SEED_ASSIGNMENT_BY_MODE[assignment.mode]).slice(
+    0,
+    assignment.questionCount,
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -450,26 +467,67 @@ export function computeProgress(assignment: Assignment, submissions: Submission[
   return { completedCount, submittedStudentCount, avgScore, latestSubmittedAt };
 }
 
+/** 문항 배점 — 배점 없이 저장된 옛 데이터는 균등 배분(1점)으로 폴백. */
+function pointsOf(q: AssignmentQuestion): number {
+  return typeof q.points === 'number' && Number.isFinite(q.points) && q.points > 0 ? q.points : 1;
+}
+
+/** 단답 대조용 정규화 — 공백·대소문자 차이는 무시한다("0, 2" ≡ "0,2"). */
+function normalizeAnswer(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, '');
+}
+
+/** 수치 대조 — "33,400"·"2.0" 같은 표기 차이를 흡수하고, 숫자로 못 읽으면 문자열 대조로 폴백. */
+function numericEquals(answer: string, key: string): boolean {
+  const a = Number(answer.replace(/[,\s]/g, ''));
+  const k = Number(key.replace(/[,\s]/g, ''));
+  if (Number.isFinite(a) && Number.isFinite(k)) return Math.abs(a - k) < 1e-9;
+  return normalizeAnswer(answer) === normalizeAnswer(key);
+}
+
 /**
- * 객관식 정답 비율 기반 mock 점수.
- * 단답/서술은 답안 길이 ≥ 3자면 정답 가중 (mock).
+ * 자동 채점 정오 판정 — `gradingModeOf` 가 'auto' 인 문항만 대상.
+ * 반환 `null` = 자동 채점 대상 아님(서술형 = 교사 채점, 또는 정답키가 비어 판정 불가).
+ * 정답키가 없는 문항을 무조건 오답으로 매기지 않기 위해 오답(false)과 구분한다.
+ */
+export function isQuestionCorrect(
+  q: AssignmentQuestion,
+  answer: string | undefined,
+): boolean | null {
+  if (gradingModeOf(q) === 'teacher') return null;
+  if (q.type === 'mc') {
+    if (q.answerIndex == null) return null;
+    return (answer ?? '') === String(q.answerIndex);
+  }
+  const key = q.answerKey?.trim();
+  if (!key) return null;
+  if (answer == null || answer.trim() === '') return false;
+  return q.type === 'numeric'
+    ? numericEquals(answer, key)
+    : normalizeAnswer(answer) === normalizeAnswer(key);
+}
+
+/**
+ * 자동 채점 점수(0~100) — **문항 배점 가중**.
+ * 분모는 자동 채점이 가능한 문항의 배점 합이다. 서술형(교사 채점)과 정답키 없는 문항은
+ * 분자·분모 모두에서 빠진다 — 사람이 매길 점수를 mock 이 미리 깎지 않기 위해서다.
+ * 자동 채점할 문항이 하나도 없으면 0(=미채점).
  */
 export function computeMockScore(
   questions: AssignmentQuestion[],
   answers: Record<string, string>,
 ): number {
-  if (questions.length === 0) return 0;
-  let correct = 0;
+  let earned = 0;
+  let total = 0;
   for (const q of questions) {
-    const a = answers[q.id];
-    if (!a) continue;
-    if (q.type === 'mc' && q.answerIndex != null) {
-      if (a === String(q.answerIndex)) correct += 1;
-    } else if (q.type === 'short' || q.type === 'essay') {
-      if (a.trim().length >= 3) correct += 0.7;
-    }
+    const verdict = isQuestionCorrect(q, answers[q.id]);
+    if (verdict === null) continue;
+    const points = pointsOf(q);
+    total += points;
+    if (verdict) earned += points;
   }
-  return Math.round((correct / questions.length) * 100);
+  if (total === 0) return 0;
+  return Math.round((earned / total) * 100);
 }
 
 /** 특정 학생의 최신 submission */
