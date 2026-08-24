@@ -22,7 +22,7 @@ describe('InlineWorkedExample', () => {
 
   it('later fadable steps are disabled (앞 단계) until the nearest is revealed', () => {
     render(<InlineWorkedExample title="예제" steps={STEPS} />);
-    const disabled = screen.getByRole('button', { name: '앞 단계를 먼저 열어야 해요' });
+    const disabled = screen.getByRole('button', { name: '3단계 「직접2」 — 앞 단계를 먼저 열어야 해요' });
     expect(disabled).toBeDisabled();
   });
 
@@ -36,7 +36,7 @@ describe('InlineWorkedExample', () => {
     expect(screen.queryByText('직접 채워봐.')).not.toBeInTheDocument();
     // next fadable now active (a 정답 확인 still present), not 앞 단계
     expect(screen.getByText('정답 확인')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '앞 단계를 먼저 열어야 해요' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '3단계 「직접2」 — 앞 단계를 먼저 열어야 해요' })).not.toBeInTheDocument();
   });
 
   it('shows the completion line after revealing all fadable steps', () => {

@@ -1631,6 +1631,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
           type="button"
           disabled={selected === undefined}
           onClick={handleSubmit}
+          aria-label={`「${quiz.question}」 답 제출하기`}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
           제출
@@ -1766,7 +1767,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
           type="button"
           disabled={!value.trim()}
           onClick={() => { setSubmitted(true); onCardReveal(); }}
-          aria-label="설명 제출하기"
+          aria-label={`「${prompt.prompt}」 설명 제출하기`}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
           제출
