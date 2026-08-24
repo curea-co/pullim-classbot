@@ -609,7 +609,7 @@ Layer 1 + Layer 2를 만족하면 OK. 화면 단위 미세 기준은 본 명세�
 | 타입 | 비주얼 단서 | 용도 |
 |---|---|---|
 | `text` | 기본 버블 | 일반 답변 |
-| `problem-card` | 좌측 lime 4px 라이너 + 문제번호 큰 숫자 + "풀러 가기" CTA | 과제·퀴즈 인라인 |
+| `problem-card` | 좌측 lime 4px 라이너 + 문제번호 큰 숫자 + "학습" CTA | 과제·퀴즈 인라인 |
 | `explain-step` | 1️⃣ 2️⃣ 3️⃣ 단계 indent + 수식 `font-mono` | 단계별 풀이 |
 | `reference-link` | 16:9 썸네일 + 도메인 + 제목 + 한 줄 요약 | 외부 자료 |
 | `image` | radius 14, 탭 → lightbox shared-element | 사진·필기 |

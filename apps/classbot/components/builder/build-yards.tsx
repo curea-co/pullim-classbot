@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input';
 import { RadioCard, RadioCardGroup } from '@/components/classbot/radio-card';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
-import { FieldLabel } from './field-mark';
+import { FieldError, FieldLabel } from './field-mark';
 import { PickChip } from './pick-chip';
 import {
-  BOT_NAME_MAX,
-  cloneSources, grades, sampleFiles, scopeLevels, scopeMeta,
+  BOT_NAME_MAX, faultAnchorId,
+  grades, sampleFiles, scopeLevels, scopeMeta,
   styleMeta, subjectIds, subjectMeta, toneMeta, wrongMeta,
-  type BotDraft, type CloneSource, type FieldKey,
+  type BotDraft, type Fault, type FieldKey,
   type StyleId, type SubjectId, type ToneId, type WrongId,
 } from './builder-types';
 
@@ -33,22 +33,21 @@ import {
 
 type YardProps = {
   draft: BotDraft;
-  /** 한 번의 고르기 = 한 항목의 값 + 그 항목의 own 하나. 이 한 길로만 값이 바뀐다. */
-  onPick: (field: FieldKey, patch: Partial<BotDraft>, own?: boolean) => void;
+  /** 값이 바뀌는 단 하나의 길. `field` 는 그 항목의 오류 표시를 지우는 데 쓴다. */
+  onPick: (field: FieldKey, patch: Partial<BotDraft>) => void;
 };
 
 /* ─── 마당 1 — 봇 소개 ─── */
 
-/** 봇 카탈로그는 정적 mock 이라 렌더마다 다시 고를 이유가 없다. */
-const clones = cloneSources();
-
 export function Yard1Intro({
-  draft, onPick, onClone, subjectError, nameError,
+  draft, onPick, fault,
 }: YardProps & {
-  onClone: (source: CloneSource) => void;
-  subjectError: boolean;
-  nameError: boolean;
+  /** 지금 앞을 막고 있는 항목 — 「다음」과 「이대로 만들기」가 같은 판정으로 넣는다 */
+  fault: Fault | null;
 }) {
+  /** 이름 입력칸은 라벨이 가리키는 자리이자 막혔을 때 초점이 오는 자리라, id 를 한 번만 짓는다. */
+  const nameId = faultAnchorId('name');
+
   /** 이미 고른 과목을 다시 누르는 것은 바꾸는 게 아니다 — 올린 자료를 지우지 않는다. */
   function selectSubject(id: SubjectId) {
     if (draft.subject === id) return;
@@ -58,49 +57,17 @@ export function Yard1Intro({
   return (
     <div className="space-y-4">
       <section className="bg-card rounded-2xl border p-4 lg:p-5">
-        <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">지난 봇에서 가져오기</h2>
-        <p className="text-pullim-slate-500 mt-0.5 text-xs leading-relaxed">
-          <strong>과목 · 학년 · 말투 · 답 범위</strong> 네 가지가 따라와요.
-          수업 자료와 가르치는 법, 이름은 봇마다 달라서 따라오지 않아요 — 아래에서 정하면 돼요.
-        </p>
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {clones.map((c) => {
-            const sig = botSignature({ subject: subjectMeta[c.subject].label });
-            return (
-              <button
-                key={c.botId}
-                type="button"
-                onClick={() => onClone(c)}
-                data-testid={`clone-${c.botId}`}
-                className="border-pullim-slate-200 hover:border-pullim-blue-400 hover:bg-pullim-blue-50 focus-visible:ring-pullim-blue-400/50 flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-colors outline-none focus-visible:ring-3"
-              >
-                <span
-                  aria-hidden
-                  style={{ backgroundColor: sig.hex }}
-                  className="text-pullim-slate-900 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold"
-                >
-                  {subjectMeta[c.subject].initial}
-                </span>
-                <span className="min-w-0">
-                  <span className="text-pullim-slate-900 block truncate text-xs font-bold">{c.name}</span>
-                  <span className="text-pullim-slate-500 block truncate text-micro">{c.meta}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="bg-card rounded-2xl border p-4 lg:p-5">
         <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">봇 소개</h2>
-        <p className="text-pullim-slate-500 mt-0.5 text-xs">학생이 만날 봇이 누구인지 정해요.</p>
 
         <div className="mt-4 space-y-4">
           {/* 과목 — 기본값이 없는 유일한 항목 */}
           <div>
-            <FieldLabel field="subject" draft={draft}>과목</FieldLabel>
-            <RadioCardGroup ariaLabel="과목" cols={3}>
+            <FieldLabel field="subject">과목</FieldLabel>
+            {/*
+              막혔을 때 초점이 오는 자리. 고를 것이 라디오 묶음이라 붙일 입력칸이 없어
+              묶음 자체를 초점 대상으로 삼는다 — 초점이 오면 낭독기가 묶음 이름(「과목」)을 읽는다.
+            */}
+            <RadioCardGroup ariaLabel="과목" cols={3} id={faultAnchorId('subject')} focusable>
               {subjectIds.map((id) => {
                 const meta = subjectMeta[id];
                 const sig = botSignature({ subject: meta.label });
@@ -122,19 +89,12 @@ export function Yard1Intro({
                 );
               })}
             </RadioCardGroup>
-            <p className="text-pullim-slate-400 mt-1.5 text-micro">
-              과목을 고르면 봇 이름과 색이 따라 정해져요. 이름은 아래에서 바로 고쳐요.
-            </p>
-            {subjectError && (
-              <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
-                과목을 골라야 봇을 만들 수 있어요.
-              </p>
-            )}
+            <FieldError fault={fault} field="subject" />
           </div>
 
           {/* 학년 */}
           <div>
-            <FieldLabel field="grade" draft={draft}>학년</FieldLabel>
+            <FieldLabel field="grade">학년</FieldLabel>
             <div role="radiogroup" aria-label="학년" className="flex flex-wrap gap-1.5">
               {grades.map((g) => (
                 <PickChip
@@ -146,35 +106,27 @@ export function Yard1Intro({
                 />
               ))}
             </div>
-            <p className="text-pullim-slate-400 mt-1.5 text-micro">
-              한 학년만 골라요. 여러 반에 쓸 때는 만든 뒤에 반마다 넣어요.
-            </p>
           </div>
 
           {/* 봇 이름 */}
           <div>
-            <FieldLabel field="name" draft={draft} htmlFor="bld-name">봇 이름</FieldLabel>
+            <FieldLabel field="name" htmlFor={nameId}>봇 이름</FieldLabel>
             <Input
-              id="bld-name"
+              id={nameId}
               type="text"
               value={draft.name}
-              onChange={(e) => onPick('name', { name: e.target.value }, e.target.value.trim().length > 0)}
+              onChange={(e) => onPick('name', { name: e.target.value })}
               maxLength={BOT_NAME_MAX}
               placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
-              aria-invalid={nameError || undefined}
+              aria-invalid={fault?.field === 'name' || undefined}
               className="h-10 text-sm"
             />
-            <p className="text-pullim-slate-400 mt-1.5 text-micro">학생은 이 이름으로 봇을 불러요.</p>
-            {nameError && (
-              <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
-                이름은 두 글자에서 서른 글자 사이로 적어 주세요.
-              </p>
-            )}
+            <FieldError fault={fault} field="name" />
           </div>
 
           {/* 말투 */}
           <div>
-            <FieldLabel field="tone" draft={draft}>말투</FieldLabel>
+            <FieldLabel field="tone">말투</FieldLabel>
             <RadioCardGroup ariaLabel="말투" cols={3}>
               {(Object.keys(toneMeta) as ToneId[]).map((t) => (
                 <RadioCard
@@ -199,11 +151,10 @@ export function Yard1Intro({
  */
 /**
  * 과목을 **바꾸면** 올린 자료를 비운다 — 지난 과목의 수업 자료는 새 과목에서 뜻이 없다.
- * 자료를 갈아치우면서 `own.files` 를 그대로 두면 교사가 고른 적 없는 자료가 계속
- * 「내가 정함」으로 남아 항목 옆 표시와 「채워진 것」이 어긋난다(`pick()` 의 `invalidatedBy`).
+ * 그대로 두면 국어봇이 기후도 필기를 읽고 있는 화면이 된다.
  *
  * 이미 고른 과목을 다시 누르는 것은 **바꾸는 게 아니다.** 그때도 비우면 교사가 올린 자료가
- * 까닭 없이 사라진다 — 그래서 값이 같으면 아무 일도 하지 않는다.
+ * 까닭 없이 사라진다 — 그래서 값이 같으면 아무 일도 하지 않는다(`selectSubject` 의 이른 return).
  */
 function pickSubject(draft: BotDraft, subject: SubjectId): Partial<BotDraft> {
   return { subject, files: [] };
@@ -231,21 +182,17 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
   }
 
   function removeFile(index: number) {
-    const files = draft.files.filter((_, i) => i !== index);
-    onPick('files', { files }, files.length > 0);
+    onPick('files', { files: draft.files.filter((_, i) => i !== index) });
   }
 
   return (
     <section className="bg-card rounded-2xl border p-4 lg:p-5">
       <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">봇이 보고 답할 것</h2>
-      <p className="text-pullim-slate-500 mt-0.5 text-xs">
-        무엇을 읽고 답하는지, 어디까지 답해도 되는지를 한자리에서 정해요.
-      </p>
 
       <div className="mt-4 space-y-4">
         {/* 수업 자료 */}
         <div>
-          <FieldLabel field="files" draft={draft}>수업 자료</FieldLabel>
+          <FieldLabel field="files">수업 자료</FieldLabel>
           <div className="bg-pullim-slate-50 border-pullim-slate-300 rounded-xl border-2 border-dashed p-6 text-center">
             <FileText className="text-pullim-slate-400 mx-auto h-7 w-7" aria-hidden />
             <p className="text-pullim-slate-700 mt-2 text-sm font-bold">여기로 끌어다 놓거나 골라서 올려요</p>
@@ -292,7 +239,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
 
         {/* 답 범위 */}
         <div>
-          <FieldLabel field="scope" draft={draft}>답 범위</FieldLabel>
+          <FieldLabel field="scope">답 범위</FieldLabel>
           {/* L1→L5 는 세로로 읽어야 「어디까지 열지」가 눈금으로 보인다 */}
           <RadioCardGroup ariaLabel="답 범위" layout="list" className="flex flex-col">
             {scopeLevels.map((level) => (
@@ -349,13 +296,10 @@ export function Yard3Teaching({ draft, onPick }: YardProps) {
   return (
     <section className="bg-card rounded-2xl border p-4 lg:p-5">
       <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">가르치는 법</h2>
-      <p className="text-pullim-slate-500 mt-0.5 text-xs">
-        평소에 어떻게 이끌지, 학생이 틀렸을 때 어떻게 할지 두 가지예요.
-      </p>
 
       <div className="mt-4 space-y-4">
         <div>
-          <FieldLabel field="style" draft={draft}>평소에</FieldLabel>
+          <FieldLabel field="style">평소에</FieldLabel>
           <RadioCardGroup ariaLabel="평소에" cols={2}>
             {(Object.keys(styleMeta) as StyleId[]).map((s) => (
               <RadioCard
@@ -372,7 +316,7 @@ export function Yard3Teaching({ draft, onPick }: YardProps) {
         <div className="border-pullim-slate-100 border-t" />
 
         <div>
-          <FieldLabel field="wrong" draft={draft}>학생이 틀렸을 때</FieldLabel>
+          <FieldLabel field="wrong">학생이 틀렸을 때</FieldLabel>
           <RadioCardGroup ariaLabel="학생이 틀렸을 때" cols={3}>
             {(Object.keys(wrongMeta) as WrongId[]).map((w) => (
               <RadioCard

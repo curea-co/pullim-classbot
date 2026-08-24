@@ -180,7 +180,8 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
   return (
     <li>
       <Link
-        href={`/teacher/students/${student.id}`}
+        // 되돌아갈 곳을 넘긴다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
+        href={`/teacher/students/${student.id}?from=home`}
         className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[8rem_minmax(0,1fr)_3.5rem_5rem_auto]"
       >
         <span className="flex items-center gap-2">
@@ -218,7 +219,8 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
 
 /** 처리 대기 항목이 실제로 끝나는 자리 — mock 의 href 는 아직 앵커라 여기서 라우트로 잇는다. */
 const pendingHref: Record<PendingItem['type'], string> = {
-  grading: '/teacher/grading',
+  // 「나를 기다리는 일」은 검수할 것만 가리킨다 — 채점 허브 기본 화면(학생 전체)이 아니라 큐로 보낸다.
+  grading: '/teacher/grading?view=queue',
   report: '/teacher/reports',
   approval: '/teacher/settings',
 };

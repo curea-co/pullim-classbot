@@ -12,6 +12,14 @@ export interface RadioCardGroupProps {
   layout?: 'grid' | 'list';
   children: React.ReactNode;
   className?: string;
+  /** Put on the radiogroup element itself, so callers can address it (e.g. move focus to it). */
+  id?: string;
+  /**
+   * Make the radiogroup programmatically focusable (`tabIndex={-1}`) without adding it to the
+   * tab order. Lets a caller move focus to the group — which announces its `ariaLabel` — when
+   * a validation error points here. Off by default: the radios themselves stay the tab stops.
+   */
+  focusable?: boolean;
 }
 
 // ── RadioCardGroup Component ─────────────────────────────────────────────────
@@ -23,6 +31,8 @@ export function RadioCardGroup({
   layout = 'grid',
   children,
   className,
+  id,
+  focusable = false,
 }: RadioCardGroupProps) {
   const getColsClass = (c: 1 | 2 | 3) => {
     if (c === 1) return 'grid-cols-1';
@@ -40,8 +50,10 @@ export function RadioCardGroup({
     <div>
       {label && <div className="mb-2 text-sm font-bold">{label}</div>}
       <div
+        id={id}
         role="radiogroup"
         aria-label={ariaLabel}
+        tabIndex={focusable ? -1 : undefined}
         className={cn(containerClasses, className)}
       >
         {children}
