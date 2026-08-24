@@ -261,7 +261,7 @@ const topicMeta: Record<TurnKind, { label: string; soWhat: string }> = {
   },
   'off-topic': {
     label: '범위 밖 요청',
-    soWhat: '반복되면 봇 설정의 이탈 대응 강도를 올린다',
+    soWhat: '반복되면 봇 관리의 이탈 대응 강도를 올린다',
   },
 };
 

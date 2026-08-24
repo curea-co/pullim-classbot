@@ -62,7 +62,7 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await expect(card.getByRole('link')).toHaveCount(0);
     await card.getByRole('button', { name: /더보기/ }).click();
     const menu = page.getByRole('menu');
-    for (const label of ['봇 손보기', '봇 설정', '안전 등급 바꾸기', '과제 내기', '학급 관제소']) {
+    for (const label of ['봇 손보기', '봇 관리', '안전 등급 바꾸기', '과제 내기', '학급 관제소']) {
       await expect(menu.getByRole('menuitem', { name: label })).toBeVisible();
     }
 
@@ -77,6 +77,33 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await page.getByTestId('bot-ops-card-cb_001').getByRole('button', { name: /더보기/ }).click();
     await page.getByRole('menu').getByRole('menuitem', { name: '학급 관제소' }).click();
     await expect(page).toHaveURL(BASE + '/teacher/monitor');
+  });
+});
+
+test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
+  test('목록의 봇을 누르면 그 봇의 설정으로 들어간다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/bots', { waitUntil: 'networkidle' });
+
+    const card = page.getByTestId('bot-manage-card-cb_001');
+    await expect(card).toBeVisible();
+    // 목록이 읽어주는 것 — 정체와 지금 규칙. 운영 사실(인원·낸 과제)은 운영 화면 몫이라 여기 없다.
+    await expect(card.getByText('수학봇')).toBeVisible();
+    await expect(card.getByText('L3', { exact: true })).toBeVisible();
+
+    await card.getByRole('link').click();
+    await expect(page).toHaveURL(BASE + '/teacher/bots/cb_001');
+    await expect(page.getByRole('heading', { level: 1, name: '수학봇 운영 규칙' })).toBeVisible();
+    await expect(page.getByText('안전 등급 시간대 스케줄')).toBeVisible();
+  });
+
+  test('옛 경로 /teacher/settings 는 탭을 실은 채 목록으로 넘어간다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/settings?tab=drift', { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');
+
+    // 고른 봇의 「이탈 대응」으로 바로 들어간다
+    await page.getByTestId('bot-manage-card-cb_001').getByRole('link').click();
+    await expect(page).toHaveURL(BASE + '/teacher/bots/cb_001?tab=drift');
+    await expect(page.getByText('이탈 대응 강도')).toBeVisible();
   });
 });
 

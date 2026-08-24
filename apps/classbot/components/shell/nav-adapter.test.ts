@@ -9,7 +9,7 @@ describe("nav-adapter", () => {
     const grading = all.find((i) => i.href === "/teacher/grading");
     expect(grading?.active).toBe(true);
   });
-  it("teacher rail exposes 학급 관제소 · 봇 설정 (워크스페이스 끝, 기존 항목 뒤)", () => {
+  it("teacher rail exposes 학급 관제소 · 봇 관리 (워크스페이스 끝, 기존 항목 뒤)", () => {
     const secs = railSectionsForRole("teacher", "/teacher/monitor");
     const ws = secs.find((s) => s.head === "워크스페이스");
     expect(ws?.items.map((i) => i.href)).toEqual([
@@ -17,7 +17,7 @@ describe("nav-adapter", () => {
       "/teacher/classbot",
       "/teacher/builder",
       "/teacher/monitor",
-      "/teacher/settings",
+      "/teacher/bots",
     ]);
     expect(ws?.items.find((i) => i.href === "/teacher/monitor")?.active).toBe(true);
   });

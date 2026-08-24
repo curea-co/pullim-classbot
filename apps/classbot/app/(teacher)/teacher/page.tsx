@@ -215,5 +215,5 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
 const pendingHref: Record<PendingItem['type'], string> = {
   grading: '/teacher/grading',
   report: '/teacher/reports',
-  approval: '/teacher/settings',
+  approval: '/teacher/bots',
 };
