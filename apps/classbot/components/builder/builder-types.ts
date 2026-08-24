@@ -1,4 +1,3 @@
-import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
 import { scopeMeta, type ScopeLevel } from '@/lib/mock';
 
@@ -6,13 +5,12 @@ import { scopeMeta, type ScopeLevel } from '@/lib/mock';
  * 봇 빌더 — 한 길 · 세 마당 모델.
  *
  * 8단계 위저드를 걷어내고 마당 셋(봇 소개 · 보고 답할 것 · 가르치는 법)으로 합쳤다.
- * 길이 하나라 「어디로 갈지」를 먼저 고르게 하지 않는다. 대신 안내를 두 층으로 둔다 —
- *  ① 페이지 제목 아래 한 줄이 「과목만 고르면 나머지는 기본값」이라는 방침을 말하고,
- *  ② 항목 이름 옆 표시가 그 항목이 꼭 골라야 하는 것인지 기본값인지 말한다.
+ * 길이 하나라 「어디로 갈지」를 먼저 고르게 하지 않는다. 대신 항목 이름 옆에서 필수와 선택을
+ * 가른다 — 꼭 골라야 하는 것은 빨간 `*`, 나머지는 `(선택)` 이다.
  *
  * 이 파일이 지키는 불변식:
  *  - 「채워진 것」이 세는 항목은 정확히 아홉 가지(`FIELD_KEYS`)다. 안전 세 가지는 세지 않는다.
- *  - 항목 옆 표시와 「채워진 것」의 배지는 **같은 `own` 하나**를 읽는다. 상태를 두 벌 두지 않는다.
+ *  - 꼭 골라야 하는 항목은 `REQUIRED_FIELDS` 하나가 정한다. 화면마다 따로 적지 않는다.
  *  - 과목은 기본값이 없다. 미리 골라 두면 없는 기본값을 있는 척하는 것이 된다.
  */
 
@@ -40,7 +38,7 @@ export const FIELD_KEYS = [
 
 export type FieldKey = (typeof FIELD_KEYS)[number];
 
-/** 교사가 직접 정한 항목. 두 표시가 어긋나지 않도록 이 하나만 읽는다. */
+/** 교사가 직접 정한 항목. 「채워진 것」의 카운터가 이 하나를 읽는다. */
 export type OwnMap = Record<FieldKey, boolean>;
 
 export type BotDraft = {
@@ -158,69 +156,6 @@ export function classroomLabel(id: string): string {
 
 export const alwaysOnSafety = ['개인정보 가리기', '위험한 말 막기', '위기 신호 알림'] as const;
 
-/* ─── 지난 봇에서 가져오기 ─── */
-
-export type CloneSource = {
-  botId: string;
-  name: string;
-  subject: SubjectId;
-  grade: string;
-  tone: ToneId;
-  scope: ScopeLevel;
-  /** 카드에 적는 한 줄 — 어느 반에서 쓰던 봇인지 */
-  meta: string;
-};
-
-/** 봇 카탈로그의 말투 표기를 빌더 말투로 옮긴다. */
-const toneFromCatalog: Record<string, ToneId> = {
-  정중: 'polite', 차분: 'polite', 친근: 'friendly', 열정: 'friendly', 스파르타: 'firm',
-};
-
-const subjectFromCatalog: Record<string, SubjectId> = {
-  수학: 'math', 공통수학: 'math', 영어: 'english',
-  과학: 'science', 통합과학: 'science',
-  국어: 'korean', 문학: 'korean',
-  사회: 'social', 한국사: 'social',
-};
-
-/**
- * 가져올 수 있는 지난 봇 — 새로 지어내지 않고 봇 카탈로그(`lib/mock/classbot.ts`)에서 읽는다.
- * 그래서 따라오는 값도 카탈로그가 아는 넷(과목 · 학년 · 말투 · 답 범위)뿐이다.
- * 수업 자료와 가르치는 법은 카탈로그에 없으니 따라오지 않는다 — 없는 값을 지어내면 거짓이 된다.
- */
-export function cloneSources(limit = 3): CloneSource[] {
-  return getTeacherBotRows()
-    .map((row): CloneSource | null => {
-      const subject = subjectFromCatalog[row.bot.subject];
-      if (!subject) return null;
-      const room = row.ops.classrooms[0]?.label ?? '아직 반에 안 넣음';
-      return {
-        botId: row.bot.id,
-        name: row.bot.name,
-        subject,
-        grade: row.bot.grade,
-        tone: toneFromCatalog[row.bot.tone] ?? 'friendly',
-        scope: row.bot.scope,
-        meta: `${room} · ${row.bot.grade} · 답 범위 L${row.bot.scope}`,
-      };
-    })
-    .filter((c): c is CloneSource => c !== null)
-    .slice(0, limit);
-}
-
-/** 지난 봇의 값을 옮겨 담는다. 따라온 값은 전부 「내가 정함」이 된다. */
-export function applyClone(source: CloneSource): BotDraft {
-  return {
-    ...emptyDraft,
-    subject: source.subject,
-    grade: source.grade,
-    name: '',                       // 이름은 새 봇에서 다시 정한다 — 비우면 과목 기본 이름이 붙는다
-    tone: source.tone,
-    scope: source.scope,
-    own: { ...noOwn, subject: true, grade: true, tone: true, scope: true },
-  };
-}
-
 /* ─── 데모용 수업 자료 ─── */
 
 export const sampleFiles: Record<SubjectId, UploadedFile[]> = {
@@ -274,39 +209,28 @@ export function isNameValid(draft: BotDraft): boolean {
   return typed.length >= BOT_NAME_MIN && typed.length <= BOT_NAME_MAX;
 }
 
-/* ─── 안내 ② 항목별 표시 ─── */
+/* ─── 항목 이름 옆 표시 ─── */
 
 /**
- * 왜 비워도 되는지는 항목마다 다르게 적는다 — 같은 문장을 아홉 번 반복하면 아무도 안 읽는다.
- * `required` 인 항목(과목)은 기본값이 없어 「왜 비워도 되는지」가 아예 없다.
+ * 꼭 골라야 하는 항목 — 기본값이 없어 비워 두면 봇을 만들 수 없는 것.
+ * 지금은 과목 하나뿐이다. 나머지 여덟은 기본값이 있어 `(선택)` 이 붙는다.
  */
-export const fieldMarks: Record<FieldKey, { required?: true; why?: (draft: BotDraft) => string }> = {
-  subject: { required: true },
-  grade:   { why: () => '가장 많이 쓰는 학년으로 골라 뒀어요' },
-  name:    {
-    why: (draft) =>
-      draft.subject
-        ? `비워 두면 ${subjectMeta[draft.subject].botName}으로 정해져요`
-        : '과목을 고르면 이름이 따라 정해져요',
-  },
-  tone:    { why: () => '대부분의 반이 이대로 써요' },
-  files:   { why: () => '안 올려도 만들 수 있어요' },
-  scope:   { why: () => '보통 수업은 L3 교과 범위로 둬요' },
-  style:   { why: () => '단원에 따라 알아서 바꿔요' },
-  wrong:   { why: () => '답을 바로 주지 않는 쪽이 기본이에요' },
-  classes: { why: () => '봇을 만든 뒤에 골라요' },
-};
+export const REQUIRED_FIELDS: readonly FieldKey[] = ['subject'];
+
+export function isRequired(field: FieldKey): boolean {
+  return REQUIRED_FIELDS.includes(field);
+}
 
 /* ─── 「채워진 것」 ─── */
 
 export const yardGroups = [
-  { group: 1, badge: '1', title: '봇 소개',      sub: '과목 · 학년 · 이름 · 말투' },
-  { group: 2, badge: '2', title: '보고 답할 것', sub: '수업 자료 · 답 범위' },
-  { group: 3, badge: '3', title: '가르치는 법',  sub: '평소에 · 틀렸을 때' },
-  { group: 4, badge: '·', title: '만든 뒤',      sub: '어느 반에 넣을지' },
-] as const satisfies readonly { group: GroupNo; badge: string; title: string; sub: string }[];
+  { group: 1, badge: '1', title: '봇 소개' },
+  { group: 2, badge: '2', title: '보고 답할 것' },
+  { group: 3, badge: '3', title: '가르치는 법' },
+  { group: 4, badge: '·', title: '만든 뒤' },
+] as const satisfies readonly { group: GroupNo; badge: string; title: string }[];
 
-/** 마당 셋 — 오른쪽 「단계」와 좁은 화면 가로 띠가 함께 읽는다. */
+/** 마당 셋 — 콘텐츠 위쪽 「단계」가 읽는다. */
 export const buildYards = [yardGroups[0], yardGroups[1], yardGroups[2]];
 
 export type SummaryRow = {
@@ -316,11 +240,9 @@ export type SummaryRow = {
   value: string;
   /** 아직 값이 없어 안내 문구를 대신 보여주는 줄 — 흐리게 그린다 */
   placeholder: boolean;
-  own: boolean;
-  required: boolean;
 };
 
-/** 아홉 줄. 항목 옆 표시와 1:1 로 맞물리도록 「과목」과 「학년」도 따로 센다. */
+/** 아홉 줄. 세는 항목과 1:1 로 맞물리도록 「과목」과 「학년」도 따로 센다. */
 export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
   const subject = draft.subject ? subjectMeta[draft.subject] : null;
   const name = botName(draft);
@@ -331,11 +253,7 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
     label: string,
     value: string,
     placeholder = false,
-  ): SummaryRow => ({
-    field, group, label, value, placeholder,
-    own: draft.own[field],
-    required: fieldMarks[field].required === true,
-  });
+  ): SummaryRow => ({ field, group, label, value, placeholder });
 
   return [
     row('subject', 1, '과목', subject ? subject.label : '아직 안 고름', !subject),
@@ -363,13 +281,13 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
 /**
  * 값 하나를 고르는 단 하나의 길.
  *
- * 값과 `own` 을 한 번에 옮기므로 「고쳤는데 배지가 안 따라온」 상태가 만들어질 수 없다.
+ * 값과 `own` 을 한 번에 옮기므로 「고쳤는데 셈이 안 따라온」 상태가 만들어질 수 없다.
  * 이름·자료·반처럼 비우면 다시 기본값이 되는 항목은 `own` 을 직접 넘긴다.
  */
 /**
  * 한 항목을 바꾸면 함께 무효가 되는 항목.
- * 과목을 바꾸면 지난 과목의 수업 자료는 뜻이 없어 비운다 — 값만 비우고 표시를 두면
- * 교사가 고른 적 없는 자료가 계속 「내가 정함」으로 남아 두 자리가 어긋난다.
+ * 과목을 바꾸면 지난 과목의 수업 자료는 뜻이 없어 비운다 — 값만 비우고 셈을 두면
+ * 교사가 고른 적 없는 자료가 계속 「직접 정함」으로 세어진다.
  */
 const invalidatedBy: Partial<Record<FieldKey, readonly FieldKey[]>> = {
   subject: ['files'],

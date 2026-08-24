@@ -1,17 +1,17 @@
 /**
  * 봇 빌더 — 한 길 · 세 마당.
  *
- * 이 화면의 불변식은 하나다. **항목 옆 표시와 「채워진 것」은 같은 `own` 을 읽는다** —
- * 두 자리가 어긋나면 교사는 「내가 뭘 정했는지」를 화면에서 알 수 없게 된다.
- * 미리보기가 없는 화면이라 이 목록이 유일한 길잡이다.
+ * 이 화면의 불변식은 하나다. **꼭 골라야 하는 것은 이름 옆에서 알 수 있다** —
+ * 필수는 빨간 `*`, 나머지는 `(선택)`. 배지 세 벌과 줄별 「고치기」는 없앴고,
+ * 오갈 자리는 위쪽 「단계」 하나다. 미리보기가 없는 화면이라 「채워진 것」이 유일한 길잡이다.
  */
 
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
   BOT_NAME_MAX, BOT_NAME_MIN,
-  FIELD_KEYS, alwaysOnSafety, applyClone, botName, classAssignments, classroomChoices, cloneSources,
-  emptyDraft, isNameValid, ownCount, pick, summaryRows,
+  FIELD_KEYS, REQUIRED_FIELDS, alwaysOnSafety, botName, classAssignments, classroomChoices,
+  emptyDraft, isNameValid, isRequired, ownCount, pick, summaryRows,
 } from '../builder-types';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
@@ -29,10 +29,10 @@ describe('채워진 것 모델', () => {
     }
   });
 
-  it('첫 진입은 0가지 — 과목만 「꼭 골라요」고 나머지 여덟은 기본값이다', () => {
+  it('첫 진입은 0가지 — 꼭 골라야 하는 것은 과목 하나뿐이다', () => {
     expect(ownCount(emptyDraft)).toBe(0);
-    const required = summaryRows(emptyDraft, 'build').filter((r) => r.required);
-    expect(required.map((r) => r.field)).toEqual(['subject']);
+    expect(REQUIRED_FIELDS).toEqual(['subject']);
+    expect(FIELD_KEYS.filter(isRequired)).toEqual(['subject']);
   });
 
   it('아홉 가지를 다 정해도 카운터는 9를 넘지 않는다', () => {
@@ -75,23 +75,11 @@ describe('채워진 것 모델', () => {
     const input = screen.getByPlaceholderText('과목을 고르면 이름이 정해져요');
     expect(input).toHaveAttribute('maxlength', String(BOT_NAME_MAX));
   });
-
-  it('지난 봇에서 가져온 값은 전부 「내가 정함」이 된다', () => {
-    const source = cloneSources()[0];
-    const cloned = applyClone(source);
-    expect(cloned.subject).toBe(source.subject);
-    expect(cloned.grade).toBe(source.grade);
-    expect(cloned.tone).toBe(source.tone);
-    expect(cloned.scope).toBe(source.scope);
-    expect(ownCount(cloned)).toBe(4);
-    // 이름은 따라오지 않는다 — 새 봇은 새 이름을 갖거나 과목 기본 이름을 쓴다
-    expect(cloned.own.name).toBe(false);
-  });
 });
 
 /* ─── 화면 ─── */
 
-/** 항목 옆 표시와 「채워진 것」 줄이 같은 말을 하는지 한 번에 본다. */
+/** 항목 이름 옆 표시와 「채워진 것」 줄을 한 번에 본다. */
 function marks(field: string) {
   return {
     beside: screen.getByTestId(`field-mark-${field}`).textContent ?? '',
@@ -101,6 +89,11 @@ function marks(field: string) {
 
 function count() {
   return screen.getByTestId('own-count').textContent;
+}
+
+/** 마당을 오가는 자리는 위쪽 「단계」 하나뿐이다. */
+function step(title: string) {
+  return screen.getByRole('button', { name: title });
 }
 
 describe('과목은 기본값이 없다', () => {
@@ -126,65 +119,67 @@ describe('과목은 기본값이 없다', () => {
   });
 });
 
-describe('항목 옆 표시와 「채워진 것」', () => {
-  it('첫 진입 — 과목만 「꼭 골라요」, 나머지는 「기본값」', () => {
+describe('필수는 `*`, 선택은 `(선택)`', () => {
+  it('과목만 `*` 를 달고 나머지는 `(선택)` 이다', () => {
     render(<BotBuilderPage />);
-    expect(marks('subject').beside).toContain('꼭 골라요');
-    expect(marks('subject').summary).toContain('꼭 골라요');
-    expect(marks('grade').beside).toContain('기본값');
-    expect(marks('grade').summary).toContain('기본값');
-    expect(count()).toBe('0');
+    expect(marks('subject').beside).toContain('*');
+    expect(marks('subject').beside).not.toContain('(선택)');
+    // `*` 는 눈으로만 읽히는 기호라 낭독기에 말로도 붙는다
+    expect(marks('subject').beside).toContain('꼭 골라야 해요');
+
+    for (const field of ['grade', 'name', 'tone']) {
+      expect(marks(field).beside).toContain('(선택)');
+      expect(marks(field).beside).not.toContain('*');
+    }
   });
 
-  it('항목을 직접 고치면 두 자리가 같은 프레임에 「내가 정함」이 되고 카운터가 오른다', () => {
+  it('값을 직접 고쳐도 표시는 그대로다 — `(선택)` 은 처지가 아니라 항목의 성질이다', () => {
     render(<BotBuilderPage />);
-    expect(count()).toBe('0');
-
     fireEvent.click(screen.getByRole('radio', { name: '중3' }));
-    expect(marks('grade').beside).toContain('내가 정함');
-    expect(marks('grade').summary).toContain('내가 정함');
+
+    expect(marks('grade').beside).toContain('(선택)');
     expect(marks('grade').summary).toContain('중3');
     expect(count()).toBe('1');
-
-    fireEvent.click(screen.getByRole('radio', { name: /또박또박/ }));
-    expect(marks('tone').beside).toContain('내가 정함');
-    expect(marks('tone').summary).toContain('내가 정함');
-    expect(count()).toBe('2');
-
-    // 안 건드린 항목은 그대로 기본값
-    expect(marks('name').beside).toContain('기본값');
-    expect(marks('name').summary).toContain('기본값');
   });
 
-  it('왜 비워도 되는지는 항목마다 다르게 말하고, 이름은 고른 과목을 따라간다', () => {
+  it('배지 세 벌은 어디에도 남아 있지 않다', () => {
     render(<BotBuilderPage />);
-    expect(marks('name').beside).toContain('과목을 고르면 이름이 따라 정해져요');
-    expect(marks('grade').beside).toContain('가장 많이 쓰는 학년으로 골라 뒀어요');
+    for (const gone of ['꼭 골라요', '기본값으로 골라 뒀어요', '내가 정함']) {
+      expect(screen.queryByText(gone)).toBeNull();
+    }
+  });
+});
+
+describe('「채워진 것」', () => {
+  it('줄에는 항목 이름과 값만 있다 — 배지도 「고치기」도 없다', () => {
+    render(<BotBuilderPage />);
+    const row = screen.getByTestId('summary-row-grade');
+    expect(row).toHaveTextContent('학년');
+    expect(row).toHaveTextContent('중1');
+    expect(within(row).queryByRole('button')).toBeNull();
+    expect(screen.queryByText('고치기')).toBeNull();
+  });
+
+  it('이름 줄은 고른 과목을 따라간다', () => {
+    render(<BotBuilderPage />);
+    expect(marks('name').summary).toContain('과목을 고르면 정해져요');
 
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    expect(marks('name').beside).toContain('비워 두면 과학봇으로 정해져요');
     expect(marks('name').summary).toContain('과학봇');
 
-    fireEvent.click(screen.getByRole('radio', { name: /국어/ }));
-    expect(marks('name').beside).toContain('비워 두면 국어봇으로 정해져요');
-
-    // 직접 적으면 그 한 마디는 할 일이 끝나 사라진다
     fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '별별봇' } });
-    expect(marks('name').beside).toContain('내가 정함');
-    expect(marks('name').beside).not.toContain('비워 두면');
     expect(marks('name').summary).toContain('별별봇');
+    expect(count()).toBe('2');
 
     // 다시 비우면 기본값으로 돌아간다 — 셈도 함께 돌아간다
     fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '' } });
-    expect(marks('name').beside).toContain('기본값');
-    expect(marks('name').summary).toContain('국어봇');
+    expect(marks('name').summary).toContain('과학봇');
+    expect(count()).toBe('1');
   });
 
-  it('「반」은 봇이 있어야 고를 수 있어 만들기 전에는 고치기가 없다', () => {
+  it('「반」은 만들기 전에는 만든 뒤에 고른다고 말한다', () => {
     render(<BotBuilderPage />);
-    const row = screen.getByTestId('summary-row-classes');
-    expect(row).toHaveTextContent('만든 뒤에 골라요');
-    expect(within(row).queryByRole('button', { name: '반 고치기' })).toBeNull();
+    expect(screen.getByTestId('summary-row-classes')).toHaveTextContent('만든 뒤에 골라요');
   });
 
   it('안전 세 가지는 세는 칸 밖 고정 줄이다', () => {
@@ -196,27 +191,32 @@ describe('항목 옆 표시와 「채워진 것」', () => {
   });
 });
 
-describe('지난 봇에서 가져오기', () => {
-  it('따라온 값은 전부 「내가 정함」으로 표시된다', () => {
-    const source = cloneSources()[0];
+describe('마당 오가기', () => {
+  it('「단계」는 화면 폭과 무관하게 한 자리뿐이다', () => {
     render(<BotBuilderPage />);
+    expect(screen.getAllByRole('navigation', { name: '봇 빌더 단계' })).toHaveLength(1);
+  });
 
-    fireEvent.click(screen.getByTestId(`clone-${source.botId}`));
+  it('「이대로 만들기」는 어느 마당에서나 헤더 한 자리에 하나뿐이다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
 
-    // 「채워진 것」은 아홉 줄을 늘 그리므로 마당 2·3 항목도 여기서 함께 읽힌다
-    for (const field of ['subject', 'grade', 'tone', 'scope']) {
-      expect(screen.getByTestId(`summary-row-${field}`)).toHaveTextContent('내가 정함');
+    for (const yard of [1, 2, 3]) {
+      if (yard > 1) fireEvent.click(screen.getByRole('button', { name: '다음' }));
+      expect(screen.getAllByRole('button', { name: '이대로 만들기' })).toHaveLength(1);
     }
-    // 마당 1 에 나와 있는 항목은 옆 표시도 같은 말을 한다
-    expect(marks('subject').beside).toContain('내가 정함');
-    expect(marks('grade').beside).toContain('내가 정함');
-    expect(marks('tone').beside).toContain('내가 정함');
-    expect(count()).toBe('4');
+    // 마당 3 은 더 갈 곳이 없다 — 「다음」을 두지 않는다
+    expect(screen.queryByRole('button', { name: '다음' })).toBeNull();
+    expect(screen.getByRole('button', { name: '이전' })).toBeInTheDocument();
+  });
 
-    // 따라오지 않은 항목은 기본값 그대로다 — 가져왔다고 다 정해진 척하지 않는다
-    expect(screen.getByTestId('summary-row-files')).toHaveTextContent('기본값');
-    expect(screen.getByTestId('summary-row-style')).toHaveTextContent('기본값');
-    expect(marks('name').beside).toContain('기본값');
+  it('「단계」를 눌러 마당을 건너뛴다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(step('가르치는 법'));
+    expect(screen.getByRole('heading', { name: '가르치는 법' })).toBeInTheDocument();
+
+    fireEvent.click(step('봇 소개'));
+    expect(screen.getByRole('heading', { name: '봇 소개' })).toBeInTheDocument();
   });
 });
 
@@ -232,22 +232,22 @@ describe('아홉 가지를 다 정하기', () => {
     expect(count()).toBe('4');
 
     // 마당 2
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
     fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
     fireEvent.click(screen.getByRole('radio', { name: /완전 개방/ }));
     expect(count()).toBe('6');
 
     // 마당 3
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 가르치는 법/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
     fireEvent.click(screen.getByRole('radio', { name: /되물어보기/ }));
     fireEvent.click(screen.getByRole('radio', { name: /바로 알려주기/ }));
     expect(count()).toBe('8');
 
     // 만든 뒤 — 반
-    fireEvent.click(screen.getAllByRole('button', { name: '이대로 만들기' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
     fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
-    expect(marks('classes').beside).toContain('내가 정함');
-    expect(marks('classes').summary).toContain('내가 정함');
+    expect(marks('classes').beside).toContain('(선택)');
+    expect(marks('classes').summary).toContain(classroomChoices[0].label);
     expect(count()).toBe('9');
     expect(screen.getByTestId('done-own-count')).toHaveTextContent('9가지');
 
@@ -261,7 +261,7 @@ describe('수업 자료 올리기 (데모)', () => {
   it('가운데 자료를 뺀 뒤 다시 올려도 같은 자료가 두 번 들어오지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
     const add = screen.getByRole('button', { name: '자료 골라 올리기' });
     const files = () => within(screen.getByTestId('file-list')).getAllByRole('listitem');
@@ -282,7 +282,7 @@ describe('수업 자료 올리기 (데모)', () => {
   it('데모에 준비된 자료를 다 올리면 더 올리지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
     const add = screen.getByRole('button', { name: '자료 골라 올리기' });
     for (let i = 0; i < 6; i += 1) fireEvent.click(add);
@@ -329,54 +329,34 @@ describe('만든 뒤 화면', () => {
     }
   });
 
-  it('과목을 바꾸면 올린 자료도 「기본값」으로 돌아간다 — 두 자리가 어긋나지 않는다', () => {
+  it('과목을 바꾸면 올린 자료도 세는 칸에서 빠진다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
     fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
-    expect(marks('files').beside).toContain('내가 정함');
-    expect(marks('files').summary).toContain('내가 정함');
+    expect(marks('files').summary).toContain('1개 올림');
     const withFiles = count();
 
-    // 지난 과목의 자료는 새 과목에서 뜻이 없다 — 비우고 표시도 함께 되돌려야 한다
-    fireEvent.click(screen.getByRole('button', { name: '과목 고치기' }));
+    // 지난 과목의 자료는 새 과목에서 뜻이 없다 — 비우고 셈도 함께 되돌려야 한다
+    fireEvent.click(step('봇 소개'));
     fireEvent.click(screen.getByRole('radio', { name: /수학/ }));
 
-    // 마당 1 에 있어 「수업 자료」 항목 표시는 화면에 없다 — 「채워진 것」 줄로 본다
-    const filesRow = () => screen.getByTestId('summary-row-files').textContent ?? '';
-    expect(filesRow()).toContain('기본값');
-    expect(filesRow()).not.toContain('내가 정함');
+    // 마당 1 에 있어 「수업 자료」 항목은 화면에 없다 — 「채워진 것」 줄로 본다
+    expect(screen.getByTestId('summary-row-files')).toHaveTextContent('없음');
     expect(count()).toBe(String(Number(withFiles) - 1));
-
-    // 마당 2 로 가면 항목 옆 표시도 같은 말을 한다
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
-    expect(marks('files').beside).toContain('기본값');
-    expect(marks('files').beside).not.toContain('내가 정함');
-  });
-
-  it('어느 마당에서든 CTA 는 「이대로 만들기」 하나다 — 남은 항목은 기본값으로 들어간다', () => {
-    render(<BotBuilderPage />);
-    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    for (const next of [/다음 — 보고 답할 것/, /다음 — 가르치는 법/]) {
-      expect(screen.getAllByRole('button', { name: '이대로 만들기' }).length).toBeGreaterThan(0);
-      fireEvent.click(screen.getByRole('button', { name: next }));
-    }
-    // 마당 3 은 더 갈 곳이 없어 버튼이 하나지만 이름은 같다
-    expect(screen.getAllByRole('button', { name: '이대로 만들기' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: '만들기' })).toBeNull();
   });
 
   it('고른 과목을 다시 눌러도 올린 자료가 지워지지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
     fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
     const withFiles = count();
 
     // 같은 과목을 다시 누르는 것은 바꾸는 게 아니다 — 까닭 없이 자료가 사라지면 안 된다
-    fireEvent.click(screen.getByRole('button', { name: '과목 고치기' }));
+    fireEvent.click(step('봇 소개'));
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    expect(screen.getByTestId('summary-row-files').textContent).toContain('내가 정함');
+    expect(screen.getByTestId('summary-row-files')).toHaveTextContent('1개 올림');
     expect(count()).toBe(withFiles);
   });
 
@@ -419,7 +399,7 @@ describe('만든 뒤 화면', () => {
     fireEvent.click(screen.getByRole('button', { name: '봇 하나 더 만들기' }));
 
     expect(count()).toBe('0');
-    expect(marks('subject').beside).toContain('꼭 골라요');
+    expect(marks('subject').beside).toContain('*');
     expect(screen.getByTestId('summary-row-subject')).toHaveTextContent('아직 안 고름');
   });
 });
