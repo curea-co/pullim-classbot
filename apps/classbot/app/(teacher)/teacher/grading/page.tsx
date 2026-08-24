@@ -4,7 +4,7 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { FilterPills } from '@/components/classbot/filter-pills';
 import { gradingStats } from '@/lib/mock';
 import { allGradingItems } from '@/lib/mock/classbot-grading-roster';
-import { monitoredClass, monitoredRoster } from '@/lib/mock/classbot-monitoring';
+import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { GradingKpiBar, GradingQueueList } from './grading-queue';
 import { GradingStudentList } from './grading-student-list';
 
@@ -102,8 +102,8 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       <FlywheelNote>
         {view === 'students' ? (
           <>
-            {monitoredClass.classroomLabel} 학생 전체를 보고 있어요. 검수할 게 없는 학생도 남겨 두는 건
-            {' '}<strong>진행률에 안 잡히는 학생</strong>이 화면에서 사라지지 않게 하려는 거예요.
+            검수할 게 없는 학생도 목록에 남겨 둬요. 큐만 보면
+            {' '}<strong>진행률에 안 잡히는 학생</strong>이 화면에서 사라지거든요.
           </>
         ) : (
           <>

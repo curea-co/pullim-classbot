@@ -41,7 +41,7 @@ export function StudentGradingPanel({
     <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
         title={hydrated && pending > 0 ? `검수 대기 ${pending}건` : '이 학생의 채점'}
-        description={`${studentName} 학생이 낸 답과 AI 초안이에요. 누르면 채점 허브의 검수 화면으로 가요.`}
+        description={`${studentName} 학생이 낸 답과 AI 초안이에요.`}
       />
 
       {!hydrated ? (

@@ -69,7 +69,6 @@ export function StuckPointsPanel({
 
       <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
         여기 뜬 개념은 학급 <b className="text-pullim-slate-700">「다시 가르칠 개념」</b>이 세는 값과 같아요.
-        한 학생에게서 보이는 것과 학급에서 보이는 것이 어긋나지 않게 같은 곳에서 읽어요.
       </p>
     </section>
   );

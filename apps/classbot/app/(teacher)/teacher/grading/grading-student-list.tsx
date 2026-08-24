@@ -99,7 +99,7 @@ export function GradingStudentList({
     <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
         title={`등록 학생 ${students.length}명`}
-        description="채점할 게 없는 학생도 함께 보여요. 학생을 누르면 대화 기록과 막힌 지점으로 가요."
+        description="채점할 게 없는 학생도 함께 보여요."
       />
 
       <div className="mb-3 space-y-2">
@@ -138,9 +138,9 @@ export function GradingStudentList({
         </ul>
       )}
 
+      {/* 배지가 무엇을 세는지는 화면 어디에도 없다 — 그것만 적는다. 「왜 남기나」는 아래 FlywheelNote 몫. */}
       <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
-        「대기」는 아직 검수하지 않은 채점 건수예요. 대기가 0건이어도 학생은 목록에 남아요 —
-        <b className="text-pullim-slate-700"> 오늘 제출하지 않은 학생</b>이 화면에서 사라지지 않게 하려는 거예요.
+        「대기」는 아직 검수하지 않은 채점 건수예요.
       </p>
     </section>
   );
