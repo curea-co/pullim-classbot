@@ -324,7 +324,8 @@ export const plannerSection: NavSubItem[] = [
 
 > **2026-08-25 신설 — 종전 「봇 설정」(`/teacher/settings`) 한 화면을 목록 → 상세로 가른다.**
 > 화면 이름도 **[봇 관리]** 로 바꾼다. 봇은 여럿인데 설정 화면이 하나뿐이면 「지금 어느 봇을 고치고 있나」가 화면에 없다.
-> 사이드바 · 페이지 제목 · 핸드오프 § 3 IA 트리를 같이 맞춘다. 구현은 뒤따르는 FE PR 이 인도한다.
+> 사이드바 · 페이지 제목 · 핸드오프 § 3 IA 트리를 같이 맞춘다.
+> **권위가 앞서고 구현이 따라오는 순서다** — `dev` 시점 코드는 아직 `/teacher/settings` 한 화면이고, 이 절이 정의하는 두 화면은 뒤따르는 FE PR 이 인도한다. 그 PR 이 머지되면 이 줄을 지운다.
 
 #### 두 화면
 
@@ -363,9 +364,20 @@ export const plannerSection: NavSubItem[] = [
 
 두 화면이 함께 읽는 것은 **봇 카탈로그와 `scopeMeta` 하나**다. 안전 등급 이름을 두 곳에 적지 않는다.
 
-#### 옛 경로 `/teacher/settings`
+#### 옛 경로 `/teacher/settings` — 무엇을 어디로 옮기나
 
-**목록(`/teacher/bots`)으로 넘겨보내는 자리만 남긴다.** 사이드바 · 운영 화면 · 교사 홈의 링크는 새 경로로 옮겼고, 남는 것은 다른 작업이 물고 있어 이번에 손댈 수 없는 두 자리(`app/(teacher)/teacher/monitor/monitor-roster.tsx` · `components/builder/build-yards.tsx`)의 `?tab=` 딥링크다. **그 두 자리가 새 경로로 옮겨오면 넘겨보내는 자리도 지운다.**
+> **아래는 아직 옮기지 않은 상태다.** `dev` 시점 코드에서 `/teacher/settings` 는 여전히 안전 등급·이탈 대응을 직접 그리는 본체이고, 아래 네 자리도 그 경로를 그대로 가리킨다. **뒤따르는 FE PR 이 인도하며, 머지되면 이 인용 줄을 지운다.**
+
+옮긴 뒤 `/teacher/settings` 에는 **목록(`/teacher/bots`)으로 넘겨보내는 자리만 남는다.** 새 경로로 옮길 링크는 넷이다.
+
+| 자리 | 지금 | 옮긴 뒤 |
+|---|---|---|
+| `components/shell/nav-config.ts` 사이드바 | `/teacher/settings` 「봇 설정」 | `/teacher/bots` 「봇 관리」 |
+| `app/(teacher)/teacher/classbot/page.tsx` 봇 카드 「더보기」 | `/teacher/settings` · `?tab=safety` | `/teacher/bots/[botId]` · `?tab=safety` — 어느 봇의 더보기였는지가 링크에 실린다 |
+| `app/(teacher)/teacher/page.tsx` 처리 대기(승인) | `/teacher/settings` | `/teacher/bots` |
+| `app/(teacher)/teacher/students/[id]/page.tsx` 「이탈 대응 강도」 | `/teacher/settings?tab=drift` | `/teacher/bots?tab=drift` — 관제소 mock 이 이 학생의 봇을 모르므로 봇은 목록에서 고른다 |
+
+**옮기지 못하는 두 자리** — 다른 작업이 물고 있어 손댈 수 없다: `app/(teacher)/teacher/monitor/monitor-roster.tsx`(`?tab=drift`) · `components/builder/build-yards.tsx`(`?tab=safety`). 이 둘 때문에 옛 경로를 지우지 못하고 넘겨보내는 자리로 남긴다. **그 두 자리가 새 경로로 옮겨오면 넘겨보내는 자리도 지운다.**
 
 - `?tab=` 은 목록까지 그대로 실어 나른다 — 목록에서 봇을 누르면 그 탭으로 바로 들어간다. 옛 링크는 어느 봇인지 말하지 않으므로 봇은 교사가 고른다.
 
