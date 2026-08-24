@@ -89,7 +89,7 @@ export const teacherNav: NavGroup[] = [
   {
     label: '평가',
     items: [
-      { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: 'AI 초안 검수 큐' },
+      { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: '학생 전체 · AI 초안 검수' },
       { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
       // 기획 보류 — 수업 리플레이(/teacher/replay) 진입점 비노출. 재개 시 되살린다
     ],

@@ -6,6 +6,12 @@
  * 사용 — CSS 변수 또는 hex 직접:
  *   <div style={{ borderLeftColor: botSignature(bot).hex }} />
  *   <div style={{ borderLeftColor: `var(${botSignature(bot).cssVar})` }} />
+ *
+ * ⚠️ 쓰는 자리를 좁게 잡는다 — **「어느 봇인지 알아보는 표시」로만.**
+ *   써도 되는 곳: 작은 점 · 얇은 왼쪽 라이너(3~4px) · 아바타 원/사각 · 활성 봇 탭
+ *   쓰면 안 되는 곳: 넓은 배경 채우기 · 본문 글자색 · 진척 막대 같은 **데이터 표현**
+ *   이유: 5색이 넓게 깔리면 화면 hue 가 [08 § 14.1] 한도(≤ 3종)를 넘어 「다채로움」이 된다.
+ *   한 카드 안에서도 라이너+아바타면 충분하다 — 같은 색을 세 번 찍지 않는다.
  */
 import { palette } from './palette';
 

@@ -34,8 +34,9 @@ export const filterCards: { value: RosterFilter; tone: CardTone }[] = [
   { value: 'all', tone: 'default' },
   { value: 'reached', tone: 'accent' },
   { value: 'partial', tone: 'default' },
+  // 빨강은 「봇이 아예 닿지 못함」 한 칸에만 — 거르개 카드가 줄줄이 빨가면 순위가 사라진다
   { value: 'not-reached', tone: 'alert' },
-  { value: 'depth-short', tone: 'alert' },
+  { value: 'depth-short', tone: 'default' },
   { value: 'offline', tone: 'default' },
 ];
 

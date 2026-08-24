@@ -9,6 +9,13 @@
 
 ## 1. AI 명령지침
 
+> **이 문서를 읽는 법 — 「지금」과 「예정」을 가른다.**
+> 이 명세는 라우트가 하나도 없던 2026-05-11 에 쓰였고, 그 뒤 네 라우트가 전부 구현됐다.
+> 그래서 문장마다 시점을 표기한다:
+> - **`[지금]`** — `dev` 시점 사실. 소스로 확인한 것만 적는다.
+> - **`[예정]`** — 아직 구현 전. **현재 동작 설명으로 읽지 않는다.**
+> 표기가 없는 절은 시점과 무관한 정의(제품 목표·페르소나·비기능 요건)다.
+
 - **추출본 정책 — 가장 중요**: 기존 `Assignment.solveHref`는 `/q/infinity/solve?...`를 가리키지만 풀림 Q 도메인은 이 저장소에 **존재하지 않음**. 따라서 풀이 워크스페이스를 **클래스봇 도메인 내부**(`/classbot/assignment/[id]/solve`)에서 자급 구현한다. 다른 도메인 라우트로 새 링크를 만들지 않는다.
 - `solveHref` 필드는 마이그레이션: 새 라우트 패턴 `/classbot/assignment/[id]/solve?step=N`으로 재작성.
 - Scope Guard L1~L5에 따라 풀이 중 봇 응답이 차등 — 시험 모드(`mode === 'exam'` && `scopeOverride === 1`)는 봇 응답 자체 차단.
@@ -18,13 +25,22 @@
 
 ## 2. 제품 정의
 
-### 2.1 Problem Statement
-교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없다. 학생 홈에서 `[지금 시작하기]`를 누르면 깨진 링크로 빠지고, 교사·학생 사이의 사이클이 끊긴다.
+### 2.1 Problem Statement (2026-05-11 시점 — **해소됨**)
+
+> **`[지금]` 이 문제는 더 이상 사실이 아니다.** 아래는 이 명세를 쓰게 만든 **당시**의 문제이고, 기록으로 남긴다.
+> `[지금]` 네 라우트가 모두 구현돼 있다 — `app/(student)/classbot/assignment/page.tsx` · `.../[id]/page.tsx` · `.../[id]/solve/page.tsx` · `.../[id]/result/page.tsx`. 깨진 링크는 없다.
+
+**당시 문제** — 교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없었다. `Assignment.solveHref` 가 이 저장소에 없는 풀림 Q 도메인(`/q/infinity/solve?…`)을 가리켜, 학생 홈에서 그 CTA 를 누르면 깨진 링크로 빠지고 교사·학생 사이의 사이클이 끊겼다.
 
 ### 2.2 Product Goal
 - **G1**: 학생이 받은 과제를 **클래스봇 내부에서 끝까지** 풀 수 있다 (외부 도메인 의존 0)
 - **G2**: 3가지 모드(`practice/exam/wrong-conquest`)별로 봇 거동·UI·Scope가 명확히 다르다
 - **G3**: 제출 시 자동으로 [채점 허브](11-grading-hub.md) 큐에 진입 → 교사 검수 사이클로 환류
+
+> **「채점 큐」 = `/teacher/grading`** — 지금은 그 라우트의 기본 화면이 곧 큐다.
+> [11 § 3.1 [S6]](11-grading-hub.md) 이 기본 화면을 등록 학생 전체로 바꾸고 큐를 `?view=queue` 탭으로
+> 옮기기로 하는데, **아직 미구현**이다. 그 [S6] 이 구현되면 이 문서의 「채점 큐」는 `?view=queue` 를 가리킨다.
+> 아래 M5 · Flow · ERD 의 「채점 큐」는 어느 쪽이든 **같은 큐 화면**을 뜻한다.
 
 ### 2.3 Persona별 영향
 
@@ -68,13 +84,24 @@
 
 ```
 /classbot
-├─ /classbot/assignment              ← 신규 · 받은 과제 전체 목록 (필터·정렬)
-│  ├─ /classbot/assignment/[id]      ← 신규 · 과제 개요·풀이 시작 진입
-│  │  ├─ /classbot/assignment/[id]/solve   ← 신규 · 풀이 워크스페이스
-│  │  └─ /classbot/assignment/[id]/result  ← 신규 · 제출 결과·봇 피드백
+├─ /classbot/assignment              ← 구현됨 · 받은 과제 전체 목록 (봇별 묶음)
+│  ├─ /classbot/assignment/[id]      ← 구현됨 · 과제 개요·풀이 시작 진입
+│  │  ├─ /classbot/assignment/[id]/solve   ← 구현됨 · 풀이 워크스페이스
+│  │  ├─ /classbot/assignment/[id]/result  ← 구현됨 · 제출 결과·봇 피드백
+│  │  └─ /classbot/assignment/[id]/chat    ← 구현됨 · 이 과제에 매인 봇 대화 (이 명세 밖에서 추가)
 ```
 
-**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[지금 시작하기]` CTA만 `solveHref` → 새 라우트로 리다이렉트.
+> 종전 표기는 넷 다 「신규」였다 — 이 명세를 쓰던 시점엔 하나도 없었기 때문이다. `[지금]` 넷 다 있다.
+
+**`[지금]` 홈과의 관계** — 종전 서술(「`PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지」)은 **낡았다.** 학생 홈이 재설계돼 그 셋은 없다. 실제 진입은 둘이다:
+
+| 자리 | 파일 | 목적지 |
+|---|---|---|
+| 홈 히어로 「이어서 하기」 | `components/classbot/home/learning-hero.tsx` | `solveHref` → **개요를 건너뛰고 solve 로 바로** |
+| 홈 「오늘 할 일」 줄 | `components/classbot/home/todo-panel.tsx` | 같음 |
+| 받은 과제 목록 카드 | `app/(student)/classbot/assignment/page.tsx` | `/classbot/assignment/[id]` (개요) → 개요 CTA → solve · result |
+
+`solveHref` 는 `/classbot/assignment/{id}/solve?step=1` 로 파생된다 (`lib/store/assignments.ts`). § 1 이 적은 마이그레이션(`/q/…` → 클래스봇 내부 라우트)은 끝났다.
 
 ### 3.3 Screen Spec
 
@@ -96,7 +123,7 @@
 | 메타 | 단원 from-to · 문항 수 · 난이도 · 예상 소요 시간 · 성취 코드 |
 | 봇 한 마디 | `reasonHint` (bot-prescribed) 또는 교사 메시지 (teacher-assigned) |
 | 시험 모드 경고 | `mode === 'exam'`이면 "시작하면 봇 도움 차단 · 일시정지 불가" 경고 모달 |
-| CTA | `[지금 시작하기]` (`state === 'todo'`) / `[이어서 풀기]` (`in-progress`) / `[결과 보기]` (`submitted`) |
+| CTA | **`[예정]`** `[시작]` (`state === 'todo'`) / `[이어서 풀기 (n/N)]` (`in-progress`) / `[결과]` (`submitted`) — 버튼은 단어로 ([07 § 6.6.3](07-branding.md)).<br>**`[지금]`** `[지금 시작하기]` / `[이어서 풀기 (n/N)]` / `[결과 보기]`. 앞뒤 둘만 바뀐다 — 뒤따르는 FE PR 이 맞춘다 |
 | 사이드 — 비슷한 과제 | 같은 봇의 과거 과제 추세 (정답률) |
 
 #### 3.3.3 풀이 워크스페이스 (`/classbot/assignment/[id]/solve`)
@@ -119,7 +146,7 @@
 | 점수 카드 | 즉시: 객관식·단답 / 보류: 서술형 (교사 검수 후 갱신) |
 | 봇 피드백 | "오늘 가장 잘한 점" + "다음에 신경 쓸 점" 2줄 |
 | 오답 카드 | 문항별 — 내 답 vs 기준 응답 (Scope L5 자동 노출, 시험은 발표일까지 숨김) |
-| 다음 액션 | `[비슷한 패턴 더 풀기]` (오답정복 자동 처방) · `[봇에게 질문]` (`/classbot/chat`) |
+| 다음 액션 | **`[예정]`** `[비슷한 패턴]` (오답정복 자동 처방) · `[질문]` (`/classbot/chat`, `aria-label="봇에게 질문하기"`) — 버튼은 단어로 ([07 § 6.6.3](07-branding.md)).<br>**`[지금]`** `[비슷한 패턴 더]` · `[봇에게 질문]`. *(이 표의 종전 문구 `[비슷한 패턴 더 풀기]` 는 구현된 적이 없다.)* |
 | 플라이휠 노트 | "자주 막힌 패턴은 다음 과제에 자동으로 들어가요" |
 
 ---
@@ -127,16 +154,24 @@
 ## 4. UX Flow
 
 ### 4.1 Flow A1 — 학생 연습 과제 수행 (가장 빈번)
+`[지금]` 홈에서는 **개요를 거치지 않는다** — 히어로·오늘 할 일이 `solveHref` 로 solve 에 바로 보낸다. 개요를 지나는 길은 받은 과제 목록에서 들어올 때다.
+
 ```
-1. 학생 홈에 PrimaryAssignmentCard "도함수 활용 마무리" 표시 (D-1)
-2. [이어서 풀기] → /classbot/assignment/as_today
-3. 개요 확인 → [이어서 풀기]
-4. solve 진입 — 9번 문항 (마지막 위치 복원)
-5. 풀이 입력 도중 막힘 → 봇 패널 "1단계 힌트" 클릭
-6. 단계 1~3 진행 → 답안 작성 → [다음]
-7. 마지막 문항에서 [제출]
-8. result 페이지: 객관식 즉시 채점 / 서술형 "검수 대기"
-9. [봇에게 질문] → /classbot/chat에서 이어 대화
+[홈에서 — 가장 빈번]
+1. 홈 히어로 「이어서 하기」 또는 「오늘 할 일」 줄에 "도함수 활용 마무리" (D-1)
+   (learning-hero.tsx · todo-panel.tsx)
+2. 줄을 누름 → solveHref → /classbot/assignment/as_today/solve?step=1  ← 개요 건너뜀
+3. solve 진입 — 마지막 위치 복원
+4. 풀이 입력 도중 막힘 → 봇 패널 "1단계 힌트" 클릭
+5. 단계 1~3 진행 → 답안 작성 → [다음]
+6. 마지막 문항에서 [제출]
+7. result 페이지: 객관식 즉시 채점 / 서술형 "검수 대기"
+8. [질문] → /classbot/chat에서 이어 대화 (`[지금]` [봇에게 질문])
+
+[받은 과제 목록에서 — 개요를 지난다]
+1. /classbot/assignment 목록에서 과제 카드
+2. → /classbot/assignment/as_today (개요)
+3. 개요 CTA [이어서 풀기 (n/N)] → .../solve?step=N
 ```
 
 ### 4.2 Flow A2 — 시험 모드 (Scope L1)
@@ -164,7 +199,8 @@
 ```
 1. solve 진행 중 → 학생이 앱 종료 (기기 잠금 등)
 2. 5초마다 localStorage + 30초마다 서버 동기 (state: in-progress 갱신)
-3. 학생 홈 재진입 → "이어서 풀기 — 9/20" 표시
+3. `[지금]` 홈 재진입 → 히어로·오늘 할 일에 과제 제목 + D-day (진행 수는 안 붙는다).
+   진행 수가 붙은 "이어서 풀기 (9/20)" 는 **개요 화면의 CTA** 다 (§ 3.3.2).
 4. 클릭 시 마지막 문항·작성 중이던 답안 복원
 ```
 

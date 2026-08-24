@@ -14,7 +14,8 @@ type StatusFilter = 'all' | ReplayStatus;
 
 const STATUS_META: Record<ReplayStatus, { label: string; tone: string; icon: typeof Clock }> = {
   processing: { label: '처리 중', tone: 'bg-pullim-slate-100 text-pullim-slate-700', icon: Sparkles },
-  review:     { label: '검수 대기', tone: 'bg-pullim-lemon text-pullim-lemon-ink', icon: Clock },
+  // 목록에 여러 줄이 깔리는 자리라 레몬을 쓰지 않는다 — 채우기 대신 외곽선 + 시계 아이콘 + 글자
+  review:     { label: '검수 대기', tone: 'text-pullim-slate-800 ring-1 ring-inset ring-pullim-slate-400 font-bold', icon: Clock },
   sent:       { label: '발송 완료', tone: 'bg-pullim-blue-100 text-pullim-blue-700', icon: CheckCircle2 },
 };
 

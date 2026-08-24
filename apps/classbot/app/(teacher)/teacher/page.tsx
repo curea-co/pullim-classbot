@@ -77,9 +77,14 @@ export default function TeacherHomePage() {
             value={`${monitoringSummary.reached}/${monitoringSummary.total}명`}
             tone="accent"
           />
+          {/*
+            빨강은 네 숫자 가운데 **하나**만 쓴다 — 셋 다 빨가면 어느 것도 급해 보이지 않는다.
+            봇이 아예 닿지 못한 학생(미도달)이 유일하게 「무너진 상태」다.
+            나머지 둘은 라벨(「목표 수준 미달」·「오늘 안 들어옴」)이 이미 뜻을 다 말한다.
+          */}
           <KpiStat label="미도달" value={`${monitoringSummary.notReached}명`} tone="alert" />
-          <KpiStat label="목표 수준 미달" value={`${monitoringSummary.depthShort}명`} tone="alert" />
-          <KpiStat label="오늘 안 들어옴" value={`${monitoringSummary.offlineToday}명`} tone="alert" />
+          <KpiStat label="목표 수준 미달" value={`${monitoringSummary.depthShort}명`} />
+          <KpiStat label="오늘 안 들어옴" value={`${monitoringSummary.offlineToday}명`} />
         </KpiStatBar>
         <p className="text-pullim-slate-400 px-1 text-micro font-semibold">
           {`${monitoredClass.classroomLabel} · ${monitoredClass.botName} · ${monitoredClass.unit} · ${monitoredClass.updatedAtLabel}`}
@@ -175,7 +180,8 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
   return (
     <li>
       <Link
-        href={`/teacher/students/${student.id}`}
+        // 되돌아갈 곳을 넘긴다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
+        href={`/teacher/students/${student.id}?from=home`}
         className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[8rem_minmax(0,1fr)_3.5rem_5rem_auto]"
       >
         <span className="flex items-center gap-2">
@@ -213,7 +219,8 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
 
 /** 처리 대기 항목이 실제로 끝나는 자리 — mock 의 href 는 아직 앵커라 여기서 라우트로 잇는다. */
 const pendingHref: Record<PendingItem['type'], string> = {
-  grading: '/teacher/grading',
+  // 「나를 기다리는 일」은 검수할 것만 가리킨다 — 채점 허브 기본 화면(학생 전체)이 아니라 큐로 보낸다.
+  grading: '/teacher/grading?view=queue',
   report: '/teacher/reports',
   approval: '/teacher/bots',
 };

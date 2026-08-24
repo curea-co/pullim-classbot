@@ -15,11 +15,16 @@ import {
   buildStudentReport, findStudent, isReportPeriod, reportPeriods, siblingStudents,
   type ReportPeriod,
 } from '@/lib/mock/classbot-student-report';
+import { gradingItemsOfStudent } from '@/lib/mock/classbot-grading-roster';
+import { entryTarget, resolveEntrySource } from './entry-source';
 import { TranscriptViewer } from './transcript-viewer';
 import { ProcessEvaluationPanel } from './process-evaluation-panel';
+import { StuckPointsPanel } from './stuck-points-panel';
+import { StudentGradingPanel } from './student-grading-panel';
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ period?: string }>;
+type SearchParams = Promise<{ period?: string; from?: string }>;
+
 
 /**
  * 학생별 대화기록 리포트 · 과정 평가 (SCR-C-32 / FR-C-33).
@@ -28,6 +33,10 @@ type SearchParams = Promise<{ period?: string }>;
  * 관제소(`/teacher/monitor`)도 같은 곳을 읽으므로 이탈·지름길 수치가 두 화면에서 어긋나지 않는다.
  *
  * 기간 고르기는 지금 **표시만** 한다 — 데이터는 같은 스냅샷이다.
+ *
+ * 채점 허브(`/teacher/grading`)의 학생 목록이 여기로 보낸다. 그래서 이 화면은 세 가지를 답해야 한다
+ * (spec 11 § 3.3.3) — **어떤 봇과**(헤더) · **어떤 대화**를 했고(대화 기록 뷰어) ·
+ * **어디서 막혔나**(막힌 지점 패널). 채점 허브로 돌아가는 길은 「이 학생의 채점」 패널이 맡는다.
  */
 export default async function TeacherStudentReportPage({
   params,
@@ -37,30 +46,35 @@ export default async function TeacherStudentReportPage({
   searchParams: SearchParams;
 }) {
   const { id } = await params;
-  const { period: rawPeriod } = await searchParams;
+  const { period: rawPeriod, from: rawFrom } = await searchParams;
 
   const student = findStudent(id);
   if (!student) notFound();
 
   const period: ReportPeriod = isReportPeriod(rawPeriod) ? rawPeriod : 'today';
+  const from = resolveEntrySource(rawFrom);
+  const entry = entryTarget(rawFrom);
+  // 이동·기간 링크가 진입 source 를 그대로 이어받는다 — 몇 명을 넘겨도 되돌아갈 곳이 유지된다.
+  const query = (p: ReportPeriod) => `?period=${p}&from=${from}`;
   const report = buildStudentReport(student);
   const { prev, next, index, total } = siblingStudents(id);
+  const gradingItems = gradingItemsOfStudent(student.id);
 
   return (
     <TeacherPageShell
-      backHref="/teacher/monitor"
-      backLabel="학급 관제소"
+      backHref={entry.href}
+      backLabel={entry.label}
       header={{
         eyebrow: { icon: UserRound, text: '학생 기록' },
         title: student.name,
         description: `${student.grade} · ${report.classroomLabel} · ${report.botName} · ${report.unit}`,
         action: (
           <nav aria-label="학생 이동" className="flex items-center gap-1.5">
-            <StudentStep href={prev ? `/teacher/students/${prev.id}?period=${period}` : undefined} dir="prev" name={prev?.name} />
+            <StudentStep href={prev ? `/teacher/students/${prev.id}${query(period)}` : undefined} dir="prev" name={prev?.name} />
             <span className="text-pullim-slate-500 font-mono text-2xs">
               {index + 1}/{total}
             </span>
-            <StudentStep href={next ? `/teacher/students/${next.id}?period=${period}` : undefined} dir="next" name={next?.name} />
+            <StudentStep href={next ? `/teacher/students/${next.id}${query(period)}` : undefined} dir="next" name={next?.name} />
           </nav>
         ),
       }}
@@ -71,7 +85,7 @@ export default async function TeacherStudentReportPage({
           label="기간"
           options={reportPeriods}
           current={period}
-          href={v => `/teacher/students/${id}?period=${v}`}
+          href={v => `/teacher/students/${id}${query(v)}`}
         />
         <p className="text-pullim-slate-400 mt-2 text-micro">
           기간을 바꿔도 지금은 같은 스냅샷을 보여줘요. (준비 중)
@@ -163,11 +177,21 @@ export default async function TeacherStudentReportPage({
           </>
         }
       >
+        {/* 어디서 막혔나 — 대화 기록보다 먼저. 교사가 훑을 때 먼저 찾는 것이다 */}
+        <StuckPointsPanel
+          stuckPoints={report.stuckPoints}
+          studentName={student.name}
+          botName={report.botName}
+        />
+
         <TranscriptViewer
           turns={report.transcript}
           studentName={student.name}
           botName={report.botName}
         />
+
+        {/* 채점 허브로 돌아가는 길 */}
+        <StudentGradingPanel items={gradingItems} studentName={student.name} />
 
         <ProcessEvaluationPanel
           studentId={student.id}

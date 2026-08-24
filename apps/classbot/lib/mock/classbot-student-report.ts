@@ -282,6 +282,47 @@ export function buildTopicMix(s: MonitoredStudent): TopicSlice[] {
 }
 
 /* ============================================================
+ * 4-b. 막힌 지점 — 「어디서 걸렸나」
+ * ========================================================== */
+
+export type StuckPoint = {
+  conceptId: string;
+  /** 개념 이름 */
+  label: string;
+  /** 그 개념에서 학생이 실제로 한 질문 */
+  ask: string;
+  /** 봇이 되짚은 말 — 답을 주지 않고 되묻는 톤 */
+  probe: string;
+  /** 대화 기록의 그 자리 (시각) */
+  at: string;
+};
+
+/**
+ * 이 학생이 막힌 개념과, 그 개념을 다룬 대화 턴.
+ *
+ * 원천은 `MonitoredStudent.stuckConcepts` 하나뿐이다 — 학급 「다시 가르칠 개념」이 읽는 값과 같다.
+ * 질문·되묻기 문구는 **여기서 새로 만들지 않고** `buildTranscript` 가 만든 대화에서 그대로 뽑는다.
+ * 그래서 여기 뜬 말은 대화 기록 뷰어를 열면 같은 시각에 그대로 있다.
+ *
+ * 그 대화는 실제 로그가 아니라 이 파일이 합성한 mock 이다 — 실제 로그가 붙으면
+ * `buildTranscript` 만 갈아 끼우면 되고 이 함수는 그대로 둔다.
+ */
+export function buildStuckPoints(s: MonitoredStudent): StuckPoint[] {
+  const turns = buildTranscript(s);
+  return s.stuckConcepts.map(cid => {
+    const ask = turns.find(t => t.conceptId === cid && t.speaker === 'student');
+    const probe = turns.find(t => t.conceptId === cid && t.speaker === 'bot');
+    return {
+      conceptId: cid,
+      label: conceptLabel(cid),
+      ask: ask?.text ?? '',
+      probe: probe?.text ?? '',
+      at: ask?.at ?? '',
+    };
+  });
+}
+
+/* ============================================================
  * 5. 과정 평가 — 결과물이 아니라 과정을 본다
  * ========================================================== */
 
@@ -390,6 +431,8 @@ export type StudentReport = {
   transcript: TranscriptTurn[];
   scopeExitLog: ScopeExitEntry[];
   topicMix: TopicSlice[];
+  /** 막힌 개념 + 그 개념을 다룬 대화 턴 */
+  stuckPoints: StuckPoint[];
   evaluation: ProcessCriterion[];
   /** 관제소와 같은 값 — 두 화면이 같은 함수를 통과한다 */
   scopeExitCount: number;
@@ -405,6 +448,7 @@ export function buildStudentReport(s: MonitoredStudent): StudentReport {
     transcript: buildTranscript(s),
     scopeExitLog: buildScopeExitLog(s),
     topicMix: buildTopicMix(s),
+    stuckPoints: buildStuckPoints(s),
     evaluation: buildProcessEvaluation(s),
     scopeExitCount: scopeExits(s),
     shortcutCount: shortcutTries(s),

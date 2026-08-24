@@ -31,6 +31,7 @@ import {
 } from './question-editor';
 import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
 import { cn } from '@/lib/utils';
+import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 
 type ModeMeta = { label: string; description: string; color: string; defaultScope: ScopeLevel };
 
@@ -38,19 +39,19 @@ const modeOptions: Record<AssignmentMode, ModeMeta> = {
   practice: {
     label: '연습',
     description: '봇이 단계별 힌트로 도와주는 학습용 과제',
-    color: 'border-pullim-blue-500 bg-pullim-blue-50',
+    color: assignmentModeBadge.practice.outline,
     defaultScope: 4,
   },
   exam: {
     label: '시험',
     description: '봇 잠금 + 시간 제한 — 평가 환경',
-    color: 'border-pullim-danger bg-pullim-danger-bg',
+    color: assignmentModeBadge.exam.outline,
     defaultScope: 1,
   },
   'wrong-conquest': {
     label: '오답정복',
     description: '봇이 정답·반례까지 즉시 노출 — 패턴 정복용',
-    color: 'border-pullim-blue-300 bg-pullim-blue-50',
+    color: assignmentModeBadge['wrong-conquest'].outline,
     defaultScope: 5,
   },
 };

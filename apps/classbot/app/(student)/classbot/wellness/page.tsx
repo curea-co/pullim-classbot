@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Heart, MessageCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Heart, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
@@ -28,7 +28,7 @@ export default function WellnessPage() {
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}
       {me.wellbeing < 60 && (
         <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
-          <h3 className="text-pullim-lemon inline-flex items-center gap-1 text-sm font-bold">
+          <h3 className="inline-flex items-center gap-1 text-sm font-bold text-white">
             <Heart className="h-3.5 w-3.5" />
             선생님이 곁에 있어요
           </h3>
@@ -80,7 +80,8 @@ export default function WellnessPage() {
             'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl',
             checkedToday ? 'bg-pullim-blue-100' : 'bg-white/15',
           )}>
-            {checkedToday ? '✅' : '💭'}
+            {/* 완료 표시는 초록 ✅ 대신 브랜드 블루 체크로 — 이모지도 hue 를 하나 더 들여온다 */}
+            {checkedToday ? <CheckCircle2 className="text-pullim-blue-700 h-7 w-7" aria-hidden /> : '💭'}
           </span>
           <div className="min-w-0 flex-1">
             <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
