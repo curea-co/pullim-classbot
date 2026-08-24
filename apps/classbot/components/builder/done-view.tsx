@@ -94,7 +94,7 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
               />
             ))}
           </div>
-          <p className="text-pullim-slate-400 mt-1.5 text-micro">고른 반의 학생 홈에 이 봇이 나타나요.</p>
+          <p className="text-pullim-slate-400 mt-1.5 text-micro">고른 반의 학생 홈에 이 봇이 나타나요. 지금은 이미 있는 학급만 고를 수 있어요.</p>
         </div>
 
         <div className="border-pullim-slate-100 mt-4 border-t pt-4">

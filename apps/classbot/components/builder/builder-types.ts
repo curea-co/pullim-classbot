@@ -124,6 +124,10 @@ export type { ScopeLevel };
  * 반 선택지 — 기존 학급 권위(`lib/mock/classbot-teacher-ops.ts`)에서 파생한다.
  * 라벨을 여기서 새로 지어내면 참여 코드(`class-codes.ts` 의 `classroomId`·`classroomLabel`)나
  * 운영 화면의 반 카드와 이어 붙일 수 없다 — 같은 반을 두 이름으로 부르게 된다.
+ *
+ * ⚠️ 한계 — 이 앱에 **학급 마스터 목록이 없다.** 학급은 봇에 붙은 형태로만 존재해서
+ * (`BotOps.classrooms`), **아직 어느 봇에도 안 붙은 학급은 여기 나오지 않는다.**
+ * 새 학급을 만드는 흐름도 없다. 학급이 봇과 독립된 자원이 되면 그 목록에서 파생해야 한다.
  */
 export type ClassroomChoice = { id: string; label: string };
 

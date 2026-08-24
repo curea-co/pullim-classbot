@@ -510,7 +510,7 @@ function CreatedBanner() {
       <p className="text-pullim-blue-700 mt-1 text-2xs">
         {rooms.length
           ? `${roomNames}의 학생 홈에 나타나요 (데모). 아래 봇 목록은 v1 backend 연결 후 실제로 갱신돼요.`
-          : '아직 반에 넣지 않았어요. 아래 봇 카드에서 반을 고르면 그때부터 학생에게 보여요.'}
+          : '아직 반에 넣지 않았어요. 봇은 그대로 남아 있고, 반에 넣으면 그때부터 학생에게 보여요.'}
       </p>
     </section>
   );
