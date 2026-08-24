@@ -392,10 +392,13 @@ describe('만든 뒤 화면', () => {
 
     // 반을 고르면 학급 id 가 실려 간다 — 라벨이 아니라 id 라야 다음 화면이 이어 붙일 수 있다
     fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
-    expect(link()).toHaveAttribute(
-      'href',
-      `/teacher/classbot?created=${encodeURIComponent('과학봇')}&rooms=${encodeURIComponent(classroomChoices[0].id)}`,
-    );
+    fireEvent.click(screen.getByRole('button', { name: classroomChoices[1].label }));
+    const href = link().getAttribute('href') ?? '';
+    const q = new URLSearchParams(href.split('?')[1]);
+
+    // 두 축이 다 실려야 배정 (봇, 반) 짝이 복원된다 — 반 id 만 있으면 어느 봇 배정인지 알 수 없다
+    expect(q.get('created')).toBe('과학봇');
+    expect(q.get('rooms')?.split(',')).toEqual([classroomChoices[0].id, classroomChoices[1].id]);
   });
 
   it('배정의 단위는 (봇, 반) 짝이다 — 반 id 만으로는 표현되지 않는다', () => {
