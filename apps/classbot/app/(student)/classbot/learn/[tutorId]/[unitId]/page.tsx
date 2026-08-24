@@ -51,12 +51,14 @@ export default function UnitPage({
   if (!tutor || !unit || !content) {
     const backHref = tutor ? `/classbot/learn/${tutorId}` : '/classbot';
     const backLabel = tutor ? '커리큘럼' : '홈';
+    // 줄인 글자로 잃은 뜻은 낭독기 이름에 남긴다 ([07 § 6.6.2(3)])
+    const backAria = tutor ? '커리큘럼으로 가기' : '클래스봇 홈으로 가기';
     return (
       <div className="px-4 py-10">
         <EmptyState
           title="단원을 찾을 수 없어요"
           description="삭제되었거나 잘못된 경로일 수 있어요."
-          action={{ href: backHref, label: backLabel }}
+          action={{ href: backHref, label: backLabel, ariaLabel: backAria }}
         />
       </div>
     );

@@ -24,7 +24,7 @@ export default function LearnPage({ params }: { params: Promise<{ tutorId: strin
       <div className="px-4 py-10">
         <EmptyState
           title="튜터를 찾을 수 없어요"
-          action={{ href: '/classbot', label: '홈' }}
+          action={{ href: '/classbot', label: '홈', ariaLabel: '클래스봇 홈으로 가기' }}
         />
       </div>
     );

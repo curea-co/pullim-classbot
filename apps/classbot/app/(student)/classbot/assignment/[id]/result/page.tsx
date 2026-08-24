@@ -64,7 +64,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           icon={Inbox}
           title="과제를 찾을 수 없어요"
           description="받은 과제 목록에서 다시 확인해 주세요."
-          action={{ href: '/classbot/assignment', label: '받은 과제' }}
+          action={{ href: '/classbot/assignment', label: '받은 과제', ariaLabel: '받은 과제로 가기' }}
         />
       </div>
     );

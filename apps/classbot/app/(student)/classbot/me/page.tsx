@@ -102,7 +102,7 @@ export default function MyProfilePage() {
               icon={GraduationCap}
               title="아직 참여한 수업이 없어요"
               description="선생님께 받은 참여 코드를 넣으면 여기에 반이 생겨요."
-              action={{ href: '/classbot', label: '참여 코드' }}
+              action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 넣으러 가기' }}
             />
           ) : (
             <ul className="space-y-1.5">

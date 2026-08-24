@@ -193,14 +193,14 @@ function ClassbotChatPageInner() {
             icon={GraduationCap}
             title="아직 참여한 클래스가 없어요"
             description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
-            action={{ href: '/classbot', label: '참여 코드' }}
+            action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
           />
         ) : (
           <EmptyState
             icon={Compass}
             title="아직 등록한 튜터가 없어요"
             description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-            action={{ href: '/classbot/discover', label: '봇 마켓' }}
+            action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
           />
         )}
       </div>

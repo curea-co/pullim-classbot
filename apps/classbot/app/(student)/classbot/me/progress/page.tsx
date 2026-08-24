@@ -65,7 +65,7 @@ export default function MyProgressPage() {
           icon={GraduationCap}
           title="아직 쌓인 학습 기록이 없어요"
           description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
-          action={{ href: '/classbot', label: '참여 코드' }}
+          action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
         />
       </div>
     );

@@ -12,7 +12,7 @@ test.describe('신규 사용자 챗 진입', () => {
   test('참여 전 — 빈 가드(참여 코드 유도)', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
     await expect(page.getByText('아직 참여한 클래스가 없어요')).toBeVisible();
-    await expect(page.getByRole('link', { name: '참여 코드' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '참여 코드 입력하러 가기' })).toBeVisible();
   });
 
   test('참여 후 — 봇 대화 + 가이드 흐름칩', async ({ page }) => {
