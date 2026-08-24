@@ -10,7 +10,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
   BOT_NAME_MAX, BOT_NAME_MIN,
-  FIELD_KEYS, alwaysOnSafety, applyClone, botName, classroomChoices, cloneSources,
+  FIELD_KEYS, alwaysOnSafety, applyClone, botName, classAssignments, classroomChoices, cloneSources,
   emptyDraft, isNameValid, ownCount, pick, summaryRows,
 } from '../builder-types';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
@@ -341,13 +341,32 @@ describe('만든 뒤 화면', () => {
     expect(marks('files').beside).not.toContain('내가 정함');
   });
 
-  it('「봇 운영 화면으로」는 ?created= 를 달고 보낸다 — 배너가 이 값을 읽는다', () => {
+  it('「봇 운영 화면으로」는 ?created= 와 ?rooms= 를 달고 보낸다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
-    // 운영 화면의 「방금 배포된 봇」 배너가 이 쿼리를 읽는다. 맨 링크로 보내면 배너가 죽는다.
-    expect(screen.getByRole('link', { name: '봇 운영 화면으로' }))
-      .toHaveAttribute('href', `/teacher/classbot?created=${encodeURIComponent('과학봇')}`);
+    const link = () => screen.getByRole('link', { name: '봇 운영 화면으로' });
+
+    // 반을 안 골랐으면 rooms 가 비어서 간다 — 그 자체가 뜻이다.
+    // 안 넘기면 다음 화면이 「고른 반의 학생 홈에 나타나요」라고 잘못 안내한다.
+    expect(link()).toHaveAttribute('href', `/teacher/classbot?created=${encodeURIComponent('과학봇')}&rooms=`);
+
+    // 반을 고르면 학급 id 가 실려 간다 — 라벨이 아니라 id 라야 다음 화면이 이어 붙일 수 있다
+    fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
+    expect(link()).toHaveAttribute(
+      'href',
+      `/teacher/classbot?created=${encodeURIComponent('과학봇')}&rooms=${encodeURIComponent(classroomChoices[0].id)}`,
+    );
+  });
+
+  it('배정의 단위는 (봇, 반) 짝이다 — 반 id 만으로는 표현되지 않는다', () => {
+    const picked = pick(emptyDraft, 'classes', { classes: ['cr_a', 'cr_b'] });
+    // 한 반에 여러 봇이 붙는 것이 정상이라, 밖으로 넘길 때는 봇 축을 붙여야 한다
+    expect(classAssignments(picked, 'cb_new')).toEqual([
+      { botId: 'cb_new', classroomId: 'cr_a' },
+      { botId: 'cb_new', classroomId: 'cr_b' },
+    ]);
+    expect(classAssignments(emptyDraft, 'cb_new')).toEqual([]);
   });
 
   it('「봇 하나 더 만들기」는 앞 봇의 값을 데려오지 않는다', () => {

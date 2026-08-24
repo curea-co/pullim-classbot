@@ -103,13 +103,14 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
 
         <footer className="border-pullim-slate-100 mt-4 flex flex-wrap gap-2 border-t pt-4">
           {/*
-            `?created=` 를 반드시 달고 보낸다 — 운영 화면(`/teacher/classbot`)의
-            「방금 만든 봇」 배너가 이 값을 읽는다. 맨 링크로 보내면 배너가 죽는다.
-            종전엔 `?deployed=` 였는데 배포 관문이 사라져 「배포」가 더는 이 흐름의
-            이름이 아니다 — 만든 뒤 화면은 반 배정까지만 한다.
+            `?created=` 와 `?rooms=` 를 달고 보낸다 — 운영 화면(`/teacher/classbot`)의
+            「방금 만든 봇」 배너가 읽는다. 맨 링크로 보내면 배너가 죽는다.
+            `rooms` 가 비어 있는 것도 뜻이 있다 —— **반을 안 고르고 나가도 봇은 남는다.**
+            넘기지 않으면 다음 화면이 「고른 반의 학생 홈에 나타나요」라고 잘못 안내한다.
+            종전엔 `?deployed=` 였는데 배포 관문이 사라져 「배포」가 더는 이 흐름의 이름이 아니다.
           */}
           <Link
-            href={`/teacher/classbot?created=${encodeURIComponent(botName(draft))}`}
+            href={`/teacher/classbot?created=${encodeURIComponent(botName(draft))}&rooms=${encodeURIComponent(draft.classes.join(","))}`}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
           >
             봇 운영 화면으로

@@ -14,6 +14,7 @@ import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { RemindButton } from '@/components/classbot/remind-button';
 import { SubmissionStatusSheet } from '@/components/classbot/submission-status-sheet';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
   currentTeacher, myClassBot, studentAssignments, classRoster, scopeMeta, type Assignment,
@@ -490,11 +491,16 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
   );
 }
 
-/* ─── 봇 만든 직후 banner — ?created=<name> ─── */
+/* ─── 봇 만든 직후 banner — ?created=<name>&rooms=<id,id> ─── */
 function CreatedBanner() {
   const params = useSearchParams();
   const created = params.get('created');
   if (!created) return null;
+
+  // 반을 안 고르고 나가도 봇은 남는다 — 그 경우를 「고른 반에 나타나요」로 안내하면 거짓말이 된다.
+  const rooms = (params.get('rooms') ?? '').split(',').filter(Boolean);
+  const roomNames = rooms.map(classroomLabel).join(' · ');
+
   return (
     <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-4">
       <div className="flex items-center gap-2">
@@ -502,7 +508,9 @@ function CreatedBanner() {
         <strong className="text-sm">방금 만든 봇: {created}</strong>
       </div>
       <p className="text-pullim-blue-700 mt-1 text-2xs">
-        고른 반의 학생 홈에 나타나요 (데모). 아래 봇 목록은 v1 backend 연결 후 실제로 갱신돼요.
+        {rooms.length
+          ? `${roomNames}의 학생 홈에 나타나요 (데모). 아래 봇 목록은 v1 backend 연결 후 실제로 갱신돼요.`
+          : '아직 반에 넣지 않았어요. 아래 봇 카드에서 반을 고르면 그때부터 학생에게 보여요.'}
       </p>
     </section>
   );

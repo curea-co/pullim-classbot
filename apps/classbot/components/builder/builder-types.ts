@@ -51,7 +51,12 @@ export type BotDraft = {
   scope: ScopeLevel;
   style: StyleId;
   wrong: WrongId;
-  /** 학급 id (`classroomChoices` 의 `id`) — 라벨이 아니다. 운영 화면·참여 코드와 같은 키를 쓴다. */
+  /**
+   * 이 봇을 넣을 학급 id 목록 (`classroomChoices` 의 `id`) — 라벨이 아니다.
+   * 배정의 단위는 **(봇, 반) 짝**이고(참여 코드가 `botId`·`classroomId` 를 함께 가리킨다),
+   * 여기서 봇 축은 「이 드래프트가 만드는 봇」으로 암묵적이다 — 드래프트 하나가 봇 하나다.
+   * 밖으로 넘길 때는 `classAssignments()` 로 봇 축을 붙여 짝으로 만든다.
+   */
   classes: string[];
   own: OwnMap;
 };
@@ -129,6 +134,21 @@ export const classroomChoices: ClassroomChoice[] = teacherBotOps
   .filter((c, i, all) => all.findIndex((x) => x.id === c.id) === i);
 
 /** 세는 칸 밖 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
+/**
+ * 배정 한 건 — 참여 코드가 가리키는 단위와 같다 (`join_codes` 의 `bot_id`·`classroom_id`).
+ * 한 반에 여러 봇이 붙는 것이 정상이므로 반 id 만으로는 배정을 표현할 수 없다.
+ */
+export type ClassAssignment = { botId: string; classroomId: string };
+
+/**
+ * 드래프트의 반 목록에 봇 축을 붙여 배정 짝으로 만든다.
+ * 봇 id 는 봇이 실제로 만들어질 때 정해지므로 밖에서 받는다 — 지금은 데모라 저장하지 않지만,
+ * 운영 화면·참여 코드에 이어 붙일 때 이 함수가 경계가 된다.
+ */
+export function classAssignments(draft: BotDraft, botId: string): ClassAssignment[] {
+  return draft.classes.map((classroomId) => ({ botId, classroomId }));
+}
+
 /** 학급 id → 교사·학생이 같이 보는 반 이름. 모르는 id 는 그대로 보여준다(감추지 않는다). */
 export function classroomLabel(id: string): string {
   return classroomChoices.find((c) => c.id === id)?.label ?? id;
