@@ -170,9 +170,10 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
 
       <div className="mt-2 flex items-center gap-2">
         <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
+          {/* 막대는 데이터지 봇 정체성이 아니다 — 봇 표시는 카드 왼쪽 라이너가 이미 하고 있다 */}
           <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${s.percent}%`, backgroundColor: hex }}
+            className="bg-pullim-blue-600 h-full rounded-full transition-all"
+            style={{ width: `${s.percent}%` }}
           />
         </div>
         <span className="text-pullim-slate-500 font-mono text-micro font-bold">{s.percent}%</span>

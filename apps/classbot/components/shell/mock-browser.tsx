@@ -30,9 +30,10 @@ export function MockBrowser({ children, label, dark, className }: Props) {
           dark ? 'bg-pullim-slate-900 border-pullim-slate-800' : 'bg-pullim-slate-100 border-pullim-slate-200',
         )}
       >
-        <span className="bg-pullim-danger/50 h-2 w-2 rounded-full" />
-        <span className="bg-pullim-warn/50 h-2 w-2 rounded-full" />
-        <span className="bg-pullim-success/50 h-2 w-2 rounded-full" />
+        {/* 브라우저처럼 읽히게 하는 건 색이 아니라 **점 세 개**다 — 명도만 다르게 둔다 */}
+        <span className="bg-pullim-slate-400 h-2 w-2 rounded-full" />
+        <span className="bg-pullim-slate-300 h-2 w-2 rounded-full" />
+        <span className="bg-pullim-slate-200 h-2 w-2 rounded-full" />
         {label && (
           <span
             className={cn(

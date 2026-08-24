@@ -21,6 +21,7 @@ const statusMeta = {
  * spec 11 § 3.3.1.
  */
 export function GradingRow({ item }: { item: GradingItem }) {
+  const studentName = item.studentName;
   const t = typeMeta[item.type];
   const TypeIcon = t.icon;
   const status = statusMeta[item.status];
@@ -36,13 +37,13 @@ export function GradingRow({ item }: { item: GradingItem }) {
       <div className="flex items-start gap-3">
         {/* 아바타 */}
         <div className="bg-pullim-blue-100 text-pullim-blue-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
-          {item.studentName[0]}
+          {studentName.slice(0, 1)}
         </div>
 
         <div className="min-w-0 flex-1">
           {/* 1행: 학생명 + 상태 + 위기 신호 */}
           <div className="flex items-center gap-2">
-            <span className="text-pullim-slate-900 truncate text-sm font-bold">{item.studentName}</span>
+            <span className="text-pullim-slate-900 truncate text-sm font-bold">{studentName}</span>
             <span className={cn('rounded-full px-1.5 py-0.5 text-micro font-bold', status.color)}>
               {status.label}
             </span>

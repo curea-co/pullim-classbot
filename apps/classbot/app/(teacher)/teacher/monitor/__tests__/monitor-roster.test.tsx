@@ -27,7 +27,8 @@ describe('MonitorRoster 한 줄 — 줄 전체가 이동이다', () => {
     for (const row of listRows) {
       const links = within(row).getAllByRole('link');
       expect(links).toHaveLength(1);
-      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d+$/);
+      // 되돌아갈 곳(from=monitor)이 붙는다 — 기본값이 우연히 맞는 것에 기대지 않는다.
+      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d+\?from=monitor$/);
       // 줄 안에 중첩된 누를 것이 없어야 키보드 이동이 줄 하나에 한 번 멈춘다
       expect(within(row).queryAllByRole('button')).toHaveLength(0);
     }

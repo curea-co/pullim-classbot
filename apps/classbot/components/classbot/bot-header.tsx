@@ -39,7 +39,7 @@ export function BotHeader({
       {/* 라이브 수업 진행 상태 */}
       {bot.isLive && bot.currentLesson && (
         <div className="border-t border-white/10 mt-3 flex items-center gap-2 pt-3 text-xs">
-          <Sparkles className="text-pullim-lemon h-3.5 w-3.5" />
+          <Sparkles className="h-3.5 w-3.5 text-white" />
           <span className="text-white/80">지금</span>
           <span className="font-semibold">{bot.currentLesson.title}</span>
           <span className="text-white/60 ml-auto font-mono">

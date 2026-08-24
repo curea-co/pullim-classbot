@@ -23,7 +23,8 @@ const STATUS_META: Record<ReplayStatus, { label: string; tone: string; icon: typ
   },
   review: {
     label: '검수 대기',
-    tone: 'bg-pullim-lemon text-pullim-lemon-ink border-pullim-lemon',
+    // 이 화면의 레몬은 아래 「학생에게 발송」 버튼 한 곳뿐 — 상태 칩은 외곽선으로 갈린다
+    tone: 'text-pullim-slate-800 border-pullim-slate-400 font-bold',
     icon: Clock,
     hint: '핵심 메시지를 검토하고 승인하면 학생에게 발송돼요.',
   },

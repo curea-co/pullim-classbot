@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Sparkles, Target, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
@@ -18,16 +18,30 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useRosterMe } from '@/lib/current-user';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
+import { getAssignmentVisual, assignmentModeBadge, type AssignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 
 type AssignmentMode = AssignmentReadRow['mode'];
 
-const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
+/**
+ * 모드 배지 3종 — [08 § 15.6] 「뱃지 3종(연습/오답정복/시험)이 모두 파랑 계열로 보이던 회귀를 해결」.
+ * 그래서 **셋은 서로 다른 면**이어야 한다. 같은 표가 정한 값 그대로:
+ *   연습     → brand 계열 옅은 면
+ *   오답정복 → `accent.lime`   (레몬이 여기 쓰이는 근거. [§ 1.6] 남용 금지의 예외다)
+ *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
+ * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
+ */
+export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: string; icon: typeof Target }> = {
+  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
+  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
+  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
 };
+
+/**
+ * D-day 칩 앞 아이콘 — 색이 아니라 **모양**으로 상태를 한 번 더 말한다 ([08 § 14.1] 색만으로 의미 전달 금지).
+ * 지연은 경고 삼각형, 완료는 체크, 나머지는 시계.
+ */
+const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
 /** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
 const FALLBACK_BOT_EMOJI = '🧑‍🏫';
@@ -192,6 +206,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
+            {/* [08 § 15.6] 그룹 헤더가 요구하는 시그니처 점 — 명단을 훑을 때의 보조 단서다 */}
             <span
               aria-hidden
               className="h-2 w-2 shrink-0 rounded-full"
@@ -210,10 +225,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
+            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 그룹 왼쪽 라이너와 아바타가 한다 */}
             <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
               <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${progress}%`, backgroundColor: groupHex }}
+                className="bg-pullim-blue-600 h-full rounded-full transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
             <span className="text-pullim-slate-500 font-mono text-micro font-bold">
@@ -235,6 +251,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
   const Icon = m.icon;
   // getAssignmentVisual 은 mode/dDay/state 만 읽는다 — read row 와 호환.
   const visual = getAssignmentVisual({ ...a, assignedAt: a.assignedAtLabel } as never);
+  const DDayIcon = dDayIcon[visual.state as keyof typeof dDayIcon] ?? Clock;
   const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
 
   return (
@@ -244,7 +261,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
         className="bg-card hover:bg-pullim-slate-50/50 group block h-full rounded-2xl border p-4 transition-colors"
       >
         <div className="flex items-start gap-3">
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white', m.color)}>
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', m.color, m.fg)}>
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
@@ -253,7 +270,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
               <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
-                <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
+                <DDayIcon className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {visual.dDayLabel}
               </span>
               {a.source === 'bot-prescribed' && (

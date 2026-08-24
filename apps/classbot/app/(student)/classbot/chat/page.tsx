@@ -585,7 +585,7 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
           collapsed={headerCollapsed}
           showSignatureLiner
           leading={
-            <Link href="/classbot" aria-label="클래스봇 홈으로" className="text-pullim-slate-300 hover:text-pullim-lemon inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10">
+            <Link href="/classbot" aria-label="클래스봇 홈으로" className="text-pullim-slate-300 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10 hover:text-white">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           }
@@ -1377,10 +1377,10 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
   if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
     const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
     return (
-      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: '#E6FF4C' }}>
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: 'var(--color-pullim-lemon)' }}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 flex items-center gap-2.5 rounded-lg border p-2.5">
-          <span className="text-pullim-lemon-ink bg-pullim-lemon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold">
+          <span className="bg-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold text-white">
             {problemNumber}
           </span>
           <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>

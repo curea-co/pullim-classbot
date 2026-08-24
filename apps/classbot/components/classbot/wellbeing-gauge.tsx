@@ -4,10 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Heart, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
+import { botSignature } from '@/lib/tokens/bot-signature';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 import { Sparkbar } from '@/components/classbot/sparkbar';
 
@@ -15,8 +15,11 @@ import { Sparkbar } from '@/components/classbot/sparkbar';
  * 웰빙 지수 게이지 + 7일 추세 + 5지표 펼침.
  * 권위: spec 13 § 5.1·9.1.2·9.2 · [08 § 1.2.1] (메타 컬러 가이드).
  *
- * 7일 막대 컬러 매핑 ([13 § 9.1.2]):
- *   0–40 danger / 41–60 warning / 61–80 brand.300 / 81–100 success
+ * 7일 막대 컬러 매핑 ([13 § 9.1.2] · 색 규약 [08 § 1.3] 반영):
+ *   초록·앰버는 deprecated 라 쓰지 않는다. 네 단계를 **한 블루 안의 명도**로 내리고,
+ *   가장 낮은 구간(교사 알림이 실제로 나가는 구간)만 위험색을 쓴다.
+ *   0–40 danger / 41–60 slate(색이 빠짐) / 61–80 blue-400 / 81–100 blue-600
+ *   막대 길이·점수 숫자·`label` 글자가 늘 함께 붙어서 색 없이도 읽힌다.
  */
 export function WellbeingGauge({
   studentId,
@@ -179,35 +182,37 @@ export function WellbeingGauge({
   );
 }
 
-/** [13 § 9.1.2] 점수 → 컬러 매핑 — 4단계 (danger/warning/brand.300/success) */
+/** [13 § 9.1.2] 점수 → 톤 매핑 — 4단계. hue 를 갈지 않고 블루 명도를 내린다. */
 function scoreTone(score: number) {
   if (score >= 81) {
     return {
-      text: 'text-pullim-success',
-      bar: 'bg-pullim-success',
-      chipBg: 'bg-pullim-success-bg',
-      chipText: 'text-pullim-success',
+      text: 'text-pullim-blue-700',
+      bar: 'bg-pullim-blue-600',
+      chipBg: 'bg-pullim-blue-100',
+      chipText: 'text-pullim-blue-700',
       label: '좋아요',
     };
   }
   if (score >= 61) {
     return {
       text: 'text-pullim-blue-600',
-      bar: 'bg-pullim-blue-300',
+      bar: 'bg-pullim-blue-400',
       chipBg: 'bg-pullim-blue-50',
       chipText: 'text-pullim-blue-700',
       label: '괜찮아요',
     };
   }
   if (score >= 41) {
+    // 색이 빠진다 = 「기운이 빠졌다」. 앰버 대신 중립으로 내려앉힌다
     return {
-      text: 'text-pullim-warn',
-      bar: 'bg-pullim-warn',
-      chipBg: 'bg-pullim-warn-bg',
-      chipText: 'text-pullim-warn',
+      text: 'text-pullim-slate-700',
+      bar: 'bg-pullim-slate-400',
+      chipBg: 'bg-pullim-slate-100',
+      chipText: 'text-pullim-slate-700',
       label: '신경 써요',
     };
   }
+  // 이 구간만 실제로 교사 알림이 나간다 — 위험색을 쓸 자리
   return {
     text: 'text-pullim-danger',
     bar: 'bg-pullim-danger',
@@ -228,6 +233,7 @@ function ComponentBreakdown({
   /** 화면별 fallback 카피 분기 — [WellbeingGauge audience prop 참고] */
   audience: 'student-chat' | 'student-self';
 }) {
+  const insightSig = botInsight ? botSignature(botInsight.bot) : null;
   const c = snapshot.components;
   if (!c) {
     return (
@@ -245,7 +251,6 @@ function ComponentBreakdown({
   ];
   // 가장 점수 낮은 지표 — 봇 인사이트 1줄에 활용
   const lowest = items.reduce((acc, cur) => (c[cur.key] < c[acc.key] ? cur : acc), items[0]);
-  const insightSig = botInsight ? botSignature(botInsight.bot) : null;
 
   return (
     <div className="bg-pullim-slate-50 mt-3 space-y-2 rounded-lg p-3">
@@ -283,6 +288,7 @@ function ComponentBreakdown({
             <Link
               href={botInsight.ctaHref}
               className="inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-2xs font-bold transition-colors hover:bg-white"
+              // [13 § 456] 봇 시그니처 ghost CTA
               style={{ borderColor: insightSig.inkLight, color: insightSig.inkLight }}
             >
               {botInsight.ctaLabel}
@@ -292,7 +298,7 @@ function ComponentBreakdown({
         ) : audience === 'student-self' ? (
           // student-self fallback (botInsight 합성 실패 시) — 1인칭 톤
           <p className="text-pullim-slate-600 text-2xs leading-relaxed">
-            🌱 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.
+            💡 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.
           </p>
         ) : (
           // student-chat fallback (botInsight 합성 실패 시) — § 8.3 완화 표현

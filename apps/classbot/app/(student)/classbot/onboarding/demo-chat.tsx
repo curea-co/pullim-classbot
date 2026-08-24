@@ -53,7 +53,7 @@ export function DemoChat({ onDone }: { onDone?: () => void }) {
           형
         </span>
         <span className="font-bold text-white">{BOT_NAME}</span>
-        <span className="bg-pullim-lemon text-pullim-lemon-ink ml-auto rounded-full px-2 py-0.5 text-micro font-bold">
+        <span className="text-pullim-blue-700 ml-auto rounded-full bg-white px-2 py-0.5 text-micro font-bold">
           데모
         </span>
       </div>

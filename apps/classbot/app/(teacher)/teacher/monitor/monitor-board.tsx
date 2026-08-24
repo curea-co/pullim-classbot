@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { KpiStatBar } from '@/components/classbot/kpi-stat';
 import type { MonitoredStudent } from '@/lib/mock/classbot-monitoring';
 import { cn } from '@/lib/utils';
@@ -20,16 +20,17 @@ import {
  * 그래서 **카드 자체를 누르는 거르개**로 바꿨다. 같은 화면 안에서 끝나는 일은 이동이 아니라 거르기다.
  * 카드 = 명단 거르개 하나뿐이라 아래 명단의 거르개 알약 줄(같은 값이 한 번 더 있던 자리)은 걷어냈다.
  * 문구는 카드마다 다르지 않다 — 전부 「누르면 그 학생만 보인다」 하나로 같다.
+ *
+ * 카드와 명단은 **붙어 있는 한 덩어리**다. 사이에 다른 블록을 끼울 자리를 두지 않는다 —
+ * 손잡이와 그 결과가 떨어지면 카드를 눌러도 무엇이 바뀌었는지 읽히지 않는다.
+ * 학급 단위 블록(다시 가르칠 개념)은 이 덩어리 **다음**에 페이지가 놓는다.
  */
 export function MonitorBoard({
   students,
   context,
-  children,
 }: {
   students: MonitoredStudent[];
   context?: string;
-  /** 카드와 명단 사이에 끼우는 학급 단위 블록 (다시 가르칠 개념) */
-  children?: ReactNode;
 }) {
   const [filter, setFilter] = useState<RosterFilter>('all');
   const [sort, setSort] = useState<RosterSort>('name');
@@ -66,8 +67,6 @@ export function MonitorBoard({
           카드를 누르면 아래 명단에 그 학생만 남아요.
         </p>
       </div>
-
-      {children}
 
       <MonitorRoster
         students={students}

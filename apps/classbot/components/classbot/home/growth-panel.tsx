@@ -24,7 +24,7 @@ export function GrowthPanel() {
       <div className="bg-card rounded-xl border border-pullim-slate-100 p-4 shadow-pullim-xs space-y-4">
         {/* Streak — large with flame */}
         <div className="flex items-baseline gap-2">
-          <Flame className="text-pullim-lemon-ink h-5 w-5 shrink-0" aria-hidden />
+          <Flame className="text-pullim-blue-700 h-5 w-5 shrink-0" aria-hidden />
           <span className="text-4xl font-bold text-pullim-blue-700 leading-none font-mono">
             {streakDays}
           </span>

@@ -44,7 +44,8 @@ describe('먼저 볼 학생 한 줄', () => {
     for (const row of attentionRows()) {
       const links = within(row).getAllByRole('link');
       expect(links).toHaveLength(1);
-      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d+$/);
+      // 되돌아갈 곳(from=home)이 붙는다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
+      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d+\?from=home$/);
       expect(within(row).queryAllByRole('button')).toHaveLength(0);
     }
   });
