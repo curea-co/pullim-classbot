@@ -97,7 +97,7 @@
 
 **홈 통합 지점**:
 - 교사 홈 [/teacher/page.tsx](src/app/(teacher)/teacher/page.tsx): 기존 KPI 6종 + 위기 신호 → `/teacher/reports`로 딥링크
-- 학생 홈 [classbot/page.tsx](src/app/(student)/classbot/page.tsx): `Mini` 위젯에 "오늘 체크인하기" 추가 (체크인 미완료 시)
+- 학생 홈 [classbot/page.tsx](src/app/(student)/classbot/page.tsx): `Mini` 위젯에 "체크인" 추가 (체크인 미완료 시) — 버튼은 단어로 ([07 § 6.6](07-branding.md)). **미구현** — 학생 홈에 이 위젯이 아직 없다
 
 ### 3.3 Screen Spec
 
@@ -193,7 +193,7 @@
 | 오늘 체크인 CTA | `[30초 체크인 시작]` (미완료 시) / `[다시 작성]` (완료 후 1회) |
 | 주간 감정 그래프 | 7일 × 4이모지 점 도표 + 7일 막대(웰빙 지수) — § 9.1 컬러 매핑 |
 | "선생님이 곁에 있어" 카드 | 위기 임계 근접 시 노출 — 1:1 면담 신청 / 봇 대화 CTA |
-| 본인 리포트 진입 | `[내 주간 리포트 보기]` → `/classbot/me/report` |
+| 본인 리포트 진입 | `[주간 리포트]` → `/classbot/me/report` — 버튼은 단어로 ([07 § 6.6](07-branding.md)). **구현 전** — 현행 웰빙 화면은 `[내 주간 리포트 보기]` 이고 뒤따르는 FE PR 이 맞춘다 |
 
 > 회귀 사례 (private-classbot.md § 6.2): 웰빙은 봇이 개입하는 영역인데 봇 아바타·이름이 페이지에 한 번도 안 나옴. 담당 봇 코멘트 카드로 시각화.
 
