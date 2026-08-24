@@ -11,7 +11,7 @@ import { type Page, expect } from '@playwright/test';
 export async function joinDemoClass(page: Page, code = 'MATH-2024'): Promise<void> {
   await page.goto('/classbot', { waitUntil: 'networkidle' });
   await page.getByLabel('참여 코드 입력').fill(code);
-  await page.getByRole('button', { name: '참여하기' }).click();
+  await page.getByRole('button', { name: '참여' }).click();
   // 참여 반영 — 홈이 참여 중인 클래스 목록을 가진 교사수업 홈으로 전환된다
   await expect(page.getByText('참여 중인 클래스')).toBeVisible({ timeout: 10_000 });
 }

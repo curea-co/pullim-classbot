@@ -77,7 +77,6 @@ export function LoginForm() {
   return (
     <AuthCard
       title="풀림 클래스봇 로그인"
-      description="이메일과 비밀번호로 로그인하세요."
       footer={
         <>
           아직 계정이 없으신가요?{' '}

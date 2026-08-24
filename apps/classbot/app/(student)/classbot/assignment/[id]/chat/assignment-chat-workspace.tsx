@@ -132,10 +132,11 @@ export function AssignmentChatWorkspace({
         action={
           <Link
             href={`/classbot/assignment/${assignment.id}/solve`}
+            aria-label="풀이 화면으로 가기"
             className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors"
           >
             <Play className="h-3 w-3" />
-            풀이 화면으로
+            풀이
           </Link>
         }
       />
@@ -281,7 +282,7 @@ function AssignmentTracker({
   if (questions.length === 0) {
     return (
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="과제 진행" description="이 과제의 문항이 아직 없어요." />
+        <SectionHeading title="과제 진행" />
         <EmptyState
           size="sm"
           tone="plain"
@@ -386,7 +387,7 @@ function TeacherGradedTracker({
   if (criteria.length === 0) {
     return (
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="요구사항" description="이 과제에는 적어 둔 요구사항이 없어요." />
+        <SectionHeading title="요구사항" />
         <EmptyState
           size="sm"
           tone="plain"

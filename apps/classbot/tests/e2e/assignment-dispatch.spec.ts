@@ -78,7 +78,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+$/);
     await expect(page.getByTestId('assignment-start-cta')).toBeVisible();
 
-    // [9] 지금 시작하기 → 풀이 워크스페이스
+    // [9] 「시작」 → 풀이 워크스페이스
     await page.getByTestId('assignment-start-cta').click();
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/solve/);
 

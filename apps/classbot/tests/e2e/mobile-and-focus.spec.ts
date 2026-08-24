@@ -31,7 +31,7 @@ test.describe('모바일 viewport 검증', () => {
     await expect(page.getByText('교사 수업', { exact: true })).toBeVisible();
     // 신규 빈 상태 홈 — 참여 코드 핵심 CTA
     await expect(page.getByLabel('참여 코드 입력')).toBeVisible();
-    await expect(page.getByRole('button', { name: '참여하기' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '참여' })).toBeVisible();
     await context.close();
   });
 

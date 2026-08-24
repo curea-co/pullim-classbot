@@ -51,13 +51,15 @@ export default function UnitPage({
   // ── Early returns (after all hooks) ─────────────────────────────────────
   if (!tutor || !unit || !content) {
     const backHref = tutor ? `/classbot/learn/${tutorId}` : '/classbot';
-    const backLabel = tutor ? '커리큘럼으로' : '홈으로';
+    const backLabel = tutor ? '커리큘럼' : '홈';
+    // 줄인 글자로 잃은 뜻은 낭독기 이름에 남긴다 ([07 § 6.6.2(3)])
+    const backAria = tutor ? '커리큘럼으로 가기' : '클래스봇 홈으로 가기';
     return (
       <div className="px-4 py-10">
         <EmptyState
           title="단원을 찾을 수 없어요"
           description="삭제되었거나 잘못된 경로일 수 있어요."
-          action={{ href: backHref, label: backLabel }}
+          action={{ href: backHref, label: backLabel, ariaLabel: backAria }}
         />
       </div>
     );
@@ -120,9 +122,10 @@ export default function UnitPage({
           </p>
           <Link
             href={`/classbot/learn/${tutorId}`}
+            aria-label="커리큘럼으로 가기"
             className="mt-1 inline-flex min-h-[44px] items-center rounded-xl bg-pullim-blue-600 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-pullim-blue-700 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
           >
-            커리큘럼으로
+            커리큘럼
           </Link>
         </div>
       );

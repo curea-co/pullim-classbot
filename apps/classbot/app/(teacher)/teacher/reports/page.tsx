@@ -56,7 +56,6 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       header={{
         eyebrow: { icon: BarChart3, text: '리포트 센터' },
         title: '리포트와 학생 명단',
-        description: '자동 생성된 리포트를 검토하고, 아래 명단에서 먼저 볼 학생을 찾으세요.',
       }}
     >
       {/* KPI */}

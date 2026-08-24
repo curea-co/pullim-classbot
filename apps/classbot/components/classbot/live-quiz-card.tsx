@@ -106,7 +106,7 @@ export function LiveQuizCard() {
           onClick={() => setSubmitted(true)}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 w-full rounded-xl text-white"
         >
-          제출하기
+          제출
         </Button>
       ) : (
         <p className="text-pullim-slate-600 mt-3 text-center text-xs">

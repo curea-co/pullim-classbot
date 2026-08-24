@@ -67,7 +67,6 @@ export default function MyReportPage() {
       <PageHeader
         eyebrow={{ icon: Sparkles, text: '주간 리포트' }}
         title="이번 주의 나"
-        description="봇이 본 나의 한 주"
       />
 
       {/* [13 § 3.3.5·9.2] 본인 리포트 — 봇 인사이트 텍스트 유지 + CTA만 "다음 주 도전"(`/classbot/assignment`)으로 분기 */}

@@ -41,20 +41,21 @@ export default function MyProfilePage() {
     <>
       <Link
         href="/classbot/me/progress"
+        aria-label="학습 기록 — 성취기준마다 어디까지 왔는지 보기"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 flex items-center gap-3 rounded-2xl p-4 text-white transition-colors"
       >
         <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
           <BarChart3 className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold">학습 기록 보기</div>
-          <div className="text-pullim-blue-100 text-2xs">성취기준마다 어디까지 왔는지 봐요</div>
+          <div className="text-sm font-bold">학습 기록</div>
         </div>
         <ArrowRight className="h-4 w-4" />
       </Link>
 
       <Link
         href="/classbot/me/report"
+        aria-label="주간 리포트 — 봇이 본 나의 한 주 보기"
         className="bg-card hover:bg-pullim-slate-50/50 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
       >
         <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
@@ -62,7 +63,6 @@ export default function MyProfilePage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-pullim-slate-900 text-sm font-bold">주간 리포트</div>
-          <div className="text-pullim-slate-500 text-2xs">봇이 본 나의 한 주</div>
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
@@ -78,7 +78,7 @@ export default function MyProfilePage() {
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* ─── 기본 정보 ─── */}
         <section className="bg-card rounded-2xl border p-4">
-          <SectionHeading title="기본 정보" description="가입할 때 들어온 정보예요." />
+          <SectionHeading title="기본 정보" />
           <dl className="divide-pullim-slate-100 divide-y">
             <InfoRow label="이름" value={me.name} />
             <InfoRow label="학년" value={grade ?? '수업에 참여하면 보여요'} muted={!grade} />
@@ -93,7 +93,7 @@ export default function MyProfilePage() {
 
         {/* ─── 소속 수업 ─── */}
         <section>
-          <SectionHeading title="소속 수업" description="선생님이 나를 넣어 준 반이에요." />
+          <SectionHeading title="소속 수업" />
           {!hydrated ? (
             <div className="space-y-1.5" aria-busy="true">
               <Skeleton className="h-16 w-full rounded-2xl" />
@@ -104,7 +104,7 @@ export default function MyProfilePage() {
               icon={GraduationCap}
               title="아직 참여한 수업이 없어요"
               description="선생님께 받은 참여 코드를 넣으면 여기에 반이 생겨요."
-              action={{ href: '/classbot', label: '참여 코드 넣기' }}
+              action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 넣으러 가기' }}
             />
           ) : (
             <ul className="space-y-1.5">
@@ -149,8 +149,9 @@ export default function MyProfilePage() {
               variant="outline"
               size="sm"
               note="풀림 통합 계정 「내 계정」 연결"
+              aria-label="풀림 계정으로 가기"
             >
-              풀림 계정으로 가기
+              풀림 계정
             </ComingSoonButton>
           </div>
         </section>

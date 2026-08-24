@@ -92,14 +92,15 @@ export function CheckInForm() {
             href="/classbot/me/report"
             className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold"
           >
-            내 리포트 보기
+            내 리포트
           </Link>
           <button
             type="button"
             onClick={() => router.push('/classbot')}
+            aria-label="클래스봇 홈으로 가기"
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"
           >
-            홈으로
+            홈
           </button>
         </div>
       </div>
@@ -116,7 +117,6 @@ export function CheckInForm() {
           30초 체크인
         </div>
         <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">오늘 어땠어요?</h1>
-        <p className="text-pullim-slate-500 mt-1 text-xs">짚고 가요. 부담 갖지 않아도 돼요.</p>
       </header>
 
       <section className="bg-card rounded-2xl border p-5">

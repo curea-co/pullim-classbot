@@ -48,7 +48,7 @@ export function ReportRoster({ students }: { students: MonitoredStudent[] }) {
     <section className="bg-card rounded-2xl border p-4">
       <SectionHeading
         title={`등록된 학생 ${students.length}명`}
-        description="리포트가 아직 없는 학생도 모두 있어요. 걸러서 먼저 볼 학생을 찾으세요."
+        description="리포트가 아직 없는 학생도 모두 있어요."
       />
 
       <div className="mb-3 space-y-2">

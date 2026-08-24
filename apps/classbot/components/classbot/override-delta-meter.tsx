@@ -52,9 +52,10 @@ export function OverrideDeltaMeter({ currentDelta }: { currentDelta: number }) {
       {isOver && (
         <button
           type="button"
+          aria-label="루브릭 재학습 제안 보기"
           className="bg-pullim-blue-700 hover:bg-pullim-blue-800 mt-3 w-full rounded-lg py-1.5 text-2xs font-bold text-white"
         >
-          루브릭 재학습 제안 보기
+          재학습 제안
         </button>
       )}
     </section>

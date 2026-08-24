@@ -102,7 +102,17 @@ type Turn = {
 type ProblemCardPayload = {
   problemNumber: string;
   title: string;
+  /** 보이는 글자 — 단어로 ([07 § 6.6](../../../../../proc/spec/07-branding.md)) */
   ctaLabel: string;
+  /**
+   * 낭독기 이름 — 줄이며 잃은 뜻을 여기 남긴다 (§ 6.6.2(3)).
+   * 카드가 여럿 쌓이면 보이는 글자는 전부 「학습」이라 이것 없이는 서로 구분되지 않는다.
+   *
+   * **선택**이다 — BE 가 내려주는 카드(`lib/api/chat-cards.ts` § 1.6 계약)에는 이 필드가
+   * 없다. 없으면 렌더러가 카드 제목으로 이름을 만든다(`{제목} — {라벨} 열기`) — 카드끼리
+   * 구분되고 **무엇이 일어나는지도 읽힌다.** 계약을 넓히지 않아도 § 6.6.2(1)(3)을 지킨다.
+   */
+  ctaAriaLabel?: string;
   ctaHref: string;
 };
 
@@ -193,14 +203,14 @@ function ClassbotChatPageInner() {
             icon={GraduationCap}
             title="아직 참여한 클래스가 없어요"
             description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
-            action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+            action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
           />
         ) : (
           <EmptyState
             icon={Compass}
             title="아직 등록한 튜터가 없어요"
             description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-            action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+            action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
           />
         )}
       </div>
@@ -914,7 +924,9 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
         problemNumber: pq.problemNumber,
         title: pq.title,
         // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
-        ctaLabel: '학습하러 가기',
+        ctaLabel: '학습',
+        // 보이는 글자는 「학습」 하나뿐이라 낭독기에는 무엇을 여는지 실어 보낸다
+        ctaAriaLabel: `${pq.title} 학습하러 가기`,
         ctaHref: `/classbot/learn/${botId}`,
       } satisfies ProblemCardPayload,
     };
@@ -1220,9 +1232,10 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <button
             type="button"
             onClick={() => dispatchLesson(botId, 'concept-detail', concept.id)}
+            aria-label="자세히 보기 — 학습 팁·예제 문항"
             className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-sm font-bold"
           >
-            자세히 보기 (학습 팁·예제 문항) →
+            자세히 보기 →
           </button>
         </div>
       </div>
@@ -1375,7 +1388,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // problem-card — 좌측 라이너 + 문제번호 + CTA
   if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
-    const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
+    const { problemNumber, title, ctaLabel, ctaAriaLabel, ctaHref } = turn.payload as ProblemCardPayload;
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: 'var(--color-pullim-lemon)' }}>
         <RichText text={turn.text} />
@@ -1386,6 +1399,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
           <Link
             href={ctaHref}
+            aria-label={ctaAriaLabel ?? `${title} — ${ctaLabel} 열기`}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-bold text-white"
           >
             {ctaLabel} →
@@ -1568,9 +1582,10 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
             <button
               type="button"
               onClick={() => setHintCount(c => c + 1)}
+              aria-label={hintCount === 0 ? '힌트 보기' : '힌트 더 보기'}
               className="border-pullim-blue-200 text-pullim-blue-700 hover:bg-pullim-blue-50 inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-1.5 text-sm font-bold transition-colors"
             >
-              {hintCount === 0 ? '힌트 보기' : '힌트 더 보기'} ({hintCount}/{maxHints})
+              힌트 ({hintCount}/{maxHints})
             </button>
           ) : (
             <p className="text-pullim-slate-400 text-xs">
@@ -1616,9 +1631,10 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
           type="button"
           disabled={selected === undefined}
           onClick={handleSubmit}
+          aria-label={`「${quiz.question}」 답 제출하기`}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
-          제출하기
+          제출
         </button>
       ) : (
         <div className="mt-2.5 space-y-2">
@@ -1751,9 +1767,10 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
           type="button"
           disabled={!value.trim()}
           onClick={() => { setSubmitted(true); onCardReveal(); }}
+          aria-label={`「${prompt.prompt}」 설명 제출하기`}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
-          설명 제출하기
+          제출
         </button>
       ) : (
         <div className="mt-2.5 space-y-2">

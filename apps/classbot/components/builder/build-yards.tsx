@@ -197,9 +197,9 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
             <FileText className="text-pullim-slate-400 mx-auto h-7 w-7" aria-hidden />
             <p className="text-pullim-slate-700 mt-2 text-sm font-bold">여기로 끌어다 놓거나 골라서 올려요</p>
             <p className="text-pullim-slate-500 text-2xs">수업 자료(ppt·pdf) · 손으로 쓴 필기 사진 · 수업 녹화</p>
-            <Button type="button" variant="secondary" size="sm" onClick={addFile} className="mt-3">
+            <Button type="button" variant="secondary" size="sm" onClick={addFile} aria-label="수업 자료 골라 올리기" className="mt-3">
               <Upload aria-hidden />
-              자료 골라 올리기
+              올리기
             </Button>
           </div>
 

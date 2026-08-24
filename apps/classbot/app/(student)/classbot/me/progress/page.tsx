@@ -65,7 +65,7 @@ export default function MyProgressPage() {
           icon={GraduationCap}
           title="아직 쌓인 학습 기록이 없어요"
           description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
-          action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+          action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
         />
       </div>
     );
@@ -75,17 +75,19 @@ export default function MyProgressPage() {
     <>
       <GrowthTrendCard snapshot={snapshot} />
 
-      {/* 주간 리포트와 역할이 다르다는 것을 화면에서도 말해 둔다(중복 구현 방지). */}
+      {/* 주간 리포트와 역할이 다르다는 것을 화면에서도 말해 둔다(중복 구현 방지).
+          「여기는 성취기준을 파고드는 곳」은 페이지 제목의 되풀이라 뺐고,
+          저쪽에 무엇이 있는지는 화면 어디에도 없어 남긴다 ([07 § 6.7]). */}
       <section className="bg-card rounded-2xl border p-4">
         <h3 className="text-pullim-slate-900 text-sm font-bold">한 주 요약이 보고 싶다면</h3>
         <p className="text-pullim-slate-500 mt-1 text-2xs leading-relaxed">
-          여기는 성취기준 하나하나를 파고드는 곳이에요. 봇이 본 한 주 이야기는 주간 리포트에 있어요.
+          봇이 본 한 주 이야기가 담겨 있어요.
         </p>
         <Link
           href="/classbot/me/report"
           className="text-pullim-blue-600 hover:text-pullim-blue-700 mt-2 inline-block text-xs font-bold"
         >
-          주간 리포트 보기
+          주간 리포트
         </Link>
       </section>
     </>
@@ -133,8 +135,7 @@ function StandardsSection({ standards }: { standards: AchievementStandard[] }) {
     <section>
       <SectionHeading
         title="성취기준별 달성도"
-        description="선생님이 잡은 기준 한 줄마다 지금 어디까지 왔는지 봐요."
-        action={<ComingSoonButton note="기준 → 문항·대화 이동">기준별 문항 보기</ComingSoonButton>}
+        action={<ComingSoonButton note="기준 → 문항·대화 이동" aria-label="기준별 문항 보기">기준별 문항</ComingSoonButton>}
       />
       {standards.length === 0 ? (
         <EmptyState
@@ -243,7 +244,7 @@ function SubmissionSection({ rows, meta }: { rows: SubmissionHistoryRow[]; meta:
       <SectionHeading
         title="과제 낸 기록"
         description={meta}
-        action={<ComingSoonButton note="기록 → 과제 상세 이동">과제로 가기</ComingSoonButton>}
+        action={<ComingSoonButton note="기록 → 과제 상세 이동" aria-label="과제 상세로 가기">과제</ComingSoonButton>}
       />
       {rows.length === 0 ? (
         <EmptyState icon={Inbox} title="아직 낸 과제가 없어요" description="과제를 내면 여기에 남아요." />
