@@ -1,72 +1,61 @@
-import { gradingQueue, overriddenSample } from '@/lib/mock';
-import { monitoredRoster } from '../classbot-monitoring';
+import { gradingQueue, gradingHistory, overriddenSample } from '@/lib/mock';
+import { monitoredClass, monitoredRoster } from '../classbot-monitoring';
 import {
-  allGradingItems, buildGradingRoster, gradingItemsOfStudent, gradingStudentName,
-  rosterIdOfGradingStudent, rosterStudentOfGrading, studentHrefOfGrading, unlinkedGradingItems,
+  allGradingItems, buildGradingRoster, gradingItemsOfStudent, studentHrefOfGrading,
 } from '../classbot-grading-roster';
 
 /**
- * 채점 항목과 등록 학생 명단을 잇는 표의 회귀 (spec 11 § 7.1).
+ * 채점 시드가 **학생 명단과 같은 모집단**인지 지키는 회귀 (spec 11 § 7.1).
  *
- * 여기서 지키는 것 세 가지.
- *   ① 잇는 기준은 **이름 하나뿐**이다 — 번호가 나란해도 이름이 다르면 잇지 않는다.
- *      번호로 이으면 다른 학생의 제출물이 한 사람 밑에 붙는다
- *   ② 이어지지 않은 항목이 **말없이 사라지지 않는다** —
- *      「학생별 대기 합계 + 이어지지 않은 대기 = 큐 전체 대기」
- *   ③ 등록 학생은 **대기가 0건이어도** 목록에서 빠지지 않는다 — 이 화면을 바꾼 이유 그 자체
+ * 예전에는 채점 시드가 `classRoster`(중2 수학 A반)를, 학생 목록·상세는 `monitoredRoster`
+ * (중1-3반 과학)를 읽어서 두 화면이 **다른 반의 다른 학생**을 보고 있었다. 채점 항목에서
+ * 학생을 눌러 들어가면 수학 제출물을 보러 왔는데 과학 대화가 열렸다.
+ * 시드를 `monitoredRoster` 로 옮겨 모집단을 하나로 맞췄고, 여기서 그게 유지되는지 본다.
+ *
+ * 하나라도 어긋나면 학생 줄에서 그 채점이 사라지거나 다른 학생 밑에 붙는다.
  */
 
-describe('채점 항목 ↔ 학생 명단 잇기', () => {
-  it('이어진 항목은 명단 이름이 시드 이름으로 끝난다 — 이것이 잇는 유일한 기준이다', () => {
+describe('채점 시드는 학생 명단과 같은 모집단이다', () => {
+  const rosterIds = new Set(monitoredRoster.map(s => s.id));
+
+  it('모든 채점 항목이 학생 명단의 학생을 가리킨다', () => {
     expect(allGradingItems.length).toBe(gradingQueue.length + 1);
     for (const item of allGradingItems) {
-      const student = rosterStudentOfGrading(item);
-      if (!student) continue;
-      expect(student.name.endsWith(item.studentName)).toBe(true);
+      expect(rosterIds.has(item.studentId)).toBe(true);
     }
   });
 
-  it('이름이 이어지는 5건이 실제로 이어져 있다', () => {
-    // spec 11 § 7.1 의 표. 하나라도 끊기면 그 학생 줄에서 대기가 사라진다.
-    const linked: [string, string][] = [
-      ['s1', 'm01'], ['s4', 'm04'], ['s6', 'm06'], ['s9', 'm09'], ['s13', 'm13'],
-    ];
-    for (const [gradingId, rosterId] of linked) {
-      expect(rosterIdOfGradingStudent(gradingId)).toBe(rosterId);
+  it('이름도 명단 이름 그대로다 — 화면마다 이름이 갈리지 않는다', () => {
+    for (const item of allGradingItems) {
+      const student = monitoredRoster.find(s => s.id === item.studentId);
+      expect(item.studentName).toBe(student?.name);
     }
   });
 
-  it('이름이 다르면 번호가 나란해도 잇지 않는다', () => {
-    // 번호로 이으면 s2 민준이 m02 이준서 밑에 붙는다. 교사가 그 답을 검수하면
-    // 누구 답을 봤는지 알 수 없다 — 틀린 결합보다 비어 있는 결합이 낫다 (spec 11 § 7.1).
-    expect(monitoredRoster.find(s => s.id === 'm02')?.name).toBe('이준서');
-    expect(monitoredRoster.find(s => s.id === 'm05')?.name).toBe('정예린');
-    expect(rosterIdOfGradingStudent('s2')).toBeUndefined();
-    expect(rosterIdOfGradingStudent('s5')).toBeUndefined();
-    expect(rosterIdOfGradingStudent('s3')).toBeUndefined();
-    expect(rosterIdOfGradingStudent('s7')).toBeUndefined();
-  });
-
-  it('이어지지 않은 항목은 시드 이름을 그대로 쓴다 — 화면마다 이름이 갈리지 않는다', () => {
-    const unlinked = unlinkedGradingItems();
-    expect(unlinked.map(i => i.studentName)).toEqual(['민준', '하윤']);
-    for (const item of unlinked) {
-      expect(gradingStudentName(item)).toBe(item.studentName);
-      expect(studentHrefOfGrading(item)).toBeUndefined();
+  it('과목·단원도 그 학생들의 수업이다', () => {
+    // 학생 상세 헤더가 말하는 수업과 채점 항목의 수업이 같아야 한다.
+    for (const item of allGradingItems) {
+      expect(item.topic).toContain(monitoredClass.unit);
     }
   });
 
-  it('모르는 id 는 잇지 않는다 — 없는 학생을 만들지 않는다', () => {
-    expect(rosterIdOfGradingStudent('s99')).toBeUndefined();
-    expect(rosterIdOfGradingStudent('student_001')).toBeUndefined();
+  it('채점 이력도 같은 학생을 가리킨다', () => {
+    // 채점 상세의 「이 학생 최근 채점」이 studentId 로 곧장 찾는다.
+    for (const entry of gradingHistory) {
+      expect(rosterIds.has(entry.studentId)).toBe(true);
+    }
+    const withHistory = new Set(gradingHistory.map(h => h.studentId));
+    for (const item of gradingQueue) {
+      expect(withHistory.has(item.studentId)).toBe(true);
+    }
   });
 
-  it('화면에 적는 이름은 명단 쪽(성 포함)이다', () => {
-    const item = gradingQueue[0]; // gr_001 · s13 윤서
-    expect(item.studentName).toBe('윤서');
-    expect(gradingStudentName(item)).toBe('신윤서');
-    // from=grading 이 붙어야 학생 상세의 뒤로 가기가 채점 허브로 돌아온다.
+  it('학생 상세로 가는 링크가 그 학생을 가리키고 되돌아갈 곳을 넘긴다', () => {
+    const item = gradingQueue[0]; // gr_001 · m13 신윤서
+    expect(item.studentName).toBe('신윤서');
     expect(studentHrefOfGrading(item)).toBe('/teacher/students/m13?from=grading');
+    // 검수하다 건너간 것이면 학생 전체 탭이 아니라 큐로 돌아간다.
+    expect(studentHrefOfGrading(item, 'grading-queue')).toBe('/teacher/students/m13?from=grading-queue');
   });
 });
 
@@ -88,13 +77,10 @@ describe('buildGradingRoster — 등록 학생 전체', () => {
     }
   });
 
-  it('학생별 대기 합계 + 이어지지 않은 대기 = 큐 전체 대기', () => {
-    // 이어지지 않은 항목이 말없이 사라지면 줄 배지 합계와 상단 KPI 「대기」가 어긋난다.
-    // 화면은 그 건수를 목록 아래에 적어 준다 (spec 11 § 7.1).
+  it('학생별 대기 합계 = 큐 전체 대기 — 어느 항목도 새지 않는다', () => {
     const perStudent = rows.reduce((n, r) => n + r.pending, 0);
-    const unlinked = unlinkedGradingItems().filter(i => i.status === 'queue').length;
     const total = allGradingItems.filter(i => i.status === 'queue').length;
-    expect(perStudent + unlinked).toBe(total);
+    expect(perStudent).toBe(total);
     expect(total).toBeGreaterThan(0);
   });
 
@@ -113,7 +99,7 @@ describe('buildGradingRoster — 등록 학생 전체', () => {
   it('확정한 채점을 얹으면 그 학생의 대기가 줄어든다', () => {
     const target = allGradingItems.find(i => i.status === 'queue')!;
     const before = buildGradingRoster(allGradingItems)
-      .find(r => r.student.id === rosterIdOfGradingStudent(target.studentId))!;
+      .find(r => r.student.id === target.studentId)!;
     const after = buildGradingRoster(
       allGradingItems.map(i => (i.id === target.id ? { ...i, status: 'approved' as const } : i)),
     ).find(r => r.student.id === before.student.id)!;
@@ -125,8 +111,7 @@ describe('buildGradingRoster — 등록 학생 전체', () => {
 
 describe('gradingItemsOfStudent — 학생 상세가 읽는다', () => {
   it('그 학생 앞으로 온 항목만 돌려준다', () => {
-    const items = gradingItemsOfStudent('m09');
-    expect(items.map(i => i.id)).toEqual([overriddenSample.id]);
+    expect(gradingItemsOfStudent('m09').map(i => i.id)).toEqual([overriddenSample.id]);
   });
 
   it('채점 항목이 없는 학생은 빈 배열', () => {

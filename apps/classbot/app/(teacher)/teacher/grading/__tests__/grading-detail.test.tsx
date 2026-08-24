@@ -8,15 +8,11 @@ import { GradingDetail } from '../[id]/grading-detail';
 import { GradingQueueList } from '../grading-queue';
 import { useGradingStore } from '@/lib/store/grading';
 import { gradingQueue, overriddenSample, type GradingItem } from '@/lib/mock';
-import { gradingStudentName } from '@/lib/mock/classbot-grading-roster';
 
-const item: GradingItem = gradingQueue[0]; // gr_001 — 시드 status 'queue'
+const item: GradingItem = gradingQueue[0]; // gr_001 — m13 신윤서 · 시드 status 'queue'
 const items: GradingItem[] = [...gradingQueue, overriddenSample];
-/**
- * 화면에 적히는 이름은 등록 학생 명단 쪽(성 포함)이다 — 채점 시드는 이름만 적혀 있어
- * 학생 목록·상세와 갈린다. spec 11 § 7.1.
- */
-const studentName = gradingStudentName(item);
+/** 시드 이름이 곧 학생 명단 이름이다 — 두 모집단을 하나로 맞췄다 (spec 11 § 7.1). */
+const studentName = item.studentName;
 
 function renderDetail() {
   return render(<GradingDetail item={item} history={[]} prevId={null} nextId={null} />);

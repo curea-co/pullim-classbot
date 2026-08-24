@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { AlertCircle, ChevronRight, FileText, Calculator, MessageSquare } from 'lucide-react';
 import type { GradingItem } from '@/lib/mock';
-import { gradingStudentName } from '@/lib/mock/classbot-grading-roster';
 import { cn } from '@/lib/utils';
 
 const typeMeta = {
@@ -20,13 +19,9 @@ const statusMeta = {
 /**
  * 채점 큐 한 행 — AI 신뢰도 + 위기 인디케이터 포함.
  * spec 11 § 3.3.1.
- *
- * 이름은 **등록 학생 명단 쪽**(성 포함)으로 적는다 — 채점 시드는 이름만 적혀 있어(`윤서`)
- * 학생 목록·상세(`신윤서`)와 갈린다. 같은 사람이 화면마다 다른 이름으로 보이면 안 된다.
- * 잇는 규칙과 근거는 `lib/mock/classbot-grading-roster.ts` · spec 11 § 7.1.
  */
 export function GradingRow({ item }: { item: GradingItem }) {
-  const studentName = gradingStudentName(item);
+  const studentName = item.studentName;
   const t = typeMeta[item.type];
   const TypeIcon = t.icon;
   const status = statusMeta[item.status];

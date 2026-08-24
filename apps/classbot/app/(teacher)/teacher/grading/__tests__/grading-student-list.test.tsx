@@ -1,9 +1,7 @@
 import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
 import { GradingStudentList } from '../grading-student-list';
 import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
-import {
-  allGradingItems, buildGradingRoster, rosterIdOfGradingStudent, unlinkedGradingItems,
-} from '@/lib/mock/classbot-grading-roster';
+import { allGradingItems, buildGradingRoster } from '@/lib/mock/classbot-grading-roster';
 import { useGradingStore } from '@/lib/store/grading';
 
 /**
@@ -71,9 +69,8 @@ describe('배지가 요약을 말한다', () => {
 
   it('교사가 확정하면 그 학생의 대기 배지가 줄어든다', () => {
     const target = allGradingItems.find(i => i.status === 'queue')!;
-    const studentId = rosterIdOfGradingStudent(target.studentId)!;
-    const student = monitoredRoster.find(s => s.id === studentId)!;
-    const before = buildGradingRoster().find(r => r.student.id === studentId)!;
+    const student = monitoredRoster.find(s => s.id === target.studentId)!;
+    const before = buildGradingRoster().find(r => r.student.id === target.studentId)!;
 
     const { rerender } = renderList();
     expect(
@@ -146,23 +143,16 @@ describe('거르개 — 큐만 보고 싶을 때', () => {
   });
 });
 
-describe('명단에 이어지지 않은 채점', () => {
-  it('감추지 않고 건수를 적어 큐로 가는 길을 준다', () => {
+describe('채점 항목은 그 학생 줄에 붙는다', () => {
+  it('채점이 있는 학생 수만큼만 대기 배지가 붙는다 — 어느 항목도 새지 않는다', () => {
     renderList();
-    const unlinked = unlinkedGradingItems(allGradingItems).filter(i => i.status === 'queue').length;
-    expect(unlinked).toBeGreaterThan(0);
+    const withGrading = buildGradingRoster().filter(r => r.items.length > 0);
+    // 시드 7건이 7명에게 나뉘어 붙는다. 한 명도 빠지거나 겹치지 않는다.
+    expect(withGrading).toHaveLength(allGradingItems.length);
 
-    // 줄 배지 합계와 상단 KPI 「대기」가 말없이 어긋나지 않게 이 문장이 그 차이를 말한다.
-    expect(screen.getByText(`${unlinked}건`)).toBeTruthy();
-    const link = screen.getByRole('link', { name: '채점 대기 큐에서 보기' });
-    expect(link.getAttribute('href')).toBe('/teacher/grading?view=queue');
-  });
-
-  it('이어지지 않은 학생은 어느 줄에도 붙지 않는다', () => {
-    renderList();
-    for (const item of unlinkedGradingItems(allGradingItems)) {
-      // 시드 이름(민준·하윤)은 명단에 없는 이름이라 줄에 뜨면 안 된다.
-      expect(within(roster()).queryByText(item.studentName)).toBeNull();
+    for (const row of withGrading) {
+      const cell = screen.getByText(row.student.name).closest('a');
+      expect(cell).not.toBeNull();
     }
   });
 });

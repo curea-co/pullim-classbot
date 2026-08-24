@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
-import { gradingStudentName, studentHrefOfGrading } from '@/lib/mock/classbot-grading-roster';
+import { studentHrefOfGrading } from '@/lib/mock/classbot-grading-roster';
 import {
   useGradingStore,
   useGradingDecision,
@@ -108,8 +108,7 @@ export function GradingDetail({
     });
   }
 
-  // 이름은 등록 학생 명단 쪽(성 포함)으로 — 채점 시드 이름과 학생 상세 이름이 갈리지 않게.
-  const studentName = gradingStudentName(item);
+  const studentName = item.studentName;
   // 검수하다 건너간 것이라 되돌아갈 곳은 학생 전체 탭이 아니라 **큐**다.
   const studentHref = studentHrefOfGrading(item, 'grading-queue');
 
@@ -126,15 +125,13 @@ export function GradingDetail({
         </Link>
         <div className="flex items-center gap-1">
           {/* 점수 옆에서 바로 「무슨 대화를 했는지」로 건너간다 — 상세는 이미 있는 화면이다 */}
-          {studentHref ? (
-            <Link
-              href={studentHref}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mr-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
-            >
-              <UserRound className="h-3 w-3" />
-              대화 기록
-            </Link>
-          ) : null}
+          <Link
+            href={studentHref}
+            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mr-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+          >
+            <UserRound className="h-3 w-3" />
+            대화 기록
+          </Link>
           {prevId ? (
             <Link
               href={`/teacher/grading/${prevId}`}
