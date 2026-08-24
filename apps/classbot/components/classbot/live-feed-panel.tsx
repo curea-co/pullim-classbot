@@ -40,7 +40,7 @@ export function LiveFeedPanel() {
             <li key={q.id}>
               <article className={cn(
                 'rounded-xl border p-3 transition-colors',
-                q.shared ? 'bg-pullim-lemon/15 border-pullim-lemon-ink/30' : 'bg-pullim-slate-50',
+                q.shared ? 'bg-pullim-blue-50 border-pullim-blue-300' : 'bg-pullim-slate-50',
               )}>
                 <header className="mb-1.5 flex items-center gap-1.5 text-micro">
                   <span className="bg-pullim-blue-600 inline-flex h-5 w-5 items-center justify-center rounded-full text-micro font-bold text-white">
@@ -80,7 +80,7 @@ export function LiveFeedPanel() {
                     className={cn(
                       'rounded-full text-micro',
                       q.shared
-                        ? 'bg-pullim-lemon-ink text-pullim-lemon border-pullim-lemon-ink hover:bg-pullim-lemon-ink/90 hover:text-pullim-lemon'
+                        ? 'bg-pullim-blue-700 border-pullim-blue-700 text-white hover:bg-pullim-blue-800 hover:text-white'
                         : 'bg-white border-pullim-slate-200 text-pullim-slate-700 hover:border-pullim-blue-300',
                     )}
                   >

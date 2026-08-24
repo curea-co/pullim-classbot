@@ -99,8 +99,8 @@ export function QuizRunner({
             let optionClass = '';
             if (checked) {
               if (isCorrectOption) {
-                // 정답 옵션: 항상 초록으로 표시
-                optionClass = 'border-pullim-success bg-pullim-success-bg text-pullim-success';
+                // 정답 옵션: 브랜드 블루 + 체크 아이콘 ([08 § 1.3] 정답·완료는 blue-500/600)
+                optionClass = 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700';
               } else if (isSelected && !isCorrectOption) {
                 // 틀린 선택: 빨간색으로 표시
                 optionClass = 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger';
@@ -149,20 +149,20 @@ export function QuizRunner({
             className={cn(
               'rounded-2xl border p-4',
               isCorrect
-                ? 'border-pullim-success/30 bg-pullim-success-bg'
+                ? 'border-pullim-blue-200 bg-pullim-blue-50'
                 : 'border-pullim-danger/30 bg-pullim-danger-bg',
             )}
           >
             <div className="flex items-center gap-1.5 mb-1.5">
               {isCorrect ? (
-                <CheckCircle2 className="h-4 w-4 text-pullim-success shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-pullim-blue-600 shrink-0" />
               ) : (
                 <XCircle className="h-4 w-4 text-pullim-danger shrink-0" />
               )}
               <span
                 className={cn(
                   'text-sm font-bold',
-                  isCorrect ? 'text-pullim-success' : 'text-pullim-danger',
+                  isCorrect ? 'text-pullim-blue-700' : 'text-pullim-danger',
                 )}
               >
                 {isCorrect ? '정답이에요!' : '아쉽지만 틀렸어요.'}

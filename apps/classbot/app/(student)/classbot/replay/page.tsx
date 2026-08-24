@@ -147,13 +147,18 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
       href={`/classbot/replay/${r.id}`}
       className="from-pullim-slate-900 to-pullim-blue-900 group relative block overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl transition-transform active:scale-[0.99]"
     >
+      {/*
+        [04 § 9.10.2] 1순위 카드 = 「navy + lime progress + 큰 CTA」 + **hover 시 lime glow**.
+        glow 를 상시로 켜 두면 이 화면 레몬이 3곳이 되어 [08 § 1.6] 한도를 넘는다 —
+        명세 표기대로 hover 에서만 띄운다. 상시는 progress·CTA 두 곳.
+      */}
       <div
         aria-hidden
-        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
+        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-0 blur-3xl transition-opacity duration-200 group-hover:opacity-25 motion-reduce:transition-none"
         style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
       />
       <div className="relative">
-        <div className="text-pullim-lemon flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+        <div className="flex items-center gap-1 text-micro font-bold tracking-wider text-white/70 uppercase">
           <RotateCw className="h-3 w-3" />
           이어 보기 · {r.botName}
         </div>
@@ -189,7 +194,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
 function LatestHero({ replay: r }: { replay: Replay }) {
   return (
     <section className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl">
-      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+      <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
         방금 끝난 수업 · {r.botName}
       </div>
       <h2 className="mt-1 text-lg font-bold tracking-tight">{r.title}</h2>
@@ -205,7 +210,7 @@ function LatestHero({ replay: r }: { replay: Replay }) {
 
       <Link
         href={`/classbot/replay/${r.id}`}
-        className="bg-pullim-lemon text-pullim-lemon-ink mt-4 inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-sm font-bold"
+        className="text-pullim-blue-700 mt-4 inline-flex items-center gap-1 rounded-lg bg-white px-3.5 py-2 text-sm font-bold"
       >
         <Play className="h-3.5 w-3.5 fill-current" />
         처음부터 재생

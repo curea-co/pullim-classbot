@@ -2,6 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
+import { Check } from 'lucide-react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
 import { getUnitContent } from '@/lib/mock/classbot-learning-content';
 import { useUnitProgress, useSelfLearningStore } from '@/lib/store/self-learning';
@@ -113,7 +114,7 @@ export default function UnitPage({
   function renderCheckStep() {
     if (isDone) {
       return (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-pullim-success/30 bg-pullim-success-bg px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-pullim-blue-200 bg-pullim-blue-50 px-6 py-10 text-center">
           <span className="text-4xl" aria-hidden>🎉</span>
           <p className="text-pullim-slate-900 text-base font-bold">단원 완료!</p>
           <p className="text-pullim-slate-500 text-sm">
@@ -194,7 +195,7 @@ export default function UnitPage({
               )}
             >
               {isDoneStep && !isActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-pullim-success" aria-hidden />
+                <Check className="h-3 w-3 text-pullim-blue-600" aria-hidden strokeWidth={3} />
               )}
               {label}
             </button>

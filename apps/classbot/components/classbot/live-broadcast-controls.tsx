@@ -158,7 +158,7 @@ function ModerationQueue({ botId }: { botId: string }) {
       <div className="text-pullim-slate-400 mb-1.5 flex items-center gap-1 text-micro font-bold uppercase tracking-wider">
         <MessageCircle className="h-3 w-3" />
         학생 질문 큐
-        <span className="text-pullim-lemon ml-1">{pendings.length}건 대기</span>
+        <span className="ml-1 font-bold text-white">{pendings.length}건 대기</span>
       </div>
 
       {pendings.length === 0 && handled.length === 0 && (
@@ -169,9 +169,9 @@ function ModerationQueue({ botId }: { botId: string }) {
 
       <ul className="space-y-1.5">
         {pendings.map(q => (
-          <li key={q.id} className="bg-pullim-lemon/10 border-pullim-lemon/40 rounded-lg border p-2 text-2xs">
+          <li key={q.id} className="rounded-lg border border-white/30 bg-white/10 p-2 text-2xs">
             <div className="text-white font-bold">
-              <span className="text-pullim-lemon mr-1">{q.studentName}</span>
+              <span className="text-pullim-blue-200 mr-1">{q.studentName}</span>
               {q.text}
             </div>
             <div className="mt-1.5 flex gap-1.5">

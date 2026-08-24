@@ -120,7 +120,7 @@ export function SolveWorkspace({
         <span className="text-pullim-slate-500">·</span>
         <span className="text-pullim-slate-300 font-bold">{assignment.title}</span>
         <span className="text-pullim-slate-500">·</span>
-        <span className="text-pullim-lemon font-mono font-bold">{safeStep}/{questions.length}</span>
+        <span className="font-mono font-bold text-white">{safeStep}/{questions.length}</span>
         <div className="ml-auto flex items-center gap-2">
           {savedAt && (
             <span className="text-pullim-slate-400 inline-flex items-center gap-0.5 font-mono">

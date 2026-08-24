@@ -18,8 +18,9 @@ const statusMeta = {
   away:     { label: '미참여', dot: 'bg-pullim-slate-200' },
 } as const;
 
+/** 세 경보 모두 **아이콘 모양 + 글자**가 뜻을 말한다. 색은 셋 다 중립으로 둔다. */
 const alertMeta = {
-  burnout:    { label: '번아웃 위험', icon: AlertTriangle, color: 'text-pullim-danger' },
+  burnout:    { label: '번아웃 위험', icon: AlertTriangle, color: 'text-pullim-slate-700' },
   emotion:    { label: '감정 주의',   icon: Heart,         color: 'text-pullim-slate-500' },
   attendance: { label: '결석',       icon: AlertTriangle, color: 'text-pullim-slate-500' },
 } as const;

@@ -98,7 +98,7 @@ export function OnboardingTemplate({
       <header className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white shadow-xl sm:p-8">
         <div
           aria-hidden
-          className="absolute -top-20 -right-20 h-56 w-56 rounded-full opacity-30 blur-3xl glow-lemon"
+          className="bg-pullim-blue-400 absolute -top-20 -right-20 h-56 w-56 rounded-full opacity-30 blur-3xl"
         />
         <div className="relative">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
@@ -106,7 +106,7 @@ export function OnboardingTemplate({
               <Icon className="h-3 w-3" />
               소개
             </span>
-            <span className="text-pullim-lemon inline-flex items-center gap-1">
+            <span className="text-pullim-blue-100 inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {estimatedMin}분 가이드
             </span>
@@ -134,7 +134,7 @@ export function OnboardingTemplate({
       <section className="from-pullim-blue-700 via-pullim-blue-600 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br px-6 py-8 text-center text-white shadow-xl sm:px-10 sm:py-12">
         <div
           aria-hidden
-          className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full opacity-25 blur-3xl glow-lemon"
+          className="bg-pullim-blue-400 absolute -bottom-16 -left-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
         />
         <div className="relative">
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{finalHeading}</h2>
@@ -144,7 +144,7 @@ export function OnboardingTemplate({
           <Link
             href={finalCta.href}
             aria-label={finalCta.ariaLabel}
-            className="text-pullim-blue-700 focus-visible:ring-pullim-lemon/60 mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 py-3 text-base font-bold shadow-lg transition-transform hover:scale-[1.02] focus-visible:ring-4"
+            className="bg-pullim-lemon text-pullim-lemon-ink mt-5 inline-flex min-h-12 items-center gap-2 rounded-full px-6 py-3 text-base font-bold shadow-lg transition-transform hover:scale-[1.02] outline-none focus-visible:ring-4 focus-visible:ring-white/60"
           >
             {finalCta.label}
             <ArrowRight className="h-5 w-5" />
@@ -237,7 +237,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
     <article
       className={cn(
         'bg-card relative rounded-2xl border p-4 transition-all sm:p-5',
-        step.signature && 'ring-pullim-lemon-ink/30 ring-2',
+        step.signature && 'ring-pullim-slate-300 ring-2',
       )}
     >
       <div className={cn(
@@ -254,7 +254,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
               className={cn(
                 'relative z-10 flex h-10 w-10 items-center justify-center rounded-full font-mono text-base font-bold',
                 step.signature
-                  ? 'bg-pullim-lemon text-pullim-lemon-ink'
+                  ? 'bg-pullim-slate-900 text-white'
                   : 'bg-pullim-blue-600 text-white',
               )}
             >
@@ -276,7 +276,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
                 {step.title}
               </h2>
               {step.signature && (
-                <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold">
+                <span className="text-pullim-slate-800 ring-pullim-slate-400 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold ring-1 ring-inset">
                   <Star className="h-2.5 w-2.5 fill-current" aria-hidden />
                   시그니처
                 </span>

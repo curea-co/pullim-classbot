@@ -59,7 +59,10 @@ const typeOptions: { value: QuestionType; label: string }[] = [
   { value: 'essay', label: '서술형' },
 ];
 
-/** 채점 방식 배지 — 라벨·색은 gradingModeOf 결과에만 달려 있다(유형과 어긋날 수 없음). */
+/**
+ * 채점 방식 배지 — 라벨·색은 gradingModeOf 결과에만 달려 있다(유형과 어긋날 수 없음).
+ * 「선생님이 채점」은 경고가 아니라 방식이라 앰버를 쓰지 않는다 — 아이콘(연필)과 글자로 갈린다.
+ */
 const gradingMeta: Record<GradingMode, { label: string; note: string; icon: LucideIcon; className: string }> = {
   auto: {
     label: '자동 채점',
@@ -71,7 +74,7 @@ const gradingMeta: Record<GradingMode, { label: string; note: string; icon: Luci
     label: '선생님이 채점',
     note: '낸 뒤에 선생님이 직접 봐요',
     icon: Pencil,
-    className: 'bg-pullim-warn-bg text-pullim-warn',
+    className: 'bg-pullim-slate-100 text-pullim-slate-700',
   },
 };
 
@@ -511,7 +514,7 @@ function RubricRows({
             기준 더하기
           </Button>
         )}
-        <span className={cn('ml-auto font-mono text-micro', matched ? 'text-pullim-slate-500' : 'text-pullim-warn font-bold')}>
+        <span className={cn('ml-auto font-mono text-micro', matched ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}>
           기준 배점 {weightSum} / 문항 배점 {question.points}점
         </span>
       </div>
