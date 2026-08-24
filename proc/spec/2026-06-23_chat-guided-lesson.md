@@ -83,7 +83,7 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 ## 5. 대화 흐름 (봇 주도)
 
 - 초기 메시지: **인사(기존 `composeFirstGreeting` 유지)** + **수업 오프너 턴**(`lesson-intro` kind: topic + 💡keyCallout).
-- 빠른칩 = 흐름 내비:
+- 빠른칩 = 흐름 내비. **칩 문구는 학생이 봇에게 하는 말**이라 [07 § 6.6](07-branding.md) 「버튼은 단어로」 의 대상이 아니다 — 문장 그대로 둔다:
   - 기본: `[개념 더보기] [예제 풀어줘] [퀴즈 내줘] [다음 개념 →]`
   - 퀴즈 직후: `[해설 보기] [다음 개념 →]`
   - 마지막 개념/요약 후: `[오늘 정리] [시험 대비]`
@@ -113,7 +113,7 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 - 신규 `ConceptModal` (`components/classbot/concept-modal.tsx`, shadcn `ui/dialog`):
   - 섹션: **핵심 개념(detail) · 학습 팁 · 핵심 요소 · 예제 문항**.
   - self-contained `<ConceptModal concept={c}>{trigger}</ConceptModal>` — 어디서든 동일 모달.
-- 트리거: 인라인 학습카드 항목 / 우측 레일 항목 / 대화 속 `concept` 카드의 "자세히 보기".
+- 트리거: 인라인 학습카드 항목 / 우측 레일 항목 / 대화 속 `concept` 카드의 "자세히 보기" — 종전 괄호 부연("(학습 팁·예제 문항)")은 라벨에서 빼고 `aria-label` 로 옮긴다 ([07 § 6.6](07-branding.md), **구현 전**).
 
 ## 9. 색 / 테스트 가드
 
@@ -142,7 +142,7 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 
 - `LessonQuiz` 확장: `hints[]`(방향→단계→거의답), `optionFeedback[]`(보기별 오답 처방), `relatedConceptId`.
 - **단계적 힌트 사다리**: 제출 전 "힌트" 버튼이 한 단계씩 공개. 봇 `scope` L레벨이 공개 깊이 제한 — L3=1 / L4=2 / L5=전부. "답은 직접, 길은 알려준다" 페르소나 + scope 시스템과 결합.
-- **오답 처방**: 틀린 보기가 왜 함정인지(distractor 피드백) + 처방 액션 — "개념 다시 보기"(lesson-action 으로 개념 상세를 챗에 주입) / "다시 풀기"(리셋). 정답 시 "다음 개념 →".
+- **오답 처방**: 틀린 보기가 왜 함정인지(distractor 피드백) + 처방 액션 — "개념 다시 보기"(lesson-action 으로 개념 상세를 챗에 주입) / "다시 풀기"(리셋). 정답 시 "다음 개념 →". 세 라벨 모두 [07 § 6.6.2(6)](07-branding.md) 「떼면 뜻이 무너지는 자리」라 줄이지 않는다.
 
 ## 11. 비목표 (YAGNI)
 
