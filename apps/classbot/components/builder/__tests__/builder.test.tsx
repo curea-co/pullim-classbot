@@ -306,6 +306,15 @@ describe('만든 뒤 화면', () => {
     expect(count()).toBe('3');
   });
 
+  it('「봇 운영 화면으로」는 ?deployed= 를 달고 보낸다 — 배너가 이 값을 읽는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    // 운영 화면의 「방금 배포된 봇」 배너가 이 쿼리를 읽는다. 맨 링크로 보내면 배너가 죽는다.
+    expect(screen.getByRole('link', { name: '봇 운영 화면으로' }))
+      .toHaveAttribute('href', `/teacher/classbot?deployed=${encodeURIComponent('과학봇')}`);
+  });
+
   it('「봇 하나 더 만들기」는 앞 봇의 값을 데려오지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
