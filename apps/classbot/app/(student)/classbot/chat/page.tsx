@@ -102,7 +102,16 @@ type Turn = {
 type ProblemCardPayload = {
   problemNumber: string;
   title: string;
+  /** 보이는 글자 — 단어로 ([07 § 6.6](../../../../../proc/spec/07-branding.md)) */
   ctaLabel: string;
+  /**
+   * 낭독기 이름 — 줄이며 잃은 뜻을 여기 남긴다 (§ 6.6.2(3)).
+   * 카드가 여럿 쌓이면 보이는 글자는 전부 「학습」이라 이것 없이는 서로 구분되지 않는다.
+   *
+   * **선택**이다 — BE 가 내려주는 카드(`lib/api/chat-cards.ts` § 1.6 계약)에는 이 필드가
+   * 없다. 없으면 렌더러가 카드 제목으로 이름을 만든다. 계약을 넓히지 않고도 카드끼리 구분된다.
+   */
+  ctaAriaLabel?: string;
   ctaHref: string;
 };
 
@@ -915,6 +924,8 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
         title: pq.title,
         // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
         ctaLabel: '학습',
+        // 보이는 글자는 「학습」 하나뿐이라 낭독기에는 무엇을 여는지 실어 보낸다
+        ctaAriaLabel: `${pq.title} 학습하러 가기`,
         ctaHref: `/classbot/learn/${botId}`,
       } satisfies ProblemCardPayload,
     };
@@ -1376,7 +1387,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // problem-card — 좌측 라이너 + 문제번호 + CTA
   if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
-    const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
+    const { problemNumber, title, ctaLabel, ctaAriaLabel, ctaHref } = turn.payload as ProblemCardPayload;
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: 'var(--color-pullim-lemon)' }}>
         <RichText text={turn.text} />
@@ -1387,6 +1398,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
           <Link
             href={ctaHref}
+            aria-label={ctaAriaLabel ?? `${title} · ${ctaLabel}`}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-bold text-white"
           >
             {ctaLabel} →
