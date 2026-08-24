@@ -113,7 +113,7 @@ export default function ClassbotOnboardingPage() {
             '내가 봇과 한 모든 활동은 기록돼요',
             '자주 틀린 문제는 선생님이 다음 과제에 다시 넣어 줘요',
           ],
-          cta: { label: '물어보기', href: '/classbot/chat' },
+          cta: { label: '물어보기', ariaLabel: '지금 봇에게 물어보기', href: '/classbot/chat' },
           screenshot: (
             <MockBrowser dark label="teacher/classbot — 실시간 피드">
               <ul className="space-y-1.5">

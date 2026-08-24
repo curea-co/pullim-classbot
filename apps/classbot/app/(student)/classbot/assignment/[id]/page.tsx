@@ -86,11 +86,17 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     isSubmitted ? '결과'
     : isInProgress ? `이어서 풀기 (${a.completedCount + 1}/${a.questionCount})`
     : '시작';
+  // 보이는 글자는 단어, 잃은 뜻은 낭독기 이름에 ([07 § 6.6.2(3)])
+  const ctaAria =
+    isSubmitted ? '채점 결과 보기'
+    : isInProgress ? `이어서 풀기 — ${a.completedCount + 1}번째 문항부터`
+    : '지금 시작하기';
 
   const rail = (
     <div className="max-lg:sticky max-lg:bottom-2 max-lg:z-10 space-y-3">
       <Link
         href={ctaHref}
+        aria-label={ctaAria}
         data-testid="assignment-start-cta"
         className={cn(
           'inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-colors',
@@ -110,6 +116,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       {!isExam && (
       <Link
         href={`/classbot/assignment/${a.id}/chat`}
+        aria-label="봇과 같이 풀기"
         data-testid="assignment-chat-cta"
         className="bg-card hover:bg-pullim-slate-50/50 flex w-full items-center gap-3 rounded-2xl border p-3 transition-colors"
       >

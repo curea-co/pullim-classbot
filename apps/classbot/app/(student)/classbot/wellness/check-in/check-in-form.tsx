@@ -96,6 +96,7 @@ export function CheckInForm() {
           <button
             type="button"
             onClick={() => router.push('/classbot')}
+            aria-label="클래스봇 홈으로 가기"
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"
           >
             홈

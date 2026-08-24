@@ -12,8 +12,8 @@ export type OnboardingStep = {
   description: string;
   /** 선택적 bullet 포인트 */
   bullets?: string[];
-  /** 선택적 단계 CTA */
-  cta?: { label: string; href: string };
+  /** 선택적 단계 CTA. `label` 은 보이는 글자(단어), 줄이며 잃은 뜻은 `ariaLabel` 로 ([07 § 6.6.2(3)]) */
+  cta?: { label: string; href: string; ariaLabel?: string };
   /** 시그니처 단계 — 강조 */
   signature?: boolean;
   /** 화면 미리보기 (실제 컴포넌트 또는 간이 mockup) */
@@ -300,6 +300,7 @@ function StepCard({ step, index, total }: { step: OnboardingStep; index: number;
             {step.cta && (
               <Link
                 href={step.cta.href}
+                aria-label={step.cta.ariaLabel}
                 className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 focus-visible:ring-pullim-blue-400/50 mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-colors focus-visible:ring-4"
               >
                 {step.cta.label}

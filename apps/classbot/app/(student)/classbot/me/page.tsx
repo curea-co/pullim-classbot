@@ -147,6 +147,7 @@ export default function MyProfilePage() {
               variant="outline"
               size="sm"
               note="풀림 통합 계정 「내 계정」 연결"
+              aria-label="풀림 계정으로 가기"
             >
               풀림 계정
             </ComingSoonButton>

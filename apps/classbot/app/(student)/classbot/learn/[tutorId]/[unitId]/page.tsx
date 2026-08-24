@@ -121,6 +121,7 @@ export default function UnitPage({
           </p>
           <Link
             href={`/classbot/learn/${tutorId}`}
+            aria-label="커리큘럼으로 가기"
             className="mt-1 inline-flex min-h-[44px] items-center rounded-xl bg-pullim-blue-600 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-pullim-blue-700 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
           >
             커리큘럼
