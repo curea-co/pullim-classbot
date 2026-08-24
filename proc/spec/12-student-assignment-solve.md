@@ -96,7 +96,7 @@
 | 메타 | 단원 from-to · 문항 수 · 난이도 · 예상 소요 시간 · 성취 코드 |
 | 봇 한 마디 | `reasonHint` (bot-prescribed) 또는 교사 메시지 (teacher-assigned) |
 | 시험 모드 경고 | `mode === 'exam'`이면 "시작하면 봇 도움 차단 · 일시정지 불가" 경고 모달 |
-| CTA | `[시작]` (`state === 'todo'`) / `[이어서 풀기 (n/N)]` (`in-progress`) / `[결과]` (`submitted`) — 버튼은 단어로 ([07 § 6.6](07-branding.md), 2026-08-25 이름 변경) |
+| CTA | `[시작]` (`state === 'todo'`) / `[이어서 풀기 (n/N)]` (`in-progress`) / `[결과]` (`submitted`) — 버튼은 단어로 ([07 § 6.6](07-branding.md), 2026-08-24 이름 변경) |
 | 사이드 — 비슷한 과제 | 같은 봇의 과거 과제 추세 (정답률) |
 
 #### 3.3.3 풀이 워크스페이스 (`/classbot/assignment/[id]/solve`)

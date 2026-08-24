@@ -113,7 +113,7 @@ getBotLesson(botId): BotLesson  // 5봇 + fallback
 - 신규 `ConceptModal` (`components/classbot/concept-modal.tsx`, shadcn `ui/dialog`):
   - 섹션: **핵심 개념(detail) · 학습 팁 · 핵심 요소 · 예제 문항**.
   - self-contained `<ConceptModal concept={c}>{trigger}</ConceptModal>` — 어디서든 동일 모달.
-- 트리거: 인라인 학습카드 항목 / 우측 레일 항목 / 대화 속 `concept` 카드의 "자세히" (`aria-label="자세히 보기 — 학습 팁·예제 문항"`, [07 § 6.6](07-branding.md)).
+- 트리거: 인라인 학습카드 항목 / 우측 레일 항목 / 대화 속 `concept` 카드의 "자세히 보기" — 종전 괄호 부연("(학습 팁·예제 문항)")은 라벨에서 빼고 `aria-label` 로 옮겼다 ([07 § 6.6](07-branding.md)).
 
 ## 9. 색 / 테스트 가드
 
