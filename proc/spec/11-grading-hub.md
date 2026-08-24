@@ -452,7 +452,27 @@ ClassBot (1) ── (N) RubricLearningProposal
 
 시드를 새로 넣을 때 명단 밖 학생을 쓰면 여기서 깨져야 한다.
 
-#### 남는 것 — BE 연동
+### 7.2 정렬 범위 — 무엇을 옮기고 무엇을 두는가
+
+**옮기는 것은 채점 3종뿐이다**: `gradingQueue` · `gradingHistory` · `overriddenSample`.
+
+`classRoster`(`sN`) 세계는 그대로 둔다 — 학생 채팅(`chatThreads`)·실시간 피드(`liveFeed`)·
+과제 발사 대상·리마인드·감정 체크인(`emotionCheckIns`)·웰빙 스냅샷이 그 id 로 키잉돼 있고,
+그 화면들은 이 변경의 범위가 아니다.
+
+#### 끊기는 연결이 있는가 — 소스로 확인했다
+
+| 걱정 | 소스 확인 | 결론 |
+|---|---|---|
+| 과제 제출 → 채점 | 제출은 `useAssignmentStore` 에 쌓이고 `gradingQueue` 는 정적 시드다. **둘을 잇는 코드 경로가 없다** — 새 제출이 큐에 뜨는 것은 [14 § 5.6](14-teacher-assignment-workspace.md) 이 이미 **v1** 으로 적어 둔 미구현이다 | 원래 없던 연결이라 끊기지 않는다 |
+| 위기 게이트 → 웰빙·감정 체크인 | 위기 게이트(`CrisisGate`)는 **학생 이름 문자열만** 받는다. `GradingItem.studentId` 와 `emotionCheckIns.studentId` 를 잇는 코드가 없고, 감정 데이터를 읽는 `CrisisInterventionPanel` 은 어느 화면도 쓰지 않는다 | 원래 없던 연결이라 끊기지 않는다 |
+| 채점 상세 「이 학생 최근 채점」 | `gradingHistory.filter(h => h.studentId === item.studentId)` — **함께 옮기므로 그대로 붙는다** | 유지된다 |
+
+#### 남는 것 — 나중에 실제로 이을 때
+
+[13 § 6.2](13-reports-and-emotion-checkin.md) 의 **위기 게이트 → 3자 알림**을 실제로 배선할 때는
+감정 체크인도 같은 명단으로 정렬해야 한다. 지금은 그 연결이 코드에 없어서 이 변경과 무관하지만,
+배선하는 작업이 **감정 시드 정렬을 함께 들고 가야 한다**는 것을 여기 적어 둔다.
 
 BE 가 `enrollments`/`studentId` 로 한 명단을 내려주면 `monitoredRoster` 도 임시 FE 시드 자리를 넘긴다.
 화면은 명단을 인자로 받으므로(`buildGradingRoster(items, roster)`) 원천만 갈아 끼우면 된다.
