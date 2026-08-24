@@ -75,7 +75,7 @@
    └─ /teacher/grading?filter=…     ← URL 상태 (status, type, bot)
 ```
 
-학생 영역에 채점 진입 없음 — 학생은 "결과" CTA로 [학생 과제 풀이 결과 페이지](12-student-assignment-solve.md § 3.2)에서 최종 점수만 확인.
+학생 영역에 채점 진입 없음 — 학생은 "결과" CTA(구현 전 — 현행 "결과 보기", [07 § 6.6](07-branding.md))로 [학생 과제 풀이 결과 페이지](12-student-assignment-solve.md § 3.2)에서 최종 점수만 확인.
 
 ### 3.3 Screen Spec
 
