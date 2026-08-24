@@ -49,6 +49,12 @@ export function Yard1Intro({
   subjectError: boolean;
   nameError: boolean;
 }) {
+  /** 이미 고른 과목을 다시 누르는 것은 바꾸는 게 아니다 — 올린 자료를 지우지 않는다. */
+  function selectSubject(id: SubjectId) {
+    if (draft.subject === id) return;
+    onPick('subject', pickSubject(draft, id));
+  }
+
   return (
     <div className="space-y-4">
       <section className="bg-card rounded-2xl border p-4 lg:p-5">
@@ -102,7 +108,7 @@ export function Yard1Intro({
                   <RadioCard
                     key={id}
                     active={draft.subject === id}
-                    onSelect={() => onPick('subject', pickSubject(draft, id))}
+                    onSelect={() => selectSubject(id)}
                     title={meta.label}
                     description={meta.botName}
                     icon={
@@ -192,9 +198,12 @@ export function Yard1Intro({
  * 자료를 그대로 두면 국어봇이 기후도 필기를 읽고 있는 화면이 된다.
  */
 /**
- * 과목을 바꾸면 올린 자료를 비운다 — 지난 과목의 수업 자료는 새 과목에서 뜻이 없다.
+ * 과목을 **바꾸면** 올린 자료를 비운다 — 지난 과목의 수업 자료는 새 과목에서 뜻이 없다.
  * 자료를 갈아치우면서 `own.files` 를 그대로 두면 교사가 고른 적 없는 자료가 계속
- * 「내가 정함」으로 남아 항목 옆 표시와 「채워진 것」이 어긋난다. `own.files` 도 함께 되돌린다.
+ * 「내가 정함」으로 남아 항목 옆 표시와 「채워진 것」이 어긋난다(`pick()` 의 `invalidatedBy`).
+ *
+ * 이미 고른 과목을 다시 누르는 것은 **바꾸는 게 아니다.** 그때도 비우면 교사가 올린 자료가
+ * 까닭 없이 사라진다 — 그래서 값이 같으면 아무 일도 하지 않는다.
  */
 function pickSubject(draft: BotDraft, subject: SubjectId): Partial<BotDraft> {
   return { subject, files: [] };

@@ -354,6 +354,20 @@ describe('만든 뒤 화면', () => {
     expect(marks('files').beside).not.toContain('내가 정함');
   });
 
+  it('고른 과목을 다시 눌러도 올린 자료가 지워지지 않는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
+    const withFiles = count();
+
+    // 같은 과목을 다시 누르는 것은 바꾸는 게 아니다 — 까닭 없이 자료가 사라지면 안 된다
+    fireEvent.click(screen.getByRole('button', { name: '과목 고치기' }));
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    expect(screen.getByTestId('summary-row-files').textContent).toContain('내가 정함');
+    expect(count()).toBe(withFiles);
+  });
+
   it('「봇 운영 화면으로」는 ?created= 와 ?rooms= 를 달고 보낸다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
