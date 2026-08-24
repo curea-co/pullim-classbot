@@ -74,7 +74,7 @@
 │  │  └─ /classbot/assignment/[id]/result  ← 신규 · 제출 결과·봇 피드백
 ```
 
-**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[지금 시작하기]` CTA만 `solveHref` → 새 라우트로 리다이렉트.
+**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[시작]` CTA(구현 전 — 현행 `[지금 시작하기]`, § 3.3)만 `solveHref` → 새 라우트로 리다이렉트.
 
 ### 3.3 Screen Spec
 
@@ -129,8 +129,8 @@
 ### 4.1 Flow A1 — 학생 연습 과제 수행 (가장 빈번)
 ```
 1. 학생 홈에 PrimaryAssignmentCard "도함수 활용 마무리" 표시 (D-1)
-2. [이어서 풀기] → /classbot/assignment/as_today
-3. 개요 확인 → [이어서 풀기]
+2. [이어서 풀기 (n/N)] → /classbot/assignment/as_today
+3. 개요 확인 → [이어서 풀기 (n/N)]
 4. solve 진입 — 9번 문항 (마지막 위치 복원)
 5. 풀이 입력 도중 막힘 → 봇 패널 "1단계 힌트" 클릭
 6. 단계 1~3 진행 → 답안 작성 → [다음]
@@ -164,7 +164,7 @@
 ```
 1. solve 진행 중 → 학생이 앱 종료 (기기 잠금 등)
 2. 5초마다 localStorage + 30초마다 서버 동기 (state: in-progress 갱신)
-3. 학생 홈 재진입 → "이어서 풀기 — 9/20" 표시
+3. 학생 홈 재진입 → "이어서 풀기 (9/20)" 표시
 4. 클릭 시 마지막 문항·작성 중이던 답안 복원
 ```
 
