@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
@@ -37,8 +38,36 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
  * 어디서 막혔는지** 는 이미 그 화면이 답한다. 여기서 다시 만들지 않는다.
  */
 
-type StudentFilter = 'all' | 'pending' | 'not-reached' | 'offline';
-type StudentSort = 'pending' | 'name' | 'stale';
+export type StudentFilter = 'all' | 'pending' | 'not-reached' | 'offline';
+export type StudentSort = 'pending' | 'name' | 'stale';
+
+/**
+ * 거르개·정렬은 **URL 이 1차**다 (spec 11 § 10) — 큐 탭(`?status`·`?type`)과 같은 결.
+ * 새로고침·링크 공유·뒤로 가기에서 보던 조건이 유지돼야 한다.
+ *
+ * 값은 화면 안에서도 한 벌 들고 있다. 누르는 즉시 목록이 움직여야 해서다
+ * (URL 이 돌아오길 기다리면 알약이 늦게 반응한다). URL 은 뒤따라 갱신하고,
+ * 뒤로 가기로 URL 이 바뀌면 페이지가 `key` 로 이 컴포넌트를 다시 세워 값을 다시 읽는다.
+ */
+export const STUDENT_FILTER_DEFAULT: StudentFilter = 'all';
+export const STUDENT_SORT_DEFAULT: StudentSort = 'pending';
+
+export function toStudentFilter(v: string | undefined): StudentFilter {
+  return v === 'pending' || v === 'not-reached' || v === 'offline' ? v : STUDENT_FILTER_DEFAULT;
+}
+
+export function toStudentSort(v: string | undefined): StudentSort {
+  return v === 'name' || v === 'stale' ? v : STUDENT_SORT_DEFAULT;
+}
+
+/** 학생 탭의 URL — 기본값은 적지 않는다(주소가 길어지기만 한다). */
+export function studentViewHref(filter: StudentFilter, sort: StudentSort): string {
+  const q = new URLSearchParams();
+  if (filter !== STUDENT_FILTER_DEFAULT) q.set('filter', filter);
+  if (sort !== STUDENT_SORT_DEFAULT) q.set('sort', sort);
+  const query = q.toString();
+  return query ? `/teacher/grading?${query}` : '/teacher/grading';
+}
 
 const sortOptions = [
   { value: 'pending', label: '채점 대기 많은 순' },
@@ -63,14 +92,29 @@ function matches(row: GradingRosterRow, filter: StudentFilter): boolean {
 export function GradingStudentList({
   students,
   items,
+  filter: filterProp = STUDENT_FILTER_DEFAULT,
+  sort: sortProp = STUDENT_SORT_DEFAULT,
 }: {
   students: MonitoredStudent[];
   items: GradingItem[];
+  /** URL 에서 읽은 값 — 이 컴포넌트의 출발점 */
+  filter?: StudentFilter;
+  sort?: StudentSort;
 }) {
+  const router = useRouter();
   const hydrated = useStoresHydrated(useGradingStore);
   const merged = useMergedGradingItems(items);
-  const [filter, setFilter] = useState<StudentFilter>('all');
-  const [sort, setSort] = useState<StudentSort>('pending');
+  const [filter, setFilter] = useState<StudentFilter>(filterProp);
+  const [sort, setSort] = useState<StudentSort>(sortProp);
+
+  const selectFilter = (next: StudentFilter) => {
+    setFilter(next);
+    router.replace(studentViewHref(next, sort), { scroll: false });
+  };
+  const selectSort = (next: StudentSort) => {
+    setSort(next);
+    router.replace(studentViewHref(filter, next), { scroll: false });
+  };
 
   // 교사가 확정한 채점을 얹은 뒤 센다 — 확정한 항목은 대기에서 빠져야 한다.
   const rows = useMemo(() => buildGradingRoster(merged, students), [merged, students]);
@@ -110,9 +154,9 @@ export function GradingStudentList({
             count: hydrated ? counts[value] : undefined,
           }))}
           current={filter}
-          onSelect={setFilter}
+          onSelect={selectFilter}
         />
-        <FilterPillButtons options={sortOptions} current={sort} onSelect={setSort} shape="tab" />
+        <FilterPillButtons options={sortOptions} current={sort} onSelect={selectSort} shape="tab" />
       </div>
 
       {/*
@@ -130,7 +174,7 @@ export function GradingStudentList({
           tone="plain"
           size="sm"
           title="이 조건에 해당하는 학생이 없어요"
-          action={{ onClick: () => setFilter('all'), label: '전체 보기' }}
+          action={{ onClick: () => selectFilter('all'), label: '전체 보기' }}
         />
       ) : (
         <ul className="divide-pullim-slate-100 divide-y">

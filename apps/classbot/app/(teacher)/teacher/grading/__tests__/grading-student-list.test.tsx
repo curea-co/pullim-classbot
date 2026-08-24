@@ -1,5 +1,7 @@
 import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
-import { GradingStudentList } from '../grading-student-list';
+import {
+  GradingStudentList, studentViewHref, toStudentFilter, toStudentSort,
+} from '../grading-student-list';
 import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { allGradingItems, buildGradingRoster } from '@/lib/mock/classbot-grading-roster';
 import { useGradingStore } from '@/lib/store/grading';
@@ -154,5 +156,38 @@ describe('채점 항목은 그 학생 줄에 붙는다', () => {
       const cell = screen.getByText(row.student.name).closest('a');
       expect(cell).not.toBeNull();
     }
+  });
+});
+
+describe('거르개·정렬은 URL 이 1차 (spec 11 § 10)', () => {
+  it('URL 에서 읽은 조건으로 목록이 선다 — 새로고침·링크 공유에서 유지된다', () => {
+    render(
+      <GradingStudentList
+        students={monitoredRoster}
+        items={allGradingItems}
+        filter="pending"
+        sort="name"
+      />,
+    );
+    const expected = buildGradingRoster().filter(r => r.pending > 0);
+    expect(rows()).toHaveLength(expected.length);
+
+    // 이름순으로 섰는지 — 첫 줄이 이름순 첫 학생이다.
+    const byName = [...expected].sort((a, b) => a.student.name.localeCompare(b.student.name, 'ko'));
+    expect(within(rows()[0]).getByText(byName[0].student.name)).toBeTruthy();
+  });
+
+  it('기본값은 URL 에 적지 않는다 — 주소가 길어지기만 한다', () => {
+    expect(studentViewHref('all', 'pending')).toBe('/teacher/grading');
+    expect(studentViewHref('pending', 'pending')).toBe('/teacher/grading?filter=pending');
+    expect(studentViewHref('all', 'name')).toBe('/teacher/grading?sort=name');
+    expect(studentViewHref('offline', 'stale')).toBe('/teacher/grading?filter=offline&sort=stale');
+  });
+
+  it('모르는 값은 기본값으로 떨어진다 — 빈 화면을 만들지 않는다', () => {
+    expect(toStudentFilter('bogus')).toBe('all');
+    expect(toStudentFilter(undefined)).toBe('all');
+    expect(toStudentSort('bogus')).toBe('pending');
+    expect(toStudentSort(undefined)).toBe('pending');
   });
 });

@@ -6,9 +6,17 @@ import { gradingStats } from '@/lib/mock';
 import { allGradingItems } from '@/lib/mock/classbot-grading-roster';
 import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { GradingKpiBar, GradingQueueList } from './grading-queue';
-import { GradingStudentList } from './grading-student-list';
+import { GradingStudentList, toStudentFilter, toStudentSort } from './grading-student-list';
 
-type SearchParams = Promise<{ view?: string; status?: string; type?: string }>;
+type SearchParams = Promise<{
+  view?: string;
+  /** 큐 탭 */
+  status?: string;
+  type?: string;
+  /** 학생 탭 */
+  filter?: string;
+  sort?: string;
+}>;
 
 /**
  * 채점 허브 — spec 11.
@@ -47,6 +55,9 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
   const view = params.view === 'queue' ? 'queue' : 'students';
   const statusFilter = params.status ?? 'queue';
   const typeFilter = params.type ?? 'all';
+  // 거르개·정렬은 URL 이 1차 (spec 11 § 10) — 큐 탭의 status·type 과 같은 결.
+  const studentFilter = toStudentFilter(params.filter);
+  const studentSort = toStudentSort(params.sort);
 
   // 시드 목록만 서버에서 만든다 — 교사가 확정한 채점(localStorage)을 얹어 세고 거르는 건
   // 클라이언트 컴포넌트(GradingKpiBar · GradingStudentList · GradingQueueList) 몫이다.
@@ -94,7 +105,14 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       </section>
 
       {view === 'students' ? (
-        <GradingStudentList students={monitoredRoster} items={allItems} />
+        // 뒤로 가기로 URL 이 바뀌면 key 가 바뀌어 목록이 새 조건으로 다시 선다.
+        <GradingStudentList
+          key={`${studentFilter}-${studentSort}`}
+          students={monitoredRoster}
+          items={allItems}
+          filter={studentFilter}
+          sort={studentSort}
+        />
       ) : (
         <GradingQueueList items={allItems} statusFilter={statusFilter} typeFilter={typeFilter} />
       )}
