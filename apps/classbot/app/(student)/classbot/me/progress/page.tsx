@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { BarChart3, CalendarRange, Clock, GraduationCap, Inbox, MessageCircle, Target, TrendingUp } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -124,10 +123,6 @@ export default function MyProgressPage() {
         <TimelineSection days={snapshot.timeline} meta={snapshot.timelineMeta} />
         <SubmissionSection rows={snapshot.submissions} meta={snapshot.submissionsMeta} />
       </ContextRail>
-
-      <FlywheelNote>
-        기준 하나가 「잘함」이 되면 봇이 다음 기준을 꺼내 와요.
-      </FlywheelNote>
     </div>
   );
 }

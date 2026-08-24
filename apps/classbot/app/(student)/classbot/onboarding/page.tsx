@@ -109,11 +109,7 @@ export default function ClassbotOnboardingPage() {
           title: '선생님이 다 보고 있어요 — 그게 좋은 점이에요',
           description:
             '내가 봇에게 한 질문, 답변, 정답률까지 선생님 화면에 그대로 보여요. 덕분에 선생님이 내가 어디서 막히는지 바로 알 수 있어요.',
-          bullets: [
-            '내가 봇과 한 모든 활동은 기록돼요',
-            '이름을 가린 채 봇이 더 똑똑해지는 데 쓰여요',
-            '틀린 문제는 풀림 복습에 자동으로 모여요',
-          ],
+          bullets: ['내가 봇과 한 모든 활동은 기록돼요'],
           cta: { label: '지금 봇에게 물어보기', href: '/classbot/chat' },
           screenshot: (
             <MockBrowser dark label="teacher/classbot — 실시간 피드">

@@ -11,7 +11,6 @@ import {
 } from '@/lib/mock';
 import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { ReplayReviewNudge } from '@/components/classbot/replay-review-nudge';
@@ -133,10 +132,6 @@ export default function ClassbotReplayListPage() {
         <Eye className="-mt-0.5 mr-1 inline h-3 w-3" />
         교사·봇 발언과 내 활동·전체 공유 순간만 들을 수 있어요. 다른 친구의 비공개 발언은 프라이버시 보호.
       </aside>
-
-      <FlywheelNote>
-        다시 본 구간은 <strong>풀림 복습</strong>의 망각 곡선 큐에 자동 추가되고, 틀린 퀴즈는 <strong>오답정복</strong>으로 흘러가요.
-      </FlywheelNote>
     </div>
   );
 }

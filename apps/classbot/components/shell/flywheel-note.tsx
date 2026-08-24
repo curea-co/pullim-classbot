@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
  * 사용:
  * ```tsx
  * <FlywheelNote>
- *   오늘 풀이한 문제는 <strong>풀림 인덱스</strong>의 IRT θ를 갱신해요.
+ *   쓰는 동안 자동으로 저장돼요.
  * </FlywheelNote>
  * ```
  */
