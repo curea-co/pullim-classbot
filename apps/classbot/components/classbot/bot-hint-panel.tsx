@@ -87,9 +87,9 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
               )}
             >
               {revealed === 0
-                ? '힌트'
+                ? '한 줄만 알려줄게요'
                 : revealed === hints.length - 1
-                  ? '해설'
+                  ? '마지막 — 해설 보기'
                   : `다음 단계 (${revealed + 1}/${hints.length})`}
             </Button>
           )}

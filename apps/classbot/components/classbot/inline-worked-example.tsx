@@ -101,7 +101,7 @@ export function InlineWorkedExample({
                     aria-label={`${s.num}단계 「${s.label}」 — 앞 단계를 먼저 열어야 해요`}
                     className="bg-pullim-slate-100 text-pullim-slate-400 mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-60"
                   >
-                    앞 단계
+                    앞 단계 먼저
                   </button>
                 )}
               </div>
