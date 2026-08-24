@@ -19,7 +19,7 @@
 ## 2. 제품 정의
 
 ### 2.1 Problem Statement
-교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없다. 학생 홈에서 `[지금 시작하기]`를 누르면 깨진 링크로 빠지고, 교사·학생 사이의 사이클이 끊긴다.
+교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없다. 학생 홈에서 `[시작]`을 누르면 깨진 링크로 빠지고, 교사·학생 사이의 사이클이 끊긴다.
 
 ### 2.2 Product Goal
 - **G1**: 학생이 받은 과제를 **클래스봇 내부에서 끝까지** 풀 수 있다 (외부 도메인 의존 0)
@@ -74,7 +74,7 @@
 │  │  └─ /classbot/assignment/[id]/result  ← 신규 · 제출 결과·봇 피드백
 ```
 
-**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[지금 시작하기]` CTA만 `solveHref` → 새 라우트로 리다이렉트.
+**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[시작]` CTA만 `solveHref` → 새 라우트로 리다이렉트.
 
 ### 3.3 Screen Spec
 
@@ -96,7 +96,7 @@
 | 메타 | 단원 from-to · 문항 수 · 난이도 · 예상 소요 시간 · 성취 코드 |
 | 봇 한 마디 | `reasonHint` (bot-prescribed) 또는 교사 메시지 (teacher-assigned) |
 | 시험 모드 경고 | `mode === 'exam'`이면 "시작하면 봇 도움 차단 · 일시정지 불가" 경고 모달 |
-| CTA | `[지금 시작하기]` (`state === 'todo'`) / `[이어서 풀기]` (`in-progress`) / `[결과 보기]` (`submitted`) |
+| CTA | `[시작]` (`state === 'todo'`) / `[이어서 풀기 (n/N)]` (`in-progress`) / `[결과]` (`submitted`) — 버튼은 단어로 ([07 § 6.6](07-branding.md), 2026-08-25 이름 변경) |
 | 사이드 — 비슷한 과제 | 같은 봇의 과거 과제 추세 (정답률) |
 
 #### 3.3.3 풀이 워크스페이스 (`/classbot/assignment/[id]/solve`)
