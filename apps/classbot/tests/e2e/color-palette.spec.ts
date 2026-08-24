@@ -21,7 +21,7 @@ import * as path from 'node:path';
  *   3) 레몬 **자리 수** 세기 — 색이 살아 있어도 남용되면 잡는다
  *
  * 방식:
- *  - 8 페이지(학생 5 + 교사 3) 렌더 후 computed background/text/border color 수집
+ *  - 9 페이지(학생 5 + 교사 4) 렌더 후 computed background/text/border color 수집
  *  - 캡처는 output/live-shots/color-palette/ 에 PNG 저장 — 수동 디자인 review 용
  */
 
@@ -37,6 +37,7 @@ const TEACHER_ROUTES = [
   { name: 'home', path: '/teacher' },
   { name: 'classbot', path: '/teacher/classbot' },
   { name: 'builder', path: '/teacher/builder' },
+  { name: 'bots', path: '/teacher/bots' },
 ];
 
 const OUT_DIR = path.resolve(

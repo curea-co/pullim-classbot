@@ -77,9 +77,12 @@ describe('봇 관리 목록', () => {
     expect(within(list).queryAllByText(/낸 과제/)).toHaveLength(0);
   });
 
-  it('봇 만들러 가는 길이 헤더에 있다', async () => {
+  // 07 § 6.6 「버튼은 단어로」 — 「새 봇 만들기」가 아니라 「새 봇」
+  it('봇 만들러 가는 길이 헤더에 있고 이름은 한 단어다', async () => {
     await renderList();
-    expect(screen.getByTestId('bots-new-cta')).toHaveAttribute('href', '/teacher/builder');
+    const cta = screen.getByTestId('bots-new-cta');
+    expect(cta).toHaveAttribute('href', '/teacher/builder');
+    expect(cta).toHaveTextContent('새 봇');
   });
 
   it('옛 경로가 실어 보낸 탭을 봇 링크까지 이어 붙인다', async () => {
@@ -107,6 +110,8 @@ describe('봇 관리 목록 — 봇이 하나도 없을 때', () => {
     expect(screen.getByText('아직 만든 봇이 없어요')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '봇 만들기' })).toHaveAttribute('href', '/teacher/builder');
     expect(screen.queryByTestId('bot-manage-list')).not.toBeInTheDocument();
+    // 봇 만들러 가는 길은 화면에 하나만 — 빈 상태가 맡으므로 헤더 CTA 는 내린다 (07 § 6.6.2(2))
+    expect(screen.queryByTestId('bots-new-cta')).not.toBeInTheDocument();
   });
 });
 

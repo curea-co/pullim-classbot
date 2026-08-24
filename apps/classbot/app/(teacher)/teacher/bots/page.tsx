@@ -46,21 +46,28 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
           ? `어느 봇의 「${carriedTabLabel}」을 고칠지 골라주세요.`
           : '봇을 누르면 그 봇의 운영 규칙 — 안전 등급 · 이탈 대응 — 을 고칠 수 있어요.',
         /*
+          봇 만들러 가는 길은 화면에 **하나만** 둔다 — 봇이 있으면 헤더 CTA,
+          없으면 아래 빈 상태. 둘이 같이 뜨면 같은 화면에 같은 일을 하는 버튼이 둘이다
+          (`07 § 6.6.2(2)`).
+          이름은 「새 봇」 — `07 § 6.6.3` 이 빌더 만든 뒤 화면의 「봇 하나 더 만들기」에
+          준 이름과 같다. 같은 뜻은 같은 이름으로 부른다.
+
           TODO(봇 빌더 이식): 다음 작업에서 [봇 빌더]를 이 화면 하위(`/teacher/bots/new`)로 옮긴다.
-          그때 이 버튼의 href 만 `/teacher/bots/new` 로 바꾸면 되도록 진입점을 여기 하나로 모아 뒀다.
+          그때 이 버튼과 아래 빈 상태의 href 만 `/teacher/bots/new` 로 바꾸면 되도록
+          진입점을 이 화면 안 두 자리로만 모아 뒀다.
           함께 고칠 곳 — components/shell/nav-config.ts 의 [봇 빌더] 항목,
-          아래 빈 상태의 링크, 운영 화면(`/teacher/classbot`)의 「새 클래스봇」.
+          운영 화면(`/teacher/classbot`)의 「새 클래스봇」.
         */
-        action: (
+        action: bots.length > 0 ? (
           <Link
             href="/teacher/builder"
             data-testid="bots-new-cta"
             className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
           >
             <Plus className="h-4 w-4" />
-            새 봇 만들기
+            새 봇
           </Link>
-        ),
+        ) : undefined,
       }}
     >
       {bots.length === 0 ? (
