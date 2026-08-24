@@ -124,8 +124,14 @@ describe('들어온 곳 — 되돌아갈 곳', () => {
     });
   });
 
-  it('모르는 값은 관제소로 떨어진다 — 없는 화면으로 보내지 않는다', () => {
+  it('리포트 명단 값도 미리 정의돼 있다 — 그 화면이 붙이는 날 여기를 안 고쳐도 된다', () => {
+    expect(entryTarget('reports')).toEqual({ href: '/teacher/reports', label: '리포트' });
+  });
+
+  it('규칙 R2 — 모르는 값·빈 값은 관제소로 떨어진다', () => {
+    // 없는 화면으로 보내지 않기 위한 기본값. 아직 from 을 안 붙이는 링크의 동작도 이것이 정의한다.
     expect(resolveEntrySource('bogus')).toBe('monitor');
+    expect(resolveEntrySource(undefined)).toBe('monitor');
     expect(isEntrySource('bogus')).toBe(false);
   });
 });
