@@ -294,7 +294,7 @@ export const fieldMarks: Record<FieldKey, { required?: true; why?: (draft: BotDr
   scope:   { why: () => '보통 수업은 L3 교과 범위로 둬요' },
   style:   { why: () => '단원에 따라 알아서 바꿔요' },
   wrong:   { why: () => '답을 바로 주지 않는 쪽이 기본이에요' },
-  classes: { why: () => '나중에 운영 화면에서 넣어도 돼요' },
+  classes: { why: () => '봇을 만든 뒤에 골라요' },
 };
 
 /* ─── 「채워진 것」 ─── */

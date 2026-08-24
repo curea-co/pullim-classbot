@@ -512,7 +512,7 @@ function CreatedBanner() {
       <p className="text-pullim-blue-700 mt-1 text-2xs">
         {rooms.length
           ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
-          : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고, 반은 그때 나중에 넣어도 돼요.'}
+          : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남아요.'}
       </p>
     </section>
   );
