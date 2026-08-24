@@ -6,15 +6,16 @@
  *  - 「채워진 것」은 아홉 줄을 **항목 이름 : 값** 으로만 보여준다 (배지 · 「고치기」 · 세는 숫자 없음)
  *  - 과목을 **바꾸면** 지난 과목의 자료가 비워지고, **같은 과목을 다시 누르면** 그대로 남는다
  *  - 「이대로 만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 있다
+ *  - 필수를 안 채우면 「이대로 만들기」도 「다음」도 막힌다 — 두 길이 같은 판정을 읽는다
  *  - 만든 뒤 화면은 배정 두 축(`?created=` · `?rooms=`)을 함께 넘긴다
  */
 
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
-  BOT_NAME_MAX, BOT_NAME_MIN,
+  BOT_NAME_MAX, BOT_NAME_MIN, FIELD_GROUP,
   FIELD_KEYS, REQUIRED_FIELDS, alwaysOnSafety, botName, classAssignments, classroomChoices,
-  emptyDraft, isNameValid, isRequired, summaryRows,
+  emptyDraft, faultAnchorId, firstFault, isBuildYard, isNameValid, isRequired, summaryRows,
 } from '../builder-types';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
@@ -71,6 +72,56 @@ describe('채워진 것 모델', () => {
   });
 });
 
+describe('관문 판정 (firstFault)', () => {
+  it('마당은 「채워진 것」과 같은 표에서 나온다 — 두 벌로 두지 않는다', () => {
+    for (const row of summaryRows(emptyDraft, 'build')) {
+      expect(row.group).toBe(FIELD_GROUP[row.field]);
+    }
+  });
+
+  it('필수는 저마다 사는 마당에서 걸린다 — 마당을 하드코딩하지 않는다', () => {
+    expect(REQUIRED_FIELDS.length).toBeGreaterThan(0);
+    for (const field of REQUIRED_FIELDS) {
+      const group = FIELD_GROUP[field];
+      // 만든 뒤(4)에 고르는 것은 돌려보낼 마당이 없어 필수가 될 수 없다
+      expect(isBuildYard(group)).toBe(true);
+      if (!isBuildYard(group)) continue;
+      expect(firstFault(emptyDraft, group)).not.toBeNull();
+    }
+  });
+
+  it('막을 때는 어느 항목이 어느 마당에서 왜 막혔는지 함께 들고 온다', () => {
+    expect(firstFault(emptyDraft, 1)).toEqual({
+      field: 'subject',
+      yard: 1,
+      message: expect.stringContaining('과목을 골라야'),
+    });
+  });
+
+  it('마당 2·3 에는 아직 필수가 없어 그냥 넘어간다', () => {
+    expect(firstFault(emptyDraft, 2)).toBeNull();
+    expect(firstFault(emptyDraft, 3)).toBeNull();
+  });
+
+  it('「다음」과 「이대로 만들기」가 같은 판정을 읽는다', () => {
+    // 마당 하나만 보든 아홉 가지를 다 보든, 걸리는 항목도 문구도 같아야 두 길이 어긋나지 않는다
+    expect(firstFault(emptyDraft, 1)).toEqual(firstFault(emptyDraft));
+  });
+
+  it('이름은 필수가 아니지만 규칙을 어기면 걸린다', () => {
+    const picked = { ...emptyDraft, subject: 'science' as const };
+    expect(firstFault(picked, 1)).toBeNull();
+    expect(firstFault({ ...picked, name: '봇' }, 1)?.field).toBe('name');
+    expect(firstFault({ ...picked, name: '봇'.repeat(BOT_NAME_MAX + 1) }, 1)?.field).toBe('name');
+    // 비워 두는 것은 규칙 위반이 아니다 — 과목 기본 이름이 들어간다
+    expect(firstFault({ ...picked, name: '   ' }, 1)).toBeNull();
+  });
+
+  it('과목이 비면 이름 규칙보다 먼저 걸린다 — 앞 항목부터 본다', () => {
+    expect(firstFault({ ...emptyDraft, name: '봇' }, 1)?.field).toBe('subject');
+  });
+});
+
 /* ─── 화면 ─── */
 
 /** 항목 이름 옆 표시와 「채워진 것」 줄을 한 번에 본다. */
@@ -117,6 +168,85 @@ describe('과목은 기본값이 없다', () => {
     // 손대지 않은 항목은 기본값이 값으로 실려 있다
     expect(screen.getByTestId('summary-row-grade')).toHaveTextContent('중1');
     expect(screen.getByTestId('summary-row-scope')).toHaveTextContent('L3 교과 범위');
+  });
+});
+
+describe('필수를 안 채우면 다음 마당으로 못 간다', () => {
+  /** 지금 어느 마당에 있는지는 그 마당의 제목으로 본다. */
+  function yardHeading(name: string) {
+    return screen.queryByRole('heading', { name });
+  }
+
+  it('과목을 안 고르고 「다음」을 누르면 마당 1 에 머물고 왜 막혔는지 말한다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('과목을 골라야 봇을 만들 수 있어요');
+    expect(yardHeading('봇 소개')).toBeInTheDocument();
+    expect(yardHeading('봇이 보고 답할 것')).toBeNull();
+  });
+
+  it('막히면 막힌 항목으로 초점이 옮겨간다 — 오류만 띄우고 어디인지 안 알려주면 소용없다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(document.getElementById(faultAnchorId('subject'))).toHaveFocus();
+    // 초점이 온 자리는 과목 라디오 묶음이다 — 초점이 오면 낭독기가 묶음 이름을 읽는다
+    expect(screen.getByRole('radiogroup', { name: '과목' })).toHaveFocus();
+  });
+
+  it('이름을 한 글자만 적고 「다음」을 누르면 막힌다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '봇' } });
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('이름은 두 글자에서 서른 글자 사이로');
+    expect(yardHeading('봇이 보고 답할 것')).toBeNull();
+    // 「이대로 만들기」가 쓰던 표시를 그대로 쓴다 — 새 방식을 만들지 않는다
+    expect(screen.getByLabelText(/봇 이름/)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText(/봇 이름/)).toHaveFocus();
+  });
+
+  it('필수를 채우면 넘어간다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(yardHeading('봇이 보고 답할 것')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('막힌 뒤 그 항목을 채우면 오류가 사라지고 넘어간다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    expect(yardHeading('봇이 보고 답할 것')).toBeInTheDocument();
+  });
+
+  it('필수가 없는 마당은 「다음」이 그냥 넘어간다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+    fireEvent.click(screen.getByRole('button', { name: '다음' }));
+
+    expect(yardHeading('가르치는 법')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('되짚어 가는 「이전」은 막지 않는다', () => {
+    render(<BotBuilderPage />);
+    // 「단계」로 건너뛴 자리에서 되돌아온다 — 뒤로 가는 길에는 관문이 없다
+    fireEvent.click(step('보고 답할 것'));
+    fireEvent.click(screen.getByRole('button', { name: '이전' }));
+
+    expect(yardHeading('봇 소개')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 
