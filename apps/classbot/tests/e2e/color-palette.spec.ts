@@ -59,7 +59,7 @@ const DEPRECATED_TOKEN_RGB: Record<string, [number, number, number]> = {
  * 세는 규칙:
  *   - 배경 채움과 **새로 지정한** 글자색만 센다. 물려받은 글자색은 세지 않는다
  *     (레몬 버튼 안의 <span> 까지 세면 한 버튼이 두 자리로 잡힌다).
- *   - `borderColor` 는 세지 않는다 — [08 § 15.1.3] problem-card · [§ 15.3] LIVE 카드의
+ *   - 테두리(`border*Color`)는 세지 않는다 — [08 § 15.1.3] problem-card · [§ 15.3] LIVE 카드의
  *     **4px lime 좌측 라이너**는 명세가 메시지/카드 타입마다 요구하는 시각 단서라 개수 제한 대상이 아니다.
  *   - 한 요소가 `bg-pullim-lemon text-pullim-lemon-ink` 처럼 둘 다 쓰면 **한 자리**로 센다.
  */
@@ -157,8 +157,13 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
       const botSigRgb = await readBotSignatureRgb(page);
       const isBotSignature = (rgb: [number, number, number]) => botSigRgb.some(b => sameRgb(rgb, b));
 
-      // 모든 element 의 computed bg/text/border color 수집.
-      // `color` 는 상속되므로 **부모와 같은 값이면 "물려받은 것"** 으로 표시해 자리 수 중복을 막는다.
+      /*
+       * 모든 element 의 computed bg/text/border color 수집.
+       *  - `color` 는 상속되므로 **부모와 같은 값이면 "물려받은 것"** 으로 표시해 자리 수 중복을 막는다.
+       *  - 테두리는 shorthand(`borderColor`) 대신 **네 변을 따로** 읽는다. 네 변 색이 다르면
+       *    shorthand 가 값 4개를 이어 붙여 돌려주고, 그러면 앞의 하나만 파싱돼 나머지가 검사에서 샌다
+       *    (예: `borderLeftColor` 만 지정한 라이너).
+       */
       const samples: Sample[] = await page.evaluate(() => {
         const out: { color: string; prop: string; tag: string; cls: string; inherited: boolean; elIdx: number }[] = [];
         const all = document.querySelectorAll<HTMLElement>('*');
@@ -169,7 +174,10 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
           const parent = el.parentElement;
           const ps = parent ? getComputedStyle(parent) : null;
           const className = typeof el.className === 'string' ? el.className : (el.getAttribute('class') ?? '');
-          for (const prop of ['backgroundColor', 'color', 'borderColor'] as const) {
+          for (const prop of [
+            'backgroundColor', 'color',
+            'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+          ] as const) {
             const v = cs[prop];
             if (!v || v === 'rgba(0, 0, 0, 0)' || v === 'transparent') continue;
             out.push({
@@ -209,8 +217,8 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
           forbidden.push(`${verdict} ${hex(rgb[0], rgb[1], rgb[2])} (${s.color}) · ${s.prop} on <${s.tag.toLowerCase()}> "${s.cls}"`);
         }
 
-        // 물려받은 글자색·라이너(borderColor)는 자리로 세지 않는다 (위 LEMON_RGB 주석 참고)
-        if (s.inherited || s.prop === 'borderColor') continue;
+        // 물려받은 글자색·라이너(border*)는 자리로 세지 않는다 (위 LEMON_RGB 주석 참고)
+        if (s.inherited || s.prop.startsWith('border')) continue;
         if (lemonSeenEls.has(s.elIdx)) continue;
         for (const [name, token] of Object.entries(LEMON_RGB)) {
           if (sameRgb(rgb, token)) {
