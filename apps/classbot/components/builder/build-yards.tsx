@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input';
 import { RadioCard, RadioCardGroup } from '@/components/classbot/radio-card';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
-import { FieldLabel } from './field-mark';
+import { FieldError, FieldLabel } from './field-mark';
 import { PickChip } from './pick-chip';
 import {
-  BOT_NAME_MAX,
+  BOT_NAME_MAX, faultAnchorId,
   grades, sampleFiles, scopeLevels, scopeMeta,
   styleMeta, subjectIds, subjectMeta, toneMeta, wrongMeta,
-  type BotDraft, type FieldKey,
+  type BotDraft, type Fault, type FieldKey,
   type StyleId, type SubjectId, type ToneId, type WrongId,
 } from './builder-types';
 
@@ -40,11 +40,14 @@ type YardProps = {
 /* ─── 마당 1 — 봇 소개 ─── */
 
 export function Yard1Intro({
-  draft, onPick, subjectError, nameError,
+  draft, onPick, fault,
 }: YardProps & {
-  subjectError: boolean;
-  nameError: boolean;
+  /** 지금 앞을 막고 있는 항목 — 「다음」과 「이대로 만들기」가 같은 판정으로 넣는다 */
+  fault: Fault | null;
 }) {
+  /** 이름 입력칸은 라벨이 가리키는 자리이자 막혔을 때 초점이 오는 자리라, id 를 한 번만 짓는다. */
+  const nameId = faultAnchorId('name');
+
   /** 이미 고른 과목을 다시 누르는 것은 바꾸는 게 아니다 — 올린 자료를 지우지 않는다. */
   function selectSubject(id: SubjectId) {
     if (draft.subject === id) return;
@@ -60,7 +63,11 @@ export function Yard1Intro({
           {/* 과목 — 기본값이 없는 유일한 항목 */}
           <div>
             <FieldLabel field="subject">과목</FieldLabel>
-            <RadioCardGroup ariaLabel="과목" cols={3}>
+            {/*
+              막혔을 때 초점이 오는 자리. 고를 것이 라디오 묶음이라 붙일 입력칸이 없어
+              묶음 자체를 초점 대상으로 삼는다 — 초점이 오면 낭독기가 묶음 이름(「과목」)을 읽는다.
+            */}
+            <RadioCardGroup ariaLabel="과목" cols={3} id={faultAnchorId('subject')} focusable>
               {subjectIds.map((id) => {
                 const meta = subjectMeta[id];
                 const sig = botSignature({ subject: meta.label });
@@ -82,11 +89,7 @@ export function Yard1Intro({
                 );
               })}
             </RadioCardGroup>
-            {subjectError && (
-              <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
-                과목을 골라야 봇을 만들 수 있어요.
-              </p>
-            )}
+            <FieldError fault={fault} field="subject" />
           </div>
 
           {/* 학년 */}
@@ -107,22 +110,18 @@ export function Yard1Intro({
 
           {/* 봇 이름 */}
           <div>
-            <FieldLabel field="name" htmlFor="bld-name">봇 이름</FieldLabel>
+            <FieldLabel field="name" htmlFor={nameId}>봇 이름</FieldLabel>
             <Input
-              id="bld-name"
+              id={nameId}
               type="text"
               value={draft.name}
               onChange={(e) => onPick('name', { name: e.target.value })}
               maxLength={BOT_NAME_MAX}
               placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
-              aria-invalid={nameError || undefined}
+              aria-invalid={fault?.field === 'name' || undefined}
               className="h-10 text-sm"
             />
-            {nameError && (
-              <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
-                이름은 두 글자에서 서른 글자 사이로 적어 주세요.
-              </p>
-            )}
+            <FieldError fault={fault} field="name" />
           </div>
 
           {/* 말투 */}
