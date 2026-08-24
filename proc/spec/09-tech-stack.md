@@ -144,7 +144,7 @@ web/
 │   │   └── teacher/
 │   │       ├── page.tsx              # 교사 홈
 │   │       ├── classbot/page.tsx     # 클래스봇 운영 메인
-│   │       ├── builder/page.tsx      # 봇 빌더 — 한 길 · 세 마당
+│   │       ├── builder/page.tsx      # 봇 빌더 8단계 → 한 길·세 마당 재편 인도 중 (#223)
 │   │       ├── live/page.tsx         # 라이브 모니터링
 │   │       ├── quiz/page.tsx         # 퀴즈 운영
 │   │       ├── reports/page.tsx      # 리포트 6종
