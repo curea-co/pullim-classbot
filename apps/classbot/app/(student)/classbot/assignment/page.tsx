@@ -23,11 +23,18 @@ import { cn } from '@/lib/utils';
 
 type AssignmentMode = AssignmentReadRow['mode'];
 
-const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
-  // 시험은 오류가 아니라 「모드가 바뀌었다」는 신호 — 빨강이 아니라 반전 면(navy)으로 [08 § 15.6]
-  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
+/**
+ * 모드 배지 3종 — [08 § 15.6] 「뱃지 3종(연습/오답정복/시험)이 모두 파랑 계열로 보이던 회귀를 해결」.
+ * 그래서 **셋은 서로 다른 면**이어야 한다. 같은 표가 정한 값 그대로:
+ *   연습     → brand 계열 옅은 면
+ *   오답정복 → `accent.lime`   (레몬이 여기 쓰이는 근거. [§ 1.6] 남용 금지의 예외다)
+ *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
+ * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
+ */
+export const modeMeta: Record<AssignmentMode, { label: string; color: string; fg: string; icon: typeof Target }> = {
+  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   fg: 'text-white',              icon: Target },
+  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  fg: 'text-white',              icon: AlertCircle },
+  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-lemon',      fg: 'text-pullim-lemon-ink',   icon: Sparkles },
 };
 
 /**
@@ -254,7 +261,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
         className="bg-card hover:bg-pullim-slate-50/50 group block h-full rounded-2xl border p-4 transition-colors"
       >
         <div className="flex items-start gap-3">
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white', m.color)}>
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', m.color, m.fg)}>
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
