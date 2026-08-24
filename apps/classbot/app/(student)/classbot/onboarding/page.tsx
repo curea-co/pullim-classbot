@@ -34,7 +34,6 @@ export default function ClassbotOnboardingPage() {
           bullets: [
             '선생님이 직접 말투(친근·정중·엄격)도 미리 정해 둬요',
             '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 뒀어요',
-            '네가 풀수록 봇도 점점 똑똑해져요',
           ],
           screenshot: (
             <MockBrowser dark label="봇 정체성">
