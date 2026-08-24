@@ -18,7 +18,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useRosterMe } from '@/lib/current-user';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual, assignmentModeBadge } from '@/lib/tokens/assignment-state';
+import { getAssignmentVisual, assignmentModeBadge, type AssignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 
 type AssignmentMode = AssignmentReadRow['mode'];
@@ -31,7 +31,7 @@ type AssignmentMode = AssignmentReadRow['mode'];
  *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
  * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
  */
-export const modeMeta: Record<AssignmentMode, { label: string; color: string; fg: string; icon: typeof Target }> = {
+export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: string; icon: typeof Target }> = {
   'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
   'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
   'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },

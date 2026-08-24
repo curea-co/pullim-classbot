@@ -9,7 +9,7 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  * 배지 색은 `assignmentModeBadge` 가 진실원이다 — 목록과 상세가 갈리지 않게.
  * 여기서 더하는 것은 `tone`(이 화면에서만 쓰는 한마디)뿐이다.
  */
-const modeMeta = {
+export const modeMeta = {
   'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target,      tone: '한 번 해보자' },
   'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle, tone: '집중하는 시간' },
   'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles,    tone: '이번엔 잡아내자' },
