@@ -111,6 +111,12 @@ describe('들어온 곳 — 되돌아갈 곳', () => {
     expect(entryTarget(undefined)).toEqual({ href: '/teacher/monitor', label: '학급 관제소' });
   });
 
+  it('교사 홈에서 들어오면 교사 홈으로 돌아간다', () => {
+    // 홈 「먼저 볼 학생」 줄도 학생 상세로 직링크한다 — 관제소·채점 허브 두 갈래가 아니다.
+    expect(resolveEntrySource('home')).toBe('home');
+    expect(entryTarget('home')).toEqual({ href: '/teacher', label: '교사 홈' });
+  });
+
   it('모르는 값은 관제소로 떨어진다 — 없는 화면으로 보내지 않는다', () => {
     expect(resolveEntrySource('bogus')).toBe('monitor');
     expect(isEntrySource('bogus')).toBe(false);

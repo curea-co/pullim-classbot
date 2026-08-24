@@ -1,7 +1,8 @@
 /**
  * 들어온 곳 → 되돌아갈 곳 (spec 11 § 3.3.3).
  *
- * 학생 상세는 관제소 명단과 채점 허브 학생 목록이 **함께** 보내는 곳이다.
+ * 학생 상세는 여러 화면이 **함께** 보내는 곳이다 — 관제소 명단 · 교사 홈 「먼저 볼 학생」 ·
+ * 채점 허브 학생 목록 · 채점 상세의 「대화 기록」.
  * 되돌아갈 곳을 한쪽으로 고정해 두면 다른 쪽에서 들어온 교사는 엉뚱한 화면으로 튄다 —
  * 채점하러 들어왔는데 뒤로 가기가 관제소로 가면 검수하던 자리를 잃는다.
  *
@@ -11,13 +12,14 @@
 
 export const entrySources = {
   grading: { href: '/teacher/grading', label: '채점 허브' },
+  home:    { href: '/teacher',         label: '교사 홈' },
   monitor: { href: '/teacher/monitor', label: '학급 관제소' },
 } as const;
 
 export type EntrySource = keyof typeof entrySources;
 
 export function isEntrySource(v: string | undefined): v is EntrySource {
-  return v === 'grading' || v === 'monitor';
+  return v !== undefined && Object.hasOwn(entrySources, v);
 }
 
 /** 모르는 값·빈 값은 관제소로 — 기존 진입 동선이 기본값이다. */
