@@ -117,6 +117,13 @@ describe('들어온 곳 — 되돌아갈 곳', () => {
     expect(entryTarget('home')).toEqual({ href: '/teacher', label: '교사 홈' });
   });
 
+  it('검수하다 건너오면 학생 전체 탭이 아니라 큐로 돌아간다', () => {
+    // 「채점 허브」 하나로 뭉뚱그리면 검수하던 자리를 잃는다.
+    expect(entryTarget('grading-queue')).toEqual({
+      href: '/teacher/grading?view=queue', label: '채점 대기 큐',
+    });
+  });
+
   it('모르는 값은 관제소로 떨어진다 — 없는 화면으로 보내지 않는다', () => {
     expect(resolveEntrySource('bogus')).toBe('monitor');
     expect(isEntrySource('bogus')).toBe(false);

@@ -74,11 +74,17 @@ export function gradingStudentName(item: GradingItem): string {
 
 /**
  * 학생 상세로 가는 링크 — 명단에 없으면 undefined(누를 곳이 없다).
- * `from=grading` 을 달아 학생 상세의 뒤로 가기가 채점 허브로 돌아오게 한다 (spec 11 § 3.3.3).
+ *
+ * `from` 을 달아 학생 상세의 뒤로 가기가 **온 자리로** 돌아오게 한다 (spec 11 § 3.3.3).
+ * 학생 목록에서 왔으면 `grading`, 검수하다 건너왔으면 `grading-queue` —
+ * 큐를 학생 전체 탭과 뭉뚱그리면 검수하던 자리를 잃는다.
  */
-export function studentHrefOfGrading(item: GradingItem): string | undefined {
+export function studentHrefOfGrading(
+  item: GradingItem,
+  from: 'grading' | 'grading-queue' = 'grading',
+): string | undefined {
   const rosterId = rosterIdOfGradingStudent(item.studentId);
-  return rosterId ? `/teacher/students/${rosterId}?from=grading` : undefined;
+  return rosterId ? `/teacher/students/${rosterId}?from=${from}` : undefined;
 }
 
 /** 학생 한 명이 채점 허브 목록에서 차지하는 한 줄. */

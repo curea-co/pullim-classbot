@@ -11,9 +11,12 @@
  */
 
 export const entrySources = {
-  grading: { href: '/teacher/grading', label: '채점 허브' },
-  home:    { href: '/teacher',         label: '교사 홈' },
-  monitor: { href: '/teacher/monitor', label: '학급 관제소' },
+  grading:        { href: '/teacher/grading',            label: '채점 허브' },
+  // 채점 상세에서 「대화 기록」으로 건너온 교사는 **검수하던 큐로** 돌아가야 한다.
+  // 「채점 허브」 하나로 뭉뚱그리면 가장 빈번한 검수 흐름이 학생 전체 탭으로 샌다.
+  'grading-queue': { href: '/teacher/grading?view=queue', label: '채점 대기 큐' },
+  home:           { href: '/teacher',                    label: '교사 홈' },
+  monitor:        { href: '/teacher/monitor',            label: '학급 관제소' },
 } as const;
 
 export type EntrySource = keyof typeof entrySources;

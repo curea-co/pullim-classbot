@@ -110,7 +110,8 @@ export function GradingDetail({
 
   // 이름은 등록 학생 명단 쪽(성 포함)으로 — 채점 시드 이름과 학생 상세 이름이 갈리지 않게.
   const studentName = gradingStudentName(item);
-  const studentHref = studentHrefOfGrading(item);
+  // 검수하다 건너간 것이라 되돌아갈 곳은 학생 전체 탭이 아니라 **큐**다.
+  const studentHref = studentHrefOfGrading(item, 'grading-queue');
 
   return (
     <div className="space-y-4 py-4 lg:py-6">
