@@ -6,7 +6,7 @@
 > 학생 상세 **화면은 새로 만들지 않는다** — 이미 있는 `/teacher/students/[id]` 로 보낸다.
 > 그 화면 안에 더하는 것은 패널 **두 개**뿐이다 — 「막힌 지점」 · 「이 학생의 채점」 (§ 3.3.3)
 > 의존 mock (지금 있는 것): `lib/mock/classbot.ts` — `GradingItem`, `gradingQueue`, `gradingStats` /
-> `lib/mock/classbot-monitoring.ts` — `monitoredRoster`(등록 학생 명단)
+> `lib/mock/classbot-monitoring.ts` — `monitoredRoster`(학생 목록이 읽는 명단 · 임시 FE 시드, § 3.2)
 > 새로 만들 것: `lib/mock/classbot-grading-roster.ts` — 둘을 잇는 표.
 > **아직 리포에 없다.** 이 문서가 그 파일의 요구사항이고, 파일은 뒤따르는 코드 PR 에서 추가한다
 > (이 리포는 문서 PR 을 먼저 머지하고 코드 PR 을 올린다)
@@ -384,7 +384,7 @@ ClassBot (1) ── (N) RubricLearningProposal
   (`queue` 3 · `reviewing` 1 · `approved` 2 · `overridden` 1)
   - `gr_007` — overridden 1건 (overrideDelta 24, RubricLearningProposal 트리거 시연용)
   - `gradingHistory` — 최근 채점 이력 (Flow G1 사이드 패널), 채점 시드와 **같은 학생**
-- 학생·과목·단원은 학생 명단(`monitoredRoster` · 중1-3반 과학 · 물질의 상태 변화)에 맞춰 정렬돼 있다 (§ 7.1)
+- 학생·과목·단원은 학생 명단(`monitoredRoster` · 중1-3반 과학 · 물질의 상태 변화)에 맞춰 **정렬한다** — 코드 PR 몫 (§ 7.1)
 
 위기 게이트 시연을 위해 `gr_004` (최도현) 응답을 그대로 사용 — 응답 빈약 + 학습 부담 시그널.
 관제 스냅샷에서도 최도현은 미도달·지름길 6회·막힌 개념 3개라 두 화면이 같은 얘기를 한다.
@@ -539,7 +539,7 @@ BE 가 `enrollments`/`studentId` 로 한 명단을 내려주면 `monitoredRoster
 
 | Phase | 범위 | 검증 기준 |
 |---|---|---|
-| **P0** (이번 작업) | M1~M5 + Flow G1 + 채점 큐 + 채점 상세 UI 골격 | 6건 시드를 큐에서 보고 1건 검수해 승인까지 완료 |
+| **P0** (이번 작업) | M1~M5 + Flow G1 + 채점 큐 + 채점 상세 UI 골격 | 7건 시드(§ 7)를 큐에서 보고 1건 검수해 승인까지 완료 |
 | **P0.5** | M0~M0-2 + Flow G0 + 학생 전체 목록 + 학생 상세 「막힌 지점」 | 채점 대기 0건인 학생이 목록에 남고, 눌러 들어가면 어떤 봇과 무슨 대화를 했고 어디서 막혔는지 보인다 |
 | **P1** | S1~S4 + Flow G2 (재학습 제안) | 변경률 임계 시연, 일괄 액션 작동 |
 | **P2** | 위기 게이트 자동화 + 리포트 연동 | 최도현 시나리오에서 게이트 발동 후 면담 메모가 리포트에 첨부 |

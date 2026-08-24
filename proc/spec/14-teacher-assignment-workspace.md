@@ -235,7 +235,7 @@ sent ──[회수] (v2)──> withdrawn (학생 화면에서 사라짐)
 | 1 | 교사가 [발사] 클릭 | store에 push + 토스트 |
 | 2 | 학생 `/classbot` 새로고침 | `getMyAssignments()`가 합쳐 반환 → Primary에 새 과제 |
 | 3 | 학생 풀이 완료·제출 | 결과 페이지 도달, `completedCount` 증가 (store 갱신 — P0는 mock) |
-| 4 | 교사 `/teacher/grading?view=queue` | 새 채점 항목 자동 진입 (P0는 시드 6건 + 신규는 v1) |
+| 4 | 교사 `/teacher/grading?view=queue` | 새 채점 항목 자동 진입 (P0는 시드 7건 · [11 § 7](11-grading-hub.md) + 신규 제출 반영은 v1) |
 | 5 | 교사 승인 후 `/teacher/reports` | KPI에 점수 반영 (v1) |
 
 ---
