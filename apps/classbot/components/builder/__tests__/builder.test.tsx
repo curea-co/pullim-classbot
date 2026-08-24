@@ -244,7 +244,7 @@ describe('아홉 가지를 다 정하기', () => {
     expect(count()).toBe('8');
 
     // 만든 뒤 — 반
-    fireEvent.click(screen.getByRole('button', { name: '만들기' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '이대로 만들기' })[0]);
     fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
     expect(marks('classes').beside).toContain('내가 정함');
     expect(marks('classes').summary).toContain('내가 정함');
@@ -352,6 +352,18 @@ describe('만든 뒤 화면', () => {
     fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
     expect(marks('files').beside).toContain('기본값');
     expect(marks('files').beside).not.toContain('내가 정함');
+  });
+
+  it('어느 마당에서든 CTA 는 「이대로 만들기」 하나다 — 남은 항목은 기본값으로 들어간다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    for (const next of [/다음 — 보고 답할 것/, /다음 — 가르치는 법/]) {
+      expect(screen.getAllByRole('button', { name: '이대로 만들기' }).length).toBeGreaterThan(0);
+      fireEvent.click(screen.getByRole('button', { name: next }));
+    }
+    // 마당 3 은 더 갈 곳이 없어 버튼이 하나지만 이름은 같다
+    expect(screen.getAllByRole('button', { name: '이대로 만들기' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '만들기' })).toBeNull();
   });
 
   it('고른 과목을 다시 눌러도 올린 자료가 지워지지 않는다', () => {

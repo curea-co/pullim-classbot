@@ -143,7 +143,8 @@ export default function BotBuilderPage() {
  * 나가는 줄 — 마당마다 다르다.
  * 마당 1·2 에는 「이대로 만들기」를 다음 버튼과 나란히 둔다. 갈래 고르기가 사라진 대신
  * 「짧게 끝내기」가 여기 있다는 것을 매 마당에서 보여줘야 한다.
- * 마당 3 은 더 갈 곳이 없으니 만들기 하나만 둔다.
+ * 마당 3 은 더 갈 곳이 없어 버튼이 하나지만 **이름은 같다** — 어느 마당에서 눌러도
+ * 「남은 항목은 기본값으로 들어간다」는 뜻이 그대로여야 한다.
  */
 function YardNav({
   yard, onJump, onMake,
@@ -183,7 +184,7 @@ function YardNav({
       )}
       {yard === 3 && (
         <Button type="button" variant="pullim" size="lg" onClick={onMake}>
-          만들기
+          이대로 만들기
         </Button>
       )}
     </div>
