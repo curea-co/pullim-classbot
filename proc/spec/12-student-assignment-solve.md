@@ -26,9 +26,10 @@
 - **G2**: 3가지 모드(`practice/exam/wrong-conquest`)별로 봇 거동·UI·Scope가 명확히 다르다
 - **G3**: 제출 시 자동으로 [채점 허브](11-grading-hub.md) 큐에 진입 → 교사 검수 사이클로 환류
 
-> **이 문서에서 「채점 큐」 = `/teacher/grading?view=queue`.**
-> `/teacher/grading` 의 기본 화면은 등록 학생 전체다 ([11 § 3.2](11-grading-hub.md)).
-> 아래 M5 · Flow · ERD 의 「채점 큐」는 모두 그 탭을 가리킨다.
+> **「채점 큐」 = `/teacher/grading`** — 지금은 그 라우트의 기본 화면이 곧 큐다.
+> [11 § 3.1 [S6]](11-grading-hub.md) 이 기본 화면을 등록 학생 전체로 바꾸고 큐를 `?view=queue` 탭으로
+> 옮기기로 하는데, **아직 미구현**이다. 그 [S6] 이 구현되면 이 문서의 「채점 큐」는 `?view=queue` 를 가리킨다.
+> 아래 M5 · Flow · ERD 의 「채점 큐」는 어느 쪽이든 **같은 큐 화면**을 뜻한다.
 
 ### 2.3 Persona별 영향
 
@@ -206,8 +207,6 @@
 1. 학생 [제출] → `Submission` 생성 (state: `submitted`)
 2. 객관식·수치 → T1 즉시 채점 → 자동 승인
 3. 서술형 → T2 초안 생성 → [채점 허브 큐](11-grading-hub.md § 5.2) 진입
-   (큐 화면은 `/teacher/grading?view=queue` — `/teacher/grading` 의 기본 화면은 등록 학생 전체다.
-   [11 § 3.2](11-grading-hub.md))
 4. 결과 페이지는 즉시 자동 채점분만 노출, 서술형은 "검수 대기" 상태
 5. 교사 승인 후 결과 페이지 자동 갱신 (push 또는 polling)
 
