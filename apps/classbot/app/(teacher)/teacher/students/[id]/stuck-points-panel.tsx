@@ -11,8 +11,11 @@ import type { StuckPoint } from '@/lib/mock/classbot-student-report';
  * 앞 둘은 이미 있었고 이 패널만 없었다.
  *
  * 원천은 `MonitoredStudent.stuckConcepts` 하나뿐 — 학급 「다시 가르칠 개념」이 읽는 값과 같다.
- * 질문·되묻기 문구는 새로 지어내지 않고 대화 기록에서 그대로 뽑는다(`buildStuckPoints`).
+ * 질문·되묻기 문구는 이 패널이 만들지 않는다. `buildStuckPoints` 가 대화 기록에서 그대로 뽑는다.
  * 그래서 여기 뜬 말은 아래 대화 기록을 열면 같은 시각에 그대로 있다.
+ *
+ * 그 「대화 기록」은 아직 **실제 로그가 아니라 mock** 이다 — `buildTranscript()` 가 `stuckConcepts`
+ * 로 합성한 것이다. BE 가 대화 기록을 내려주기 시작하면 그 자리만 갈아 끼우면 된다.
  */
 export function StuckPointsPanel({
   stuckPoints,

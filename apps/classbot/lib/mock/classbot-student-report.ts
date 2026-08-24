@@ -301,8 +301,11 @@ export type StuckPoint = {
  * 이 학생이 막힌 개념과, 그 개념을 다룬 대화 턴.
  *
  * 원천은 `MonitoredStudent.stuckConcepts` 하나뿐이다 — 학급 「다시 가르칠 개념」이 읽는 값과 같다.
- * 질문·되묻기 문구는 **새로 지어내지 않고** 대화 기록(`buildTranscript`)에서 그대로 뽑는다.
+ * 질문·되묻기 문구는 **여기서 새로 만들지 않고** `buildTranscript` 가 만든 대화에서 그대로 뽑는다.
  * 그래서 여기 뜬 말은 대화 기록 뷰어를 열면 같은 시각에 그대로 있다.
+ *
+ * 그 대화는 실제 로그가 아니라 이 파일이 합성한 mock 이다 — 실제 로그가 붙으면
+ * `buildTranscript` 만 갈아 끼우면 되고 이 함수는 그대로 둔다.
  */
 export function buildStuckPoints(s: MonitoredStudent): StuckPoint[] {
   const turns = buildTranscript(s);

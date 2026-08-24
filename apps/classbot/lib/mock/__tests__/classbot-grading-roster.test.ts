@@ -22,16 +22,24 @@ describe('채점 항목 ↔ 학생 명단 잇기', () => {
     }
   });
 
-  it('번호 규칙(sN ↔ m0N)의 근거 — 이름이 겹치는 5건은 명단 이름이 시드 이름으로 끝난다', () => {
-    // spec 11 § 7.1 의 표. 이 5건이 규칙의 근거라 깨지면 규칙 자체를 다시 봐야 한다.
-    const evidence: [string, string][] = [
+  it('이름으로 확인되는 5명은 명단 이름이 시드 이름으로 끝난다', () => {
+    // spec 11 § 7.1 의 표에서 이름이 이어지는 줄. 깨지면 잇기를 다시 봐야 한다.
+    const confirmed: [string, string][] = [
       ['s1', '서연'], ['s4', '도현'], ['s6', '주원'], ['s9', '나린'], ['s13', '윤서'],
     ];
-    for (const [gradingId, given] of evidence) {
+    for (const [gradingId, given] of confirmed) {
       const rosterId = rosterIdOfGradingStudent(gradingId);
       const student = monitoredRoster.find(s => s.id === rosterId);
       expect(student?.name.endsWith(given)).toBe(true);
     }
+  });
+
+  it('표에 없는 학생은 번호가 나란해도 잇지 않는다', () => {
+    // 번호를 일반 규칙으로 쓰면 s3 지우 ↔ m03 박하람 처럼 이름이 이어지지 않는 학생까지
+    // 조용히 같은 사람으로 묶인다. 그래서 표에 적힌 7명만 잇는다 (spec 11 § 7.1).
+    expect(monitoredRoster.find(s => s.id === 'm03')?.name).toBe('박하람');
+    expect(rosterIdOfGradingStudent('s3')).toBeUndefined();
+    expect(rosterIdOfGradingStudent('s7')).toBeUndefined();
   });
 
   it('명단에 없는 번호는 잇지 않는다 — 없는 학생을 만들지 않는다', () => {

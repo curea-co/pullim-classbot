@@ -7,10 +7,17 @@
  *   채점 항목(`GradingItem.studentId`) → `classbot.ts` 의 `classRoster` (`s1`~`s18`, 이름만: 서연)
  *   학생 목록·상세                     → `classbot-monitoring.ts` 의 `monitoredRoster` (`m01`~`m20`, 성까지: 김서연)
  *
- * 잇는 규칙은 **번호 그대로**(`sN` ↔ `m0N`)다. 근거 — 채점 시드 7건 중 5건이 번호도 이름도 함께 맞는다:
- *   `s1`=김**서연** · `s4`=최**도현** · `s6`=강**주원** · `s9`=임**나린** · `s13`=신**윤서**.
- * 반례가 없어서 이름이 갈리는 2건(`s2` 민준 · `s5` 하윤)도 같은 규칙으로 잇는다.
- * 규칙이 실제로 다 붙는지는 `__tests__/classbot-grading-roster.test.ts` 가 지킨다.
+ * **이 잇기는 mock 을 붙이기 위한 임시 결합이지 학생 신원 확정이 아니다.**
+ * 실제 신원은 BE 가 한 명단을 내려주기 시작할 때 정해진다 — 그때 이 파일은 통째로 버린다.
+ *
+ * 번호를 일반 규칙(`sN` → `m0N`)으로 쓰지 않는다. 두 명단 전체로 보면 번호가 같아도 이름이
+ * 이어지지 않는 항목이 이미 있다 — `s3` 지우 vs `m03` 박하람, `s7` 예은 vs `m07` 조은채.
+ * 규칙으로 두면 그 학생들까지 조용히 같은 사람으로 묶인다.
+ * 그래서 **채점 시드가 가리키는 7명만** 아래 표에 한 줄씩 적는다.
+ *
+ * 새 채점 시드가 생기면 이 표에 한 줄을 손으로 더해야 한다.
+ * 빠뜨리면 `__tests__/classbot-grading-roster.test.ts` 의
+ * 「학생별 대기 건수 합계 = 큐 전체 대기 건수」가 깨져서 알려준다.
  *
  * **시드를 고치지 않고 읽을 때 잇는다.** 채점 시드는 채점 상세·이력(`gradingHistory`)·테스트도
  * 같은 id 로 읽기 때문이다. 화면에 뜨는 이름만 학생 명단 쪽(성 포함)으로 통일한다 —
@@ -25,12 +32,26 @@ import { monitoredRoster, type MonitoredStudent } from './classbot-monitoring';
 /** 채점 허브가 보는 채점 항목 전체 — 큐 시드 6건 + overridden 시연 1건. */
 export const allGradingItems: GradingItem[] = [...gradingQueue, overriddenSample];
 
-/** `s13` → `m13`. 학생 명단에 그 번호가 없으면 undefined. */
+/**
+ * 채점 시드의 학생 → 등록 학생 명단의 학생. **표에 적힌 7명만** 잇는다.
+ *
+ * 5명은 이름이 그대로 이어져서 확인된다. 남은 2명(`s2` · `s5`)은 이름으로는 확인할 수 없어
+ * 번호로만 임시로 붙인 것이다 — mock 시연을 굴리기 위한 선택이고, 실제 신원 주장이 아니다.
+ */
+const gradingStudentLink: Record<string, string> = {
+  s1:  'm01', // 서연 → 김서연 · 이름이 이어진다
+  s2:  'm02', // 민준 → 이준서 · 이름이 이어지지 않는다 — 번호로만 임시 결합
+  s4:  'm04', // 도현 → 최도현 · 이름이 이어진다
+  s5:  'm05', // 하윤 → 정예린 · 이름이 이어지지 않는다 — 번호로만 임시 결합
+  s6:  'm06', // 주원 → 강주원 · 이름이 이어진다
+  s9:  'm09', // 나린 → 임나린 · 이름이 이어진다
+  s13: 'm13', // 윤서 → 신윤서 · 이름이 이어진다
+};
+
+/** `s13` → `m13`. 표에 없거나 명단에 없는 번호면 undefined — 없는 학생을 만들지 않는다. */
 export function rosterIdOfGradingStudent(gradingStudentId: string): string | undefined {
-  const matched = /^s(\d{1,2})$/.exec(gradingStudentId);
-  if (!matched) return undefined;
-  const rosterId = `m${matched[1].padStart(2, '0')}`;
-  return monitoredRoster.some(s => s.id === rosterId) ? rosterId : undefined;
+  const rosterId = gradingStudentLink[gradingStudentId];
+  return rosterId && monitoredRoster.some(s => s.id === rosterId) ? rosterId : undefined;
 }
 
 /** 이 채점 항목이 가리키는 학생 명단의 학생. */
