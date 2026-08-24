@@ -14,7 +14,9 @@ import {
   isOfflineToday, lastSeenRank, reachBadge, stuckConceptLabel,
   type MonitoredStudent,
 } from '@/lib/mock/classbot-monitoring';
-import { buildGradingRoster, type GradingRosterRow } from '@/lib/mock/classbot-grading-roster';
+import {
+  buildGradingRoster, unlinkedGradingItems, type GradingRosterRow,
+} from '@/lib/mock/classbot-grading-roster';
 import type { GradingItem } from '@/lib/mock';
 import { useGradingStore, useMergedGradingItems } from '@/lib/store/grading';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
@@ -74,6 +76,15 @@ export function GradingStudentList({
 
   // 교사가 확정한 채점을 얹은 뒤 센다 — 확정한 항목은 대기에서 빠져야 한다.
   const rows = useMemo(() => buildGradingRoster(merged, students), [merged, students]);
+
+  /**
+   * 학생 명단에 이어지지 않은 채점 — 어느 줄에도 붙지 않는다 (spec 11 § 7.1).
+   * 감추면 줄 배지 합계와 위 KPI 「대기」가 말없이 어긋난다. 세어서 큐로 가는 길을 준다.
+   */
+  const unlinkedPending = useMemo(
+    () => unlinkedGradingItems(merged).filter(item => item.status === 'queue').length,
+    [merged],
+  );
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -141,6 +152,16 @@ export function GradingStudentList({
         「대기」는 아직 검수하지 않은 채점 건수예요. 대기가 0건이어도 학생은 목록에 남아요 —
         <b className="text-pullim-slate-700"> 오늘 제출하지 않은 학생</b>이 화면에서 사라지지 않게 하려는 거예요.
       </p>
+
+      {hydrated && unlinkedPending > 0 && (
+        <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
+          학생 명단에 이어지지 않은 채점이 <b className="text-pullim-slate-700">{`${unlinkedPending}건`}</b> 있어요.
+          {' '}
+          <Link href="/teacher/grading?view=queue" className="text-pullim-blue-600 hover:text-pullim-blue-700 font-bold">
+            채점 대기 큐에서 보기
+          </Link>
+        </p>
+      )}
     </section>
   );
 }
