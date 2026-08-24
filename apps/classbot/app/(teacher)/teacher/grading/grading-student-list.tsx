@@ -179,7 +179,8 @@ function StudentRow({ row }: { row: GradingRosterRow }) {
   return (
     <li>
       <Link
-        href={`/teacher/students/${s.id}`}
+        // 되돌아갈 곳을 넘긴다 — 이게 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
+        href={`/teacher/students/${s.id}?from=grading`}
         className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_4.5rem_5rem_minmax(0,1fr)_6rem_auto]"
       >
         {/* 이름 · 학년 */}

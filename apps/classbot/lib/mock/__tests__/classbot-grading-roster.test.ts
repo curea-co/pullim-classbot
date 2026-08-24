@@ -65,7 +65,8 @@ describe('채점 항목 ↔ 학생 명단 잇기', () => {
     const item = gradingQueue[0]; // gr_001 · s13 윤서
     expect(item.studentName).toBe('윤서');
     expect(gradingStudentName(item)).toBe('신윤서');
-    expect(studentHrefOfGrading(item)).toBe('/teacher/students/m13');
+    // from=grading 이 붙어야 학생 상세의 뒤로 가기가 채점 허브로 돌아온다.
+    expect(studentHrefOfGrading(item)).toBe('/teacher/students/m13?from=grading');
   });
 });
 

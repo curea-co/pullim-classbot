@@ -1,6 +1,7 @@
 import { render, screen, within, cleanup } from '@testing-library/react';
 import { StuckPointsPanel } from '../[id]/stuck-points-panel';
 import { StudentGradingPanel } from '../[id]/student-grading-panel';
+import { entryTarget, isEntrySource, resolveEntrySource } from '../[id]/entry-source';
 import { monitoredClass, monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { buildStuckPoints, buildTranscript } from '@/lib/mock/classbot-student-report';
 import { gradingItemsOfStudent } from '@/lib/mock/classbot-grading-roster';
@@ -95,5 +96,23 @@ describe('이 학생의 채점 — 채점 허브로 돌아가는 길', () => {
   it('채점 항목이 없는 학생은 그렇게 적는다', () => {
     render(<StudentGradingPanel items={[]} studentName={clean.name} />);
     expect(screen.getByText('아직 채점할 제출이 없어요')).toBeTruthy();
+  });
+});
+
+describe('들어온 곳 — 되돌아갈 곳', () => {
+  it('채점 허브에서 들어오면 채점 허브로 돌아간다', () => {
+    expect(resolveEntrySource('grading')).toBe('grading');
+    expect(entryTarget('grading')).toEqual({ href: '/teacher/grading', label: '채점 허브' });
+  });
+
+  it('from 이 없으면 지금까지처럼 관제소에서 온 것으로 본다', () => {
+    // 기존 링크(`/teacher/students/m04`)가 그대로 동작해야 한다.
+    expect(resolveEntrySource(undefined)).toBe('monitor');
+    expect(entryTarget(undefined)).toEqual({ href: '/teacher/monitor', label: '학급 관제소' });
+  });
+
+  it('모르는 값은 관제소로 떨어진다 — 없는 화면으로 보내지 않는다', () => {
+    expect(resolveEntrySource('bogus')).toBe('monitor');
+    expect(isEntrySource('bogus')).toBe(false);
   });
 });

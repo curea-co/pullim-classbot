@@ -103,7 +103,8 @@ describe('학생을 누르면 상세로 간다', () => {
     for (const row of rows()) {
       const links = within(row).getAllByRole('link');
       expect(links).toHaveLength(1);
-      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d{2}$/);
+      // 되돌아갈 곳(from)이 붙어 있어야 학생 상세의 뒤로 가기가 채점 허브로 돌아온다.
+      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d{2}\?from=grading$/);
     }
   });
 
@@ -111,7 +112,7 @@ describe('학생을 누르면 상세로 간다', () => {
     renderList();
     const s = monitoredRoster[3]; // m04 최도현
     const link = screen.getByText(s.name).closest('a');
-    expect(link?.getAttribute('href')).toBe(`/teacher/students/${s.id}`);
+    expect(link?.getAttribute('href')).toBe(`/teacher/students/${s.id}?from=grading`);
   });
 });
 

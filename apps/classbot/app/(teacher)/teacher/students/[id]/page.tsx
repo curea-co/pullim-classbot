@@ -16,13 +16,15 @@ import {
   type ReportPeriod,
 } from '@/lib/mock/classbot-student-report';
 import { gradingItemsOfStudent } from '@/lib/mock/classbot-grading-roster';
+import { entryTarget, resolveEntrySource } from './entry-source';
 import { TranscriptViewer } from './transcript-viewer';
 import { ProcessEvaluationPanel } from './process-evaluation-panel';
 import { StuckPointsPanel } from './stuck-points-panel';
 import { StudentGradingPanel } from './student-grading-panel';
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ period?: string }>;
+type SearchParams = Promise<{ period?: string; from?: string }>;
+
 
 /**
  * 학생별 대화기록 리포트 · 과정 평가 (SCR-C-32 / FR-C-33).
@@ -44,31 +46,35 @@ export default async function TeacherStudentReportPage({
   searchParams: SearchParams;
 }) {
   const { id } = await params;
-  const { period: rawPeriod } = await searchParams;
+  const { period: rawPeriod, from: rawFrom } = await searchParams;
 
   const student = findStudent(id);
   if (!student) notFound();
 
   const period: ReportPeriod = isReportPeriod(rawPeriod) ? rawPeriod : 'today';
+  const from = resolveEntrySource(rawFrom);
+  const entry = entryTarget(rawFrom);
+  // 이동·기간 링크가 진입 source 를 그대로 이어받는다 — 몇 명을 넘겨도 되돌아갈 곳이 유지된다.
+  const query = (p: ReportPeriod) => `?period=${p}&from=${from}`;
   const report = buildStudentReport(student);
   const { prev, next, index, total } = siblingStudents(id);
   const gradingItems = gradingItemsOfStudent(student.id);
 
   return (
     <TeacherPageShell
-      backHref="/teacher/monitor"
-      backLabel="학급 관제소"
+      backHref={entry.href}
+      backLabel={entry.label}
       header={{
         eyebrow: { icon: UserRound, text: '학생 기록' },
         title: student.name,
         description: `${student.grade} · ${report.classroomLabel} · ${report.botName} · ${report.unit}`,
         action: (
           <nav aria-label="학생 이동" className="flex items-center gap-1.5">
-            <StudentStep href={prev ? `/teacher/students/${prev.id}?period=${period}` : undefined} dir="prev" name={prev?.name} />
+            <StudentStep href={prev ? `/teacher/students/${prev.id}${query(period)}` : undefined} dir="prev" name={prev?.name} />
             <span className="text-pullim-slate-500 font-mono text-2xs">
               {index + 1}/{total}
             </span>
-            <StudentStep href={next ? `/teacher/students/${next.id}?period=${period}` : undefined} dir="next" name={next?.name} />
+            <StudentStep href={next ? `/teacher/students/${next.id}${query(period)}` : undefined} dir="next" name={next?.name} />
           </nav>
         ),
       }}
@@ -79,7 +85,7 @@ export default async function TeacherStudentReportPage({
           label="기간"
           options={reportPeriods}
           current={period}
-          href={v => `/teacher/students/${id}?period=${v}`}
+          href={v => `/teacher/students/${id}${query(v)}`}
         />
         <p className="text-pullim-slate-400 mt-2 text-micro">
           기간을 바꿔도 지금은 같은 스냅샷을 보여줘요. (준비 중)
