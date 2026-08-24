@@ -1,4 +1,4 @@
-import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
+import { getTeacherBotRows, teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { scopeMeta, type ScopeLevel } from '@/lib/mock';
 
 /**
@@ -51,6 +51,7 @@ export type BotDraft = {
   scope: ScopeLevel;
   style: StyleId;
   wrong: WrongId;
+  /** 학급 id (`classroomChoices` 의 `id`) — 라벨이 아니다. 운영 화면·참여 코드와 같은 키를 쓴다. */
   classes: string[];
   own: OwnMap;
 };
@@ -114,9 +115,25 @@ export { scopeMeta };
 export type { ScopeLevel };
 
 /** 봇을 만든 뒤에 고를 수 있는 반. */
-export const classroomChoices = ['중1-3반', '중1-5반', '중2-1반', '초6-2반'] as const;
+/**
+ * 반 선택지 — 기존 학급 권위(`lib/mock/classbot-teacher-ops.ts`)에서 파생한다.
+ * 라벨을 여기서 새로 지어내면 참여 코드(`class-codes.ts` 의 `classroomId`·`classroomLabel`)나
+ * 운영 화면의 반 카드와 이어 붙일 수 없다 — 같은 반을 두 이름으로 부르게 된다.
+ */
+export type ClassroomChoice = { id: string; label: string };
+
+export const classroomChoices: ClassroomChoice[] = teacherBotOps
+  .flatMap((ops) => ops.classrooms)
+  .map(({ id, label }) => ({ id, label }))
+  // 한 반이 여러 봇에 붙어 있어도 목록에는 한 번만 나온다
+  .filter((c, i, all) => all.findIndex((x) => x.id === c.id) === i);
 
 /** 세는 칸 밖 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
+/** 학급 id → 교사·학생이 같이 보는 반 이름. 모르는 id 는 그대로 보여준다(감추지 않는다). */
+export function classroomLabel(id: string): string {
+  return classroomChoices.find((c) => c.id === id)?.label ?? id;
+}
+
 export const alwaysOnSafety = ['개인정보 가리기', '위험한 말 막기', '위기 신호 알림'] as const;
 
 /* ─── 지난 봇에서 가져오기 ─── */
@@ -314,7 +331,7 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
     row(
       'classes', 4, '반',
       draft.classes.length
-        ? draft.classes.join(' · ')
+        ? draft.classes.map(classroomLabel).join(' · ')
         : view === 'done' ? '아직 안 넣음' : '만든 뒤에 골라요',
       draft.classes.length === 0,
     ),
@@ -327,13 +344,24 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
  * 값과 `own` 을 한 번에 옮기므로 「고쳤는데 배지가 안 따라온」 상태가 만들어질 수 없다.
  * 이름·자료·반처럼 비우면 다시 기본값이 되는 항목은 `own` 을 직접 넘긴다.
  */
+/**
+ * 한 항목을 바꾸면 함께 무효가 되는 항목.
+ * 과목을 바꾸면 지난 과목의 수업 자료는 뜻이 없어 비운다 — 값만 비우고 표시를 두면
+ * 교사가 고른 적 없는 자료가 계속 「내가 정함」으로 남아 두 자리가 어긋난다.
+ */
+const invalidatedBy: Partial<Record<FieldKey, readonly FieldKey[]>> = {
+  subject: ['files'],
+};
+
 export function pick(
   draft: BotDraft,
   field: FieldKey,
   patch: Partial<BotDraft>,
   own = true,
 ): BotDraft {
-  return { ...draft, ...patch, own: { ...draft.own, [field]: own } };
+  const nextOwn: Record<FieldKey, boolean> = { ...draft.own, [field]: own };
+  for (const stale of invalidatedBy[field] ?? []) nextOwn[stale] = false;
+  return { ...draft, ...patch, own: nextOwn };
 }
 
 /** 카운터의 진실원 — 아홉 가지 밖은 세지 않는다(안전 세 가지 포함). */

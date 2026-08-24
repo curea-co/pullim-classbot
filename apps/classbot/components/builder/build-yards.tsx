@@ -190,8 +190,13 @@ export function Yard1Intro({
  * 과목을 바꾸면 올려 둔 자료도 그 과목 것으로 따라간다 (데모).
  * 자료를 그대로 두면 국어봇이 기후도 필기를 읽고 있는 화면이 된다.
  */
+/**
+ * 과목을 바꾸면 올린 자료를 비운다 — 지난 과목의 수업 자료는 새 과목에서 뜻이 없다.
+ * 자료를 갈아치우면서 `own.files` 를 그대로 두면 교사가 고른 적 없는 자료가 계속
+ * 「내가 정함」으로 남아 항목 옆 표시와 「채워진 것」이 어긋난다. `own.files` 도 함께 되돌린다.
+ */
 function pickSubject(draft: BotDraft, subject: SubjectId): Partial<BotDraft> {
-  return { subject, files: sampleFiles[subject].slice(0, draft.files.length) };
+  return { subject, files: [] };
 }
 
 /* ─── 마당 2 — 보고 답할 것 ─── */

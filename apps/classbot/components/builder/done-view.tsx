@@ -10,7 +10,7 @@ import { FieldLabel } from './field-mark';
 import { FilledSummary } from './filled-summary';
 import { PickChip } from './pick-chip';
 import {
-  botName, classroomChoices, ownCount, subjectMeta,
+  botName, classroomChoices, ownCount, subjectMeta, classroomLabel,
   type BotDraft, type FieldKey, type GroupNo, type YardNo,
 } from './builder-types';
 
@@ -39,10 +39,10 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
   const sig = botSignature({ subject: subject?.label });
   const count = ownCount(draft);
 
-  function toggleClass(label: string) {
-    const next = draft.classes.includes(label)
-      ? draft.classes.filter((c) => c !== label)
-      : [...draft.classes, label];
+  function toggleClass(id: string) {
+    const next = draft.classes.includes(id)
+      ? draft.classes.filter((c) => c !== id)
+      : [...draft.classes, id];
     onPick('classes', { classes: next }, next.length > 0);
   }
 
@@ -69,7 +69,7 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
           <div className="min-w-0 flex-1">
             <h2 className="text-pullim-slate-900 truncate text-xl font-bold tracking-tight">{botName(draft)}</h2>
             <p className="text-pullim-slate-500 mt-0.5 text-xs">
-              {[subject?.label, draft.grade, draft.classes.length ? draft.classes.join(' · ') : '아직 반에 안 넣음']
+              {[subject?.label, draft.grade, draft.classes.length ? draft.classes.map(classroomLabel).join(' · ') : '아직 반에 안 넣음']
                 .filter(Boolean)
                 .join(' · ')}
             </p>
@@ -87,10 +87,10 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
           <div role="group" aria-label="어느 반에 넣을까요" className="flex flex-wrap gap-1.5">
             {classroomChoices.map((c) => (
               <PickChip
-                key={c}
-                active={draft.classes.includes(c)}
-                label={c}
-                onSelect={() => toggleClass(c)}
+                key={c.id}
+                active={draft.classes.includes(c.id)}
+                label={c.label}
+                onSelect={() => toggleClass(c.id)}
               />
             ))}
           </div>

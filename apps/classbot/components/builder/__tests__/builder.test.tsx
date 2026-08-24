@@ -10,9 +10,10 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
   BOT_NAME_MAX, BOT_NAME_MIN,
-  FIELD_KEYS, alwaysOnSafety, applyClone, botName, cloneSources,
+  FIELD_KEYS, alwaysOnSafety, applyClone, botName, classroomChoices, cloneSources,
   emptyDraft, isNameValid, ownCount, pick, summaryRows,
 } from '../builder-types';
+import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 
 /* ─── 순수 모델 ─── */
 
@@ -243,14 +244,14 @@ describe('아홉 가지를 다 정하기', () => {
 
     // 만든 뒤 — 반
     fireEvent.click(screen.getByRole('button', { name: '만들기' }));
-    fireEvent.click(screen.getByRole('button', { name: '중1-3반' }));
+    fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
     expect(marks('classes').beside).toContain('내가 정함');
     expect(marks('classes').summary).toContain('내가 정함');
     expect(count()).toBe('9');
     expect(screen.getByTestId('done-own-count')).toHaveTextContent('9가지');
 
     // 반을 하나 더 골라도 「반」은 한 가지다 — 아홉을 넘지 않는다
-    fireEvent.click(screen.getByRole('button', { name: '중2-1반' }));
+    fireEvent.click(screen.getByRole('button', { name: classroomChoices[1].label }));
     expect(count()).toBe('9');
   });
 });
@@ -304,6 +305,40 @@ describe('만든 뒤 화면', () => {
     expect(screen.getByRole('radio', { name: '중3' })).toHaveAttribute('aria-checked', 'true');
     expect((screen.getByLabelText(/봇 이름/) as HTMLInputElement).value).toBe('별별봇');
     expect(count()).toBe('3');
+  });
+
+  it('반 선택지는 기존 학급 권위에서 나온다 — 라벨을 새로 지어내지 않는다', () => {
+    // 여기서 라벨을 지어내면 참여 코드·운영 화면의 반 카드와 같은 반을 두 이름으로 부르게 된다
+    const known = new Map(teacherBotOps.flatMap(o => o.classrooms).map(c => [c.id, c.label]));
+    expect(classroomChoices.length).toBeGreaterThan(0);
+    for (const c of classroomChoices) expect(known.get(c.id)).toBe(c.label);
+    // 한 반이 여러 봇에 붙어 있어도 목록에는 한 번만
+    expect(new Set(classroomChoices.map(c => c.id)).size).toBe(classroomChoices.length);
+  });
+
+  it('과목을 바꾸면 올린 자료도 「기본값」으로 돌아간다 — 두 자리가 어긋나지 않는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
+    expect(marks('files').beside).toContain('내가 정함');
+    expect(marks('files').summary).toContain('내가 정함');
+    const withFiles = count();
+
+    // 지난 과목의 자료는 새 과목에서 뜻이 없다 — 비우고 표시도 함께 되돌려야 한다
+    fireEvent.click(screen.getByRole('button', { name: '과목 고치기' }));
+    fireEvent.click(screen.getByRole('radio', { name: /수학/ }));
+
+    // 마당 1 에 있어 「수업 자료」 항목 표시는 화면에 없다 — 「채워진 것」 줄로 본다
+    const filesRow = () => screen.getByTestId('summary-row-files').textContent ?? '';
+    expect(filesRow()).toContain('기본값');
+    expect(filesRow()).not.toContain('내가 정함');
+    expect(count()).toBe(String(Number(withFiles) - 1));
+
+    // 마당 2 로 가면 항목 옆 표시도 같은 말을 한다
+    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+    expect(marks('files').beside).toContain('기본값');
+    expect(marks('files').beside).not.toContain('내가 정함');
   });
 
   it('「봇 운영 화면으로」는 ?deployed= 를 달고 보낸다 — 배너가 이 값을 읽는다', () => {
