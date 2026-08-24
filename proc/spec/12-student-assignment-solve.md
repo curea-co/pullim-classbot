@@ -26,6 +26,10 @@
 - **G2**: 3가지 모드(`practice/exam/wrong-conquest`)별로 봇 거동·UI·Scope가 명확히 다르다
 - **G3**: 제출 시 자동으로 [채점 허브](11-grading-hub.md) 큐에 진입 → 교사 검수 사이클로 환류
 
+> **이 문서에서 「채점 큐」 = `/teacher/grading?view=queue`.**
+> `/teacher/grading` 의 기본 화면은 등록 학생 전체다 ([11 § 3.2](11-grading-hub.md)).
+> 아래 M5 · Flow · ERD 의 「채점 큐」는 모두 그 탭을 가리킨다.
+
 ### 2.3 Persona별 영향
 
 | 페르소나 | 이 기능에서 달라지는 것 |

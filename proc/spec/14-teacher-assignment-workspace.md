@@ -230,7 +230,11 @@ sent ──[회수] (v2)──> withdrawn (학생 화면에서 사라짐)
 | 1 | 교사가 [발사] 클릭 | store에 push + 토스트 |
 | 2 | 학생 `/classbot` 새로고침 | `getMyAssignments()`가 합쳐 반환 → Primary에 새 과제 |
 | 3 | 학생 풀이 완료·제출 | 결과 페이지 도달, `completedCount` 증가 (store 갱신 — P0는 mock) |
-| 4 | 교사 `/teacher/grading?view=queue` | 새 채점 항목 자동 진입 (P0는 시드 6건 + 신규는 v1). `/teacher/grading` 의 기본 화면은 등록 학생 전체이므로 **큐를 보려면 `?view=queue`** — [11 § 3.2](11-grading-hub.md) |
+| 4 | 교사 `/teacher/grading?view=queue` | 새 채점 항목 자동 진입 (P0는 시드 6건 + 신규는 v1) |
+
+> **이 문서에서 「채점 큐」 = `/teacher/grading?view=queue`.**
+> `/teacher/grading` 의 기본 화면은 등록 학생 전체다 ([11 § 3.2](11-grading-hub.md)).
+> 아래 P0 검증 기준·E2E 시연 단계의 「채점 큐」도 모두 그 탭을 가리킨다.
 | 5 | 교사 승인 후 `/teacher/reports` | KPI에 점수 반영 (v1) |
 
 ---
