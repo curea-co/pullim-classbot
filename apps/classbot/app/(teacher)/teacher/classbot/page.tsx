@@ -14,6 +14,7 @@ import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { RemindButton } from '@/components/classbot/remind-button';
 import { SubmissionStatusSheet } from '@/components/classbot/submission-status-sheet';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
   currentTeacher, myClassBot, studentAssignments, classRoster, scopeMeta, type Assignment,
@@ -61,7 +62,7 @@ export default function TeacherClassbotPage() {
   return (
     <div className="space-y-4 py-4 lg:py-6">
       <Suspense fallback={null}>
-        <DeployedBanner />
+        <CreatedBanner />
       </Suspense>
 
       <PageHeader
@@ -485,19 +486,28 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
   );
 }
 
-/* ─── 배포 직후 banner — ?deployed=<name> ─── */
-function DeployedBanner() {
+/* ─── 봇 만든 직후 banner — ?created=<name>&rooms=<id,id> ─── */
+function CreatedBanner() {
   const params = useSearchParams();
-  const deployed = params.get('deployed');
-  if (!deployed) return null;
+  const created = params.get('created');
+  if (!created) return null;
+
+  // 두 분기 모두 데모 제약을 드러낸다. 빌더는 화면 안 상태로만 움직이고 저장하지 않아서
+  // (핸드오프 § 4.1), 이 페이지로 넘어오면 새 봇은 이 배너 말고 아무 데도 남지 않는다.
+  // 「넣었어요」·「봇은 남아 있고」처럼 쓰면 교사가 봇이 계속 있다고 믿고 나간다.
+  const rooms = (params.get('rooms') ?? '').split(',').filter(Boolean);
+  const roomNames = rooms.map(classroomLabel).join(' · ');
+
   return (
     <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-4">
       <div className="flex items-center gap-2">
         <Rocket className="h-4 w-4" />
-        <strong className="text-sm">방금 배포된 봇: {deployed}</strong>
+        <strong className="text-sm">방금 만든 봇: {created}</strong>
       </div>
       <p className="text-pullim-blue-700 mt-1 text-2xs">
-        선택한 반에 활성화됨 (데모). 아래 봇 목록이 새 봇 기준으로 갱신될 예정 — v1 backend 연결 후 실 반영.
+        {rooms.length
+          ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
+          : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남아요.'}
       </p>
     </section>
   );
