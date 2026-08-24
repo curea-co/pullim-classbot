@@ -1377,7 +1377,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
   if (turn.kind === 'problem-card' && turn.payload && 'ctaHref' in turn.payload) {
     const { problemNumber, title, ctaLabel, ctaHref } = turn.payload as ProblemCardPayload;
     return (
-      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: 'var(--color-pullim-blue-500)' }}>
+      <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2')} style={{ borderLeftColor: 'var(--color-pullim-lemon)' }}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 flex items-center gap-2.5 rounded-lg border p-2.5">
           <span className="bg-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold text-white">

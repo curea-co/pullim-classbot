@@ -199,7 +199,12 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            {/* 시그니처 점은 뺐다 — 바로 왼쪽 아바타와 그룹 라이너가 이미 같은 색으로 봇을 말한다 */}
+            {/* [08 § 15.6] 그룹 헤더가 요구하는 시그니처 점 — 명단을 훑을 때의 보조 단서다 */}
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: groupHex }}
+            />
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
               {bot.label}
             </h3>

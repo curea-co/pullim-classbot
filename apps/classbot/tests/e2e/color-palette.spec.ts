@@ -54,7 +54,15 @@ const DEPRECATED_TOKEN_RGB: Record<string, [number, number, number]> = {
   'pullim-warn-bg':    [255, 247, 230],  // #FFF7E6
 };
 
-/** [08 § 1.6] 레몬 3종 — 자리 수를 센다. */
+/**
+ * [08 § 1.6] 레몬 3종 — **자리 수**를 센다.
+ * 세는 규칙:
+ *   - 배경 채움과 **새로 지정한** 글자색만 센다. 물려받은 글자색은 세지 않는다
+ *     (레몬 버튼 안의 <span> 까지 세면 한 버튼이 두 자리로 잡힌다).
+ *   - `borderColor` 는 세지 않는다 — [08 § 15.1.3] problem-card · [§ 15.3] LIVE 카드의
+ *     **4px lime 좌측 라이너**는 명세가 메시지/카드 타입마다 요구하는 시각 단서라 개수 제한 대상이 아니다.
+ *   - 한 요소가 `bg-pullim-lemon text-pullim-lemon-ink` 처럼 둘 다 쓰면 **한 자리**로 센다.
+ */
 const LEMON_RGB: Record<string, [number, number, number]> = {
   'pullim-lemon':      [230, 255, 76],   // #E6FF4C
   'pullim-lemon-soft': [244, 255, 184],  // #F4FFB8
@@ -100,7 +108,7 @@ function hex(r: number, g: number, b: number): string {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
-type Sample = { color: string; prop: string; tag: string; cls: string; inherited: boolean };
+type Sample = { color: string; prop: string; tag: string; cls: string; inherited: boolean; elIdx: number };
 
 /**
  * 봇 시그니처 5색은 hue 휴리스틱에서 뺀다.
@@ -152,9 +160,11 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
       // 모든 element 의 computed bg/text/border color 수집.
       // `color` 는 상속되므로 **부모와 같은 값이면 "물려받은 것"** 으로 표시해 자리 수 중복을 막는다.
       const samples: Sample[] = await page.evaluate(() => {
-        const out: { color: string; prop: string; tag: string; cls: string; inherited: boolean }[] = [];
+        const out: { color: string; prop: string; tag: string; cls: string; inherited: boolean; elIdx: number }[] = [];
         const all = document.querySelectorAll<HTMLElement>('*');
+        let elIdx = -1;
         for (const el of all) {
+          elIdx += 1;
           const cs = getComputedStyle(el);
           const parent = el.parentElement;
           const ps = parent ? getComputedStyle(parent) : null;
@@ -167,6 +177,7 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
               prop,
               tag: el.tagName,
               cls: className.slice(0, 80),
+              elIdx,
               // color 만 상속된다. 부모와 같은 값이면 이 요소가 색을 "새로 쓴" 게 아니다.
               inherited: prop === 'color' && !!ps && ps.color === v,
             });
@@ -181,6 +192,7 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
       const forbidden: string[] = [];
       /* ── 3) 레몬 자리 수 ──────────────────────────────────────────── */
       const lemonSpots: string[] = [];
+      const lemonSeenEls = new Set<number>();
 
       for (const s of samples) {
         const rgb = rgbOf(s.color);
@@ -197,11 +209,14 @@ test.describe.serial('색 스펙트럼 축소 검증', () => {
           forbidden.push(`${verdict} ${hex(rgb[0], rgb[1], rgb[2])} (${s.color}) · ${s.prop} on <${s.tag.toLowerCase()}> "${s.cls}"`);
         }
 
-        // 물려받은 글자색은 새 자리가 아니다 — 레몬 버튼 안의 <span> 까지 세면 과다 계상된다
-        if (s.inherited) continue;
+        // 물려받은 글자색·라이너(borderColor)는 자리로 세지 않는다 (위 LEMON_RGB 주석 참고)
+        if (s.inherited || s.prop === 'borderColor') continue;
+        if (lemonSeenEls.has(s.elIdx)) continue;
         for (const [name, token] of Object.entries(LEMON_RGB)) {
           if (sameRgb(rgb, token)) {
+            lemonSeenEls.add(s.elIdx);
             lemonSpots.push(`${name} · ${s.prop} on <${s.tag.toLowerCase()}> "${s.cls}"`);
+            break;
           }
         }
       }

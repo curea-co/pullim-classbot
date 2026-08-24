@@ -150,7 +150,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
       <div
         aria-hidden
         className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
       />
       <div className="relative">
         <div className="flex items-center gap-1 text-micro font-bold tracking-wider text-white/70 uppercase">
@@ -165,7 +165,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
         <div className="mt-3">
           <div className="bg-white/15 h-1.5 overflow-hidden rounded-full">
             <div
-              className="h-full rounded-full bg-white"
+              className="bg-pullim-lemon h-full rounded-full"
               style={{ width: `${pct}%` }}
             />
           </div>

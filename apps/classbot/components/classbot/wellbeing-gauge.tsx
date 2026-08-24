@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Heart, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
+import { botSignature } from '@/lib/tokens/bot-signature';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useModeBots } from '@/lib/store/mode-bots';
 import { useStudentMode } from '@/lib/store/student-mode';
@@ -232,6 +233,7 @@ function ComponentBreakdown({
   /** 화면별 fallback 카피 분기 — [WellbeingGauge audience prop 참고] */
   audience: 'student-chat' | 'student-self';
 }) {
+  const insightSig = botInsight ? botSignature(botInsight.bot) : null;
   const c = snapshot.components;
   if (!c) {
     return (
@@ -271,7 +273,7 @@ function ComponentBreakdown({
         })}
       </ul>
       <div className="border-t border-pullim-slate-200 pt-2">
-        {botInsight ? (
+        {botInsight && insightSig ? (
           <div className="flex flex-col gap-2">
             <p className="text-pullim-slate-700 text-2xs leading-relaxed">
               <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
@@ -285,7 +287,9 @@ function ComponentBreakdown({
             </p>
             <Link
               href={botInsight.ctaHref}
-              className="border-pullim-blue-300 text-pullim-blue-700 inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-2xs font-bold transition-colors hover:bg-white"
+              className="inline-flex w-fit items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1 text-2xs font-bold transition-colors hover:bg-white"
+              // [13 § 456] 봇 시그니처 ghost CTA
+              style={{ borderColor: insightSig.inkLight, color: insightSig.inkLight }}
             >
               {botInsight.ctaLabel}
               <ArrowRight className="h-3 w-3" />
