@@ -41,6 +41,7 @@ export default function MyProfilePage() {
     <>
       <Link
         href="/classbot/me/progress"
+        aria-label="학습 기록 — 성취기준마다 어디까지 왔는지 보기"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 flex items-center gap-3 rounded-2xl p-4 text-white transition-colors"
       >
         <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
@@ -54,6 +55,7 @@ export default function MyProfilePage() {
 
       <Link
         href="/classbot/me/report"
+        aria-label="주간 리포트 — 봇이 본 나의 한 주 보기"
         className="bg-card hover:bg-pullim-slate-50/50 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
       >
         <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
