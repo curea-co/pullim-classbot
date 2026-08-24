@@ -12,10 +12,11 @@ import TeacherMonitorPage from '../page';
  * 그래서 순서를 여기서 못박는다 — 블록을 하나 더 넣더라도 이 사이는 비워 둘 것.
  */
 
-const ROSTER = '학생 한 줄 보기';
-const RETEACH = '다시 가르칠 개념 3개';
+/** 블록 제목으로 찾는다. 개념 블록 제목은 개수를 달고 있어 앞머리만 본다. */
+const ROSTER = /^학생 한 줄 보기$/;
+const RETEACH = /^다시 가르칠 개념/;
 
-function sectionOf(heading: string): HTMLElement {
+function sectionOf(heading: RegExp): HTMLElement {
   return screen.getByRole('heading', { name: heading }).closest('section')!;
 }
 
