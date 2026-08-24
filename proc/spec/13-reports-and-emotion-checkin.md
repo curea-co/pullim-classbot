@@ -3,6 +3,7 @@
 > **우선순위 #3** · 풀림 클래스봇 추출본 신규 명세
 > 권위 문서: `input/docs-archive/07_풀림_클래스봇_핸드오프.md` § 4.7 (리포트), § 4.9 (AI 학습 코치), § 7.3 (웰빙 지수), Flow D (번아웃 개입)
 > 신규 라우트: `/teacher/reports`, `/teacher/reports/[id]`, `/classbot/wellness`, `/classbot/wellness/check-in`, `/classbot/me/report`
+> 연결 라우트(기존, 이 명세가 만들지 않음): `/teacher/students/[id]` — 리포트 센터 등록 학생 명단의 학생 줄 목적지 (§ 3.3.1)
 > 의존 mock: `src/lib/mock/classbot.ts` — `ReportSummary`·`reports` (6건 기존), `classRoster.wellbeing`·`alert`
 
 ---
@@ -74,8 +75,9 @@
 ```
 교사 영역
 /teacher
-└─ /teacher/reports                  ← 신규 · 리포트 목록 (6종 필터)
-   └─ /teacher/reports/[id]          ← 신규 · 상세 + 학부모 발송
+├─ /teacher/reports                  ← 신규 · 리포트 목록 (6종 필터) + 등록 학생 전원 명단
+│  └─ /teacher/reports/[id]          ← 신규 · 상세 + 학부모 발송
+└─ /teacher/students/[id]            ← 기존 · 학생 기록(대화 + 과정 평가). 명단의 학생 줄이 여기로 간다
 
 학생 영역
 /classbot
@@ -575,4 +577,4 @@ OS 이모지(😄🙂😐😔)는 학생 디바이스/플랫폼마다 모양이 
 
 - **2026-05-11**: 초안 생성 — 우선순위 #3. 리포트와 감정 체크인을 단일 시스템으로 통합 설계. 핸드오프 § 4.7·4.9·7.3 통합 반영.
 - **2026-05-19**: § 3.3.3 웰빙 허브에 담당 봇 코멘트 카드 추가, § 3.3.4 체크인 사후 봇 반응 행 추가. § 9.1.2 웰빙 게이지/7일 막대 컬러 매핑 신설 (0–40 danger / 41–60 warning / 61–80 brand.300 / 81–100 success), § 9.2 5지표 펼침 패턴 신설 (수면·집중·감정·사회·학업 + 봇 인사이트), § 9.3 담당 봇 코멘트 카드 토큰 표 신설, § 9.4 풀림 무드 이모지 셋 (P3), § 9.5 신규 컴포넌트 `WellbeingBarTrend`·`BotCommentCard` 추가. 출처: `input/design-system/private-classbot.md` § 6 + 봇 5종 시그니처 ([07 § 4.6.2](07-branding.md)).
-- **2026-08-25**: § 3.3.1 리포트 목록에 「등록 학생 명단」 추가 — 리포트가 없는 학생도 전원 노출. § 3.3.1.1 거르기·정렬 기준 신설(관제소 `roster-filters`·교사 홈 `attentionReason` 재사용, 감정은 명단 기준에서 제외). § 3.1 [M7] 추가, § 12 에 관제소·학생 기록 의존 행 추가.
+- **2026-08-24**: § 3.3.1 리포트 목록에 「등록 학생 명단」 추가 — 리포트가 없는 학생도 전원 노출. § 3.3.1.1 거르기·정렬 기준 신설(관제소 `roster-filters`·교사 홈 `attentionReason` 재사용, 감정은 명단 기준에서 제외). § 3.1 [M7] 추가, § 12 에 관제소·학생 기록 의존 행 추가.

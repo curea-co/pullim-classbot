@@ -131,7 +131,10 @@
 ├─ /teacher/classbot           ← 클래스봇 운영 메인
 ├─ /teacher/builder            ← 봇 빌더 (8단계 위저드 → 한 길·세 마당 재편 인도 중, #223)
 │
-├─ /teacher/live               ← 라이브 모니터링
+├─ /teacher/monitor            ← 학급 관제소 (구현됨) — 학급 진단 · 학생 명단
+├─ /teacher/students           ← 학생 목록 (구현됨) — 관제소와 같은 명단
+│  └─ /teacher/students/[id]   ← 학생 기록 (구현됨) — 대화 기록 + 과정 평가
+├─ /teacher/live               ← 라이브 세션 중계 (계획 자리, 미구현)
 ├─ /teacher/quiz               ← 퀴즈 운영
 ├─ /teacher/reports            ← 리포트 (6종) + 등록 학생 전체 명단
 ├─ /teacher/grading            ← 하이브리드 채점
@@ -145,6 +148,8 @@
 **메모**: 6 운영 라우트(live·quiz·reports·grading·templates·settings)는 의도적으로 `/teacher/*` 직속에 위치 (classbot 하위 아님). 교사가 다중 봇·다중 학급을 동시 운영할 때 운영 도구를 분리된 entry로 노출.
 
 **메모 2**: `/teacher/reports` 는 리포트 6종 검토뿐 아니라 **등록 학생 전원 명단**을 함께 맡는다 (§ 4.11). 리포트는 일부 학생에게만 생성되므로 리포트만 늘어놓으면 리포트가 없는 학생이 화면에서 사라진다. 명단의 거르기·정렬 규칙은 학급 관제소·교사 홈과 **같은 판정**을 읽는다 — 상세는 [13 § 3.3.1](13-reports-and-emotion-checkin.md).
+
+**메모 3 — 학급 관제소의 정식 경로는 `/teacher/monitor` 하나다.** 관제소(학급 진단 + 학생 명단)와 학생 기록(`/teacher/students/[id]`)은 구현된 화면이고, `/teacher/live` 는 라이브 세션 중계를 위해 비워 둔 계획 자리(미구현)다. 리포트 센터가 읽는 거르기·정렬 규칙의 원천도 `/teacher/monitor` 다 — 이 문서 안에서 관제소를 가리킬 때는 이 경로만 쓴다.
 
 ### 2.3 영역 분리 원칙
 
