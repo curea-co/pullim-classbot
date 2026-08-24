@@ -134,7 +134,10 @@
 ├─ /teacher/live               ← 라이브 모니터링
 ├─ /teacher/quiz               ← 퀴즈 운영
 ├─ /teacher/reports            ← 리포트 (6종)
-├─ /teacher/grading            ← 하이브리드 채점
+├─ /teacher/grading            ← 채점 허브 — 기본은 **등록 학생 전체**, 채점 대기 큐는 탭
+│  └─ /teacher/grading/[id]    ← 채점 상세 (AI 초안 검수)
+├─ /teacher/students           ← 학생 목록 (관제소와 같은 명단)
+│  └─ /teacher/students/[id]   ← 학생 상세 — 대화 기록 · 막힌 지점 · 과정 평가
 ├─ /teacher/templates          ← 템플릿 마켓
 ├─ /teacher/settings           ← 8탭 봇 설정
 │
@@ -143,6 +146,8 @@
 ```
 
 **메모**: 6 운영 라우트(live·quiz·reports·grading·templates·settings)는 의도적으로 `/teacher/*` 직속에 위치 (classbot 하위 아님). 교사가 다중 봇·다중 학급을 동시 운영할 때 운영 도구를 분리된 entry로 노출.
+
+**메모 (채점 허브 · 2026-08-25)**: `/teacher/grading` 은 「채점할 게 있는 학생」이 아니라 **등록된 학생 전체**를 기본으로 보여준다. 채점 대기가 0건인 학생도 목록에 남는다 — 큐만 보이면 오늘 제출하지 않은 학생이 화면에서 사라지기 때문이다. 학생 요약은 배지(도달 · 최근 접속 · 채점 대기)로만 말하고, 학생을 누르면 **새 화면을 만들지 않고** `/teacher/students/[id]` 로 보낸다. 자세한 정의는 [11. 채점 허브](11-grading-hub.md § 3.3.0 · § 7.1).
 
 ### 2.3 영역 분리 원칙
 
