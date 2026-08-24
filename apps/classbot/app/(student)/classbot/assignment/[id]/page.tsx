@@ -116,7 +116,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       {!isExam && (
       <Link
         href={`/classbot/assignment/${a.id}/chat`}
-        aria-label="봇과 같이 풀기"
+        aria-label="봇과 같이 풀며 이 과제 대화하기"
         data-testid="assignment-chat-cta"
         className="bg-card hover:bg-pullim-slate-50/50 flex w-full items-center gap-3 rounded-2xl border p-3 transition-colors"
       >
@@ -124,7 +124,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
           <MessageCircle className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-pullim-slate-900 text-sm font-bold">같이 풀기</div>
+          <div className="text-pullim-slate-900 text-sm font-bold">대화</div>
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>

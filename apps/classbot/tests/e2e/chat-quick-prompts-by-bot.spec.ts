@@ -42,7 +42,7 @@ test.describe('가이드 수업 흐름칩 (참여 후)', () => {
     await expect(page.getByRole('button', { name: '제출', exact: true })).toBeVisible({ timeout: 3000 });
 
     // 단계적 힌트 — 최소 1개 공개
-    await chat.getByRole('button', { name: /^힌트 \(/ }).click();
+    await chat.getByRole('button', { name: '힌트 보기', exact: true }).click();
     await expect(chat.getByText(/힌트 1 ·/)).toBeVisible();
 
     // 참여 클래스 봇 cb_001(수학봇 → 일차함수의 그래프 리치 수업) — 정답은 ①('2'), ②('−3')는 오답.

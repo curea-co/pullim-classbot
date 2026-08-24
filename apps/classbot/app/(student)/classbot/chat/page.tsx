@@ -109,7 +109,8 @@ type ProblemCardPayload = {
    * 카드가 여럿 쌓이면 보이는 글자는 전부 「학습」이라 이것 없이는 서로 구분되지 않는다.
    *
    * **선택**이다 — BE 가 내려주는 카드(`lib/api/chat-cards.ts` § 1.6 계약)에는 이 필드가
-   * 없다. 없으면 렌더러가 카드 제목으로 이름을 만든다. 계약을 넓히지 않고도 카드끼리 구분된다.
+   * 없다. 없으면 렌더러가 카드 제목으로 이름을 만든다(`{제목} — {라벨} 열기`) — 카드끼리
+   * 구분되고 **무엇이 일어나는지도 읽힌다.** 계약을 넓히지 않아도 § 6.6.2(1)(3)을 지킨다.
    */
   ctaAriaLabel?: string;
   ctaHref: string;
@@ -1398,7 +1399,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
           <Link
             href={ctaHref}
-            aria-label={ctaAriaLabel ?? `${title} · ${ctaLabel}`}
+            aria-label={ctaAriaLabel ?? `${title} — ${ctaLabel} 열기`}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-xs font-bold text-white"
           >
             {ctaLabel} →
@@ -1581,6 +1582,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
             <button
               type="button"
               onClick={() => setHintCount(c => c + 1)}
+              aria-label={hintCount === 0 ? '힌트 보기' : '힌트 더 보기'}
               className="border-pullim-blue-200 text-pullim-blue-700 hover:bg-pullim-blue-50 inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-1.5 text-sm font-bold transition-colors"
             >
               힌트 ({hintCount}/{maxHints})
