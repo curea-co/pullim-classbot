@@ -24,7 +24,7 @@ export function MyTutorCard({ tutor }: { tutor: OfficialTutor }) {
       </div>
       <div className="text-pullim-blue-500 flex shrink-0 items-center gap-1 text-2xs font-semibold">
         <BookOpen className="h-3.5 w-3.5" />
-        <span>학습하기</span>
+        <span>학습</span>
       </div>
     </Link>
   );

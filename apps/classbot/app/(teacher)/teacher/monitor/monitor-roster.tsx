@@ -144,8 +144,12 @@ export function MonitorRoster({
         지름길 시도는 답을 바로 요구했거나 직접 쓰지 않고 붙여넣은 횟수, 이탈은 봇이 수업 범위 밖 요청을 되돌린 횟수예요.
         학생을 나무랄 숫자가 아니라 <b className="text-pullim-slate-700">과제 문항과 봇 설정을 손볼 자리</b>를 알려주는 신호로 읽어주세요.
         {' '}
-        <Link href="/teacher/settings?tab=drift" className="text-pullim-blue-600 hover:text-pullim-blue-700 font-bold">
-          봇 설정에서 이탈 대응 강도 보기
+        <Link
+          href="/teacher/settings?tab=drift"
+          aria-label="봇 설정에서 이탈 대응 강도 보기"
+          className="text-pullim-blue-600 hover:text-pullim-blue-700 font-bold"
+        >
+          봇 설정
         </Link>
       </p>
     </section>

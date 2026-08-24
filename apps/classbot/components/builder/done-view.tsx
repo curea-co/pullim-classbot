@@ -111,15 +111,16 @@ export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
           */}
           <Link
             href={assignmentHref(draft)}
+            aria-label="봇 운영 화면으로 가기"
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
           >
-            봇 운영 화면으로
+            봇 운영
           </Link>
-          <Button type="button" variant="ghost" size="lg" onClick={onRefine}>
-            이어서 고치기
+          <Button type="button" variant="ghost" size="lg" onClick={onRefine} aria-label="이 봇을 이어서 고치기">
+            고치기
           </Button>
-          <Button type="button" variant="ghost" size="lg" onClick={onRestart}>
-            봇 하나 더 만들기
+          <Button type="button" variant="ghost" size="lg" onClick={onRestart} aria-label="봇 하나 더 만들기">
+            새 봇
           </Button>
         </footer>
       </section>

@@ -132,10 +132,11 @@ export function AssignmentChatWorkspace({
         action={
           <Link
             href={`/classbot/assignment/${assignment.id}/solve`}
+            aria-label="풀이 화면으로 가기"
             className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors"
           >
             <Play className="h-3 w-3" />
-            풀이 화면으로
+            풀이
           </Link>
         }
       />

@@ -65,7 +65,7 @@ export function SolveWorkspace({
         <EmptyState
           title="문항을 준비 중이에요"
           description="선생님이 아직 문항을 추가하지 않았어요. 잠시 후 다시 확인해 주세요."
-          action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제로 돌아가기' }}
+          action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제' }}
         />
       </div>
     );
@@ -229,7 +229,7 @@ export function SolveWorkspace({
           className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-xs font-bold"
         >
           <MessageCircle className="h-3 w-3" />
-          {botName}과 대화하며 풀기
+          {botName}과 대화
         </Link>
       )}
 

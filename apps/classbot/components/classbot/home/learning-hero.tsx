@@ -68,13 +68,14 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
         ) : (
           <Link
             href="/classbot/chat"
+            aria-label="봇과 대화하기"
             className="bg-white/10 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center justify-between gap-3 rounded-xl px-4 py-3 transition-colors"
           >
             <div>
               <div className="text-pullim-blue-100 mb-0.5 text-xs font-semibold uppercase tracking-wider">
                 이어서 하기
               </div>
-              <div className="text-sm font-bold text-white">봇과 대화하기</div>
+              <div className="text-sm font-bold text-white">대화</div>
             </div>
             <ArrowRight className="h-4 w-4 text-white/60 shrink-0" aria-hidden />
           </Link>

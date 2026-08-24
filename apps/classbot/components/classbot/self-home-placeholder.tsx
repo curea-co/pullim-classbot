@@ -125,7 +125,7 @@ export function SelfHomePlaceholder() {
           icon={Compass}
           title="아직 등록한 튜터가 없어요"
           description="봇 마켓에서 과목 튜터를 골라 학습을 시작해 보세요."
-          action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+          action={{ href: '/classbot/discover', label: '봇 마켓' }}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

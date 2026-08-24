@@ -91,14 +91,14 @@ export function CheckInForm() {
             href="/classbot/me/report"
             className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold"
           >
-            내 리포트 보기
+            내 리포트
           </Link>
           <button
             type="button"
             onClick={() => router.push('/classbot')}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"
           >
-            홈으로
+            홈
           </button>
         </div>
       </div>

@@ -19,9 +19,9 @@ test.describe('가이드 수업 흐름칩 (참여 후)', () => {
     await expect(page.getByRole('button', { name: '예제 풀어줘' })).toBeVisible();
     await expect(page.getByRole('button', { name: '퀴즈 내줘' })).toBeVisible();
 
-    // 개념 더보기 → 개념 카드(자세히 보기는 챗 버블 전용 문구)
+    // 개념 더보기 → 개념 카드(「자세히 보기 →」는 챗 버블 전용 문구)
     await page.getByRole('button', { name: '개념 더보기' }).click();
-    await expect(chat.getByText('자세히 보기 (학습 팁·예제 문항) →')).toBeVisible({ timeout: 3000 });
+    await expect(chat.getByRole('button', { name: '자세히 보기 — 학습 팁·예제 문항' })).toBeVisible({ timeout: 3000 });
 
     // 예제 풀어줘 → 예제 fading 카드(B3: 점감 스캐폴딩 리드 문구)
     await page.getByRole('button', { name: '예제 풀어줘' }).click();
@@ -42,11 +42,11 @@ test.describe('가이드 수업 흐름칩 (참여 후)', () => {
     await expect(page.getByRole('button', { name: '제출하기' })).toBeVisible({ timeout: 3000 });
 
     // 단계적 힌트 — 최소 1개 공개
-    await chat.getByRole('button', { name: /힌트 보기/ }).click();
+    await chat.getByRole('button', { name: /^힌트 \(/ }).click();
     await expect(chat.getByText(/힌트 1 ·/)).toBeVisible();
 
     // 참여 클래스 봇 cb_001(수학봇 → 일차함수의 그래프 리치 수업) — 정답은 ①('2'), ②('−3')는 오답.
-    // 오답(②) 제출 → distractor 처방(y절편) + 처방 버튼(다시 풀기·개념 다시 보기)
+    // 오답(②) 제출 → distractor 처방(y절편) + 처방 버튼(다시 풀기·개념)
     await chat.getByRole('radio').nth(1).click();
     await page.getByRole('button', { name: '제출하기' }).click();
     await expect(chat.getByText(/y절편/)).toBeVisible({ timeout: 2000 });

@@ -36,7 +36,7 @@ export function CrisisGate({ studentName }: { studentName: string }) {
           title="준비 중 (v2 — 리포트 첨부)"
           className="opacity-60 cursor-not-allowed"
         >
-          리포트 첨부로 진행 (v2)
+          리포트 첨부 (v2)
         </Button>
       </div>
     </section>

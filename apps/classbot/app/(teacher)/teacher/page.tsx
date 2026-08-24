@@ -97,7 +97,7 @@ export default function TeacherHomePage() {
                 href="/teacher/monitor"
                 className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-0.5 text-xs font-bold"
               >
-                학급 관제소 열기 <ArrowRight className="h-3 w-3" />
+                학급 관제소 <ArrowRight className="h-3 w-3" />
               </Link>
             }
           />

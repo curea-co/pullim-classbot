@@ -91,15 +91,16 @@ export function InlineWorkedExample({
                     aria-expanded={false}
                     className="bg-pullim-blue-600 hover:bg-pullim-blue-700 focus-visible:ring-pullim-blue-400 mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold text-white transition-colors focus-visible:outline-none focus-visible:ring-2"
                   >
-                    정답 확인하기
+                    정답 확인
                   </button>
                 ) : (
                   <button
                     type="button"
                     disabled
+                    aria-label="앞 단계를 먼저 열어야 해요"
                     className="bg-pullim-slate-100 text-pullim-slate-400 mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold disabled:opacity-60"
                   >
-                    앞 단계 먼저
+                    앞 단계
                   </button>
                 )}
               </div>

@@ -47,7 +47,7 @@ export default function MyProfilePage() {
           <BarChart3 className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold">학습 기록 보기</div>
+          <div className="text-sm font-bold">학습 기록</div>
           <div className="text-pullim-blue-100 text-2xs">성취기준마다 어디까지 왔는지 봐요</div>
         </div>
         <ArrowRight className="h-4 w-4" />
@@ -104,7 +104,7 @@ export default function MyProfilePage() {
               icon={GraduationCap}
               title="아직 참여한 수업이 없어요"
               description="선생님께 받은 참여 코드를 넣으면 여기에 반이 생겨요."
-              action={{ href: '/classbot', label: '참여 코드 넣기' }}
+              action={{ href: '/classbot', label: '참여 코드' }}
             />
           ) : (
             <ul className="space-y-1.5">
@@ -150,7 +150,7 @@ export default function MyProfilePage() {
               size="sm"
               note="풀림 통합 계정 「내 계정」 연결"
             >
-              풀림 계정으로 가기
+              풀림 계정
             </ComingSoonButton>
           </div>
         </section>

@@ -25,8 +25,12 @@ export function ReteachConcepts({
         title="다시 가르칠 개념 3개"
         description="이번 과제 대화에서 학급이 공통으로 무너진 자리예요."
         action={
-          <Link href="/teacher/builder" className="text-pullim-blue-600 inline-flex items-center gap-0.5 text-xs font-bold">
-            봇 설명 손보기 <ArrowRight className="h-3 w-3" />
+          <Link
+            href="/teacher/builder"
+            aria-label="봇 설명 손보러 가기"
+            className="text-pullim-blue-600 inline-flex items-center gap-0.5 text-xs font-bold"
+          >
+            봇 설명 <ArrowRight className="h-3 w-3" />
           </Link>
         }
       />
@@ -60,9 +64,10 @@ export function ReteachConcepts({
                 </span>
                 <ComingSoonButton
                   note="다음 수업 계획에 담기"
+                  aria-label="다음 수업에 넣기"
                   className="text-pullim-blue-600 text-2xs font-bold"
                 >
-                  다음 수업에 넣기
+                  다음 수업
                 </ComingSoonButton>
               </div>
             </li>

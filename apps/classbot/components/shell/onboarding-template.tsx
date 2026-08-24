@@ -38,7 +38,7 @@ type Props = {
   /** 단계들 */
   steps: OnboardingStep[];
   /** 가이드 끝의 최종 CTA */
-  finalCta: { label: string; href: string };
+  finalCta: { label: string; href: string; ariaLabel?: string };
   /** 종결 섹션 헤딩 (기본: "준비됐어요") */
   finalHeading?: string;
   /** 종결 섹션 본문 */
@@ -104,7 +104,7 @@ export function OnboardingTemplate({
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
             <span className="bg-white/15 inline-flex items-center gap-1 rounded-full px-2 py-0.5">
               <Icon className="h-3 w-3" />
-              소개하기
+              소개
             </span>
             <span className="text-pullim-lemon inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -143,6 +143,7 @@ export function OnboardingTemplate({
           </p>
           <Link
             href={finalCta.href}
+            aria-label={finalCta.ariaLabel}
             className="text-pullim-blue-700 focus-visible:ring-pullim-lemon/60 mt-5 inline-flex min-h-12 items-center gap-2 rounded-full bg-white px-6 py-3 text-base font-bold shadow-lg transition-transform hover:scale-[1.02] focus-visible:ring-4"
           >
             {finalCta.label}

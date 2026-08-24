@@ -193,14 +193,14 @@ function ClassbotChatPageInner() {
             icon={GraduationCap}
             title="아직 참여한 클래스가 없어요"
             description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
-            action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+            action={{ href: '/classbot', label: '참여 코드' }}
           />
         ) : (
           <EmptyState
             icon={Compass}
             title="아직 등록한 튜터가 없어요"
             description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
-            action={{ href: '/classbot/discover', label: '봇 마켓 둘러보기' }}
+            action={{ href: '/classbot/discover', label: '봇 마켓' }}
           />
         )}
       </div>
@@ -914,7 +914,7 @@ function buildRichBotTurn(id: string, text: string, at: number, forcedKey: Reply
         problemNumber: pq.problemNumber,
         title: pq.title,
         // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
-        ctaLabel: '학습하러 가기',
+        ctaLabel: '학습',
         ctaHref: `/classbot/learn/${botId}`,
       } satisfies ProblemCardPayload,
     };
@@ -1220,9 +1220,10 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <button
             type="button"
             onClick={() => dispatchLesson(botId, 'concept-detail', concept.id)}
+            aria-label="자세히 보기 — 학습 팁·예제 문항"
             className="text-pullim-blue-700 hover:text-pullim-blue-800 inline-flex items-center gap-1 text-sm font-bold"
           >
-            자세히 보기 (학습 팁·예제 문항) →
+            자세히 보기 →
           </button>
         </div>
       </div>
@@ -1570,7 +1571,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
               onClick={() => setHintCount(c => c + 1)}
               className="border-pullim-blue-200 text-pullim-blue-700 hover:bg-pullim-blue-50 inline-flex items-center gap-1 rounded-lg border bg-white px-3 py-1.5 text-sm font-bold transition-colors"
             >
-              {hintCount === 0 ? '힌트 보기' : '힌트 더 보기'} ({hintCount}/{maxHints})
+              힌트 ({hintCount}/{maxHints})
             </button>
           ) : (
             <p className="text-pullim-slate-400 text-xs">
@@ -1618,7 +1619,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
           onClick={handleSubmit}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
-          제출하기
+          제출
         </button>
       ) : (
         <div className="mt-2.5 space-y-2">
@@ -1751,9 +1752,10 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
           type="button"
           disabled={!value.trim()}
           onClick={() => { setSubmitted(true); onCardReveal(); }}
+          aria-label="설명 제출하기"
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 disabled:opacity-50 mt-2.5 w-full rounded-lg px-3 py-2.5 text-base font-bold text-white transition-colors"
         >
-          설명 제출하기
+          제출
         </button>
       ) : (
         <div className="mt-2.5 space-y-2">

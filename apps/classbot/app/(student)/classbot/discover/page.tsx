@@ -12,7 +12,7 @@ export default function ClassbotDiscoverPage() {
 
   return (
     <div className="space-y-5">
-      <BackLink href="/classbot">홈으로</BackLink>
+      <BackLink href="/classbot">클래스봇 홈</BackLink>
       <PageHeader
         eyebrow={{ icon: Compass, text: '풀림 클래스봇' }}
         title="공식 튜터 마켓"

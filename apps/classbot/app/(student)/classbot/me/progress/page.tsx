@@ -65,7 +65,7 @@ export default function MyProgressPage() {
           icon={GraduationCap}
           title="아직 쌓인 학습 기록이 없어요"
           description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
-          action={{ href: '/classbot', label: '참여 코드 입력하기' }}
+          action={{ href: '/classbot', label: '참여 코드' }}
         />
       </div>
     );
@@ -85,7 +85,7 @@ export default function MyProgressPage() {
           href="/classbot/me/report"
           className="text-pullim-blue-600 hover:text-pullim-blue-700 mt-2 inline-block text-xs font-bold"
         >
-          주간 리포트 보기
+          주간 리포트
         </Link>
       </section>
     </>
@@ -134,7 +134,7 @@ function StandardsSection({ standards }: { standards: AchievementStandard[] }) {
       <SectionHeading
         title="성취기준별 달성도"
         description="선생님이 잡은 기준 한 줄마다 지금 어디까지 왔는지 봐요."
-        action={<ComingSoonButton note="기준 → 문항·대화 이동">기준별 문항 보기</ComingSoonButton>}
+        action={<ComingSoonButton note="기준 → 문항·대화 이동" aria-label="기준별 문항 보기">기준별 문항</ComingSoonButton>}
       />
       {standards.length === 0 ? (
         <EmptyState
@@ -242,7 +242,7 @@ function SubmissionSection({ rows, meta }: { rows: SubmissionHistoryRow[]; meta:
       <SectionHeading
         title="과제 낸 기록"
         description={meta}
-        action={<ComingSoonButton note="기록 → 과제 상세 이동">과제로 가기</ComingSoonButton>}
+        action={<ComingSoonButton note="기록 → 과제 상세 이동" aria-label="과제 상세로 가기">과제</ComingSoonButton>}
       />
       {rows.length === 0 ? (
         <EmptyState icon={Inbox} title="아직 낸 과제가 없어요" description="과제를 내면 여기에 남아요." />

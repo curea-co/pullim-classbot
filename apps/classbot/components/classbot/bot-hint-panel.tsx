@@ -87,9 +87,9 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
               )}
             >
               {revealed === 0
-                ? '한 줄만 알려줄게요'
+                ? '힌트'
                 : revealed === hints.length - 1
-                  ? '마지막 — 해설 보기'
+                  ? '해설'
                   : `다음 단계 (${revealed + 1}/${hints.length})`}
             </Button>
           )}
@@ -137,7 +137,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white opacity-60 cursor-not-allowed"
       >
         <MessageCircle />
-        봇에게 더 물어보기 (v2)
+        더 물어보기 (v2)
       </Button>
     </section>
   );

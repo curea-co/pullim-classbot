@@ -160,7 +160,7 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
         href="/teacher/replay"
         className="text-pullim-blue-600 hover:text-pullim-blue-700 ml-auto inline-flex shrink-0 items-center gap-0.5 text-2xs font-bold"
       >
-        기록 보기 <ArrowRight className="h-3 w-3" />
+        기록 <ArrowRight className="h-3 w-3" />
         <span className="sr-only">{s.name} 대화 기록</span>
       </Link>
     </li>

@@ -256,9 +256,10 @@ export function CrisisEncourageForm({
             setSent(true);
           }}
           disabled={draft.trim().length === 0}
+          aria-label="응원 보내기"
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 min-h-11 shrink-0 rounded-lg px-3 text-xs font-bold text-white transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
         >
-          응원 보내기
+          응원
         </button>
       </div>
     </section>

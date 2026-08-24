@@ -54,7 +54,7 @@ export default function WellnessPage() {
       >
         <div>
           <div className="text-pullim-slate-900 text-sm font-bold">이번 주의 나</div>
-          <div className="text-pullim-slate-500 text-2xs">내 주간 리포트 보기</div>
+          <div className="text-pullim-slate-500 text-2xs">주간 리포트</div>
         </div>
         <ArrowRight className="text-pullim-slate-500 h-4 w-4" />
       </Link>
@@ -84,7 +84,7 @@ export default function WellnessPage() {
           </span>
           <div className="min-w-0 flex-1">
             <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
-              {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
+              {checkedToday ? '오늘 체크인 완료' : '30초 체크인'}
             </div>
             <div className={cn('text-2xs', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
               {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}

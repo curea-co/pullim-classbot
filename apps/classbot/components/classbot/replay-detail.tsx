@@ -123,9 +123,10 @@ function ClassOnlyGate({ onSwitch }: { onSwitch: () => void }) {
       <button
         type="button"
         onClick={onSwitch}
+        aria-label="교사 수업 모드로 보기"
         className="mt-4 min-h-11 rounded-xl bg-pullim-blue-600 px-4 text-sm font-bold text-white hover:bg-pullim-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
       >
-        교사 수업 모드로 보기
+        수업 모드
       </button>
     </section>
   );

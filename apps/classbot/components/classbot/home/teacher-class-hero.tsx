@@ -65,7 +65,7 @@ export function TeacherClassHero({ name }: { name?: string }) {
           onClick={handleJoin}
           className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-pullim-slate-900 transition-colors hover:bg-pullim-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
         >
-          참여하기
+          참여
         </button>
       </div>
       <p className="mt-2 text-xs text-pullim-slate-500">

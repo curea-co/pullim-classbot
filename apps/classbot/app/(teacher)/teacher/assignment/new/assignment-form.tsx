@@ -361,10 +361,11 @@ export function AssignmentForm() {
                 size="sm"
                 onClick={() => setQuestions(evenlySplitPoints(questions))}
                 data-testid="question-even-split"
+                aria-label="배점 고르게 나누기"
                 className="text-pullim-blue-600 hover:text-pullim-blue-700"
               >
                 <Split />
-                배점 고르게 나누기
+                고르게 나누기
               </Button>
               <span
                 className={cn('ml-auto font-mono text-micro', countValid ? 'text-pullim-slate-400' : 'text-pullim-danger font-bold')}

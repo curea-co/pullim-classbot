@@ -122,9 +122,10 @@ export function TodoPanel({
             <button
               type="button"
               onClick={() => setExpanded(true)}
+              aria-label={`나머지 ${restCount}개 펼치기`}
               className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
             >
-              나머지 {restCount}개 · 펼치기
+              나머지 {restCount}개
               <ChevronDown className="h-3.5 w-3.5" aria-hidden />
             </button>
           ) : (

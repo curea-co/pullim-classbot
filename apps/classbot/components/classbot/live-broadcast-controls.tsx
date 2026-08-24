@@ -68,7 +68,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
       promoteToReview(pendingReplayId);
       toast.info('🤖 AI 처리 완료 → 검수 대기', {
         description: '리플레이 큐에서 핵심 메시지 확인 후 학생 발송하세요.',
-        action: { label: '검수하기', onClick: () => router.push(`/teacher/replay/${pendingReplayId}`) },
+        action: { label: '검수', onClick: () => router.push(`/teacher/replay/${pendingReplayId}`) },
         duration: 6000,
       });
     }, 2000);

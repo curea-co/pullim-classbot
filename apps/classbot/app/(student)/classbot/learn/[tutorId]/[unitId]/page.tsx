@@ -50,7 +50,7 @@ export default function UnitPage({
   // ── Early returns (after all hooks) ─────────────────────────────────────
   if (!tutor || !unit || !content) {
     const backHref = tutor ? `/classbot/learn/${tutorId}` : '/classbot';
-    const backLabel = tutor ? '커리큘럼으로' : '홈으로';
+    const backLabel = tutor ? '커리큘럼' : '홈';
     return (
       <div className="px-4 py-10">
         <EmptyState
@@ -121,7 +121,7 @@ export default function UnitPage({
             href={`/classbot/learn/${tutorId}`}
             className="mt-1 inline-flex min-h-[44px] items-center rounded-xl bg-pullim-blue-600 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-pullim-blue-700 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
           >
-            커리큘럼으로
+            커리큘럼
           </Link>
         </div>
       );

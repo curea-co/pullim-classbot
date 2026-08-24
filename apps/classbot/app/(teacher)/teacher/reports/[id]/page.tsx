@@ -62,7 +62,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
               className="bg-pullim-danger text-white hover:bg-pullim-danger/90 opacity-60 cursor-not-allowed"
             >
               <MessageCircle />
-              1:1 상담 시작 (v2)
+              1:1 상담 (v2)
             </Button>
             <Button
               type="button"
