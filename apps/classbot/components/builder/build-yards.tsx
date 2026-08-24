@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { FieldLabel } from './field-mark';
 import { PickChip } from './pick-chip';
 import {
+  BOT_NAME_MAX,
   cloneSources, grades, sampleFiles, scopeLevels, scopeMeta,
   styleMeta, subjectIds, subjectMeta, toneMeta, wrongMeta,
   type BotDraft, type CloneSource, type FieldKey,
@@ -151,6 +152,7 @@ export function Yard1Intro({
               type="text"
               value={draft.name}
               onChange={(e) => onPick('name', { name: e.target.value }, e.target.value.trim().length > 0)}
+              maxLength={BOT_NAME_MAX}
               placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
               aria-invalid={nameError || undefined}
               className="h-10 text-sm"
@@ -158,7 +160,7 @@ export function Yard1Intro({
             <p className="text-pullim-slate-400 mt-1.5 text-micro">학생은 이 이름으로 봇을 불러요.</p>
             {nameError && (
               <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
-                이름은 두 글자 이상 적어 주세요.
+                이름은 두 글자에서 서른 글자 사이로 적어 주세요.
               </p>
             )}
           </div>

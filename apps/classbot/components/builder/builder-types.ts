@@ -221,10 +221,18 @@ export function botName(draft: BotDraft): string {
   return draft.subject ? subjectMeta[draft.subject].botName : '';
 }
 
-/** 이름은 비워도 되지만, 적을 거면 두 글자 이상. */
+/** 봇 이름 길이 — 비워도 되지만, 적을 거면 이 범위 안. */
+export const BOT_NAME_MIN = 2;
+export const BOT_NAME_MAX = 30;
+
+/**
+ * 이름은 비워도 된다(비우면 과목 기본 이름). 적을 거면 두 글자 이상 서른 글자 이하.
+ * 상한은 입력칸의 `maxLength` 로도 막지만, 붙여넣기·프로그램 입력까지 막으려면 여기서도 본다.
+ */
 export function isNameValid(draft: BotDraft): boolean {
   const typed = draft.name.trim();
-  return typed.length === 0 || typed.length >= 2;
+  if (typed.length === 0) return true;
+  return typed.length >= BOT_NAME_MIN && typed.length <= BOT_NAME_MAX;
 }
 
 /* ─── 안내 ② 항목별 표시 ─── */

@@ -69,7 +69,7 @@ export default function BotBuilderPage() {
     if (!isNameValid(draft)) {
       goYard(1);
       setNameError(true);
-      toast.error('이름은 두 글자 이상 적어 주세요');
+      toast.error('이름은 두 글자에서 서른 글자 사이로 적어 주세요');
       return;
     }
     setView('done');

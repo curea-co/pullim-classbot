@@ -9,6 +9,7 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
+  BOT_NAME_MAX, BOT_NAME_MIN,
   FIELD_KEYS, alwaysOnSafety, applyClone, botName, cloneSources,
   emptyDraft, isNameValid, ownCount, pick, summaryRows,
 } from '../builder-types';
@@ -54,11 +55,23 @@ describe('채워진 것 모델', () => {
     expect(botName(emptyDraft)).toBe('');
   });
 
-  it('이름은 비워도 되지만 적을 거면 두 글자 이상', () => {
+  it('이름은 비워도 되지만 적을 거면 두 글자에서 서른 글자 사이', () => {
     expect(isNameValid(emptyDraft)).toBe(true);
     expect(isNameValid({ ...emptyDraft, name: '  ' })).toBe(true);
     expect(isNameValid({ ...emptyDraft, name: '봇' })).toBe(false);
     expect(isNameValid({ ...emptyDraft, name: '과학봇' })).toBe(true);
+    // 상한 — 입력칸 maxLength 로도 막지만 붙여넣기·프로그램 입력까지 여기서 본다
+    expect(isNameValid({ ...emptyDraft, name: '봇'.repeat(BOT_NAME_MAX) })).toBe(true);
+    expect(isNameValid({ ...emptyDraft, name: '봇'.repeat(BOT_NAME_MAX + 1) })).toBe(false);
+    // 앞뒤 공백은 세지 않는다 — 서른 글자 + 공백은 통과해야 한다
+    expect(isNameValid({ ...emptyDraft, name: ` ${'봇'.repeat(BOT_NAME_MAX)} ` })).toBe(true);
+    expect(BOT_NAME_MIN).toBe(2);
+  });
+
+  it('이름 입력칸이 서른 글자에서 막힌다', () => {
+    render(<BotBuilderPage />);
+    const input = screen.getByPlaceholderText('과목을 고르면 이름이 정해져요');
+    expect(input).toHaveAttribute('maxlength', String(BOT_NAME_MAX));
   });
 
   it('지난 봇에서 가져온 값은 전부 「내가 정함」이 된다', () => {
