@@ -37,6 +37,9 @@ type YardProps = {
 
 /* ─── 마당 1 — 봇 소개 ─── */
 
+/** 봇 카탈로그는 정적 mock 이라 렌더마다 다시 고를 이유가 없다. */
+const clones = cloneSources();
+
 export function Yard1Intro({
   draft, onPick, onClone, subjectError, nameError,
 }: YardProps & {
@@ -44,8 +47,6 @@ export function Yard1Intro({
   subjectError: boolean;
   nameError: boolean;
 }) {
-  const clones = cloneSources();
-
   return (
     <div className="space-y-4">
       <section className="bg-card rounded-2xl border p-4 lg:p-5">
@@ -201,11 +202,14 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
       toast.warning('과목을 먼저 골라요');
       return;
     }
-    if (draft.files.length >= pool.length) {
+    // 자리(index)가 아니라 「아직 안 올린 것」으로 고른다 —
+    // 가운데 자료를 뺀 뒤 다시 올리면 자리로는 같은 자료가 두 번 들어온다
+    const next = pool.find((f) => !draft.files.some((x) => x.name === f.name));
+    if (!next) {
       toast.info('데모에 준비된 자료는 여기까지예요');
       return;
     }
-    onPick('files', { files: [...draft.files, pool[draft.files.length]] });
+    onPick('files', { files: [...draft.files, next] });
     toast.success('자료를 올렸어요 (데모)');
   }
 
@@ -236,7 +240,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
           </div>
 
           {draft.files.length > 0 && (
-            <ul className="mt-2.5 space-y-1.5">
+            <ul data-testid="file-list" className="mt-2.5 space-y-1.5">
               {draft.files.map((f, i) => (
                 <li
                   key={f.name}

@@ -242,6 +242,41 @@ describe('아홉 가지를 다 정하기', () => {
   });
 });
 
+describe('수업 자료 올리기 (데모)', () => {
+  it('가운데 자료를 뺀 뒤 다시 올려도 같은 자료가 두 번 들어오지 않는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+
+    const add = screen.getByRole('button', { name: '자료 골라 올리기' });
+    const files = () => within(screen.getByTestId('file-list')).getAllByRole('listitem');
+    fireEvent.click(add);
+    fireEvent.click(add);
+    const first = files()[0].textContent ?? '';
+    expect(files()).toHaveLength(2);
+
+    // 첫 자료를 빼고 다시 올린다 — 자리(index)로 고르면 두 번째 자료가 겹쳐 들어온다
+    fireEvent.click(within(files()[0]).getByRole('button', { name: /빼기$/ }));
+    fireEvent.click(add);
+    const names = files().map((li) => li.textContent ?? '');
+    expect(names).toHaveLength(2);
+    expect(new Set(names).size).toBe(2);
+    expect(names).toContain(first);
+  });
+
+  it('데모에 준비된 자료를 다 올리면 더 올리지 않는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
+    fireEvent.click(screen.getByRole('button', { name: /다음 — 보고 답할 것/ }));
+
+    const add = screen.getByRole('button', { name: '자료 골라 올리기' });
+    for (let i = 0; i < 6; i += 1) fireEvent.click(add);
+    expect(within(screen.getByTestId('file-list')).getAllByRole('listitem')).toHaveLength(3);
+    // 자료를 여러 개 올려도 「수업 자료」는 한 가지다
+    expect(count()).toBe('2');
+  });
+});
+
 describe('만든 뒤 화면', () => {
   it('「이어서 고치기」로 돌아가도 정한 값이 그대로 남는다', () => {
     render(<BotBuilderPage />);
