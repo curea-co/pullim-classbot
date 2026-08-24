@@ -19,7 +19,7 @@
 ## 2. 제품 정의
 
 ### 2.1 Problem Statement
-교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없다. 학생 홈에서 `[지금 시작하기]`(§ 3.2 이후 이름 `[시작]`)를 누르면 깨진 링크로 빠지고, 교사·학생 사이의 사이클이 끊긴다.
+교사가 발사한 과제(연습·시험·오답정복)를 학생이 받았지만, 실제로 풀 수 있는 워크스페이스가 없다. 학생 홈에서 `[지금 시작하기]`(바뀔 이름 `[시작]` — § 3.3.2 CTA 표 · [07 § 6.6.3](07-branding.md))를 누르면 깨진 링크로 빠지고, 교사·학생 사이의 사이클이 끊긴다.
 
 ### 2.2 Product Goal
 - **G1**: 학생이 받은 과제를 **클래스봇 내부에서 끝까지** 풀 수 있다 (외부 도메인 의존 0)
@@ -74,7 +74,7 @@
 │  │  └─ /classbot/assignment/[id]/result  ← 신규 · 제출 결과·봇 피드백
 ```
 
-**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[시작]` CTA(구현 전 — 현행 `[지금 시작하기]`, § 3.3)만 `solveHref` → 새 라우트로 리다이렉트.
+**홈과의 관계**: 현재 [classbot/page.tsx](src/app/(student)/classbot/page.tsx)의 `PrimaryAssignmentCard`·`AssignmentRow`·`MyBotsStrip` 그대로 유지. `[시작]` CTA(구현 전 — 현행 `[지금 시작하기]`, § 3.3.2)만 `solveHref` → 새 라우트로 리다이렉트.
 
 ### 3.3 Screen Spec
 
