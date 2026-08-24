@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
-import { isRequired, type FieldKey } from './builder-types';
+import { isRequired, type Fault, type FieldKey } from './builder-types';
 
 /**
  * 항목 이름 옆 표시.
@@ -50,4 +50,20 @@ export function FieldLabel({
     return <Label htmlFor={htmlFor} className={className}>{inner}</Label>;
   }
   return <span className={className}>{inner}</span>;
+}
+
+/**
+ * 막힌 까닭을 그 항목 밑에서 말한다.
+ *
+ * 「다음」과 「이대로 만들기」가 **같은 자리**를 쓴다 — 막는 길이 둘이라고 알리는 방식까지
+ * 둘이 되면 교사는 같은 잘못을 두 모양으로 만나게 된다. 막힌 항목이 아니면 아무것도 그리지 않는다.
+ */
+export function FieldError({ fault, field }: { fault: Fault | null; field: FieldKey }) {
+  if (fault?.field !== field) return null;
+
+  return (
+    <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
+      {fault.message}
+    </p>
+  );
 }

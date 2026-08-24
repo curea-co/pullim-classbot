@@ -11,6 +11,7 @@ import { scopeMeta, type ScopeLevel } from '@/lib/mock';
  * 이 파일이 지키는 불변식:
  *  - 「채워진 것」이 보여주는 항목은 정확히 아홉 가지(`FIELD_KEYS`)다. 안전 세 가지는 그 밖이다.
  *  - 꼭 골라야 하는 항목은 `REQUIRED_FIELDS` 하나가 정한다. 화면마다 따로 적지 않는다.
+ *  - 넘어가도 되는지는 `firstFault` 하나가 판정한다. 「다음」도 「이대로 만들기」도 이것을 읽는다.
  *  - 과목은 기본값이 없다. 미리 골라 두면 없는 기본값을 있는 척하는 것이 된다.
  */
 
@@ -199,16 +200,120 @@ export function isNameValid(draft: BotDraft): boolean {
   return typed.length >= BOT_NAME_MIN && typed.length <= BOT_NAME_MAX;
 }
 
+/* ─── 항목이 사는 자리 ─── */
+
+/**
+ * 항목이 어느 마당에 사는가. 「채워진 것」의 줄과 관문 판정이 **같은 표**를 읽는다 —
+ * 두 벌로 두면 마당 2·3 에 필수가 생겼을 때 한쪽만 고쳐져 어긋난다.
+ */
+export const FIELD_GROUP: Record<FieldKey, GroupNo> = {
+  subject: 1,
+  grade: 1,
+  name: 1,
+  tone: 1,
+  files: 2,
+  scope: 2,
+  style: 3,
+  wrong: 3,
+  classes: 4,
+};
+
+/** 만들면서 지나는 마당(1~3)인가. 4 는 만든 뒤라 지나는 자리가 아니다. */
+export function isBuildYard(group: GroupNo): group is YardNo {
+  return group !== 4;
+}
+
 /* ─── 항목 이름 옆 표시 ─── */
 
 /**
- * 꼭 골라야 하는 항목 — 기본값이 없어 비워 두면 봇을 만들 수 없는 것.
- * 지금은 과목 하나뿐이다. 나머지 여덟은 기본값이 있어 `(선택)` 이 붙는다.
+ * 꼭 골라야 하는 항목과, 비었을 때 하는 말.
+ * 기본값이 없어 비워 두면 봇을 만들 수 없는 것 — 지금은 과목 하나뿐이다.
+ * 나머지 여덟은 기본값이 있어 `(선택)` 이 붙는다.
+ *
+ * **필수 목록이 이 표에서 나온다.** 목록과 문구를 따로 두면 필수를 늘리면서 문구를 빠뜨려
+ * 「왜 막혔는지 말하지 않는 관문」이 생긴다.
  */
-export const REQUIRED_FIELDS: readonly FieldKey[] = ['subject'];
+const REQUIRED_MESSAGE: Partial<Record<FieldKey, string>> = {
+  subject: '과목을 골라야 봇을 만들 수 있어요.',
+};
+
+export const REQUIRED_FIELDS: readonly FieldKey[] = FIELD_KEYS.filter((f) => f in REQUIRED_MESSAGE);
 
 export function isRequired(field: FieldKey): boolean {
   return REQUIRED_FIELDS.includes(field);
+}
+
+/* ─── 넘어가도 되는가 ─── */
+
+/**
+ * 앞을 막는 항목과 왜 막혔는지.
+ * 「다음」과 「이대로 만들기」가 **같은 판정**을 읽는다 — 두 벌로 두면 한쪽만 막게 된다.
+ */
+export type Fault = {
+  field: FieldKey;
+  /** 그 항목이 사는 마당 — 막을 때 여기로 돌려보낸다 */
+  yard: YardNo;
+  message: string;
+};
+
+/**
+ * 비워도 되지만 **적을 거면** 지켜야 할 규칙. 필수와 다른 갈래다 —
+ * 비워 두는 것과 아무렇게나 적는 것은 다르다.
+ */
+const FIELD_RULE: Partial<Record<FieldKey, { ok: (draft: BotDraft) => boolean; message: string }>> = {
+  name: { ok: isNameValid, message: '이름은 두 글자에서 서른 글자 사이로 적어 주세요.' },
+};
+
+/**
+ * 값이 차 있는가 — 필수 판정의 잣대.
+ * 기본값이 있는 항목(학년·말투·답 범위·평소에·틀렸을 때)은 늘 차 있어 여기서 걸리지 않는다.
+ */
+function isFilled(draft: BotDraft, field: FieldKey): boolean {
+  switch (field) {
+    case 'subject': return draft.subject !== null;
+    case 'name': return draft.name.trim().length > 0;
+    case 'files': return draft.files.length > 0;
+    case 'classes': return draft.classes.length > 0;
+    default: return true;
+  }
+}
+
+/** 이 항목이 지금 앞을 막는 까닭. 막지 않으면 null. */
+function faultOf(draft: BotDraft, field: FieldKey): Fault | null {
+  const group = FIELD_GROUP[field];
+  // 만든 뒤(4)에 고르는 「반」은 관문이 아니다 — 돌려보낼 마당이 없다
+  if (!isBuildYard(group)) return null;
+
+  const empty = REQUIRED_MESSAGE[field];
+  if (empty && !isFilled(draft, field)) return { field, yard: group, message: empty };
+
+  const rule = FIELD_RULE[field];
+  if (rule && !rule.ok(draft)) return { field, yard: group, message: rule.message };
+
+  return null;
+}
+
+/**
+ * 앞을 막는 첫 항목. 다 찼으면 null.
+ *
+ * `yard` 를 주면 그 마당만 본다(「다음」), 주지 않으면 아홉 가지를 다 본다(「이대로 만들기」).
+ * 마당을 하드코딩하지 않고 `FIELD_GROUP` 을 읽으므로 마당 2·3 에 필수가 생겨도 그대로 잡힌다.
+ */
+export function firstFault(draft: BotDraft, yard?: YardNo): Fault | null {
+  for (const field of FIELD_KEYS) {
+    if (yard !== undefined && FIELD_GROUP[field] !== yard) continue;
+    const fault = faultOf(draft, field);
+    if (fault) return fault;
+  }
+  return null;
+}
+
+/**
+ * 막힌 항목으로 초점을 옮길 자리.
+ * 화면은 이 id 를 그 항목의 **첫 조작 자리**에 붙인다 — 필수를 늘리면 그 항목에도 붙여야 한다.
+ */
+export function faultAnchorId(field: FieldKey): string {
+  return `bld-${field}`;
 }
 
 /* ─── 「채워진 것」 ─── */
@@ -237,29 +342,29 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
   const subject = draft.subject ? subjectMeta[draft.subject] : null;
   const name = botName(draft);
 
+  // 마당은 `FIELD_GROUP` 하나가 정한다 — 줄마다 적으면 관문 판정과 어긋난다
   const row = (
     field: FieldKey,
-    group: GroupNo,
     label: string,
     value: string,
     placeholder = false,
-  ): SummaryRow => ({ field, group, label, value, placeholder });
+  ): SummaryRow => ({ field, group: FIELD_GROUP[field], label, value, placeholder });
 
   return [
-    row('subject', 1, '과목', subject ? subject.label : '아직 안 고름', !subject),
-    row('grade', 1, '학년', draft.grade),
-    row('name', 1, '이름', name || '과목을 고르면 정해져요', !name),
-    row('tone', 1, '말투', toneMeta[draft.tone].label),
+    row('subject', '과목', subject ? subject.label : '아직 안 고름', !subject),
+    row('grade', '학년', draft.grade),
+    row('name', '이름', name || '과목을 고르면 정해져요', !name),
+    row('tone', '말투', toneMeta[draft.tone].label),
     row(
-      'files', 2, '수업 자료',
+      'files', '수업 자료',
       draft.files.length ? `${draft.files.length}개 올림` : '없음 — 교과서 밖 지식으로 답해요',
       draft.files.length === 0,
     ),
-    row('scope', 2, '답 범위', `L${draft.scope} ${scopeMeta[draft.scope].label}`),
-    row('style', 3, '평소에', styleMeta[draft.style].label),
-    row('wrong', 3, '틀렸을 때', wrongMeta[draft.wrong].label),
+    row('scope', '답 범위', `L${draft.scope} ${scopeMeta[draft.scope].label}`),
+    row('style', '평소에', styleMeta[draft.style].label),
+    row('wrong', '틀렸을 때', wrongMeta[draft.wrong].label),
     row(
-      'classes', 4, '반',
+      'classes', '반',
       draft.classes.length
         ? draft.classes.map(classroomLabel).join(' · ')
         : view === 'done' ? '아직 안 넣음' : '만든 뒤에 골라요',
