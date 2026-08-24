@@ -497,7 +497,9 @@ function CreatedBanner() {
   const created = params.get('created');
   if (!created) return null;
 
-  // 반을 안 고르고 나가도 봇은 남는다 — 그 경우를 「고른 반에 나타나요」로 안내하면 거짓말이 된다.
+  // 두 분기 모두 데모 제약을 드러낸다. 빌더는 화면 안 상태로만 움직이고 저장하지 않아서
+  // (핸드오프 § 4.1), 이 페이지로 넘어오면 새 봇은 이 배너 말고 아무 데도 남지 않는다.
+  // 「넣었어요」·「봇은 남아 있고」처럼 쓰면 교사가 봇이 계속 있다고 믿고 나간다.
   const rooms = (params.get('rooms') ?? '').split(',').filter(Boolean);
   const roomNames = rooms.map(classroomLabel).join(' · ');
 
@@ -509,8 +511,8 @@ function CreatedBanner() {
       </div>
       <p className="text-pullim-blue-700 mt-1 text-2xs">
         {rooms.length
-          ? `${roomNames}에 넣었어요 — 데모라 아래 목록 반영은 v1 backend 연결 후예요.`
-          : '아직 반에 넣지 않았어요. 봇은 남아 있고 나중에 반에 넣을 수 있어요 — 데모라 아래 목록에는 아직 안 보여요.'}
+          ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
+          : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고, 반은 그때 나중에 넣어도 돼요.'}
       </p>
     </section>
   );
