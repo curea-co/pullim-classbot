@@ -51,8 +51,7 @@ export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
       </p>
       <Link
         href={botComment.ctaHref}
-        className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
-        style={{ borderColor: sig.inkLight, color: sig.inkLight }}
+        className="border-pullim-blue-300 text-pullim-blue-700 hover:bg-pullim-blue-50 mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors"
       >
         {botComment.ctaLabel}
         <ArrowRight className="h-3 w-3" />

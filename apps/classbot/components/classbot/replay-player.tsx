@@ -26,7 +26,7 @@ const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; c
   'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
   'quiz':      { label: '퀴즈',     color: 'bg-pullim-blue-600',  icon: Target },
   'student-q': { label: '내 질문',  color: 'bg-pullim-blue-700',  icon: MessageCircle },
-  'sharing':   { label: '전체공유', color: 'bg-pullim-lemon',     icon: Eye },
+  'sharing':   { label: '전체공유', color: 'bg-pullim-blue-200',  icon: Eye },
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: Eye },
 };
 
@@ -206,7 +206,7 @@ function PlayerSurface({
       <div
         aria-hidden
         className="absolute -top-24 -right-24 h-56 w-56 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
       />
 
       <div className="relative">
@@ -217,7 +217,7 @@ function PlayerSurface({
               현재
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-pullim-lemon text-4xl font-bold leading-none lg:text-5xl">
+              <span className="text-4xl font-bold leading-none text-white lg:text-5xl">
                 {formatReplayTime(now)}
               </span>
               <span className="text-white/40 text-base">/</span>
@@ -243,12 +243,12 @@ function PlayerSurface({
             aria-valuemax={totalSec}
             aria-valuenow={Math.floor(now)}
             aria-valuetext={formatReplayTime(now)}
-            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15 outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50"
+            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/60"
             onClick={onTrackClick}
             onKeyDown={onTrackKey}
           >
             <div
-              className="bg-pullim-lemon absolute inset-y-0 left-0 rounded-full"
+              className="bg-pullim-blue-400 absolute inset-y-0 left-0 rounded-full"
               style={{ width: `${progressPct}%` }}
             />
             {/* 세그먼트 마커 */}
@@ -278,7 +278,7 @@ function PlayerSurface({
             {/* Thumb */}
             <div
               aria-hidden
-              className="bg-white absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-pullim-lemon shadow-lg pointer-events-none"
+              className="bg-white ring-pullim-blue-900 absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-lg ring-2 pointer-events-none"
               style={{ left: `${progressPct}%` }}
             />
           </div>
@@ -294,8 +294,8 @@ function PlayerSurface({
                 </li>
               );
             })}
-            <li className="text-pullim-lemon ml-auto inline-flex items-center gap-1 font-semibold">
-              <span className="bg-pullim-lemon ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
+            <li className="ml-auto inline-flex items-center gap-1 font-semibold text-white">
+              <span className="bg-white ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
               내 활동
             </li>
           </ul>
@@ -345,9 +345,9 @@ function PlayerSurface({
                 aria-checked={s === speed}
                 onClick={() => onSpeed(s)}
                 className={cn(
-                  'rounded-full px-2 py-0.5 font-mono text-2xs font-bold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50',
+                  'rounded-full px-2 py-0.5 font-mono text-2xs font-bold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-white/60',
                   s === speed
-                    ? 'bg-pullim-lemon text-pullim-lemon-ink'
+                    ? 'text-pullim-slate-900 bg-white'
                     : 'text-white/70 hover:text-white',
                 )}
               >
@@ -361,11 +361,11 @@ function PlayerSurface({
         {/* 자막 — 현재 라인 */}
         {currentLine ? (
           <div className="bg-white/10 backdrop-blur mt-4 rounded-xl p-3.5">
-            <div className="text-pullim-lemon mb-1 flex items-center gap-1.5 text-micro font-bold tracking-wider uppercase">
-              <span className="bg-pullim-lemon h-1 w-1 rounded-full" />
+            <div className="mb-1 flex items-center gap-1.5 text-micro font-bold tracking-wider text-white uppercase">
+              <span className="h-1 w-1 rounded-full bg-white" />
               {currentLine.speaker} 발언 중
               {currentLine.shared && (
-                <Chip tone="lemon" className="ml-1">
+                <Chip tone="invert" className="ml-1">
                   전체 공유
                 </Chip>
               )}
@@ -388,7 +388,7 @@ function KeyTakeaways({ takeaways }: { takeaways: string[] }) {
   return (
     <aside className="bg-card rounded-xl border p-4">
       <header className="mb-2 flex items-center gap-1.5">
-        <Lightbulb className="text-pullim-lemon-ink h-3.5 w-3.5" />
+        <Lightbulb className="text-pullim-blue-600 h-3.5 w-3.5" />
         <strong className="text-pullim-slate-900 text-xs font-bold tracking-wider uppercase">
           이 수업 핵심 3개
         </strong>
@@ -454,7 +454,7 @@ function TranscriptStream({
               className={cn(
                 'block w-full rounded-lg p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                 isCurrent
-                  ? 'bg-pullim-lemon/15 ring-2 ring-pullim-lemon shadow-sm'
+                  ? 'bg-pullim-blue-50 ring-pullim-blue-400 ring-2 shadow-sm'
                   : isPast
                     ? 'bg-pullim-slate-50/40 hover:bg-pullim-slate-50'
                     : 'opacity-65 hover:opacity-100 hover:bg-pullim-slate-50',
@@ -464,13 +464,13 @@ function TranscriptStream({
                 <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                 <SpeakerBadge speaker={line.speaker} ownedByMe={line.ownedByMe} />
                 {line.shared && (
-                  <Chip tone="lemon">
+                  <Chip tone="info">
                     전체 공유
                   </Chip>
                 )}
                 {isCurrent && (
-                  <span className="text-pullim-lemon-ink ml-auto inline-flex items-center gap-0.5 font-bold">
-                    <span className="bg-pullim-lemon h-1.5 w-1.5 animate-pulse rounded-full" />
+                  <span className="text-pullim-blue-700 ml-auto inline-flex items-center gap-0.5 font-bold">
+                    <span className="bg-pullim-blue-600 h-1.5 w-1.5 animate-pulse rounded-full" />
                     지금
                   </span>
                 )}
@@ -490,7 +490,7 @@ function SpeakerBadge({
   const cls =
     speaker === '교사' ? 'bg-pullim-blue-100 text-pullim-blue-700' :
     speaker === '봇'   ? 'bg-pullim-slate-100 text-pullim-slate-700' :
-    speaker === '나' || ownedByMe ? 'bg-pullim-lemon-soft text-pullim-lemon-ink' :
+    speaker === '나' || ownedByMe ? 'bg-pullim-slate-900 text-white' :
     'bg-pullim-blue-50 text-pullim-blue-600';
   return (
     <span className={cn('rounded-full px-1.5 py-0.5 font-bold', cls)}>

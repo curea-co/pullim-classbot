@@ -25,10 +25,10 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
     <section
       className="bg-pullim-blue-700 text-white relative overflow-hidden rounded-2xl p-5 shadow-pullim-sm"
     >
-      {/* lemon glow depth treatment — matches existing KpiHeader */}
+      {/* 깊이감용 glow — 레몬은 장식에 쓰지 않는다([08 § 1.6] 키 CTA 한정). 같은 블루의 밝은 단계로 */}
       <div
         aria-hidden
-        className="glow-lemon absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
+        className="bg-pullim-blue-400 absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
       />
 
       <div className="relative space-y-4">
@@ -37,7 +37,11 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
           <h1 className="text-2xl font-bold leading-tight text-white">
             {name}님, 오늘도 화이팅
           </h1>
-          {/* Streak pill — lemon on navy */}
+          {/*
+            이 화면에서 레몬을 쓰는 **단 한 곳**.
+            [08 § 1.6] 이 레몬에 허락한 두 쓰임(키 CTA · 스트릭 인증) 중 스트릭 자리다.
+            D-day 칩·glow 에서 뺀 레몬이 여기로 모여서, 홈에서 가장 눈에 띄는 것이 「며칠째 이어왔나」가 된다.
+          */}
           <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
             <Flame className="h-3 w-3" aria-hidden />
             {streakDays}일째
@@ -59,7 +63,7 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
+              <Chip tone="invert">
                 {nextAction.dDay}
               </Chip>
               <ArrowRight className="h-4 w-4 text-white/60" aria-hidden />

@@ -101,7 +101,7 @@ export function LiveHeaderMeta({ bot }: { bot: ClassBot }) {
         LIVE
       </span>
       <ElapsedTime startedAt={session.startedAt} />
-      <span className="text-pullim-lemon">· 스코프 자동 잠금</span>
+      <span className="text-pullim-danger">· 스코프 자동 잠금</span>
     </div>
   );
 }
@@ -263,14 +263,14 @@ function QuestionStatusItem({ q }: { q: PendingQuestion }) {
     <li
       className={cn(
         'rounded-lg border px-2.5 py-1.5 text-2xs',
-        q.status === 'pending' && 'border-pullim-lemon bg-pullim-lemon/10 text-pullim-slate-800',
+        q.status === 'pending' && 'border-pullim-slate-400 bg-pullim-slate-50 text-pullim-slate-800',
         q.status === 'shared'  && 'border-pullim-blue-300 bg-pullim-blue-50 text-pullim-blue-800',
         q.status === 'hidden'  && 'border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-500',
       )}
     >
       <div className="font-bold">“{q.text}”</div>
       <div className="mt-0.5 text-micro">
-        {q.status === 'pending' && '🟡 교사 검토 중…'}
+        {q.status === 'pending' && '⏳ 교사 검토 중…'}
         {q.status === 'shared'  && '🔵 전체 공유됨! 곧 답변 받으실 거예요.'}
         {q.status === 'hidden'  && '⚪ 비공개로 처리됨 (선생님 1:1 답변)'}
       </div>

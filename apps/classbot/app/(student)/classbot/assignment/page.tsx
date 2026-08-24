@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Sparkles, Target, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
@@ -25,9 +25,16 @@ type AssignmentMode = AssignmentReadRow['mode'];
 
 const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
   'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
+  // 시험은 오류가 아니라 「모드가 바뀌었다」는 신호 — 빨강이 아니라 반전 면(navy)으로 [08 § 15.6]
+  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  icon: AlertCircle },
   'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
 };
+
+/**
+ * D-day 칩 앞 아이콘 — 색이 아니라 **모양**으로 상태를 한 번 더 말한다 ([08 § 14.1] 색만으로 의미 전달 금지).
+ * 지연은 경고 삼각형, 완료는 체크, 나머지는 시계.
+ */
+const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
 /** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
 const FALLBACK_BOT_EMOJI = '🧑‍🏫';
@@ -192,11 +199,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span
-              aria-hidden
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: groupHex }}
-            />
+            {/* 시그니처 점은 뺐다 — 바로 왼쪽 아바타와 그룹 라이너가 이미 같은 색으로 봇을 말한다 */}
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
               {bot.label}
             </h3>
@@ -210,10 +213,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
+            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 그룹 왼쪽 라이너와 아바타가 한다 */}
             <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
               <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${progress}%`, backgroundColor: groupHex }}
+                className="bg-pullim-blue-600 h-full rounded-full transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
             <span className="text-pullim-slate-500 font-mono text-micro font-bold">
@@ -235,6 +239,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
   const Icon = m.icon;
   // getAssignmentVisual 은 mode/dDay/state 만 읽는다 — read row 와 호환.
   const visual = getAssignmentVisual({ ...a, assignedAt: a.assignedAtLabel } as never);
+  const DDayIcon = dDayIcon[visual.state as keyof typeof dDayIcon] ?? Clock;
   const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
 
   return (
@@ -253,7 +258,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
               <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
-                <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
+                <DDayIcon className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {visual.dDayLabel}
               </span>
               {a.source === 'bot-prescribed' && (

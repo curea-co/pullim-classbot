@@ -28,14 +28,14 @@ export function BotHintPanel({
 function ExamLocked() {
   return (
     <section className="bg-pullim-slate-900 text-pullim-slate-200 flex flex-col items-center justify-center rounded-2xl p-6 text-center">
-      <Lock className="text-pullim-lemon mb-2 h-8 w-8" />
+      <Lock className="mb-2 h-8 w-8 text-white" />
       <h3 className="text-sm font-bold text-white">봇이 잠긴 시간이에요</h3>
       <p className="mt-1 text-2xs leading-relaxed">
         지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
       {/* 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
       <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-micro font-bold">
-        <span className="text-pullim-lemon">시험 모드</span>
+        <span className="text-white">시험 모드</span>
         <span className="text-pullim-slate-400 font-mono text-[9px]">(L1)</span>
       </div>
     </section>

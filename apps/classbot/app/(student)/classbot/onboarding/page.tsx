@@ -127,7 +127,7 @@ export default function ClassbotOnboardingPage() {
                     className={
                       'rounded-md border p-1.5 text-white ' +
                       (q.shared
-                        ? 'bg-pullim-lemon/15 border-pullim-lemon-ink/20'
+                        ? 'bg-pullim-blue-900 border-pullim-blue-400'
                         : 'bg-pullim-slate-900 border-pullim-slate-800')
                     }
                   >
@@ -139,7 +139,7 @@ export default function ClassbotOnboardingPage() {
                       <span className="text-pullim-slate-400">·</span>
                       <span className="text-pullim-slate-400 font-mono">{q.ago}</span>
                       {q.shared && (
-                        <span className="bg-pullim-lemon-ink text-pullim-lemon ml-auto rounded-full px-1 py-0.5 text-2xs font-bold">
+                        <span className="text-pullim-blue-900 ml-auto rounded-full bg-white px-1 py-0.5 text-2xs font-bold">
                           공유됨
                         </span>
                       )}

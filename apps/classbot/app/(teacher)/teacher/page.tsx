@@ -77,9 +77,14 @@ export default function TeacherHomePage() {
             value={`${monitoringSummary.reached}/${monitoringSummary.total}명`}
             tone="accent"
           />
+          {/*
+            빨강은 네 숫자 가운데 **하나**만 쓴다 — 셋 다 빨가면 어느 것도 급해 보이지 않는다.
+            봇이 아예 닿지 못한 학생(미도달)이 유일하게 「무너진 상태」다.
+            나머지 둘은 라벨(「목표 수준 미달」·「오늘 안 들어옴」)이 이미 뜻을 다 말한다.
+          */}
           <KpiStat label="미도달" value={`${monitoringSummary.notReached}명`} tone="alert" />
-          <KpiStat label="목표 수준 미달" value={`${monitoringSummary.depthShort}명`} tone="alert" />
-          <KpiStat label="오늘 안 들어옴" value={`${monitoringSummary.offlineToday}명`} tone="alert" />
+          <KpiStat label="목표 수준 미달" value={`${monitoringSummary.depthShort}명`} />
+          <KpiStat label="오늘 안 들어옴" value={`${monitoringSummary.offlineToday}명`} />
         </KpiStatBar>
         <p className="text-pullim-slate-400 px-1 text-micro font-semibold">
           {`${monitoredClass.classroomLabel} · ${monitoredClass.botName} · ${monitoredClass.unit} · ${monitoredClass.updatedAtLabel}`}

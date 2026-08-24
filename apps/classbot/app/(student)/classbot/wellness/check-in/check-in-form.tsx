@@ -76,8 +76,7 @@ export function CheckInForm() {
               <p className="text-pullim-slate-700 mt-2 text-sm leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
               <Link
                 href={reaction.ctaHref}
-                className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
-                style={{ borderColor: sig.inkLight, color: sig.inkLight }}
+                className="border-pullim-blue-300 text-pullim-blue-700 hover:bg-pullim-blue-50 mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors"
               >
                 {reaction.ctaLabel}
                 <ArrowRight className="h-3 w-3" />

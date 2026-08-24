@@ -308,7 +308,8 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
 /* ─── 낸 과제 — 봇이 학생에게 보낸 풀이 컨텍스트 ─── */
 const modeMeta = {
   'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
+  // 시험은 오류가 아니라 모드 전환 신호 — 학생 목록과 같은 navy 로 맞춘다 ([08 § 15.6] surface.inverse)
+  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  icon: AlertCircle },
   'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
 } as const;
 

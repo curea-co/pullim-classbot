@@ -46,7 +46,8 @@ function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
           <span
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
-              isLive && 'ring-pullim-lemon ring-2 pullim-anim-bot-breath',
+              // LIVE 표시는 이미 위험색 테두리 + LiveBadge 가 한다 — 링까지 다른 색을 더하지 않는다
+              isLive && 'ring-pullim-danger ring-2 pullim-anim-bot-breath',
             )}
             style={{ backgroundColor: sig.hex }}
           >

@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 
 const modeMeta = {
   'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target,       tone: '한 번 해보자' },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',     icon: AlertCircle,  tone: '집중하는 시간' },
+  // 시험은 오류가 아니라 모드 전환 신호 — navy 면 + 「집중하는 시간」 문구로 말한다
+  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  icon: AlertCircle,  tone: '집중하는 시간' },
   'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',   icon: Sparkles,     tone: '이번엔 잡아내자' },
 } as const;
 

@@ -33,11 +33,15 @@ const toneValueClass: Record<KpiTone, string> = {
   success: 'text-pullim-blue-500',
 };
 
-/** On-dark (navy) equivalents — white/lemon only, no green/amber. */
+/**
+ * On-dark (navy) equivalents.
+ * 반전 면 위에서는 값을 전부 흰 글씨로 둔다 — 레몬은 키 CTA 자리라 KPI 숫자에 쓰지 않는다([08 § 1.6]).
+ * alert 여부는 `icon` 과 `label` 이 말한다.
+ */
 const toneValueClassDark: Record<KpiTone, string> = {
   default: 'text-white',
   accent:  'text-white',
-  alert:   'text-pullim-lemon',
+  alert:   'text-white',
   success: 'text-white',
 };
 

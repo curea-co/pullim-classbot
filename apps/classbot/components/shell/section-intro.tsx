@@ -40,10 +40,10 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
         <div
           aria-hidden
           className="absolute -top-20 -right-20 h-56 w-56 rounded-full opacity-30 blur-3xl"
-          style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
         />
         <div className="relative">
-          <h2 className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+          <h2 className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
             이 섹션의 정체성
           </h2>
           <p className="mt-1.5 text-base font-semibold leading-relaxed text-white xl:text-lg">
@@ -54,7 +54,7 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
             {values.map(v => (
               <li key={v.label} className="bg-white/10 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-center gap-1.5">
-                  <v.Icon aria-hidden className="text-pullim-lemon h-4 w-4" />
+                  <v.Icon aria-hidden className="h-4 w-4 text-white" />
                   <span className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
                     {v.label}
                   </span>
@@ -103,10 +103,9 @@ function SubRouteCard({ sub }: { sub: SubRoute }) {
       </div>
       <div className="flex items-center gap-1.5">
         <h4 className="text-pullim-slate-900 text-sm font-bold tracking-tight">{sub.label}</h4>
+        {/* 별 모양 하나로 시그니처를 말한다 — 아이콘 타일이 이미 레몬이라 배지까지 칠하지 않는다 */}
         {sub.signature && (
-          <span className="bg-pullim-lemon text-pullim-lemon-ink inline-flex items-center justify-center rounded-full px-1 py-0.5">
-            <Star className="h-2 w-2 fill-current" aria-hidden />
-          </span>
+          <Star className="text-pullim-lemon-ink h-2.5 w-2.5 fill-current" aria-hidden />
         )}
       </div>
       <p className="text-pullim-slate-500 mt-0.5 line-clamp-2 text-2xs leading-snug">
@@ -127,6 +126,6 @@ function baseClass(sub: SubRoute): string {
     sub.locked
       ? 'opacity-60 cursor-not-allowed border-dashed'
       : 'hover:border-pullim-blue-300 hover:shadow-pullim-md',
-    sub.signature && !sub.locked && 'ring-pullim-lemon-ink/30 ring-2',
+    sub.signature && !sub.locked && 'ring-pullim-slate-300 ring-2',
   );
 }

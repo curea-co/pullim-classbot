@@ -150,10 +150,10 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
       <div
         aria-hidden
         className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
       />
       <div className="relative">
-        <div className="text-pullim-lemon flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+        <div className="flex items-center gap-1 text-micro font-bold tracking-wider text-white/70 uppercase">
           <RotateCw className="h-3 w-3" />
           이어 보기 · {r.botName}
         </div>
@@ -165,7 +165,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
         <div className="mt-3">
           <div className="bg-white/15 h-1.5 overflow-hidden rounded-full">
             <div
-              className="bg-pullim-lemon h-full rounded-full"
+              className="h-full rounded-full bg-white"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -189,7 +189,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
 function LatestHero({ replay: r }: { replay: Replay }) {
   return (
     <section className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl">
-      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+      <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
         방금 끝난 수업 · {r.botName}
       </div>
       <h2 className="mt-1 text-lg font-bold tracking-tight">{r.title}</h2>
@@ -205,7 +205,7 @@ function LatestHero({ replay: r }: { replay: Replay }) {
 
       <Link
         href={`/classbot/replay/${r.id}`}
-        className="bg-pullim-lemon text-pullim-lemon-ink mt-4 inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-sm font-bold"
+        className="text-pullim-blue-700 mt-4 inline-flex items-center gap-1 rounded-lg bg-white px-3.5 py-2 text-sm font-bold"
       >
         <Play className="h-3.5 w-3.5 fill-current" />
         처음부터 재생

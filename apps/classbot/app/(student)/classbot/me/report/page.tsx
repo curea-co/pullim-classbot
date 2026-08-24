@@ -29,7 +29,7 @@ export default function MyReportPage() {
 
       {/* 1:1 메시지 — 면담 메모가 있을 때만 */}
       <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
-        <h3 className="text-pullim-lemon inline-flex items-center gap-1 text-xs font-bold tracking-wider uppercase">
+        <h3 className="inline-flex items-center gap-1 text-xs font-bold tracking-wider text-white uppercase">
           <MessageCircle className="h-3 w-3" />
           선생님이 한 마디
         </h3>

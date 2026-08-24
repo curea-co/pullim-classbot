@@ -80,7 +80,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
   const scoreCard = isExam ? (
     <section className="bg-pullim-slate-900 text-white rounded-2xl p-5">
-      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+      <div className="text-micro font-bold tracking-wider text-white uppercase">
         <Clock className="-mt-0.5 mr-0.5 inline h-3 w-3" />
         시험 완료
       </div>
