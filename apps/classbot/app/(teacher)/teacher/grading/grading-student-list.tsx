@@ -46,8 +46,11 @@ export type StudentSort = 'pending' | 'name' | 'stale';
  * 새로고침·링크 공유·뒤로 가기에서 보던 조건이 유지돼야 한다.
  *
  * 값은 화면 안에서도 한 벌 들고 있다. 누르는 즉시 목록이 움직여야 해서다
- * (URL 이 돌아오길 기다리면 알약이 늦게 반응한다). URL 은 뒤따라 갱신하고,
- * 뒤로 가기로 URL 이 바뀌면 페이지가 `key` 로 이 컴포넌트를 다시 세워 값을 다시 읽는다.
+ * (URL 이 돌아오길 기다리면 알약이 늦게 반응한다). URL 은 뒤따라 갱신한다.
+ *
+ * **`push` 를 쓴다(`replace` 아님).** 거르개를 바꾼 것은 교사가 한 이동이라 뒤로 가기로
+ * 되돌아갈 수 있어야 한다. `replace` 면 방금 보던 조건이 히스토리에서 사라진다.
+ * 뒤로 가서 URL 이 바뀌면 페이지가 `key` 로 이 컴포넌트를 다시 세워 값을 다시 읽는다.
  */
 export const STUDENT_FILTER_DEFAULT: StudentFilter = 'all';
 export const STUDENT_SORT_DEFAULT: StudentSort = 'pending';
@@ -109,11 +112,11 @@ export function GradingStudentList({
 
   const selectFilter = (next: StudentFilter) => {
     setFilter(next);
-    router.replace(studentViewHref(next, sort), { scroll: false });
+    router.push(studentViewHref(next, sort), { scroll: false });
   };
   const selectSort = (next: StudentSort) => {
     setSort(next);
-    router.replace(studentViewHref(filter, next), { scroll: false });
+    router.push(studentViewHref(filter, next), { scroll: false });
   };
 
   // 교사가 확정한 채점을 얹은 뒤 센다 — 확정한 항목은 대기에서 빠져야 한다.
