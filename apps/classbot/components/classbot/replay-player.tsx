@@ -12,7 +12,6 @@ import {
   formatReplayTime,
 } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Chip } from '@/components/ui/chip';
@@ -168,10 +167,6 @@ export function ReplayPlayer({
 
       {/* 프라이버시 안내 */}
       <PrivacyNote replay={replay} />
-
-      <FlywheelNote>
-        다시 본 구간 + 내가 틀린 퀴즈는 <strong>풀림 복습</strong>의 Leitner 박스에 자동 등록되고, 보낸 질문은 다음 수업 도입에 반영돼요.
-      </FlywheelNote>
     </div>
   );
 }

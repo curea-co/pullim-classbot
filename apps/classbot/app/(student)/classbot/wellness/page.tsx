@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, Heart, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
@@ -146,10 +145,6 @@ export default function WellnessPage() {
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {main}
       </ContextRail>
-
-      <FlywheelNote>
-        매일 30초 체크인이 쌓이면 봇이 더 정확하게 도와줄 수 있어요. 부담 없이 편하게.
-      </FlywheelNote>
     </div>
   );
 }

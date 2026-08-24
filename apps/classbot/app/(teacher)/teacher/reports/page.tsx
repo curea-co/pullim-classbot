@@ -75,7 +75,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       </section>
 
       <FlywheelNote>
-        승인된 리포트는 24시간 안에 카카오톡으로 자동 발송돼요. 학부모 열람률은 다음 주 KPI에 반영돼요.
+        승인된 리포트는 24시간 안에 카카오톡으로 자동 발송돼요.
       </FlywheelNote>
     </TeacherPageShell>
   );

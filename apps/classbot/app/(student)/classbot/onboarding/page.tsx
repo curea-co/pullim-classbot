@@ -34,7 +34,7 @@ export default function ClassbotOnboardingPage() {
           bullets: [
             '선생님이 직접 말투(친근·정중·엄격)도 미리 정해 둬요',
             '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 뒀어요',
-            '네가 풀수록 봇도 점점 똑똑해져요',
+            '내가 어디서 막혔는지 선생님이 보고 다음 수업을 고쳐요',
           ],
           screenshot: (
             <MockBrowser dark label="봇 정체성">
@@ -111,8 +111,7 @@ export default function ClassbotOnboardingPage() {
             '내가 봇에게 한 질문, 답변, 정답률까지 선생님 화면에 그대로 보여요. 덕분에 선생님이 내가 어디서 막히는지 바로 알 수 있어요.',
           bullets: [
             '내가 봇과 한 모든 활동은 기록돼요',
-            '이름을 가린 채 봇이 더 똑똑해지는 데 쓰여요',
-            '틀린 문제는 풀림 복습에 자동으로 모여요',
+            '자주 틀린 문제는 선생님이 다음 과제에 다시 넣어 줘요',
           ],
           cta: { label: '지금 봇에게 물어보기', href: '/classbot/chat' },
           screenshot: (

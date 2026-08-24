@@ -2,7 +2,6 @@ import { ClipboardList, Heart, MessageCircle, Sparkles, Target, ArrowRight } fro
 import Link from 'next/link';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
@@ -99,10 +98,6 @@ export default function MyReportPage() {
           </div>
         </section>
       </ContextRail>
-
-      <FlywheelNote>
-        매일의 작은 기록이 다음 주 봇 처방의 정확도를 만들어요.
-      </FlywheelNote>
     </div>
   );
 }

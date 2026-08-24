@@ -11,7 +11,6 @@ import {
   type Replay, formatReplayTime,
 } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,10 +91,6 @@ export function ReplayReview({ replay }: { replay: Replay }) {
           <FocusHeatmapPreview bins={replay.focusBins} />
         </>
       )}
-
-      <FlywheelNote>
-        검토하면서 가린 라인 + 다시 강조한 핵심 메시지는 다음 수업 때 봇 페르소나·교안 RAG에 자동 반영돼요.
-      </FlywheelNote>
     </div>
   );
 }

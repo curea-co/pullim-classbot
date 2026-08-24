@@ -28,7 +28,6 @@ import {
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut,
 } from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { cn } from '@/lib/utils';
 
@@ -111,10 +110,6 @@ export default function TeacherClassbotPage() {
 
       {/* 등록 학생 관리 — enrollment 토글 */}
       <EnrollmentToggleSection />
-
-      <FlywheelNote>
-        학생 질문·오답 데이터는 익명화되어 사고유도 모델로 흘러가고, 자주 막힌 패턴은 학생의 <strong>풀림 복습</strong>에 처방으로 자동 추가돼요.
-      </FlywheelNote>
     </div>
   );
 }
