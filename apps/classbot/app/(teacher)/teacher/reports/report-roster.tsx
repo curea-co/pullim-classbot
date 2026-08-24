@@ -30,8 +30,9 @@ import {
  * 「누구를 먼저 볼까」 하나라 **거르개·정렬이 쓰는 값만** 줄에 둔다
  * (도달 배지 · 지름길 · 이탈 · 최근 접속). 목표/닿은 사고 수준 같은 진단 열은 관제소에 남긴다.
  *
- * 리포트 건수는 줄에 달지 않는다 — 리포트 mock 이 이름으로 가리키는 학생은 다른 학급 스냅샷이라
- * 명단과 id 로 잇는 자리가 없다. 없는 연결을 지어내지 않는다.
+ * 리포트 건수는 줄에 달지 않는다 — 리포트에는 학생 id 필드가 없고 이름 문자열로만 학생을 가리키는데,
+ * 그 이름이 가리키는 명단(`classRoster`)과 여기 명단은 id 체계도 학급 스냅샷도 다르다.
+ * 잇는 길을 막아 두는 것이 아니라, 잇기 전에 리포트에 학생 id 를 넣는 일이 먼저다.
  */
 export function ReportRoster({ students }: { students: MonitoredStudent[] }) {
   const [filter, setFilter] = useState<ReportRosterFilter>('all');

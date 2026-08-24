@@ -32,8 +32,10 @@ const kindFilters: { value: 'all' | ReportKind; label: string }[] = [
  * ①만 두면 리포트가 아직 없는 학생은 이 화면에서 사라져, 교사가 여기서 학생을 찾을 수 없다.
  *
  * 명단이 읽는 학생 원천은 관제소·교사 홈과 **같은 곳**(`monitoredRoster`)이다.
- * 리포트 mock 이 이름으로 가리키는 학생(윤서·도현)은 다른 학급(중2 수학) 스냅샷이라
- * 명단(중1-3반 과학)과 id 로 잇는 자리가 없다 — 없는 연결은 지어내지 않는다.
+ * 리포트(`ReportSummary`)에는 학생 id 필드가 없고 `title`·`subject` 문자열의 이름으로만 학생을 가리킨다.
+ * 그 이름이 가리키는 쪽은 `classRoster`(`s1`…)이고 명단은 다른 id 체계(`m01`…)라 학급 스냅샷도 다르다
+ * (리포트: 중2 수학 A반 / 명단: 중1-3반 과학). 그래서 **지금은** 잇지 않는다 —
+ * 이름 문자열 대조로 이으면 동명이인·학급 불일치를 그대로 지나친다.
  */
 export default async function TeacherReportsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
