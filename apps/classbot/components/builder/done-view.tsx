@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import Link from 'next/link';
 import { Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,8 +9,8 @@ import { FieldLabel } from './field-mark';
 import { FilledSummary } from './filled-summary';
 import { PickChip } from './pick-chip';
 import {
-  botName, classAssignments, classroomChoices, ownCount, subjectMeta, classroomLabel,
-  type BotDraft, type FieldKey, type GroupNo, type YardNo,
+  botName, classAssignments, classroomChoices, subjectMeta, classroomLabel,
+  type BotDraft, type FieldKey,
 } from './builder-types';
 
 /**
@@ -23,13 +22,13 @@ import {
  *
  * 「채워진 것」을 여기서 한 번 더 보여주는 이유: 기본값으로 들어간 것이 무엇인지
  * 학생이 쓰기 전에 마지막으로 확인할 자리가 여기밖에 없다(학생 화면 미리보기가 없다).
+ * 고칠 것이 있으면 「이어서 고치기」로 마당 1 부터 다시 지난다 — 줄마다 붙던 「고치기」는 없앴다.
  */
 
 type Props = {
   draft: BotDraft;
-  onPick: (field: FieldKey, patch: Partial<BotDraft>, own?: boolean) => void;
-  /** 마당 1~3 으로 돌아가기 */
-  onEditYard: (yard: YardNo) => void;
+  onPick: (field: FieldKey, patch: Partial<BotDraft>) => void;
+  /** 마당 1 로 돌아가 이어서 고치기 */
   onRefine: () => void;
   onRestart: () => void;
 };
@@ -45,26 +44,15 @@ function assignmentHref(draft: BotDraft): string {
   return `/teacher/classbot?created=${encodeURIComponent(bot)}&rooms=${encodeURIComponent(rooms)}`;
 }
 
-export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Props) {
-  const classFieldRef = useRef<HTMLDivElement>(null);
+export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
   const subject = draft.subject ? subjectMeta[draft.subject] : null;
   const sig = botSignature({ subject: subject?.label });
-  const count = ownCount(draft);
 
   function toggleClass(id: string) {
     const next = draft.classes.includes(id)
       ? draft.classes.filter((c) => c !== id)
       : [...draft.classes, id];
-    onPick('classes', { classes: next }, next.length > 0);
-  }
-
-  function handleEdit(group: GroupNo) {
-    if (group === 4) {
-      // 반은 이 화면에 있다 — 다른 데로 보내지 말고 그 자리로 데려간다
-      classFieldRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    onEditYard(group);
+    onPick('classes', { classes: next });
   }
 
   return (
@@ -89,13 +77,8 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
           <Chip tone="info" className="shrink-0">만들어졌어요</Chip>
         </header>
 
-        <p className="bg-pullim-blue-50 text-pullim-blue-800 mt-3.5 rounded-xl p-3 text-xs leading-relaxed">
-          아홉 가지 가운데 <b data-testid="done-own-count">{count}가지</b>를 직접 정하셨어요.
-          나머지는 기본값 그대로 들어갔고, 아래 목록에서 바로 고칠 수 있어요.
-        </p>
-
-        <div ref={classFieldRef} className="mt-4 scroll-mt-20">
-          <FieldLabel field="classes" draft={draft}>어느 반에 넣을까요</FieldLabel>
+        <div className="mt-4">
+          <FieldLabel field="classes">어느 반에 넣을까요</FieldLabel>
           <div role="group" aria-label="어느 반에 넣을까요" className="flex flex-wrap gap-1.5">
             {classroomChoices.map((c) => (
               <PickChip
@@ -110,7 +93,7 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
         </div>
 
         <div className="border-pullim-slate-100 mt-4 border-t pt-4">
-          <FilledSummary draft={draft} view="done" yard={1} onEdit={handleEdit} className="border-0 p-0" />
+          <FilledSummary draft={draft} view="done" yard={1} className="border-0 p-0" />
         </div>
 
         <footer className="border-pullim-slate-100 mt-4 flex flex-wrap gap-2 border-t pt-4">

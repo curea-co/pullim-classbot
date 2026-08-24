@@ -3,19 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { OwnBadge } from './field-mark';
 import {
-  alwaysOnSafety, FIELD_KEYS, ownCount, summaryRows, yardGroups,
-  type BotDraft, type BuilderView, type GroupNo, type YardNo,
+  alwaysOnSafety, summaryRows, yardGroups,
+  type BotDraft, type BuilderView, type YardNo,
 } from './builder-types';
 
 /**
  * 「채워진 것」 — 학생 화면 미리보기가 없는 이 화면의 유일한 길잡이.
  *
- * 아홉 줄(`FIELD_KEYS`)을 마당별로 묶어 보여주고, 줄마다 항목 옆 표시와 **같은 배지**를 단다.
+ * 아홉 줄을 마당별로 묶어 **항목 이름 : 값** 만 보여준다.
+ * 배지도, 줄마다 붙던 「고치기」도, 몇 가지를 직접 정했는지 세는 숫자도 없다 —
+ * 오갈 자리는 위쪽 「단계」 하나로 모았고, 값은 줄이 그대로 보여준다.
  * 값이 바뀐 줄은 짧게 파랗게 번진다 — 미리보기가 없으니 여기서라도 변화를 알아채야 한다.
  *
- * 안전 세 가지는 세는 칸 밖 고정 줄이다. 교사가 정할 것이 없으니 「직접 정함」에 섞으면 숫자가 거짓이 된다.
+ * 안전 세 가지는 아홉 줄 밖 고정 줄이다. 교사가 정할 것이 없어 목록에 섞지 않는다.
  */
 
 type Props = {
@@ -23,8 +24,6 @@ type Props = {
   view: BuilderView;
   /** 지금 보고 있는 마당 — 묶음 머리의 「지금」 표시 */
   yard: YardNo;
-  /** 줄의 「고치기」 — 그 항목이 있는 마당으로 데려간다 */
-  onEdit: (group: GroupNo) => void;
   /** 만든 뒤 화면은 이미 카드 안이라 테두리를 걷어낸다 */
   className?: string;
 };
@@ -34,30 +33,13 @@ function justFlash(on: boolean): string {
   return on ? 'bg-pullim-blue-100' : 'bg-transparent transition-colors duration-1000';
 }
 
-export function FilledSummary({ draft, view, yard, onEdit, className }: Props) {
+export function FilledSummary({ draft, view, yard, className }: Props) {
   const rows = summaryRows(draft, view);
-  const count = ownCount(draft);
-  // 숫자도 한 줄로 함께 넘긴다 — 숫자가 그대로면 숫자는 번지지 않는다
-  const just = useJustChanged([
-    ...rows.map((r) => `${r.field}:${r.value}:${r.own ? 1 : 0}`),
-    `count:${count}`,
-  ]);
+  const just = useJustChanged(rows.map((r) => `${r.field}:${r.value}`));
 
   return (
     <section className={cn('bg-card rounded-2xl border p-4', className)}>
-      <div className="mb-1 flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-pullim-slate-900 text-sm font-bold tracking-tight">채워진 것</h2>
-        <p className="text-pullim-slate-500 text-2xs font-semibold">
-          {FIELD_KEYS.length}가지 중{' '}
-          <b
-            data-testid="own-count"
-            className={cn('text-pullim-blue-700 rounded px-1 font-mono', justFlash(just.has('count')))}
-          >
-            {count}
-          </b>
-          가지 직접 정함
-        </p>
-      </div>
+      <h2 className="text-pullim-slate-900 mb-1 text-sm font-bold tracking-tight">채워진 것</h2>
 
       {yardGroups.map((g) => {
         const mine = rows.filter((r) => r.group === g.group);
@@ -86,41 +68,26 @@ export function FilledSummary({ draft, view, yard, onEdit, className }: Props) {
               )}
             </div>
 
-            {mine.map((r) => {
-              // 「반」은 봇이 있어야 고를 수 있다 — 만들기 전에는 갈 곳이 없으니 링크를 걸지 않는다
-              const canEdit = !(r.group === 4 && view !== 'done');
-              return (
-                <div
-                  key={r.field}
-                  data-testid={`summary-row-${r.field}`}
+            {mine.map((r) => (
+              <div
+                key={r.field}
+                data-testid={`summary-row-${r.field}`}
+                className={cn(
+                  'border-pullim-slate-100 flex items-baseline gap-2 rounded-lg border-b px-1.5 py-2 last:border-b-0',
+                  justFlash(just.has(r.field)),
+                )}
+              >
+                <span className="text-pullim-slate-500 w-14 shrink-0 text-2xs font-bold">{r.label}</span>
+                <span
                   className={cn(
-                    'border-pullim-slate-100 flex items-baseline gap-2 rounded-lg border-b px-1.5 py-2 last:border-b-0',
-                    justFlash(just.has(r.field)),
+                    'min-w-0 flex-1 text-xs leading-snug font-semibold',
+                    r.placeholder ? 'text-pullim-slate-400 font-medium' : 'text-pullim-slate-900',
                   )}
                 >
-                  <span className="text-pullim-slate-500 w-14 shrink-0 text-2xs font-bold">{r.label}</span>
-                  <span
-                    className={cn(
-                      'min-w-0 flex-1 text-xs leading-snug font-semibold',
-                      r.placeholder ? 'text-pullim-slate-400 font-medium' : 'text-pullim-slate-900',
-                    )}
-                  >
-                    {r.value}
-                  </span>
-                  <OwnBadge own={r.own} required={r.required} className="shrink-0" />
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => onEdit(r.group)}
-                      aria-label={`${r.label} 고치기`}
-                      className="text-pullim-blue-600 hover:bg-pullim-blue-50 shrink-0 rounded px-1.5 py-0.5 text-micro font-bold"
-                    >
-                      고치기
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+                  {r.value}
+                </span>
+              </div>
+            ))}
           </div>
         );
       })}
