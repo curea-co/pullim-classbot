@@ -309,7 +309,6 @@ export function AssignmentForm() {
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">②</span> 문항</>}
-            description="유형을 고르면 채점 방식이 자동으로 갈려요."
           />
 
           <div className="space-y-3">

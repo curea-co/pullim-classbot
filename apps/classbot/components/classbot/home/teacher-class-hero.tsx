@@ -68,9 +68,6 @@ export function TeacherClassHero({ name }: { name?: string }) {
           참여
         </button>
       </div>
-      <p className="mt-2 text-xs text-pullim-slate-500">
-        선생님께 받은 참여 코드를 입력하면 클래스에 연결돼요.
-      </p>
     </section>
   );
 }

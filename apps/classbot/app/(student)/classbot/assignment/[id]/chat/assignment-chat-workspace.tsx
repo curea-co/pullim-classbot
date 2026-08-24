@@ -282,7 +282,7 @@ function AssignmentTracker({
   if (questions.length === 0) {
     return (
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="과제 진행" description="이 과제의 문항이 아직 없어요." />
+        <SectionHeading title="과제 진행" />
         <EmptyState
           size="sm"
           tone="plain"
@@ -387,7 +387,7 @@ function TeacherGradedTracker({
   if (criteria.length === 0) {
     return (
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="요구사항" description="이 과제에는 적어 둔 요구사항이 없어요." />
+        <SectionHeading title="요구사항" />
         <EmptyState
           size="sm"
           tone="plain"

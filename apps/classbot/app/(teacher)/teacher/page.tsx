@@ -91,7 +91,6 @@ export default function TeacherHomePage() {
         <section className="bg-card rounded-2xl border p-5 lg:col-span-2">
           <SectionHeading
             title="먼저 볼 학생"
-            description="오늘 안 들어왔거나, 성취기준에 못 닿았거나, 목표 수준에 못 미친 학생이에요."
             action={
               <Link
                 href="/teacher/monitor"

@@ -98,7 +98,7 @@ export default function WellnessPage() {
 
       {/* 주간 감정 그래프 */}
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
+        <SectionHeading title="주간 기분 기록" />
         {checkIns.length === 0 ? (
           <EmptyState tone="plain" title="아직 기록이 없어요" size="sm" />
         ) : (
@@ -139,7 +139,6 @@ export default function WellnessPage() {
       <PageHeader
         eyebrow={{ icon: Heart, text: '내 웰빙' }}
         title="오늘 어땠어요?"
-        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>

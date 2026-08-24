@@ -115,7 +115,6 @@ export function CheckInForm() {
           30초 체크인
         </div>
         <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">오늘 어땠어요?</h1>
-        <p className="text-pullim-slate-500 mt-1 text-xs">짚고 가요. 부담 갖지 않아도 돼요.</p>
       </header>
 
       <section className="bg-card rounded-2xl border p-5">

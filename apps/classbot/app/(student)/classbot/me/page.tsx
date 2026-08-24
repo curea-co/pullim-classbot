@@ -48,7 +48,6 @@ export default function MyProfilePage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">학습 기록</div>
-          <div className="text-pullim-blue-100 text-2xs">성취기준마다 어디까지 왔는지 봐요</div>
         </div>
         <ArrowRight className="h-4 w-4" />
       </Link>
@@ -62,7 +61,6 @@ export default function MyProfilePage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-pullim-slate-900 text-sm font-bold">주간 리포트</div>
-          <div className="text-pullim-slate-500 text-2xs">봇이 본 나의 한 주</div>
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
@@ -78,7 +76,7 @@ export default function MyProfilePage() {
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* ─── 기본 정보 ─── */}
         <section className="bg-card rounded-2xl border p-4">
-          <SectionHeading title="기본 정보" description="가입할 때 들어온 정보예요." />
+          <SectionHeading title="기본 정보" />
           <dl className="divide-pullim-slate-100 divide-y">
             <InfoRow label="이름" value={me.name} />
             <InfoRow label="학년" value={grade ?? '수업에 참여하면 보여요'} muted={!grade} />
@@ -93,7 +91,7 @@ export default function MyProfilePage() {
 
         {/* ─── 소속 수업 ─── */}
         <section>
-          <SectionHeading title="소속 수업" description="선생님이 나를 넣어 준 반이에요." />
+          <SectionHeading title="소속 수업" />
           {!hydrated ? (
             <div className="space-y-1.5" aria-busy="true">
               <Skeleton className="h-16 w-full rounded-2xl" />

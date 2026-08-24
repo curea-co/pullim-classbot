@@ -145,7 +145,7 @@ function AssignmentListBody({
             <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
           </KpiStatBar>
 
-          <SectionHeading title="모든 과제" description="봇별로 묶고, 새로 받은 과제를 위에 뒀어요." />
+          <SectionHeading title="모든 과제" />
 
           <div className="space-y-4">
             {grouped.map(({ bot, items }) => (

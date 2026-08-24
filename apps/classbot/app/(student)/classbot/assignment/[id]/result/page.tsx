@@ -189,7 +189,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         {/* 오답 카드 — 시험은 발표 후 */}
         {!isExam && questions.length > 0 && (
           <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="오답 한눈에" description="기준 응답과 내 답을 비교해봐요." />
+            <SectionHeading title="오답 한눈에" />
             <ul className="space-y-2">
               {questions.slice(0, 3).map(q => {
                 const meta = questionTypeMeta[q.type as QuestionType];

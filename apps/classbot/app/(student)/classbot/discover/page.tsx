@@ -16,7 +16,7 @@ export default function ClassbotDiscoverPage() {
       <PageHeader
         eyebrow={{ icon: Compass, text: '풀림 클래스봇' }}
         title="공식 튜터 마켓"
-        description="튜터를 골라 자기주도 학습을 시작하세요 — 선생님 배정 없이 바로 등록할 수 있어요"
+        description="선생님 배정 없이 바로 등록할 수 있어요"
       />
 
       <section className="space-y-3">

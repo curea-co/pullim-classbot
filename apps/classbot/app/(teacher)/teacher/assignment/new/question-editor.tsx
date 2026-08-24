@@ -454,7 +454,7 @@ function RubricRows({
     <div className="mt-2 space-y-2">
       <p className="text-pullim-slate-500 flex items-center gap-1 text-micro font-bold">
         <ClipboardList className="h-3 w-3" aria-hidden />
-        채점 기준 — 미리 적어 두면 채점이 빨라져요
+        채점 기준
       </p>
       {question.rubric.map((c, j) => (
         <div key={j} className="flex items-center gap-2">

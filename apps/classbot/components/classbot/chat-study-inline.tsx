@@ -47,7 +47,6 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
           </div>
           <div className="text-pullim-slate-900 truncate text-base font-bold">{lesson.topic}</div>
         </div>
-        <span className="text-pullim-slate-500 hidden shrink-0 text-xs sm:inline">눌러서 대화로</span>
         {open ? (
           <ChevronUp className="text-pullim-slate-500 h-5 w-5 shrink-0" />
         ) : (
@@ -133,7 +132,6 @@ export function ChatStudyInline({ bot, userId }: { bot: ClassBot; userId: string
               <div className="text-pullim-slate-600 mb-2 flex items-center gap-1.5 text-xs font-bold">
                 <Mic className="text-pullim-blue-600 h-4 w-4" />
                 내 말로 설명
-                <span className="text-pullim-slate-400 font-normal">· 개념을 직접 설명해보기</span>
               </div>
               <ul className="grid gap-2 @md:grid-cols-2">
                 {selfExplains.map(se => {

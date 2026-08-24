@@ -78,9 +78,6 @@ export default function MyProgressPage() {
       {/* 주간 리포트와 역할이 다르다는 것을 화면에서도 말해 둔다(중복 구현 방지). */}
       <section className="bg-card rounded-2xl border p-4">
         <h3 className="text-pullim-slate-900 text-sm font-bold">한 주 요약이 보고 싶다면</h3>
-        <p className="text-pullim-slate-500 mt-1 text-2xs leading-relaxed">
-          여기는 성취기준 하나하나를 파고드는 곳이에요. 봇이 본 한 주 이야기는 주간 리포트에 있어요.
-        </p>
         <Link
           href="/classbot/me/report"
           className="text-pullim-blue-600 hover:text-pullim-blue-700 mt-2 inline-block text-xs font-bold"
@@ -133,7 +130,6 @@ function StandardsSection({ standards }: { standards: AchievementStandard[] }) {
     <section>
       <SectionHeading
         title="성취기준별 달성도"
-        description="선생님이 잡은 기준 한 줄마다 지금 어디까지 왔는지 봐요."
         action={<ComingSoonButton note="기준 → 문항·대화 이동" aria-label="기준별 문항 보기">기준별 문항</ComingSoonButton>}
       />
       {standards.length === 0 ? (

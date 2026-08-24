@@ -118,7 +118,6 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-pullim-slate-900 text-sm font-bold">같이 풀기</div>
-          <div className="text-pullim-slate-500 text-2xs">막히는 데를 물어보면서 풀어요</div>
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
