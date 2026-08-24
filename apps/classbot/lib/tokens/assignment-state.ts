@@ -13,7 +13,7 @@
  *   마감 임박    → blue-800 progress (가장 진한 블루 = 가장 급함) · 진한 블루 칩 "내일" · blue 라이너
  *   지연         → danger progress · danger 칩 "지난 N일" · danger 라이너   ← 유일한 시맨틱 hue
  *   완료         → blue-300 progress (물러남) + 100% · 회색 "완료" 칩 + 체크 · blue-300 라이너
- *   오답정복     → blue-600 progress · 외곽선 칩 · slate 라이너
+ *   오답정복     → blue-600 progress · **lime 칩 + lime 라이너**([§ 15.6] 모드 식별 시그니처)
  *   시험         → navy solid · navy 칩 "시험" · navy 라이너
  *
  * 우선순위: mode(exam/wrong-conquest) > state(overdue/submitted) > dDay(D-1/오늘) > 진행 중
@@ -71,10 +71,12 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
   if (a.mode === 'wrong-conquest') {
     return {
       state: 'wrong-conquest',
+      // [08 § 15.6] 이 절이 고치려던 회귀는 「뱃지 3종(연습·오답정복·시험)이 모두 파랑으로 보이던 것」이라,
+      // 모드를 가르는 **칩·라이너**에 lime 을 남긴다. 진척 막대는 데이터라 [§ 1.6] 대로 블루로 둔다 —
+      // 카드가 여러 장 깔려도 레몬 자리가 한도를 넘지 않게 하는 지점이 여기다.
       progressClass: 'bg-pullim-blue-600',
-      linerHex: palette.gray[300],
-      // 채우기 대신 외곽선 — 같은 줄의 다른 칩과 모양으로 갈린다
-      dDayChipClass: 'text-pullim-slate-700 ring-pullim-slate-300 bg-transparent ring-1 ring-inset',
+      linerHex: palette.lemon.base,
+      dDayChipClass: 'bg-pullim-lemon text-pullim-lemon-ink',
       dDayLabel: a.dDay,
       semanticLabel: '오답정복',
     };

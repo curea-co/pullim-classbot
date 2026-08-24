@@ -147,9 +147,14 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
       href={`/classbot/replay/${r.id}`}
       className="from-pullim-slate-900 to-pullim-blue-900 group relative block overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl transition-transform active:scale-[0.99]"
     >
+      {/*
+        [04 § 9.10.2] 1순위 카드 = 「navy + lime progress + 큰 CTA」 + **hover 시 lime glow**.
+        glow 를 상시로 켜 두면 이 화면 레몬이 3곳이 되어 [08 § 1.6] 한도를 넘는다 —
+        명세 표기대로 hover 에서만 띄운다. 상시는 progress·CTA 두 곳.
+      */}
       <div
         aria-hidden
-        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
+        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-0 blur-3xl transition-opacity duration-200 group-hover:opacity-25 motion-reduce:transition-none"
         style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
       />
       <div className="relative">
