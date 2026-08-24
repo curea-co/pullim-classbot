@@ -103,11 +103,13 @@ export function DoneView({ draft, onPick, onEditYard, onRefine, onRestart }: Pro
 
         <footer className="border-pullim-slate-100 mt-4 flex flex-wrap gap-2 border-t pt-4">
           {/*
-            `?deployed=` 를 반드시 달고 보낸다 — 운영 화면(`/teacher/classbot`)의
-            「방금 배포된 봇」 배너가 이 값을 읽는다. 맨 링크로 보내면 배너가 죽는다.
+            `?created=` 를 반드시 달고 보낸다 — 운영 화면(`/teacher/classbot`)의
+            「방금 만든 봇」 배너가 이 값을 읽는다. 맨 링크로 보내면 배너가 죽는다.
+            종전엔 `?deployed=` 였는데 배포 관문이 사라져 「배포」가 더는 이 흐름의
+            이름이 아니다 — 만든 뒤 화면은 반 배정까지만 한다.
           */}
           <Link
-            href={`/teacher/classbot?deployed=${encodeURIComponent(botName(draft))}`}
+            href={`/teacher/classbot?created=${encodeURIComponent(botName(draft))}`}
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
           >
             봇 운영 화면으로

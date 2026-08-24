@@ -25,7 +25,8 @@ import {
  *  ① 정체성 → 마당 1, ③ 교안 → 마당 2, ⑤ Scope → 마당 2(「답 범위」), ④ 수업 방식 → 마당 3.
  * 없어진 것:
  *  ② 목소리·TTS(봇이 소리로 말하는 화면이 기획 보류라 들을 곳이 없다),
- *  ⑥ 평가 기준(과제 출제의 채점 기준으로 이미 옮겨갔다),
+ *  ⑥ 평가 기준 — 봇 수준 5영역 가중치는 없앤다. 과제 출제의 문항별 채점 기준은
+ *     이것과 다른 층이라 대체 관계가 아니다 (핸드오프 § 4.1 대응표 6a),
  *  ⑦ 학생 안전(끌 수 없으니 고를 것이 아니다 — 「채워진 것」의 고정 줄로만 보인다),
  *  ⑧ 테스트·배포(관문이 아니라 「만든 뒤 화면」이 됐다).
  */
@@ -53,8 +54,8 @@ export function Yard1Intro({
       <section className="bg-card rounded-2xl border p-4 lg:p-5">
         <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">지난 봇에서 가져오기</h2>
         <p className="text-pullim-slate-500 mt-0.5 text-xs leading-relaxed">
-          반만 다르고 나머지는 같은 봇이라면, 처음부터 정하지 말고 값을 그대로 가져오세요.
-          가져온 뒤에도 아래에서 고칠 수 있어요.
+          <strong>과목 · 학년 · 말투 · 답 범위</strong> 네 가지가 따라와요.
+          수업 자료와 가르치는 법, 이름은 봇마다 달라서 따라오지 않아요 — 아래에서 정하면 돼요.
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -375,11 +376,7 @@ export function Yard3Teaching({ draft, onPick }: YardProps) {
             ))}
           </RadioCardGroup>
           <p className="text-pullim-slate-400 mt-1.5 text-micro leading-relaxed">
-            배점과 채점 기준은 여기서 정하지 않아요. 문항마다 달라서{' '}
-            <Link href="/teacher/assignment/new" className="text-pullim-blue-600 font-bold hover:underline">
-              과제 출제
-            </Link>
-            {' '}화면에서 문항을 쓰면서 정해요.
+            배점과 채점 기준은 여기서 정하지 않아요.
           </p>
         </div>
       </div>
