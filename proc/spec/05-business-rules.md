@@ -278,9 +278,9 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 10.1 클래스봇 빌더
 | 항목 | 제약 |
 |------|------|
-| 봇 이름 | **현행** 1~30자(필수) · **#223 이후** 비워도 됨(비우면 과목 기본 이름 — 예 「수학봇」), 적으면 2자 이상 — 근거: #223 의 `components/builder/builder-types.ts` `botName()`(빈 값이면 `subjectMeta[subject].botName` 반환) · `isNameValid()`(`length === 0 \|\| length >= 2`) |
+| 봇 이름 | **현행** 1~30자(필수) · **#223 이후** 비워도 됨(비우면 과목 기본 이름 — 예 「수학봇」), 적으면 2~30자 (`BOT_NAME_MIN` · `BOT_NAME_MAX`, 입력칸 `maxLength` 로도 막는다) — 근거: #223 의 `components/builder/builder-types.ts` `botName()`(빈 값이면 `subjectMeta[subject].botName` 반환) · `isNameValid()`(`length === 0 \|\| length >= 2`) |
 | 과목 | 사전 정의 enum. **#223 이후 빌더에서 유일한 필수 항목** — 근거: `emptyDraft.subject === null`(다른 항목은 전부 기본값이 들어가 있다) + 만들기 시 과목만 막는 가드 |
-| 학년 | 고1~고3, 재수생 |
+| 학년 | 초5 · 초6 · 중1 · 중2 · 중3 · 고1 — 근거: `components/builder/builder-types.ts` `grades`. 클래스봇 주 사용자가 초5~고1 이라 종전 표기(고1~고3·재수생)를 바로잡았다. 재편과 무관하게 어긋나 있던 자리다 |
 | 교안 업로드 | PDF/이미지, 50MB 이하 |
 | 답 범위(Scope) | L1~L5 중 하나, 기본 L3. **현행** 빌더 안에 시간대별 자동 스위치 체크박스 · **#223 이후** 빌더에서만 걷어냄 — 시간대 스케줄 기능 자체는 봇 설정(`/teacher/settings` 「안전 등급 시간대 스케줄」)에 그대로 남는다 |
 | 루브릭 | **현행** 빌더 Step 6 에서 항목 합 = 100% 강제 · **#223 이후** 빌더에서 빠지고 채점 기준은 과제 출제(`/teacher/assignment/new`)에서 정한다 (03 § 4.3) |
