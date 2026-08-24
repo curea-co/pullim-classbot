@@ -150,7 +150,10 @@ web/
 │   │       ├── reports/page.tsx      # 리포트 6종
 │   │       ├── grading/page.tsx      # 하이브리드 채점
 │   │       ├── templates/page.tsx    # 템플릿 마켓
-│   │       ├── settings/page.tsx     # 8탭 봇 설정
+│   │       ├── bots/
+│   │       │   ├── page.tsx          # 봇 관리 — 내가 만든 봇 목록
+│   │       │   └── [botId]/page.tsx  # 봇별 설정 (안전 등급 · 이탈 대응)
+│   │       ├── settings/page.tsx     # 옛 경로 — /teacher/bots 로 넘겨보내는 자리
 │   │       └── replay/
 │   │           ├── page.tsx
 │   │           └── [id]/page.tsx
