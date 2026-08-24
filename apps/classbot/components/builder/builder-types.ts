@@ -1,117 +1,334 @@
-import {
-  IdCard, Mic, BookOpen, GraduationCap, Shield, ClipboardCheck, Lock, Rocket,
-  HandHeart, Flame, MessagesSquare, Pencil, Layers,
-  type LucideIcon,
-} from 'lucide-react';
+import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
+import { scopeMeta, type ScopeLevel } from '@/lib/mock';
 
 /**
- * 봇 빌더 8단계 폼 데이터 타입.
- * 핸드오프 4.1.
+ * 봇 빌더 — 한 길 · 세 마당 모델.
+ *
+ * 8단계 위저드를 걷어내고 마당 셋(봇 소개 · 보고 답할 것 · 가르치는 법)으로 합쳤다.
+ * 길이 하나라 「어디로 갈지」를 먼저 고르게 하지 않는다. 대신 안내를 두 층으로 둔다 —
+ *  ① 페이지 제목 아래 한 줄이 「과목만 고르면 나머지는 기본값」이라는 방침을 말하고,
+ *  ② 항목 이름 옆 표시가 그 항목이 꼭 골라야 하는 것인지 기본값인지 말한다.
+ *
+ * 이 파일이 지키는 불변식:
+ *  - 「채워진 것」이 세는 항목은 정확히 아홉 가지(`FIELD_KEYS`)다. 안전 세 가지는 세지 않는다.
+ *  - 항목 옆 표시와 「채워진 것」의 배지는 **같은 `own` 하나**를 읽는다. 상태를 두 벌 두지 않는다.
+ *  - 과목은 기본값이 없다. 미리 골라 두면 없는 기본값을 있는 척하는 것이 된다.
  */
 
-export type BotTone = 'formal' | 'friendly' | 'spartan';
-export type VoicePreset = 'tts1' | 'tts2' | 'tts3' | 'tts4' | 'tts5' | 'clone';
-export type TeachingStyle = 'lecture' | 'discussion' | 'problem' | 'mixed';
-export type FeedbackStyle = 'guide' | 'direct' | 'hybrid';
+export type SubjectId = 'science' | 'math' | 'english' | 'korean' | 'social';
+export type ToneId = 'polite' | 'friendly' | 'firm';
+export type StyleId = 'tell' | 'ask' | 'solve' | 'mix';
+export type WrongId = 'hint' | 'tell' | 'mix';
+
+/** 마당 1~3 은 만들면서 지나는 자리, 4 는 만든 뒤에 하는 일이라 마당이 아니다. */
+export type YardNo = 1 | 2 | 3;
+export type GroupNo = YardNo | 4;
+
+/** 만드는 화면 / 만든 뒤 화면 */
+export type BuilderView = 'build' | 'done';
 
 export type UploadedFile = {
   name: string;
-  size: string;          // "1.2MB"
-  type: 'ppt' | 'pdf' | 'note' | 'video';
+  size: string;          // "4.2MB"
 };
 
-export type BuilderForm = {
-  // Step 1
-  name: string;
-  subject: string;
-  grade: string;
-  tone: BotTone;
-  // Step 2
-  voiceMode: 'preset' | 'clone';
-  voicePreset: VoicePreset;
-  // Step 3
-  files: UploadedFile[];
-  // Step 4
-  teachingStyle: TeachingStyle;
-  // Step 5
-  scopeDefault: 1 | 2 | 3 | 4 | 5;
-  scopeAutoSwitch: boolean;
-  // Step 6
-  rubric: { participation: number; thinking: number; mission: number; selfDir: number; team: number };
-  feedbackStyle: FeedbackStyle;
-  // Step 7
-  filterPii: boolean;
-  filterHarmful: boolean;
-  weeIntegration: boolean;
-  // Step 8
-  classrooms: string[];
-};
-
-export const initialForm: BuilderForm = {
-  name: '',
-  subject: '수학',
-  grade: '중2',
-  tone: 'friendly',
-  voiceMode: 'preset',
-  voicePreset: 'tts1',
-  files: [
-    { name: '일차함수_2단원_그래프.pdf', size: '4.2MB', type: 'pdf' },
-    { name: '기울기_구하기_예시.pptx', size: '2.1MB', type: 'ppt' },
-  ],
-  teachingStyle: 'mixed',
-  scopeDefault: 3,
-  scopeAutoSwitch: true,
-  rubric: { participation: 20, thinking: 30, mission: 30, selfDir: 10, team: 10 },
-  feedbackStyle: 'guide',
-  filterPii: true,
-  filterHarmful: true,
-  weeIntegration: true,
-  classrooms: ['중2-A반'],
-};
-
-export const toneMeta: Record<BotTone, { label: string; Icon: LucideIcon; description: string }> = {
-  formal:   { label: '정중', Icon: GraduationCap, description: '"~합니다" 종결 · 학원 강사 톤' },
-  friendly: { label: '친근', Icon: HandHeart,     description: '"~할게" 반말 가능 · 친구 같은' },
-  spartan:  { label: '스파르타', Icon: Flame,     description: '단호 · 직설 · 채찍질' },
-};
-
-export const teachingStyleMeta: Record<TeachingStyle, { label: string; Icon: LucideIcon; description: string }> = {
-  lecture:    { label: '강의형',    Icon: GraduationCap,  description: '교사 주도 · 개념 설명 위주' },
-  discussion: { label: '토론형',    Icon: MessagesSquare, description: '소크라테스식 질문 · 학생 답변 유도' },
-  problem:    { label: '문제풀이형', Icon: Pencil,         description: '풀이 시연 · 학생 따라 풀기' },
-  mixed:      { label: '혼합',      Icon: Layers,         description: '단원·시간대별 자동 전환' },
-};
-
-export const voicePresetMeta: Record<VoicePreset, { label: string; description: string }> = {
-  tts1: { label: '차분 남성',  description: 'Standard A · 30대 톤' },
-  tts2: { label: '경쾌 여성',  description: 'Standard B · 20대 톤' },
-  tts3: { label: '중후 남성',  description: 'Premium C · 40대 톤' },
-  tts4: { label: '친근 여성',  description: 'Premium D · 30대 톤' },
-  tts5: { label: '활기 남성',  description: 'Premium E · 20대 톤' },
-  clone: { label: '내 음성 복제', description: '교사 동의 후 ElevenLabs · 실험 기능' },
-};
-
-export const feedbackStyleMeta: Record<FeedbackStyle, { label: string; description: string }> = {
-  guide:  { label: '사고 유도',  description: '오답에 답을 주지 않음 · 5단계 힌트' },
-  direct: { label: '직접 설명',  description: '오답 즉시 정답·해설 제공' },
-  hybrid: { label: '하이브리드', description: '난이도 따라 자동 전환' },
-};
-
-export type StepInfo = {
-  num: number;
-  label: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-};
-
-export const stepConfig: readonly StepInfo[] = [
-  { num: 1, label: '정체성', icon: IdCard,         title: '봇 정체성',           description: '이름·과목·학년·톤을 정해 학생이 만날 봇의 첫인상을 만들어요.' },
-  { num: 2, label: '목소리', icon: Mic,            title: '목소리 · 페르소나',   description: '5종 TTS 프리셋 또는 교사 음성 복제(베타)로 봇 목소리 결정.' },
-  { num: 3, label: '교안',   icon: BookOpen,       title: '교안 업로드',         description: 'PPT·PDF·필기·녹화를 업로드 → RAG 인덱스가 됩니다. 봇은 이 자료 안에서만 답변.' },
-  { num: 4, label: '수업',   icon: GraduationCap,  title: '수업 방식',           description: '강의/토론/문제풀이/혼합 — 봇이 학생을 어떻게 가르칠지 설정.' },
-  { num: 5, label: '권한',   icon: Shield,         title: 'Scope Guard',         description: 'L1(전부 차단) ~ L5(완전 개방). 시간대별 자동 스위치 가능.' },
-  { num: 6, label: '평가',   icon: ClipboardCheck, title: '평가 기준',           description: '5가지 루브릭 가중치를 합 100%로 분배 + 피드백 스타일 선택.' },
-  { num: 7, label: '안전',   icon: Lock,           title: '학생 안전',           description: 'PII 필터·유해 키워드·Wee센터 자동 라우팅.' },
-  { num: 8, label: '배포',   icon: Rocket,         title: '테스트 · 배포',       description: '봇과 직접 대화해보고 반에 배포.' },
+/** 「채워진 것」이 세는 아홉 가지 — 항목 옆 표시와 1:1 로 맞물린다. */
+export const FIELD_KEYS = [
+  'subject', 'grade', 'name', 'tone', 'files', 'scope', 'style', 'wrong', 'classes',
 ] as const;
+
+export type FieldKey = (typeof FIELD_KEYS)[number];
+
+/** 교사가 직접 정한 항목. 두 표시가 어긋나지 않도록 이 하나만 읽는다. */
+export type OwnMap = Record<FieldKey, boolean>;
+
+export type BotDraft = {
+  subject: SubjectId | null;
+  grade: string;
+  name: string;
+  tone: ToneId;
+  files: UploadedFile[];
+  scope: ScopeLevel;
+  style: StyleId;
+  wrong: WrongId;
+  classes: string[];
+  own: OwnMap;
+};
+
+export const noOwn: OwnMap = {
+  subject: false, grade: false, name: false, tone: false,
+  files: false, scope: false, style: false, wrong: false, classes: false,
+};
+
+/** 첫 진입 상태 — 과목만 비어 있고 나머지는 기본값이 들어가 있다. */
+export const emptyDraft: BotDraft = {
+  subject: null,
+  grade: '중1',
+  name: '',
+  tone: 'friendly',
+  files: [],
+  scope: 3,
+  style: 'mix',
+  wrong: 'hint',
+  classes: [],
+  own: noOwn,
+};
+
+/* ─── 고를 수 있는 것들 ─── */
+
+export const subjectMeta: Record<SubjectId, { label: string; initial: string; botName: string }> = {
+  science: { label: '과학', initial: '과', botName: '과학봇' },
+  math:    { label: '수학', initial: '수', botName: '수학봇' },
+  english: { label: '영어', initial: '영', botName: '영어봇' },
+  korean:  { label: '국어', initial: '국', botName: '국어봇' },
+  social:  { label: '사회', initial: '사', botName: '사회봇' },
+};
+
+export const subjectIds = Object.keys(subjectMeta) as SubjectId[];
+
+export const grades = ['초5', '초6', '중1', '중2', '중3', '고1'] as const;
+
+export const toneMeta: Record<ToneId, { label: string; description: string }> = {
+  polite:   { label: '또박또박', description: '존댓말로 차근차근' },
+  friendly: { label: '친근하게', description: '반말 섞어 친구처럼' },
+  firm:     { label: '단단하게', description: '군더더기 없이 짧게' },
+};
+
+export const styleMeta: Record<StyleId, { label: string; description: string }> = {
+  tell:  { label: '설명 위주',   description: '개념을 먼저 풀어서 설명해요' },
+  ask:   { label: '되물어보기', description: '답 대신 물어서 스스로 찾게 해요' },
+  solve: { label: '같이 풀기',   description: '문제를 한 줄씩 같이 풀어요' },
+  mix:   { label: '섞어서',     description: '단원과 시간에 따라 알아서 바꿔요' },
+};
+
+export const wrongMeta: Record<WrongId, { label: string; description: string }> = {
+  hint: { label: '힌트만',       description: '답은 안 주고 다섯 번에 나눠 힌트' },
+  tell: { label: '바로 알려주기', description: '정답과 풀이를 곧장 보여줘요' },
+  mix:  { label: '섞어서',       description: '어려우면 힌트, 쉬우면 바로' },
+};
+
+export const scopeLevels: ScopeLevel[] = [1, 2, 3, 4, 5];
+
+/** 답 범위 이름은 `lib/mock` 의 `scopeMeta` 하나만 쓴다 — 봇 설정 화면과 어긋나면 안 된다. */
+export { scopeMeta };
+export type { ScopeLevel };
+
+/** 봇을 만든 뒤에 고를 수 있는 반. */
+export const classroomChoices = ['중1-3반', '중1-5반', '중2-1반', '초6-2반'] as const;
+
+/** 세는 칸 밖 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
+export const alwaysOnSafety = ['개인정보 가리기', '위험한 말 막기', '위기 신호 알림'] as const;
+
+/* ─── 지난 봇에서 가져오기 ─── */
+
+export type CloneSource = {
+  botId: string;
+  name: string;
+  subject: SubjectId;
+  grade: string;
+  tone: ToneId;
+  scope: ScopeLevel;
+  /** 카드에 적는 한 줄 — 어느 반에서 쓰던 봇인지 */
+  meta: string;
+};
+
+/** 봇 카탈로그의 말투 표기를 빌더 말투로 옮긴다. */
+const toneFromCatalog: Record<string, ToneId> = {
+  정중: 'polite', 차분: 'polite', 친근: 'friendly', 열정: 'friendly', 스파르타: 'firm',
+};
+
+const subjectFromCatalog: Record<string, SubjectId> = {
+  수학: 'math', 공통수학: 'math', 영어: 'english',
+  과학: 'science', 통합과학: 'science',
+  국어: 'korean', 문학: 'korean',
+  사회: 'social', 한국사: 'social',
+};
+
+/**
+ * 가져올 수 있는 지난 봇 — 새로 지어내지 않고 봇 카탈로그(`lib/mock/classbot.ts`)에서 읽는다.
+ * 그래서 따라오는 값도 카탈로그가 아는 넷(과목 · 학년 · 말투 · 답 범위)뿐이다.
+ * 수업 자료와 가르치는 법은 카탈로그에 없으니 따라오지 않는다 — 없는 값을 지어내면 거짓이 된다.
+ */
+export function cloneSources(limit = 3): CloneSource[] {
+  return getTeacherBotRows()
+    .map((row): CloneSource | null => {
+      const subject = subjectFromCatalog[row.bot.subject];
+      if (!subject) return null;
+      const room = row.ops.classrooms[0]?.label ?? '아직 반에 안 넣음';
+      return {
+        botId: row.bot.id,
+        name: row.bot.name,
+        subject,
+        grade: row.bot.grade,
+        tone: toneFromCatalog[row.bot.tone] ?? 'friendly',
+        scope: row.bot.scope,
+        meta: `${room} · ${row.bot.grade} · 답 범위 L${row.bot.scope}`,
+      };
+    })
+    .filter((c): c is CloneSource => c !== null)
+    .slice(0, limit);
+}
+
+/** 지난 봇의 값을 옮겨 담는다. 따라온 값은 전부 「내가 정함」이 된다. */
+export function applyClone(source: CloneSource): BotDraft {
+  return {
+    ...emptyDraft,
+    subject: source.subject,
+    grade: source.grade,
+    name: '',                       // 이름은 새 봇에서 다시 정한다 — 비우면 과목 기본 이름이 붙는다
+    tone: source.tone,
+    scope: source.scope,
+    own: { ...noOwn, subject: true, grade: true, tone: true, scope: true },
+  };
+}
+
+/* ─── 데모용 수업 자료 ─── */
+
+export const sampleFiles: Record<SubjectId, UploadedFile[]> = {
+  science: [
+    { name: '2단원_상태변화_수업자료.pdf', size: '4.2MB' },
+    { name: '증발과_끓음_판서필기.jpg', size: '1.1MB' },
+    { name: '상태변화_연습문제.pdf', size: '0.8MB' },
+  ],
+  math: [
+    { name: '3단원_일차함수_수업자료.pdf', size: '3.6MB' },
+    { name: '기울기_구하기_판서필기.jpg', size: '1.4MB' },
+    { name: '일차함수_연습문제.pdf', size: '0.9MB' },
+  ],
+  english: [
+    { name: '현재완료_수업자료.pdf', size: '2.8MB' },
+    { name: '본문해석_판서필기.jpg', size: '1.0MB' },
+    { name: '현재완료_연습문제.pdf', size: '0.6MB' },
+  ],
+  korean: [
+    { name: '설명하는글_수업자료.pdf', size: '3.1MB' },
+    { name: '지문분석_판서필기.jpg', size: '1.2MB' },
+    { name: '설명글_연습문제.pdf', size: '0.7MB' },
+  ],
+  social: [
+    { name: '우리나라_기후_수업자료.pdf', size: '5.0MB' },
+    { name: '기후도_판서필기.jpg', size: '1.6MB' },
+    { name: '기후_연습문제.pdf', size: '0.8MB' },
+  ],
+};
+
+/* ─── 값 읽기 ─── */
+
+/** 비워 두면 고른 과목의 기본 이름이 봇 이름이 된다. */
+export function botName(draft: BotDraft): string {
+  const typed = draft.name.trim();
+  if (typed) return typed;
+  return draft.subject ? subjectMeta[draft.subject].botName : '';
+}
+
+/** 이름은 비워도 되지만, 적을 거면 두 글자 이상. */
+export function isNameValid(draft: BotDraft): boolean {
+  const typed = draft.name.trim();
+  return typed.length === 0 || typed.length >= 2;
+}
+
+/* ─── 안내 ② 항목별 표시 ─── */
+
+/**
+ * 왜 비워도 되는지는 항목마다 다르게 적는다 — 같은 문장을 아홉 번 반복하면 아무도 안 읽는다.
+ * `required` 인 항목(과목)은 기본값이 없어 「왜 비워도 되는지」가 아예 없다.
+ */
+export const fieldMarks: Record<FieldKey, { required?: true; why?: (draft: BotDraft) => string }> = {
+  subject: { required: true },
+  grade:   { why: () => '가장 많이 쓰는 학년으로 골라 뒀어요' },
+  name:    {
+    why: (draft) =>
+      draft.subject
+        ? `비워 두면 ${subjectMeta[draft.subject].botName}으로 정해져요`
+        : '과목을 고르면 이름이 따라 정해져요',
+  },
+  tone:    { why: () => '대부분의 반이 이대로 써요' },
+  files:   { why: () => '안 올려도 만들 수 있어요' },
+  scope:   { why: () => '보통 수업은 L3 교과 범위로 둬요' },
+  style:   { why: () => '단원에 따라 알아서 바꿔요' },
+  wrong:   { why: () => '답을 바로 주지 않는 쪽이 기본이에요' },
+  classes: { why: () => '나중에 운영 화면에서 넣어도 돼요' },
+};
+
+/* ─── 「채워진 것」 ─── */
+
+export const yardGroups = [
+  { group: 1, badge: '1', title: '봇 소개',      sub: '과목 · 학년 · 이름 · 말투' },
+  { group: 2, badge: '2', title: '보고 답할 것', sub: '수업 자료 · 답 범위' },
+  { group: 3, badge: '3', title: '가르치는 법',  sub: '평소에 · 틀렸을 때' },
+  { group: 4, badge: '·', title: '만든 뒤',      sub: '어느 반에 넣을지' },
+] as const satisfies readonly { group: GroupNo; badge: string; title: string; sub: string }[];
+
+/** 마당 셋 — 오른쪽 「단계」와 좁은 화면 가로 띠가 함께 읽는다. */
+export const buildYards = [yardGroups[0], yardGroups[1], yardGroups[2]];
+
+export type SummaryRow = {
+  field: FieldKey;
+  group: GroupNo;
+  label: string;
+  value: string;
+  /** 아직 값이 없어 안내 문구를 대신 보여주는 줄 — 흐리게 그린다 */
+  placeholder: boolean;
+  own: boolean;
+  required: boolean;
+};
+
+/** 아홉 줄. 항목 옆 표시와 1:1 로 맞물리도록 「과목」과 「학년」도 따로 센다. */
+export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
+  const subject = draft.subject ? subjectMeta[draft.subject] : null;
+  const name = botName(draft);
+
+  const row = (
+    field: FieldKey,
+    group: GroupNo,
+    label: string,
+    value: string,
+    placeholder = false,
+  ): SummaryRow => ({
+    field, group, label, value, placeholder,
+    own: draft.own[field],
+    required: fieldMarks[field].required === true,
+  });
+
+  return [
+    row('subject', 1, '과목', subject ? subject.label : '아직 안 고름', !subject),
+    row('grade', 1, '학년', draft.grade),
+    row('name', 1, '이름', name || '과목을 고르면 정해져요', !name),
+    row('tone', 1, '말투', toneMeta[draft.tone].label),
+    row(
+      'files', 2, '수업 자료',
+      draft.files.length ? `${draft.files.length}개 올림` : '없음 — 교과서 밖 지식으로 답해요',
+      draft.files.length === 0,
+    ),
+    row('scope', 2, '답 범위', `L${draft.scope} ${scopeMeta[draft.scope].label}`),
+    row('style', 3, '평소에', styleMeta[draft.style].label),
+    row('wrong', 3, '틀렸을 때', wrongMeta[draft.wrong].label),
+    row(
+      'classes', 4, '반',
+      draft.classes.length
+        ? draft.classes.join(' · ')
+        : view === 'done' ? '아직 안 넣음' : '만든 뒤에 골라요',
+      draft.classes.length === 0,
+    ),
+  ];
+}
+
+/**
+ * 값 하나를 고르는 단 하나의 길.
+ *
+ * 값과 `own` 을 한 번에 옮기므로 「고쳤는데 배지가 안 따라온」 상태가 만들어질 수 없다.
+ * 이름·자료·반처럼 비우면 다시 기본값이 되는 항목은 `own` 을 직접 넘긴다.
+ */
+export function pick(
+  draft: BotDraft,
+  field: FieldKey,
+  patch: Partial<BotDraft>,
+  own = true,
+): BotDraft {
+  return { ...draft, ...patch, own: { ...draft.own, [field]: own } };
+}
+
+/** 카운터의 진실원 — 아홉 가지 밖은 세지 않는다(안전 세 가지 포함). */
+export function ownCount(draft: BotDraft): number {
+  return FIELD_KEYS.filter((k) => draft.own[k]).length;
+}
