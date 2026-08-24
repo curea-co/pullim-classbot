@@ -226,10 +226,11 @@ export function SolveWorkspace({
       {!isExam && (
         <Link
           href={`/classbot/assignment/${assignment.id}/chat`}
+          aria-label={`${botName}과 이 과제 대화하기`}
           className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-xs font-bold"
         >
           <MessageCircle className="h-3 w-3" />
-          {botName}과 대화
+          대화
         </Link>
       )}
 
