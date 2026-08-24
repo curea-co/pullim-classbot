@@ -856,49 +856,74 @@ export type GradingItem = {
   overrideDelta?: number;
 };
 
+/**
+ * 채점 시드 — **학생 명단(`monitoredRoster`)의 학생들이 낸 제출물**이다.
+ *
+ * 예전에는 이 시드가 `classRoster`(`s1`~`s18`, 중2 수학 A반)를 가리켰다. 그런데 학생 목록·상세는
+ * `classbot-monitoring.ts` 의 `monitoredRoster`(`m01`~`m20`, 중1-3반 과학)를 읽는다.
+ * **둘은 다른 반·다른 과목의 다른 학생들이다.** 서연(중2 수학)과 김서연(중1 과학)은 이름이 비슷할 뿐
+ * 같은 사람이 아니다. 그 상태로 채점 허브에서 학생을 누르면 수학 제출물을 보러 왔는데
+ * 과학 대화 기록이 열렸다 — 브리지 표로 이으려 해도 **없는 관계를 지어내는 것**이라 풀리지 않았다.
+ *
+ * 그래서 모집단을 하나로 맞췄다. 채점 쪽 시드만 `monitoredRoster` 로 옮기고
+ * (`classRoster` 는 다른 화면이 쓰므로 그대로 둔다), 과목·학년·단원도 그 학생들의 것
+ * (중1 과학 · 물질의 상태 변화)으로 맞췄다. 이제 채점 항목 → 학생 상세가 같은 학생·같은 수업이다.
+ *
+ * 어느 학생이 어느 제출물을 갖는지는 **그 학생의 관제 상태에서 골랐다** — 점수를 지어내지 않으려고,
+ * 이미 있는 도달·깊이·막힌 개념·지름길 수치와 어긋나지 않는 학생에게 붙였다.
+ *   `gr_001` m13 신윤서   도달 3/3 · 막힌 개념 없음      → 17/20, 용어만 한 번 흔들림
+ *   `gr_002` m11 오소율   도달 4/4 · 지름길 0            → 19/20, 새 상황까지 옮겨 씀
+ *   `gr_003` m03 박하람   부분 2/3 · 평평한 구간에서 막힘 → 12/20, 숨은열을 놓친 답
+ *   `gr_004` m04 최도현   미도달 1/3 · 지름길 6회         → 8/20, 응답 빈약 (위기 게이트 시연)
+ *   `gr_005` m01 김서연   도달 3/3                       → 18/20, 승인 완료
+ *   `gr_006` m06 강주원   도달 3/3                       → 단답 만점, T1 자동
+ *   `gr_007` m09 임나린   부분 2/3 · 끓음·증발에서 막힘   → 14/20, 오버라이드 시연 (아래 overriddenSample)
+ *
+ * 점수·신뢰도·상태·루브릭 배점은 **손대지 않았다.** 바뀐 것은 학생 신원과 과목 내용뿐이다.
+ */
 export const gradingQueue: GradingItem[] = [
   {
-    id: 'gr_001', studentName: '윤서', studentId: 's13',
-    assignmentTitle: '일차함수 그래프 — 서술형 3제',
+    id: 'gr_001', studentName: '신윤서', studentId: 'm13',
+    assignmentTitle: '상태 변화와 열 — 서술형 3제',
     submittedAt: '어제 22:14',
-    type: 'essay', topic: '중2 수학 · 일차함수',
+    type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 17, maxScore: 20, tier: 'T2', aiConfidence: 88,
-    responsePreview: '기울기는 y의 변화량을 x의 변화량으로 나눈 값이다. y = 2x − 3 에서는 ...',
-    draftComment: '핵심 개념(변화량의 비)을 정확히 파악. 예시 활용도 적절. 일부 표기 오류 있음 (- 1점).',
+    responsePreview: '얼음이 녹는 동안 온도가 그대로인 까닭은 준 열이 입자 사이 배열을 바꾸는 데 쓰이기 때문이다. 0°C 구간에서는 ...',
+    draftComment: '핵심 개념(숨은열)을 정확히 잡았어요. 그래프 예시도 적절해요. 용어 표기가 한 번 흔들려요 (−1점).',
     rubric: [
-      { criterion: '개념 정확성', weight: 40, score: 36, reason: '정의 정확' },
-      { criterion: '예시 적절성', weight: 30, score: 27, reason: 'y=2x−3 예시 좋음' },
-      { criterion: '표기 정확성', weight: 20, score: 14, reason: '좌표 (0, −3) 표기 오타 1회' },
+      { criterion: '개념 정확성', weight: 40, score: 36, reason: '숨은열 정의 정확' },
+      { criterion: '예시 적절성', weight: 30, score: 27, reason: '얼음물 가열 그래프 예시 좋음' },
+      { criterion: '표기 정확성', weight: 20, score: 14, reason: '「녹는열」과 「융해열」 혼용 1회' },
       { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '단계 명확' },
     ],
     status: 'queue',
   },
   {
-    id: 'gr_002', studentName: '서연', studentId: 's1',
-    assignmentTitle: '일차함수 그래프 — 서술형 3제',
+    id: 'gr_002', studentName: '오소율', studentId: 'm11',
+    assignmentTitle: '상태 변화와 열 — 서술형 3제',
     submittedAt: '어제 21:50',
-    type: 'essay', topic: '중2 수학 · 일차함수',
+    type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 19, maxScore: 20, tier: 'T2', aiConfidence: 92,
-    responsePreview: '기울기는 그래프가 얼마나 가파른지, y절편은 y축과 만나는 높이다. ...',
-    draftComment: '거의 완벽. y절편이 x = 0일 때의 y값이라는 점까지 짚어낸 점 우수.',
+    responsePreview: '끓음은 액체 속에서도 기화가 일어나고, 증발은 표면에서만 일어난다. 둘 다 액체가 기체로 변하지만 ...',
+    draftComment: '거의 완벽해요. 표면에서만 일어나는지로 갈라 설명한 점이 우수해요. 빨래 마르기까지 옮겨 쓴 것도 좋아요.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 40, reason: '완벽' },
       { criterion: '예시 적절성', weight: 30, score: 28, reason: '예시 1개 더 있으면 만점' },
-      { criterion: '표기 정확성', weight: 20, score: 20, reason: '오타 없음' },
+      { criterion: '표기 정확성', weight: 20, score: 20, reason: '흔들림 없음' },
       { criterion: '논리 흐름',   weight: 10, score: 10, reason: '명확' },
     ],
     status: 'reviewing',
   },
   {
-    id: 'gr_003', studentName: '민준', studentId: 's2',
-    assignmentTitle: '일차함수 그래프 — 서술형 3제',
+    id: 'gr_003', studentName: '박하람', studentId: 'm03',
+    assignmentTitle: '상태 변화와 열 — 서술형 3제',
     submittedAt: '오늘 06:30',
-    type: 'essay', topic: '중2 수학 · 일차함수',
+    type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 12, maxScore: 20, tier: 'T2', aiConfidence: 64,
-    responsePreview: 'x 앞의 수가 크면 무조건 가파르다. 따라서 ...',
-    draftComment: '핵심(부호는 방향, 절댓값은 가파르기)을 놓침. y = −5x 반례 인지 필요.',
+    responsePreview: '열을 계속 주면 온도는 계속 올라간다. 그래서 그래프도 계속 올라간다. 따라서 ...',
+    draftComment: '평평한 구간이 왜 생기는지(숨은열)를 놓쳤어요. 얼음물 가열 그래프를 반례로 함께 보면 좋아요.',
     rubric: [
-      { criterion: '개념 정확성', weight: 40, score: 18, reason: '부호와 절댓값 구분 누락' },
+      { criterion: '개념 정확성', weight: 40, score: 18, reason: '숨은열 누락' },
       { criterion: '예시 적절성', weight: 30, score: 16, reason: '반례 부재' },
       { criterion: '표기 정확성', weight: 20, score: 18, reason: '소소한 오타' },
       { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '결론 도약' },
@@ -906,13 +931,13 @@ export const gradingQueue: GradingItem[] = [
     status: 'queue',
   },
   {
-    id: 'gr_004', studentName: '도현', studentId: 's4',
-    assignmentTitle: '일차함수 그래프 — 서술형 3제',
+    id: 'gr_004', studentName: '최도현', studentId: 'm04',
+    assignmentTitle: '상태 변화와 열 — 서술형 3제',
     submittedAt: '오늘 07:12',
-    type: 'essay', topic: '중2 수학 · 일차함수',
+    type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 8, maxScore: 20, tier: 'T2', aiConfidence: 58,
     responsePreview: '잘 모르겠음. 그래프가 너무 어렵다.',
-    draftComment: '응답 부족. 학습 부담 신호 — 1:1 면담 필요. 점수보다 케어 우선.',
+    draftComment: '응답 부족. 학습 부담 신호 — 1:1 면담 필요. 점수보다 살피기 우선.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 12, reason: '응답 부족' },
       { criterion: '예시 적절성', weight: 30, score: 10, reason: '예시 없음' },
@@ -922,13 +947,13 @@ export const gradingQueue: GradingItem[] = [
     status: 'queue',
   },
   {
-    id: 'gr_005', studentName: '하윤', studentId: 's5',
-    assignmentTitle: '일차함수 그래프 — 서술형 3제',
+    id: 'gr_005', studentName: '김서연', studentId: 'm01',
+    assignmentTitle: '상태 변화와 열 — 서술형 3제',
     submittedAt: '어제 23:01',
-    type: 'essay', topic: '중2 수학 · 일차함수',
+    type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 18, maxScore: 20, tier: 'T2', aiConfidence: 90,
-    responsePreview: '기울기는 변화량의 비. y절편은 x = 0일 때의 y값. 두 값이 하는 일이 다름에 주의.',
-    draftComment: '핵심 메시지 3개 중 2개 정확히 회상. 기울기 부호가 그래프 방향을 정한다는 설명 부족.',
+    responsePreview: '온도는 입자가 얼마나 활발한지, 열은 주고받은 양이다. 두 값이 하는 일이 다름에 주의.',
+    draftComment: '핵심 메시지 3개 중 2개 정확히 회상. 같은 온도라도 물의 양에 따라 열이 다르다는 설명이 부족해요.',
     rubric: [
       { criterion: '개념 정확성', weight: 40, score: 38, reason: '정확' },
       { criterion: '예시 적절성', weight: 30, score: 25, reason: '예시 보강 가능' },
@@ -938,12 +963,12 @@ export const gradingQueue: GradingItem[] = [
     status: 'approved',
   },
   {
-    id: 'gr_006', studentName: '주원', studentId: 's6',
-    assignmentTitle: '일차함수 — 정의 단답',
+    id: 'gr_006', studentName: '강주원', studentId: 'm06',
+    assignmentTitle: '상태 변화 — 용어 단답',
     submittedAt: '어제 21:00',
-    type: 'short', topic: '중2 수학 · 일차함수',
+    type: 'short', topic: '중1 과학 · 물질의 상태 변화',
     draftScore: 10, maxScore: 10, tier: 'T1', aiConfidence: 99,
-    responsePreview: 'y의 변화량 ÷ x의 변화량',
+    responsePreview: '숨은열 (녹는열·끓는열)',
     draftComment: '정확. T1 즉시 채점.',
     rubric: [
       { criterion: '키워드 일치', weight: 100, score: 100, reason: '완벽' },
@@ -1440,35 +1465,39 @@ export type GradingHistoryEntry = {
   maxScore: number;
 };
 
+/**
+ * 학생별 최근 채점 이력 — `gradingQueue` 와 **같은 학생(`m0N`)·같은 수업**이다.
+ * 채점 상세의 「이 학생 최근 채점」이 `studentId` 로 곧장 찾는다.
+ */
 export const gradingHistory: GradingHistoryEntry[] = [
-  { studentId: 's13', assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 8,  maxScore: 10 },
-  { studentId: 's13', assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 16, maxScore: 20 },
-  { studentId: 's13', assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 9,  maxScore: 10 },
-  { studentId: 's1',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 9,  maxScore: 10 },
-  { studentId: 's1',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 18, maxScore: 20 },
-  { studentId: 's1',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 10, maxScore: 10 },
-  { studentId: 's2',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 6,  maxScore: 10 },
-  { studentId: 's2',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 11, maxScore: 20 },
-  { studentId: 's2',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 7,  maxScore: 10 },
-  { studentId: 's4',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 5,  maxScore: 10 },
-  { studentId: 's4',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 9,  maxScore: 20 },
-  { studentId: 's4',  assignmentTitle: '그래프 그리기 — 객관식 10', gradedAt: '3일 전', score: 6,  maxScore: 10 },
-  { studentId: 's5',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 10, maxScore: 10 },
-  { studentId: 's5',  assignmentTitle: '기울기 — 서술형 2제',       gradedAt: '5일 전', score: 19, maxScore: 20 },
-  { studentId: 's6',  assignmentTitle: '일차함수 — 정의 단답',      gradedAt: '1주 전', score: 8,  maxScore: 10 },
+  { studentId: 'm13', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 8,  maxScore: 10 },
+  { studentId: 'm13', assignmentTitle: '입자 모형 — 서술형 2제',       gradedAt: '5일 전', score: 16, maxScore: 20 },
+  { studentId: 'm13', assignmentTitle: '녹는점·끓는점 — 객관식 10',    gradedAt: '3일 전', score: 9,  maxScore: 10 },
+  { studentId: 'm11', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 9,  maxScore: 10 },
+  { studentId: 'm11', assignmentTitle: '입자 모형 — 서술형 2제',       gradedAt: '5일 전', score: 18, maxScore: 20 },
+  { studentId: 'm11', assignmentTitle: '녹는점·끓는점 — 객관식 10',    gradedAt: '3일 전', score: 10, maxScore: 10 },
+  { studentId: 'm03', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 6,  maxScore: 10 },
+  { studentId: 'm03', assignmentTitle: '입자 모형 — 서술형 2제',       gradedAt: '5일 전', score: 11, maxScore: 20 },
+  { studentId: 'm03', assignmentTitle: '녹는점·끓는점 — 객관식 10',    gradedAt: '3일 전', score: 7,  maxScore: 10 },
+  { studentId: 'm04', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 5,  maxScore: 10 },
+  { studentId: 'm04', assignmentTitle: '입자 모형 — 서술형 2제',       gradedAt: '5일 전', score: 9,  maxScore: 20 },
+  { studentId: 'm04', assignmentTitle: '녹는점·끓는점 — 객관식 10',    gradedAt: '3일 전', score: 6,  maxScore: 10 },
+  { studentId: 'm01', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 10, maxScore: 10 },
+  { studentId: 'm01', assignmentTitle: '입자 모형 — 서술형 2제',       gradedAt: '5일 전', score: 19, maxScore: 20 },
+  { studentId: 'm06', assignmentTitle: '상태 변화 — 용어 단답',        gradedAt: '1주 전', score: 8,  maxScore: 10 },
 ];
 
 /** overridden 시연용 1건 추가 — 변경률 24% (루브릭 재학습 임계 초과) */
 export const overriddenSample: GradingItem = {
-  id: 'gr_007', studentName: '나린', studentId: 's9',
-  assignmentTitle: '일차함수 그래프 — 서술형 3제',
+  id: 'gr_007', studentName: '임나린', studentId: 'm09',
+  assignmentTitle: '상태 변화와 열 — 서술형 3제',
   submittedAt: '어제 20:10',
-  type: 'essay', topic: '중2 수학 · 일차함수',
+  type: 'essay', topic: '중1 과학 · 물질의 상태 변화',
   draftScore: 14, maxScore: 20, tier: 'T2', aiConfidence: 71,
-  responsePreview: '기울기는 x 앞의 수. y절편은 뒤에 붙은 수.',
-  draftComment: '식에서 찾는 방법은 맞지만 "무엇을 뜻하는지" 누락. 기준 답안에 핵심 누락.',
+  responsePreview: '끓음은 100도에서 일어나는 것. 증발은 그냥 마르는 것.',
+  draftComment: '언제 일어나는지는 맞지만 "어디서 일어나는지"(표면 vs 액체 속)가 빠졌어요. 기준 응답의 핵심 누락.',
   rubric: [
-    { criterion: '개념 정확성', weight: 40, score: 26, reason: '뜻 설명 누락' },
+    { criterion: '개념 정확성', weight: 40, score: 26, reason: '일어나는 자리 설명 누락' },
     { criterion: '예시 적절성', weight: 30, score: 20, reason: '예시 부족' },
     { criterion: '표기 정확성', weight: 20, score: 18, reason: '오타 1회' },
     { criterion: '논리 흐름',   weight: 10, score: 8,  reason: '나열식' },

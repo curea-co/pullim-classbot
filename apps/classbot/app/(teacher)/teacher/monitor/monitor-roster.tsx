@@ -161,7 +161,8 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
   return (
     <li>
       <Link
-        href={`/teacher/students/${s.id}`}
+        // 되돌아갈 곳을 명시한다 — 기본값이 우연히 관제소인 것에 기대지 않는다 (spec 11 § 3.3.3 R1).
+        href={`/teacher/students/${s.id}?from=monitor`}
         className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_7rem_5rem_4.5rem_minmax(0,1fr)_auto]"
       >
         {/* 이름 · 학년 */}
