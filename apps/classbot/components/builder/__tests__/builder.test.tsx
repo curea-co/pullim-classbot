@@ -14,6 +14,7 @@ import {
   emptyDraft, isNameValid, ownCount, pick, summaryRows,
 } from '../builder-types';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
+import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
 
 /* ─── 순수 모델 ─── */
 
@@ -307,13 +308,25 @@ describe('만든 뒤 화면', () => {
     expect(count()).toBe('3');
   });
 
-  it('반 선택지는 기존 학급 권위에서 나온다 — 라벨을 새로 지어내지 않는다', () => {
-    // 여기서 라벨을 지어내면 참여 코드·운영 화면의 반 카드와 같은 반을 두 이름으로 부르게 된다
-    const known = new Map(teacherBotOps.flatMap(o => o.classrooms).map(c => [c.id, c.label]));
+  it('반 선택지는 학급 목록에서 나온다 — 라벨을 새로 지어내지 않는다', () => {
+    const master = new Map(teacherClassrooms.map(c => [c.id, c.label]));
     expect(classroomChoices.length).toBeGreaterThan(0);
-    for (const c of classroomChoices) expect(known.get(c.id)).toBe(c.label);
-    // 한 반이 여러 봇에 붙어 있어도 목록에는 한 번만
+    for (const c of classroomChoices) expect(master.get(c.id)).toBe(c.label);
     expect(new Set(classroomChoices.map(c => c.id)).size).toBe(classroomChoices.length);
+  });
+
+  it('아직 어느 봇에도 안 붙은 학급도 고를 수 있다', () => {
+    // 봇에 붙은 학급에서 뽑으면 교사가 첫 봇을 만들 때 고를 반이 하나도 없다
+    const attached = new Set(teacherBotOps.flatMap(o => o.classrooms).map(c => c.id));
+    const unattached = classroomChoices.filter(c => !attached.has(c.id));
+    expect(unattached.length).toBeGreaterThan(0);
+  });
+
+  it('봇에 붙은 학급은 전부 학급 목록에 있다 — 같은 반을 두 이름으로 부르지 않는다', () => {
+    const master = new Map(teacherClassrooms.map(c => [c.id, c.label]));
+    for (const c of teacherBotOps.flatMap(o => o.classrooms)) {
+      expect(master.get(c.id)).toBe(c.label);
+    }
   });
 
   it('과목을 바꾸면 올린 자료도 「기본값」으로 돌아간다 — 두 자리가 어긋나지 않는다', () => {

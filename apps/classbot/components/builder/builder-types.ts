@@ -1,4 +1,5 @@
-import { getTeacherBotRows, teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
+import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
+import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
 import { scopeMeta, type ScopeLevel } from '@/lib/mock';
 
 /**
@@ -121,21 +122,18 @@ export type { ScopeLevel };
 
 /** 봇을 만든 뒤에 고를 수 있는 반. */
 /**
- * 반 선택지 — 기존 학급 권위(`lib/mock/classbot-teacher-ops.ts`)에서 파생한다.
- * 라벨을 여기서 새로 지어내면 참여 코드(`class-codes.ts` 의 `classroomId`·`classroomLabel`)나
- * 운영 화면의 반 카드와 이어 붙일 수 없다 — 같은 반을 두 이름으로 부르게 된다.
+ * 반 선택지 — 교사의 **학급 목록**(`lib/mock/classbot-classrooms.ts`)에서 파생한다.
  *
- * ⚠️ 한계 — 이 앱에 **학급 마스터 목록이 없다.** 학급은 봇에 붙은 형태로만 존재해서
- * (`BotOps.classrooms`), **아직 어느 봇에도 안 붙은 학급은 여기 나오지 않는다.**
- * 새 학급을 만드는 흐름도 없다. 학급이 봇과 독립된 자원이 되면 그 목록에서 파생해야 한다.
+ * 봇에 붙은 학급(`BotOps.classrooms`)에서 뽑으면 **아직 어느 봇에도 안 붙은 학급을 고를 수 없다** —
+ * 교사가 첫 봇을 만들 때 고를 반이 하나도 없게 된다. 학급은 `lib/db/schema.ts` 의 `classrooms`
+ * 테이블이 잡은 대로 봇과 독립된 자원이므로, 그 목록에서 파생하는 것이 맞다.
+ *
+ * 라벨을 여기서 새로 지어내지 않는다 — 참여 코드(`class-codes.ts`)·운영 화면과 같은
+ * id·label 을 써야 같은 반을 두 이름으로 부르지 않는다.
  */
 export type ClassroomChoice = { id: string; label: string };
 
-export const classroomChoices: ClassroomChoice[] = teacherBotOps
-  .flatMap((ops) => ops.classrooms)
-  .map(({ id, label }) => ({ id, label }))
-  // 한 반이 여러 봇에 붙어 있어도 목록에는 한 번만 나온다
-  .filter((c, i, all) => all.findIndex((x) => x.id === c.id) === i);
+export const classroomChoices: ClassroomChoice[] = teacherClassrooms.map(({ id, label }) => ({ id, label }));
 
 /** 세는 칸 밖 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
 /**
