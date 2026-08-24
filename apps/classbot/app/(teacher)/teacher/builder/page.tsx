@@ -10,7 +10,7 @@ import { DoneView } from '@/components/builder/done-view';
 import { FilledSummary } from '@/components/builder/filled-summary';
 import { YardSteps } from '@/components/builder/yard-steps';
 import {
-  emptyDraft, isNameValid, pick,
+  emptyDraft, isNameValid,
   type BotDraft, type FieldKey, type YardNo,
 } from '@/components/builder/builder-types';
 
@@ -32,9 +32,9 @@ export default function BotBuilderPage() {
   const [subjectError, setSubjectError] = useState(false);
   const [nameError, setNameError] = useState(false);
 
-  /** 값이 바뀌는 단 하나의 길 — 「채워진 것」의 셈이 같은 `own` 을 읽는다. */
-  function onPick(field: FieldKey, patch: Partial<BotDraft>, own = true) {
-    setDraft((d) => pick(d, field, patch, own));
+  /** 값이 바뀌는 단 하나의 길. `field` 는 그 항목의 오류 표시를 지우는 데 쓴다. */
+  function onPick(field: FieldKey, patch: Partial<BotDraft>) {
+    setDraft((d) => ({ ...d, ...patch }));
     if (field === 'subject') setSubjectError(false);
     if (field === 'name') setNameError(false);
   }

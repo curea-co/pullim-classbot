@@ -33,8 +33,8 @@ import {
 
 type YardProps = {
   draft: BotDraft;
-  /** 한 번의 고르기 = 한 항목의 값 + 그 항목의 own 하나. 이 한 길로만 값이 바뀐다. */
-  onPick: (field: FieldKey, patch: Partial<BotDraft>, own?: boolean) => void;
+  /** 값이 바뀌는 단 하나의 길. `field` 는 그 항목의 오류 표시를 지우는 데 쓴다. */
+  onPick: (field: FieldKey, patch: Partial<BotDraft>) => void;
 };
 
 /* ─── 마당 1 — 봇 소개 ─── */
@@ -112,7 +112,7 @@ export function Yard1Intro({
               id="bld-name"
               type="text"
               value={draft.name}
-              onChange={(e) => onPick('name', { name: e.target.value }, e.target.value.trim().length > 0)}
+              onChange={(e) => onPick('name', { name: e.target.value })}
               maxLength={BOT_NAME_MAX}
               placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
               aria-invalid={nameError || undefined}
@@ -152,11 +152,10 @@ export function Yard1Intro({
  */
 /**
  * 과목을 **바꾸면** 올린 자료를 비운다 — 지난 과목의 수업 자료는 새 과목에서 뜻이 없다.
- * 자료를 갈아치우면서 `own.files` 를 그대로 두면 교사가 고른 적 없는 자료가 계속
- * 「내가 정함」으로 남아 항목 옆 표시와 「채워진 것」이 어긋난다(`pick()` 의 `invalidatedBy`).
+ * 그대로 두면 국어봇이 기후도 필기를 읽고 있는 화면이 된다.
  *
  * 이미 고른 과목을 다시 누르는 것은 **바꾸는 게 아니다.** 그때도 비우면 교사가 올린 자료가
- * 까닭 없이 사라진다 — 그래서 값이 같으면 아무 일도 하지 않는다.
+ * 까닭 없이 사라진다 — 그래서 값이 같으면 아무 일도 하지 않는다(`selectSubject` 의 이른 return).
  */
 function pickSubject(draft: BotDraft, subject: SubjectId): Partial<BotDraft> {
   return { subject, files: [] };
@@ -184,8 +183,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
   }
 
   function removeFile(index: number) {
-    const files = draft.files.filter((_, i) => i !== index);
-    onPick('files', { files }, files.length > 0);
+    onPick('files', { files: draft.files.filter((_, i) => i !== index) });
   }
 
   return (

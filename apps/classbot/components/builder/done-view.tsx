@@ -9,7 +9,7 @@ import { FieldLabel } from './field-mark';
 import { FilledSummary } from './filled-summary';
 import { PickChip } from './pick-chip';
 import {
-  botName, classAssignments, classroomChoices, ownCount, subjectMeta, classroomLabel,
+  botName, classAssignments, classroomChoices, subjectMeta, classroomLabel,
   type BotDraft, type FieldKey,
 } from './builder-types';
 
@@ -27,7 +27,7 @@ import {
 
 type Props = {
   draft: BotDraft;
-  onPick: (field: FieldKey, patch: Partial<BotDraft>, own?: boolean) => void;
+  onPick: (field: FieldKey, patch: Partial<BotDraft>) => void;
   /** 마당 1 로 돌아가 이어서 고치기 */
   onRefine: () => void;
   onRestart: () => void;
@@ -47,13 +47,12 @@ function assignmentHref(draft: BotDraft): string {
 export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
   const subject = draft.subject ? subjectMeta[draft.subject] : null;
   const sig = botSignature({ subject: subject?.label });
-  const count = ownCount(draft);
 
   function toggleClass(id: string) {
     const next = draft.classes.includes(id)
       ? draft.classes.filter((c) => c !== id)
       : [...draft.classes, id];
-    onPick('classes', { classes: next }, next.length > 0);
+    onPick('classes', { classes: next });
   }
 
   return (
@@ -77,11 +76,6 @@ export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
           </div>
           <Chip tone="info" className="shrink-0">만들어졌어요</Chip>
         </header>
-
-        <p className="bg-pullim-blue-50 text-pullim-blue-800 mt-3.5 rounded-xl p-3 text-xs leading-relaxed">
-          아홉 가지 가운데 <b data-testid="done-own-count">{count}가지</b>를 직접 정하셨어요.
-          나머지는 기본값 그대로 들어갔어요.
-        </p>
 
         <div className="mt-4">
           <FieldLabel field="classes">어느 반에 넣을까요</FieldLabel>

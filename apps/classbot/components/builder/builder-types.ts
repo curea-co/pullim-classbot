@@ -9,7 +9,7 @@ import { scopeMeta, type ScopeLevel } from '@/lib/mock';
  * 가른다 — 꼭 골라야 하는 것은 빨간 `*`, 나머지는 `(선택)` 이다.
  *
  * 이 파일이 지키는 불변식:
- *  - 「채워진 것」이 세는 항목은 정확히 아홉 가지(`FIELD_KEYS`)다. 안전 세 가지는 세지 않는다.
+ *  - 「채워진 것」이 보여주는 항목은 정확히 아홉 가지(`FIELD_KEYS`)다. 안전 세 가지는 그 밖이다.
  *  - 꼭 골라야 하는 항목은 `REQUIRED_FIELDS` 하나가 정한다. 화면마다 따로 적지 않는다.
  *  - 과목은 기본값이 없다. 미리 골라 두면 없는 기본값을 있는 척하는 것이 된다.
  */
@@ -31,15 +31,12 @@ export type UploadedFile = {
   size: string;          // "4.2MB"
 };
 
-/** 「채워진 것」이 세는 아홉 가지 — 항목 옆 표시와 1:1 로 맞물린다. */
+/** 「채워진 것」이 보여주는 아홉 가지 — 항목 옆 표시와 1:1 로 맞물린다. */
 export const FIELD_KEYS = [
   'subject', 'grade', 'name', 'tone', 'files', 'scope', 'style', 'wrong', 'classes',
 ] as const;
 
 export type FieldKey = (typeof FIELD_KEYS)[number];
-
-/** 교사가 직접 정한 항목. 「채워진 것」의 카운터가 이 하나를 읽는다. */
-export type OwnMap = Record<FieldKey, boolean>;
 
 export type BotDraft = {
   subject: SubjectId | null;
@@ -57,12 +54,6 @@ export type BotDraft = {
    * 밖으로 넘길 때는 `classAssignments()` 로 봇 축을 붙여 짝으로 만든다.
    */
   classes: string[];
-  own: OwnMap;
-};
-
-export const noOwn: OwnMap = {
-  subject: false, grade: false, name: false, tone: false,
-  files: false, scope: false, style: false, wrong: false, classes: false,
 };
 
 /** 첫 진입 상태 — 과목만 비어 있고 나머지는 기본값이 들어가 있다. */
@@ -76,7 +67,6 @@ export const emptyDraft: BotDraft = {
   style: 'mix',
   wrong: 'hint',
   classes: [],
-  own: noOwn,
 };
 
 /* ─── 고를 수 있는 것들 ─── */
@@ -133,7 +123,7 @@ export type ClassroomChoice = { id: string; label: string };
 
 export const classroomChoices: ClassroomChoice[] = teacherClassrooms.map(({ id, label }) => ({ id, label }));
 
-/** 세는 칸 밖 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
+/** 고정 줄 — 모든 봇에 늘 켜져 있어 교사가 정할 것이 없다. */
 /**
  * 배정 한 건 — 참여 코드가 가리키는 단위와 같다 (`join_codes` 의 `bot_id`·`classroom_id`).
  * 한 반에 여러 봇이 붙는 것이 정상이므로 반 id 만으로는 배정을 표현할 수 없다.
@@ -276,35 +266,4 @@ export function summaryRows(draft: BotDraft, view: BuilderView): SummaryRow[] {
       draft.classes.length === 0,
     ),
   ];
-}
-
-/**
- * 값 하나를 고르는 단 하나의 길.
- *
- * 값과 `own` 을 한 번에 옮기므로 「고쳤는데 셈이 안 따라온」 상태가 만들어질 수 없다.
- * 이름·자료·반처럼 비우면 다시 기본값이 되는 항목은 `own` 을 직접 넘긴다.
- */
-/**
- * 한 항목을 바꾸면 함께 무효가 되는 항목.
- * 과목을 바꾸면 지난 과목의 수업 자료는 뜻이 없어 비운다 — 값만 비우고 셈을 두면
- * 교사가 고른 적 없는 자료가 계속 「직접 정함」으로 세어진다.
- */
-const invalidatedBy: Partial<Record<FieldKey, readonly FieldKey[]>> = {
-  subject: ['files'],
-};
-
-export function pick(
-  draft: BotDraft,
-  field: FieldKey,
-  patch: Partial<BotDraft>,
-  own = true,
-): BotDraft {
-  const nextOwn: Record<FieldKey, boolean> = { ...draft.own, [field]: own };
-  for (const stale of invalidatedBy[field] ?? []) nextOwn[stale] = false;
-  return { ...draft, ...patch, own: nextOwn };
-}
-
-/** 카운터의 진실원 — 아홉 가지 밖은 세지 않는다(안전 세 가지 포함). */
-export function ownCount(draft: BotDraft): number {
-  return FIELD_KEYS.filter((k) => draft.own[k]).length;
 }
