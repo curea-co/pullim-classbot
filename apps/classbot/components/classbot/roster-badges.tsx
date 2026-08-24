@@ -57,3 +57,29 @@ export function LastSeenBadge({ student, className }: { student: MonitoredStuden
     </Badge>
   );
 }
+
+/**
+ * 채점 대기 — 이 학생 앞으로 검수할 채점이 몇 건인지. 0건이면 「대기 없음」.
+ *
+ * 채점 허브의 학생 목록이 쓴다. 숫자를 세는 일은 이 배지가 하지 않는다 —
+ * 교사 확정(store)을 얹은 뒤의 건수를 받아서 **말만 한다**.
+ *
+ * 색은 lemon 계열 — spec 11 § 9.1 이 검수 행동에 준 톤이다.
+ * 도달 배지(blue)·최근 접속 배지(warn)와 색이 겹치지 않아야 한 줄에서 셋이 구분된다.
+ */
+export function GradingPendingBadge({ count, className }: { count: number; className?: string }) {
+  const none = count === 0;
+  return (
+    <Badge
+      className={cn(
+        badgeShape,
+        'justify-center',
+        none ? 'bg-pullim-slate-100 text-pullim-slate-500' : 'bg-pullim-lemon-soft text-pullim-lemon-ink',
+        className,
+      )}
+      aria-label={none ? '검수할 채점 없음' : `검수 대기 ${count}건`}
+    >
+      {none ? '대기 없음' : `대기 ${count}건`}
+    </Badge>
+  );
+}

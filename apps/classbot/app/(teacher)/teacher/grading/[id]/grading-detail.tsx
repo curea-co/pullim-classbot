@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, MessageSquare, FileText } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Check, MessageSquare, FileText, UserRound } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { GradingItem, GradingHistoryEntry } from '@/lib/mock';
+import { studentHrefOfGrading } from '@/lib/mock/classbot-grading-roster';
 import {
   useGradingStore,
   useGradingDecision,
@@ -107,18 +108,30 @@ export function GradingDetail({
     });
   }
 
+  const studentName = item.studentName;
+  // 검수하다 건너간 것이라 되돌아갈 곳은 학생 전체 탭이 아니라 **큐**다.
+  const studentHref = studentHrefOfGrading(item, 'grading-queue');
+
   return (
     <div className="space-y-4 py-4 lg:py-6">
       {/* 네비 */}
       <div className="flex items-center justify-between">
         <Link
-          href="/teacher/grading"
+          href="/teacher/grading?view=queue"
           className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
         >
           <ArrowLeft className="h-3 w-3" />
-          채점 큐로
+          채점 대기 큐로
         </Link>
         <div className="flex items-center gap-1">
+          {/* 점수 옆에서 바로 「무슨 대화를 했는지」로 건너간다 — 상세는 이미 있는 화면이다 */}
+          <Link
+            href={studentHref}
+            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mr-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+          >
+            <UserRound className="h-3 w-3" />
+            대화 기록
+          </Link>
           {prevId ? (
             <Link
               href={`/teacher/grading/${prevId}`}
@@ -140,7 +153,7 @@ export function GradingDetail({
 
       <PageHeader
         eyebrow={{ icon: FileText, text: `${item.assignmentTitle} · ${item.topic}` }}
-        title={<>{item.studentName} 학생 검수</>}
+        title={<>{studentName} 학생 검수</>}
         description={`제출 ${item.submittedAt} · ${item.type === 'essay' ? '서술형' : item.type === 'short' ? '단답' : '수치'} · AI 신뢰도 ${item.aiConfidence}%`}
         action={
           decidedKind ? (
@@ -153,7 +166,7 @@ export function GradingDetail({
       />
 
       {/* 위기 게이트 — 점수 영역 위 */}
-      {isCrisis && <CrisisGate studentName={item.studentName} />}
+      {isCrisis && <CrisisGate studentName={studentName} />}
 
       {/* 메인 2-col */}
       <ContextRail
@@ -166,7 +179,7 @@ export function GradingDetail({
           <section className="bg-card rounded-2xl border p-4">
             <SectionHeading
               title="이 학생 최근 채점"
-              description={`${item.studentName} 학생의 추세`}
+              description={`${studentName} 학생의 추세`}
             />
             {history.length === 0 ? (
               <EmptyState title="이력 없음" size="sm" tone="plain" />
