@@ -15,8 +15,11 @@ import {
   buildStudentReport, findStudent, isReportPeriod, reportPeriods, siblingStudents,
   type ReportPeriod,
 } from '@/lib/mock/classbot-student-report';
+import { gradingItemsOfStudent } from '@/lib/mock/classbot-grading-roster';
 import { TranscriptViewer } from './transcript-viewer';
 import { ProcessEvaluationPanel } from './process-evaluation-panel';
+import { StuckPointsPanel } from './stuck-points-panel';
+import { StudentGradingPanel } from './student-grading-panel';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ period?: string }>;
@@ -28,6 +31,10 @@ type SearchParams = Promise<{ period?: string }>;
  * 관제소(`/teacher/monitor`)도 같은 곳을 읽으므로 이탈·지름길 수치가 두 화면에서 어긋나지 않는다.
  *
  * 기간 고르기는 지금 **표시만** 한다 — 데이터는 같은 스냅샷이다.
+ *
+ * 채점 허브(`/teacher/grading`)의 학생 목록이 여기로 보낸다. 그래서 이 화면은 세 가지를 답해야 한다
+ * (spec 11 § 3.3.3) — **어떤 봇과**(헤더) · **어떤 대화**를 했고(대화 기록 뷰어) ·
+ * **어디서 막혔나**(막힌 지점 패널). 채점 허브로 돌아가는 길은 「이 학생의 채점」 패널이 맡는다.
  */
 export default async function TeacherStudentReportPage({
   params,
@@ -45,6 +52,7 @@ export default async function TeacherStudentReportPage({
   const period: ReportPeriod = isReportPeriod(rawPeriod) ? rawPeriod : 'today';
   const report = buildStudentReport(student);
   const { prev, next, index, total } = siblingStudents(id);
+  const gradingItems = gradingItemsOfStudent(student.id);
 
   return (
     <TeacherPageShell
@@ -161,11 +169,21 @@ export default async function TeacherStudentReportPage({
           </>
         }
       >
+        {/* 어디서 막혔나 — 대화 기록보다 먼저. 교사가 훑을 때 먼저 찾는 것이다 */}
+        <StuckPointsPanel
+          stuckPoints={report.stuckPoints}
+          studentName={student.name}
+          botName={report.botName}
+        />
+
         <TranscriptViewer
           turns={report.transcript}
           studentName={student.name}
           botName={report.botName}
         />
+
+        {/* 채점 허브로 돌아가는 길 */}
+        <StudentGradingPanel items={gradingItems} studentName={student.name} />
 
         <ProcessEvaluationPanel
           studentId={student.id}

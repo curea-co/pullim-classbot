@@ -213,7 +213,8 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
 
 /** 처리 대기 항목이 실제로 끝나는 자리 — mock 의 href 는 아직 앵커라 여기서 라우트로 잇는다. */
 const pendingHref: Record<PendingItem['type'], string> = {
-  grading: '/teacher/grading',
+  // 「나를 기다리는 일」은 검수할 것만 가리킨다 — 채점 허브 기본 화면(학생 전체)이 아니라 큐로 보낸다.
+  grading: '/teacher/grading?view=queue',
   report: '/teacher/reports',
   approval: '/teacher/settings',
 };

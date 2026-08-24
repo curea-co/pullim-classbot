@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertCircle, ChevronRight, FileText, Calculator, MessageSquare } from 'lucide-react';
 import type { GradingItem } from '@/lib/mock';
+import { gradingStudentName } from '@/lib/mock/classbot-grading-roster';
 import { cn } from '@/lib/utils';
 
 const typeMeta = {
@@ -19,8 +20,13 @@ const statusMeta = {
 /**
  * 채점 큐 한 행 — AI 신뢰도 + 위기 인디케이터 포함.
  * spec 11 § 3.3.1.
+ *
+ * 이름은 **등록 학생 명단 쪽**(성 포함)으로 적는다 — 채점 시드는 이름만 적혀 있어(`윤서`)
+ * 학생 목록·상세(`신윤서`)와 갈린다. 같은 사람이 화면마다 다른 이름으로 보이면 안 된다.
+ * 잇는 규칙과 근거는 `lib/mock/classbot-grading-roster.ts` · spec 11 § 7.1.
  */
 export function GradingRow({ item }: { item: GradingItem }) {
+  const studentName = gradingStudentName(item);
   const t = typeMeta[item.type];
   const TypeIcon = t.icon;
   const status = statusMeta[item.status];
@@ -36,13 +42,13 @@ export function GradingRow({ item }: { item: GradingItem }) {
       <div className="flex items-start gap-3">
         {/* 아바타 */}
         <div className="bg-pullim-blue-100 text-pullim-blue-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold">
-          {item.studentName[0]}
+          {studentName.slice(0, 1)}
         </div>
 
         <div className="min-w-0 flex-1">
           {/* 1행: 학생명 + 상태 + 위기 신호 */}
           <div className="flex items-center gap-2">
-            <span className="text-pullim-slate-900 truncate text-sm font-bold">{item.studentName}</span>
+            <span className="text-pullim-slate-900 truncate text-sm font-bold">{studentName}</span>
             <span className={cn('rounded-full px-1.5 py-0.5 text-micro font-bold', status.color)}>
               {status.label}
             </span>

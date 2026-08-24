@@ -8,9 +8,15 @@ import { GradingDetail } from '../[id]/grading-detail';
 import { GradingQueueList } from '../grading-queue';
 import { useGradingStore } from '@/lib/store/grading';
 import { gradingQueue, overriddenSample, type GradingItem } from '@/lib/mock';
+import { gradingStudentName } from '@/lib/mock/classbot-grading-roster';
 
 const item: GradingItem = gradingQueue[0]; // gr_001 — 시드 status 'queue'
 const items: GradingItem[] = [...gradingQueue, overriddenSample];
+/**
+ * 화면에 적히는 이름은 등록 학생 명단 쪽(성 포함)이다 — 채점 시드는 이름만 적혀 있어
+ * 학생 목록·상세와 갈린다. spec 11 § 7.1.
+ */
+const studentName = gradingStudentName(item);
 
 function renderDetail() {
   return render(<GradingDetail item={item} history={[]} prevId={null} nextId={null} />);
@@ -70,7 +76,7 @@ it('채점 큐 — 확정한 항목은 「대기」에서 빠지고 「완료」
   const { rerender } = render(
     <GradingQueueList items={items} statusFilter="queue" typeFilter="all" />,
   );
-  expect(screen.getByText(item.studentName)).toBeTruthy();
+  expect(screen.getByText(studentName)).toBeTruthy();
 
   act(() => {
     useGradingStore.getState().approve({
@@ -83,12 +89,12 @@ it('채점 큐 — 확정한 항목은 「대기」에서 빠지고 「완료」
   });
 
   rerender(<GradingQueueList items={items} statusFilter="queue" typeFilter="all" />);
-  expect(screen.queryByText(item.studentName)).toBeNull();
+  expect(screen.queryByText(studentName)).toBeNull();
 
   cleanup();
   render(<GradingQueueList items={items} statusFilter="approved" typeFilter="all" />);
   // 시드에도 승인 항목이 있으므로 이 학생 행만 집어 상태를 본다.
-  const row = screen.getByText(item.studentName).closest('a');
+  const row = screen.getByText(studentName).closest('a');
   expect(row?.textContent).toContain('승인됨');
 });
 
