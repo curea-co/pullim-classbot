@@ -202,6 +202,8 @@
 1. 학생 [제출] → `Submission` 생성 (state: `submitted`)
 2. 객관식·수치 → T1 즉시 채점 → 자동 승인
 3. 서술형 → T2 초안 생성 → [채점 허브 큐](11-grading-hub.md § 5.2) 진입
+   (큐 화면은 `/teacher/grading?view=queue` — `/teacher/grading` 의 기본 화면은 등록 학생 전체다.
+   [11 § 3.2](11-grading-hub.md))
 4. 결과 페이지는 즉시 자동 채점분만 노출, 서술형은 "검수 대기" 상태
 5. 교사 승인 후 결과 페이지 자동 갱신 (push 또는 polling)
 
