@@ -75,9 +75,14 @@ export default function MyProgressPage() {
     <>
       <GrowthTrendCard snapshot={snapshot} />
 
-      {/* 주간 리포트와 역할이 다르다는 것을 화면에서도 말해 둔다(중복 구현 방지). */}
+      {/* 주간 리포트와 역할이 다르다는 것을 화면에서도 말해 둔다(중복 구현 방지).
+          「여기는 성취기준을 파고드는 곳」은 페이지 제목의 되풀이라 뺐고,
+          저쪽에 무엇이 있는지는 화면 어디에도 없어 남긴다 ([07 § 6.7]). */}
       <section className="bg-card rounded-2xl border p-4">
         <h3 className="text-pullim-slate-900 text-sm font-bold">한 주 요약이 보고 싶다면</h3>
+        <p className="text-pullim-slate-500 mt-1 text-2xs leading-relaxed">
+          봇이 본 한 주 이야기가 담겨 있어요.
+        </p>
         <Link
           href="/classbot/me/report"
           className="text-pullim-blue-600 hover:text-pullim-blue-700 mt-2 inline-block text-xs font-bold"

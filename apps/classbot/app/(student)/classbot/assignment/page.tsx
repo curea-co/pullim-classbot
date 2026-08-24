@@ -159,7 +159,8 @@ function AssignmentListBody({
             <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
           </KpiStatBar>
 
-          <SectionHeading title="모든 과제" />
+          {/* 묶음은 봇 머리줄이 보여준다 — 화면에 없는 것은 정렬 기준뿐이라 그것만 남긴다 ([07 § 6.7]) */}
+          <SectionHeading title="모든 과제" description="새로 받은 과제가 위에 있어요." />
 
           <div className="space-y-4">
             {grouped.map(({ bot, items }) => (
