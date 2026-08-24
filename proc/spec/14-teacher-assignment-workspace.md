@@ -225,12 +225,18 @@ sent ──[회수] (v2)──> withdrawn (학생 화면에서 사라짐)
 - 새로고침 시 localStorage에서 복원 → 시연 일관성 유지
 
 ### 5.6 검증 시나리오 자동 흐름 (E2E)
+
+> **「채점 큐」 = `/teacher/grading`** — 지금은 그 라우트의 기본 화면이 곧 큐다.
+> [11 § 3.1 [S6]](11-grading-hub.md) 이 기본 화면을 등록 학생 전체로 바꾸고 큐를 `?view=queue` 탭으로
+> 옮기기로 하는데, **아직 미구현**이다. 아래 표·P0 검증 기준·E2E 시연 단계의 「채점 큐」는
+> 어느 쪽이든 **같은 큐 화면**을 뜻한다.
+
 | 단계 | 트리거 | 결과 |
 |---|---|---|
 | 1 | 교사가 [발사] 클릭 | store에 push + 토스트 |
 | 2 | 학생 `/classbot` 새로고침 | `getMyAssignments()`가 합쳐 반환 → Primary에 새 과제 |
 | 3 | 학생 풀이 완료·제출 | 결과 페이지 도달, `completedCount` 증가 (store 갱신 — P0는 mock) |
-| 4 | 교사 `/teacher/grading` | 새 채점 항목 자동 진입 (P0는 시드 6건 + 신규는 v1) |
+| 4 | 교사 `/teacher/grading` (큐) | 새 채점 항목 자동 진입 (P0는 시드 7건 · [11 § 7](11-grading-hub.md) + 신규 제출 반영은 v1) |
 | 5 | 교사 승인 후 `/teacher/reports` | KPI에 점수 반영 (v1) |
 
 ---
@@ -415,7 +421,7 @@ Submission (1) ── (0,1) GradingItem     (spec 11)
   - 자동 채점 즉시 + 서술형 "검수 대기"
 
 [5] 채점 (spec 11)
-  - 김수학 → /teacher/grading
+  - 김수학 → /teacher/grading  (큐 화면)
   - 새 채점 항목(서연·민준·...) 큐 진입 (v1 — P0는 기존 시드만)
   - 루브릭 슬라이더 조정 → [수정 후 승인]
   - 변경률 누적 미터 갱신
