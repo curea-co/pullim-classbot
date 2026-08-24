@@ -18,7 +18,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useRosterMe } from '@/lib/current-user';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
+import { getAssignmentVisual, assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 
 type AssignmentMode = AssignmentReadRow['mode'];
@@ -32,9 +32,9 @@ type AssignmentMode = AssignmentReadRow['mode'];
  * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
  */
 export const modeMeta: Record<AssignmentMode, { label: string; color: string; fg: string; icon: typeof Target }> = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   fg: 'text-white',              icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  fg: 'text-white',              icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-lemon',      fg: 'text-pullim-lemon-ink',   icon: Sparkles },
+  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
+  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
+  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
 };
 
 /**

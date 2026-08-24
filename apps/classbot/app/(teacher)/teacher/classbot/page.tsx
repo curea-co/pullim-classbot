@@ -30,6 +30,7 @@ import {
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { cn } from '@/lib/utils';
+import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 
 /**
  * 클래스봇 운영 메인 (SCR-C-17) — 「내가 만든 봇들이 어느 학급에 붙어서 어떻게 돌고 있나」.
@@ -315,9 +316,9 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
  * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
  */
 export const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   fg: 'text-white',            icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-slate-900',  fg: 'text-white',            icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-lemon',      fg: 'text-pullim-lemon-ink', icon: Sparkles },
+  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
+  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
+  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
 } as const;
 
 /** 봇 순서(카탈로그)대로 묶는다. 카탈로그에 없는 봇의 과제는 맨 뒤에 따로 둔다. */

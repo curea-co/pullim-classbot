@@ -19,8 +19,51 @@
  * 우선순위: mode(exam/wrong-conquest) > state(overdue/submitted) > dDay(D-1/오늘) > 진행 중
  */
 
-import type { Assignment } from '@/lib/mock';
+import type { Assignment, AssignmentMode } from '@/lib/mock';
 import { palette } from './palette';
+
+/**
+ * 과제 모드 배지 — **여기가 유일한 진실원이다.**
+ *
+ * 종전에는 이 표가 네 곳에 복제돼 있어서(학생 과제 목록 · 교사 봇 운영 · 과제 개요 헤더 ·
+ * 과제 출제 모드 고르기) 한 곳만 고치면 같은 과제가 목록과 상세에서 다르게 보였다.
+ * 색을 바꿀 일이 있으면 이 표만 고친다.
+ *
+ * 세 모드가 서로 갈려야 한다 ([08 § 15.6] — 「뱃지 3종이 모두 파랑 계열로 보이던 회귀를 해결」):
+ *   연습     → 옅은 블루 면
+ *   시험     → 반전 면(navy solid). 오류가 아니라 「모드가 바뀌었다」는 신호다
+ *   오답정복 → 레몬. [§ 15.6] 이 이름을 대고 지정한 모드 식별 시그니처다
+ */
+export type AssignmentModeBadge = {
+  label: string;
+  /** 면 색 */
+  bg: string;
+  /** 면 위 글자색 */
+  fg: string;
+  /** 외곽선 계열(모드 고르기 카드처럼 면을 채우지 않는 자리) */
+  outline: string;
+};
+
+export const assignmentModeBadge: Record<AssignmentMode, AssignmentModeBadge> = {
+  practice: {
+    label: '연습',
+    bg: 'bg-pullim-blue-400',
+    fg: 'text-white',
+    outline: 'border-pullim-blue-500 bg-pullim-blue-50',
+  },
+  exam: {
+    label: '시험',
+    bg: 'bg-pullim-slate-900',
+    fg: 'text-white',
+    outline: 'border-pullim-slate-900 bg-pullim-slate-50',
+  },
+  'wrong-conquest': {
+    label: '오답정복',
+    bg: 'bg-pullim-lemon',
+    fg: 'text-pullim-lemon-ink',
+    outline: 'border-pullim-lemon-ink bg-pullim-lemon-soft',
+  },
+};
 
 export type AssignmentVisualState =
   | 'in-progress'
