@@ -34,11 +34,16 @@ export const attainmentLabel: Record<AttainmentLevel, string> = {
   'needs-work': '노력 필요',
 };
 
-/** 배지 색 — 색 규약(blue/slate + warn) 준수. 초록 신설 없음. */
+/**
+ * 배지 모양 — 색 규약([08 § 1.3] success/warn deprecated) 준수.
+ * 세 단계를 hue 로 가르지 않는다. 「잘함」은 옅은 블루 면, 「보통」은 회색 면,
+ * 「노력 필요」는 **채우기 없이 외곽선**으로 — 면이 사라지면 눈에 더 걸린다.
+ * 어차피 옆에 `attainmentLabel` 글자가 같이 붙는다.
+ */
 export const attainmentChipClass: Record<AttainmentLevel, string> = {
   good: 'bg-pullim-blue-100 text-pullim-blue-700',
   fair: 'bg-pullim-slate-100 text-pullim-slate-600',
-  'needs-work': 'bg-pullim-warn-bg text-pullim-warn',
+  'needs-work': 'bg-transparent text-pullim-slate-900 ring-pullim-slate-400 ring-1 ring-inset',
 };
 
 export interface AchievementStandard {
@@ -84,9 +89,10 @@ export const submissionStatusLabel: Record<SubmissionStatus, string> = {
   missing: '안 냈어요',
 };
 
+/** 「늦게 냈어요」는 잘못이 아니라 사실이라 외곽선으로만 표시한다. 정말 안 낸 것만 위험색. */
 export const submissionStatusChipClass: Record<SubmissionStatus, string> = {
   'on-time': 'bg-pullim-blue-100 text-pullim-blue-700',
-  late: 'bg-pullim-warn-bg text-pullim-warn',
+  late: 'bg-transparent text-pullim-slate-700 ring-pullim-slate-300 ring-1 ring-inset',
   missing: 'bg-pullim-danger-bg text-pullim-danger',
 };
 

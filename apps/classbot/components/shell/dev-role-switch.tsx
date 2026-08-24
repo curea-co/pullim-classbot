@@ -71,11 +71,12 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
         role="group"
         aria-label="개발용 역할 전환"
         className={cn(
-          'border-pullim-warn/40 bg-pullim-warn-bg mr-1 hidden shrink-0 items-center gap-0.5 rounded-pill border border-dashed px-1.5 py-1 sm:inline-flex',
+          // 「제품이 아니다」를 말하는 건 앰버가 아니라 **점선 테두리 + dev 라벨**이다
+          'border-pullim-slate-400 mr-1 hidden shrink-0 items-center gap-0.5 rounded-pill border border-dashed bg-transparent px-1.5 py-1 sm:inline-flex',
           className,
         )}
       >
-        <span aria-hidden className="text-pullim-warn px-1 font-mono text-micro font-bold tracking-[.08em] uppercase">
+        <span aria-hidden className="text-pullim-slate-600 px-1 font-mono text-micro font-bold tracking-[.08em] uppercase">
           dev
         </span>
         {DEV_ROLES.map((target) => {
@@ -87,9 +88,9 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
               aria-current={active ? 'true' : undefined}
               className={cn(
                 'rounded-pill px-2.5 py-1 text-2xs font-bold whitespace-nowrap transition-colors',
-                'focus-visible:ring-pullim-warn/50 outline-none focus-visible:ring-2',
+                'focus-visible:ring-pullim-slate-400/50 outline-none focus-visible:ring-2',
                 active
-                  ? 'bg-card text-pullim-warn shadow-pullim-xs'
+                  ? 'bg-card text-pullim-slate-900 shadow-pullim-xs'
                   : 'text-pullim-slate-500 hover:text-pullim-slate-700',
               )}
             >
@@ -104,12 +105,12 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label="개발용 역할 전환"
-          className="border-pullim-warn/40 bg-pullim-warn-bg text-pullim-warn focus-visible:ring-pullim-warn/50 mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-pill border border-dashed outline-none focus-visible:ring-2 sm:hidden"
+          className="border-pullim-slate-400 text-pullim-slate-600 focus-visible:ring-pullim-slate-400/50 mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-pill border border-dashed bg-transparent outline-none focus-visible:ring-2 sm:hidden"
         >
           <Wrench className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuLabel className="text-pullim-warn font-mono text-micro tracking-[.08em] uppercase">
+          <DropdownMenuLabel className="text-pullim-slate-600 font-mono text-micro tracking-[.08em] uppercase">
             dev · 역할 전환
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -125,7 +126,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
                 >
                   <Icon className="h-4 w-4" />
                   {target.label}
-                  {active && <Check className="text-pullim-warn ml-auto h-4 w-4" />}
+                  {active && <Check className="text-pullim-slate-700 ml-auto h-4 w-4" />}
                 </Link>
               </DropdownMenuItem>
             );

@@ -7,8 +7,11 @@ type Props = {
   eyebrow?: {
     icon?: LucideIcon;
     text: string;
-    /** 색상 톤 — 기본 blue */
-    tone?: 'blue' | 'warn' | 'danger' | 'success';
+    /**
+     * 색상 톤 — 기본 blue.
+     * warn·success 는 [08 § 1.3] deprecated 라 뺐다. 「좋다/주의」는 글자와 아이콘으로 말한다.
+     */
+    tone?: 'blue' | 'danger';
   };
   /** 페이지 제목 */
   title: ReactNode;
@@ -20,10 +23,8 @@ type Props = {
 };
 
 const toneClass = {
-  blue:    'text-pullim-blue-600',
-  warn:    'text-pullim-warn',
-  danger:  'text-pullim-danger',
-  success: 'text-pullim-success',
+  blue:   'text-pullim-blue-600',
+  danger: 'text-pullim-danger',
 } as const;
 
 /**

@@ -51,7 +51,8 @@ export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
       </p>
       <Link
         href={botComment.ctaHref}
-        className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
+        className="hover:bg-pullim-slate-50 mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors"
+        // [13 § 456] 봇 코멘트 카드 CTA 는 봇 시그니처 ghost — 어느 봇이 말을 건 것인지가 행동까지 이어진다
         style={{ borderColor: sig.inkLight, color: sig.inkLight }}
       >
         {botComment.ctaLabel}
