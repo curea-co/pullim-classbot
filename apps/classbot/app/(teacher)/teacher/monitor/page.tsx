@@ -12,11 +12,14 @@ import { MonitorBoard } from './monitor-board';
  *
  * 교사 홈과의 경계:
  *   - 홈(/teacher) = 오늘 먼저 볼 사람 + 나를 기다리는 일. 예외만 짧게.
- *   - 여기        = 학급 전체 진단. 다시 가르칠 개념 + 학생 20줄 + 거르개.
+ *   - 여기        = 학급 전체 진단. 거르개 + 학생 20줄 + 다시 가르칠 개념.
  *
- * 순서는 학급 → 개인이다. 조사에서 교사가 원한 것은 개인 20명치 숫자가 아니라
- * 다음 시간에 무엇을 다시 가르칠지였다. 그래서 개념이 먼저, 명단이 나중이다.
- * (요약 카드는 명단을 거르는 손잡이라 개념 위에 둔다 — 누르면 명단으로 데려간다.)
+ * 순서는 **거르개 → 그 결과 → 학급 처방**이다.
+ * 상단 요약 카드는 명단을 거르는 손잡이다 — 누르면 아래 명단이 바뀐다.
+ * 그래서 카드와 명단 사이에는 아무것도 끼우지 않는다. 사이에 다른 블록이 있으면
+ * 누른 손잡이와 바뀐 결과가 화면에서 떨어져 무엇이 달라졌는지 읽히지 않는다.
+ * 학급 단위 「다시 가르칠 개념」은 명단을 다 훑고 나서 「그래서 다음 시간에 뭘 하지」로
+ * 넘어가는 자리라 화면 맨 아래에 둔다.
  *
  * 담지 않는 것: 감정·집중도·체류시간. 지표 타당도가 약하고 학생 수용도 조사에서 선을 넘는다.
  * 총량 사용 지표(오늘 대화 수 같은 합계)도 담지 않는다 — 교사 워크숍에서 노이즈로 분류됐다.
@@ -34,10 +37,10 @@ export default function TeacherMonitorPage() {
       }}
     >
       {/* 학급·봇·단원·기준 시각은 위 헤더가 이미 달고 있다 — 명단에서 한 번 더 달지 않는다. */}
-      <MonitorBoard students={monitoredRoster}>
-        {/* 학급 단위 — 다음 시간에 무엇을 다시 가르칠지 */}
-        <ReteachConcepts concepts={reteachConcepts} totalStudents={monitoringSummary.total} />
-      </MonitorBoard>
+      <MonitorBoard students={monitoredRoster} />
+
+      {/* 학급 단위 — 명단을 다 보고 나서 「다음 시간에 무엇을 다시 가르칠지」 */}
+      <ReteachConcepts concepts={reteachConcepts} totalStudents={monitoringSummary.total} />
 
       <BotNote>
         이 화면은 <b>도달 상태 · 사고 수준 · 지름길 · 이탈 · 마지막 활동</b>만 봐요.
