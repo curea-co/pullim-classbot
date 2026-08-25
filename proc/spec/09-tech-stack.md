@@ -150,7 +150,11 @@ web/
 │   │       ├── reports/page.tsx      # 리포트 6종
 │   │       ├── grading/page.tsx      # 하이브리드 채점
 │   │       ├── templates/page.tsx    # 템플릿 마켓
-│   │       ├── settings/page.tsx     # 8탭 봇 설정
+│   │       ├── settings/page.tsx     # 봇 설정 본체 (한 화면)
+│   │       │                         #   ⏳ 03 § 4.4 — 봇 관리로 가른다. FE PR 이 들어오면
+│   │       │                         #      bots/page.tsx (목록) + bots/[botId]/page.tsx (봇별
+│   │       │                         #      설정) 가 생기고 이 파일은 /teacher/bots 로
+│   │       │                         #      넘겨보내는 자리만 남는다. 아직 없다
 │   │       └── replay/
 │   │           ├── page.tsx
 │   │           └── [id]/page.tsx
