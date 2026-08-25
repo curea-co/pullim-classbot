@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioCard, RadioCardGroup } from '@/components/classbot/radio-card';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 import { FieldError, FieldLabel } from './field-mark';
 import { PickChip } from './pick-chip';
@@ -68,26 +67,20 @@ export function Yard1Intro({
               묶음 자체를 초점 대상으로 삼는다 — 초점이 오면 낭독기가 묶음 이름(「과목」)을 읽는다.
             */}
             <RadioCardGroup ariaLabel="과목" cols={3} id={faultAnchorId('subject')} focusable>
-              {subjectIds.map((id) => {
-                const meta = subjectMeta[id];
-                const sig = botSignature({ subject: meta.label });
-                return (
-                  <RadioCard
-                    key={id}
-                    active={draft.subject === id}
-                    onSelect={() => selectSubject(id)}
-                    title={meta.label}
-                    description={meta.botName}
-                    icon={
-                      <span
-                        aria-hidden
-                        style={{ backgroundColor: sig.hex }}
-                        className="mt-1 block h-2.5 w-2.5 rounded-full"
-                      />
-                    }
-                  />
-                );
-              })}
+              {/*
+                카드에 남는 것은 **과목 이름 하나**다 — 봇 시그니처 색 점과 「과학봇」 밑줄을 뺐다.
+                색 점은 고를 때 아무것도 가르지 못하고(다섯 과목은 이름으로 이미 갈린다),
+                밑줄의 봇 이름은 바로 아래 「봇 이름」 칸의 placeholder 가 같은 말을 한 번 더 한다.
+                `botSignature` 는 지우지 않는다 — 학생 홈 봇 목록·챗이 그대로 쓴다. 여기서만 뺀다.
+              */}
+              {subjectIds.map((id) => (
+                <RadioCard
+                  key={id}
+                  active={draft.subject === id}
+                  onSelect={() => selectSubject(id)}
+                  title={subjectMeta[id].label}
+                />
+              ))}
             </RadioCardGroup>
             <FieldError fault={fault} field="subject" />
           </div>

@@ -309,6 +309,27 @@ export function firstFault(draft: BotDraft, yard?: YardNo): Fault | null {
 }
 
 /**
+ * 마당 `from` 에서 `to` 로 **앞으로** 갈 때 앞을 막는 첫 항목. 막지 않으면 null.
+ *
+ * **앞으로 가는 길은 전부 이 함수를 지난다** — 「다음」도, 위쪽 「단계」를 눌러 건너뛰는 길도.
+ * 판정을 두 벌로 두면 한쪽만 막는 창구가 생긴다.
+ *
+ * 지나치는 마당(`from` … `to - 1`)을 차례로 본다 — 마당 1 에서 3 으로 건너뛰는 것도
+ * 마당 2 를 **지나는** 것이라, 마당 2 에 필수가 생기면 그 건너뛰기도 걸려야 한다.
+ *
+ * 뒤로 가는 길(`to <= from`)은 막지 않는다. 이미 지나온 마당은 필수가 차 있고,
+ * 고치러 돌아가는 길을 막으면 교사가 갇힌다.
+ */
+export function faultBefore(draft: BotDraft, from: YardNo, to: YardNo): Fault | null {
+  if (to <= from) return null;
+  for (let yard = from; yard < to; yard += 1) {
+    const fault = firstFault(draft, yard as YardNo);
+    if (fault) return fault;
+  }
+  return null;
+}
+
+/**
  * 막힌 항목으로 초점을 옮길 자리.
  * 화면은 이 id 를 그 항목의 **첫 조작 자리**에 붙인다 — 필수를 늘리면 그 항목에도 붙여야 한다.
  */

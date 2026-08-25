@@ -6,7 +6,9 @@
  *  - 「채워진 것」은 아홉 줄을 **항목 이름 : 값** 으로만 보여준다 (배지 · 「고치기」 · 세는 숫자 없음)
  *  - 과목을 **바꾸면** 지난 과목의 자료가 비워지고, **같은 과목을 다시 누르면** 그대로 남는다
  *  - 「만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 있다
- *  - 필수를 안 채우면 「만들기」도 「다음」도 막힌다 — 두 길이 같은 판정을 읽는다
+ *  - 필수를 안 채우면 「만들기」도 「다음」도 위쪽 「단계」도 막힌다 — 셋이 같은 판정을 읽는다
+ *  - 뒤로 가는 길(「이전」 · 「단계」로 되돌아가기)은 막지 않는다 — 고치러 돌아갈 수 있어야 한다
+ *  - 과목 카드에는 과목 이름만 있다 — 시그니처 색 점도 「과학봇」 밑줄도 없다
  *  - 만든 뒤 화면은 배정 두 축(`?created=` · `?rooms=`)을 함께 넘긴다
  */
 
@@ -15,7 +17,8 @@ import BotBuilderPage from '@/app/(teacher)/teacher/builder/page';
 import {
   BOT_NAME_MAX, BOT_NAME_MIN, FIELD_GROUP,
   FIELD_KEYS, REQUIRED_FIELDS, alwaysOnSafety, botName, classAssignments, classroomChoices,
-  emptyDraft, faultAnchorId, firstFault, isBuildYard, isNameValid, isRequired, summaryRows,
+  emptyDraft, faultAnchorId, faultBefore, firstFault, isBuildYard, isNameValid, isRequired,
+  subjectIds, subjectMeta, summaryRows,
 } from '../builder-types';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
@@ -119,6 +122,28 @@ describe('관문 판정 (firstFault)', () => {
 
   it('과목이 비면 이름 규칙보다 먼저 걸린다 — 앞 항목부터 본다', () => {
     expect(firstFault({ ...emptyDraft, name: '봇' }, 1)?.field).toBe('subject');
+  });
+});
+
+describe('앞으로 가는 길의 판정 (faultBefore)', () => {
+  it('뒤로 가는 길은 막지 않는다 — 제자리도 마찬가지다', () => {
+    // 아무것도 안 채운 드래프트라도 되돌아가는 길에는 관문이 없다
+    expect(faultBefore(emptyDraft, 3, 1)).toBeNull();
+    expect(faultBefore(emptyDraft, 2, 1)).toBeNull();
+    expect(faultBefore(emptyDraft, 1, 1)).toBeNull();
+  });
+
+  it('앞으로 갈 때는 「다음」과 같은 것에 걸린다', () => {
+    expect(faultBefore(emptyDraft, 1, 2)).toEqual(firstFault(emptyDraft, 1));
+    expect(faultBefore(emptyDraft, 1, 2)?.field).toBe('subject');
+  });
+
+  it('건너뛰어도 지나치는 마당을 다 본다 — 1 → 3 은 마당 2 도 지나는 것이다', () => {
+    const picked = { ...emptyDraft, subject: 'science' as const };
+    expect(faultBefore(emptyDraft, 1, 3)?.field).toBe('subject');
+    // 마당 2 에 아직 필수가 없어 지금은 통과한다. 필수가 생기면 이 건너뛰기도 걸린다
+    expect(faultBefore(picked, 1, 3)).toBeNull();
+    expect(faultBefore(picked, 2, 3)).toBeNull();
   });
 });
 
@@ -242,11 +267,127 @@ describe('필수를 안 채우면 다음 마당으로 못 간다', () => {
   it('되짚어 가는 「이전」은 막지 않는다', () => {
     render(<BotBuilderPage />);
     // 「단계」로 건너뛴 자리에서 되돌아온다 — 뒤로 가는 길에는 관문이 없다
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
     fireEvent.click(step('보고 답할 것'));
     fireEvent.click(screen.getByRole('button', { name: '이전' }));
 
     expect(yardHeading('봇 소개')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('위쪽 「단계」에도 같은 관문이 걸린다', () => {
+  /** 지금 어느 마당에 있는지는 그 마당의 제목으로 본다. */
+  function yardHeading(name: string) {
+    return screen.queryByRole('heading', { name });
+  }
+
+  it('과목을 안 고르고 「단계」 2 를 눌러도 마당 1 에 머물고 왜 막혔는지 말한다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(step('보고 답할 것'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('과목을 골라야 봇을 만들 수 있어요');
+    expect(yardHeading('봇 소개')).toBeInTheDocument();
+    expect(yardHeading('봇이 보고 답할 것')).toBeNull();
+  });
+
+  it('앞으로 가는 단계 창구를 전수로 막는다 — 하나만 막으면 다른 하나로 새어 나간다', () => {
+    for (const title of ['보고 답할 것', '가르치는 법']) {
+      const { unmount } = render(<BotBuilderPage />);
+      fireEvent.click(step(title));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('과목을 골라야 봇을 만들 수 있어요');
+      expect(yardHeading('봇 소개')).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('막을 때 「다음」과 같은 자리에 같은 말을 놓고 초점을 옮긴다 — 새 방식을 만들지 않는다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(step('가르치는 법'));
+
+    expect(document.getElementById(faultAnchorId('subject'))).toHaveFocus();
+    expect(screen.getByRole('radiogroup', { name: '과목' })).toHaveFocus();
+  });
+
+  it('이름 규칙을 어겨도 단계 클릭이 막힌다 — 필수만 보는 관문이 아니다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '봇' } });
+    fireEvent.click(step('보고 답할 것'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('이름은 두 글자에서 서른 글자 사이로');
+    expect(yardHeading('봇이 보고 답할 것')).toBeNull();
+    expect(screen.getByLabelText(/봇 이름/)).toHaveFocus();
+  });
+
+  it('필수를 채우면 단계 클릭으로 넘어간다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.click(step('보고 답할 것'));
+
+    expect(yardHeading('봇이 보고 답할 것')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('뒤로 가는 단계 클릭은 막지 않는다 — 고치러 돌아가는 길이다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.click(step('가르치는 법'));
+    expect(yardHeading('가르치는 법')).toBeInTheDocument();
+
+    // 3 → 2 → 1 로 되짚는다
+    fireEvent.click(step('보고 답할 것'));
+    expect(yardHeading('봇이 보고 답할 것')).toBeInTheDocument();
+    fireEvent.click(step('봇 소개'));
+    expect(yardHeading('봇 소개')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('막힌 뒤 그 항목을 채우면 단계 클릭이 열린다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(step('보고 답할 것'));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.click(step('보고 답할 것'));
+
+    expect(yardHeading('봇이 보고 답할 것')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('과목 카드', () => {
+  /** 과목 카드가 사는 자리 — 다른 라디오 묶음(학년·말투)과 섞이지 않게 여기서만 본다. */
+  function subjectGroup() {
+    return screen.getByRole('radiogroup', { name: '과목' });
+  }
+
+  it('카드에는 과목 이름만 있다 — 「과학봇」 같은 밑줄이 없다', () => {
+    render(<BotBuilderPage />);
+    const group = subjectGroup();
+    expect(within(group).getAllByRole('radio')).toHaveLength(subjectIds.length);
+
+    for (const id of subjectIds) {
+      const { label, botName: bot } = subjectMeta[id];
+      expect(within(group).getByRole('radio', { name: label }).textContent).toBe(label);
+      expect(within(group).queryByText(bot)).toBeNull();
+    }
+  });
+
+  it('카드에 시그니처 색 점이 없다 — 색을 칠한 자리가 하나도 남지 않았다', () => {
+    render(<BotBuilderPage />);
+    const group = subjectGroup();
+    expect(group.querySelectorAll('[style*="background"]')).toHaveLength(0);
+    expect(group.querySelectorAll('.rounded-full')).toHaveLength(0);
+  });
+
+  it('봇 이름 칸은 그대로 과목 기본 이름을 안내한다 — 카드 표시에서만 뺐다', () => {
+    render(<BotBuilderPage />);
+    expect(screen.getByPlaceholderText('과목을 고르면 이름이 정해져요')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    expect(screen.getByPlaceholderText('과학봇')).toBeInTheDocument();
   });
 });
 
@@ -353,6 +494,8 @@ describe('마당 오가기', () => {
 
   it('「단계」를 눌러 마당을 건너뛴다', () => {
     render(<BotBuilderPage />);
+    // 필수를 채운 뒤라야 앞으로 건너뛴다 — 못 채웠을 때는 아래 「단계에도 같은 관문」 참고
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
     fireEvent.click(step('가르치는 법'));
     expect(screen.getByRole('heading', { name: '가르치는 법' })).toBeInTheDocument();
 
