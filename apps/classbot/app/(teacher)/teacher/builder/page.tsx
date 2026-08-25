@@ -10,7 +10,7 @@ import { DoneView } from '@/components/builder/done-view';
 import { FilledSummary } from '@/components/builder/filled-summary';
 import { YardSteps } from '@/components/builder/yard-steps';
 import {
-  emptyDraft, faultAnchorId, firstFault,
+  emptyDraft, faultAnchorId, faultBefore, firstFault,
   type BotDraft, type Fault, type FieldKey, type YardNo,
 } from '@/components/builder/builder-types';
 
@@ -22,8 +22,11 @@ import {
  * 그래서 「이대로 만들기」는 마당 하나만 지나도 누를 수 있다 — 과목만 고르면 끝난다.
  * 그 버튼은 마당마다 반복하지 않고 **페이지 헤더 오른쪽 한 자리**에 둔다.
  *
- * 필수를 안 채우면 **끝낼 때도 다음 마당으로 갈 때도** 막힌다 — 두 길이 `firstFault` 하나를
- * 읽는다. 막으면 그 항목이 사는 마당으로 돌려보내고, 왜 막혔는지 말하고, 그 자리로 초점을 옮긴다.
+ * 필수를 안 채우면 **앞으로 가는 길이 모두** 막힌다 — 「만들기」도, 「다음」도, 위쪽 「단계」를
+ * 눌러 건너뛰는 길도. 셋이 같은 판정(`firstFault` · `faultBefore`)을 읽으므로 한쪽만 열린
+ * 창구가 없다. 막으면 그 항목이 사는 마당으로 돌려보내고, 왜 막혔는지 말하고, 초점을 옮긴다.
+ * **뒤로 가는 길은 막지 않는다** — 「이전」도 「단계」로 되돌아가는 것도. 이미 지나온 마당은
+ * 필수가 차 있고, 고치러 돌아가는 길을 막으면 교사가 갇힌다.
  *
  * 봇을 굳히는 자리는 아직 데모다. 현행 빌더와 마찬가지로 화면 안 상태로만 움직이고
  * DB 에 쓰지 않는다 (`lib/db/schema.ts` 무관).
@@ -63,19 +66,37 @@ export default function BotBuilderPage() {
   }
 
   /**
-   * 다음 마당으로. **이 마당의 필수가 다 차야 넘어간다** — 「이대로 만들기」와 같은 판정
-   * (`firstFault`)을 읽으므로 두 길이 어긋나지 않는다. 마당 2·3 에 필수가 생겨도 그대로 걸린다.
-   *
-   * 위쪽 「단계」로 건너뛰는 길은 그대로 둔다 — 둘러보는 길이지 채워 나가는 길이 아니다
-   * (핸드오프 § 4.1 「단계 점프는 유지한다」).
+   * **앞으로 가는 단 하나의 길.** 「다음」도 위쪽 「단계」도 여기를 지난다 —
+   * 판정을 두 벌로 두면 한쪽만 막는 창구가 생긴다. 지나치는 마당의 필수가 다 차야 넘어간다.
    */
-  function goNext() {
-    const blocked = firstFault(draft, yard);
+  function goForward(next: YardNo) {
+    const blocked = faultBefore(draft, yard, next);
     if (blocked) {
       block(blocked);
       return;
     }
-    if (yard < 3) goYard((yard + 1) as YardNo);
+    goYard(next);
+  }
+
+  /** 다음 마당으로. 마당 3 은 더 갈 곳이 없어 「다음」이 그려지지 않는다. */
+  function goNext() {
+    if (yard < 3) goForward((yard + 1) as YardNo);
+  }
+
+  /**
+   * 위쪽 「단계」로 옮기기. **점프는 그대로 유지한다** — 대상 셋도, 「1 → 2 → 3」 진행이
+   * 보이는 것도 그대로다 (핸드오프 § 4.1 「단계 점프는 유지한다」). 바뀌는 것은 **앞으로**
+   * 가는 점프가 「다음」과 같은 판정을 지난다는 것뿐이다. 필수를 건너뛰는 창구를 남겨 두면
+   * 「다음」에서 막은 것이 여기서 열린다.
+   *
+   * 뒤로 가는 점프(3 → 1)는 막지 않는다 — 고치러 돌아가는 길이다.
+   */
+  function jumpYard(next: YardNo) {
+    if (next > yard) {
+      goForward(next);
+      return;
+    }
+    goYard(next);
   }
 
   /** 어느 마당에서나 누를 수 있다. 남은 항목은 기본값으로 들어간다. */
@@ -123,7 +144,7 @@ export default function BotBuilderPage() {
       ) : (
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="space-y-4">
-            <YardSteps current={yard} onJump={goYard} />
+            <YardSteps current={yard} onJump={jumpYard} />
 
             {yard === 1 && <Yard1Intro draft={draft} onPick={onPick} fault={fault} />}
             {yard === 2 && <Yard2Answers draft={draft} onPick={onPick} />}
@@ -145,8 +166,8 @@ export default function BotBuilderPage() {
  * 나가는 줄 — 마당을 앞뒤로 오가는 것만 남았다.
  * 마당 3 은 더 갈 곳이 없어 「다음」이 없다. 거기서 끝내는 것은 헤더의 「이대로 만들기」다.
  *
- * 「다음」은 이 마당의 필수가 다 차야 넘어간다 — 판정은 `goNext` 가 한다. 뒤로 가는 「이전」은
- * 막지 않는다(채운 것을 되짚는 길이라 막을 까닭이 없다).
+ * 「다음」은 이 마당의 필수가 다 차야 넘어간다 — 판정은 `goForward` 가 한다(위쪽 「단계」와 같은
+ * 자리다). 뒤로 가는 「이전」은 막지 않는다(채운 것을 되짚는 길이라 막을 까닭이 없다).
  */
 function YardNav({ yard, onPrev, onNext }: { yard: YardNo; onPrev: () => void; onNext: () => void }) {
   return (
