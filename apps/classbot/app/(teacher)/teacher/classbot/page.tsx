@@ -37,7 +37,7 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *
  * 이 화면이 하지 않는 것:
  *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 봇마다 길만 열어둔다.
- *  - 안전 등급 변경 → 봇 설정(/teacher/settings?tab=safety). 여기서는 지금 등급만 읽어준다.
+ *  - 안전 등급 변경 → 봇 관리(/teacher/bots/[botId]?tab=safety). 여기서는 지금 등급만 읽어준다.
  *
  * 액션 규칙: 봇에서 나가는 길은 카드 우상단 「더보기」 하나에 모은다.
  *  카드마다 링크를 깔면 봇 수만큼 곱해져 화면이 링크로 덮인다.
@@ -160,17 +160,22 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
 /**
  * 봇 하나에서 나가는 길 — 전부 「더보기」 안에 모은다.
  * 카드마다 링크를 깔면 봇 3개에 12개가 반복돼 정작 「지금 잘 도나」가 안 읽힌다.
+ *
+ * 봇 관리는 봇 하나에 매인 화면이라 **그 봇의 설정으로 곧장 보낸다** —
+ * 어느 봇의 더보기를 눌렀는지가 링크에 실린다 (`proc/spec/03 § 4.4`).
  */
-const botMenuLinks = [
-  { href: '/teacher/builder',              icon: Wrench,   label: '봇 손보기' },
-  { href: '/teacher/settings',             icon: Settings, label: '봇 설정' },
-  { href: '/teacher/settings?tab=safety',  icon: Shield,   label: '안전 등급 바꾸기' },
-  { href: '/teacher/assignment/new',       icon: Send,     label: '과제 내기' },
-  // 학생 관제는 이 화면이 하지 않는다 — 관제소로 보낸다
-  { href: '/teacher/monitor',              icon: Gauge,    label: '학급 관제소' },
-];
+function botMenuLinks(botId: string) {
+  return [
+    { href: '/teacher/builder',                  icon: Wrench,   label: '봇 손보기' },
+    { href: `/teacher/bots/${botId}`,            icon: Settings, label: '봇 관리' },
+    { href: `/teacher/bots/${botId}?tab=safety`, icon: Shield,   label: '안전 등급 바꾸기' },
+    { href: '/teacher/assignment/new',           icon: Send,     label: '과제 내기' },
+    // 학생 관제는 이 화면이 하지 않는다 — 관제소로 보낸다
+    { href: '/teacher/monitor',                  icon: Gauge,    label: '학급 관제소' },
+  ];
+}
 
-function BotCardMenu({ botName, running }: { botName: string; running: boolean }) {
+function BotCardMenu({ botId, botName, running }: { botId: string; botName: string; running: boolean }) {
   const RunIcon = running ? Pause : Play;
   return (
     <DropdownMenu>
@@ -182,7 +187,7 @@ function BotCardMenu({ botName, running }: { botName: string; running: boolean }
         더보기
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
-        {botMenuLinks.map(({ href, icon: Icon, label }) => (
+        {botMenuLinks(botId).map(({ href, icon: Icon, label }) => (
           <DropdownMenuItem key={href} className="p-0">
             <Link href={href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
               <Icon className="h-4 w-4" aria-hidden />
@@ -205,7 +210,7 @@ function BotCardMenu({ botName, running }: { botName: string; running: boolean }
 /**
  * 봇 카드 — 「이 봇이 지금 제대로 돌고 있나」에 필요한 것만 남긴다.
  *  남긴 것: 이름·과목·학년 / 운영 상태(멈춤이면 이유) / 안전 등급 배지 / 붙은 학급과 인원 / 낸 과제 수.
- *  덜어낸 것: 말투(봇 설정에서 본다), 안전 등급 설명문(scope.allow — 배지로 갈음),
+ *  덜어낸 것: 말투(봇 관리에서 본다), 안전 등급 설명문(scope.allow — 배지로 갈음),
  *            바닥 링크 5개(더보기 안으로), 「진행 상황 보기」 앵커(바로 아래 낸 과제 섹션).
  * 카드 본체는 누르는 자리가 아니다 — 봇 하나짜리 화면이 아직 없어서 갈 데가 없다.
  */
@@ -232,7 +237,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
               )}
               {runStateLabels[ops.runState]}
             </Chip>
-            {/* 안전 등급 — 배지 하나로 읽어준다. 설명·변경은 봇 설정(더보기 안). */}
+            {/* 안전 등급 — 배지 하나로 읽어준다. 설명·변경은 봇 관리(더보기 안). */}
             <Chip tone="outline" className="py-1">
               <Shield className="text-pullim-blue-600" aria-hidden />
               <span>
@@ -248,7 +253,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
             <p className="text-pullim-slate-500 mt-0.5 text-micro">{ops.pauseReason}</p>
           )}
         </div>
-        <BotCardMenu botName={bot.name} running={running} />
+        <BotCardMenu botId={bot.id} botName={bot.name} running={running} />
       </div>
 
       {/* 붙어 있는 학급 */}

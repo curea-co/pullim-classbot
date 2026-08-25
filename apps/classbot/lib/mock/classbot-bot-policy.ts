@@ -1,5 +1,5 @@
 /**
- * 봇 설정(`/teacher/settings`) mock — 봇 운영 규칙.
+ * 봇 관리(`/teacher/bots` 목록 → `/teacher/bots/[botId]` 봇별 설정) mock — 봇 운영 규칙.
  *
  * 지금은 껍데기 화면이라 **실제로 보이는 것은 두 가지**만 담는다.
  *  ① 안전 등급(L1~L5) 시간대 스케줄 — 수업 중과 밤에 봇이 답하는 범위가 달라야 한다
@@ -9,7 +9,8 @@
  * 안전 등급 단계 이름은 `./tutor` 의 `scopeMeta` 를 그대로 쓴다 — 등급 이름을 두 곳에 두지 않는다.
  */
 
-import { monitoredClass } from './classbot-monitoring';
+import { classBots, type ClassBot } from './classbot';
+import { teacherBotOps } from './classbot-teacher-ops';
 import type { ScopeLevel } from './tutor';
 
 /** 설정 탭 — ready=false 는 껍데기(준비 중) */
@@ -69,6 +70,10 @@ export type SafetySlot = {
 /**
  * 시간대별 안전 등급. 수업 중에는 좁게, 밤에는 넓게 두는 것이 기본 모양이다.
  * (밤에 좁게 두면 학생이 봇 대신 다른 데로 나간다는 것이 운영 쪽 판단.)
+ *
+ * ⚠ 봇마다 다른 스케줄이 아직 없다 — **데모 기본값 한 벌을 모든 봇이 같이 본다.**
+ * 아래 이탈 대응 강도도 마찬가지다. 봇별로 갈라지는 것은 BE 가 붙을 때이고,
+ * 그전에 봇 수만큼 값을 지어내면 화면이 사실이 아닌 것을 말하게 된다.
  */
 export const safetySchedule: SafetySlot[] = [
   { id: 'slot-class',   from: '08:00', to: '15:00', scope: 1, why: '수업 시간 — 올린 자료와 이번 단원 안에서만' },
@@ -120,11 +125,56 @@ export const currentDriftLevel: DriftLevel['value'] = 'firm';
 /** 이탈이 이만큼 쌓이면 선생님께 표시 */
 export const driftAlertThreshold = 3;
 
-/** 이 화면이 다루는 봇 — 관제소·학생 리포트와 같은 봇을 본다 */
-export const policyBot = {
-  botName: monitoredClass.botName,
-  teacherName: monitoredClass.teacherName,
-  classroomLabel: monitoredClass.classroomLabel,
-  lastChangedAt: '어제 오후 6:55',
-  lastChangedBy: monitoredClass.teacherName,
+/* ── 봇 관리 목록·상세가 읽는 봇 한 줄 ──────────────── */
+
+/**
+ * 봇 관리 화면이 봇 하나를 가리킬 때 읽는 것.
+ *
+ * 값은 전부 카탈로그(`./classbot` 의 `classBots`)와 운영 기록
+ * (`./classbot-teacher-ops` 의 `teacherBotOps`)이 이미 아는 것만 옮겨 담는다 —
+ * **없는 값을 지어내지 않는다.**
+ *
+ * 담지 않는 것:
+ *  - 운영 중·멈춤·등록 인원·낸 과제 — 「지금 잘 돌고 있나」는 운영 화면(`/teacher/classbot`) 몫이다.
+ *    봇 관리는 「이 봇을 어떻게 굴릴까」만 본다.
+ *  - 마지막 변경 시각·사람 — 봇마다 다른 값이 없다. 한 개를 모든 봇에 돌려 쓰면 거짓말이 된다.
+ */
+export type ManagedBot = {
+  botId: string;
+  botName: string;
+  avatarEmoji: string;
+  subject: string;
+  grade: string;
+  tone: ClassBot['tone'];
+  /** 지금 안전 등급 — 카탈로그가 권위 */
+  scope: ScopeLevel;
+  teacherName: string;
+  /** 붙어 있는 학급 이름 — 아직 안 붙였으면 빈 배열. 상세 헤더에서 「어느 반의 규칙인가」를 읽힌다 */
+  classroomLabels: string[];
 };
+
+function toManagedBot(bot: ClassBot): ManagedBot {
+  const ops = teacherBotOps.find(o => o.botId === bot.id);
+  return {
+    botId: bot.id,
+    botName: bot.name,
+    avatarEmoji: bot.avatarEmoji,
+    subject: bot.subject,
+    grade: bot.grade,
+    tone: bot.tone,
+    scope: bot.scope,
+    teacherName: bot.teacherName,
+    classroomLabels: ops?.classrooms.map(c => c.label) ?? [],
+  };
+}
+
+/** 봇 관리 목록 — 카탈로그 순서 그대로. 운영 화면의 봇 줄과 같은 순서다 */
+export function getManagedBots(): ManagedBot[] {
+  return classBots.map(toManagedBot);
+}
+
+/** 봇 하나 — 카탈로그에 없는 id 면 undefined (상세 페이지가 404 로 보낸다) */
+export function getManagedBot(botId: string): ManagedBot | undefined {
+  const bot = classBots.find(b => b.id === botId);
+  return bot && toManagedBot(bot);
+}

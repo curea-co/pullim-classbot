@@ -109,7 +109,9 @@ export default async function TeacherStudentReportPage({
         <KpiStat
           label="범위 이탈"
           value={`${report.scopeExitCount}회`}
-          action={{ label: '이탈 대응 강도', href: '/teacher/settings?tab=drift' }}
+          // 관제소 mock 은 이 학생이 어느 봇을 쓰는지 모른다 — 봇은 목록에서 고른다.
+          // 목록이 tab 을 그대로 이어 붙여 고른 봇의 「이탈 대응」으로 들여보낸다.
+          action={{ label: '이탈 대응 강도', href: '/teacher/bots?tab=drift' }}
         />
         <KpiStat label="마지막 활동" value={lastSeenText(student)} />
       </KpiStatBar>
