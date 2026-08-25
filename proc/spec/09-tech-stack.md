@@ -150,11 +150,13 @@ web/
 │   │       ├── reports/page.tsx      # 리포트 6종
 │   │       ├── grading/page.tsx      # 하이브리드 채점
 │   │       ├── templates/page.tsx    # 템플릿 마켓
-│   │       ├── settings/page.tsx     # 봇 설정 본체 (한 화면)
-│   │       │                         #   ⏳ 03 § 4.4 — 봇 관리로 가른다. FE PR 이 들어오면
-│   │       │                         #      bots/page.tsx (목록) + bots/[botId]/page.tsx (봇별
-│   │       │                         #      설정) 가 생기고 이 파일은 /teacher/bots 로
-│   │       │                         #      넘겨보내는 자리만 남는다. 아직 없다
+│   │       ├── bots/                 # 봇 관리 (03 § 4.4, #243)
+│   │       │   ├── page.tsx          #   내가 만든 봇 목록
+│   │       │   └── [botId]/page.tsx  #   봇별 설정 — 안전 등급 시간대 스케줄 · 이탈 대응 강도
+│   │       ├── settings/page.tsx     # 옛 경로 — /teacher/bots 로 넘겨보내는 자리
+│   │       │                         #   링크 넷은 새 경로로 옮겼고 딥링크 둘(monitor-roster ·
+│   │       │                         #   build-yards)은 아직 여기로 온다. 앱 밖(북마크)에서
+│   │       │                         #   오는 옛 주소도 함께 받는다 — 03 § 4.4.6
 │   │       └── replay/
 │   │           ├── page.tsx
 │   │           └── [id]/page.tsx

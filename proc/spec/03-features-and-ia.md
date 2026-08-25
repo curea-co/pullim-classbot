@@ -315,7 +315,7 @@ export const plannerSection: NavSubItem[] = [
 - **임시저장 진입점** — 종전 `saveDraft()` 는 저장 없이 토스트만 띄우는 데모였다. 새 시안에 자리가 없어 되살리지 않았다.
 - **빌더가 만들어 보여주는 참여 코드 · 링크 · QR** — 종전 문서가 「8. 배포」의 산출물로 적었으나 **빌더에는 구현된 적이 없다**. 참여 **코드 채널 자체는 있다** — `lib/mock/class-codes.ts` 의 고정 코드 맵(`MATH-2024` 등)을 학생 홈의 코드 입력(`components/classbot/home/teacher-class-hero.tsx` → `lib/store/class-enrollment.ts`의 `joinClass()`)이 enrollment 로 바꾼다. 빠진 것은 ① **봇을 만든 뒤 그 반의 코드를 만들어 교사에게 보여주는 흐름**과 ② **링크 · QR** 이다. 반 배정은 만든 뒤 화면(그리고 `/teacher/classbot` 운영 화면)에서 한다.
 - **루브릭 5축(합 100% 검증)** — 빌더 화면 안 상태로만 있었고 리포에서 아무도 읽지 않았다. 채점 기준의 진실원은 과제 출제의 문항 편집기다.
-- **빌더 안의 Scope 시간대별 자동 스위치** — 종전 「5. Scope」의 체크박스. 역시 화면 안 상태로만 있었고 저장되지 않았다. 새 시안에서 뺀다. **시간대 스케줄 기능 자체는 없어지지 않는다** — `dev` 시점에는 봇 설정(`/teacher/settings` 「안전 등급 시간대 스케줄」)에 있고, 이 개정 뒤에는 봇별 설정(`/teacher/bots/[botId]`)으로 옮겨간다(§ 4.4, 미구현). 빌더에서만 걷어내는 것이다.
+- **빌더 안의 Scope 시간대별 자동 스위치** — 종전 「5. Scope」의 체크박스. 역시 화면 안 상태로만 있었고 저장되지 않았다. 새 시안에서 뺀다. **시간대 스케줄 기능 자체는 없어지지 않는다** — 봇별 설정(`/teacher/bots/[botId]` 의 안전 등급 탭)에 있다(§ 4.4, #243). 빌더에서만 걷어내는 것이다.
 - **목소리 프리셋 · 음성 복제** — 위 대응표 ② 와 같다.
 
 #### 교사가 참여 코드를 확인·공유하는 자리
@@ -331,28 +331,27 @@ export const plannerSection: NavSubItem[] = [
 
 ### 4.4 풀림 클래스봇 — 봇 관리 (`/teacher/bots`)
 
-> ⏳ **아직 구현 전이다 — 이 절은 「앞으로 이렇게 한다」이지 「지금 화면에 있는 것」이 아니다.**
-> `dev` 시점에는 `/teacher/bots` 라우트가 **없다**. 봇 설정은 `/teacher/settings` 한 화면뿐이고 봇을 고르는 자리도 없다 (아래 § 4.4.1 이 확인한 사실).
-> 이 문서가 먼저 들어가고 구현(`apps/classbot`)은 **뒤따르는 FE PR** 이 맞춘다. 그 PR 이 머지되면 이 인용 줄과 아래 「구현」 칸을 지운다 — § 4.3 빌더 개정 · `07 § 6.6.3` 이 쓴 것과 같은 순서다.
+> **구현됐다**(#243) — `/teacher/bots` 목록과 `/teacher/bots/[botId]` 봇별 설정이 있다. 가르기 전에는 `/teacher/settings` 한 화면뿐이고 봇을 고르는 자리도 없었다 (§ 4.4.1 이 그 상태를 적는다).
+> **다만 앱 안에 옛 경로를 쓰는 링크가 둘 남아 있다** — `monitor-roster.tsx` · `build-yards.tsx`(§ 4.4.6). 그래서 `/teacher/settings` 는 앱 밖 주소만이 아니라 **그 두 링크도 함께 받는다.**
 
 **왜 가르나**: 봇은 여럿인데 설정 화면이 하나뿐이면 「지금 어느 봇을 고치고 있나」가 화면에 없다. 화면 이름도 **[봇 관리]** 로 바꾼다 — 목록이 앞에 서면 「설정」은 화면 이름이 아니라 목록 안에서 하는 일이 된다.
 
-#### 4.4.1 지금(`dev`)은 이렇다 — 소스로 확인한 사실
+#### 4.4.1 가르기 전에는 이랬다 — 소스로 확인한 사실
 
-| 무엇 | `dev` 시점 사실 | 확인한 자리 |
+| 무엇 | 가르기 전 | 확인한 자리 |
 |---|---|---|
-| 봇 설정 화면 | `/teacher/settings` **한 화면**. 안전 등급 시간대 스케줄 · 이탈 대응 강도를 직접 그린다 | `app/(teacher)/teacher/settings/page.tsx` |
-| 어느 봇의 설정인가 | **화면에 없다.** 봇을 고르는 자리가 없고, 헤더는 `policyBot`(관제소가 보는 봇 하나) 을 고정으로 읽는다 | `lib/mock/classbot-bot-policy.ts` 의 `policyBot` |
-| 봇 목록 화면 | **없다.** `app/(teacher)/teacher/` 아래에 `bots/` 가 없다 | 라우트 목록 |
+| 봇 설정 화면 | `/teacher/settings` **한 화면**. 안전 등급 시간대 스케줄 · 이탈 대응 강도를 직접 그렸다 | `app/(teacher)/teacher/settings/page.tsx` |
+| 어느 봇의 설정인가 | **화면에 없었다.** 봇을 고르는 자리가 없고 헤더가 `policyBot`(관제소가 보는 봇 하나) 을 고정으로 읽었다 | `lib/mock/classbot-bot-policy.ts` 의 `policyBot` |
+| 봇 목록 화면 | **없었다.** `app/(teacher)/teacher/` 아래에 `bots/` 가 없었다 | 라우트 목록 |
 | 봇이 늘어서는 자리 | **운영 화면(`/teacher/classbot`)의 봇 카드 목록 하나뿐** | `app/(teacher)/teacher/classbot/page.tsx` |
 | 사이드바 이름 | 「봇 설정」 → `/teacher/settings` | `components/shell/nav-config.ts` |
 
-#### 4.4.2 이 개정이 정하는 것 — 두 화면 (구현: 뒤따르는 FE PR)
+#### 4.4.2 두 화면 (#243 이 인도했다)
 
-| 라우트 | 이름 | 하는 일 | 지금 | 구현 |
-|---|---|---|---|---|
-| `/teacher/bots` | 봇 관리 | 교사가 만든 봇을 목록으로 보여준다. 봇을 누르면 그 봇의 설정으로 들어간다 | 없음 | 뒤따르는 FE PR |
-| `/teacher/bots/[botId]` | 봇별 설정 | 그 봇의 운영 규칙 — 안전 등급 시간대 스케줄 · 이탈 대응 강도. 나머지 넷은 자리만 두고 「준비 중」 | `/teacher/settings` 가 봇 없이 같은 것을 그린다 | 뒤따르는 FE PR |
+| 라우트 | 이름 | 하는 일 | 가르기 전 |
+|---|---|---|---|
+| `/teacher/bots` | 봇 관리 | 교사가 만든 봇을 목록으로 보여준다. 봇을 누르면 그 봇의 설정으로 들어간다 | 없었다 |
+| `/teacher/bots/[botId]` | 봇별 설정 | 그 봇의 운영 규칙 — 안전 등급 시간대 스케줄 · 이탈 대응 강도. 나머지 넷은 자리만 두고 「준비 중」 | `/teacher/settings` 가 봇 없이 같은 것을 그렸다 |
 
 봇별 설정의 탭 여섯(안전 등급 · 이탈 대응 · 봇 이름·말투 · 수업 자료 · 평가 규칙 · 알림)과 그 안의 내용은 **지금 `/teacher/settings` 에 있는 것 그대로 옮긴다.** 바뀌는 것은 앞에 목록이 한 겹 생기고, 설정이 봇 하나에 매인다는 것뿐이다.
 
@@ -399,11 +398,11 @@ export const plannerSection: NavSubItem[] = [
 
 #### 4.4.6 옛 경로 `/teacher/settings` — 무엇을 어디로 옮기나
 
-> ⏳ **아직 하나도 옮기지 않았다.** 아래 넷은 `dev` 에서 전부 `/teacher/settings` 를 그대로 가리킨다 (§ 4.4.1 과 같은 방법으로 확인). **뒤따르는 FE PR 이 옮긴다.**
+> **아래 넷은 옮겼다** (#243). **나머지 둘은 아직 옛 경로를 쓴다** — 이 절 아래 「옮기지 않기로 하는 두 자리」다.
 
 옮긴 뒤 `/teacher/settings` 에는 **목록(`/teacher/bots`)으로 넘겨보내는 자리만 남기기로 한다.**
 
-| 자리 | 지금 (`dev`) | 옮긴 뒤 |
+| 자리 | 옮기기 전 | 지금 (`dev`) |
 |---|---|---|
 | `components/shell/nav-config.ts` 사이드바 | `/teacher/settings` 「봇 설정」 | `/teacher/bots` 「봇 관리」 |
 | `app/(teacher)/teacher/classbot/page.tsx` 봇 카드 「더보기」 | `/teacher/settings` · `?tab=safety` | `/teacher/bots/[botId]` · `?tab=safety` — 어느 봇의 더보기였는지가 링크에 실린다 |
