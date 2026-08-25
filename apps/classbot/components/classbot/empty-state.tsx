@@ -9,7 +9,15 @@ export interface EmptyStateProps {
   description?: ReactNode;
   /** @default 'neutral' */
   tone?: 'neutral' | 'danger' | 'plain';
-  action?: { href: string; label: string } | { onClick: () => void; label: string };
+  /**
+   * 빈 상태의 단 하나뿐인 나가는 길.
+   * `label` 은 **보이는 글자**라 단어로 줄인다([07 § 6.6](../../../../proc/spec/07-branding.md)).
+   * 줄이며 잃은 뜻은 `ariaLabel` 에 남긴다 — 낭독기에는 「받은 과제」가 아니라
+   * 「받은 과제로 가기」로 읽혀야 어디로 가는 길인지 안다 (§ 6.6.2(3)).
+   */
+  action?:
+    | { href: string; label: string; ariaLabel?: string }
+    | { onClick: () => void; label: string; ariaLabel?: string };
   /** @default 'lg' */
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -68,13 +76,13 @@ export function EmptyState({
   if (action) {
     if ('href' in action) {
       actionEl = (
-        <Link href={action.href} className={actionClass}>
+        <Link href={action.href} aria-label={action.ariaLabel} className={actionClass}>
           {action.label}
         </Link>
       );
     } else {
       actionEl = (
-        <button type="button" onClick={action.onClick} className={actionClass}>
+        <button type="button" onClick={action.onClick} aria-label={action.ariaLabel} className={actionClass}>
           {action.label}
         </button>
       );

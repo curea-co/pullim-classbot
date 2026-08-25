@@ -77,7 +77,6 @@ export function ClassReachRoster({ students, context }: { students: MonitoredStu
     <section id="class-roster" className="bg-card scroll-mt-20 rounded-2xl border p-5">
       <SectionHeading
         title="학생 한 줄 보기"
-        description="도달 상태 · 요구한 수준까지 닿았는지 · 지름길 시도 · 마지막 활동을 한 줄에 담았어요."
         action={
           <Link href="/teacher/replay" className="text-pullim-blue-600 inline-flex items-center gap-0.5 text-xs font-bold">
             대화 기록 전체 <ArrowRight className="h-3 w-3" />
@@ -161,8 +160,8 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
         href="/teacher/replay"
         className="text-pullim-blue-600 hover:text-pullim-blue-700 ml-auto inline-flex shrink-0 items-center gap-0.5 text-2xs font-bold"
       >
-        기록 보기 <ArrowRight className="h-3 w-3" />
-        <span className="sr-only">{s.name} 대화 기록</span>
+        대화 기록 <ArrowRight className="h-3 w-3" />
+        <span className="sr-only">— {s.name}</span>
       </Link>
     </li>
   );

@@ -5,8 +5,8 @@
  *  - 꼭 골라야 하는 것은 이름 옆에서 알 수 있다 — 필수는 빨간 `*`, 나머지는 `(선택)`
  *  - 「채워진 것」은 아홉 줄을 **항목 이름 : 값** 으로만 보여준다 (배지 · 「고치기」 · 세는 숫자 없음)
  *  - 과목을 **바꾸면** 지난 과목의 자료가 비워지고, **같은 과목을 다시 누르면** 그대로 남는다
- *  - 「이대로 만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 있다
- *  - 필수를 안 채우면 「이대로 만들기」도 「다음」도 막힌다 — 두 길이 같은 판정을 읽는다
+ *  - 「만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 있다
+ *  - 필수를 안 채우면 「만들기」도 「다음」도 막힌다 — 두 길이 같은 판정을 읽는다
  *  - 만든 뒤 화면은 배정 두 축(`?created=` · `?rooms=`)을 함께 넘긴다
  */
 
@@ -103,7 +103,7 @@ describe('관문 판정 (firstFault)', () => {
     expect(firstFault(emptyDraft, 3)).toBeNull();
   });
 
-  it('「다음」과 「이대로 만들기」가 같은 판정을 읽는다', () => {
+  it('「다음」과 「만들기」가 같은 판정을 읽는다', () => {
     // 마당 하나만 보든 아홉 가지를 다 보든, 걸리는 항목도 문구도 같아야 두 길이 어긋나지 않는다
     expect(firstFault(emptyDraft, 1)).toEqual(firstFault(emptyDraft));
   });
@@ -138,9 +138,9 @@ function step(title: string) {
 }
 
 describe('과목은 기본값이 없다', () => {
-  it('과목을 안 고르면 「이대로 만들기」가 막히고 왜 막혔는지 말한다', () => {
+  it('과목을 안 고르면 「만들기」가 막히고 왜 막혔는지 말한다', () => {
     render(<BotBuilderPage />);
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('과목을 골라야 봇을 만들 수 있어요');
     // 만든 뒤 화면으로 넘어가지 않았다
@@ -152,7 +152,7 @@ describe('과목은 기본값이 없다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '봇' } });
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('이름은 두 글자에서 서른 글자 사이로');
     expect(screen.queryByText('만들어졌어요')).toBeNull();
@@ -161,7 +161,7 @@ describe('과목은 기본값이 없다', () => {
   it('과목만 고르면 마당 1 에서 끝낼 수 있다 — 남은 여덟은 기본값으로 들어간다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
 
     expect(screen.getByText('만들어졌어요')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '과학봇' })).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe('필수를 안 채우면 다음 마당으로 못 간다', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('이름은 두 글자에서 서른 글자 사이로');
     expect(yardHeading('봇이 보고 답할 것')).toBeNull();
-    // 「이대로 만들기」가 쓰던 표시를 그대로 쓴다 — 새 방식을 만들지 않는다
+    // 「만들기」가 쓰던 표시를 그대로 쓴다 — 새 방식을 만들지 않는다
     expect(screen.getByLabelText(/봇 이름/)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText(/봇 이름/)).toHaveFocus();
   });
@@ -336,13 +336,13 @@ describe('마당 오가기', () => {
     expect(screen.getAllByRole('navigation', { name: '봇 빌더 단계' })).toHaveLength(1);
   });
 
-  it('「이대로 만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 하나뿐이다', () => {
+  it('「만들기」는 어느 마당에서나 헤더 한 자리에 같은 이름으로 하나뿐이다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
 
     for (const yard of [1, 2, 3]) {
       if (yard > 1) fireEvent.click(screen.getByRole('button', { name: '다음' }));
-      expect(screen.getAllByRole('button', { name: '이대로 만들기' })).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: '채운 그대로 봇 만들기' })).toHaveLength(1);
       // 마당마다 이름이 달라지지 않는다
       expect(screen.queryByRole('button', { name: '만들기' })).toBeNull();
     }
@@ -371,7 +371,7 @@ describe('마당 오가기', () => {
 
     // 마당 2
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
-    fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
+    fireEvent.click(screen.getByRole('button', { name: '수업 자료 골라 올리기' }));
     fireEvent.click(screen.getByRole('radio', { name: /완전 개방/ }));
 
     // 마당 3
@@ -396,7 +396,7 @@ describe('수업 자료 올리기 (데모)', () => {
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
-    const add = screen.getByRole('button', { name: '자료 골라 올리기' });
+    const add = screen.getByRole('button', { name: '수업 자료 골라 올리기' });
     const files = () => within(screen.getByTestId('file-list')).getAllByRole('listitem');
     fireEvent.click(add);
     fireEvent.click(add);
@@ -417,7 +417,7 @@ describe('수업 자료 올리기 (데모)', () => {
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
 
-    const add = screen.getByRole('button', { name: '자료 골라 올리기' });
+    const add = screen.getByRole('button', { name: '수업 자료 골라 올리기' });
     for (let i = 0; i < 6; i += 1) fireEvent.click(add);
     expect(within(screen.getByTestId('file-list')).getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByTestId('summary-row-files')).toHaveTextContent('3개 올림');
@@ -429,7 +429,7 @@ describe('과목을 바꿀 때 자료', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
-    fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
+    fireEvent.click(screen.getByRole('button', { name: '수업 자료 골라 올리기' }));
     expect(screen.getByTestId('summary-row-files')).toHaveTextContent('1개 올림');
 
     // 지난 과목의 수업 자료는 새 과목에서 뜻이 없다
@@ -446,7 +446,7 @@ describe('과목을 바꿀 때 자료', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('button', { name: '다음' }));
-    fireEvent.click(screen.getByRole('button', { name: '자료 골라 올리기' }));
+    fireEvent.click(screen.getByRole('button', { name: '수업 자료 골라 올리기' }));
 
     // 같은 과목을 다시 누르는 것은 바꾸는 게 아니다 — 까닭 없이 자료가 사라지면 안 된다
     fireEvent.click(step('봇 소개'));
@@ -456,15 +456,15 @@ describe('과목을 바꿀 때 자료', () => {
 });
 
 describe('만든 뒤 화면', () => {
-  it('「이어서 고치기」로 돌아가도 정한 값이 그대로 남는다', () => {
+  it('「고치기」로 돌아가도 정한 값이 그대로 남는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('radio', { name: '중3' }));
     fireEvent.change(screen.getByLabelText(/봇 이름/), { target: { value: '별별봇' } });
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
 
     expect(screen.getByRole('heading', { name: '별별봇' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '이어서 고치기' }));
+    fireEvent.click(screen.getByRole('button', { name: '이 봇을 이어서 고치기' }));
 
     expect(screen.getByRole('radio', { name: '중3' })).toHaveAttribute('aria-checked', 'true');
     expect((screen.getByLabelText(/봇 이름/) as HTMLInputElement).value).toBe('별별봇');
@@ -494,7 +494,7 @@ describe('만든 뒤 화면', () => {
   it('고른 반이 「채워진 것」의 반 줄에 실린다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
     expect(screen.getByTestId('summary-row-classes')).toHaveTextContent('아직 안 넣음');
 
     fireEvent.click(screen.getByRole('button', { name: classroomChoices[0].label }));
@@ -506,11 +506,11 @@ describe('만든 뒤 화면', () => {
     expect(screen.getByTestId('summary-row-classes')).toHaveTextContent('아직 안 넣음');
   });
 
-  it('「봇 운영 화면으로」는 ?created= 와 ?rooms= 를 달고 보낸다', () => {
+  it('「봇 운영」은 ?created= 와 ?rooms= 를 달고 보낸다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
-    const link = () => screen.getByRole('link', { name: '봇 운영 화면으로' });
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
+    const link = () => screen.getByRole('link', { name: '봇 운영 화면으로 가기' });
 
     // 반을 안 골랐으면 rooms 가 비어서 간다 — 그 자체가 뜻이다.
     // 안 넘기면 다음 화면이 「고른 반의 학생 홈에 나타나요」라고 잘못 안내한다.
@@ -537,11 +537,11 @@ describe('만든 뒤 화면', () => {
     expect(classAssignments(emptyDraft, 'cb_new')).toEqual([]);
   });
 
-  it('「봇 하나 더 만들기」는 앞 봇의 값을 데려오지 않는다', () => {
+  it('「새 봇」은 앞 봇의 값을 데려오지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('radio', { name: '중3' }));
-    fireEvent.click(screen.getByRole('button', { name: '이대로 만들기' }));
+    fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 만들기' }));
     fireEvent.click(screen.getByRole('button', { name: '봇 하나 더 만들기' }));
 
     expect(marks('subject').beside).toContain('*');

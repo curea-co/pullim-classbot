@@ -50,7 +50,7 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
           icon={Inbox}
           title="과제를 찾을 수 없어요"
           description="받은 과제 목록에서 다시 확인해 주세요."
-          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+          action={{ href: '/classbot/assignment', label: '받은 과제', ariaLabel: '받은 과제로 가기' }}
         />
       </div>
     );
@@ -78,7 +78,7 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
           icon={Lock}
           title="시험 과제는 봇과 대화할 수 없어요"
           description="시험 모드에서는 봇이 잠겨요. 혼자 힘으로 풀고, 끝난 뒤에 봇과 다시 이야기해요."
-          action={{ href: `/classbot/assignment/${id}`, label: '과제 상세로' }}
+          action={{ href: `/classbot/assignment/${id}`, label: '과제 상세', ariaLabel: '과제 상세로 가기' }}
         />
       </div>
     );

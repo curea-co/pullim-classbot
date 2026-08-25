@@ -47,7 +47,7 @@ export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
   // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) · 봇 찾기(/classbot/discover) 진입점 비노출. 재개 시 되살린다
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
-  { href: '/classbot/onboarding', label: '소개하기',    icon: BookOpen,      description: '4분 사용법 가이드' },
+  { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
 
 /** 사이드바 최상단 — 홈은 클래스봇과 동일 진입점 */

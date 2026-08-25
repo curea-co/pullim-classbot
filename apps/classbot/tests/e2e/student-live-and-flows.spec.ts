@@ -21,7 +21,7 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
     await page.getByLabel('참여 코드 입력').fill('MATH-2024');
-    await page.getByRole('button', { name: '참여하기' }).click();
+    await page.getByRole('button', { name: '참여' }).click();
 
     // 홈에 반영 — 빈 상태 사라지고 참여 중인 클래스 노출 (성공 토스트에도 반 이름이 있어 main 으로 스코프)
     const main = page.getByRole('main');

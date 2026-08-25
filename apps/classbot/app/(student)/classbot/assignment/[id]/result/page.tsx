@@ -64,7 +64,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           icon={Inbox}
           title="과제를 찾을 수 없어요"
           description="받은 과제 목록에서 다시 확인해 주세요."
-          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+          action={{ href: '/classbot/assignment', label: '받은 과제', ariaLabel: '받은 과제로 가기' }}
         />
       </div>
     );
@@ -124,20 +124,22 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       <div className="grid grid-cols-2 gap-2">
         <Link
           href="/classbot/assignment"
+          aria-label="비슷한 패턴 문제 더 보기"
           className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 inline-flex items-center justify-center gap-1 rounded-2xl py-3 text-xs font-bold"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          비슷한 패턴 더
+          비슷한 패턴
         </Link>
         <Link
           href="/classbot/chat"
+          aria-label="봇에게 질문하기"
           className={cn(
             'inline-flex items-center justify-center gap-1 rounded-2xl py-3 text-xs font-bold',
             'bg-pullim-blue-600 hover:bg-pullim-blue-700 text-white',
           )}
         >
           <MessageCircle className="h-3.5 w-3.5" />
-          봇에게 질문
+          질문
           <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -187,7 +189,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         {/* 오답 카드 — 시험은 발표 후 */}
         {!isExam && questions.length > 0 && (
           <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="오답 한눈에" description="기준 응답과 내 답을 비교해봐요." />
+            <SectionHeading title="오답 한눈에" />
             <ul className="space-y-2">
               {questions.slice(0, 3).map(q => {
                 const meta = questionTypeMeta[q.type as QuestionType];

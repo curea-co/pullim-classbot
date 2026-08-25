@@ -54,7 +54,7 @@ export default function WellnessPage() {
       >
         <div>
           <div className="text-pullim-slate-900 text-sm font-bold">이번 주의 나</div>
-          <div className="text-pullim-slate-500 text-2xs">내 주간 리포트 보기</div>
+          <div className="text-pullim-slate-500 text-2xs">주간 리포트</div>
         </div>
         <ArrowRight className="text-pullim-slate-500 h-4 w-4" />
       </Link>
@@ -85,7 +85,7 @@ export default function WellnessPage() {
           </span>
           <div className="min-w-0 flex-1">
             <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
-              {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
+              {checkedToday ? '오늘 체크인 완료' : '30초 체크인'}
             </div>
             <div className={cn('text-2xs', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
               {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
@@ -99,7 +99,7 @@ export default function WellnessPage() {
 
       {/* 주간 감정 그래프 */}
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
+        <SectionHeading title="주간 기분 기록" />
         {checkIns.length === 0 ? (
           <EmptyState tone="plain" title="아직 기록이 없어요" size="sm" />
         ) : (
@@ -140,7 +140,6 @@ export default function WellnessPage() {
       <PageHeader
         eyebrow={{ icon: Heart, text: '내 웰빙' }}
         title="오늘 어땠어요?"
-        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>

@@ -106,8 +106,8 @@ export default function BotBuilderPage() {
         // 마당마다 반복하던 「이대로 만들기」를 여기 한 자리로 올렸다 — 어느 마당에서 눌러도 같다
         action={
           view === 'build' ? (
-            <Button type="button" variant="pullim" size="lg" onClick={make}>
-              이대로 만들기
+            <Button type="button" variant="pullim" size="lg" onClick={make} aria-label="채운 그대로 봇 만들기">
+              만들기
             </Button>
           ) : undefined
         }

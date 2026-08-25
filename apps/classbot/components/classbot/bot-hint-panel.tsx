@@ -137,7 +137,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white opacity-60 cursor-not-allowed"
       >
         <MessageCircle />
-        봇에게 더 물어보기 (v2)
+        더 물어보기 (v2)
       </Button>
     </section>
   );

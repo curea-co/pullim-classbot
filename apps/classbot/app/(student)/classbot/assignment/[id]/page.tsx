@@ -58,7 +58,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
           icon={Inbox}
           title="과제를 찾을 수 없어요"
           description="받은 과제 목록에서 다시 확인해 주세요."
-          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+          action={{ href: '/classbot/assignment', label: '받은 과제', ariaLabel: '받은 과제로 가기' }}
         />
       </div>
     );
@@ -83,14 +83,20 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     isSubmitted ? `/classbot/assignment/${a.id}/result`
     : `/classbot/assignment/${a.id}/solve?step=${isInProgress ? a.completedCount + 1 : 1}`;
   const ctaLabel =
-    isSubmitted ? '결과 보기'
+    isSubmitted ? '결과'
     : isInProgress ? `이어서 풀기 (${a.completedCount + 1}/${a.questionCount})`
+    : '시작';
+  // 보이는 글자는 단어, 잃은 뜻은 낭독기 이름에 ([07 § 6.6.2(3)])
+  const ctaAria =
+    isSubmitted ? '채점 결과 보기'
+    : isInProgress ? `이어서 풀기 — ${a.completedCount + 1}번째 문항부터`
     : '지금 시작하기';
 
   const rail = (
     <div className="max-lg:sticky max-lg:bottom-2 max-lg:z-10 space-y-3">
       <Link
         href={ctaHref}
+        aria-label={ctaAria}
         data-testid="assignment-start-cta"
         className={cn(
           'inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-colors',
@@ -110,6 +116,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       {!isExam && (
       <Link
         href={`/classbot/assignment/${a.id}/chat`}
+        aria-label="봇과 같이 풀며 이 과제 대화하기"
         data-testid="assignment-chat-cta"
         className="bg-card hover:bg-pullim-slate-50/50 flex w-full items-center gap-3 rounded-2xl border p-3 transition-colors"
       >
@@ -117,8 +124,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
           <MessageCircle className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-pullim-slate-900 text-sm font-bold">봇과 같이 풀기</div>
-          <div className="text-pullim-slate-500 text-2xs">막히는 데를 물어보면서 풀어요</div>
+          <div className="text-pullim-slate-900 text-sm font-bold">대화</div>
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>

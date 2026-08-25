@@ -21,7 +21,7 @@ describe('ClassReachRoster', () => {
     expect(within(row).getByText('도달 1')).toBeInTheDocument();
     expect(within(row).getByText('6회')).toBeInTheDocument();   // 지름길 = 정답 요구 4 + 붙여넣기 2
     expect(within(row).getByText('12분 전')).toBeInTheDocument();
-    expect(within(row).getByRole('link', { name: /기록 보기/ })).toBeInTheDocument();
+    expect(within(row).getByRole('link', { name: /대화 기록/ })).toBeInTheDocument();
   });
 
   it('총량 사용 지표(오늘 대화 수)는 노출하지 않는다', () => {
