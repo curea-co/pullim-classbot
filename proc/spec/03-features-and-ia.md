@@ -399,11 +399,11 @@ export const plannerSection: NavSubItem[] = [
 
 #### 4.4.6 옛 경로 `/teacher/settings` — 무엇을 어디로 옮기나
 
-> ⏳ **아직 하나도 옮기지 않았다.** 아래 넷은 `dev` 에서 전부 `/teacher/settings` 를 그대로 가리킨다 (§ 4.4.1 과 같은 방법으로 확인). **뒤따르는 FE PR 이 옮긴다.**
+> **아래 넷은 옮겼다** (#243). `dev` 에서 전부 새 경로를 가리킨다 (§ 4.4.1 과 같은 방법으로 확인).
 
 옮긴 뒤 `/teacher/settings` 에는 **목록(`/teacher/bots`)으로 넘겨보내는 자리만 남기기로 한다.**
 
-| 자리 | 지금 (`dev`) | 옮긴 뒤 |
+| 자리 | 옮기기 전 | 지금 (`dev`) |
 |---|---|---|
 | `components/shell/nav-config.ts` 사이드바 | `/teacher/settings` 「봇 설정」 | `/teacher/bots` 「봇 관리」 |
 | `app/(teacher)/teacher/classbot/page.tsx` 봇 카드 「더보기」 | `/teacher/settings` · `?tab=safety` | `/teacher/bots/[botId]` · `?tab=safety` — 어느 봇의 더보기였는지가 링크에 실린다 |
