@@ -20,8 +20,22 @@ import {
   emptyDraft, faultAnchorId, faultBefore, firstFault, isBuildYard, isNameValid, isRequired,
   subjectIds, subjectMeta, summaryRows,
 } from '../builder-types';
+import { botSignature } from '@/lib/tokens/bot-signature';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
+
+/**
+ * `botSignature` 는 **불렀는지**를 보려고 감싼다 — 값은 진짜를 그대로 돌려준다.
+ *
+ * 시그니처 색 점이 카드에서 사라졌는지는 DOM 으로 볼 수 없다. 색이 `oklch()` 라
+ * jsdom 이 인라인 style 을 통째로 버려서, 점이 있든 없든 마크업이 똑같아 보인다.
+ * 그래서 「그 색을 가져다 쓰는가」로 본다 — 클래스 이름을 잠그는 것보다 뜻에 가깝고,
+ * 장식이 바뀌어도 거짓으로 깨지지 않는다.
+ */
+jest.mock('@/lib/tokens/bot-signature', () => {
+  const actual = jest.requireActual('@/lib/tokens/bot-signature');
+  return { ...actual, botSignature: jest.fn(actual.botSignature) };
+});
 
 /* ─── 순수 모델 ─── */
 
@@ -363,23 +377,26 @@ describe('과목 카드', () => {
     return screen.getByRole('radiogroup', { name: '과목' });
   }
 
-  it('카드에는 과목 이름만 있다 — 「과학봇」 같은 밑줄이 없다', () => {
+  it('카드가 부르는 이름은 과목 이름이다 — 「과학봇」 밑줄이 딸려 읽히지 않는다', () => {
     render(<BotBuilderPage />);
     const group = subjectGroup();
     expect(within(group).getAllByRole('radio')).toHaveLength(subjectIds.length);
 
     for (const id of subjectIds) {
       const { label, botName: bot } = subjectMeta[id];
-      expect(within(group).getByRole('radio', { name: label }).textContent).toBe(label);
+      // 낭독기가 읽는 이름이 과목 이름과 **꼭 같다** — 밑줄이 붙어 있으면 이름에 딸려 온다
+      expect(within(group).getByRole('radio', { name: label })).toBeInTheDocument();
       expect(within(group).queryByText(bot)).toBeNull();
     }
   });
 
-  it('카드에 시그니처 색 점이 없다 — 색을 칠한 자리가 하나도 남지 않았다', () => {
+  it('카드에 봇 시그니처 색을 가져다 쓰지 않는다 — 색 점이 사라졌다', () => {
+    jest.mocked(botSignature).mockClear();
     render(<BotBuilderPage />);
-    const group = subjectGroup();
-    expect(group.querySelectorAll('[style*="background"]')).toHaveLength(0);
-    expect(group.querySelectorAll('.rounded-full')).toHaveLength(0);
+
+    // 마당 1 을 그리는 동안 시그니처를 한 번도 묻지 않는다. 물으면 칠할 자리가 있다는 뜻이다
+    expect(botSignature).not.toHaveBeenCalled();
+    expect(subjectGroup()).toBeInTheDocument();
   });
 
   it('봇 이름 칸은 그대로 과목 기본 이름을 안내한다 — 카드 표시에서만 뺐다', () => {
