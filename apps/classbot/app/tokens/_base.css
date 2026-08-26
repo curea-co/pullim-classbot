@@ -9,6 +9,8 @@
  * 변형별 토큰은 variant-a.css, variant-b.css, variant-c.css 가 덮어씁니다.
  * ===================================================================== */
 
+/* Font loading is the consumer's responsibility (next/font, <link>, or self-hosted CSS).
+ * The --font-* token values below reference font-family names the consumer provides. */
 
 :root {
   /* --- font stacks ----------------------------------------------------- */
@@ -105,6 +107,10 @@
   --duration-fast:    200ms;
   --duration-normal:  300ms;
   --duration-slow:    500ms;
+  /* 아래 둘은 데이터 리빌 전용(수치 카운트업, 게이지 채우기).
+     UI 전환에 쓰면 느리게 느껴진다. */
+  --duration-slower:  800ms;
+  --duration-slowest: 1200ms;
   --ease-standard:    cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized:  cubic-bezier(0.3, 0, 0, 1);
 
@@ -112,6 +118,86 @@
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--color-action-primary, var(--color-gray-900));
+
+  /* --- z-index scale ----------------------------------------------------
+   * 컴포넌트는 반드시 이 토큰만 쓴다. 임의의 z-[999] 금지.
+   *
+   * 순서의 핵심: **포탈되는 부유 레이어(dropdown·popover·tooltip·toast)는
+   * 반드시 modal 위에 온다.** 이들은 모달 *안에서* 열리기 때문이다 —
+   * 폼 다이얼로그 안의 Select 가 스크림 뒤로 숨는 파손이 여기서 나온다.
+   * Radix 는 body 로 포탈하므로 소비자가 우회할 수도 없다.
+   *
+   * base < raised < sticky < drawer < overlay < modal
+   *      < dropdown < popover < toast < tooltip */
+  --z-base:     0;
+  --z-raised:   10;
+  --z-sticky:   100;
+  --z-drawer:   200;
+  --z-overlay:  300;
+  --z-modal:    400;
+  --z-dropdown: 500;
+  --z-popover:  600;
+  --z-toast:    700;
+  --z-tooltip:  800;
+
+  /* --- breakpoints ------------------------------------------------------
+   * CSS 변수는 @media 조건에 쓸 수 없다. Tailwind screens / JS 매처가
+   * 같은 값을 쓰도록 강제하기 위한 단일 출처로 둔다. */
+  --bp-sm:  480px;
+  --bp-md:  768px;
+  --bp-lg:  1024px;
+  --bp-xl:  1280px;
+  --bp-2xl: 1440px;
+
+  /* --- density: padding / gap -------------------------------------------
+   * "여백 낭비 금지" 규칙의 단일 출처. 컴포넌트 내부 패딩은 여기서 고른다.
+   * 카드 기본은 --pad-lg(16px). 20px 넘는 패딩은 섹션 컨테이너에서만. */
+  --pad-2xs: var(--space-2);  /*  4px — 배지, 칩 */
+  --pad-xs:  var(--space-3);  /*  6px — 조밀 셀, 아이콘 버튼 */
+  --pad-sm:  var(--space-4);  /*  8px — 리스트 행, 메뉴 아이템 */
+  --pad-md:  var(--space-5);  /* 12px — 컨트롤 내부 */
+  --pad-lg:  var(--space-6);  /* 16px — 카드 기본 */
+  --pad-xl:  var(--space-7);  /* 20px — 다이얼로그, 여유 카드 */
+  --pad-2xl: var(--space-8);  /* 24px — 컴포넌트 내부 상한 */
+  /* 아래 둘은 섹션 밴드(히어로·랜딩 섹션) 전용. 컴포넌트 내부에 쓰지 말 것. */
+  --pad-3xl: var(--space-9);  /* 32px */
+  --pad-4xl: var(--space-10); /* 40px */
+
+  --gap-2xs: var(--space-1);  /*  2px */
+  --gap-xs:  var(--space-2);  /*  4px */
+  --gap-sm:  var(--space-3);  /*  6px */
+  --gap-md:  var(--space-4);  /*  8px */
+  --gap-lg:  var(--space-6);  /* 16px */
+  --gap-xl:  var(--space-8);  /* 24px */
+  --gap-2xl: var(--space-9);  /* 32px — 섹션 밴드 안 컬럼 간격 */
+
+  /* --- typography floor --------------------------------------------------
+   * 한국어 텍스트 최소 12px. --text-2xs(11px)는 라틴/숫자 라벨 전용이며
+   * 데이터 밀집 UI(캘린더 보조 라벨, 차트 축)에서만 한국어 허용. */
+  --text-min-kr: var(--text-xs);
+
+  /* --- density metrics: 폴백 기본값 -------------------------------------
+   * 실제 값은 테마/변형 CSS(pullim-os·pullim-jr·variant-a/b/c)가 정의한다.
+   * 그 파일들은 소스 순서상 뒤에 오고 선택자 특정도가 같아(:root vs [data-theme])
+   * 항상 아래 값을 덮는다 — 즉 현재 동작은 바뀌지 않는다.
+   * 여기 두는 이유: 컴포넌트들이 폴백 없이 h-[var(--button-h)] 를 쓰는데
+   * 테마 없이 _base.css 만 벤더링한 소비자에게는 높이가 전부 무너졌다. */
+  --row-h-compact: 44px;
+  --row-h-default: 52px;
+  --row-h-large:   64px;
+  --input-h:       48px;
+  --button-h-sm:   36px;
+  --button-h:      48px;
+  --button-h-lg:   56px;
+
+  /* 라운드도 같은 이유로 폴백을 둔다 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 999px;
 
   /* --- semantic surface/text (defaults — variants override) ------------ */
   --surface-canvas:  var(--color-gray-50);
@@ -216,9 +302,29 @@
   --on-container-danger:  var(--color-danger-900);
   --container-info:       var(--color-info-50);
   --on-container-info:    var(--color-info-900);
+
+  /* --- highlight accent -------------------------------------------------
+   * 풀림 레몬 액센트의 의미 이름. 컴포넌트가 --color-secondary-500 을 직접
+   * 소비하면 팔레트에 결합되어 테마가 액센트를 바꿔도 따라가지 못한다. */
+  --color-highlight: var(--color-secondary-500);
+  --on-highlight:    var(--color-gray-950);
+
+  /* --- brand band ------------------------------------------------------
+   * 이름 주의: `--surface-brand` 는 상류 CUDS 어휘로 variant-c.css 에서
+   * "밝은 브랜드 틴트 surface"(primary-50)를 뜻한다. 다른 의미로 덮으면
+   * variant-c 에서 흰 바탕에 흰 글자가 나온다. 그래서 band 계열로 분리했다.
+   *
+   * 히어로처럼 넓은 면적을 브랜드 색으로 채우는 자리 전용.
+   * --color-action-* 를 쓰면 다크에서 액션 정지점이 밝아지도록 설계돼 있어
+   * 큰 밴드가 형광 파랑으로 번쩍인다. 밴드는 두 스킴 모두 '진한 바탕 +
+   * 밝은 글자'를 유지해야 하므로 별도 토큰으로 분리한다. */
+  --surface-band:     var(--color-primary-700);
+  --surface-band-alt: var(--color-primary-900);  /* 그라디언트 끝점 */
+  --on-surface-band:  var(--color-gray-50);      /* 항상 밝은 전경 */
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-scheme="dark"] {
   --surface-canvas:  var(--color-gray-950);
   --surface-raised:  var(--color-gray-900);
   --surface-sunken:  oklch(0.105 0.008 286);
@@ -232,6 +338,68 @@
   --border-subtle:   var(--color-gray-800);
   --border-default:  var(--color-gray-700);
   --border-strong:   var(--color-gray-600);
+
+  /* --- container / on-container: 다크에선 관계가 뒤집힌다 ---------------
+   * 라이트는 "아주 밝은 틴트 바탕(-50/-100) + 아주 어두운 글자(-900)"다.
+   * 이 값을 다크에 그대로 두면 어두운 화면 위에 형광 파스텔 블록이 뜬다.
+   * alert·banner·badge 처럼 넓은 면적을 채우는 자리에서 특히 눈에 띈다.
+   *
+   * 컨테이너는 '표면'이므로 --color-action-* 처럼 밝은 쪽으로 올리지 않는다.
+   * (액션은 어두운 바탕 위의 작은 강조라 밝혀야 읽히지만, 표면을 밝히면
+   *  화면 전체가 뒤집힌다.) --surface-band 와 같은 방향 — 깊은 쪽으로 간다:
+   * 진한 채색 바탕 + 밝은 틴트 글자.
+   *
+   * 대비는 `node scripts/check-contrast.mjs` 로 검증한다(전부 AA 4.5:1 이상).
+   * 상태 램프는 정지점이 50/500/600/900 뿐이라 전경에 -50 을 쓴다. */
+  --container-primary:    var(--color-primary-900);
+  --on-container-primary: var(--color-primary-100);
+  --container-secondary:    var(--color-secondary-900);
+  --on-container-secondary: var(--color-secondary-100);
+  --container-tertiary:    var(--color-tertiary-900);
+  --on-container-tertiary: var(--color-tertiary-100);
+  --container-success:    var(--color-success-900);
+  --on-container-success: var(--color-success-50);
+  --container-warning:    var(--color-warning-900);
+  --on-container-warning: var(--color-warning-50);
+  --container-danger:     var(--color-danger-900);
+  --on-container-danger:  var(--color-danger-50);
+  --container-info:       var(--color-info-900);
+  --on-container-info:    var(--color-info-50);
+}
+
+/* data-scheme="auto" — OS 설정을 따른다. 명시 지정(light/dark)이 항상 이긴다. */
+@media (prefers-color-scheme: dark) {
+  [data-scheme="auto"] {
+      --surface-canvas:  var(--color-gray-950);
+    --surface-raised:  var(--color-gray-900);
+    --surface-sunken:  oklch(0.105 0.008 286);
+    --surface-overlay: rgba(0, 0, 0, 0.7);
+
+    --text-primary:    var(--color-gray-50);
+    --text-secondary:  var(--color-gray-300);
+    --text-tertiary:   var(--color-gray-400);
+    --text-inverse:    var(--color-gray-950);
+
+    --border-subtle:   var(--color-gray-800);
+    --border-default:  var(--color-gray-700);
+    --border-strong:   var(--color-gray-600);
+
+    /* 다크 컨테이너 — 위 [data-scheme="dark"] 블록과 같은 근거. */
+    --container-primary:    var(--color-primary-900);
+    --on-container-primary: var(--color-primary-100);
+    --container-secondary:    var(--color-secondary-900);
+    --on-container-secondary: var(--color-secondary-100);
+    --container-tertiary:    var(--color-tertiary-900);
+    --on-container-tertiary: var(--color-tertiary-100);
+    --container-success:    var(--color-success-900);
+    --on-container-success: var(--color-success-50);
+    --container-warning:    var(--color-warning-900);
+    --on-container-warning: var(--color-warning-50);
+    --container-danger:     var(--color-danger-900);
+    --on-container-danger:  var(--color-danger-50);
+    --container-info:       var(--color-info-900);
+    --on-container-info:    var(--color-info-50);
+  }
 }
 
 /* =====================================================================
