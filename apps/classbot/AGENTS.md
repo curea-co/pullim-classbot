@@ -7,7 +7,10 @@ This version (Next.js 16, `apps/classbot/`) has breaking changes — APIs, conve
 # apps/classbot 작업 룰
 
 - **도메인 범위**: 풀림 클래스봇 추출본 — 학생 `/classbot/*` + 교사 `/teacher/{classbot,builder}` 만. 다른 도메인 코드를 새로 작성하지 말 것
-- **UI 소스**: shadcn (`components/ui/*`). `@pullim/design-system` 같은 외부 DS 패키지 import 금지
+- **UI 소스는 3레인**: ① **PUDS 원격 벤더링**(`app/tokens/*`, `components/ui/{dashboard-shell,os-rail,os-tabbar,page-header,rail-collapse-context,service-switcher,service-icon,breadcrumb,skip-link}.tsx`, `lib/cn.ts`) — **로컬 수정 금지**, 재설치가 덮어쓴다 · ② **로컬 base-ui 프리미티브**(`components/ui/*` 나머지) — **PUDS 프리미티브로 교체 금지**(PUDS 프리미티브는 Radix 기반이라 엔진이 다르고, `shadcn add` 는 머지가 아니라 덮어쓰기다) · ③ **서비스 고유**(나머지) — 자유.
+  판별표·설치·업그레이드 절차는 [CLAUDE.md § 3.1](CLAUDE.md#31-puds-디자인-시스템--3레인-판별표). 레지스트리는 **경로로 고정한 URL** `https://pullim-design-system.vercel.app/v/0.3.0/{name}.json` 만 쓴다 — 고정은 호스트가 아니라 **경로 `/v/<버전>/`** 이 한다(그 내용은 PUDS 리포에 커밋돼 있어 main 이 바뀌어도 안 변한다). **`/r/{name}.json`(최신 추종) 직접 참조 금지** — 설치 시점마다 소스가 갈린다. 호스트 고정 방식(`puds-v0-2-0.vercel.app` 류)은 폐기됐다.
+  npm DS **패키지**(`@pullim/design-system` 등) dependency 추가는 계속 금지.
+- **명암 축**: `<html data-theme="pullim-os" data-scheme="light|dark">`. `data-theme` 슬롯은 성격이 점유했으니 다크를 거기 넣지 말 것. `.dark` 클래스는 의미 없다. 레인 3 에서 `var(--radius-*)` / `var(--text-<size>)` 직접 읽기 금지(앱 스케일 ≠ PUDS 스케일) — Tailwind 유틸리티를 쓴다
 - **i18n / Sentry**: 미도입. 추가하지 말 것 (한글 하드코딩 OK)
 - **import alias**: `@/*` → `apps/classbot/*` (root 아님)
 - **ORM**: drizzle. `lib/db/schema.ts` 를 소스로 `bun run db:generate` → `db:migrate`
