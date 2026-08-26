@@ -90,23 +90,30 @@ lib/cn.ts
 `components/ui/` 의 나머지(`button` · `dialog` · `dropdown-menu` · `sheet` · `tooltip` ·
 `tabs` · `input` · `select` 계열 등)는 **`@base-ui/react` 엔진**이다.
 
-**PUDS 프리미티브 51종은 전부 `@radix-ui/react-*` 기반이라 엔진이 다르다.**
-`shadcn add @puds/button` 같은 명령은 머지가 아니라 **덮어쓰기**다. 실행하면:
-- 같은 파일 경로(`components/ui/button.tsx`)를 Radix 판으로 통째로 갈아치우고,
-- `@radix-ui/*` 를 새 의존성으로 끌어오며,
+**PUDS 프리미티브 51종 중 30종이 `@radix-ui/react-*` 기반이다** — 레인 2 와 이름이 겹치는
+16종만 놓고 보면 12종이 그렇다. `shadcn add @puds/button` 같은 명령은 머지가 아니라
+**덮어쓰기**다. 실행하면:
+- 같은 파일 경로(`components/ui/button.tsx`)를 PUDS 판으로 통째로 갈아치우고,
+- Radix 기반 아이템이면 `@radix-ui/*` 를 새 의존성으로 끌어오며,
 - base-ui 전용 prop(`render`, `data-open` 등)을 쓰는 호출부가 **즉시 깨진다.**
 
-그래서 **레인 2 파일 이름과 겹치는 PUDS 아이템은 설치하지 않는다.** 겹치는 것:
-`button` · `card` · `badge` · `avatar` · `dialog` · `dropdown-menu` · `input` · `label` ·
+**Radix 를 물지 않는 넷(`badge` · `card` · `input` · `skeleton`)도 예외가 아니다.**
+덮어쓰기라는 사실은 같고, PUDS 판은 치수를 PUDS 스케일(`--radius-*` · `--text-<size>`)로
+읽으므로(아래 레인 3) 갈아치우면 그 컴포넌트만 다른 치수로 그려진다.
+
+그래서 **레인 2 파일 이름과 겹치는 PUDS 아이템은 설치하지 않는다.** 겹치는 것 **16개**:
+`avatar` · `badge` · `button` · `card` · `dialog` · `dropdown-menu` · `input` · `label` ·
 `progress` · `scroll-area` · `separator` · `sheet` · `skeleton` · `slider` · `tabs` ·
-`textarea` · `tooltip`.
+`tooltip`.
+나머지 레인 2 파일(`chip` · `meta-row` · `sonner` · `textarea`)은 **PUDS 에 대응 아이템이
+아예 없다** — 겹칠 일이 없다.
 
 새 PUDS 아이템을 들일 때는 **설치 전에** 두 가지를 확인한다:
 ```bash
 PUDS=https://pullim-design-system.vercel.app/v/0.3.0   # components.json 과 같은 버전을 쓸 것
-# ① Radix 를 물지 않는가
-curl -s $PUDS/<name>.json | grep -o '"@radix-ui[^"]*"'   # 출력이 없어야 한다
-# ② 기존 파일을 덮지 않는가 (target 경로가 이미 있는지)
+# ① Radix 를 물지 않는가 — 출력이 있으면 들이지 않는다(엔진이 갈린다)
+curl -s $PUDS/<name>.json | grep -o '"@radix-ui[^"]*"'
+# ② 기존 파일을 덮지 않는가 — target 경로가 이미 있으면 들이지 않는다
 curl -s $PUDS/<name>.json | grep -o '"target":"[^"]*"'
 ```
 전이 의존(`registryDependencies`)도 같이 딸려 오니 함께 확인한다.
