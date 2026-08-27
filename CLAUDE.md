@@ -56,7 +56,9 @@ pullim-classbot/
 요지:
 - **편집 자유**: 페이지(`app/(student)/classbot/*`, `app/(teacher)/teacher/{classbot,builder}/*`), `components/{classbot,builder}/*`, `lib/{db,mock,tokens,hooks,store}/*`
 - **read-only**: 공유 셸·UI 프리미티브는 클래스봇 단일 도메인이라 사실상 안전하지만 role/nav 변경은 보고
-- **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어/보호자) 코드 추가, DS 패키지 import, i18n / Sentry 도입
+- **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어/보호자) 코드 추가, npm DS **패키지** dependency 추가, i18n / Sentry 도입
+- **UI 3레인**: PUDS 원격 벤더링(수정 금지) / 로컬 base-ui 프리미티브(교체 금지) / 서비스 고유
+  — [apps/classbot/CLAUDE.md § 3.1](apps/classbot/CLAUDE.md#31-puds-디자인-시스템--3레인-판별표)
 - **alias**: `@/*` → `apps/classbot/*` (모노레포 root 아님)
 
 ### apps/backend — NestJS skeleton

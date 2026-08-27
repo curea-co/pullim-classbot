@@ -1,0 +1,109 @@
+/* =====================================================================
+ * PUDS — Animations
+ *
+ * 컴포넌트들이 `animate-in` / `animate-out` / `animate-[accordion-down]`
+ * 같은 클래스를 쓰지만, 저장소 어디에도 @keyframes 정의가 없었고
+ * `tailwindcss-animate` 플러그인도 의존성에 없다. 그래서 소비 서비스에서
+ * 다이얼로그·시트·팝오버·드롭다운·토스트·툴팁의 진입/퇴장 애니메이션과
+ * 스피너 회전, 아코디언/콜랩서블 높이 전환이 전부 죽어 있었다.
+ *
+ * 플러그인을 새로 요구하는 대신 필요한 유틸리티만 여기서 직접 정의한다
+ * (벤더링 방식 DS 에서 소비자에게 Tailwind 플러그인 설정을 강요하지 않기 위해).
+ *
+ * Tailwind v4 의 `@utility` 로 등록해야 `data-[state=open]:fade-in-0` 같은
+ * variant 합성이 생성된다. 따라서 이 파일은 `@import "tailwindcss";` 뒤에
+ * 와야 한다. (_base.css 는 순수 CSS 로 유지 — 비-Tailwind 페이지 호환)
+ *
+ * 지속시간·이징은 --duration-* / --ease-* 토큰을 따르고,
+ * prefers-reduced-motion 무력화는 _base.css 가 전역으로 처리한다.
+ * ===================================================================== */
+
+/* --- 이름 있는 키프레임 (arbitrary animate-[...] 값이 참조) ------------- */
+@keyframes cuds-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes accordion-down {
+  from { height: 0; }
+  to   { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to   { height: 0; }
+}
+@keyframes collapsible-down {
+  from { height: 0; }
+  to   { height: var(--radix-collapsible-content-height); }
+}
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); }
+  to   { height: 0; }
+}
+
+/* --- enter / exit 합성 키프레임 --------------------------------------- */
+@keyframes puds-enter {
+  from {
+    opacity: var(--puds-enter-opacity, 1);
+    transform:
+      translate3d(var(--puds-enter-x, 0), var(--puds-enter-y, 0), 0)
+      scale3d(var(--puds-enter-scale, 1), var(--puds-enter-scale, 1), 1);
+  }
+}
+@keyframes puds-exit {
+  to {
+    opacity: var(--puds-exit-opacity, 1);
+    transform:
+      translate3d(var(--puds-exit-x, 0), var(--puds-exit-y, 0), 0)
+      scale3d(var(--puds-exit-scale, 1), var(--puds-exit-scale, 1), 1);
+  }
+}
+
+/* --- 진입/퇴장 유틸리티 ------------------------------------------------ */
+@utility animate-in {
+  animation-name: puds-enter;
+  animation-duration: var(--duration-fast, 200ms);
+  animation-timing-function: var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  animation-fill-mode: both;
+}
+@utility animate-out {
+  animation-name: puds-exit;
+  animation-duration: var(--duration-fast, 200ms);
+  animation-timing-function: var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  animation-fill-mode: both;
+}
+
+/* 불투명도 */
+@utility fade-in-0   { --puds-enter-opacity: 0; }
+@utility fade-out-0  { --puds-exit-opacity: 0; }
+@utility fade-out-80 { --puds-exit-opacity: 0.8; }
+
+/* 배율 */
+@utility zoom-in-95  { --puds-enter-scale: 0.95; }
+@utility zoom-out-95 { --puds-exit-scale: 0.95; }
+
+/* 이동 — `-1` = 0.25rem(팝오버·툴팁의 미세 슬라이드) */
+@utility slide-in-from-top-1    { --puds-enter-y: -0.25rem; }
+@utility slide-in-from-bottom-1 { --puds-enter-y:  0.25rem; }
+@utility slide-in-from-left-1   { --puds-enter-x: -0.25rem; }
+@utility slide-in-from-right-1  { --puds-enter-x:  0.25rem; }
+
+/* 이동 — 이름만 있는 형태 = 100%(시트·드로어처럼 패널 전체가 밀려 들어옴) */
+@utility slide-in-from-top    { --puds-enter-y: -100%; }
+@utility slide-in-from-bottom { --puds-enter-y:  100%; }
+@utility slide-in-from-left   { --puds-enter-x: -100%; }
+@utility slide-in-from-right  { --puds-enter-x:  100%; }
+
+@utility slide-out-to-top    { --puds-exit-y: -100%; }
+@utility slide-out-to-bottom { --puds-exit-y:  100%; }
+@utility slide-out-to-left   { --puds-exit-x: -100%; }
+@utility slide-out-to-right  { --puds-exit-x:  100%; }
+
+/* `-full` 접미사 (토스트가 사용) */
+@utility slide-in-from-top-full    { --puds-enter-y: -100%; }
+@utility slide-in-from-bottom-full { --puds-enter-y:  100%; }
+@utility slide-in-from-left-full   { --puds-enter-x: -100%; }
+@utility slide-in-from-right-full  { --puds-enter-x:  100%; }
+
+@utility slide-out-to-top-full    { --puds-exit-y: -100%; }
+@utility slide-out-to-bottom-full { --puds-exit-y:  100%; }
+@utility slide-out-to-left-full   { --puds-exit-x: -100%; }
+@utility slide-out-to-right-full  { --puds-exit-x:  100%; }

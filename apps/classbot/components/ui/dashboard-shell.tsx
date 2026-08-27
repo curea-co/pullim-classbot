@@ -18,7 +18,12 @@ export interface DashboardShellProps {
   collapsed?: boolean;
   /** Controlled toggle handler. If omitted, the shell self-manages collapse internally. */
   onToggleCollapsed?: () => void;
-  /** Hide the collapse toggle affordance (e.g. a pinned/always-open rail). Default false = unchanged. */
+  /**
+   * Hide the rail's built-in collapse button — for shells that already expose a
+   * toggle of their own (a header button reading `useRailCollapse()`), or for a
+   * pinned rail. Collapse state and `toggle` stay live either way; only the
+   * affordance goes away. Defaults to false, i.e. the button is shown.
+   */
   hideToggle?: boolean;
   as?: "main" | "div";
   linkComponent?: React.ElementType;
@@ -37,11 +42,11 @@ function Brand({ brand, linkComponent }: { brand: BrandProp; linkComponent: Reac
   const { logo, title, sub, href = "/" } = brand;
   const Link = linkComponent;
   return (
-    <Link href={href} className="flex items-center gap-2 text-[var(--text-primary)] no-underline">
+    <Link href={href} className="flex items-center gap-[var(--gap-md)] text-[var(--text-primary)] no-underline">
       {logo}
-      <span className="text-[15px] font-extrabold tracking-[-.02em]">{title}</span>
+      <span className="text-[length:var(--text-md)] font-extrabold tracking-[-.02em]">{title}</span>
       {sub && (
-        <span className="font-[var(--font-mono)] text-[11px] uppercase tracking-[.1em] text-[var(--text-tertiary)]">
+        <span className="font-[var(--font-mono)] text-[length:var(--text-xs)] uppercase tracking-[.1em] text-[var(--text-tertiary)]">
           {sub}
         </span>
       )}
@@ -75,26 +80,27 @@ export function DashboardShell({
     }
   }, [controlled]);
   const collapsed = controlled ? !!collapsedProp : internal;
-  // 토글 affordance 노출 여부. 명시적 opt-in prop 으로만 숨긴다(기존 controlled/uncontrolled 의미는 불변).
-  // classbot 은 hideToggle 로 사이드바 왼쪽 고정. PUDS resync 시 이 prop 재적용 필요.
-  const showToggle = !hideToggle;
-  const toggle = controlled
-    ? (onToggleCollapsed ?? (() => {}))
-    : () =>
-        setInternal((v) => {
-          try {
-            localStorage.setItem("puds-rail-collapsed", v ? "0" : "1");
-          } catch {
-            /* ignore */
-          }
-          return !v;
-        });
+  // Stable identity so RailCollapseProvider's context value only changes with `collapsed`.
+  const toggle = React.useCallback(() => {
+    if (controlled) {
+      onToggleCollapsed?.();
+      return;
+    }
+    setInternal((v) => {
+      try {
+        localStorage.setItem("puds-rail-collapsed", v ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !v;
+    });
+  }, [controlled, onToggleCollapsed]);
   const tabbarNode = Array.isArray(tabbar) ? <OsTabbar items={tabbar} linkComponent={linkComponent} /> : tabbar;
   const Content = as;
   return (
-    <RailCollapseProvider collapsed={collapsed}>
+    <RailCollapseProvider collapsed={collapsed} toggle={toggle}>
       <div className={cn("min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]", className)}>
-        <header className="sticky top-0 z-40 flex h-[60px] items-center gap-4 border-b border-[var(--border-default)] bg-[var(--surface-raised)] px-4">
+        <header className="sticky top-0 z-[var(--z-sticky)] flex h-[60px] items-center gap-[var(--gap-lg)] border-b border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--pad-lg)]">
           <Brand brand={brand} linkComponent={linkComponent} />
           {switcher}
           <div className="flex-1" />
@@ -105,13 +111,14 @@ export function DashboardShell({
             <aside className="sticky top-[60px] hidden h-[calc(100vh-60px)] shrink-0 border-r border-[var(--border-subtle)] md:block">
               <div className="relative h-full w-max">
                 <div className="h-full overflow-y-auto">{rail}</div>
-                {showToggle && (
+                {!hideToggle && (
                   <button
                     type="button"
                     onClick={toggle}
                     aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
                     aria-expanded={!collapsed}
-                    className="absolute right-0 top-5 z-30 hidden h-7 w-7 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-200 hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
+                    className="absolute right-0 top-5 z-[var(--z-raised)] hidden h-7 w-7 translate-x-1/2 items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
+                    style={{ borderRadius: "var(--radius-full)" }}
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -123,7 +130,7 @@ export function DashboardShell({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       aria-hidden="true"
-                      className={cn("transition-transform duration-200", collapsed && "rotate-180")}
+                      className={cn("transition-transform duration-[var(--duration-fast)]", collapsed && "rotate-180")}
                     >
                       <path d="m15 6-6 6 6 6" />
                     </svg>
@@ -132,7 +139,7 @@ export function DashboardShell({
               </div>
             </aside>
           )}
-          <Content className="min-w-0 flex-1 px-6 py-8 pb-24 md:pb-8">{children}</Content>
+          <Content className="min-w-0 flex-1 px-[var(--pad-2xl)] py-[var(--pad-2xl)] pb-24 md:pb-[var(--pad-2xl)]">{children}</Content>
         </div>
         {tabbarNode}
       </div>
