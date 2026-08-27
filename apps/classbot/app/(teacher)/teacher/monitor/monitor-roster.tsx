@@ -33,7 +33,7 @@ import {
  * 줄 전체가 이미 그 학생의 기록으로 가는 링크라 같은 이동이 두 번 있던 자리였다.
  * 이제 줄 전체를 누르고, 오른쪽 끝에는 꺾쇠만 둔다.
  *
- * 지름길·이탈은 **학생을 벌주는 숫자가 아니라 과제 문항과 봇 설정을 손볼 신호**다.
+ * 지름길·이탈은 **학생을 벌주는 숫자가 아니라 과제 문항과 봇 규칙을 손볼 신호**다.
  * 경고색을 쓰지 말고 중립 slate 로 둘 것.
  */
 
@@ -134,7 +134,7 @@ export function MonitorRoster({
       )}
 
       {/*
-        지름길·이탈은 학생을 고르는 조건이 아니라 과제·봇 설정을 손볼 신호라
+        지름길·이탈은 학생을 고르는 조건이 아니라 과제·봇 규칙을 손볼 신호라
         상단 카드에서 내려 학급 합계로만 읽는다 (카드는 학생 수만 담는다).
       */}
       <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
@@ -142,14 +142,15 @@ export function MonitorRoster({
         {' · 범위 이탈 '}
         <b className="text-pullim-slate-700 font-mono">{`${classExits}회`}</b>예요.
         지름길 시도는 답을 바로 요구했거나 직접 쓰지 않고 붙여넣은 횟수, 이탈은 봇이 수업 범위 밖 요청을 되돌린 횟수예요.
-        학생을 나무랄 숫자가 아니라 <b className="text-pullim-slate-700">과제 문항과 봇 설정을 손볼 자리</b>를 알려주는 신호로 읽어주세요.
+        학생을 나무랄 숫자가 아니라 <b className="text-pullim-slate-700">과제 문항과 봇 규칙을 손볼 자리</b>를 알려주는 신호로 읽어주세요.
         {' '}
+        {/* 관제소 mock 은 이 학급의 봇 id 를 모른다 — 봇 관리 목록으로 보내고 탭만 실어 나른다 */}
         <Link
-          href="/teacher/settings?tab=drift"
-          aria-label="봇 설정에서 이탈 대응 강도 보기"
+          href="/teacher/bots?tab=drift"
+          aria-label="봇 관리에서 이탈 대응 강도 보기"
           className="text-pullim-blue-600 hover:text-pullim-blue-700 font-bold"
         >
-          봇 설정
+          봇 관리
         </Link>
       </p>
     </section>

@@ -105,7 +105,7 @@ export const wrongMeta: Record<WrongId, { label: string; description: string }> 
 
 export const scopeLevels: ScopeLevel[] = [1, 2, 3, 4, 5];
 
-/** 답 범위 이름은 `lib/mock` 의 `scopeMeta` 하나만 쓴다 — 봇 설정 화면과 어긋나면 안 된다. */
+/** 답 범위 이름은 `lib/mock` 의 `scopeMeta` 하나만 쓴다 — 봇 관리 화면과 어긋나면 안 된다. */
 export { scopeMeta };
 export type { ScopeLevel };
 

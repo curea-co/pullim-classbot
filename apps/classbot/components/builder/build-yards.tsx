@@ -271,8 +271,9 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
             <ShieldCheck className="text-pullim-slate-400 mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               밤·주말에 범위를 다르게 열고 싶으면{' '}
-              <Link href="/teacher/settings?tab=safety" className="text-pullim-blue-600 font-bold hover:underline">
-                봇 설정 › 안전 등급
+              {/* 아직 만들기 전이라 이 봇의 id 가 없다 — 봇 관리 목록으로 보내고 탭만 실어 나른다 */}
+              <Link href="/teacher/bots?tab=safety" className="text-pullim-blue-600 font-bold hover:underline">
+                봇 관리 › 안전 등급
               </Link>
               에서 시간대를 짜요.
             </span>

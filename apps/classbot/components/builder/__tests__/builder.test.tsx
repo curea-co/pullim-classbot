@@ -550,6 +550,19 @@ describe('마당 오가기', () => {
   });
 });
 
+describe('마당 2 — 시간대를 짜러 나가는 길', () => {
+  // 빌더는 아직 봇을 만들기 전이라 봇 id 가 없다 — 봇 관리 목록으로 보내고 탭만 실어 나른다.
+  it('「봇 관리 › 안전 등급」은 봇 관리 목록의 안전 등급 탭으로 간다', () => {
+    render(<BotBuilderPage />);
+    // 마당 2 는 앞으로 가는 길이라 관문을 지난다 — 과목을 채워야 건너뛴다 (#245)
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.click(step('보고 답할 것'));
+
+    const link = screen.getByRole('link', { name: /봇 관리 › 안전 등급/ });
+    expect(link).toHaveAttribute('href', '/teacher/bots?tab=safety');
+  });
+});
+
 describe('수업 자료 올리기 (데모)', () => {
   it('가운데 자료를 뺀 뒤 다시 올려도 같은 자료가 두 번 들어오지 않는다', () => {
     render(<BotBuilderPage />);
