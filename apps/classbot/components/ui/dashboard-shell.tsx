@@ -44,9 +44,9 @@ function Brand({ brand, linkComponent }: { brand: BrandProp; linkComponent: Reac
   return (
     <Link href={href} className="flex items-center gap-[var(--gap-md)] text-[var(--text-primary)] no-underline">
       {logo}
-      <span className="text-[length:var(--text-md)] font-extrabold tracking-[-.02em]">{title}</span>
+      <span className="text-[length:var(--text-md)] font-extrabold tracking-[-0.02em]">{title}</span>
       {sub && (
-        <span className="font-[var(--font-mono)] text-[length:var(--text-xs)] uppercase tracking-[.1em] text-[var(--text-tertiary)]">
+        <span className="font-[var(--font-mono)] text-[length:var(--text-xs)] uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
           {sub}
         </span>
       )}
@@ -117,8 +117,7 @@ export function DashboardShell({
                     onClick={toggle}
                     aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
                     aria-expanded={!collapsed}
-                    className="absolute right-0 top-5 z-[var(--z-raised)] hidden h-7 w-7 translate-x-1/2 items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
-                    style={{ borderRadius: "var(--radius-full)" }}
+                    className="absolute right-0 top-5 z-[var(--z-raised)] hidden h-7 w-7 translate-x-1/2 items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-tertiary)] shadow-[var(--shadow-md)] rounded-[var(--radius-full)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-action-primary)] hover:text-[var(--color-action-primary)] md:flex"
                   >
                     <svg
                       viewBox="0 0 24 24"

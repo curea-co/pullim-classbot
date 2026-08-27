@@ -24,8 +24,17 @@
   --color-highlight: var(--color-secondary-500);
   --on-highlight:    var(--color-gray-950);
 
-  /* --- semantic actions (brighter stop vs os) ------------------------ */
-  --color-action-primary:       var(--color-primary-500);
+  /* --- semantic actions (brighter stop vs os) ------------------------
+   * primary-500(oklch 0.640) 위의 흰 글자는 3.42:1 로 AA 미달이었다.
+   * 대비는 색으로만 고친다(계약 §1) — 글자를 키우거나 굵게 하지 않는다.
+   * -600 으로 내리면 os 와 같은 값이 되어 "jr 은 액션이 더 밝다"는 성격이
+   * 사라지므로, 500 과 600 사이에서 흰 글자 4.77:1 이 나오는 지점을 쓴다.
+   * (hue·chroma 는 램프와 같은 258 / 0.19 대. hover 는 -600 이라 누르면
+   *  대비가 5.57:1 로 더 좋아지는 방향이다.)
+   * L 0.565 를 넘으면 4.5:1 아래로 떨어진다 — 더 밝게 하려면 흰 글자를
+   * 포기하고 gray-950 라벨로 가야 한다(그 경우 hover 도 밝은 쪽으로 뒤집어야
+   * 한다). 그 선택은 디자인 결정이라 여기서는 하지 않았다. */
+  --color-action-primary:       oklch(0.560 0.193 258);
   --color-action-primary-hover: var(--color-primary-600);
   --color-action-primary-fg:    #ffffff;
   --color-action-secondary:     var(--color-primary-100);

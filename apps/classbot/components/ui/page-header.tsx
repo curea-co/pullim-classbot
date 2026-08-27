@@ -44,11 +44,11 @@ export function PageHeader({
           items={crumbs}
           maxItems={maxCrumbs}
           linkComponent={linkComponent}
-          className="mb-[var(--gap-md)] font-[var(--font-mono)] tracking-[.04em]"
+          className="mb-[var(--gap-md)] font-[var(--font-mono)] tracking-[0.04em]"
         />
       )}
       <div className="flex items-end justify-between gap-[var(--gap-lg)]">
-        <h1 className="text-[length:var(--text-2xl)] font-extrabold tracking-[-.03em] text-[var(--text-primary)]">
+        <h1 className="text-[length:var(--text-2xl)] font-extrabold tracking-[-0.03em] text-[var(--text-primary)]">
           {title}
         </h1>
         {actions}

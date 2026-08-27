@@ -29,9 +29,9 @@ export const SkipLink = React.forwardRef<HTMLAnchorElement, SkipLinkProps>(
         "focus-visible:font-medium focus-visible:text-[length:var(--text-sm)]",
         "focus-visible:rounded-[var(--radius-md)] focus-visible:shadow-[var(--shadow-lg)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--focus-ring-color)]",
+        "tracking-[var(--tracking-kr-body)]",
         className
       )}
-      style={{ letterSpacing: "-0.011em" }}
       {...props}
     >
       {children}
