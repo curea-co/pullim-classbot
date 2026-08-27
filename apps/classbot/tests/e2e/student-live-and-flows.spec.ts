@@ -96,14 +96,33 @@ test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
     await expect(page.getByText('안전 등급 시간대 스케줄')).toBeVisible();
   });
 
-  test('옛 경로 /teacher/settings 는 탭을 실은 채 목록으로 넘어간다', async ({ page }) => {
-    await page.goto(BASE + '/teacher/settings?tab=drift', { waitUntil: 'networkidle' });
-    await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');
+  // 봇을 가리키지 못하는 링크(학급 관제소·봇 빌더)는 ?tab= 만 실어 목록으로 온다.
+  test('?tab= 를 실은 채 들어오면 고른 봇의 그 탭으로 바로 들어간다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/bots?tab=drift', { waitUntil: 'networkidle' });
 
-    // 고른 봇의 「이탈 대응」으로 바로 들어간다
     await page.getByTestId('bot-manage-card-cb_001').getByRole('link').click();
     await expect(page).toHaveURL(BASE + '/teacher/bots/cb_001?tab=drift');
     await expect(page.getByText('이탈 대응 강도')).toBeVisible();
+  });
+
+  test('학급 관제소의 「봇 관리」는 이탈 대응을 실은 채 목록으로 온다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/monitor', { waitUntil: 'networkidle' });
+
+    await page.getByRole('link', { name: /봇 관리에서 이탈 대응 강도/ }).click();
+    await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');
+  });
+
+  /**
+   * 앱 안의 링크는 모두 옮겼지만 옛 주소는 앱 밖에 남는다 — 이 검사가 지키는 것은
+   * 링크가 아니라 **주소 호환**이다 (07 § 3 · 03 § 4.4.6). 위 둘과 지키는 것이 다르므로
+   * 하나가 다른 하나를 대신하지 않는다.
+   */
+  test('옛 경로 /teacher/settings 는 탭을 실은 채 목록으로 넘어간다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/settings', { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(BASE + '/teacher/bots');
+
+    await page.goto(BASE + '/teacher/settings?tab=drift', { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');
   });
 });
 

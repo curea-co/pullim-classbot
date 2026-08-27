@@ -11,7 +11,7 @@ type SearchParams = Promise<{ tab?: string }>;
 /**
  * 봇 관리 — 목록 (SCR-C-25 / FR-C-06, `proc/spec/03 § 4.4`).
  *
- * 종전에는 봇 설정이 화면 하나(`/teacher/settings`)였다. 봇은 여럿인데 화면이 하나라
+ * 종전에는 봇 설정이 화면 하나였다. 봇은 여럿인데 화면이 하나라
  * 「지금 어느 봇을 고치고 있나」가 화면에 없었다. 그래서 목록 → 상세로 가른다.
  *   이 화면      — 내가 만든 봇을 늘어놓고 고르게 한다
  *   [botId] 화면 — 고른 봇의 운영 규칙을 고친다
@@ -28,9 +28,10 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
   const bots = getManagedBots();
 
   /*
-    옛 경로(`/teacher/settings?tab=safety`)가 실어 보낸 탭.
-    옛 링크는 어느 봇인지 말하지 않으므로 봇은 교사가 고르고, 탭만 그대로 이어 붙인다.
-    두 자리(`monitor-roster.tsx`·`build-yards.tsx`)가 새 경로로 옮겨오면 이 갈래도 지운다.
+    봇을 가리키지 못하는 링크가 실어 보낸 탭.
+    학급 관제소(`monitor-roster.tsx`)는 학급의 봇 id 를 모르고, 봇 빌더(`build-yards.tsx`)는
+    아직 봇을 만들기 전이다. 그래서 둘 다 이 목록으로 오고, **봇은 교사가 고르고 탭만 이어 붙인다** —
+    고른 봇의 그 탭으로 바로 들어간다.
   */
   const carriedTab = isBotPolicyTab(rawTab) ? rawTab : undefined;
   const carriedTabLabel = botPolicyTabs.find(t => t.value === carriedTab)?.label;
