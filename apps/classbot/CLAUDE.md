@@ -110,7 +110,7 @@ lib/cn.ts
 
 새 PUDS 아이템을 들일 때는 **설치 전에** 두 가지를 확인한다:
 ```bash
-PUDS=https://pullim-design-system.vercel.app/v/0.4.2   # components.json 과 같은 버전을 쓸 것
+PUDS=https://pullim-design-system.vercel.app/v/0.3.0   # components.json 과 같은 버전을 쓸 것
 # ① Radix 를 물지 않는가 — 출력이 있으면 들이지 않는다(엔진이 갈린다)
 curl -s $PUDS/<name>.json | grep -o '"@radix-ui[^"]*"'
 # ② 기존 파일을 덮지 않는가 — target 경로가 이미 있으면 들이지 않는다
@@ -149,11 +149,11 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 레지스트리는 `apps/classbot/components.json` 의 한 줄이 전부다:
 
 ```json
-"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.4.2/{name}.json" }
+"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.3.0/{name}.json" }
 ```
 
-**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.4.2/` 이 내려주는 내용은 PUDS 저장소의
-`registry-releases/0.4.2/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
+**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.3.0/` 이 내려주는 내용은 PUDS 저장소의
+`registry-releases/0.3.0/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
 
 > ⛔ **`/r/{name}.json` 을 서비스가 직접 참조하면 안 된다.** 그 경로는 항상 **main 최신**을
 > 따라가므로 `shadcn add` 를 돌리는 **시점마다 받아오는 소스가 달라진다.** 어제 벤더링한 셸과
@@ -170,7 +170,7 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 ```bash
 cd apps/classbot
 
-# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.4.2/ → /v/<다음 버전>/
+# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.3.0/ → /v/0.4.0/
 #    (호스트는 그대로 pullim-design-system.vercel.app 이다)
 
 # 2) 레인 1 파일을 재설치한다
