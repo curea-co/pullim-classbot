@@ -331,19 +331,44 @@ jobs:
             // 이건 실패가 아니라 「더 새 실행에 양보」라 setFailed 가 아니라 info + return 이다.
             // 다만 조용히 빠지지는 않는다 — 로그 없이 아무것도 안 하면 「리뷰가 돌았는데
             // 코멘트가 없다」가 되어 이 PR 이 막으려는 「닫힌 척」과 같은 모양이 된다.
-            const { data: currentPr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-            });
-            if (currentPr.head.sha !== headSha) {
-              core.info('head 가 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.');
+            //
+            // ── Codex 지적(round 5): 이 검사는 창을 **좁힐 뿐 닫지 못한다.** ─────────
+            // 확인하고 그다음 API 를 부르기까지 사이에는 항상 창이 남는다. 폴링 검사를
+            // 몇 개를 세워도 원리상 같다. 그래서 게시 직전에 한 번 더 돌려 창을 좁히되
+            // (아래 createReview 앞), 「닫았다」고 적지 않는다.
+            //
+            // **구조적 해법은 라인 맵을 .codex-runtime/pr-diff.txt 에서 만드는 것**이다 —
+            // 그건 체크아웃 시점에 고정된 유일한 소스라 head 가 움직여도 흔들리지 않는다.
+            // diff 파서를 새로 쓰는 일이라 이 PR 의 범위 밖이고, 별건으로 한다.
+            // (compareCommits 로 바꾸는 것은 답이 아니다 — 300 파일 하드 한도가 있어
+            //  「301+ 파일 PR 인라인 손실 방지」로 넣은 paginate 를 되돌리는 회귀다.)
+            //
+            // 남는 창의 크기와 성질 — 그래서 여기서 멈춰도 되는 이유:
+            //   · concurrency(group: codex-<PR번호>, cancel-in-progress: true)가 새
+            //     synchronize 로 진행 중 실행을 취소한다. 창은 취소가 도착하기까지의 잔여분이다.
+            //   · 그 창에 걸려도 **조용히 틀리지 않는다.** createReview 가 옛 commit_id 에
+            //     없는 position 을 거부해 **실패**한다. 이 저장소가 반복해서 데는
+            //     「조용히 잘못됨」이 아니라 「시끄럽게 실패」다.
+            //
+            // 두 지점의 술어가 갈라지지 않도록 함수 하나로 둔다 — strip step 의 세 find 를
+            // 대칭으로 맞춘 것과 같은 이유다. 로그에는 어느 지점인지 찍어 구분한다.
+            const headMovedSince = async (where) => {
+              const { data: currentPr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              if (currentPr.head.sha === headSha) return false;
+              core.info(`[${where}] head 가 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.`);
               core.info(`  분석한 SHA: ${headSha}`);
               core.info(`  현재 head : ${currentPr.head.sha}`);
               core.info('  pr-diff.txt 와 commit_id 는 분석 SHA 기준인데 listFiles 는 현재 head');
               core.info('  기준이라 라인 맵이 어긋난다. 새 SHA 에 대한 실행에 양보한다.');
-              return;
-            }
+              return true;
+            };
+
+            // 1차 — listFiles 앞. 어긋난 라인 맵을 만드는 일 자체를 막는다.
+            if (await headMovedSince('listFiles 전')) return;
 
             // Codex 지적(2차): pagination — 301+ 파일 PR 인라인 손실 방지.
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -406,6 +431,11 @@ jobs:
             if (validComments.length > 0) {
               params.comments = validComments;
             }
+
+            // 2차 — 게시 직전. 1차와 여기 사이(listFiles · 라인 맵 계산)에 들어온
+            // synchronize 를 잡는다. 다시 말하지만 이건 창을 **좁히는 것**이지 닫는 것이 아니다:
+            // 이 확인과 아래 createReview 사이에도 창은 남는다.
+            if (await headMovedSince('createReview 직전')) return;
 
             await github.rest.pulls.createReview(params);
             console.log(`인라인: ${validComments.length}, fallback: ${fallbackComments.length}`);
