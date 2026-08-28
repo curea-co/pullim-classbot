@@ -375,17 +375,34 @@ jobs:
             // 두 지점의 술어가 갈라지지 않도록 함수 하나로 둔다 — strip step 의 세 find 를
             // 대칭으로 맞춘 것과 같은 이유다. 로그에는 어느 지점인지 찍어 구분한다.
             //
-            // ── Codex 지적(round 7): head 만 봐서는 부족하다. ───────────────────
-            // pr-diff.txt 는 이벤트 시점의 base.sha...head.sha 로 고정인데 listFiles 는
-            // **호출 시점의 현재 PR diff** 를 돌려준다. base 브랜치가 실행 중에 앞서가거나
-            // PR 의 base 가 바뀌면 **head 는 그대로여도** 라인 맵이 어긋난다. 그래서 두
-            // 지점 모두에서 base.sha 도 함께 본다.
+            // ── Codex 지적(round 7 → round 8 회귀 교정) ─────────────────────────
+            // round 7: pr-diff.txt 는 이벤트 시점의 base.sha...head.sha 로 고정인데
+            // listFiles 는 **호출 시점의 현재 PR diff** 를 돌려주므로, base 가 앞서가면
+            // head 는 그대로여도 라인 맵이 어긋난다 — 그래서 base.sha 도 함께 본다.
             //
-            // 주의: PR 의 base.sha 는 「base 브랜치의 현재 tip」이라 dev 에 무엇이 머지되기만
-            // 해도 바뀐다 — 이 검사는 head 검사보다 자주 걸린다. 그게 맞는 동작이지만
-            // 로그가 이유를 설명하지 않으면 「리뷰가 자꾸 안 붙는다」로 읽히므로,
-            // 어느 쪽이 움직였는지(head / base / 둘 다)와 그 뜻을 함께 찍는다.
-            const refsMovedSince = async (where) => {
+            // round 8: 그런데 **어긋남을 감지하는 것과 중단하는 것은 다른 결정이다.**
+            // round 7 은 base 이동도 head 와 똑같이 return 시켰고, 그 전제가 틀렸다.
+            // 이 워크플로는 pull_request_target 의
+            // opened / synchronize / reopened / ready_for_review 로만 돈다:
+            //   · head 이동 → synchronize 가 뜬다 → 새 실행이 실제로 큐에 잡힌다 → 양보해도 된다.
+            //   · base 이동(다른 PR 이 base 브랜치에 머지됨) → **이 목록의 어느 이벤트도
+            //     안 뜬다** → 재실행이 없다 → 양보하면 **리뷰가 영원히 안 달린다.**
+            //     그러면 잡은 초록으로 끝나면서 리뷰는 하나도 없다 — 이 저장소가 반복해서
+            //     데는 「성공 로그를 찍으면서 아무것도 안 함」 그 자체이고, 리뷰 봇에게는
+            //     가장 나쁜 실패 모드다.
+            //
+            // 그래서 **중단은 head 이동에만** 걸고, base 단독 이동은 경고만 남기고 계속 간다.
+            // base 단독 이동에서 계속 가도 되는 이유:
+            //   · commit_id 는 head SHA 이고 **head 는 안 움직였다** — 그 커밋은 그대로 유효하다.
+            //   · listFiles 는 현재 diff 를 주므로 라인 맵은 오히려 지금 PR 상태에 맞다.
+            //     어긋날 수 있는 것은 pr-diff.txt 를 보고 만든 **코멘트 내용**과 현재 diff 의 차이다.
+            //   · 줄 검증에 실패하는 코멘트는 **이미 있는 fallback 경로**(요약 코멘트)로 빠진다.
+            //   최악이 「일부 인라인이 요약으로 간다」이고 「리뷰가 통째로 사라진다」보다 낫다.
+            //   **리뷰 봇의 실패 모드는 「덜 정확한 리뷰」여야지 「없는 리뷰」가 되면 안 된다.**
+            //
+            // 두 지점의 술어가 갈라지지 않도록 함수 하나로 둔다. 이름이 곧 반환값의 뜻이다 —
+            // 「더 새 실행에 양보할 것인가」이지 「무언가 움직였는가」가 아니다.
+            const shouldYieldToNewerRun = async (where) => {
               const { data: currentPr } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -393,28 +410,34 @@ jobs:
               });
               const headMoved = currentPr.head.sha !== headSha;
               const baseMoved = currentPr.base.sha !== baseSha;
-              if (!headMoved && !baseMoved) return false;
 
-              const movedWhat = headMoved && baseMoved ? 'head 와 base 둘 다' : headMoved ? 'head 가' : 'base 가';
-              core.info(`[${where}] ${movedWhat} 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.`);
               if (headMoved) {
+                core.info(`[${where}] head 가 움직였다${baseMoved ? ' (base 도 함께)' : ''} — 이 리뷰는 낡았으므로 게시하지 않는다.`);
                 core.info(`  분석한 head: ${headSha}`);
                 core.info(`  현재 head  : ${currentPr.head.sha}`);
+                core.info('  pr-diff.txt 와 commit_id 는 분석 시점 기준인데 listFiles 는 현재 PR');
+                core.info('  기준이라 라인 맵이 어긋난다. head 가 움직이면 synchronize 로 새 실행이');
+                core.info('  큐에 잡히므로 그쪽에 양보한다.');
+                return true;
               }
+
               if (baseMoved) {
+                // 중단하지 않는다. 경고는 남긴다 — 조용히 넘어가면 다음 사람이
+                // 「인라인이 왜 요약으로 갔는지」를 로그에서 찾을 수 없다.
+                core.warning(`[${where}] base 가 앞서갔다 — 재실행이 없으므로 이대로 게시한다.`);
                 core.info(`  분석한 base: ${baseSha}`);
                 core.info(`  현재 base  : ${currentPr.base.sha}`);
-                core.info('  base 브랜치가 앞서갔다 — base 에 무엇이 머지되기만 해도 바뀌므로');
-                core.info('  이 경우는 head 이동보다 자주 걸린다. 실패가 아니라 정상 동작이다.');
+                core.info('  base 브랜치에 다른 PR 이 머지되면 이 PR 에는 어떤 이벤트도 뜨지 않는다.');
+                core.info('  여기서 건너뛰면 리뷰가 영원히 안 달리므로 계속 진행한다.');
+                core.info('  head 는 그대로라 commit_id 는 유효하고, 줄 검증에 실패하는 코멘트는');
+                core.info('  요약(fallback)으로 빠진다 — 일부 인라인이 요약으로 갈 수 있다.');
               }
-              core.info('  pr-diff.txt 와 commit_id 는 분석 시점의 base...head 기준인데');
-              core.info('  listFiles 는 현재 PR 기준이라 라인 맵이 어긋난다.');
-              core.info('  새 실행이 이미 큐에 있으므로 그쪽에 양보한다.');
-              return true;
+
+              return false;
             };
 
             // 1차 — listFiles 앞. 어긋난 라인 맵을 만드는 일 자체를 막는다.
-            if (await refsMovedSince('listFiles 전')) return;
+            if (await shouldYieldToNewerRun('listFiles 전')) return;
 
             // Codex 지적(2차): pagination — 301+ 파일 PR 인라인 손실 방지.
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -481,7 +504,7 @@ jobs:
             // 2차 — 게시 직전. 1차와 여기 사이(listFiles · 라인 맵 계산)에 들어온
             // synchronize 를 잡는다. 다시 말하지만 이건 창을 **좁히는 것**이지 닫는 것이 아니다:
             // 이 확인과 아래 createReview 사이에도 창은 남는다.
-            if (await refsMovedSince('createReview 직전')) return;
+            if (await shouldYieldToNewerRun('createReview 직전')) return;
 
             await github.rest.pulls.createReview(params);
             console.log(`인라인: ${validComments.length}, fallback: ${fallbackComments.length}`);
