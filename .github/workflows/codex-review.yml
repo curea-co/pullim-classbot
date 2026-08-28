@@ -113,6 +113,24 @@ jobs:
             # git 이 SIGPIPE 로 죽으면 pipefail 이 141 을 물어 「추적 안 됨」으로 뒤집힌다.
             # 출력이 파이프 버퍼를 넘길 때만 터지므로 저장소가 커진 뒤에야 조용히 발현한다.
             if [ -n "$(git ls-tree -r --name-only "${BASE_SHA}" -- "${p}")" ]; then
+              # 규칙서와 **같은 태도** — symlink 는 해석하지 않고 멈춘다.
+              # `git archive` 는 symlink 를 symlink 로 담고 `tar -x` 는 symlink 로 푼다.
+              # 그러면 리뷰어가 「base-input/ 만 읽는다」고 믿는 동안 실제로는 링크 대상을
+              # 따라간다. 대상이 head 워크트리의 파일이거나 base-input 밖이면,
+              # 규칙서에서 막은 신뢰 경계가 **문서 경로로 다시 열린다.**
+              # 권위 문서만 규칙서와 다른 기준을 쓸 이유가 없다.
+              symlinked_docs=$(git -c core.quotepath=false ls-tree -r "${BASE_SHA}" -- "${p}" \
+                | awk -F'\t' '$1 ~ /^120000 / { print $2 }')
+              if [ -n "${symlinked_docs}" ]; then
+                echo "ERROR: base SHA 의 권위 문서 ${p} 에 symlink 가 있다."
+                echo "       git archive|tar 는 링크를 링크로 복원하므로, 리뷰어가 base-input/ 만"
+                echo "       읽는다고 믿는 동안 링크 대상을 따라간다 — 대상이 head 워크트리나"
+                echo "       base-input 밖이면 신뢰 경계가 문서 경로로 다시 열린다."
+                printf '%s\n' "${symlinked_docs}" | sed 's/^/       /'
+                echo "       일반 파일로 바꾸거나, symlink 권위 문서가 실제로 필요해지면"
+                echo "       이 워크플로에 링크 해석을 먼저 구현해라."
+                exit 1
+              fi
               git archive "${BASE_SHA}" "${p}" | tar -x -C .codex-runtime/base-input/
               echo "권위 문서 ${p} 스냅샷 완료"
             else
@@ -315,6 +333,7 @@ jobs:
             // createReview 의 commit_id 가 달라져 인라인 코멘트가 엉뚱한 리비전에
             // 달리거나 실패한다. event payload 의 SHA 로 고정한다.
             const headSha = context.payload.pull_request.head.sha;
+            const baseSha = context.payload.pull_request.base.sha;
 
             // Codex 지적(round 4): commit_id 를 위에서 payload SHA 로 **고정**했는데 바로 아래
             // listFiles 는 SHA 를 받지 않는다 — 호출 시점의 최신 head 기준 패치를 돌려준다.
@@ -355,23 +374,47 @@ jobs:
             //
             // 두 지점의 술어가 갈라지지 않도록 함수 하나로 둔다 — strip step 의 세 find 를
             // 대칭으로 맞춘 것과 같은 이유다. 로그에는 어느 지점인지 찍어 구분한다.
-            const headMovedSince = async (where) => {
+            //
+            // ── Codex 지적(round 7): head 만 봐서는 부족하다. ───────────────────
+            // pr-diff.txt 는 이벤트 시점의 base.sha...head.sha 로 고정인데 listFiles 는
+            // **호출 시점의 현재 PR diff** 를 돌려준다. base 브랜치가 실행 중에 앞서가거나
+            // PR 의 base 가 바뀌면 **head 는 그대로여도** 라인 맵이 어긋난다. 그래서 두
+            // 지점 모두에서 base.sha 도 함께 본다.
+            //
+            // 주의: PR 의 base.sha 는 「base 브랜치의 현재 tip」이라 dev 에 무엇이 머지되기만
+            // 해도 바뀐다 — 이 검사는 head 검사보다 자주 걸린다. 그게 맞는 동작이지만
+            // 로그가 이유를 설명하지 않으면 「리뷰가 자꾸 안 붙는다」로 읽히므로,
+            // 어느 쪽이 움직였는지(head / base / 둘 다)와 그 뜻을 함께 찍는다.
+            const refsMovedSince = async (where) => {
               const { data: currentPr } = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
               });
-              if (currentPr.head.sha === headSha) return false;
-              core.info(`[${where}] head 가 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.`);
-              core.info(`  분석한 SHA: ${headSha}`);
-              core.info(`  현재 head : ${currentPr.head.sha}`);
-              core.info('  pr-diff.txt 와 commit_id 는 분석 SHA 기준인데 listFiles 는 현재 head');
-              core.info('  기준이라 라인 맵이 어긋난다. 새 SHA 에 대한 실행에 양보한다.');
+              const headMoved = currentPr.head.sha !== headSha;
+              const baseMoved = currentPr.base.sha !== baseSha;
+              if (!headMoved && !baseMoved) return false;
+
+              const movedWhat = headMoved && baseMoved ? 'head 와 base 둘 다' : headMoved ? 'head 가' : 'base 가';
+              core.info(`[${where}] ${movedWhat} 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.`);
+              if (headMoved) {
+                core.info(`  분석한 head: ${headSha}`);
+                core.info(`  현재 head  : ${currentPr.head.sha}`);
+              }
+              if (baseMoved) {
+                core.info(`  분석한 base: ${baseSha}`);
+                core.info(`  현재 base  : ${currentPr.base.sha}`);
+                core.info('  base 브랜치가 앞서갔다 — base 에 무엇이 머지되기만 해도 바뀌므로');
+                core.info('  이 경우는 head 이동보다 자주 걸린다. 실패가 아니라 정상 동작이다.');
+              }
+              core.info('  pr-diff.txt 와 commit_id 는 분석 시점의 base...head 기준인데');
+              core.info('  listFiles 는 현재 PR 기준이라 라인 맵이 어긋난다.');
+              core.info('  새 실행이 이미 큐에 있으므로 그쪽에 양보한다.');
               return true;
             };
 
             // 1차 — listFiles 앞. 어긋난 라인 맵을 만드는 일 자체를 막는다.
-            if (await headMovedSince('listFiles 전')) return;
+            if (await refsMovedSince('listFiles 전')) return;
 
             // Codex 지적(2차): pagination — 301+ 파일 PR 인라인 손실 방지.
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -438,7 +481,7 @@ jobs:
             // 2차 — 게시 직전. 1차와 여기 사이(listFiles · 라인 맵 계산)에 들어온
             // synchronize 를 잡는다. 다시 말하지만 이건 창을 **좁히는 것**이지 닫는 것이 아니다:
             // 이 확인과 아래 createReview 사이에도 창은 남는다.
-            if (await headMovedSince('createReview 직전')) return;
+            if (await refsMovedSince('createReview 직전')) return;
 
             await github.rest.pulls.createReview(params);
             console.log(`인라인: ${validComments.length}, fallback: ${fallbackComments.length}`);
