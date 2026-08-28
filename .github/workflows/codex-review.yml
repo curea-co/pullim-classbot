@@ -185,6 +185,9 @@ jobs:
           CLAUDE.md 를 따른다 (루트와 하위 디렉터리 양쪽에 들어 있다 — 목록은 그 경로를 직접 봐라).
           같은 디렉터리에 AGENTS.override.md 가 있으면 그것이 AGENTS.md 보다 **우선한다** —
           두 규칙이 어긋나면 override 쪽이 이긴다. 그게 그 이름의 뜻이다.
+          `.codex-runtime/base-rules/` 아래는 저장소 루트를 그대로 옮긴 **미러**다 —
+          `.codex-runtime/base-rules/apps/<name>/CLAUDE.md` 가 저장소의 `apps/<name>/CLAUDE.md` 다.
+          범위를 따질 때는 그 접두사를 떼고 저장소 루트 기준 경로로 맞춰라.
           규칙서는 자기가 놓인 디렉터리 아래에 적용된다 — 루트 규칙서는 저장소 전체에,
           하위 디렉터리(예: `apps/<name>/`)의 규칙서는 그 디렉터리 아래의 변경에만.
           변경 파일이 어느 하위 범위에도 안 들어가면 루트 규칙서만 적용해라.
