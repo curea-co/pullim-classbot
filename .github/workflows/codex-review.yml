@@ -86,7 +86,10 @@ jobs:
           # 권위 문서: 규칙서가 근거로 가리키는 영역을 base 에서 통째로 뜬다.
           mkdir -p .codex-runtime/base-input
           for p in input/docs-archive proc/spec; do
-            if git ls-tree -r --name-only "${BASE_SHA}" -- "${p}" | grep -q .; then
+            # 파이프 대신 명령 치환 — `git ls-tree | grep -q` 는 grep 이 첫 줄에서 끝나
+            # git 이 SIGPIPE 로 죽으면 pipefail 이 141 을 물어 「추적 안 됨」으로 뒤집힌다.
+            # 출력이 파이프 버퍼를 넘길 때만 터지므로 저장소가 커진 뒤에야 조용히 발현한다.
+            if [ -n "$(git ls-tree -r --name-only "${BASE_SHA}" -- "${p}")" ]; then
               git archive "${BASE_SHA}" "${p}" | tar -x -C .codex-runtime/base-input/
               echo "권위 문서 ${p} 스냅샷 완료"
             else
