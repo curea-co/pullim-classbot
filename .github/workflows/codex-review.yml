@@ -313,6 +313,38 @@ jobs:
             // 달리거나 실패한다. event payload 의 SHA 로 고정한다.
             const headSha = context.payload.pull_request.head.sha;
 
+            // Codex 지적(round 4): commit_id 를 위에서 payload SHA 로 **고정**했는데 바로 아래
+            // listFiles 는 SHA 를 받지 않는다 — 호출 시점의 최신 head 기준 패치를 돌려준다.
+            // 워크플로 실행 중 새 synchronize 가 들어오면 라인 맵은 새 SHA, pr-diff.txt 와
+            // commit_id 는 옛 SHA 가 되어 유효한 인라인이 대량으로 fallback 으로 빠지거나
+            // createReview 가 실패한다. 고정을 한쪽에만 건 것이 이 어긋남을 만들었다.
+            //
+            // 라인 맵을 옛 SHA 로 맞추는 것은 답이 아니다. pr-diff.txt 는 체크아웃 시점의
+            // 것이라 그렇게 하면 **옛 diff 에 대한 리뷰를 새 리비전에 붙이는 것**이 된다.
+            // head 가 움직였으면 그 리뷰는 이미 낡았고, 새 SHA 에 대한 실행이 이미 큐에 있다
+            // (concurrency 의 cancel-in-progress 가 대부분 잡지만 취소는 즉시가 아니다 —
+            // 여기서 닫는 것은 그 잔여 창이다).
+            //
+            // 위 주석과 모순이 아니다: pulls.get 의 결과를 commit_id 로 **쓰지 않는다.**
+            // 어긋남 **감지**에만 쓰고, 게시하는 경우의 commit_id 는 여전히 payload SHA 다.
+            //
+            // 이건 실패가 아니라 「더 새 실행에 양보」라 setFailed 가 아니라 info + return 이다.
+            // 다만 조용히 빠지지는 않는다 — 로그 없이 아무것도 안 하면 「리뷰가 돌았는데
+            // 코멘트가 없다」가 되어 이 PR 이 막으려는 「닫힌 척」과 같은 모양이 된다.
+            const { data: currentPr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            if (currentPr.head.sha !== headSha) {
+              core.info('head 가 움직였다 — 이 리뷰는 낡았으므로 게시하지 않는다.');
+              core.info(`  분석한 SHA: ${headSha}`);
+              core.info(`  현재 head : ${currentPr.head.sha}`);
+              core.info('  pr-diff.txt 와 commit_id 는 분석 SHA 기준인데 listFiles 는 현재 head');
+              core.info('  기준이라 라인 맵이 어긋난다. 새 SHA 에 대한 실행에 양보한다.');
+              return;
+            }
+
             // Codex 지적(2차): pagination — 301+ 파일 PR 인라인 손실 방지.
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner,
