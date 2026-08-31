@@ -40,7 +40,8 @@
   npm DS **패키지**(`@pullim/design-system` 등)를 dependency 로 추가하는 건 여전히 **금지**다 —
   PUDS 는 패키지가 아니라 `shadcn add` 로 소스를 복사해 오는 방식이라 이 금지와 충돌하지 않는다.
   다만 **복사돼 오는 소스가 npm 의존을 끌고 올 수는 있다** — 새 아이템은 들이기 전에
-  ① target 충돌 ② 미설치 npm 의존성 **둘 다** 확인한다([§ 3.1 설치 전 확인](#설치-전-확인--검사는-둘이다)).
+  ① target 충돌 ② **이 앱의 `package.json` 에 없는 npm 의존성** — **둘 다** 확인한다
+  ([§ 3.1 설치 전 확인](#설치-전-확인--검사는-둘이다)).
 - **i18n 미도입** — 한글 하드코딩 OK. `useTranslations` 같은 호출 추가 금지
 - **Sentry 미도입** — 에러 추적 라이브러리 추가 금지
 - **drizzle ORM** — `lib/db/` 에서 스키마·쿼리. `drizzle.config.ts` 는 `apps/classbot/` 직속
@@ -138,7 +139,7 @@ lib/cn.ts
 | | 무엇을 보는가 | 걸리면 |
 |---|---|---|
 | **①** | `files[].target` 이 **이미 있는 파일**을 가리키는가 | 레인 2 를 덮으면 들이지 않는다 |
-| **②** | **이 앱에 아직 없는 npm 패키지**를 끌고 오는가 | 새 의존이면 들이기 전에 보고한다 |
+| **②** | **`apps/classbot/package.json` 에 선언되지 않은 npm 패키지**를 끌고 오는가 | 새 의존이면 들이기 전에 보고한다 |
 
 둘 다 **전이 의존(`registryDependencies`)을 재귀로 펼친 뒤** 봐야 한다. 두 단계를 타고
 내려가 레인 2 파일을 덮거나 새 패키지를 끌고 오는 아이템이 **양쪽 다 실재한다**(아래 실측).
@@ -171,7 +172,7 @@ done
 **`덮어씀` 이 레인 1 파일(`lib/cn.ts` · `app/tokens/*` · 위 셸 9종) 밖에 하나라도 찍히면
 들이지 않는다.** 레인 1 은 원래 벤더링이 덮는 자리라 거기 찍히는 건 정상이다.
 
-**② 미설치 npm 의존성**
+**② 이 앱에 선언되지 않은 npm 의존성**
 
 ```bash
 puds_deps() {             # 전이 의존까지 펼쳐 npm dependencies 를 전부 뽑는다
@@ -186,22 +187,35 @@ puds_deps() {             # 전이 의존까지 펼쳐 npm dependencies 를 전�
   done
 }
 
-direct=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' \
-           package.json ../../package.json | sort -u)          # 루트엔 dependencies 가 없다 → `// {}` 필수
+# 「선언됨」 판정은 **이 앱의 package.json 하나만** 본다. 루트·락파일은 따로 등급을 준다
+app=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' package.json | sort -u)
+root=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' ../../package.json | sort -u)
 locked=$(grep -oE '^    "[^"]+": \[' ../../bun.lock | sed 's/^    "//; s/": \[$//' | sort -u)
 
 puds_deps <name> | sort -u | while IFS=$'\t' read -r dep from; do
   pkg=$(printf '%s' "$dep" | sed -E 's#^(@[^@/]+/[^@]+|[^@]+)@.+$#\1#')   # 레지스트리는 `pkg@1.2.3` 표기도 허용한다
-  if   printf '%s\n' "$direct" | grep -qxF "$pkg"; then s="선언됨   "
+  if   printf '%s\n' "$app"    | grep -qxF "$pkg"; then s="선언됨   "
+  elif printf '%s\n' "$root"   | grep -qxF "$pkg"; then s="루트에만 "
   elif printf '%s\n' "$locked" | grep -qxF "$pkg"; then s="락파일뿐 "
-  else                                                    s="없음     "; fi
+  else                                                   s="없음     "; fi
   echo "$s $dep  ← @puds/$from"
 done
 ```
 
-**`없음` 이 하나라도 찍히면 새 npm 의존이다 — 들이기 전에 보고한다**(§5 「확인 후에만」).
-`락파일뿐` 은 남의 전이 의존으로 우연히 트리에 있는 것이라 **import 근거가 못 된다** —
-`없음` 과 같이 취급하고, 들이기로 정했으면 `apps/classbot/package.json` 에 직접 선언한다.
+**`선언됨` 이 아닌 것이 하나라도 찍히면 들이기 전에 보고한다**(§5 「확인 후에만」).
+셋 다 「`apps/classbot/package.json` 에 없다」는 같은 뜻이고, 어디까지 와 있는지만 다르다:
+
+| 등급 | 뜻 | 왜 통과가 아닌가 |
+|---|---|---|
+| `없음` | 어디에도 없다 | 순수하게 새 npm 의존이다 |
+| `루트에만` | 루트 `package.json` 에만 선언돼 있다 | **루트 `package.json` 수정은 글로벌 작업**이라 별건 승인 사항이다(AGENTS.md 「모노레포 글로벌 작업」). 이 앱이 그 선언에 기대면 안 된다 |
+| `락파일뿐` | 남의 전이 의존으로 우연히 트리에 있을 뿐이다 | 그 남이 버전을 올리거나 의존을 끊으면 사라진다. **import 근거가 못 된다** |
+
+셋 중 무엇이든 들이기로 정했으면 `apps/classbot/package.json` 에 **직접 선언**한다.
+
+> **`root`·`locked` 를 `app` 과 한 덩어리로 합치지 마라.** 합치면 루트에만 있는 패키지가
+> 「이 앱에 이미 있다」로 분류돼 검사 ② 가 조용히 통과시킨다 — 이 문단이 막으려는 바로 그
+> false negative 다. (이 PR 의 첫 판이 그렇게 썼고 리뷰에서 잡혔다.)
 
 > 없는 이름을 넣으면 404 HTML 이 내려와 두 명령 모두 `jq: parse error` 를 낸다 —
 > 조용히 빈 출력이 되지는 않는다. 그 에러를 「걸린 게 없다」로 읽지 마라.
@@ -243,9 +257,21 @@ done
 ① 만 보면 「레인 1 밖에 `덮어씀` 이 없으니 들여도 된다」가 된다. 실제로는
 `@tanstack/react-table` 이 딸려 온다. **② 를 지우면 이 자리를 놓친다.**
 
-v0.5.0 레지스트리 93 아이템을 전부 ② 로 돌리면 `없음` 이 찍히는 것은 **`data-table` 하나**이고,
-끌고 오는 패키지도 `@tanstack/react-table` 하나다(2026-08-31 실측). **수가 적다고 검사를 빼지
-마라** — 다음 버전에서 아이템이 늘면 이 수는 바뀌고, 바뀐 것을 알려주는 게 이 검사다.
+**레지스트리 전수 집계** — v0.5.0 의 93 아이템을 전부 ② 로 돌린 결과(2026-08-31 실측):
+
+| 등급 | 패키지 | 걸리는 아이템 |
+|---|---|---|
+| `선언됨` | `@base-ui/react` · `class-variance-authority` · `clsx` · `recharts` · `tailwind-merge` | 86 |
+| `루트에만` | — | **0** |
+| `락파일뿐` | — | **0** |
+| `없음` | `@tanstack/react-table` | **1** — `data-table` |
+
+`루트에만` 과 `락파일뿐` 은 **지금은 해당 사례가 없다.** 루트 `package.json` 에만 선언된 것은
+`turbo` 하나뿐이고 그걸 무는 PUDS 아이템이 없어서다. 등급을 지우라는 뜻이 아니라 —
+**지금 0 이라는 것을 기록해 둔다.** 다음 버전에서 이 표의 어느 칸이 0 을 벗어나는지가
+이 검사가 알려 주는 것이다.
+
+**수가 적다고 검사를 빼지 마라.** `없음` 1 건은 0 이 아니고, **그 1 건을 검사 ① 은 완전히 놓친다.**
 
 겹치는 16종은 ① 로 **16/16 전부** `components/ui/<name>.tsx` 충돌이 확인됐다
 (2026-08-31, `/v/0.5.0/`).
@@ -351,8 +377,9 @@ bun --filter @pullim-classbot/classbot build
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
-- **새 PUDS 아이템 도입** — 설치 전 확인 ①·② 를 돌린 **출력을 붙여** 보고한다. ② 에 `없음`/`락파일뿐`
-  이 찍혔으면 **새 npm 의존을 들이는 결정**이라 사용자 몫이다 ([§ 3.1](#설치-전-확인--검사는-둘이다))
+- **새 PUDS 아이템 도입** — 설치 전 확인 ①·② 를 돌린 **출력을 붙여** 보고한다. ② 에 `선언됨` 아닌 것
+  (`없음`·`루트에만`·`락파일뿐`)이 찍혔으면 **`apps/classbot/package.json` 에 새 의존을 선언하는
+  결정**이라 사용자 몫이다 ([§ 3.1](#설치-전-확인--검사는-둘이다))
 
 **하면 안 되는 것**
 - 다른 도메인(플래너/Q/라이브러리 등) 코드를 새로 작성 — 추출본 범위 외. 필요하면 원본 풀림 스터디 데모 저장소 또는 `pullim` 본체에서 작업
