@@ -10,9 +10,15 @@
  * 플러그인을 새로 요구하는 대신 필요한 유틸리티만 여기서 직접 정의한다
  * (벤더링 방식 DS 에서 소비자에게 Tailwind 플러그인 설정을 강요하지 않기 위해).
  *
- * Tailwind v4 의 `@utility` 로 등록해야 `data-[state=open]:fade-in-0` 같은
- * variant 합성이 생성된다. 따라서 이 파일은 `@import "tailwindcss";` 뒤에
- * 와야 한다. (_base.css 는 순수 CSS 로 유지 — 비-Tailwind 페이지 호환)
+ * Tailwind v4 의 `@utility` 로 등록해야 `data-open:fade-in-0`(Base UI) ·
+ * `data-[state=open]:fade-in-0`(Radix) 같은 variant 합성이 생성된다.
+ * 따라서 이 파일은 `@import "tailwindcss";` 뒤에 와야 한다.
+ * (_base.css 는 순수 CSS 로 유지 — 비-Tailwind 페이지 호환)
+ *
+ * 아래 유틸리티는 **엔진 중립**이다 — 상태 어휘가 아니라 애니메이션 이름과
+ * 변수만 담으므로 `data-open:`(Base UI) 과 `data-[state=open]:`(Radix) 양쪽
+ * variant 에 다 붙는다. PUDS 자신은 0.5.0 부터 Base UI 어휘만 쓰지만, 이 파일은
+ * 소비자에게 벤더링되고 소비자는 아직 어느 쪽이든 쓸 수 있다.
  *
  * 지속시간·이징은 --duration-* / --ease-* 토큰을 따르고,
  * prefers-reduced-motion 무력화는 _base.css 가 전역으로 처리한다.
@@ -22,20 +28,50 @@
 @keyframes cuds-spin {
   to { transform: rotate(360deg); }
 }
+/* 아코디언·콜랩서블 높이 — **엔진이 설정하는 변수를 읽는다.**
+ *
+ * Base UI 는 패널에 `--accordion-panel-height` / `--collapsible-panel-height` 를,
+ * Radix 는 `--radix-*-content-height` 를 얹는다. **둘 다 읽는다** — Base UI
+ * 이름을 먼저 보고 없으면 Radix 이름으로 떨어진다. 한 요소에 둘 다 정의되는
+ * 경우는 없으니 우선순위 다툼도 없다.
+ *
+ * **0.5.0 에서 이 폴백을 지우려다 그만뒀다. 이유를 적어 둔다.**
+ *
+ * 저장소 안에는 Radix 사용처가 0 이다. 하지만 이 파일은 저장소에만 사는 게
+ * 아니라 **`theme-puds` 아이템으로 소비자에게 벤더링된다.** 그리고 PUDS 의
+ * 문서화된 업그레이드 절차는 아이템 단위 재설치다(`docs/releases.md`) —
+ * 즉 **버전이 섞인 설치가 정상 경로다.** 섞이는 방향은 둘뿐이고, 지금은
+ * 양쪽 다 막혀 있다:
+ *
+ *   0.5.0 토큰 + 0.4.2 아코디언 → 패널이 `--radix-*` 를 얹는다.
+ *                                 **이 폴백이 그걸 받는다.**
+ *   0.4.2 토큰 + 0.5.0 아코디언 → 키프레임이 `--radix-*` 만 읽는다.
+ *                                 accordion.tsx 의 브리지 클래스
+ *                                 `[--radix-accordion-content-height:var(--accordion-panel-height)]`
+ *                                 가 그걸 받는다.
+ *
+ * 폴백을 지우면 첫 번째 방향이 조용히 죽는다 — 없는 변수를 읽은 `height`
+ * 선언은 computed-value time 에 무효가 되어 **`auto` 로 계산되고, `0 → auto`
+ * 는 보간되지 않는다.** 에러도 경고도 없이 애니메이션만 사라진다.
+ *
+ * 대가는 `var(A, var(B))` 한 겹뿐이다. B 가 없을 때의 동작은 `var(A)` 와
+ * 완전히 같고, 런타임 비용도 의존성도 없다. **이름 하나 값의 하위 호환을
+ * 사는 값으로 싸다.** 브리지 클래스와 같은 이유로 남기는 같은 종류의 다리다
+ * (그쪽 근거는 `engine-hygiene.test.ts` 의 `BRIDGE_CLASSES` 주석). */
 @keyframes accordion-down {
   from { height: 0; }
-  to   { height: var(--radix-accordion-content-height); }
+  to   { height: var(--accordion-panel-height, var(--radix-accordion-content-height)); }
 }
 @keyframes accordion-up {
-  from { height: var(--radix-accordion-content-height); }
+  from { height: var(--accordion-panel-height, var(--radix-accordion-content-height)); }
   to   { height: 0; }
 }
 @keyframes collapsible-down {
   from { height: 0; }
-  to   { height: var(--radix-collapsible-content-height); }
+  to   { height: var(--collapsible-panel-height, var(--radix-collapsible-content-height)); }
 }
 @keyframes collapsible-up {
-  from { height: var(--radix-collapsible-content-height); }
+  from { height: var(--collapsible-panel-height, var(--radix-collapsible-content-height)); }
   to   { height: 0; }
 }
 
@@ -80,11 +116,39 @@
 @utility zoom-in-95  { --puds-enter-scale: 0.95; }
 @utility zoom-out-95 { --puds-exit-scale: 0.95; }
 
-/* 이동 — `-1` = 0.25rem(팝오버·툴팁의 미세 슬라이드) */
+/* 이동 — 숫자 접미사는 Tailwind 간격 스케일(`-1` = 0.25rem, `-2` = 0.5rem).
+ * `-1` 은 팝오버·툴팁의 미세 슬라이드, `-2` 는 드롭다운·메뉴용이다.
+ *
+ * **`-2` 는 엔진 이관 때문에 있다.** shadcn 의 Base UI 정본(드롭다운·셀렉트 등)이
+ * `slide-in-from-top-2` 를 쓴다. 정의되지 않은 유틸리티를 쓰면 Tailwind 는
+ * **클래스를 아예 생성하지 않는다** — 에러도 경고도 없이 슬라이드만 사라진다.
+ * 참조 구현을 옮겨 심는 배치에서 밟기 가장 쉬운 함정이라, "배치는 `-1` 만 쓴다"는
+ * 규약 대신 `-2` 를 정의해 참조 코드가 그대로 동작하게 했다. 규약은 어기면
+ * 조용히 죽지만 정의는 그렇지 않다.
+ * (그래도 정의되지 않은 애니메이션 유틸리티 자체는
+ *  `packages/ui/__tests__/engine-hygiene.test.ts` 가 CI 에서 잡는다.)
+ *
+ * 진입에만 있던 `-1` 의 퇴장 짝(`slide-out-to-*-1`)도 같이 채웠다.
+ * 짝이 없으면 같은 함정이 퇴장 쪽에서 그대로 반복된다. */
 @utility slide-in-from-top-1    { --puds-enter-y: -0.25rem; }
 @utility slide-in-from-bottom-1 { --puds-enter-y:  0.25rem; }
 @utility slide-in-from-left-1   { --puds-enter-x: -0.25rem; }
 @utility slide-in-from-right-1  { --puds-enter-x:  0.25rem; }
+
+@utility slide-out-to-top-1    { --puds-exit-y: -0.25rem; }
+@utility slide-out-to-bottom-1 { --puds-exit-y:  0.25rem; }
+@utility slide-out-to-left-1   { --puds-exit-x: -0.25rem; }
+@utility slide-out-to-right-1  { --puds-exit-x:  0.25rem; }
+
+@utility slide-in-from-top-2    { --puds-enter-y: -0.5rem; }
+@utility slide-in-from-bottom-2 { --puds-enter-y:  0.5rem; }
+@utility slide-in-from-left-2   { --puds-enter-x: -0.5rem; }
+@utility slide-in-from-right-2  { --puds-enter-x:  0.5rem; }
+
+@utility slide-out-to-top-2    { --puds-exit-y: -0.5rem; }
+@utility slide-out-to-bottom-2 { --puds-exit-y:  0.5rem; }
+@utility slide-out-to-left-2   { --puds-exit-x: -0.5rem; }
+@utility slide-out-to-right-2  { --puds-exit-x:  0.5rem; }
 
 /* 이동 — 이름만 있는 형태 = 100%(시트·드로어처럼 패널 전체가 밀려 들어옴) */
 @utility slide-in-from-top    { --puds-enter-y: -100%; }
