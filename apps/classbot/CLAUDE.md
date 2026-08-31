@@ -387,7 +387,9 @@ done
 >    새 PUDS 아이템 도입은 그 자체가 승인 사항이고, **아래에서 보듯 `shadcn add` 는 root 파일
 >    `bun.lock` 까지 건드리므로** 루트 가이드의 「글로벌 작업」 경계도 함께 넘는다
 >    ([/CLAUDE.md § 4](../../CLAUDE.md)).
-> 3. **설치** — 승인 뒤에만.
+> 3. **설치** — 승인 뒤에만. 그리고 **깨끗한 워크트리에서** 돈다
+>    (`git status --porcelain` 이 비어 있을 것). 그래야 4 의 diff 가 **설치가 만든 것만**
+>    보여 주고, 되돌리기가 남의 미커밋 작업을 함께 지우지 않는다.
 > 4. **설치가 실제로 무엇을 바꿨는지 확인** — 아래 `git diff`. 승인 없이 3 을 먼저 돌면
 >    이 단계는 **이미 늦었다.**
 
@@ -430,8 +432,17 @@ git diff -- apps/classbot/package.json
 ```
 
 **출력이 비어 있지 않으면 거기서 멈추고 보고한다.** 핀을 올릴지 되돌릴지는 사용자 결정이다 —
-되돌리는 쪽으로 정해졌을 때에만 `git checkout -- apps/classbot/package.json bun.lock` 과
-`bun install --frozen-lockfile` 을 돈다.
+되돌리는 쪽으로 정해졌을 때에만 아래를 돈다.
+
+```bash
+git checkout -- apps/classbot/package.json bun.lock
+bun install --frozen-lockfile
+```
+
+> ⛔ **이 `git checkout` 은 그 두 파일의 미커밋 변경을 전부 버린다** — 설치가 만든 것만
+> 골라 되돌리지 않는다. 위 순서 3 의 **「깨끗한 워크트리에서 설치」** 전제가 지켜졌을 때만
+> 안전하다. 그 전제가 깨졌다면(다른 의존성 조정이나 lockfile 갱신이 이미 올라가 있다면)
+> 이 명령을 돌리지 말고 **해당 hunk 만** 되돌린다 — `git restore -p -- apps/classbot/package.json bun.lock`.
 
 되돌린 핀(`@base-ui/react` 1.5.0)에서 `accordion.tsx` 는
 `bun --filter @pullim-classbot/classbot typecheck` 를 통과했다 — **상승이 필요해서 일어난 게 아니다.**
