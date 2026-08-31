@@ -158,18 +158,35 @@ ITEM=combobox                                          # ← 들이려는 아이
 > ``syntax error near unexpected token `|'`` 를 낸다. 아래 두 블록은 위 `ITEM` 을 그대로 읽으므로
 > **환경 블록 → ① → ② 순서로 붙여 넣으면 그대로 돈다.**
 
+> ⛔ **큐를 `set -- $q` 로 돌리지 마라 — zsh 에서 전이 확장이 조용히 죽는다.**
+> zsh 는 따옴표 없는 `$q` 를 **단어 분할하지 않는다**(bash 는 한다). 그래서 큐가 두 개 이상이 되는
+> 순간 `n` 이 `" cn rail-collapse-context"` 같은 **한 덩어리**가 되고, `curl` 이 그 URL 을 거부해
+> **빈 응답**을 돌려주고, 빈 입력을 받은 `jq` 는 **에러 없이 종료 0** 이다.
+> 결과는 **에러 한 줄 없이 깊이 1 에서 멈춘 판정**이다 — 위 문단이 경고하는 `jq: parse error` 조차 안 난다.
+>
+> macOS 기본 셸이 zsh 라 이게 기본값이다. 실측(2026-08-31, `set -- $q` 판):
+>
+> | | bash | zsh |
+> |---|---|---|
+> | ① `sidebar` | 3 줄 (`sidebar` · `cn` · `rail-collapse-context`) | **1 줄** — 전이 2 개가 사라진다 |
+> | ② `combobox` | 5 줄 | **0 줄** — 「걸린 게 없다」로 읽힌다 |
+>
+> 위 블록은 `read -r n q <<< "$q"` 로 고쳐 두 셸에서 **같은 출력**을 내는 것을 확인했다.
+> 아래 실측 출력은 그 판으로 bash·zsh 양쪽에서 재현된다.
+
 **① `files[].target` 충돌**
 
 ```bash
 puds_targets() {          # 전이 의존까지 펼쳐 target 을 전부 뽑는다
   local q="$*" seen="" n j
   while [ -n "$q" ]; do
-    set -- $q; n=$1; shift; q="$*"
+    read -r n q <<< "$q"     # 큐에서 하나. `set -- $q` 로 쓰지 마라 — 위 ⛔ 주의
+    [ -z "$n" ] && continue
     case " $seen " in *" $n "*) continue ;; esac
     seen="$seen $n"
     j=$(curl -s "$PUDS/$n.json")
     printf '%s' "$j" | jq -r --arg n "$n" '.files[].target + "\t" + $n'
-    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")')"
+    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")' | tr '\n' ' ')"
   done
 }
 
@@ -187,12 +204,13 @@ done
 puds_deps() {             # 전이 의존까지 펼쳐 npm dependencies 를 전부 뽑는다
   local q="$*" seen="" n j
   while [ -n "$q" ]; do
-    set -- $q; n=$1; shift; q="$*"
+    read -r n q <<< "$q"     # 큐에서 하나. `set -- $q` 로 쓰지 마라 — 위 ⛔ 주의
+    [ -z "$n" ] && continue
     case " $seen " in *" $n "*) continue ;; esac
     seen="$seen $n"
     j=$(curl -s "$PUDS/$n.json")
     printf '%s' "$j" | jq -r --arg n "$n" '(.dependencies // [])[] + "\t" + $n'
-    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")')"
+    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")' | tr '\n' ' ')"
   done
 }
 
@@ -335,16 +353,22 @@ done
 > 시점의 것이다. 핀을 올리거나 레인 2 파일이 늘거나 줄면 그날로 낡는다. 근거는 숫자가 아니라
 > [①·②](#설치-전-확인--검사는-둘이다)의 **출력**이다.
 
-**⚠ 「들일 수 있다」가 「들여도 된다」는 아니다.** 판별기는 **충돌만** 본다 — 서비스 정책이
-따로 금지할 수 있다. 형제 저장소 `pullim-Q` 가 그 사례다: 판별기상으로는 `theme-puds` 설치가
-가능한데도 **정책으로 금지**한다(`pullim-Q/apps/AGENTS.md:199`). PUDS `_base.css` 가 순수
-토큰 파일이 아니라 전역 리셋과 `--text-*` · `--radius-*` · `--color-gray-*` 재정의를 싣고 있어
-자체 테마를 가진 앱과 통째로 부딪히기 때문이다.
+**⚠ 「들일 수 있다」가 「들여도 된다」는 아니다.** 판별기는 **충돌만** 본다.
+`충돌 없음` 은 「§ 3.1 의 두 검사를 통과했다」는 뜻이지 「들여도 좋다」는 결론이 아니다 —
+[§ 5 「확인 후에만」](#5-작업-컨벤션--클래스봇-단일-도메인-락인)이 새 PUDS 아이템 도입을
+**보고 사항**으로 두는 이유가 그것이다. 판정은 사람이 결정하기 위한 입력이다.
 
-**이 앱은 반대편이다.** classbot 은 `theme-puds` 를 **이미 설치한 쪽**이고
-(`app/tokens/_base.css` · `pullim-os.css` 가 그 결과다) `globals.css` 가 그 위에서 값을 조정하는
-구조다. 그래서 Q 의 그 금지는 여기 적용되지 않는다 — 이 앱의 대응물은 아래
-[조정 사다리](#세부-값은-어디서-조정하는가--조정-사다리)를 지키는 것이다.
+**가장 큰 자리가 `theme-puds` 다. 이 앱은 그것을 이미 설치한 쪽이다** —
+[레인 1](#레인-1--puds-원격에서-받는-것-로컬-수정-금지) 목록의 `app/tokens/*.css` 넉 장이 그
+결과이고, `app/globals.css` 가 그 위에서 값을 조정하는 구조다. 그래서 여기서는 `theme-puds`
+재설치가 정상 경로이고, 토큰 값을 이 앱에 맞추는 자리는 벤더링본이 아니라 `globals.css` 다
+(아래 [조정 사다리](#세부-값은-어디서-조정하는가--조정-사다리)).
+
+**다만 그건 이 앱이 내린 선택이지 PUDS 를 쓰는 앱의 기본값이 아니다.** `_base.css` 는 순수
+토큰 파일이 아니라 전역 리셋과 `--text-*` · `--radius-*` · `--color-gray-*` 재정의를 함께 싣는
+**테마 파일**이다(그래서 이 앱도 `_animations.css` · `pullim-jr.css` 는 설치만 하고 import 하지
+않는다 — 위 ⚠ 참조). 자체 테마를 이미 가진 앱이라면 같은 판정이 나와도 결론이 반대일 수 있다.
+**이 앱이 어느 쪽인지는 위 문단이 답이다.**
 
 **⚠ 경로가 안 겹쳐도 역할은 겹친다.** 내비 4 종은 `components/nav/*` 로 떨어져 판정은
 `충돌 없음` 이지만, 이 앱에는 같은 일을 하는 `components/shell/*` 가 이미 있다 —
@@ -378,15 +402,21 @@ done
 `선언됨` 이어도 그렇다** — ② 는 「없는 의존을 끌고 오는가」를 보지 「있는 의존의 핀을 올리는가」를
 보지 않는다. `@puds/switch` 로 한 번 더 돌려 같은 상승을 재현했다.
 
-**엔진 핀 상승은 전 화면 회귀 범위다.** 컴포넌트 하나 들이는 PR 에 묻어 가면 안 된다.
+**엔진 핀 상승은 전 화면 회귀 범위다.** 그리고 **되돌리기를 기본 흐름으로 삼지 마라** —
+`bun.lock` 은 **root 파일**이라 그 변경은 루트 가이드가 「글로벌 작업」으로 분류하는
+**사용자 명시 확인 사항**이고([/CLAUDE.md § 4](../../CLAUDE.md)),
+`apps/classbot/package.json` 의 의존성 변경도 [§ 5 「확인 후에만」](#5-작업-컨벤션--클래스봇-단일-도메인-락인)이다.
+그러니 설치 뒤 할 일은 **보는 것**까지다:
 
 ```bash
-# 저장소 루트에서. 설치 직후 반드시
-git diff -- apps/classbot/package.json bun.lock
-# 의도한 상승이 아니면 그 둘만 되돌린다
-git checkout -- apps/classbot/package.json bun.lock
-bun install --frozen-lockfile
+# 저장소 루트에서 — 설치가 무엇을 건드렸는지 본다
+git diff --stat -- apps/classbot/package.json bun.lock
+git diff -- apps/classbot/package.json
 ```
+
+**출력이 비어 있지 않으면 거기서 멈추고 보고한다.** 핀을 올릴지 되돌릴지는 사용자 결정이다 —
+되돌리는 쪽으로 정해졌을 때에만 `git checkout -- apps/classbot/package.json bun.lock` 과
+`bun install --frozen-lockfile` 을 돈다.
 
 되돌린 핀(`@base-ui/react` 1.5.0)에서 `accordion.tsx` 는
 `bun --filter @pullim-classbot/classbot typecheck` 를 통과했다 — **상승이 필요해서 일어난 게 아니다.**
@@ -482,7 +512,9 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 `[data-theme]` 를 함께 적어 특정도를 (0,1,0)으로 맞춘 이유는 그 블록 머리주석에 있다 —
 `:root` 하나로는 PUDS 의 `[data-theme="pullim-os"]` 에 진다. **선택자를 줄이지 마라.**
 
-**② cva variant prop.** PUDS 컴포넌트는 축을 prop 으로 연다 — 실측: `alert` 은 `intent`
+**② cva variant prop.** PUDS 컴포넌트는 축을 prop 으로 연다. **아래 실측은 전부 원격
+레지스트리 페이로드를 읽은 것이다** — `alert` 도 `spinner` 도 이 앱에는 아직 없는 아이템이다
+(둘 다 위 「충돌 없음 58」쪽이라 들여야 생긴다). `alert` 은 `intent`
 (`info`·`success`·`warning`·`danger`, 기본 `info`), `spinner` 은 `size`(기본 `md`).
 어떤 축이 있는지는 **설치 전에** 페이로드에서 바로 볼 수 있다:
 
@@ -491,13 +523,17 @@ curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -n 'cva(\|VariantPr
 ```
 
 **③ `className`.** PUDS 컴포넌트는 소비자 `className` 을 자기 기본 클래스와 함께 `cn()` 에
-넣는다(실측: `alert` 은 `cn(alertVariants({ intent }), className)`, `kbd` · `switch` · `popover` 도
-같은 형태). 이 앱의 `lib/cn.ts` 는 `twMerge(clsx(...))` 이므로 **같은 축의 유틸리티는 소비자
-것이 이긴다.** 두 가지만 조심한다:
+넣는다(페이로드 실측: `alert` 은 `cn(alertVariants({ intent }), className)`, `kbd` · `switch` ·
+`popover` 도 같은 형태 — **넷 다 이 앱에 아직 없는 아이템이다**). 받아 온 뒤 이 앱의 `lib/cn.ts`
+는 `twMerge(clsx(...))` 이므로 **같은 축의 유틸리티는 소비자 것이 이긴다.** 두 가지만 조심한다:
 
-- **어느 파트에 합쳐지는지는 컴포넌트가 정한다.** 부유 레이어는 파트가 여럿이라
-  한 곳에만 합친다 — `popover.tsx` 머리주석은 「소비자 `className` 은 Popup 한 곳에만 합친다」
-  라고 못 박아 뒀다. 다른 파트를 겨냥하고 싶으면 ③ 이 아니라 공개 prop 이 있는지부터 본다.
+- **어느 파트에 합쳐지는지는 컴포넌트가 정한다.** 부유 레이어는 파트가 여럿이라 한 곳에만
+  합친다 — PUDS `popover` **페이로드**의 머리주석이 「소비자 `className` 은 Popup 한 곳에만
+  합친다」라고 못 박아 뒀다. 로컬 파일이 아니라 원격에서 읽는다:
+  ```bash
+  curl -s "$PUDS/popover.json" | jq -r '.files[].content' | sed -n '40,55p'
+  ```
+  다른 파트를 겨냥하고 싶으면 ③ 이 아니라 공개 prop 이 있는지부터 본다.
 - **[레인 3 의 토큰 규칙](#레인-3--서비스-고유-컴포넌트)이 여기에도 걸린다.** 벤더링 컴포넌트에
   `rounded-md`(앱 14px)를 얹으면 **그 컴포넌트만** PUDS 스케일(8px)에서 벗어난다.
   치수를 계열 전체에 맞추려는 것이면 ③ 이 아니라 ① 로 간다.
@@ -510,10 +546,10 @@ curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -n 'cva(\|VariantPr
 `hideToggle` 과 `page-header` 의 breadcrumb import(위 [레인 1](#레인-1--puds-원격에서-받는-것-로컬-수정-금지)).
 둘 다 상류로 올라가 해소됐지만, 그때까지는 재설치마다 사라졌다.
 
-**정말 벤더링본을 고쳐야 하는 상황이면 그 자체가 신호다.** 고치고 끝내지 말고 **이유와 재싱크
-절차를 문서에 남긴다** — 다음 업그레이드에서 그 수정을 다시 얹을 사람은 절차 없이는 알 수 없다.
-형제 저장소 `pullim-planner` 가 그렇게 다룬다: `--radius-*` → `--puds-radius-*` 리네임을
-재싱크 절차의 **명시된 한 단계**로 박아 두었다(`pullim-planner/CLAUDE.md:99`, `:136`).
+**정말 벤더링본을 고쳐야 하는 상황이면 그 자체가 신호다.** 고치고 끝내지 말고, 이 문서의
+[버전 업그레이드 절차](#버전-업그레이드-절차)에 **그 수정을 다시 얹는 단계를 이름 붙여 추가한다.**
+재설치가 덮는다는 사실은 변하지 않으므로, 절차에 적히지 않은 로컬 패치는 **다음 업그레이드에서
+사라진다** — 위 두 사례가 그렇게 사라졌다. 절차에 적혀 있어야 다음 사람이 다시 얹을 수 있다.
 
 #### 레지스트리 URL — **경로로 고정**한다
 
