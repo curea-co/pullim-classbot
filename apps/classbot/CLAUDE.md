@@ -331,7 +331,7 @@ done
 | 갈래 | 개수 | 아이템 |
 |---|---|---|
 | 프리미티브 | 28 | `accordion` `alert` `alert-dialog` `banner` `carousel` `checkbox` `collapsible` `context-menu` `empty-state` `file-upload` `hover-card` `input-otp` `kbd` `number-input` `pagination` `popover` `radio-group` `rating` `resizable` `select` `spinner` `stepper` `switch` `tag-input` `timeline` `toast` `toggle` `toggle-group` |
-| 차트 | 8 | `area-chart` `bar-chart` `bullet` `donut` `heatmap` `line-chart` `radar-chart` `sparkline` |
+| 차트 | 8 | `area-chart` `bar-chart` `bullet` `donut` `heatmap` `line-chart` `radar-chart` `sparkline` — 이 중 `bullet`·`donut`·`heatmap` 은 **이 앱에 같은 이름의 로컬 구현이 있다.** 경로가 달라 덮지는 않는다 (아래 ⚠ ⑵) |
 | 풀림 | 5 | `chat-bubble` `roi-meter` `section-head` `service-hero` `service-tile` |
 | 블록 | 4 | `faq` `feature-grid` `footer` `pricing-table` |
 | 내비 | 4 | `app-shell` `bottom-tabs` `sidebar` `topbar` |
@@ -398,11 +398,35 @@ curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -oE '\-\-(color|cha
 않는다 — 위 ⚠ 참조). 자체 테마를 이미 가진 앱이라면 같은 판정이 나와도 결론이 반대일 수 있다.
 **이 앱이 어느 쪽인지는 위 문단이 답이다.**
 
-**⚠ 경로가 안 겹쳐도 역할은 겹친다.** 내비 4 종은 `components/nav/*` 로 떨어져 판정은
-`충돌 없음` 이지만, 이 앱에는 같은 일을 하는 `components/shell/*` 가 이미 있다 —
-`app-shell.tsx` 는 **파일 이름까지 같다** — `components/nav/app-shell.tsx`(**아직 없다.**
-`@puds/app-shell` 을 들이면 생기는 경로다) vs `components/shell/app-shell.tsx`(이 앱의 레인 3
-어댑터, 실재한다). 판별기는 경로만 본다. **두 벌이 공존해도 되는지는 사람이 본다.**
+**⚠ 경로가 안 겹쳐도 역할은 겹친다 — 이 앱에 그런 자리가 둘 있다.**
+
+**⑴ 내비 4 종.** `components/nav/*` 로 떨어져 판정은 `충돌 없음` 인데, 이 앱에는 같은 일을
+하는 `components/shell/*` 가 이미 있다. `app-shell.tsx` 는 **파일 이름까지 같다** —
+`components/nav/app-shell.tsx`(**아직 없다.** `@puds/app-shell` 을 들이면 생기는 경로다) vs
+`components/shell/app-shell.tsx`(이 앱의 레인 3 어댑터, 실재한다).
+
+**⑵ 차트 3 종 — `bullet` · `donut` · `heatmap`.** 이 앱에 **같은 이름의 로컬 구현이 이미
+있고** `components/charts/index.ts` 가 `BulletChart` · `Donut` · `Heatmap` 로 export 한다.
+그래도 ① 은 깨끗하다 — **PUDS 가 쓰는 경로가 다르기 때문이다.** ① 의 실제 출력이 근거다
+(2026-08-31 · `/v/0.5.0/` · `ITEM=bullet`):
+
+```
+새 파일   components/ui/charts/bullet.tsx  ← @puds/bullet
+덮어씀   lib/cn.ts  ← @puds/cn                              ← 레인 1. 정상
+```
+
+| | PUDS `files[].target` | 이 앱의 로컬 구현 |
+|---|---|---|
+| `bullet` | `components/ui/charts/bullet.tsx` — **없음** | `components/charts/bullet.tsx` — 있음 |
+| `donut` | `components/ui/charts/donut.tsx` — **없음** | `components/charts/donut.tsx` — 있음 |
+| `heatmap` | `components/ui/charts/heatmap.tsx` — **없음** | `components/charts/heatmap.tsx` — 있음 |
+
+**덮어쓰지 않는다. 대신 같은 차트가 두 벌이 된다.** 로컬 3 종은 `components/charts/index.ts`
+머리주석대로 「CUDS-native charts (zero deps, pure SVG)」이고 PUDS 판도 같은 성격이라,
+들이면 **어느 쪽을 쓸지 정하는 문제**가 새로 생긴다. 나머지 차트 5 종
+(`area`·`bar`·`line`·`radar`·`sparkline`)은 이 앱에 대응 구현이 없다.
+
+**판별기는 경로만 본다. 두 벌이 공존해도 되는지는 사람이 본다** — 두 자리 다 그렇다.
 
 ##### 실제 설치로 확인한 것 — 그리고 설치가 `package.json` 을 고친다
 
