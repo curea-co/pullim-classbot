@@ -42,6 +42,9 @@
   다만 **복사돼 오는 소스가 npm 의존을 끌고 올 수는 있다** — 새 아이템은 들이기 전에
   ① target 충돌 ② **이 앱의 `package.json` 에 없는 npm 의존성** — **둘 다** 확인한다
   ([§ 3.1 설치 전 확인](#설치-전-확인--검사는-둘이다)).
+  **금지만 읽고 「PUDS 는 못 쓴다」로 읽지 마라** — 충돌 없이 들일 수 있는 것이
+  [§ 3.1 전수 판정](#무엇을-들일-수-있는가--전수-판정)에 있고, 들인 뒤 값을 어디서 맞추는지는
+  [§ 3.1 조정 사다리](#세부-값은-어디서-조정하는가--조정-사다리)에 있다.
 - **i18n 미도입** — 한글 하드코딩 OK. `useTranslations` 같은 호출 추가 금지
 - **Sentry 미도입** — 에러 추적 라이브러리 추가 금지
 - **drizzle ORM** — `lib/db/` 에서 스키마·쿼리. `drizzle.config.ts` 는 `apps/classbot/` 직속
@@ -282,6 +285,146 @@ done
 겹치는 16종은 ① 로 **16/16 전부** `components/ui/<name>.tsx` 충돌이 확인됐다
 (2026-08-31, `/v/0.5.0/`).
 
+##### 무엇을 들일 수 있는가 — 전수 판정
+
+위 두 검사는 **막는 쪽만** 말한다. 그래서 이 절만 읽으면 「PUDS 는 못 쓰는 것」으로 읽히는데
+**사실은 반대다.** v0.5.0 의 93 아이템을 이 앱에 대고 ①·② 로 전부 돌린 결과
+(2026-08-31 · `/v/0.5.0/` · `origin/dev`):
+
+| 판정 | 개수 | 뜻 |
+|---|---|---|
+| 이미 벤더링돼 있다 | **11** | 레인 1. 설치가 아니라 [재설치](#버전-업그레이드-절차)가 정상 경로다 |
+| **충돌 없이 바로 들일 수 있다** | **58** | ① 이 레인 1 밖을 안 덮고, ② 가 전부 `선언됨` |
+| 레인 2 파일을 덮는다 | **23** | 들이지 않는다 |
+| 새 npm 의존을 끌고 온다 | **1** | `data-table` → `@tanstack/react-table`. 보고 후 결정 |
+
+네 칸은 배타적이고, 나뉘는 기준은 이렇다 — **재현할 때 같은 기준을 쓸 것**:
+「이미 벤더링」은 아이템 **자기 파일이 전부 레인 1 경로**인 것(`theme-puds` · `cn` ·
+셸 9 종 = 11), 나머지는 **전이까지 펼친 뒤** ② 에 `선언됨` 아닌 것이 있으면 「새 npm 의존」,
+없으면서 ① 에 **레인 1 밖** `덮어씀` 이 있으면 「레인 2 를 덮는다」, 둘 다 아니면 「충돌 없음」이다.
+
+> `sidebar` 를 ① 로 돌리면 `덮어씀 components/ui/rail-collapse-context.tsx` 가 찍힌다.
+> **그건 레인 1 이라 정상이다** — 차단 사유가 아니다. `덮어씀` 이 찍혔다는 사실이 아니라
+> **어느 레인에 찍혔는가**가 판정이다.
+
+58 개의 갈래 (PUDS 저장소의 디렉터리 기준):
+
+| 갈래 | 개수 | 아이템 |
+|---|---|---|
+| 프리미티브 | 28 | `accordion` `alert` `alert-dialog` `banner` `carousel` `checkbox` `collapsible` `context-menu` `empty-state` `file-upload` `hover-card` `input-otp` `kbd` `number-input` `pagination` `popover` `radio-group` `rating` `resizable` `select` `spinner` `stepper` `switch` `tag-input` `timeline` `toast` `toggle` `toggle-group` |
+| 차트 | 8 | `area-chart` `bar-chart` `bullet` `donut` `heatmap` `line-chart` `radar-chart` `sparkline` |
+| 풀림 | 5 | `chat-bubble` `roi-meter` `section-head` `service-hero` `service-tile` |
+| 블록 | 4 | `faq` `feature-grid` `footer` `pricing-table` |
+| 내비 | 4 | `app-shell` `bottom-tabs` `sidebar` `topbar` |
+| 레이아웃 | 3 | `flex` `grid` `stack` |
+| 캘린더 | 2 | `month-calendar` `week-planner` |
+| 그 밖 | 4 | `cuds-icons` `kr-text` `theme-variants` `use-reduced-motion` |
+
+막히는 23 개 중 **이름이 겹치는 16 종**은 [레인 2](#레인-2--로컬-base-ui-프리미티브-puds-프리미티브로-교체-금지) 목록 그대로고,
+**나머지 7 종은 전이 의존으로 덮는다** — 이름 대조만으로는 안 보이는 자리다:
+
+| 아이템 | 전이로 덮는 레인 2 파일 |
+|---|---|
+| `auth-card` | `button` · `input` |
+| `combobox` · `command` | `dialog` |
+| `date-picker` · `hero` | `button` |
+| `avatar-group` | `avatar` |
+| `mobile-menu` | `input` |
+
+> **이 숫자를 믿지 말고 판별기를 다시 돌려라.** 위 수치는 **핀이 `/v/0.5.0/` 이던 2026-08-31**
+> 시점의 것이다. 핀을 올리거나 레인 2 파일이 늘거나 줄면 그날로 낡는다. 근거는 숫자가 아니라
+> [①·②](#설치-전-확인--검사는-둘이다)의 **출력**이다.
+
+**⚠ 「들일 수 있다」가 「들여도 된다」는 아니다.** 판별기는 **충돌만** 본다 — 서비스 정책이
+따로 금지할 수 있다. 형제 저장소 `pullim-Q` 가 그 사례다: 판별기상으로는 `theme-puds` 설치가
+가능한데도 **정책으로 금지**한다(`pullim-Q/apps/AGENTS.md:199`). PUDS `_base.css` 가 순수
+토큰 파일이 아니라 전역 리셋과 `--text-*` · `--radius-*` · `--color-gray-*` 재정의를 싣고 있어
+자체 테마를 가진 앱과 통째로 부딪히기 때문이다.
+
+**이 앱은 반대편이다.** classbot 은 `theme-puds` 를 **이미 설치한 쪽**이고
+(`app/tokens/_base.css` · `pullim-os.css` 가 그 결과다) `globals.css` 가 그 위에서 값을 조정하는
+구조다. 그래서 Q 의 그 금지는 여기 적용되지 않는다 — 이 앱의 대응물은 아래
+[조정 사다리](#세부-값은-어디서-조정하는가--조정-사다리)를 지키는 것이다.
+
+**⚠ 경로가 안 겹쳐도 역할은 겹친다.** 내비 4 종은 `components/nav/*` 로 떨어져 판정은
+`충돌 없음` 이지만, 이 앱에는 같은 일을 하는 `components/shell/*` 가 이미 있다 —
+`app-shell.tsx` 는 **파일 이름까지 같다**(`components/nav/app-shell.tsx` vs
+`components/shell/app-shell.tsx`). 판별기는 경로만 본다. **두 벌이 공존해도 되는지는 사람이 본다.**
+
+##### 실제 설치로 확인한 것 — 그리고 설치가 `package.json` 을 고친다
+
+`origin/dev` 워크트리에서 `@puds/accordion` 을 실제로 설치했다(2026-08-31, shadcn 4.8.1).
+**파일 쪽은 판정대로였다:**
+
+```
+✔ Created 1 file:
+  - components/ui/accordion.tsx
+ℹ Skipped 1 file: (files might be identical, use --overwrite to overwrite)
+  - lib/cn.ts
+```
+
+받은 `components/ui/accordion.tsx` 는 레지스트리 페이로드와 **바이트 동일**하다
+(13,247 B, sha256 `8b90854031…76abd820`, `jq -j -r '.files[]|select(.target=="components/ui/accordion.tsx")|.content'` 와 `cmp`).
+
+**그런데 `git status` 에는 셋이 뜬다:**
+
+```
+ M apps/classbot/package.json      ← "@base-ui/react": "^1.4.1" → "^1.7.0"
+ M bun.lock                        ← @base-ui/react 1.5.0→1.7.0, @floating-ui/* 동반 상승
+?? apps/classbot/components/ui/accordion.tsx
+```
+
+`shadcn add` 는 아이템의 `dependencies` 를 **최신 범위로 다시 설치**한다. **검사 ② 가 전부
+`선언됨` 이어도 그렇다** — ② 는 「없는 의존을 끌고 오는가」를 보지 「있는 의존의 핀을 올리는가」를
+보지 않는다. `@puds/switch` 로 한 번 더 돌려 같은 상승을 재현했다.
+
+**엔진 핀 상승은 전 화면 회귀 범위다.** 컴포넌트 하나 들이는 PR 에 묻어 가면 안 된다.
+
+```bash
+# 저장소 루트에서. 설치 직후 반드시
+git diff -- apps/classbot/package.json bun.lock
+# 의도한 상승이 아니면 그 둘만 되돌린다
+git checkout -- apps/classbot/package.json bun.lock
+bun install --frozen-lockfile
+```
+
+되돌린 핀(`@base-ui/react` 1.5.0)에서 `accordion.tsx` 는
+`bun --filter @pullim-classbot/classbot typecheck` 를 통과했다 — **상승이 필요해서 일어난 게 아니다.**
+확인 뒤 워크트리는 원상 복구했다.
+
+##### `--dry-run` — 빠른 예비 조회 (두 검사를 대신하지 않는다)
+
+shadcn 4.8.1 에는 `--dry-run` 이 있다. 전이 의존을 이미 펼쳐 주고 **아무 파일도 쓰지 않는다**
+(실측: 세 아이템에 돌린 뒤 `git status` 가 비어 있었다).
+
+```bash
+cd apps/classbot
+./node_modules/.bin/shadcn add @puds/combobox --yes --dry-run
+```
+```
+├ Files (5) +3 new, ~1 overwrite, =1 skip
+│ = lib/cn.ts                   skip (identical)
+│ ~ components/ui/dialog.tsx    overwrite
+│ + components/ui/popover.tsx   create
+...
+⚠ 1 file will be overwritten.
+├ Dependencies (3)
+│ + clsx
+│ + tailwind-merge
+│ + @base-ui/react
+```
+
+**그래도 ①·② 를 대신하지 못한다. 셋 다 실측이다:**
+
+- **의존성의 선언 여부를 구별하지 않는다.** `data-table` 의 `--dry-run` 은 `+ clsx` ·
+  `+ tailwind-merge` · `+ @base-ui/react` 와 `+ @tanstack/react-table` 을 **같은 모양으로**
+  나열한다. 앞 셋은 `선언됨`, 마지막 하나만 `없음` 인데 출력만으로는 못 가른다.
+- **`overwrite` 가 레인 1 인지 레인 2 인지 구별하지 않는다.** 레인 1(`lib/cn.ts` ·
+  `app/tokens/*` · 셸 9 종)을 덮는 건 정상이고 레인 2 를 덮는 건 차단 사유다.
+- **위의 `package.json` 핀 상승을 예고하지 않는다.**
+
+보고에는 [①·②](#설치-전-확인--검사는-둘이다)의 출력을 붙인다. `--dry-run` 은 그 앞에 한 번 훑는 것이다.
+
 #### 레인 3 — 서비스 고유 컴포넌트
 
 `components/{classbot,builder,shell,brand,charts,layout,features}/*` 와 `app/**` 전부.
@@ -307,6 +450,70 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 > **아직 남은 것**: 앱 본문은 `text-pullim-slate-900` · `bg-white` 같은 **고정 브랜드 팔레트**를
 > 400곳 넘게 쓴다. 이 유틸리티들은 스킴 축에 참여하지 않아 다크에서도 밝은 채로 남는다.
 > 셸은 다크가 맞지만 **본문까지 다크가 정합하지는 않다.** 별도 과제.
+
+#### 세부 값은 어디서 조정하는가 — 조정 사다리
+
+**「PUDS 기준으로 조립하고, 세부 값은 이 서비스에서 맞춘다」가 이 앱의 운영 방식이다.**
+그 조정은 아래 네 층에서 한다. **벤더링본을 고쳐서 하지 않는다** — 이유는 이 절 끝에 있다.
+
+| 층 | 자리 | 무엇을 바꾸나 | 재설치가 덮나 |
+|---|---|---|---|
+| ① 토큰 재정의 | `app/globals.css` | 색·모션·차트 팔레트 등 **PUDS 토큰 값** | **아니다** |
+| ② cva variant prop | 호출부 | `intent` · `size` 같은 **공개 축** | 아니다 |
+| ③ `className` | 호출부 | 그 한 자리의 유틸리티 | 아니다 |
+| ④ `data-theme` · `data-scheme` | `app/layout.tsx` | 테마 성격 · 명암 | 아니다 |
+
+**① `app/globals.css` — 이 앱이 소유한다.** `_base.css` · `pullim-os.css` 를 import 한
+**다음**(1–5 행)이라 레이어 없는 CSS 의 소스 순서로 이긴다. 그리고 **레지스트리가 이 파일에
+손댈 통로가 없다** — v0.5.0 의 93 아이템 중 `app/globals.css` 를 `files[].target` 으로 삼는 것이
+**0 개**이고, shadcn 이 CSS 에 값을 주입하는 `cssVars`/`css` 키를 가진 아이템도 **0 개**다
+(2026-08-31 실측).
+
+지금 들어 있는 재정의 (실측 줄 범위, 총 500 행 중):
+
+| 블록 | 줄 | 무엇 |
+|---|---|---|
+| `@theme inline` | 29–155 (127) | Tailwind 유틸리티 스케일 — **앱 값** |
+| `:root` | 157–227 (71) | shadcn 계층 → PUDS 의미 토큰 매핑 |
+| **`:root, [data-theme]`** | **239–260 (22)** | **PUDS 토큰 자체를 이 앱 값으로** — `--duration-fast` · `--duration-slow` · `--ease-standard` · `--chart-cat-1…8` |
+| `[data-scheme="dark"]` | 297–314 (18) | PUDS 에 대응이 없는 `--sidebar-*` 와 차트 정지점 |
+
+**세 번째 블록이 「세부 값 조정」의 정본이다.** 새 토큰 조정은 거기에 줄을 더한다.
+`[data-theme]` 를 함께 적어 특정도를 (0,1,0)으로 맞춘 이유는 그 블록 머리주석에 있다 —
+`:root` 하나로는 PUDS 의 `[data-theme="pullim-os"]` 에 진다. **선택자를 줄이지 마라.**
+
+**② cva variant prop.** PUDS 컴포넌트는 축을 prop 으로 연다 — 실측: `alert` 은 `intent`
+(`info`·`success`·`warning`·`danger`, 기본 `info`), `spinner` 은 `size`(기본 `md`).
+어떤 축이 있는지는 **설치 전에** 페이로드에서 바로 볼 수 있다:
+
+```bash
+curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -n 'cva(\|VariantProps\|defaultVariants'
+```
+
+**③ `className`.** PUDS 컴포넌트는 소비자 `className` 을 자기 기본 클래스와 함께 `cn()` 에
+넣는다(실측: `alert` 은 `cn(alertVariants({ intent }), className)`, `kbd` · `switch` · `popover` 도
+같은 형태). 이 앱의 `lib/cn.ts` 는 `twMerge(clsx(...))` 이므로 **같은 축의 유틸리티는 소비자
+것이 이긴다.** 두 가지만 조심한다:
+
+- **어느 파트에 합쳐지는지는 컴포넌트가 정한다.** 부유 레이어는 파트가 여럿이라
+  한 곳에만 합친다 — `popover.tsx` 머리주석은 「소비자 `className` 은 Popup 한 곳에만 합친다」
+  라고 못 박아 뒀다. 다른 파트를 겨냥하고 싶으면 ③ 이 아니라 공개 prop 이 있는지부터 본다.
+- **[레인 3 의 토큰 규칙](#레인-3--서비스-고유-컴포넌트)이 여기에도 걸린다.** 벤더링 컴포넌트에
+  `rounded-md`(앱 14px)를 얹으면 **그 컴포넌트만** PUDS 스케일(8px)에서 벗어난다.
+  치수를 계열 전체에 맞추려는 것이면 ③ 이 아니라 ① 로 간다.
+
+**④ 테마·명암 축** — 위 [명암(다크) 축](#명암다크-축--data-scheme).
+
+##### 벤더링본을 고쳐서 조정하지 마라
+
+레인 1 파일을 직접 고치면 **다음 재설치가 말없이 덮는다.** 이 리포에서 실제로 두 번 일어났다 —
+`hideToggle` 과 `page-header` 의 breadcrumb import(위 [레인 1](#레인-1--puds-원격에서-받는-것-로컬-수정-금지)).
+둘 다 상류로 올라가 해소됐지만, 그때까지는 재설치마다 사라졌다.
+
+**정말 벤더링본을 고쳐야 하는 상황이면 그 자체가 신호다.** 고치고 끝내지 말고 **이유와 재싱크
+절차를 문서에 남긴다** — 다음 업그레이드에서 그 수정을 다시 얹을 사람은 절차 없이는 알 수 없다.
+형제 저장소 `pullim-planner` 가 그렇게 다룬다: `--radius-*` → `--puds-radius-*` 리네임을
+재싱크 절차의 **명시된 한 단계**로 박아 두었다(`pullim-planner/CLAUDE.md:99`, `:136`).
 
 #### 레지스트리 URL — **경로로 고정**한다
 
@@ -385,7 +592,11 @@ bun --filter @pullim-classbot/classbot build
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
 - **새 PUDS 아이템 도입** — 설치 전 확인 ①·② 를 돌린 **출력을 붙여** 보고한다. ② 에 `선언됨` 아닌 것
   (`없음`·`루트에만`·`락파일뿐`)이 찍혔으면 **`apps/classbot/package.json` 에 새 의존을 선언하는
-  결정**이라 사용자 몫이다 ([§ 3.1](#설치-전-확인--검사는-둘이다))
+  결정**이라 사용자 몫이다 ([§ 3.1](#설치-전-확인--검사는-둘이다)).
+  **설치 뒤 `git diff -- apps/classbot/package.json bun.lock` 도 함께 본다** — ② 가 전부
+  `선언됨` 이어도 `shadcn add` 는 이미 선언된 의존의 **핀을 올린다**(실측: `@base-ui/react`
+  `^1.4.1` → `^1.7.0`). 엔진 핀 상승은 별건 결정이다
+  ([§ 3.1](#실제-설치로-확인한-것--그리고-설치가-packagejson-을-고친다))
 
 **하면 안 되는 것**
 - 다른 도메인(플래너/Q/라이브러리 등) 코드를 새로 작성 — 추출본 범위 외. 필요하면 원본 풀림 스터디 데모 저장소 또는 `pullim` 본체에서 작업
@@ -395,6 +606,8 @@ bun --filter @pullim-classbot/classbot build
   (교체 금지의 근거는 엔진이 아니라 **`files[].target` 충돌**이다. v0.5.0 부터 양쪽 다 `@base-ui/react` 다.
   설치 전 확인은 그 충돌과 **미설치 npm 의존성**을 **둘 다** 본다 — 「Radix 를 무는가」가 죽은 것이지
   의존성 검사가 죽은 게 아니다)
+- 벤더링본을 **고쳐서** 세부 값을 맞추기 — 재설치가 덮는다. 조정은
+  [§ 3.1 조정 사다리](#세부-값은-어디서-조정하는가--조정-사다리)의 네 층에서 한다
 
 ## 6. prod-verify — production 회귀 자동화
 
