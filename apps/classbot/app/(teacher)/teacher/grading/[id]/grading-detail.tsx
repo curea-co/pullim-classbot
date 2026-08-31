@@ -113,57 +113,59 @@ export function GradingDetail({
   const studentHref = studentHrefOfGrading(item, 'grading-queue');
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      {/* 네비 */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/teacher/grading?view=queue"
-          className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          채점 대기 큐로
-        </Link>
-        <div className="flex items-center gap-1">
-          {/* 점수 옆에서 바로 「무슨 대화를 했는지」로 건너간다 — 상세는 이미 있는 화면이다 */}
+    <div className="space-y-7">
+      <div className="space-y-2">
+        {/* 네비 */}
+        <div className="flex items-center justify-between">
           <Link
-            href={studentHref}
-            className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mr-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+            href="/teacher/grading?view=queue"
+            className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
           >
-            <UserRound className="h-3 w-3" />
-            대화 기록
+            <ArrowLeft className="h-3 w-3" />
+            채점 대기 큐로
           </Link>
-          {prevId ? (
+          <div className="flex items-center gap-1">
+            {/* 점수 옆에서 바로 「무슨 대화를 했는지」로 건너간다 — 상세는 이미 있는 화면이다 */}
             <Link
-              href={`/teacher/grading/${prevId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+              href={studentHref}
+              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 mr-1 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
             >
-              <ChevronLeft className="h-3 w-3" /> 이전 학생
+              <UserRound className="h-3 w-3" />
+              대화 기록
             </Link>
-          ) : null}
-          {nextId ? (
-            <Link
-              href={`/teacher/grading/${nextId}`}
-              className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
-            >
-              다음 학생 <ChevronRight className="h-3 w-3" />
-            </Link>
-          ) : null}
+            {prevId ? (
+              <Link
+                href={`/teacher/grading/${prevId}`}
+                className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+              >
+                <ChevronLeft className="h-3 w-3" /> 이전 학생
+              </Link>
+            ) : null}
+            {nextId ? (
+              <Link
+                href={`/teacher/grading/${nextId}`}
+                className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold"
+              >
+                다음 학생 <ChevronRight className="h-3 w-3" />
+              </Link>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      <PageHeader
-        eyebrow={{ icon: FileText, text: `${item.assignmentTitle} · ${item.topic}` }}
-        title={<>{studentName} 학생 검수</>}
-        description={`제출 ${item.submittedAt} · ${item.type === 'essay' ? '서술형' : item.type === 'short' ? '단답' : '수치'} · AI 신뢰도 ${item.aiConfidence}%`}
-        action={
-          decidedKind ? (
-            <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold">
-              <Check className="h-3 w-3" />
-              {decidedKind === 'overridden' ? '수정 후 승인 완료' : '승인 완료'}
-            </span>
-          ) : null
-        }
-      />
+        <PageHeader
+          eyebrow={{ icon: FileText, text: `${item.assignmentTitle} · ${item.topic}` }}
+          title={<>{studentName} 학생 검수</>}
+          description={`제출 ${item.submittedAt} · ${item.type === 'essay' ? '서술형' : item.type === 'short' ? '단답' : '수치'} · AI 신뢰도 ${item.aiConfidence}%`}
+          action={
+            decidedKind ? (
+              <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold">
+                <Check className="h-3 w-3" />
+                {decidedKind === 'overridden' ? '수정 후 승인 완료' : '승인 완료'}
+              </span>
+            ) : null
+          }
+        />
+      </div>
 
       {/* 위기 게이트 — 점수 영역 위 */}
       {isCrisis && <CrisisGate studentName={studentName} />}
@@ -176,7 +178,7 @@ export function GradingDetail({
           <OverrideDeltaMeter currentDelta={overrideDelta} />
 
           {/* 학생 최근 5회 이력 */}
-          <section className="bg-card rounded-2xl border p-4">
+          <section className="bg-card rounded-2xl border p-5">
             <SectionHeading
               title="이 학생 최근 채점"
               description={`${studentName} 학생의 추세`}
@@ -220,7 +222,7 @@ export function GradingDetail({
         </>}
       >
         {/* 학생 응답 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading title="학생 응답" description="원본 그대로 노출됩니다." />
           <div className="bg-pullim-slate-50 rounded-xl p-4">
             <p className="text-pullim-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
@@ -242,7 +244,7 @@ export function GradingDetail({
         />
 
         {/* 코멘트 편집 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title="AI 초안 코멘트"
             description="필요하면 직접 수정하거나 한 줄 더해주세요."

@@ -54,7 +54,7 @@ const colsClass: Record<2 | 3 | 4 | 6, string> = {
 
 export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = false, action }: KpiStatProps) {
   return (
-    <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
+    <li className="bg-pullim-slate-50/50 rounded-lg px-3.5 py-2.5">
       <div className={cn(
         'inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase',
         onDark ? 'text-white/70' : 'text-pullim-slate-500',
@@ -63,7 +63,7 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
         {label}
       </div>
       <div className={cn(
-        'mt-0.5 font-mono text-base font-bold',
+        'mt-1 font-mono text-base font-bold',
         onDark ? toneValueClassDark[tone] : toneValueClass[tone],
       )}>
         {value}
@@ -72,7 +72,7 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
         <Link
           href={action.href}
           className={cn(
-            'mt-0.5 inline-block text-micro font-bold',
+            'mt-1.5 inline-block text-micro font-bold',
             onDark ? 'text-white/80 hover:text-white' : 'text-pullim-blue-600 hover:text-pullim-blue-700',
           )}
         >
@@ -86,7 +86,7 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
 
 export function KpiStatBar({ children, cols = 6, className }: KpiStatBarProps) {
   return (
-    <section className={cn('bg-card rounded-2xl border p-3', className)}>
+    <section className={cn('bg-card rounded-2xl border p-4', className)}>
       <ul className={cn('grid gap-3', colsClass[cols])}>
         {children}
       </ul>

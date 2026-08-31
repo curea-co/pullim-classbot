@@ -36,7 +36,7 @@ const toneClass = {
 export function PageHeader({ eyebrow, title, description, action, className }: Props) {
   const Eb = eyebrow?.icon;
   return (
-    <header className={cn('flex flex-wrap items-end justify-between gap-3', className)}>
+    <header className={cn('flex flex-wrap items-end justify-between gap-x-4 gap-y-3', className)}>
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <p
@@ -49,11 +49,11 @@ export function PageHeader({ eyebrow, title, description, action, className }: P
             {eyebrow.text}
           </p>
         )}
-        <h1 className="text-pullim-slate-900 mt-0.5 text-2xl font-bold tracking-tight">
+        <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">
           {title}
         </h1>
         {description && (
-          <p className="text-pullim-slate-500 mt-0.5 text-sm">{description}</p>
+          <p className="text-pullim-slate-500 mt-1.5 text-sm">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

@@ -86,7 +86,7 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
         <Link href="/teacher/replay" className="text-pullim-slate-500 inline-flex items-center gap-1 text-xs">
           <ArrowLeft className="h-3 w-3" /> 리플레이 목록
         </Link>
-        <section className="bg-card rounded-2xl border p-6 text-center text-sm text-pullim-slate-500">
+        <section className="bg-card rounded-2xl border p-5 text-center text-sm text-pullim-slate-500">
           리플레이를 찾을 수 없어요. 라이브 종료 직후라면 잠시 후 다시 시도해주세요.
         </section>
       </div>
@@ -104,22 +104,24 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
   } as unknown as Replay;
 
   return (
-    <div className="space-y-4">
-      <Link
-        href="/teacher/replay"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        리플레이 목록
-      </Link>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <Link
+          href="/teacher/replay"
+          className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          리플레이 목록
+        </Link>
 
-      <PageHeader
-        eyebrow={{ icon: Sparkles, text: data.botName }}
-        title={data.title}
-        description={`${data.chapter} · ${data.startedAt}~${data.endedAt} · ${data.participantCount}명 참여`}
-      />
+        <PageHeader
+          eyebrow={{ icon: Sparkles, text: data.botName }}
+          title={data.title}
+          description={`${data.chapter} · ${data.startedAt}~${data.endedAt} · ${data.participantCount}명 참여`}
+        />
+      </div>
 
-      <section className={cn('rounded-2xl border p-4', meta.tone)}>
+      <section className={cn('rounded-2xl border p-5', meta.tone)}>
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4" />
           <span className="text-sm font-bold">{meta.label}</span>
@@ -139,7 +141,7 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
         <ContextRail
           railWidth="sm"
           rail={data.segments.length > 0 ? (
-            <section className="bg-card rounded-2xl border p-4">
+            <section className="bg-card rounded-2xl border p-5">
               <header className="mb-2">
                 <h2 className="text-pullim-slate-900 text-sm font-bold">세그먼트 ({data.segments.length}개)</h2>
               </header>
@@ -158,7 +160,7 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
             </section>
           ) : undefined}
         >
-          <section className="bg-card rounded-2xl border p-4">
+          <section className="bg-card rounded-2xl border p-5">
             <header className="mb-2 flex items-center justify-between">
               <h2 className="text-pullim-slate-900 text-sm font-bold">이 수업 핵심 3개</h2>
               <span className="text-pullim-slate-400 text-micro">AI 추출 — 검수 단계에서 편집 가능</span>

@@ -61,7 +61,7 @@ export default function TeacherClassbotPage() {
   const summary = getTeacherBotSummary(botRows);
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
+    <div className="space-y-7">
       <Suspense fallback={null}>
         <CreatedBanner />
       </Suspense>
@@ -143,7 +143,7 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
           action={{ href: '/teacher/builder', label: '봇 만들기' }}
         />
       ) : (
-        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {rows.map(row => (
             <BotOpsCard
               key={row.bot.id}
@@ -220,7 +220,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
   const scope = scopeMeta[bot.scope];
 
   return (
-    <li data-testid={`bot-ops-card-${bot.id}`} className="bg-card flex flex-col rounded-2xl border p-4">
+    <li data-testid={`bot-ops-card-${bot.id}`} className="bg-card flex flex-col rounded-2xl border p-5">
       {/* 정체 — 이름 · 과목 · 학년 · 지금 도는지 · 안전 등급 */}
       <div className="flex items-start gap-3">
         <span className="bg-pullim-blue-50 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl" aria-hidden>
@@ -282,7 +282,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
             {ops.classrooms.map(c => (
               <li
                 key={c.id}
-                className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+                className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg px-3 py-2"
               >
                 <School className="text-pullim-blue-500 h-3 w-3 shrink-0" aria-hidden />
                 <span className="text-pullim-slate-900 min-w-0 flex-1 truncate text-xs font-bold">
@@ -378,7 +378,7 @@ function DispatchedAssignments({
   const groups = groupByBot(assignments, rows);
 
   return (
-    <section id="dispatched" data-testid="dispatched-section" className="bg-card scroll-mt-20 rounded-2xl border p-4">
+    <section id="dispatched" data-testid="dispatched-section" className="bg-card scroll-mt-20 rounded-2xl border p-5">
       <SectionHeading
         title="낸 과제"
         description={`오늘 ${totalSent}건 · 학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
@@ -513,7 +513,7 @@ function CreatedBanner() {
   const roomNames = rooms.map(classroomLabel).join(' · ');
 
   return (
-    <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-4">
+    <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-5">
       <div className="flex items-center gap-2">
         <Rocket className="h-4 w-4" />
         <strong className="text-sm">방금 만든 봇: {created}</strong>
@@ -543,7 +543,7 @@ function EnrollmentToggleSection() {
   }
 
   return (
-    <section className="bg-card rounded-2xl border p-4">
+    <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
         title="등록 학생 관리"
         // 명단 mock 은 수학봇 A반 한 반치다 — 어느 반 명단인지 밝히고 쓴다.
@@ -560,7 +560,7 @@ function EnrollmentToggleSection() {
           description="학생이 참여 코드로 들어오면 여기에 쌓여요."
         />
       ) : (
-        <ul className="mt-2 grid grid-cols-2 gap-1.5 lg:grid-cols-3">
+        <ul className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
           {enrolled.map(s => {
             const off = inactive.has(s.id);
             return (

@@ -191,28 +191,30 @@ export function AssignmentForm() {
   ].filter(Boolean).length;
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      {/* 상단 컨텍스트 바 */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/teacher/classbot"
-          className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          취소
-        </Link>
-        <span className="text-pullim-slate-400 font-mono text-micro">진행도 {progress}/5</span>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        {/* 상단 컨텍스트 바 */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/teacher/classbot"
+            className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            취소
+          </Link>
+          <span className="text-pullim-slate-400 font-mono text-micro">진행도 {progress}/5</span>
+        </div>
+
+        <PageHeader
+          eyebrow={{ icon: Send, text: '새 과제' }}
+          title="과제 발사하기"
+          description={bot ? `${bot.name} · ${bot.subject} ${bot.grade}` : '먼저 봇을 선택해주세요'}
+        />
       </div>
 
-      <PageHeader
-        eyebrow={{ icon: Send, text: '새 과제' }}
-        title="과제 발사하기"
-        description={bot ? `${bot.name} · ${bot.subject} ${bot.grade}` : '먼저 봇을 선택해주세요'}
-      />
-
-      <div className="max-w-3xl space-y-4">
+      <div className="max-w-3xl space-y-6">
         {/* ① 정체성 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">①</span> 정체성</>}
           />
@@ -307,7 +309,7 @@ export function AssignmentForm() {
         </section>
 
         {/* ② 문항 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">②</span> 문항</>}
           />
@@ -378,7 +380,7 @@ export function AssignmentForm() {
         </section>
 
         {/* ③ 대상 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">③</span> 대상</>}
             description={`${targetIds.length}/${classRoster.length}명 선택됨`}
@@ -396,7 +398,7 @@ export function AssignmentForm() {
             }
           />
 
-          <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+          <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {classRoster.map(s => {
               const active = targetIds.includes(s.id);
               return (
@@ -427,7 +429,7 @@ export function AssignmentForm() {
         </section>
 
         {/* ④ 일정 */}
-        <section className="bg-card rounded-2xl border p-4">
+        <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">④</span> 일정</>}
           />
@@ -498,7 +500,7 @@ export function AssignmentForm() {
       </div>
 
       {/* Sticky bottom 액션 바 */}
-      <div className="bg-card sticky bottom-2 mt-6 flex items-center gap-2 rounded-2xl border p-3 shadow-pullim-md">
+      <div className="bg-card sticky bottom-2 flex items-center gap-2 rounded-2xl border p-4 shadow-pullim-md">
         <Button
           type="button"
           variant="secondary"

@@ -69,7 +69,7 @@ export function GradingQueueList({
   }, [merged, statusFilter, typeFilter]);
 
   return (
-    <section className="bg-card rounded-2xl border p-4">
+    <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
         title={hydrated ? `검수 대기 ${sorted.length}건` : '검수 대기'}
         description="AI 신뢰도가 낮은 순으로 보여요."

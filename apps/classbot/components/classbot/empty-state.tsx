@@ -23,10 +23,15 @@ export interface EmptyStateProps {
   className?: string;
 }
 
+/**
+ * 빈 상태 세로 여백.
+ * 카드(p-5) 안에 들어가는 일이 많아 예전 py-10(40px)은 카드째 빈 상자로 보였다.
+ * 카드 패딩 20px 과 같은 눈금 위에 올려 lg=28 / md=24 / sm=20 으로 낮춘다.
+ */
 const sizePadding = {
-  lg: 'py-10',
-  md: 'py-8',
-  sm: 'py-6',
+  lg: 'py-7',
+  md: 'py-6',
+  sm: 'py-5',
 } as const;
 
 const chipSize = {
@@ -53,7 +58,7 @@ export function EmptyState({
   const isPlain = tone === 'plain';
 
   const wrapperClass = cn(
-    'flex flex-col items-center gap-2 text-center px-4',
+    'flex flex-col items-center gap-2 text-center px-5',
     sizePadding[size],
     !isPlain && 'rounded-2xl border border-dashed',
     tone === 'neutral' && 'bg-pullim-slate-50 border-pullim-slate-200',
@@ -69,7 +74,7 @@ export function EmptyState({
   );
 
   const actionClass =
-    'bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-bold text-white transition-colors';
+    'bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-1.5 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-bold text-white transition-colors';
 
   // Determine action element
   let actionEl: ReactNode = null;

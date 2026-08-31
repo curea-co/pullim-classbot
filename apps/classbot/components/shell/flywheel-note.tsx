@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
  */
 export function FlywheelNote({ children }: { children: ReactNode }) {
   return (
-    <aside className="bg-pullim-blue-50 border-pullim-blue-100 text-pullim-blue-800 rounded-xl border p-3.5 text-xs leading-relaxed">
+    <aside className="bg-pullim-blue-50 border-pullim-blue-100 text-pullim-blue-800 rounded-xl border p-4 text-xs leading-relaxed">
       <strong className="text-pullim-blue-700">쌓이면 이렇게 쓰여요</strong>
       <span className="text-pullim-blue-700/80"> · </span>
       {children}

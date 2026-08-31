@@ -31,20 +31,22 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
   const isParent = report.kind === 'parent';
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
-      <Link
-        href="/teacher/reports"
-        className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        리포트 센터
-      </Link>
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <Link
+          href="/teacher/reports"
+          className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          리포트 센터
+        </Link>
 
-      <PageHeader
-        eyebrow={{ icon: FileText, text: report.subject }}
-        title={report.title}
-        description={`${report.generatedAt} · ${report.status === 'sent' ? '발송 완료' : report.status === 'approved' ? '승인됨' : report.status === 'pending-approval' ? '승인 대기' : '초안'}`}
-      />
+        <PageHeader
+          eyebrow={{ icon: FileText, text: report.subject }}
+          title={report.title}
+          description={`${report.generatedAt} · ${report.status === 'sent' ? '발송 완료' : report.status === 'approved' ? '승인됨' : report.status === 'pending-approval' ? '승인 대기' : '초안'}`}
+        />
+      </div>
 
       {/* 위기 신호 */}
       {hasAlerts && (
@@ -80,18 +82,18 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
       )}
 
       {/* KPI */}
-      <section className="bg-card rounded-2xl border p-4">
+      <section className="bg-card rounded-2xl border p-5">
         <SectionHeading
           title="핵심 지표"
           description="AI 자동 추출 · 추세는 지난 주 대비"
         />
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {report.kpis.map((kpi, i) => <KpiTrendCard key={i} kpi={kpi} />)}
         </ul>
       </section>
 
       {/* 1줄 요약 */}
-      <section className="bg-card rounded-2xl border p-4">
+      <section className="bg-card rounded-2xl border p-5">
         <SectionHeading title="1줄 요약" description="AI 초안 — 필요하면 수정해주세요." />
         <Label htmlFor="report-summary" className="sr-only">1줄 요약 AI 초안</Label>
         <Textarea
@@ -127,7 +129,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
         )}
         {/* 비학부모 리포트: AI 리포트 본문 요약 */}
         {!isParent && (
-          <section className="bg-card rounded-2xl border p-4">
+          <section className="bg-card rounded-2xl border p-5">
             <SectionHeading title="리포트 본문" description="AI 초안 — 필요하면 수정해주세요." />
             <Label htmlFor="report-body" className="sr-only">리포트 본문 AI 초안</Label>
             <Textarea

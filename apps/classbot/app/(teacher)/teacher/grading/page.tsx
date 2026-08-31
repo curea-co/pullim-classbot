@@ -77,8 +77,8 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       <GradingKpiBar items={allItems} />
 
       {/* 탭 + 그 탭의 거르개 */}
-      <section className="bg-card rounded-2xl border p-3">
-        <div className="space-y-2">
+      <section className="bg-card rounded-2xl border p-4">
+        <div className="space-y-3">
           <FilterPills
             label="보기"
             options={views}

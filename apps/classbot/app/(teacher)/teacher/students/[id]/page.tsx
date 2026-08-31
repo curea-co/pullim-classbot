@@ -80,7 +80,7 @@ export default async function TeacherStudentReportPage({
       }}
     >
       {/* 기간 고르기 — 지금은 표시만, 데이터는 같은 스냅샷 */}
-      <section className="bg-card rounded-2xl border p-3">
+      <section className="bg-card rounded-2xl border p-4">
         <FilterPills
           label="기간"
           options={reportPeriods}
@@ -93,40 +93,42 @@ export default async function TeacherStudentReportPage({
       </section>
 
       {/* 관제소 명단에 뜨는 값과 같은 값 — 같은 함수를 통과한다 */}
-      <KpiStatBar cols={6}>
-        <KpiStat label="도달 상태" value={reachLabels[student.reach]} tone={student.reach === 'not-reached' ? 'alert' : 'accent'} />
-        <KpiStat label="요구 수준" value={`${student.targetDepth}단계`} />
-        <KpiStat
-          label="닿은 수준"
-          value={`${student.actualDepth}단계`}
-          tone={student.actualDepth < student.targetDepth ? 'alert' : 'default'}
-        />
-        <KpiStat
-          label="지름길 시도"
-          value={`${report.shortcutCount}회`}
-          action={{ label: '과제 문항 손보기', href: '/teacher/builder' }}
-        />
-        <KpiStat
-          label="범위 이탈"
-          value={`${report.scopeExitCount}회`}
-          // 관제소 mock 은 이 학생이 어느 봇을 쓰는지 모른다 — 봇은 목록에서 고른다.
-          // 목록이 tab 을 그대로 이어 붙여 고른 봇의 「이탈 대응」으로 들여보낸다.
-          action={{ label: '이탈 대응 강도', href: '/teacher/bots?tab=drift' }}
-        />
-        <KpiStat label="마지막 활동" value={lastSeenText(student)} />
-      </KpiStatBar>
+      <div className="space-y-2">
+        <KpiStatBar cols={6}>
+          <KpiStat label="도달 상태" value={reachLabels[student.reach]} tone={student.reach === 'not-reached' ? 'alert' : 'accent'} />
+          <KpiStat label="요구 수준" value={`${student.targetDepth}단계`} />
+          <KpiStat
+            label="닿은 수준"
+            value={`${student.actualDepth}단계`}
+            tone={student.actualDepth < student.targetDepth ? 'alert' : 'default'}
+          />
+          <KpiStat
+            label="지름길 시도"
+            value={`${report.shortcutCount}회`}
+            action={{ label: '과제 문항 손보기', href: '/teacher/builder' }}
+          />
+          <KpiStat
+            label="범위 이탈"
+            value={`${report.scopeExitCount}회`}
+            // 관제소 mock 은 이 학생이 어느 봇을 쓰는지 모른다 — 봇은 목록에서 고른다.
+            // 목록이 tab 을 그대로 이어 붙여 고른 봇의 「이탈 대응」으로 들여보낸다.
+            action={{ label: '이탈 대응 강도', href: '/teacher/bots?tab=drift' }}
+          />
+          <KpiStat label="마지막 활동" value={lastSeenText(student)} />
+        </KpiStatBar>
 
-      <p className="text-pullim-slate-500 text-2xs">
-        요구 수준 <b className="text-pullim-slate-700">{student.targetDepth}단계 · {depthLabels[student.targetDepth]}</b>,
-        {' '}닿은 수준 <b className="text-pullim-slate-700">{student.actualDepth}단계 · {depthLabels[student.actualDepth]}</b>
-      </p>
+        <p className="text-pullim-slate-500 text-2xs">
+          요구 수준 <b className="text-pullim-slate-700">{student.targetDepth}단계 · {depthLabels[student.targetDepth]}</b>,
+          {' '}닿은 수준 <b className="text-pullim-slate-700">{student.actualDepth}단계 · {depthLabels[student.actualDepth]}</b>
+        </p>
+      </div>
 
       <ContextRail
         railWidth="md"
         rail={
           <>
             {/* 대화 주제 분포 */}
-            <section className="bg-card rounded-2xl border p-4">
+            <section className="bg-card rounded-2xl border p-5">
               <SectionHeading title="대화 주제 분포" description="학생이 말한 턴만 세요." />
               <ul className="space-y-2.5">
                 {report.topicMix.map(slice => (
@@ -150,7 +152,7 @@ export default async function TeacherStudentReportPage({
             </section>
 
             {/* 이탈 이력 — 건수는 관제소와 같은 값 */}
-            <section className="bg-card rounded-2xl border p-4">
+            <section className="bg-card rounded-2xl border p-5">
               <SectionHeading
                 title={`이탈 이력 ${report.scopeExitCount}건`}
                 description="봇이 수업 범위 밖 요청을 되돌린 기록이에요."

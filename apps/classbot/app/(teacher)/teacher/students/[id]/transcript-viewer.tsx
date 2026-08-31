@@ -65,7 +65,7 @@ export function TranscriptViewer({
       />
 
       <FilterPillButtons
-        className="mb-3"
+        className="mb-4"
         options={options}
         current={filter}
         onSelect={setFilter}

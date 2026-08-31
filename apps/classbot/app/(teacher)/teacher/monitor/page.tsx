@@ -29,7 +29,6 @@ export default function TeacherMonitorPage() {
     <TeacherPageShell
       backHref="/teacher"
       backLabel="교사 홈"
-      spacing="space-y-5"
       header={{
         eyebrow: { icon: Gauge, text: '학급 관제소' },
         title: `${monitoredClass.classroomLabel} 지금 상태`,

@@ -45,13 +45,13 @@ export function ReportRoster({ students }: { students: MonitoredStudent[] }) {
   );
 
   return (
-    <section className="bg-card rounded-2xl border p-4">
+    <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
         title={`등록된 학생 ${students.length}명`}
         description="리포트가 아직 없는 학생도 모두 있어요."
       />
 
-      <div className="mb-3 space-y-2">
+      <div className="mb-4 space-y-2">
         <FilterPillButtons
           options={reportFilterOrder.map(value => ({
             value,
@@ -106,7 +106,7 @@ function ReportRosterRow({ student: s }: { student: MonitoredStudent }) {
     <li>
       <Link
         href={`/teacher/students/${s.id}`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_5rem_4.5rem_minmax(0,1fr)_auto]"
+        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_5rem_4.5rem_minmax(0,1fr)_auto]"
       >
         {/* 이름 · 학년 */}
         <span className="flex items-center gap-2">

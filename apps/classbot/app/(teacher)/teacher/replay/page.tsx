@@ -47,15 +47,17 @@ export default function TeacherReplayListPage() {
   }), [all]);
 
   return (
-    <div className="space-y-4">
-      <BackLink href="/teacher">교사 홈</BackLink>
-      <PageHeader
-        eyebrow={{ icon: History, text: '풀림 교사' }}
-        title="수업 리플레이"
-        description={`${all.length}개 수업 · 검수 대기 ${counts.review}건`}
-      />
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <BackLink href="/teacher">교사 홈</BackLink>
+        <PageHeader
+          eyebrow={{ icon: History, text: '풀림 교사' }}
+          title="수업 리플레이"
+          description={`${all.length}개 수업 · 검수 대기 ${counts.review}건`}
+        />
+      </div>
 
-      <section className="bg-card rounded-xl border p-2">
+      <section className="bg-card rounded-2xl border p-4">
         <ul className="flex gap-1.5 overflow-x-auto">
           {(['all', 'review', 'processing', 'sent'] as const).map(s => (
             <li key={s} className="shrink-0">
@@ -82,7 +84,7 @@ export default function TeacherReplayListPage() {
         </ul>
       </section>
 
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {filtered.map(r => <TeacherReplayCard key={r.id} replay={r} />)}
         {filtered.length === 0 && (
           <li><EmptyState icon={History} title="이 상태의 리플레이가 없어요." size="md" /></li>
@@ -101,7 +103,7 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
     <li>
       <Link
         href={`/teacher/replay/${replay.id}`}
-        className="bg-card hover:border-pullim-blue-400 group block rounded-2xl border p-4 transition-colors"
+        className="bg-card hover:border-pullim-blue-400 group block rounded-2xl border p-5 transition-colors"
       >
         <div className="flex items-start gap-3">
           <div className="bg-pullim-blue-50 text-pullim-blue-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg">
