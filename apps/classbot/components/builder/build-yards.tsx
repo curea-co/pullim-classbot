@@ -20,6 +20,22 @@ import {
 /**
  * 마당 셋 — 봇 소개 · 보고 답할 것 · 가르치는 법.
  *
+ * ## 마당 카드 안의 간격
+ *
+ * ```
+ *   카드 패딩            20 → 24px  p-5 lg:p-6
+ *   카드 제목 ↔ 본문      16px      mt-4
+ *   항목 ↔ 항목          20px      space-y-5   ← 과목 · 학년 · 봇 이름 · 말투 사이
+ *   항목 이름 ↔ 고르는 것  8px      mb-2        (FieldLabel)
+ * ```
+ *
+ * `space-y-5`(20px)인 까닭 — 항목 사이를 가르는 것은 **여백뿐이다.** 이름·칩·카드가 모두
+ * 왼끝에 맞아 있어 선도 배경도 경계를 만들어 주지 않는다. 종전 16px 은 이름 ↔ 고르는 것
+ * 8px 의 딱 두 배라, 한 항목 안인지 다음 항목인지가 눈으로 갈리지 않고 한 덩어리로 뭉쳤다.
+ * 20px 은 그 8px 과 카드 패딩(lg 24px) **사이**에 들어가 「바깥이 안쪽보다 넓다」를 지킨다 —
+ * 그래서 패딩도 `p-4 lg:p-5` 에서 한 칸 올렸다. 그대로 두면 항목 사이(20px)가 카드 테두리까지의
+ * 거리(16px)보다 넓어져 항목들이 카드 밖으로 새어 나가 보인다.
+ *
  * 8단계에서 여기로 옮겨온 것:
  *  ① 정체성 → 마당 1, ③ 교안 → 마당 2, ⑤ Scope → 마당 2(「답 범위」), ④ 수업 방식 → 마당 3.
  * 없어진 것:
@@ -54,87 +70,94 @@ export function Yard1Intro({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="bg-card rounded-2xl border p-4 lg:p-5">
-        <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">봇 소개</h2>
+    <section className="bg-card rounded-2xl border p-5 lg:p-6">
+      <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">봇 소개</h2>
 
-        <div className="mt-4 space-y-4">
-          {/* 과목 — 기본값이 없는 유일한 항목 */}
-          <div>
-            <FieldLabel field="subject">과목</FieldLabel>
-            {/*
-              막혔을 때 초점이 오는 자리. 고를 것이 라디오 묶음이라 붙일 입력칸이 없어
-              묶음 자체를 초점 대상으로 삼는다 — 초점이 오면 낭독기가 묶음 이름(「과목」)을 읽는다.
-            */}
-            <RadioCardGroup ariaLabel="과목" cols={3} id={faultAnchorId('subject')} focusable>
-              {/*
-                카드에 남는 것은 **과목 이름 하나**다 — 봇 시그니처 색 점과 「과학봇」 밑줄을 뺐다.
-                색 점은 고를 때 아무것도 가르지 못하고(다섯 과목은 이름으로 이미 갈린다),
-                밑줄의 봇 이름은 바로 아래 「봇 이름」 칸의 placeholder 가 같은 말을 한 번 더 한다.
-                `botSignature` 는 지우지 않는다 — 학생 홈 봇 목록·챗이 그대로 쓴다. 여기서만 뺀다.
-              */}
-              {subjectIds.map((id) => (
-                <RadioCard
-                  key={id}
-                  active={draft.subject === id}
-                  onSelect={() => selectSubject(id)}
-                  title={subjectMeta[id].label}
-                />
-              ))}
-            </RadioCardGroup>
-            <FieldError fault={fault} field="subject" />
-          </div>
+      <div className="mt-4 space-y-5">
+        {/* 과목 — 기본값이 없는 유일한 항목 */}
+        <div>
+          <FieldLabel field="subject">과목</FieldLabel>
+          {/*
+            막혔을 때 초점이 오는 자리. 고를 것이 라디오 묶음이라 붙일 입력칸이 없어
+            묶음 자체를 초점 대상으로 삼는다 — 초점이 오면 낭독기가 묶음 이름(「과목」)을 읽는다.
+          */}
+          {/*
+            **다섯 칸 한 줄**(`cols={5}`)이다. 세 칸이던 종전에는 카드 하나가 226px 로 벌어져
+            두 글자짜리 낱말(「과학」 28px) 하나를 담았다 — 남는 자리가 카드마다 170px 이라
+            고르는 버튼이 아니라 덜 채운 입력칸으로 보였다. 게다가 다섯을 3+2 로 접어
+            둘째 줄 오른쪽이 빈 칸으로 남았다. 한 줄에 다섯이면 그 두 가지가 함께 사라진다.
+            좁힌 것은 **패딩이 아니라 폭**이다 — `p-3`(12px)은 이미 좁고, 남아 보이던 여백은
+            전부 가로 여유분이었다.
 
-          {/* 학년 */}
-          <div>
-            <FieldLabel field="grade">학년</FieldLabel>
-            <div role="radiogroup" aria-label="학년" className="flex flex-wrap gap-1.5">
-              {grades.map((g) => (
-                <PickChip
-                  key={g}
-                  role="radio"
-                  active={draft.grade === g}
-                  label={g}
-                  onSelect={() => onPick('grade', { grade: g })}
-                />
-              ))}
-            </div>
-          </div>
+            `align="center"` 도 같은 까닭이다. 카드에 남는 것이 **과목 이름 하나**뿐이라
+            (봇 시그니처 색 점과 「과학봇」 밑줄을 뺐다 — 색 점은 다섯 과목을 가르지 못하고,
+            밑줄의 봇 이름은 바로 아래 「봇 이름」 칸 placeholder 가 같은 말을 되풀이한다)
+            왼끝에 맞출 짝이 없다. 남는 자리를 양쪽으로 갈라야 버튼으로 읽힌다.
+            `botSignature` 는 지우지 않는다 — 학생 홈 봇 목록·챗이 그대로 쓴다. 여기서만 뺀다.
+          */}
+          <RadioCardGroup ariaLabel="과목" cols={5} id={faultAnchorId('subject')} focusable>
+            {subjectIds.map((id) => (
+              <RadioCard
+                key={id}
+                active={draft.subject === id}
+                onSelect={() => selectSubject(id)}
+                title={subjectMeta[id].label}
+                align="center"
+              />
+            ))}
+          </RadioCardGroup>
+          <FieldError fault={fault} field="subject" />
+        </div>
 
-          {/* 봇 이름 */}
-          <div>
-            <FieldLabel field="name" htmlFor={nameId}>봇 이름</FieldLabel>
-            <Input
-              id={nameId}
-              type="text"
-              value={draft.name}
-              onChange={(e) => onPick('name', { name: e.target.value })}
-              maxLength={BOT_NAME_MAX}
-              placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
-              aria-invalid={fault?.field === 'name' || undefined}
-              className="h-10 text-sm"
-            />
-            <FieldError fault={fault} field="name" />
-          </div>
-
-          {/* 말투 */}
-          <div>
-            <FieldLabel field="tone">말투</FieldLabel>
-            <RadioCardGroup ariaLabel="말투" cols={3}>
-              {(Object.keys(toneMeta) as ToneId[]).map((t) => (
-                <RadioCard
-                  key={t}
-                  active={draft.tone === t}
-                  onSelect={() => onPick('tone', { tone: t })}
-                  title={toneMeta[t].label}
-                  description={toneMeta[t].description}
-                />
-              ))}
-            </RadioCardGroup>
+        {/* 학년 */}
+        <div>
+          <FieldLabel field="grade">학년</FieldLabel>
+          <div role="radiogroup" aria-label="학년" className="flex flex-wrap gap-1.5">
+            {grades.map((g) => (
+              <PickChip
+                key={g}
+                role="radio"
+                active={draft.grade === g}
+                label={g}
+                onSelect={() => onPick('grade', { grade: g })}
+              />
+            ))}
           </div>
         </div>
-      </section>
-    </div>
+
+        {/* 봇 이름 */}
+        <div>
+          <FieldLabel field="name" htmlFor={nameId}>봇 이름</FieldLabel>
+          <Input
+            id={nameId}
+            type="text"
+            value={draft.name}
+            onChange={(e) => onPick('name', { name: e.target.value })}
+            maxLength={BOT_NAME_MAX}
+            placeholder={draft.subject ? subjectMeta[draft.subject].botName : '과목을 고르면 이름이 정해져요'}
+            aria-invalid={fault?.field === 'name' || undefined}
+            className="h-10 text-sm"
+          />
+          <FieldError fault={fault} field="name" />
+        </div>
+
+        {/* 말투 */}
+        <div>
+          <FieldLabel field="tone">말투</FieldLabel>
+          <RadioCardGroup ariaLabel="말투" cols={3}>
+            {(Object.keys(toneMeta) as ToneId[]).map((t) => (
+              <RadioCard
+                key={t}
+                active={draft.tone === t}
+                onSelect={() => onPick('tone', { tone: t })}
+                title={toneMeta[t].label}
+                description={toneMeta[t].description}
+              />
+            ))}
+          </RadioCardGroup>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -179,10 +202,10 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
   }
 
   return (
-    <section className="bg-card rounded-2xl border p-4 lg:p-5">
+    <section className="bg-card rounded-2xl border p-5 lg:p-6">
       <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">봇이 보고 답할 것</h2>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-5">
         {/* 수업 자료 */}
         <div>
           <FieldLabel field="files">수업 자료</FieldLabel>
@@ -288,10 +311,10 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
 
 export function Yard3Teaching({ draft, onPick }: YardProps) {
   return (
-    <section className="bg-card rounded-2xl border p-4 lg:p-5">
+    <section className="bg-card rounded-2xl border p-5 lg:p-6">
       <h2 className="text-pullim-slate-900 text-base font-bold tracking-tight">가르치는 법</h2>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-5">
         <div>
           <FieldLabel field="style">평소에</FieldLabel>
           <RadioCardGroup ariaLabel="평소에" cols={2}>
