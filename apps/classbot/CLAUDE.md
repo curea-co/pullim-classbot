@@ -39,6 +39,9 @@
   요지: 토큰·셸은 **PUDS 원격에서 벤더링**, 프리미티브는 **로컬 base-ui**, 나머지는 서비스 고유.
   npm DS **패키지**(`@pullim/design-system` 등)를 dependency 로 추가하는 건 여전히 **금지**다 —
   PUDS 는 패키지가 아니라 `shadcn add` 로 소스를 복사해 오는 방식이라 이 금지와 충돌하지 않는다.
+  다만 **복사돼 오는 소스가 npm 의존을 끌고 올 수는 있다** — 새 아이템은 들이기 전에
+  ① target 충돌 ② **이 앱의 `package.json` 에 없는 npm 의존성** — **둘 다** 확인한다
+  ([§ 3.1 설치 전 확인](#설치-전-확인--검사는-둘이다)).
 - **i18n 미도입** — 한글 하드코딩 OK. `useTranslations` 같은 호출 추가 금지
 - **Sentry 미도입** — 에러 추적 라이브러리 추가 금지
 - **drizzle ORM** — `lib/db/` 에서 스키마·쿼리. `drizzle.config.ts` 는 `apps/classbot/` 직속
@@ -90,15 +93,24 @@ lib/cn.ts
 `components/ui/` 의 나머지(`button` · `dialog` · `dropdown-menu` · `sheet` · `tooltip` ·
 `tabs` · `input` · `select` 계열 등)는 **`@base-ui/react` 엔진**이다.
 
-> ⚠ **「엔진이 갈린다」는 근거는 PUDS v0.5.0(2026-08-28)에 죽었다.** PUDS 가 `@radix-ui/*`
+> ⚠ **옛 판별법 「Radix 를 무는가」는 PUDS v0.5.0(2026-08-28)에 죽었다.** PUDS 가 `@radix-ui/*`
 > 24개와 `cmdk` 를 전부 걷어내 **이제 양쪽 다 `@base-ui/react`** 다. v0.4.2 까지는 레지스트리
 > 93 아이템 중 **29개**가 Radix·cmdk 를 물었고(겹치는 16종 중 12종), 그래서 「Radix 를 무는가」
-> 가 판별 기준이었다. v0.5.0 에서 그 수는 **0** 이다.
+> 가 판별 기준이었다. v0.5.0 에서 그 수는 **0** 이다 —
+> **그 검사를 지금 돌리면 전부 통과한다. 막던 것을 전부 통과시킨다.**
 >
-> **그 검사를 지금 돌리면 전부 통과한다 — 막던 것을 전부 통과시킨다.** 아래 「설치 전 확인」
-> 에서 판별 기준을 `dependencies` 에서 **`files[].target` 충돌**로 갈아끼운 이유다.
+> 무엇이 죽고 무엇이 남았는지 셋으로 갈라 둔다. **하나를 지우면서 나머지 둘까지 같이 지우지 마라:**
+>
+> | | 상태 |
+> |---|---|
+> | ⑴ 「엔진이 갈린다」 — Radix vs base-ui 라서 금지한다 | **죽었다.** v0.5.0 부터 양쪽 다 `@base-ui/react` 다 |
+> | ⑵ 「덮어쓰기다」 — 같은 경로를 통째로 갈아치워 이 리포의 수정이 말없이 사라진다 | **살아 있다.** 아래 검사 ① 이 이걸 본다 |
+> | ⑶ 「의존성을 본다」 — 아이템이 끌고 오는 npm 패키지를 확인한다 | **살아 있다.** 죽은 것은 **대상이 `@radix-ui/*` 하나뿐이었던 것**이지 의존성 검사 자체가 아니다. 대상을 **「이 앱에 아직 없는 패키지 전부」로 넓혀** 아래 검사 ② 로 남긴다 |
+>
+> **⑶ 을 지우면 판정이 반대 방향으로 fail-open 한다.** 「target 이 안 겹치니 들여도 된다」인데
+> 새 npm 패키지를 끌고 오는 아이템이 실재한다 — 아래 `data-table` 실측이 그 자리다.
 
-**금지는 그대로다. 근거만 바뀌었다.** `shadcn add @puds/button` 같은 명령은 머지가 아니라
+**금지는 그대로다. 근거가 ⑴ 에서 ⑵ 로 옮겨 갔을 뿐이다.** `shadcn add @puds/button` 같은 명령은 머지가 아니라
 **덮어쓰기**다. 실행하면:
 - 같은 파일 경로(`components/ui/button.tsx`)를 PUDS 판으로 통째로 갈아치운다 —
   **이 리포가 그 파일에 넣어 둔 수정이 아무 말 없이 사라진다.** 이게 살아 있는 근거다.
@@ -120,16 +132,32 @@ lib/cn.ts
 나머지 레인 2 파일(`chip` · `meta-row` · `sonner` · `textarea`)은 **PUDS 에 대응 아이템이
 아예 없다** — 겹칠 일이 없다.
 
-##### 설치 전 확인 — 기준은 엔진이 아니라 **경로**다
+##### 설치 전 확인 — 검사는 **둘**이다
 
-새 PUDS 아이템을 들일 때 확인할 것은 하나다: **`files[].target` 이 이미 있는 파일을 가리키는가.**
-그리고 **전이 의존(`registryDependencies`)이 끌고 오는 target 까지** 봐야 한다 — 아래 실측처럼
-두 단계를 타고 내려가 레인 2 파일을 덮는 아이템이 실재한다.
+새 PUDS 아이템을 들일 때 확인할 것은 둘이고, **어느 하나가 다른 하나를 대신하지 못한다.**
+
+| | 무엇을 보는가 | 걸리면 |
+|---|---|---|
+| **①** | `files[].target` 이 **이미 있는 파일**을 가리키는가 | 레인 2 를 덮으면 들이지 않는다 |
+| **②** | **`apps/classbot/package.json` 에 선언되지 않은 npm 패키지**를 끌고 오는가 | 새 의존이면 들이기 전에 보고한다 |
+
+둘 다 **전이 의존(`registryDependencies`)을 재귀로 펼친 뒤** 봐야 한다. 두 단계를 타고
+내려가 레인 2 파일을 덮거나 새 패키지를 끌고 오는 아이템이 **양쪽 다 실재한다**(아래 실측).
 
 ```bash
 cd apps/classbot
 PUDS=https://pullim-design-system.vercel.app/v/0.5.0   # components.json 과 같은 버전을 쓸 것
+ITEM=combobox                                          # ← 들이려는 아이템 이름. 여기만 바꾼다
+```
 
+> 아이템 이름을 `<name>` 같은 꺾쇠 자리표시자로 두지 마라. `<` 와 `>` 는 셸의 리다이렉션이라
+> **복사해 붙이면 구문 오류로 아예 실행되지 않는다** — `bash -n` 도 `zsh -n` 도
+> ``syntax error near unexpected token `|'`` 를 낸다. 아래 두 블록은 위 `ITEM` 을 그대로 읽으므로
+> **환경 블록 → ① → ② 순서로 붙여 넣으면 그대로 돈다.**
+
+**① `files[].target` 충돌**
+
+```bash
 puds_targets() {          # 전이 의존까지 펼쳐 target 을 전부 뽑는다
   local q="$*" seen="" n j
   while [ -n "$q" ]; do
@@ -142,7 +170,7 @@ puds_targets() {          # 전이 의존까지 펼쳐 target 을 전부 뽑는�
   done
 }
 
-puds_targets <name> | while IFS=$'\t' read -r target from; do
+puds_targets "$ITEM" | while IFS=$'\t' read -r target from; do
   [ -e "$target" ] && echo "덮어씀   $target  ← @puds/$from" || echo "새 파일   $target  ← @puds/$from"
 done
 ```
@@ -150,22 +178,108 @@ done
 **`덮어씀` 이 레인 1 파일(`lib/cn.ts` · `app/tokens/*` · 위 셸 9종) 밖에 하나라도 찍히면
 들이지 않는다.** 레인 1 은 원래 벤더링이 덮는 자리라 거기 찍히는 건 정상이다.
 
-실측 (2026-08-31, `/v/0.5.0/`):
+**② 이 앱에 선언되지 않은 npm 의존성**
+
+```bash
+puds_deps() {             # 전이 의존까지 펼쳐 npm dependencies 를 전부 뽑는다
+  local q="$*" seen="" n j
+  while [ -n "$q" ]; do
+    set -- $q; n=$1; shift; q="$*"
+    case " $seen " in *" $n "*) continue ;; esac
+    seen="$seen $n"
+    j=$(curl -s "$PUDS/$n.json")
+    printf '%s' "$j" | jq -r --arg n "$n" '(.dependencies // [])[] + "\t" + $n'
+    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")')"
+  done
+}
+
+# 「선언됨」 판정은 **이 앱의 package.json 하나만** 본다. 루트·락파일은 따로 등급을 준다
+app=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' package.json | sort -u)
+root=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' ../../package.json | sort -u)
+locked=$(grep -oE '^    "[^"]+": \[' ../../bun.lock | sed 's/^    "//; s/": \[$//' | sort -u)
+
+puds_deps "$ITEM" | sort -u | while IFS=$'\t' read -r dep from; do
+  pkg=$(printf '%s' "$dep" | sed -E 's#^(@[^@/]+/[^@]+|[^@]+)@.+$#\1#')   # 레지스트리는 `pkg@1.2.3` 표기도 허용한다
+  if   printf '%s\n' "$app"    | grep -qxF "$pkg"; then s="선언됨   "
+  elif printf '%s\n' "$root"   | grep -qxF "$pkg"; then s="루트에만 "
+  elif printf '%s\n' "$locked" | grep -qxF "$pkg"; then s="락파일뿐 "
+  else                                                   s="없음     "; fi
+  echo "$s $dep  ← @puds/$from"
+done
+```
+
+**`선언됨` 이 아닌 것이 하나라도 찍히면 들이기 전에 보고한다**(§5 「확인 후에만」).
+셋 다 「`apps/classbot/package.json` 에 없다」는 같은 뜻이고, 어디까지 와 있는지만 다르다:
+
+| 등급 | 뜻 | 왜 통과가 아닌가 |
+|---|---|---|
+| `없음` | 어디에도 없다 | 순수하게 새 npm 의존이다 |
+| `루트에만` | 루트 `package.json` 에만 선언돼 있다 | **루트 `package.json` 수정은 글로벌 작업**이라 별건 승인 사항이다(AGENTS.md 「모노레포 글로벌 작업」). 이 앱이 그 선언에 기대면 안 된다 |
+| `락파일뿐` | 남의 전이 의존으로 우연히 트리에 있을 뿐이다 | 그 남이 버전을 올리거나 의존을 끊으면 사라진다. **import 근거가 못 된다** |
+
+셋 중 무엇이든 들이기로 정했으면 `apps/classbot/package.json` 에 **직접 선언**한다.
+
+> **`root`·`locked` 를 `app` 과 한 덩어리로 합치지 마라.** 합치면 루트에만 있는 패키지가
+> 「이 앱에 이미 있다」로 분류돼 검사 ② 가 조용히 통과시킨다 — 이 문단이 막으려는 바로 그
+> false negative 다. (이 PR 의 첫 판이 그렇게 썼고 리뷰에서 잡혔다.)
+
+> 없는 이름을 넣으면 404 HTML 이 내려와 두 명령 모두 `jq: parse error` 를 낸다 —
+> 조용히 빈 출력이 되지는 않는다. 그 에러를 「걸린 게 없다」로 읽지 마라.
+
+**실측** (2026-08-31, `/v/0.5.0/`). 아래는 **위 세 블록을 그대로 붙여 넣고 `ITEM` 만 바꿔** 얻은
+출력이다. 두 아이템이 **서로 반대 방향으로** 한쪽 검사만 통과한다:
+
+`combobox` — ① 이 잡고 ② 는 깨끗하다
 
 ```
-$ puds_targets combobox | …
-새 파일   components/ui/combobox.tsx  ← @puds/combobox
-덮어씀   lib/cn.ts  ← @puds/cn                      ← 레인 1. 정상
-새 파일   components/ui/command.tsx  ← @puds/command
-새 파일   components/ui/popover.tsx  ← @puds/popover
-덮어씀   components/ui/dialog.tsx  ← @puds/dialog    ← 레인 2. 들이지 않는다
+① 새 파일   components/ui/combobox.tsx  ← @puds/combobox
+   덮어씀   lib/cn.ts  ← @puds/cn                      ← 레인 1. 정상
+   새 파일   components/ui/command.tsx  ← @puds/command
+   새 파일   components/ui/popover.tsx  ← @puds/popover
+   덮어씀   components/ui/dialog.tsx  ← @puds/dialog    ← 레인 2. 들이지 않는다
+② 선언됨    @base-ui/react  ← @puds/command
+   선언됨    @base-ui/react  ← @puds/dialog
+   선언됨    @base-ui/react  ← @puds/popover
+   선언됨    clsx  ← @puds/cn
+   선언됨    tailwind-merge  ← @puds/cn
 ```
 
 `@puds/combobox` 는 레인 2 와 이름이 겹치지 않고 Radix 도 물지 않는다 — **구 판별법 두 개를
 모두 통과한다.** 그런데 `@puds/command` → `@puds/dialog` 로 두 단계를 내려가
 `components/ui/dialog.tsx` 를 덮는다. 이름 대조만으로는 못 잡는 자리다.
 
-겹치는 16종은 같은 명령으로 **16/16 전부** `components/ui/<name>.tsx` 충돌이 확인됐다
+`data-table` — **① 이 깨끗하고 ② 가 잡는다**
+
+```
+① 새 파일   components/ui/data-table.tsx  ← @puds/data-table
+   새 파일   components/ui/checkbox.tsx  ← @puds/checkbox
+   덮어씀   lib/cn.ts  ← @puds/cn                      ← 레인 1. 정상
+② 선언됨    @base-ui/react  ← @puds/checkbox
+   없음      @tanstack/react-table  ← @puds/data-table   ← 이 앱에 없다. 보고 대상
+   선언됨    clsx  ← @puds/cn
+   선언됨    tailwind-merge  ← @puds/cn
+```
+
+① 만 보면 「레인 1 밖에 `덮어씀` 이 없으니 들여도 된다」가 된다. 실제로는
+`@tanstack/react-table` 이 딸려 온다. **② 를 지우면 이 자리를 놓친다.**
+
+**레지스트리 전수 집계** — v0.5.0 의 93 아이템을 전부 ② 로 돌린 결과(2026-08-31 실측):
+
+| 등급 | 패키지 | 걸리는 아이템 |
+|---|---|---|
+| `선언됨` | `@base-ui/react` · `class-variance-authority` · `clsx` · `recharts` · `tailwind-merge` | 86 |
+| `루트에만` | — | **0** |
+| `락파일뿐` | — | **0** |
+| `없음` | `@tanstack/react-table` | **1** — `data-table` |
+
+`루트에만` 과 `락파일뿐` 은 **지금은 해당 사례가 없다.** 루트 `package.json` 에만 선언된 것은
+`turbo` 하나뿐이고 그걸 무는 PUDS 아이템이 없어서다. 등급을 지우라는 뜻이 아니라 —
+**지금 0 이라는 것을 기록해 둔다.** 다음 버전에서 이 표의 어느 칸이 0 을 벗어나는지가
+이 검사가 알려 주는 것이다.
+
+**수가 적다고 검사를 빼지 마라.** `없음` 1 건은 0 이 아니고, **그 1 건을 검사 ① 은 완전히 놓친다.**
+
+겹치는 16종은 ① 로 **16/16 전부** `components/ui/<name>.tsx` 충돌이 확인됐다
 (2026-08-31, `/v/0.5.0/`).
 
 #### 레인 3 — 서비스 고유 컴포넌트
@@ -269,13 +383,18 @@ bun --filter @pullim-classbot/classbot build
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
+- **새 PUDS 아이템 도입** — 설치 전 확인 ①·② 를 돌린 **출력을 붙여** 보고한다. ② 에 `선언됨` 아닌 것
+  (`없음`·`루트에만`·`락파일뿐`)이 찍혔으면 **`apps/classbot/package.json` 에 새 의존을 선언하는
+  결정**이라 사용자 몫이다 ([§ 3.1](#설치-전-확인--검사는-둘이다))
 
 **하면 안 되는 것**
 - 다른 도메인(플래너/Q/라이브러리 등) 코드를 새로 작성 — 추출본 범위 외. 필요하면 원본 풀림 스터디 데모 저장소 또는 `pullim` 본체에서 작업
 - npm DS **패키지**(`@pullim/design-system` 등)를 dependency 로 추가 — UI 소스는 로컬 파일뿐이다.
   PUDS 는 `shadcn add` 로 **소스를 복사**해 오는 방식이라 여기 해당하지 않는다 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
 - 레인 1(PUDS 벤더링) 파일 직접 수정, 레인 2(로컬 프리미티브)를 PUDS 프리미티브로 교체 — 둘 다 [§ 3.1](#31-puds-디자인-시스템--3레인-판별표)
-  (교체 금지의 근거는 엔진이 아니라 **`files[].target` 충돌**이다. v0.5.0 부터 양쪽 다 `@base-ui/react` 다)
+  (교체 금지의 근거는 엔진이 아니라 **`files[].target` 충돌**이다. v0.5.0 부터 양쪽 다 `@base-ui/react` 다.
+  설치 전 확인은 그 충돌과 **미설치 npm 의존성**을 **둘 다** 본다 — 「Radix 를 무는가」가 죽은 것이지
+  의존성 검사가 죽은 게 아니다)
 
 ## 6. prod-verify — production 회귀 자동화
 
