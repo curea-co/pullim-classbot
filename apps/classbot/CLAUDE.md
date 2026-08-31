@@ -90,16 +90,28 @@ lib/cn.ts
 `components/ui/` 의 나머지(`button` · `dialog` · `dropdown-menu` · `sheet` · `tooltip` ·
 `tabs` · `input` · `select` 계열 등)는 **`@base-ui/react` 엔진**이다.
 
-**PUDS 프리미티브 51종 중 30종이 `@radix-ui/react-*` 기반이다** — 레인 2 와 이름이 겹치는
-16종만 놓고 보면 12종이 그렇다. `shadcn add @puds/button` 같은 명령은 머지가 아니라
-**덮어쓰기**다. 실행하면:
-- 같은 파일 경로(`components/ui/button.tsx`)를 PUDS 판으로 통째로 갈아치우고,
-- Radix 기반 아이템이면 `@radix-ui/*` 를 새 의존성으로 끌어오며,
-- base-ui 전용 prop(`render`, `data-open` 등)을 쓰는 호출부가 **즉시 깨진다.**
+> ⚠ **「엔진이 갈린다」는 근거는 PUDS v0.5.0(2026-08-28)에 죽었다.** PUDS 가 `@radix-ui/*`
+> 24개와 `cmdk` 를 전부 걷어내 **이제 양쪽 다 `@base-ui/react`** 다. v0.4.2 까지는 레지스트리
+> 93 아이템 중 **29개**가 Radix·cmdk 를 물었고(겹치는 16종 중 12종), 그래서 「Radix 를 무는가」
+> 가 판별 기준이었다. v0.5.0 에서 그 수는 **0** 이다.
+>
+> **그 검사를 지금 돌리면 전부 통과한다 — 막던 것을 전부 통과시킨다.** 아래 「설치 전 확인」
+> 에서 판별 기준을 `dependencies` 에서 **`files[].target` 충돌**로 갈아끼운 이유다.
 
-**Radix 를 물지 않는 넷(`badge` · `card` · `input` · `skeleton`)도 예외가 아니다.**
-덮어쓰기라는 사실은 같고, PUDS 판은 치수를 PUDS 스케일(`--radius-*` · `--text-<size>`)로
-읽으므로(아래 레인 3) 갈아치우면 그 컴포넌트만 다른 치수로 그려진다.
+**금지는 그대로다. 근거만 바뀌었다.** `shadcn add @puds/button` 같은 명령은 머지가 아니라
+**덮어쓰기**다. 실행하면:
+- 같은 파일 경로(`components/ui/button.tsx`)를 PUDS 판으로 통째로 갈아치운다 —
+  **이 리포가 그 파일에 넣어 둔 수정이 아무 말 없이 사라진다.** 이게 살아 있는 근거다.
+- 공개 API 가 달라 호출부가 **즉시 깨진다.** 실측(v0.5.0 `button` vs 로컬 `components/ui/button.tsx`):
+  PUDS 판의 variant prop 은 `intent`(primary·secondary·outline·ghost·danger)인데 로컬은
+  `variant`(default 등)이고, PUDS 판은 `buttonVariants` 를 **export 하지 않는다** —
+  `components/classbot/coming-soon-button.tsx:7` 이 그 타입을 import 하고 있다.
+- import 경로도 갈린다. PUDS 판은 `@/lib/cn`, 로컬 프리미티브 16종은 `@/lib/utils` 를 읽는다.
+- PUDS 판은 치수를 PUDS 스케일(`--radius-*` · `--text-<size>`)로 읽으므로(아래 레인 3)
+  갈아치우면 그 컴포넌트만 다른 치수로 그려진다.
+
+**`badge` · `card` · `input` · `skeleton` 도 예외가 아니다.** 예전엔 「Radix 를 물지 않는 넷」
+이라 예외처럼 보였지만 **그 구분 자체가 없어졌다.** 덮어쓴다는 사실만 남고, 그 사실은 16종 전부에 같다.
 
 그래서 **레인 2 파일 이름과 겹치는 PUDS 아이템은 설치하지 않는다.** 겹치는 것 **16개**:
 `avatar` · `badge` · `button` · `card` · `dialog` · `dropdown-menu` · `input` · `label` ·
@@ -108,15 +120,53 @@ lib/cn.ts
 나머지 레인 2 파일(`chip` · `meta-row` · `sonner` · `textarea`)은 **PUDS 에 대응 아이템이
 아예 없다** — 겹칠 일이 없다.
 
-새 PUDS 아이템을 들일 때는 **설치 전에** 두 가지를 확인한다:
+##### 설치 전 확인 — 기준은 엔진이 아니라 **경로**다
+
+새 PUDS 아이템을 들일 때 확인할 것은 하나다: **`files[].target` 이 이미 있는 파일을 가리키는가.**
+그리고 **전이 의존(`registryDependencies`)이 끌고 오는 target 까지** 봐야 한다 — 아래 실측처럼
+두 단계를 타고 내려가 레인 2 파일을 덮는 아이템이 실재한다.
+
 ```bash
-PUDS=https://pullim-design-system.vercel.app/v/0.3.0   # components.json 과 같은 버전을 쓸 것
-# ① Radix 를 물지 않는가 — 출력이 있으면 들이지 않는다(엔진이 갈린다)
-curl -s $PUDS/<name>.json | grep -o '"@radix-ui[^"]*"'
-# ② 기존 파일을 덮지 않는가 — target 경로가 이미 있으면 들이지 않는다
-curl -s $PUDS/<name>.json | grep -o '"target":"[^"]*"'
+cd apps/classbot
+PUDS=https://pullim-design-system.vercel.app/v/0.5.0   # components.json 과 같은 버전을 쓸 것
+
+puds_targets() {          # 전이 의존까지 펼쳐 target 을 전부 뽑는다
+  local q="$*" seen="" n j
+  while [ -n "$q" ]; do
+    set -- $q; n=$1; shift; q="$*"
+    case " $seen " in *" $n "*) continue ;; esac
+    seen="$seen $n"
+    j=$(curl -s "$PUDS/$n.json")
+    printf '%s' "$j" | jq -r --arg n "$n" '.files[].target + "\t" + $n'
+    q="$q $(printf '%s' "$j" | jq -r '(.registryDependencies // [])[] | sub("^@puds/";"")')"
+  done
+}
+
+puds_targets <name> | while IFS=$'\t' read -r target from; do
+  [ -e "$target" ] && echo "덮어씀   $target  ← @puds/$from" || echo "새 파일   $target  ← @puds/$from"
+done
 ```
-전이 의존(`registryDependencies`)도 같이 딸려 오니 함께 확인한다.
+
+**`덮어씀` 이 레인 1 파일(`lib/cn.ts` · `app/tokens/*` · 위 셸 9종) 밖에 하나라도 찍히면
+들이지 않는다.** 레인 1 은 원래 벤더링이 덮는 자리라 거기 찍히는 건 정상이다.
+
+실측 (2026-08-31, `/v/0.5.0/`):
+
+```
+$ puds_targets combobox | …
+새 파일   components/ui/combobox.tsx  ← @puds/combobox
+덮어씀   lib/cn.ts  ← @puds/cn                      ← 레인 1. 정상
+새 파일   components/ui/command.tsx  ← @puds/command
+새 파일   components/ui/popover.tsx  ← @puds/popover
+덮어씀   components/ui/dialog.tsx  ← @puds/dialog    ← 레인 2. 들이지 않는다
+```
+
+`@puds/combobox` 는 레인 2 와 이름이 겹치지 않고 Radix 도 물지 않는다 — **구 판별법 두 개를
+모두 통과한다.** 그런데 `@puds/command` → `@puds/dialog` 로 두 단계를 내려가
+`components/ui/dialog.tsx` 를 덮는다. 이름 대조만으로는 못 잡는 자리다.
+
+겹치는 16종은 같은 명령으로 **16/16 전부** `components/ui/<name>.tsx` 충돌이 확인됐다
+(2026-08-31, `/v/0.5.0/`).
 
 #### 레인 3 — 서비스 고유 컴포넌트
 
@@ -149,11 +199,11 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 레지스트리는 `apps/classbot/components.json` 의 한 줄이 전부다:
 
 ```json
-"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.3.0/{name}.json" }
+"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.5.0/{name}.json" }
 ```
 
-**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.3.0/` 이 내려주는 내용은 PUDS 저장소의
-`registry-releases/0.3.0/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
+**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.5.0/` 이 내려주는 내용은 PUDS 저장소의
+`registry-releases/0.5.0/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
 
 > ⛔ **`/r/{name}.json` 을 서비스가 직접 참조하면 안 된다.** 그 경로는 항상 **main 최신**을
 > 따라가므로 `shadcn add` 를 돌리는 **시점마다 받아오는 소스가 달라진다.** 어제 벤더링한 셸과
@@ -170,7 +220,7 @@ next-themes 는 `attribute="data-scheme"` 로 배선돼 있고(`app/layout.tsx`)
 ```bash
 cd apps/classbot
 
-# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.3.0/ → /v/0.4.0/
+# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.5.0/ → /v/0.6.0/
 #    (호스트는 그대로 pullim-design-system.vercel.app 이다)
 
 # 2) 레인 1 파일을 재설치한다
@@ -224,7 +274,8 @@ bun --filter @pullim-classbot/classbot build
 - 다른 도메인(플래너/Q/라이브러리 등) 코드를 새로 작성 — 추출본 범위 외. 필요하면 원본 풀림 스터디 데모 저장소 또는 `pullim` 본체에서 작업
 - npm DS **패키지**(`@pullim/design-system` 등)를 dependency 로 추가 — UI 소스는 로컬 파일뿐이다.
   PUDS 는 `shadcn add` 로 **소스를 복사**해 오는 방식이라 여기 해당하지 않는다 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
-- 레인 1(PUDS 벤더링) 파일 직접 수정, 레인 2(로컬 base-ui 프리미티브)를 PUDS Radix 프리미티브로 교체 — 둘 다 [§ 3.1](#31-puds-디자인-시스템--3레인-판별표)
+- 레인 1(PUDS 벤더링) 파일 직접 수정, 레인 2(로컬 프리미티브)를 PUDS 프리미티브로 교체 — 둘 다 [§ 3.1](#31-puds-디자인-시스템--3레인-판별표)
+  (교체 금지의 근거는 엔진이 아니라 **`files[].target` 충돌**이다. v0.5.0 부터 양쪽 다 `@base-ui/react` 다)
 
 ## 6. prod-verify — production 회귀 자동화
 
