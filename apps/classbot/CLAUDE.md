@@ -359,7 +359,34 @@ done
 [§ 5 「확인 후에만」](#5-작업-컨벤션--클래스봇-단일-도메인-락인)이 새 PUDS 아이템 도입을
 **보고 사항**으로 두는 이유가 그것이다. 판정은 사람이 결정하기 위한 입력이다.
 
-**가장 큰 자리가 `theme-puds` 다. 이 앱은 그것을 이미 설치한 쪽이다** —
+**이 앱에 실제로 그런 자리가 있다 — `@puds/bullet`.** ①·② 를 깨끗이 통과하는데(새 파일
+하나 + `lib/cn.ts`, 새 의존 없음) 이 앱의 **금지 hue 규약**에 정면으로 걸린다. `bullet` 은
+`--color-success-500` 과 `--color-warning-500` 을 직접 읽는데, 이 앱에 설치된 PUDS 토큰에서
+그 둘의 값이 이렇다:
+
+| 토큰 | `app/tokens/_base.css` | sRGB | `color-palette.spec.ts` 판정 |
+|---|---|---|---|
+| `--color-success-500` | `oklch(0.696 0.170 162)` | `rgb(0,188,124)` | **`success` — 금지 녹** |
+| `--color-warning-500` | `oklch(0.795 0.184 86)` | `rgb(240,177,0)` | **`warn` — 금지 앰버** |
+
+`tests/e2e/color-palette.spec.ts` 의 `isForbiddenHue()` 에 그대로 넣어 계산한 값이다.
+**`globals.css` 는 이 두 토큰을 덮지 않는다.** (지금 테스트가 빨개지지는 않는다 — `bullet` 이
+아직 어느 라우트에도 없어서다. 화면에 올리는 순간이 그 순간이다.)
+
+**색을 쓰는 차트 6종도 같은 부류다.** `area`·`bar`·`line`·`radar`·`sparkline`·`donut` 은
+`--chart-cat-1…8` 을 읽고, PUDS 기본값에는 `cat-4`(green `rgb(84,184,91)`)와
+`cat-6`(yellow `rgb(213,153,0)`)가 있어 **둘 다 같은 판정에 걸린다.** 이 앱이 안전한 이유는
+`globals.css` 가 그 8 개를 전부 덮어 두었기 때문이고, 그 블록 주석이 「이 오버라이드는
+**테스트가 의존하는 값**이니 지우지 말 것」이라고 적어 둔 이유가 이것이다.
+
+**판별기 ①·② 는 이 의존을 전혀 보지 않는다.** 그래서 새 아이템은 「무엇을 덮는가」·
+「무엇을 끌고 오는가」 말고 **「무슨 토큰을 읽는가」**도 봐야 한다:
+
+```bash
+curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -oE '\-\-(color|chart)-[a-z0-9-]+' | sort -u
+```
+
+**그다음으로 큰 자리가 `theme-puds` 다. 이 앱은 그것을 이미 설치한 쪽이다** —
 [레인 1](#레인-1--puds-원격에서-받는-것-로컬-수정-금지) 목록의 `app/tokens/*.css` 넉 장이 그
 결과이고, `app/globals.css` 가 그 위에서 값을 조정하는 구조다. 그래서 여기서는 `theme-puds`
 재설치가 정상 경로이고, 토큰 값을 이 앱에 맞추는 자리는 벤더링본이 아니라 `globals.css` 다
@@ -373,8 +400,9 @@ done
 
 **⚠ 경로가 안 겹쳐도 역할은 겹친다.** 내비 4 종은 `components/nav/*` 로 떨어져 판정은
 `충돌 없음` 이지만, 이 앱에는 같은 일을 하는 `components/shell/*` 가 이미 있다 —
-`app-shell.tsx` 는 **파일 이름까지 같다**(`components/nav/app-shell.tsx` vs
-`components/shell/app-shell.tsx`). 판별기는 경로만 본다. **두 벌이 공존해도 되는지는 사람이 본다.**
+`app-shell.tsx` 는 **파일 이름까지 같다** — `components/nav/app-shell.tsx`(**아직 없다.**
+`@puds/app-shell` 을 들이면 생기는 경로다) vs `components/shell/app-shell.tsx`(이 앱의 레인 3
+어댑터, 실재한다). 판별기는 경로만 본다. **두 벌이 공존해도 되는지는 사람이 본다.**
 
 ##### 실제 설치로 확인한 것 — 그리고 설치가 `package.json` 을 고친다
 
@@ -415,6 +443,10 @@ done
 ?? apps/classbot/components/ui/accordion.tsx
 ```
 
+> 위는 **확인용으로 설치했다가 되돌린 기록**이다. **지금 이 저장소에
+> `components/ui/accordion.tsx` 는 없다** — `accordion` 은 위 「충돌 없음 58」쪽 아이템이다.
+> 이 절의 경로를 「가서 보라」로 읽지 마라.
+
 `shadcn add` 는 아이템의 `dependencies` 를 **최신 범위로 다시 설치**한다. **검사 ② 가 전부
 `선언됨` 이어도 그렇다** — ② 는 「없는 의존을 끌고 오는가」를 보지 「있는 의존의 핀을 올리는가」를
 보지 않는다. `@puds/switch` 로 한 번 더 돌려 같은 상승을 재현했다.
@@ -431,8 +463,10 @@ git diff --stat -- apps/classbot/package.json bun.lock
 git diff -- apps/classbot/package.json
 ```
 
-**출력이 비어 있지 않으면 거기서 멈추고 보고한다.** 핀을 올릴지 되돌릴지는 사용자 결정이다 —
-되돌리는 쪽으로 정해졌을 때에만 아래를 돈다.
+**출력이 비어 있지 않으면 거기서 멈추고 보고한다.** `bun.lock` 이 바뀐 시점에서 이미
+**글로벌 작업 영역**이다. 「의도치 않은 상승이 보이니 되돌린다」로 혼자 처리하지 마라 —
+핀을 올릴지 되돌릴지는 **사용자 결정**이고, **올리기로 정해졌다면 그건 컴포넌트 도입 PR 이
+아니라 별건 PR** 이다. 되돌리는 쪽으로 정해졌을 때에만 아래를 돈다.
 
 ```bash
 git checkout -- apps/classbot/package.json bun.lock
@@ -455,13 +489,20 @@ shadcn 4.8.1 에는 `--dry-run` 이 있다. 전이 의존을 이미 펼쳐 주�
 
 ```bash
 cd apps/classbot
-./node_modules/.bin/shadcn add @puds/combobox --yes --dry-run
+bunx shadcn add @puds/combobox --yes --dry-run
 ```
 
-> `shadcn` 은 `apps/classbot/package.json` 에 선언된 의존(`shadcn: ^4.4.0`)이고, bun 은
-> workspace 바이너리를 **루트가 아니라 `apps/classbot/node_modules/.bin/` 에** 심는다.
-> 그래서 위 경로는 **`bun install` 을 먼저 돌린 트리에서만** 존재한다 — 없다면 판별기 문제가
-> 아니라 설치가 안 된 것이다. 아래 [버전 업그레이드 절차](#버전-업그레이드-절차)도 같은 경로를 쓴다.
+> ⛔ **`bunx shadcn` 은 반드시 `apps/classbot` 안에서 돈다.** 이 저장소의 명령 규약은 root
+> 기준이지만(`bun run <script>` · `bun --filter <pkg> <script>`, [/CLAUDE.md § 3](../../CLAUDE.md)),
+> **`bun --filter` 는 워크스페이스 *스크립트* 실행용이라 `shadcn` 같은 CLI 에는 못 쓴다**
+> (실측: `bun --filter @pullim-classbot/classbot shadcn` → `error: No packages matched the filter`).
+> 그래서 `cd apps/classbot` 이 먼저다.
+>
+> **루트에서 돌리지 마라 — 조용히 다른 버전이 온다.** `shadcn` 은
+> `apps/classbot/package.json` 의 선언된 의존(`shadcn: ^4.4.0`)이고 bun 은 그 바이너리를
+> 루트가 아니라 **그 워크스페이스에** 심는다. 루트에서 `bunx shadcn` 을 치면 bun 이 npm 에서
+> 새로 받아 온다 — **실측(2026-08-31): `apps/classbot` 에서 `4.8.1`, 루트에서 `4.19.0`.**
+> 벤더링 결과가 도구 버전에 좌우되므로 그 차이는 무해하지 않다.
 ```
 ├ Files (5) +3 new, ~1 overwrite, =1 skip
 │ = lib/cn.ts                   skip (identical)
@@ -612,8 +653,8 @@ cd apps/classbot
 #    (호스트는 그대로 pullim-design-system.vercel.app 이다)
 
 # 2) 레인 1 파일을 재설치한다
-./node_modules/.bin/shadcn add @puds/theme-puds --overwrite --yes
-./node_modules/.bin/shadcn add \
+bunx shadcn add @puds/theme-puds --overwrite --yes
+bunx shadcn add \
   @puds/dashboard-shell @puds/os-rail @puds/os-tabbar @puds/page-header \
   @puds/rail-collapse-context @puds/service-switcher @puds/service-icon \
   @puds/skip-link --overwrite --yes
