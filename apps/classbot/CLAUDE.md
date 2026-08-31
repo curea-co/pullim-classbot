@@ -147,7 +147,13 @@ lib/cn.ts
 ```bash
 cd apps/classbot
 PUDS=https://pullim-design-system.vercel.app/v/0.5.0   # components.json 과 같은 버전을 쓸 것
+ITEM=combobox                                          # ← 들이려는 아이템 이름. 여기만 바꾼다
 ```
+
+> 아이템 이름을 `<name>` 같은 꺾쇠 자리표시자로 두지 마라. `<` 와 `>` 는 셸의 리다이렉션이라
+> **복사해 붙이면 구문 오류로 아예 실행되지 않는다** — `bash -n` 도 `zsh -n` 도
+> ``syntax error near unexpected token `|'`` 를 낸다. 아래 두 블록은 위 `ITEM` 을 그대로 읽으므로
+> **환경 블록 → ① → ② 순서로 붙여 넣으면 그대로 돈다.**
 
 **① `files[].target` 충돌**
 
@@ -164,7 +170,7 @@ puds_targets() {          # 전이 의존까지 펼쳐 target 을 전부 뽑는�
   done
 }
 
-puds_targets <name> | while IFS=$'\t' read -r target from; do
+puds_targets "$ITEM" | while IFS=$'\t' read -r target from; do
   [ -e "$target" ] && echo "덮어씀   $target  ← @puds/$from" || echo "새 파일   $target  ← @puds/$from"
 done
 ```
@@ -192,7 +198,7 @@ app=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' package.
 root=$(jq -r '(.dependencies // {}) + (.devDependencies // {}) | keys[]' ../../package.json | sort -u)
 locked=$(grep -oE '^    "[^"]+": \[' ../../bun.lock | sed 's/^    "//; s/": \[$//' | sort -u)
 
-puds_deps <name> | sort -u | while IFS=$'\t' read -r dep from; do
+puds_deps "$ITEM" | sort -u | while IFS=$'\t' read -r dep from; do
   pkg=$(printf '%s' "$dep" | sed -E 's#^(@[^@/]+/[^@]+|[^@]+)@.+$#\1#')   # 레지스트리는 `pkg@1.2.3` 표기도 허용한다
   if   printf '%s\n' "$app"    | grep -qxF "$pkg"; then s="선언됨   "
   elif printf '%s\n' "$root"   | grep -qxF "$pkg"; then s="루트에만 "
@@ -220,8 +226,8 @@ done
 > 없는 이름을 넣으면 404 HTML 이 내려와 두 명령 모두 `jq: parse error` 를 낸다 —
 > 조용히 빈 출력이 되지는 않는다. 그 에러를 「걸린 게 없다」로 읽지 마라.
 
-**실측** (2026-08-31, `/v/0.5.0/`, `cd apps/classbot` 에서). 두 아이템이 **서로 반대 방향으로**
-한쪽 검사만 통과한다:
+**실측** (2026-08-31, `/v/0.5.0/`). 아래는 **위 세 블록을 그대로 붙여 넣고 `ITEM` 만 바꿔** 얻은
+출력이다. 두 아이템이 **서로 반대 방향으로** 한쪽 검사만 통과한다:
 
 `combobox` — ① 이 잡고 ② 는 깨끗하다
 
