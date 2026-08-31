@@ -118,7 +118,7 @@ export default function BotBuilderPage() {
   }
 
   return (
-    <div className="space-y-4 py-4 lg:py-6">
+    <div className="space-y-7">
       <PageHeader
         eyebrow={{ icon: Bot, text: '봇 빌더' }}
         title="새 클래스봇 만들기"
@@ -142,8 +142,8 @@ export default function BotBuilderPage() {
           onRestart={restart}
         />
       ) : (
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
-          <div className="space-y-4">
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="space-y-6">
             <YardSteps current={yard} onJump={jumpYard} />
 
             {yard === 1 && <Yard1Intro draft={draft} onPick={onPick} fault={fault} />}

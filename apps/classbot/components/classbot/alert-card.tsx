@@ -56,7 +56,7 @@ export function AlertCard({
       )}
     >
       {(Icon || title) && (
-        <header className="mb-2 flex items-center gap-2">
+        <header className="mb-3 flex items-center gap-2">
           {Icon && <Icon className={cn('h-4 w-4', meta.iconColor)} aria-hidden />}
           {title && (
             <h3 className={cn('text-sm font-bold', meta.titleColor)}>

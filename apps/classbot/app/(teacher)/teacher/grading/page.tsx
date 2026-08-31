@@ -6,7 +6,8 @@ import { gradingStats } from '@/lib/mock';
 import { allGradingItems } from '@/lib/mock/classbot-grading-roster';
 import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { GradingKpiBar, GradingQueueList } from './grading-queue';
-import { GradingStudentList, toStudentFilter, toStudentSort } from './grading-student-list';
+import { GradingStudentList } from './grading-student-list';
+import { toStudentFilter, toStudentSort } from './grading-filters';
 
 type SearchParams = Promise<{
   view?: string;
@@ -77,8 +78,8 @@ export default async function TeacherGradingPage({ searchParams }: { searchParam
       <GradingKpiBar items={allItems} />
 
       {/* 탭 + 그 탭의 거르개 */}
-      <section className="bg-card rounded-2xl border p-3">
-        <div className="space-y-2">
+      <section className="bg-card rounded-2xl border p-4">
+        <div className="space-y-3">
           <FilterPills
             label="보기"
             options={views}

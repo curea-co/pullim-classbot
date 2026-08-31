@@ -12,13 +12,17 @@ import {
 } from '@/components/classbot/roster-badges';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  isOfflineToday, lastSeenRank, reachBadge, stuckConceptLabel,
-  type MonitoredStudent,
+  lastSeenRank, stuckConceptLabel, type MonitoredStudent,
 } from '@/lib/mock/classbot-monitoring';
 import { buildGradingRoster, type GradingRosterRow } from '@/lib/mock/classbot-grading-roster';
 import type { GradingItem } from '@/lib/mock';
 import { useGradingStore, useMergedGradingItems } from '@/lib/store/grading';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import {
+  filterLabels, matchesStudentFilter, sortOptions, studentViewHref,
+  STUDENT_FILTER_DEFAULT, STUDENT_SORT_DEFAULT,
+  type StudentFilter, type StudentSort,
+} from './grading-filters';
 
 /**
  * 채점 허브의 기본 화면 — **등록된 학생 전체** (spec 11 § 3.3.0).
@@ -38,59 +42,17 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
  * 어디서 막혔는지** 는 이미 그 화면이 답한다. 여기서 다시 만들지 않는다.
  */
 
-export type StudentFilter = 'all' | 'pending' | 'not-reached' | 'offline';
-export type StudentSort = 'pending' | 'name' | 'stale';
-
 /**
- * 거르개·정렬은 **URL 이 1차**다 (spec 11 § 10) — 큐 탭(`?status`·`?type`)과 같은 결.
- * 새로고침·링크 공유·뒤로 가기에서 보던 조건이 유지돼야 한다.
- *
- * 값은 화면 안에서도 한 벌 들고 있다. 누르는 즉시 목록이 움직여야 해서다
+ * 거르개·정렬 값은 화면 안에서도 한 벌 들고 있다. 누르는 즉시 목록이 움직여야 해서다
  * (URL 이 돌아오길 기다리면 알약이 늦게 반응한다). URL 은 뒤따라 갱신한다.
  *
  * **`push` 를 쓴다(`replace` 아님).** 거르개를 바꾼 것은 교사가 한 이동이라 뒤로 가기로
  * 되돌아갈 수 있어야 한다. `replace` 면 방금 보던 조건이 히스토리에서 사라진다.
  * 뒤로 가서 URL 이 바뀌면 페이지가 `key` 로 이 컴포넌트를 다시 세워 값을 다시 읽는다.
+ *
+ * URL 을 읽고 쓰는 규칙 자체는 `./grading-filters` 에 있다 — 서버 컴포넌트도 같은 것을 읽어야
+ * 해서 이 파일(`'use client'`) 밖으로 뺐다.
  */
-export const STUDENT_FILTER_DEFAULT: StudentFilter = 'all';
-export const STUDENT_SORT_DEFAULT: StudentSort = 'pending';
-
-export function toStudentFilter(v: string | undefined): StudentFilter {
-  return v === 'pending' || v === 'not-reached' || v === 'offline' ? v : STUDENT_FILTER_DEFAULT;
-}
-
-export function toStudentSort(v: string | undefined): StudentSort {
-  return v === 'name' || v === 'stale' ? v : STUDENT_SORT_DEFAULT;
-}
-
-/** 학생 탭의 URL — 기본값은 적지 않는다(주소가 길어지기만 한다). */
-export function studentViewHref(filter: StudentFilter, sort: StudentSort): string {
-  const q = new URLSearchParams();
-  if (filter !== STUDENT_FILTER_DEFAULT) q.set('filter', filter);
-  if (sort !== STUDENT_SORT_DEFAULT) q.set('sort', sort);
-  const query = q.toString();
-  return query ? `/teacher/grading?${query}` : '/teacher/grading';
-}
-
-const sortOptions = [
-  { value: 'pending', label: '채점 대기 많은 순' },
-  { value: 'name',    label: '이름순' },
-  { value: 'stale',   label: '활동 오래된 순' },
-] as const;
-
-const filterLabels: Record<StudentFilter, string> = {
-  all: '전체',
-  pending: '채점 대기 있음',
-  'not-reached': '미도달',
-  offline: '오늘 안 들어옴',
-};
-
-function matches(row: GradingRosterRow, filter: StudentFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'pending') return row.pending > 0;
-  if (filter === 'offline') return isOfflineToday(row.student);
-  return reachBadge(row.student) === 'not-reached';
-}
 
 export function GradingStudentList({
   students,
@@ -125,13 +87,13 @@ export function GradingStudentList({
 
   const counts = useMemo(() => ({
     all: rows.length,
-    pending: rows.filter(r => matches(r, 'pending')).length,
-    'not-reached': rows.filter(r => matches(r, 'not-reached')).length,
-    offline: rows.filter(r => matches(r, 'offline')).length,
+    pending: rows.filter(r => matchesStudentFilter(r, 'pending')).length,
+    'not-reached': rows.filter(r => matchesStudentFilter(r, 'not-reached')).length,
+    offline: rows.filter(r => matchesStudentFilter(r, 'offline')).length,
   }), [rows]);
 
   const visible = useMemo(() => {
-    const filtered = rows.filter(r => matches(r, filter));
+    const filtered = rows.filter(r => matchesStudentFilter(r, filter));
     const byName = (a: GradingRosterRow, b: GradingRosterRow) =>
       a.student.name.localeCompare(b.student.name, 'ko');
     return [...filtered].sort((a, b) => {
@@ -149,7 +111,7 @@ export function GradingStudentList({
         description="채점할 게 없는 학생도 함께 보여요."
       />
 
-      <div className="mb-3 space-y-2">
+      <div className="mb-4 space-y-2">
         <FilterPillButtons
           options={(Object.keys(filterLabels) as StudentFilter[]).map(value => ({
             value,
@@ -204,7 +166,7 @@ function StudentRow({ row }: { row: GradingRosterRow }) {
       <Link
         // 되돌아갈 곳을 넘긴다 — 이게 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
         href={`/teacher/students/${s.id}?from=grading`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_4.5rem_5rem_minmax(0,1fr)_6rem_auto]"
+        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_4.5rem_5rem_minmax(0,1fr)_6rem_auto]"
       >
         {/* 이름 · 학년 */}
         <span className="flex items-center gap-2">

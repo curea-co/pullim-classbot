@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
-import {
-  GradingStudentList, studentViewHref, toStudentFilter, toStudentSort,
-} from '../grading-student-list';
+import { GradingStudentList } from '../grading-student-list';
+import { studentViewHref, toStudentFilter, toStudentSort } from '../grading-filters';
 import { monitoredRoster } from '@/lib/mock/classbot-monitoring';
 import { allGradingItems, buildGradingRoster } from '@/lib/mock/classbot-grading-roster';
 import { useGradingStore } from '@/lib/store/grading';

@@ -49,7 +49,7 @@ export function MonitorBoard({
 
   return (
     <>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <KpiStatBar cols={6}>
           {filterCards.map(card => (
             <FilterCard
@@ -110,7 +110,7 @@ function FilterCard({
         aria-pressed={active}
         onClick={onSelect}
         className={cn(
-          'w-full rounded-lg border-2 px-3 py-2 text-left transition-colors',
+          'w-full rounded-lg border-2 px-3.5 py-2.5 text-left transition-colors',
           'focus-visible:ring-pullim-blue-400/50 focus-visible:outline-none focus-visible:ring-2',
           active
             ? 'border-pullim-blue-600 bg-pullim-blue-50'
@@ -123,7 +123,7 @@ function FilterCard({
         )}>
           {label}
         </span>
-        <span className={cn('mt-0.5 block font-mono text-base font-bold', toneValueClass[tone])}>
+        <span className={cn('mt-1 block font-mono text-base font-bold', toneValueClass[tone])}>
           {value}
         </span>
         <span className="sr-only">{` — ${srHint}`}</span>

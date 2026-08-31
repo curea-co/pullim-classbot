@@ -67,7 +67,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       </KpiStatBar>
 
       {/* 필터 */}
-      <section className="bg-card rounded-2xl border p-3">
+      <section className="bg-card rounded-2xl border p-4">
         <FilterPills
           options={kindFilters}
           current={kindFilter}
@@ -76,7 +76,7 @@ export default async function TeacherReportsPage({ searchParams }: { searchParam
       </section>
 
       {/* 리포트 목록 */}
-      <section className="bg-card rounded-2xl border p-4">
+      <section className="bg-card rounded-2xl border p-5">
         <SectionHeading title={`리포트 ${filtered.length}건`} description="위기 신호 있는 항목이 우선 정렬돼요." />
         {filtered.length === 0 ? (
           <EmptyState icon={BarChart3} title="아직 생성된 리포트가 없어요" description="매일 19:50 자동 생성돼요." size="md" />

@@ -39,7 +39,7 @@ export default function TeacherHomePage() {
   const attentionTotal = countAttentionStudents();
 
   return (
-    <div className="space-y-5 py-4 lg:py-6">
+    <div className="space-y-7">
       <PageHeader
         eyebrow={{ icon: LayoutDashboard, text: '교사 대시보드' }}
         title={<>안녕하세요, <span className="text-pullim-blue-600">{currentTeacher.name}</span> 선생님</>}
@@ -70,7 +70,7 @@ export default function TeacherHomePage() {
         총량 사용 지표(대화 수 같은 합계)는 담지 않는다. 교사 워크숍에서 노이즈로 분류된 값이다.
         지름길 시도는 학생 분류용 숫자가 아니라 과제 설계 신호라 관제소 명단 아래로 내렸다.
       */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <KpiStatBar cols={4}>
           <KpiStat
             label="도달"
@@ -91,7 +91,7 @@ export default function TeacherHomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* 오늘 먼저 볼 사람 — 이 화면의 본체 */}
         <section className="bg-card rounded-2xl border p-5 lg:col-span-2">
           <SectionHeading
@@ -143,7 +143,7 @@ export default function TeacherHomePage() {
                 <li key={item.id}>
                   <Link
                     href={pendingHref[item.type]}
-                    className="bg-pullim-slate-50 hover:bg-pullim-slate-100 flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors"
+                    className="bg-pullim-slate-50 hover:bg-pullim-slate-100 flex items-center gap-2.5 rounded-lg px-3.5 py-3 transition-colors"
                   >
                     <ClipboardCheck className="text-pullim-slate-400 h-4 w-4 shrink-0" aria-hidden />
                     <span className="text-pullim-slate-900 min-w-0 flex-1 truncate text-sm font-bold">
@@ -181,7 +181,7 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
       <Link
         // 되돌아갈 곳을 넘긴다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
         href={`/teacher/students/${student.id}?from=home`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[8rem_minmax(0,1fr)_3.5rem_5rem_auto]"
+        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[8rem_minmax(0,1fr)_3.5rem_5rem_auto]"
       >
         <span className="flex items-center gap-2">
           <span className="bg-pullim-slate-100 text-pullim-slate-700 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-2xs font-bold">

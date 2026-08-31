@@ -79,7 +79,7 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
           action={{ href: '/teacher/builder', label: '봇 만들기' }}
         />
       ) : (
-        <ul data-testid="bot-manage-list" className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ul data-testid="bot-manage-list" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {bots.map(bot => (
             <BotManageCard key={bot.botId} bot={bot} carriedTab={carriedTab} />
           ))}
@@ -102,7 +102,7 @@ function BotManageCard({ bot, carriedTab }: { bot: ManagedBot; carriedTab?: stri
     <li data-testid={`bot-manage-card-${bot.botId}`}>
       <Link
         href={href}
-        className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-start gap-3 rounded-2xl border p-4 transition-colors outline-none focus-visible:ring-2"
+        className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-start gap-4 rounded-2xl border p-5 transition-colors outline-none focus-visible:ring-2"
       >
         <span className="bg-pullim-blue-50 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl" aria-hidden>
           {bot.avatarEmoji}

@@ -80,7 +80,7 @@ export function MonitorRoster({
       {/* 어떤 값을 담는지는 화면 아래 안내(관제소)·헤더(학생 목록)가 이미 말한다 — 여기서 또 세지 않는다. */}
       <SectionHeading title="학생 한 줄 보기" />
 
-      <div className="mb-3 space-y-2">
+      <div className="mb-4 space-y-2">
         {context && <p className="text-pullim-slate-400 text-micro font-semibold">{context}</p>}
 
         {ownsFilter ? (
@@ -168,7 +168,7 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
       <Link
         // 되돌아갈 곳을 명시한다 — 기본값이 우연히 관제소인 것에 기대지 않는다 (spec 11 § 3.3.3 R1).
         href={`/teacher/students/${s.id}?from=monitor`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_7rem_5rem_4.5rem_minmax(0,1fr)_auto]"
+        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_7rem_5rem_4.5rem_minmax(0,1fr)_auto]"
       >
         {/* 이름 · 학년 */}
         <span className="flex items-center gap-2">

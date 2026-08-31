@@ -56,7 +56,7 @@ describe('KpiStat', () => {
     const { container } = render(<KpiStat label="테스트" value="1건" />);
     const li = container.querySelector('li');
     expect(li).toBeInTheDocument();
-    expect(li).toHaveClass('bg-pullim-slate-50/50', 'rounded-lg', 'px-3', 'py-2');
+    expect(li).toHaveClass('bg-pullim-slate-50/50', 'rounded-lg', 'px-3.5', 'py-2.5');
   });
 
   it('label has correct typography classes', () => {
@@ -73,7 +73,7 @@ describe('KpiStat', () => {
     const { container } = render(<KpiStat label="레이블" value="값" />);
     const value = container.querySelector('.font-mono');
     expect(value).toBeInTheDocument();
-    expect(value?.className).toContain('mt-0.5');
+    expect(value?.className).toContain('mt-1');
     expect(value).toHaveClass('text-base', 'font-bold');
   });
 });
@@ -88,7 +88,7 @@ describe('KpiStatBar', () => {
     );
     const section = container.querySelector('section');
     expect(section).toBeInTheDocument();
-    expect(section).toHaveClass('bg-card', 'rounded-2xl', 'border', 'p-3');
+    expect(section).toHaveClass('bg-card', 'rounded-2xl', 'border', 'p-4');
     const ul = section?.querySelector('ul');
     expect(ul).toBeInTheDocument();
     expect(ul?.querySelectorAll('li').length).toBe(2);

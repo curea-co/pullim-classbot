@@ -72,7 +72,7 @@ export default async function TeacherBotSettingsPage({
       }}
     >
       {/* 탭 — URL 로 옮긴다(서버 렌더 유지). 준비 중 탭도 자리를 차지한다. */}
-      <section className="bg-card rounded-2xl border p-3">
+      <section className="bg-card rounded-2xl border p-4">
         <FilterPills
           options={botPolicyTabs.map(t => ({
             value: t.value,
@@ -157,7 +157,7 @@ function SafetyTab() {
       {/* L1~L5 가 각각 무엇인지 — 등급 숫자만 두면 읽을 수 없다 */}
       <section className="bg-card rounded-2xl border p-5">
         <SectionHeading title="안전 등급 L1~L5" description="등급마다 봇이 답할 수 있는 범위예요." />
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {([1, 2, 3, 4, 5] as const).map(level => {
             const meta = scopeMeta[level];
             const inUse = safetySchedule.some(s => s.scope === level);
@@ -207,7 +207,7 @@ function DriftTab() {
           description="학생이 수업 범위 밖 이야기를 꺼냈을 때 봇이 어떻게 되돌릴지 정해요."
         />
 
-        <ul className="grid gap-2 sm:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-3">
           {driftLevels.map(level => {
             const active = level.value === currentDriftLevel;
             return (
