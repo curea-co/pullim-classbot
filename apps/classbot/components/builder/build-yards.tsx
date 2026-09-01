@@ -95,22 +95,52 @@ export function Yard1Intro({
             좁힌 것은 **패딩이 아니라 폭**이다 — `p-3`(12px)은 이미 좁고, 남아 보이던 여백은
             전부 가로 여유분이었다.
 
-            `align="center"` 도 같은 까닭이다. 카드에 남는 것이 **과목 이름 하나**뿐이라
-            (봇 시그니처 색 점과 「과학봇」 밑줄을 뺐다 — 색 점은 다섯 과목을 가르지 못하고,
-            밑줄의 봇 이름은 바로 아래 「봇 이름」 칸 placeholder 가 같은 말을 되풀이한다)
-            왼끝에 맞출 짝이 없다. 남는 자리를 양쪽으로 갈라야 버튼으로 읽힌다.
-            `botSignature` 는 지우지 않는다 — 학생 홈 봇 목록·챗이 그대로 쓴다. 여기서만 뺀다.
+            폭을 좁히고도 **131 : 52** 는 여전히 가로로 누워, 두 글자를 뺀 101px 이 남았다.
+            그래서 남는 자리를 **채운다** — 카드를 72px 로 세우고(`min-h-18`), 이름을 바닥
+            왼끝에 앉히고(세로 flex + `justify-end`), 가장 크게 비던 오른쪽 위를 과목 무늬로
+            메운다. 무늬는 모서리 밖으로 8px 걸쳐 `overflow-hidden` 이 `rounded-xl` 을 따라 자른다.
+
+            종전의 `align="center"` 는 **남는 자리를 양쪽으로 가르는 회피책**이었다. 그 자리가
+            그림으로 차면 회피할 것이 없어지고, 왼끝 정렬이라야 바로 아래 학년 칩·봇 이름 칸과
+            왼끝이 맞는다. 그래서 `align` 은 기본값(`start`)으로 두고 넘기지 않는다.
+
+            무늬는 **알아보라고 두는 그림이 아니다** — 8px 잘린 데다 색이 `slate-200`(고르면
+            `blue-200`)이라 이름과 겨루지 않는다. 그래서 낭독기에서는 통째로 뺀다(`aria-hidden`) —
+            카드가 부르는 이름은 여전히 과목 이름 하나다.
+
+            봇 시그니처 5색은 **여기서 쓰지 않는다** — 색 점은 다섯 과목을 가르지 못한다.
+            `botSignature` 를 지우지는 않았다(학생 홈 봇 목록·챗이 그대로 쓴다). 여기서만 뺀다.
+            「과학봇」 밑줄도 그대로 없다 — 바로 아래 「봇 이름」 칸 placeholder 가 같은 말을 한다.
+
+            **이름이 세 글자인 과목이 생기면 무늬와 이름이 부딪친다.** 가장 좁은 768 의 78px
+            카드에서 이름 오른끝 39.6px · 무늬 왼끝 44px 로 가로 여유가 4.4px 뿐이다.
+            과목을 늘릴 때 이 값을 다시 재라.
           */}
           <RadioCardGroup ariaLabel="과목" cols={5} id={faultAnchorId('subject')} focusable>
-            {subjectIds.map((id) => (
-              <RadioCard
-                key={id}
-                active={draft.subject === id}
-                onSelect={() => selectSubject(id)}
-                title={subjectMeta[id].label}
-                align="center"
-              />
-            ))}
+            {subjectIds.map((id) => {
+              const { label, icon: Mark } = subjectMeta[id];
+              const on = draft.subject === id;
+              return (
+                <RadioCard
+                  key={id}
+                  active={on}
+                  onSelect={() => selectSubject(id)}
+                  className="relative flex min-h-18 flex-col justify-end overflow-hidden"
+                  title={
+                    <>
+                      <Mark
+                        aria-hidden
+                        className={cn(
+                          'pointer-events-none absolute -top-2 -right-2 h-10 w-10',
+                          on ? 'text-pullim-blue-200' : 'text-pullim-slate-200',
+                        )}
+                      />
+                      {label}
+                    </>
+                  }
+                />
+              );
+            })}
           </RadioCardGroup>
           <FieldError fault={fault} field="subject" />
         </div>
