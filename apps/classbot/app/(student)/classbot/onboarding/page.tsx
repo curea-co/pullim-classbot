@@ -82,7 +82,7 @@ export default function ClassbotOnboardingPage() {
                           {isCurrent && <Check aria-hidden className="h-2.5 w-2.5" />}
                           L{l}
                         </span>
-                        <span className={isCurrent ? 'text-pullim-blue-700 text-micro' : 'text-micro'}>
+                        <span className={isCurrent ? 'text-pullim-blue-700 text-2xs' : 'text-2xs'}>
                           {label}
                         </span>
                       </li>

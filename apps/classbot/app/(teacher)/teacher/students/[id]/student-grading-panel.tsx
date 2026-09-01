@@ -68,11 +68,11 @@ export function StudentGradingPanel({
                       <span className="text-pullim-slate-900 truncate text-2xs font-bold">
                         {item.assignmentTitle}
                       </span>
-                      <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-micro font-bold', status.className)}>
+                      <span className={cn('shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-bold', status.className)}>
                         {status.label}
                       </span>
                     </span>
-                    <span className="text-pullim-slate-500 mt-1 block truncate text-micro">
+                    <span className="text-pullim-slate-500 mt-1 block truncate text-2xs">
                       {item.responsePreview}
                     </span>
                   </span>

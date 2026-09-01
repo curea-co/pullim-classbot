@@ -42,8 +42,11 @@ export function AppBrand({ role }: { role: Role }) {
       <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
         풀림
       </span>
-      {/* 서비스명 — `.mast .sub`: mono 11px / .04em / 좌측 divider(pl 9px·ml 2px) */}
-      <span className="text-pullim-slate-400 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-[11px] leading-none tracking-[0.04em]">
+      {/* 서비스명 — 상류 스펙 `.mast .sub` 는 mono **11px** 이지만 여기 텍스트는
+          한국어(「클래스봇」)라 계약 §1(한국어 12px 미만 금지)에 걸린다.
+          대괄호 임의 크기 자체도 금지라 토큰 클래스 text-2xs(12px)로 올린다.
+          divider 간격(pl 9px·ml 2px)은 스펙대로 둔다. */}
+      <span className="text-pullim-slate-500 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
         클래스봇
       </span>
     </Link>
@@ -64,7 +67,11 @@ export function AppHeaderActions({ role }: { role: Role }) {
         <button
           aria-label="검색"
           aria-disabled="true"
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          /* 네이티브 disabled 가 없어 `disabled:` 는 매치되지 않는다.
+             계약 §4.1 은 비활성 후퇴를 접두사 variant 로만 허용하므로
+             data-disabled 를 실제로 달고 그것을 겨냥한다. */
+          data-disabled=""
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
           title="준비 중"
         >
           <Search className="h-[22px] w-[22px]" />
@@ -75,7 +82,10 @@ export function AppHeaderActions({ role }: { role: Role }) {
         ) : (
           <button
             aria-label="알림 — 준비 중"
-            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+            aria-disabled="true"
+            /* 위 검색 버튼과 같은 이유로 data-disabled 를 단다 */
+            data-disabled=""
+            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
             title="준비 중"
           >
             <Bell className="h-[22px] w-[22px]" />

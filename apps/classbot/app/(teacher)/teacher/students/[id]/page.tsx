@@ -87,7 +87,7 @@ export default async function TeacherStudentReportPage({
           current={period}
           href={v => `/teacher/students/${id}${query(v)}`}
         />
-        <p className="text-pullim-slate-400 mt-2 text-micro">
+        <p className="text-pullim-slate-500 mt-2 text-xs">
           기간을 바꿔도 지금은 같은 스냅샷을 보여줘요. (준비 중)
         </p>
       </section>
@@ -145,7 +145,7 @@ export default async function TeacherStudentReportPage({
                         style={{ width: `${slice.pct}%` }}
                       />
                     </div>
-                    <p className="text-pullim-slate-500 mt-1 text-micro leading-relaxed">{slice.soWhat}</p>
+                    <p className="text-pullim-slate-500 mt-1 text-2xs leading-relaxed">{slice.soWhat}</p>
                   </li>
                 ))}
               </ul>
@@ -165,14 +165,14 @@ export default async function TeacherStudentReportPage({
                     <li key={entry.id} className="bg-pullim-slate-50 rounded-lg p-2.5">
                       <div className="text-pullim-slate-400 font-mono text-micro">{entry.at}</div>
                       <p className="text-pullim-slate-900 mt-0.5 text-2xs font-semibold">{entry.ask}</p>
-                      <p className="text-pullim-slate-500 mt-1 text-micro leading-relaxed">
+                      <p className="text-pullim-slate-500 mt-1 text-2xs leading-relaxed">
                         <b className="text-pullim-slate-600">봇 대응</b> · {entry.handled}
                       </p>
                     </li>
                   ))}
                 </ol>
               )}
-              <p className="text-pullim-slate-500 mt-2.5 text-micro leading-relaxed">
+              <p className="text-pullim-slate-500 mt-2.5 text-xs leading-relaxed">
                 이 건수는 학급 관제소 명단의 <b className="text-pullim-slate-700">{student.name} 이탈 {report.scopeExitCount}회</b>와 같은 값이에요.
               </p>
             </section>

@@ -29,13 +29,13 @@ export function CrisisInterventionPanel({
       <section className="bg-pullim-slate-900 text-pullim-slate-200 rounded-2xl p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <div className="text-pullim-danger flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-danger flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
               <AlertTriangle className="h-3 w-3" />
               위기 신호
             </div>
             <h2 className="mt-0.5 text-base font-bold text-white">즉시 개입 대상</h2>
           </div>
-          <span className="bg-pullim-danger text-white rounded-full px-2 py-0.5 text-micro font-bold">
+          <span className="bg-pullim-danger text-white rounded-full px-2 py-0.5 text-2xs font-bold">
             {students.length}명
           </span>
         </div>
@@ -57,7 +57,7 @@ export function CrisisInterventionPanel({
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold text-white">{s.name}</div>
-                      <div className="text-pullim-slate-400 text-micro">
+                      <div className="text-pullim-slate-400 text-2xs">
                         {s.alert === 'burnout' && '번아웃 위험 — 웰빙 ' + s.wellbeing}
                         {s.alert === 'emotion' && '감정 체크인 "힘듦" 3일 연속'}
                         {s.alert === 'attendance' && `${s.lastActiveMin}분째 무응답`}
@@ -168,7 +168,7 @@ function CrisisDetailModal({
                       <span className="text-pullim-slate-700 w-12 font-bold">{c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`}</span>
                       <span className="text-pullim-slate-500">{m.label}</span>
                       {c.freeText && (
-                        <span className="text-pullim-slate-400 ml-auto truncate text-micro italic">“{c.freeText}”</span>
+                        <span className="text-pullim-slate-500 ml-auto truncate text-2xs italic">“{c.freeText}”</span>
                       )}
                     </li>
                   );
@@ -193,7 +193,7 @@ function CrisisDetailModal({
               <MessageCircle className="h-3.5 w-3.5" />
               {student.name} 학생과 1:1 채팅 시작
             </button>
-            <p className="text-pullim-slate-400 text-micro text-center">
+            <p className="text-pullim-slate-500 text-2xs text-center">
               v2: Wee센터·학부모 알림 동시 발송 옵션 추가 예정
             </p>
           </section>
@@ -272,7 +272,7 @@ function Metric({ label, value, alert }: { label: string; value: string; alert?:
       'rounded-lg p-2.5',
       alert ? 'bg-pullim-danger/5 border-pullim-danger/30 border' : 'bg-pullim-slate-50',
     )}>
-      <div className="text-pullim-slate-500 text-micro">{label}</div>
+      <div className="text-pullim-slate-500 text-2xs">{label}</div>
       <div className={cn('text-sm font-bold font-mono', alert ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
         {value}
       </div>

@@ -31,7 +31,7 @@ export function GradingNotificationCard() {
         <ClipboardCheck className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-pullim-blue-700 text-micro font-bold uppercase tracking-wider">
+        <div className="text-pullim-blue-700 text-2xs font-bold uppercase tracking-wider">
           채점 완료 {recent.length > 1 ? `${recent.length}건` : ''}
         </div>
         <div className="text-pullim-slate-900 text-sm font-bold">

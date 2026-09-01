@@ -115,7 +115,7 @@ function ReportRosterRow({ student: s }: { student: MonitoredStudent }) {
           </span>
           <span className="min-w-0">
             <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">{s.name}</span>
-            <span className="text-pullim-slate-500 text-micro">{s.grade}</span>
+            <span className="text-pullim-slate-500 text-2xs">{s.grade}</span>
           </span>
         </span>
 

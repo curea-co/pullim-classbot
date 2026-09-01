@@ -192,7 +192,7 @@ export function GradingDetail({
                     <li key={i} className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg p-2">
                       <div className="min-w-0 flex-1">
                         <div className="text-pullim-slate-700 truncate text-2xs font-semibold">{h.assignmentTitle}</div>
-                        <div className="text-pullim-slate-400 text-micro">{h.gradedAt}</div>
+                        <div className="text-pullim-slate-500 text-2xs">{h.gradedAt}</div>
                       </div>
                       <ScoreDisplay score={h.score} max={h.maxScore} size="sm" tone="threshold" />
                     </li>
@@ -214,7 +214,7 @@ export function GradingDetail({
               disabled
               aria-disabled="true"
               title="준비 중 (v2 — 면담 메모)"
-              className="mt-2 w-full opacity-60 cursor-not-allowed"
+              className="mt-2 w-full cursor-not-allowed"
             >
               메모 작성하기
             </Button>
@@ -268,7 +268,7 @@ export function GradingDetail({
         <section className="bg-card border sticky bottom-4 rounded-2xl p-3 shadow-pullim-md">
           <div className="flex items-center gap-2">
             <div className="flex-1">
-              <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">최종 점수</div>
+              <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">최종 점수</div>
               <ScoreDisplay score={finalScore} max={item.maxScore} size="xl" tone="threshold" />
             </div>
             <Button

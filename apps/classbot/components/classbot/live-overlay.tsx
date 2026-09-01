@@ -95,7 +95,7 @@ export function LiveHeaderMeta({ bot }: { bot: ClassBot }) {
   const session = useLiveStore(s => s.active[bot.id]);
   if (!session) return null;
   return (
-    <div className="bg-pullim-danger/15 border-pullim-danger/40 mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-micro font-bold">
+    <div className="bg-pullim-danger/15 border-pullim-danger/40 mt-2 inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-2xs font-bold">
       <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-white uppercase tracking-wider">
         <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
         LIVE
@@ -149,7 +149,7 @@ function SlideAudioArea({ botId, currentSlide }: { botId: string; currentSlide: 
       <div className="bg-pullim-slate-900 text-white flex items-center gap-2 px-3 py-2 text-xs">
         <Mic className="text-pullim-blue-400 h-3.5 w-3.5 animate-pulse" />
         <span className="text-white/90 font-bold">{content.micLabel}</span>
-        <span className="text-white/50 ml-auto font-mono text-micro">live · 음성+슬라이드</span>
+        <span className="text-white/50 ml-auto font-mono text-2xs">live · 음성+슬라이드</span>
       </div>
     </section>
   );
@@ -184,7 +184,7 @@ function TranscriptStream({ botId, startedAt }: { botId: string; startedAt: stri
       <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2">
         <Radio className="text-pullim-danger h-3.5 w-3.5 animate-pulse" />
         <h2 className="text-pullim-slate-900 text-xs font-bold">실시간 자막</h2>
-        <span className="text-pullim-slate-400 ml-auto text-micro">STT · 1~3s 지연</span>
+        <span className="text-pullim-slate-500 ml-auto text-2xs">STT · 1~3s 지연</span>
       </header>
       <div ref={scrollRef} className="max-h-48 space-y-1.5 overflow-y-auto p-3 text-xs leading-relaxed">
         {visible.length === 0 ? (
@@ -225,7 +225,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
       <header className="mb-2 flex items-center gap-1.5">
         <MessageCircle className="text-pullim-blue-500 h-3.5 w-3.5" />
         <h2 className="text-pullim-slate-900 text-xs font-bold">선생님에게 질문</h2>
-        <span className="text-pullim-slate-400 ml-auto text-micro">{studentName} 이름으로 전달돼요</span>
+        <span className="text-pullim-slate-500 ml-auto text-2xs">{studentName} 이름으로 전달돼요</span>
       </header>
       <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} className="flex items-center gap-1.5">
         <input
@@ -251,7 +251,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
           {myQuestions.map(q => <QuestionStatusItem key={q.id} q={q} />)}
         </ul>
       )}
-      <p className="text-pullim-slate-400 mt-2 text-micro">
+      <p className="text-pullim-slate-500 mt-2 text-xs">
         교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
       </p>
     </section>
@@ -269,7 +269,7 @@ function QuestionStatusItem({ q }: { q: PendingQuestion }) {
       )}
     >
       <div className="font-bold">“{q.text}”</div>
-      <div className="mt-0.5 text-micro">
+      <div className="mt-0.5 text-xs">
         {q.status === 'pending' && '⏳ 교사 검토 중…'}
         {q.status === 'shared'  && '🔵 전체 공유됨! 곧 답변 받으실 거예요.'}
         {q.status === 'hidden'  && '⚪ 비공개로 처리됨 (선생님 1:1 답변)'}

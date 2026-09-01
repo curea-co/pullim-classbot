@@ -80,7 +80,7 @@ export function BotIdentityCard({
         <div className="min-w-0 flex-1">
           {/* org eyebrow — collapsed 시 숨김 */}
           {!collapsed && (
-            <div className="text-pullim-blue-200 text-micro font-semibold tracking-wider uppercase">
+            <div className="text-pullim-blue-200 text-2xs font-semibold tracking-wider uppercase">
               클래스봇 · {bot.organization}
             </div>
           )}
@@ -100,7 +100,7 @@ export function BotIdentityCard({
             <div className="bg-white/10 backdrop-blur mt-2 flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs">
               <Shield className="h-3.5 w-3.5 shrink-0 text-white" />
               <span className="font-semibold">{scope.label}</span>
-              <span className="font-mono text-[9px] text-white/55">({scope.short})</span>
+              <span className="font-mono text-micro text-white/55">({scope.short})</span>
             </div>
           )}
         </div>

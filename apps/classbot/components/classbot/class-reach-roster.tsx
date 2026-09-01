@@ -85,7 +85,7 @@ export function ClassReachRoster({ students, context }: { students: MonitoredStu
       />
 
       <div className="mb-3 space-y-2">
-        {context && <p className="text-pullim-slate-400 text-micro font-semibold">{context}</p>}
+        {context && <p className="text-pullim-slate-500 text-2xs font-semibold">{context}</p>}
         <FilterPillButtons options={filterOptions} current={filter} onSelect={setFilter} />
         <FilterPillButtons options={sortOptions} current={sort} onSelect={setSort} shape="tab" />
       </div>
@@ -122,7 +122,7 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
         </span>
         <span className="min-w-0">
           <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">{s.name}</span>
-          <span className="text-pullim-slate-500 text-micro">{s.grade}</span>
+          <span className="text-pullim-slate-500 text-2xs">{s.grade}</span>
         </span>
       </div>
 

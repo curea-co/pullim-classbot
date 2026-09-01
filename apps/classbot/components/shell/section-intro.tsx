@@ -43,7 +43,7 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
           style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
         />
         <div className="relative">
-          <h2 className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
+          <h2 className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
             이 섹션의 정체성
           </h2>
           <p className="mt-1.5 text-base font-semibold leading-relaxed text-white xl:text-lg">
@@ -55,7 +55,7 @@ export function SectionIntro({ identity, values, subRoutes, preview }: Props) {
               <li key={v.label} className="bg-white/10 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-center gap-1.5">
                   <v.Icon aria-hidden className="h-4 w-4 text-white" />
-                  <span className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
+                  <span className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
                     {v.label}
                   </span>
                 </div>
@@ -115,7 +115,8 @@ function SubRouteCard({ sub }: { sub: SubRoute }) {
   );
 
   if (sub.locked) {
-    return <div aria-disabled className={baseClass(sub)}>{content}</div>;
+    /* 네이티브 disabled 가 없는 <div> 다 → data-disabled 를 달고 baseClass 가 그것을 겨냥한다 */
+    return <div aria-disabled data-disabled="" className={baseClass(sub)}>{content}</div>;
   }
   return <Link href={sub.href} className={baseClass(sub)}>{content}</Link>;
 }
@@ -124,7 +125,7 @@ function baseClass(sub: SubRoute): string {
   return cn(
     'group bg-card flex h-full flex-col rounded-xl border p-3.5 transition-all',
     sub.locked
-      ? 'opacity-60 cursor-not-allowed border-dashed'
+      ? 'data-disabled:opacity-60 cursor-not-allowed border-dashed'
       : 'hover:border-pullim-blue-300 hover:shadow-pullim-md',
     sub.signature && !sub.locked && 'ring-pullim-slate-300 ring-2',
   );

@@ -17,7 +17,7 @@ function FieldMark({ field }: { field: FieldKey }) {
   const required = isRequired(field);
 
   return (
-    <span data-testid={`field-mark-${field}`} className="text-micro font-medium">
+    <span data-testid={`field-mark-${field}`} className="text-2xs font-medium">
       {required ? (
         <>
           <span aria-hidden className="text-pullim-danger font-bold">*</span>
@@ -62,7 +62,7 @@ export function FieldError({ fault, field }: { fault: Fault | null; field: Field
   if (fault?.field !== field) return null;
 
   return (
-    <p role="alert" className="text-pullim-danger mt-1.5 text-micro font-bold">
+    <p role="alert" className="text-pullim-danger mt-1.5 text-xs font-bold">
       {fault.message}
     </p>
   );

@@ -39,7 +39,7 @@ export function MetaRow({
   const sepCls =
     tone === 'dark' ? 'text-pullim-slate-700' : 'text-pullim-slate-300';
   const primarySize = size === 'sm' ? 'text-xs' : 'text-2xs';
-  const secondarySize = size === 'sm' ? 'text-2xs' : 'text-micro';
+  const secondarySize = size === 'sm' ? 'text-2xs' : 'text-2xs';
 
   if (separator === 'break' || !secondary) {
     return (

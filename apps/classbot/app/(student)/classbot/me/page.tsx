@@ -182,7 +182,7 @@ function InfoRow({
             {value}
           </span>
           {locked && (
-            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-micro font-bold">
+            <span className="bg-pullim-slate-100 text-pullim-slate-500 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-2xs font-bold">
               <Lock className="h-2.5 w-2.5" aria-hidden />
               읽기 전용
             </span>

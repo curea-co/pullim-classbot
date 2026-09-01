@@ -286,7 +286,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
             </ul>
           )}
 
-          <p className="text-pullim-slate-400 mt-1.5 text-micro leading-relaxed">
+          <p className="text-pullim-slate-500 mt-1.5 text-xs leading-relaxed">
             {draft.files.length
               ? '올린 자료는 봇이 읽을 수 있게 정리하는 데 2~5분쯤 걸려요. 정리가 끝나면 답에 반영돼요.'
               : '아직 올린 자료가 없어요. 자료가 없으면 봇은 교과서 밖 일반 지식으로 답해요.'}
@@ -309,7 +309,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
                   <span className="flex flex-wrap items-center gap-1.5">
                     {scopeMeta[level].label}
                     {level === 3 && (
-                      <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-micro font-bold">
+                      <span className="bg-pullim-blue-50 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-2xs font-bold">
                         보통 이걸로
                       </span>
                     )}
@@ -332,7 +332,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
               />
             ))}
           </RadioCardGroup>
-          <p className="text-pullim-slate-500 mt-2 flex items-start gap-1.5 text-micro leading-relaxed">
+          <p className="text-pullim-slate-500 mt-2 flex items-start gap-1.5 text-2xs leading-relaxed">
             <ShieldCheck className="text-pullim-slate-400 mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               밤·주말에 범위를 다르게 열고 싶으면{' '}
@@ -387,7 +387,7 @@ export function Yard3Teaching({ draft, onPick }: YardProps) {
               />
             ))}
           </RadioCardGroup>
-          <p className="text-pullim-slate-400 mt-1.5 text-micro leading-relaxed">
+          <p className="text-pullim-slate-500 mt-1.5 text-xs leading-relaxed">
             배점과 채점 기준은 여기서 정하지 않아요.
           </p>
         </div>

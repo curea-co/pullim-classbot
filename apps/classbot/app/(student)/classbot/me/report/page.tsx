@@ -38,7 +38,7 @@ export default function MyReportPage() {
         </p>
         {/* 선생님이 적은 면담 메모를 그대로 보여 주는 자리다 — 서명도 선생님이어야 한다.
             봇 이름으로 서명하면 머리말(「선생님이 한 마디」)과 어긋나 봇이 지어낸 말로 읽힌다. */}
-        <div className="text-pullim-slate-400 mt-3 text-micro font-mono">
+        <div className="text-pullim-slate-400 mt-3 text-2xs font-mono">
           — 김보람 선생님 · 오늘 18:00
         </div>
       </section>
@@ -77,7 +77,7 @@ export default function MyReportPage() {
         {/* 잘한 점 / 신경 쓸 점 — 색상 유지: blue-50/blue-700, slate-50/slate-700 */}
         <section className="space-y-2">
           <div className="bg-pullim-blue-50 rounded-2xl p-4">
-            <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
               <Heart className="h-3 w-3" />
               오늘 잘한 점
             </div>
@@ -87,7 +87,7 @@ export default function MyReportPage() {
           </div>
 
           <div className="bg-pullim-slate-50 rounded-2xl p-4">
-            <div className="text-pullim-slate-700 inline-flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-slate-700 inline-flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
               <Target className="h-3 w-3" />
               다음에 신경 쓸 점
             </div>

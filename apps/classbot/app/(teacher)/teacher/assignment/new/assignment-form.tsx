@@ -202,7 +202,7 @@ export function AssignmentForm() {
             <ArrowLeft className="h-3 w-3" />
             취소
           </Link>
-          <span className="text-pullim-slate-400 font-mono text-micro">진행도 {progress}/5</span>
+          <span className="text-pullim-slate-500 font-mono text-2xs">진행도 {progress}/5</span>
         </div>
 
         <PageHeader
@@ -248,7 +248,7 @@ export function AssignmentForm() {
                 className="h-10 text-sm"
               />
               {title !== '' && !titleValid && (
-                <p id="af-title-err" className="text-pullim-danger mt-1 text-micro">제목은 5~50자 사이여야 해요.</p>
+                <p id="af-title-err" className="text-pullim-danger mt-1 text-xs">제목은 5~50자 사이여야 해요.</p>
               )}
             </Field>
 
@@ -277,7 +277,7 @@ export function AssignmentForm() {
                       )}
                     >
                       <div className="text-pullim-slate-900 text-xs font-bold">{meta.label}</div>
-                      <div className="text-pullim-slate-500 mt-0.5 text-micro leading-tight">{meta.description}</div>
+                      <div className="text-pullim-slate-500 mt-0.5 text-xs leading-tight">{meta.description}</div>
                     </button>
                   );
                 })}
@@ -370,7 +370,7 @@ export function AssignmentForm() {
                 고르게 나누기
               </Button>
               <span
-                className={cn('ml-auto font-mono text-micro', countValid ? 'text-pullim-slate-400' : 'text-pullim-danger font-bold')}
+                className={cn('ml-auto font-mono text-2xs', countValid ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}
                 data-testid="question-count"
               >
                 {questions.length}/{maxQuestions}문항 · {pointsTotal}점
@@ -424,7 +424,7 @@ export function AssignmentForm() {
             })}
           </div>
           {!targetValid && (
-            <p className="text-pullim-danger mt-2 text-micro">최소 1명을 선택해주세요.</p>
+            <p className="text-pullim-danger mt-2 text-xs">최소 1명을 선택해주세요.</p>
           )}
         </section>
 
@@ -446,12 +446,12 @@ export function AssignmentForm() {
                 aria-describedby={!dueValid ? 'af-due-err' : 'af-due-hint'}
                 className="h-10 text-sm"
               />
-              <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-micro">
+              <p id="af-due-hint" className="text-pullim-slate-500 mt-1 text-2xs">
                 <Calendar className="-mt-0.5 mr-0.5 inline h-3 w-3" />
                 {formatDueLabel(dueIso)} ({computeDDay(dueIso)})
               </p>
               {!dueValid && (
-                <p id="af-due-err" className="text-pullim-danger mt-1 text-micro">미래 시각으로 설정해주세요.</p>
+                <p id="af-due-err" className="text-pullim-danger mt-1 text-xs">미래 시각으로 설정해주세요.</p>
               )}
             </Field>
 
@@ -566,7 +566,7 @@ function Field({
         className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold"
       >
         <span>{label}</span>
-        {hint && <span className="text-pullim-slate-400 font-mono text-micro">{hint}</span>}
+        {hint && <span className="text-pullim-slate-500 font-mono text-2xs">{hint}</span>}
       </Label>
       {children}
     </div>
@@ -596,7 +596,7 @@ function PreviewModal({
         <p className="text-pullim-slate-500 mt-1 text-xs">{targetCount}명 학생 홈에 등장</p>
 
         <div className={cn('mt-4 rounded-2xl border-2 p-4', meta.color)}>
-          <div className="flex items-center gap-2 text-micro">
+          <div className="flex items-center gap-2 text-2xs">
             <span className="bg-pullim-slate-900 text-white rounded-full px-2 py-0.5 font-bold uppercase tracking-wider">
               {meta.label}
             </span>

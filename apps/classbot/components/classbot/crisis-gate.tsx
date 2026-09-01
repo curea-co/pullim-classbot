@@ -22,7 +22,7 @@ export function CrisisGate({ studentName }: { studentName: string }) {
           disabled
           aria-disabled="true"
           title="준비 중 (v2 — 1:1 면담 메모)"
-          className="bg-pullim-slate-900 hover:bg-pullim-slate-800 text-white opacity-60 cursor-not-allowed"
+          className="bg-pullim-slate-900 hover:bg-pullim-slate-800 text-white cursor-not-allowed"
         >
           <MessageCircle />
           1:1 면담 메모 (v2)
@@ -34,7 +34,7 @@ export function CrisisGate({ studentName }: { studentName: string }) {
           disabled
           aria-disabled="true"
           title="준비 중 (v2 — 리포트 첨부)"
-          className="opacity-60 cursor-not-allowed"
+          className="cursor-not-allowed"
         >
           리포트 첨부 (v2)
         </Button>

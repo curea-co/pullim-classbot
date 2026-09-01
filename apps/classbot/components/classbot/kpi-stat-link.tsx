@@ -24,7 +24,7 @@ export function KpiStatLink({ label, value, href }: KpiStatLinkProps) {
         href={href}
         className="group bg-pullim-slate-50/50 hover:bg-pullim-blue-50 focus-visible:ring-pullim-blue-400/50 flex h-full flex-col rounded-lg px-3 py-2 transition-colors outline-none focus-visible:ring-2"
       >
-        <span className="text-pullim-slate-500 group-hover:text-pullim-blue-700 inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase">
+        <span className="text-pullim-slate-500 group-hover:text-pullim-blue-700 inline-flex items-center gap-1 text-2xs font-semibold tracking-wider uppercase">
           {label}
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </span>

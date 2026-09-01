@@ -250,7 +250,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
             {bot.subject} · {bot.grade}
           </p>
           {!running && ops.pauseReason && (
-            <p className="text-pullim-slate-500 mt-0.5 text-micro">{ops.pauseReason}</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">{ops.pauseReason}</p>
           )}
         </div>
         <BotCardMenu botId={bot.id} botName={bot.name} running={running} />
@@ -259,7 +259,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
       {/* 붙어 있는 학급 */}
       <div className="mt-3">
         <div className="flex items-baseline justify-between gap-2">
-          <div className="text-pullim-slate-500 text-micro font-bold tracking-wider uppercase">
+          <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">
             붙어 있는 학급
           </div>
           {/* 반이 여럿일 때만 합계를 얹는다 — 한 반이면 아래 학급 줄과 같은 숫자라 중복이다 */}
@@ -401,8 +401,8 @@ function DispatchedAssignments({
             <div key={g.botId} data-testid={`dispatched-group-${g.botId}`}>
               <div className="mb-1.5 flex items-baseline gap-1.5">
                 <h3 className="text-pullim-slate-900 text-xs font-bold">{g.botName}</h3>
-                <span className="text-pullim-slate-500 min-w-0 truncate text-micro">{g.classLabel}</span>
-                <span className="text-pullim-slate-400 ml-auto shrink-0 font-mono text-micro font-bold">
+                <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">{g.classLabel}</span>
+                <span className="text-pullim-slate-500 ml-auto shrink-0 font-mono text-2xs font-bold">
                   {g.items.length}건
                 </span>
               </div>
@@ -437,7 +437,7 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-micro">
+          <div className="flex items-center gap-1.5 text-2xs">
             {/* 보낸 때 — 라벨 문구는 발송한 쪽(과제 폼·BE)이 갖는다. 여기서 말꼬리를 덧붙이지 않는다. */}
             <span className="text-pullim-slate-500 font-bold">
               <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
@@ -549,7 +549,7 @@ function EnrollmentToggleSection() {
         // 명단 mock 은 수학봇 A반 한 반치다 — 어느 반 명단인지 밝히고 쓴다.
         description={`${myClassBot.name} · 중2 수학 A반 · ${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
         action={
-          <span className="text-pullim-slate-400 text-micro">데모 — 새로고침 시 초기화</span>
+          <span className="text-pullim-slate-500 text-2xs">데모 — 새로고침 시 초기화</span>
         }
       />
       {enrolled.length === 0 ? (

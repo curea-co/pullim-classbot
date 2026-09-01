@@ -163,7 +163,7 @@ export default function TeacherReplayDetailPage({ params }: { params: Promise<Pa
           <section className="bg-card rounded-2xl border p-5">
             <header className="mb-2 flex items-center justify-between">
               <h2 className="text-pullim-slate-900 text-sm font-bold">이 수업 핵심 3개</h2>
-              <span className="text-pullim-slate-400 text-micro">AI 추출 — 검수 단계에서 편집 가능</span>
+              <span className="text-pullim-slate-500 text-2xs">AI 추출 — 검수 단계에서 편집 가능</span>
             </header>
             <ol className="space-y-2">
               {data.keyTakeaways.map((t, i) => (

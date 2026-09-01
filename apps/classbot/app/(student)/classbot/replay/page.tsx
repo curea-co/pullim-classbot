@@ -66,14 +66,14 @@ export default function ClassbotReplayListPage() {
           <ul className="space-y-2">
             {createdSent.map(r => (
               <li key={r.id} className="bg-pullim-blue-50 border-pullim-blue-200 rounded-2xl border p-3">
-                <div className="text-pullim-blue-700 text-micro font-bold uppercase tracking-wider">{r.botName}</div>
+                <div className="text-pullim-blue-700 text-2xs font-bold uppercase tracking-wider">{r.botName}</div>
                 <div className="text-pullim-slate-900 text-sm font-bold">{r.title}</div>
                 <div className="text-pullim-slate-500 mt-0.5 text-2xs">
                   {r.chapter} · {r.startedAt}~{r.endedAt} · {r.durationMin}분 · {r.participantCount}명 참여
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5 text-2xs font-bold text-pullim-blue-600">
                   📩 선생님이 방금 발송했어요
-                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-micro font-bold">준비 중</span>
+                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-2xs font-bold">준비 중</span>
                 </div>
               </li>
             ))}
@@ -158,7 +158,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
         style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
       />
       <div className="relative">
-        <div className="flex items-center gap-1 text-micro font-bold tracking-wider text-white/70 uppercase">
+        <div className="flex items-center gap-1 text-2xs font-bold tracking-wider text-white/70 uppercase">
           <RotateCw className="h-3 w-3" />
           이어 보기 · {r.botName}
         </div>
@@ -194,7 +194,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
 function LatestHero({ replay: r }: { replay: Replay }) {
   return (
     <section className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl">
-      <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
+      <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
         방금 끝난 수업 · {r.botName}
       </div>
       <h2 className="mt-1 text-lg font-bold tracking-tight">{r.title}</h2>
@@ -236,7 +236,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
         className="bg-card hover:border-pullim-blue-300 flex flex-col gap-2.5 rounded-xl border p-4 transition-colors lg:flex-row lg:items-center"
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-micro">
+          <div className="flex items-center gap-1.5 text-2xs">
             {bot && <span className="text-base leading-none">{bot.avatarEmoji}</span>}
             <span className="text-pullim-slate-500 font-mono font-bold">{r.date} · {r.startedAt}</span>
             {isCompleted && (
@@ -294,7 +294,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/10 rounded-lg p-2 backdrop-blur">
-      <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">{label}</div>
+      <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">{label}</div>
       <div className="mt-0.5 font-mono text-base font-bold">{value}</div>
     </div>
   );
@@ -305,7 +305,7 @@ function Mini({
 }: { Icon: LucideIcon; value: string; label: string }) {
   return (
     <div className="text-center">
-      <div className="text-pullim-slate-500 inline-flex items-center gap-0.5 text-micro font-semibold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 inline-flex items-center gap-0.5 text-2xs font-semibold tracking-wider uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </div>

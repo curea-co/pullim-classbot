@@ -34,7 +34,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
     <section className="bg-card overflow-hidden rounded-2xl border">
       <div className={cn('h-1 w-full', m.color)} aria-hidden />
       <div className="p-4">
-        <div className="flex items-center gap-2 text-micro">
+        <div className="flex items-center gap-2 text-2xs">
           <span className="text-pullim-slate-500 font-bold">
             <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
             {a.assignedBy} · {a.assignedAtLabel} 발사
@@ -56,7 +56,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
           <KpiStat label="D-day" value={a.dDay} tone={isUrgent ? 'alert' : 'default'} />
         </KpiStatBar>
 
-        <p className="text-pullim-slate-400 mt-3 text-micro">
+        <p className="text-pullim-slate-500 mt-3 text-2xs">
           {m.tone} · 마감 {a.dueLabel}
         </p>
 

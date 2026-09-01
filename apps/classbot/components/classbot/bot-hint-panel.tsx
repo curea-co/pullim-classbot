@@ -34,9 +34,9 @@ function ExamLocked() {
         지금은 도와줄 수 없어요.<br />끝나고 다시 와주세요.
       </p>
       {/* 한글 라벨 우선 + 코드 괄호 ([07 § 5.3]) */}
-      <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-micro font-bold">
+      <div className="bg-pullim-slate-800 mt-3 inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-2xs font-bold">
         <span className="text-pullim-lemon">시험 모드</span>
-        <span className="text-pullim-slate-400 font-mono text-[9px]">(L1)</span>
+        <span className="text-pullim-slate-400 font-mono text-micro">(L1)</span>
       </div>
     </section>
   );
@@ -55,7 +55,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-micro">단계별 힌트만 줄 수 있어요 <span className="font-mono text-[9px] text-pullim-slate-400">(L4)</span></p>
+          <p className="text-pullim-slate-500 text-xs">단계별 힌트만 줄 수 있어요 <span className="font-mono text-micro text-pullim-slate-500">(L4)</span></p>
         </div>
       </header>
 
@@ -95,7 +95,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           )}
 
           {revealed === hints.length && (
-            <p className="text-pullim-slate-400 mt-3 text-center text-micro">
+            <p className="text-pullim-slate-500 mt-3 text-center text-xs">
               다 본 다음에 다시 처음부터 풀어봐요.
             </p>
           )}
@@ -114,13 +114,13 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-micro">이번엔 잡아내봐요 <span className="font-mono text-[9px] text-pullim-slate-400">(L5)</span></p>
+          <p className="text-pullim-slate-500 text-xs">이번엔 잡아내봐요 <span className="font-mono text-micro text-pullim-slate-500">(L5)</span></p>
         </div>
       </header>
 
       {question.modelAnswer ? (
         <div className="bg-pullim-blue-50 rounded-lg p-3">
-          <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">기준 응답</div>
+          <div className="text-pullim-blue-700 text-2xs font-bold tracking-wider uppercase">기준 응답</div>
           <p className="text-pullim-slate-700 mt-1 text-2xs leading-relaxed">{question.modelAnswer}</p>
         </div>
       ) : (
@@ -134,7 +134,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         disabled
         aria-disabled="true"
         title="준비 중 (v2 — 추가 대화)"
-        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white opacity-60 cursor-not-allowed"
+        className="bg-pullim-slate-900 hover:bg-pullim-slate-800 mt-3 w-full text-white cursor-not-allowed"
       >
         <MessageCircle />
         더 물어보기 (v2)

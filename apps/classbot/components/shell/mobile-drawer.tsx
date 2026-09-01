@@ -29,7 +29,7 @@ export function MobileDrawer({ role }: { role: Role }) {
           <SheetTitle className="flex items-center gap-2">
             <ClassbotMark size={22} />
             <span className="text-pullim-slate-900 text-sm font-bold tracking-tight">풀림</span>
-            <span className="text-pullim-slate-400 text-micro font-bold uppercase">
+            <span className="text-pullim-slate-500 text-2xs font-bold uppercase">
               {role === 'student' ? '클래스봇' : '교사'}
             </span>
           </SheetTitle>
