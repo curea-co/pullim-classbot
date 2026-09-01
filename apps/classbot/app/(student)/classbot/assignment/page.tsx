@@ -217,11 +217,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
               {bot.label}
             </h3>
             {bot.subject && (
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-micro font-semibold">
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-2xs font-semibold">
                 {bot.subject}
               </span>
             )}
-            <span className="text-pullim-slate-500 ml-auto shrink-0 text-micro font-semibold">
+            <span className="text-pullim-slate-500 ml-auto shrink-0 text-2xs font-semibold">
               {items.length}개
             </span>
           </div>
@@ -233,7 +233,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-pullim-slate-500 font-mono text-micro font-bold">
+            <span className="text-pullim-slate-500 font-mono text-2xs font-bold">
               {completedQ}/{totalQ}문항
             </span>
           </div>
@@ -266,7 +266,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-micro">
+            <div className="flex items-center gap-2 text-2xs">
               <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
@@ -297,7 +297,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
               <span className="text-pullim-slate-500 font-mono text-micro font-bold">
                 {a.completedCount}/{a.questionCount}
               </span>
-              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold">
+              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold">
                 {visual.semanticLabel}
               </span>
             </div>

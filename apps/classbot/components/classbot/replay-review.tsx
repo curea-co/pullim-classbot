@@ -128,7 +128,7 @@ function ProcessingPane() {
       <div className="flex items-center gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-white" />
         <div>
-          <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">
+          <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
             AI 처리 중
           </div>
           <h2 className="mt-0.5 text-base font-bold">트랜스크립트 + 핵심 메시지 + 집중도 추출</h2>
@@ -160,7 +160,9 @@ function ProcessStep({ label, done, active }: { label: string; done?: boolean; a
       )}>
         {done ? <CheckCircle2 className="h-3 w-3" /> : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
       </span>
-      <span className={cn('text-white/80', done && 'line-through opacity-60', active && 'text-white font-bold')}>
+      {/* done 은 line-through 가 이미 말한다 — opacity 로 한 번 더 죽이지 않는다(계약 §4.1).
+          slate-900 배경 대비 4.94 → 11.69. */}
+      <span className={cn('text-white/80', done && 'line-through', active && 'text-white font-bold')}>
         {label}
       </span>
     </li>
@@ -244,7 +246,7 @@ function TranscriptVisibility({
             기본 모두 노출. 가리고 싶은 라인을 눌러서 비공개로.
           </p>
         </div>
-        <span className="text-pullim-slate-400 text-micro font-mono">
+        <span className="text-pullim-slate-400 text-2xs font-mono">
           {replay.transcript.length - hiddenLines.size}/{replay.transcript.length} 노출
         </span>
       </header>
@@ -263,7 +265,7 @@ function TranscriptVisibility({
                   hidden ? 'bg-pullim-slate-50/60 hover:bg-pullim-slate-100' : 'hover:bg-pullim-blue-50/30',
                 )}
               >
-                <div className="flex items-center gap-1.5 text-micro">
+                <div className="flex items-center gap-1.5 text-2xs">
                   <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                   <span className={cn(
                     'rounded-full px-1.5 py-0.5 font-bold',
@@ -318,7 +320,7 @@ function TranscriptReadOnly({
       <ul className="divide-pullim-slate-100 max-h-[400px] divide-y overflow-y-auto">
         {visible.map((line, i) => (
           <li key={i} className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 text-micro">
+            <div className="flex items-center gap-1.5 text-2xs">
               <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 font-bold',
@@ -356,7 +358,7 @@ function SegmentsPreview({ replay }: { replay: Replay }) {
               </span>
               <span className="text-pullim-slate-500 font-mono font-bold">{seg.at}</span>
               <span className="text-pullim-slate-700 flex-1 truncate">{seg.label}</span>
-              <span className={cn('rounded-full px-2 py-0.5 text-micro font-bold', meta.color, 'text-white')}>
+              <span className={cn('rounded-full px-2 py-0.5 text-2xs font-bold', meta.color, 'text-white')}>
                 {meta.label}
               </span>
             </li>
@@ -426,7 +428,7 @@ function Stat({
 }) {
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-2xs font-semibold tracking-wider uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </div>
@@ -449,7 +451,7 @@ function ApproveBar({
   return (
     <div className="bg-pullim-slate-900 sticky bottom-3 z-10 rounded-2xl p-4 text-white shadow-xl lg:flex lg:items-center lg:gap-4">
       <div className="flex-1">
-        <div className="text-micro font-bold tracking-wider text-white/70 uppercase">
+        <div className="text-2xs font-bold tracking-wider text-white/70 uppercase">
           학생 발송 준비
         </div>
         <p className="text-sm">

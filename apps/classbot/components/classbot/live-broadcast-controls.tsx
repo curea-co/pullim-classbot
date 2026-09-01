@@ -80,7 +80,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
         <header className="mb-2 flex items-center gap-2">
           <Radio className="text-pullim-slate-400 h-4 w-4" />
           <h2 className="text-pullim-slate-900 text-sm font-bold">라이브 수업</h2>
-          <span className="text-pullim-slate-400 ml-auto text-micro">현재 대기</span>
+          <span className="text-pullim-slate-400 ml-auto text-2xs">현재 대기</span>
         </header>
         <p className="text-pullim-slate-600 text-xs">
           시작하면 학생 홈에 LIVE 카드가 노출되고, <strong>{bot.name}</strong>의 봇 scope이 라이브 정책({bot.scope === 3 ? 'L3 · 개념까지' : `L${bot.scope}`})으로 자동 잠겨요.
@@ -117,7 +117,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
 
       {/* 슬라이드 컨트롤 */}
       <div className="bg-white/5 rounded-lg p-2.5">
-        <div className="text-pullim-slate-400 text-micro font-bold uppercase tracking-wider">현재 슬라이드</div>
+        <div className="text-pullim-slate-400 text-2xs font-bold uppercase tracking-wider">현재 슬라이드</div>
         <div className="mt-1 flex items-center gap-2">
           <button
             type="button"
@@ -155,7 +155,7 @@ function ModerationQueue({ botId }: { botId: string }) {
 
   return (
     <div className="mt-3">
-      <div className="text-pullim-slate-400 mb-1.5 flex items-center gap-1 text-micro font-bold uppercase tracking-wider">
+      <div className="text-pullim-slate-400 mb-1.5 flex items-center gap-1 text-2xs font-bold uppercase tracking-wider">
         <MessageCircle className="h-3 w-3" />
         학생 질문 큐
         <span className="ml-1 font-bold text-white">{pendings.length}건 대기</span>
@@ -178,7 +178,7 @@ function ModerationQueue({ botId }: { botId: string }) {
               <button
                 type="button"
                 onClick={() => moderate(botId, q.id, 'shared')}
-                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-md px-2 py-1 text-micro font-bold text-white"
+                className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-bold text-white"
               >
                 <Eye className="h-3 w-3" />
                 전체 공유
@@ -186,7 +186,7 @@ function ModerationQueue({ botId }: { botId: string }) {
               <button
                 type="button"
                 onClick={() => moderate(botId, q.id, 'hidden')}
-                className="bg-white/10 hover:bg-white/20 inline-flex items-center gap-1 rounded-md px-2 py-1 text-micro font-bold text-white"
+                className="bg-white/10 hover:bg-white/20 inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-bold text-white"
               >
                 <EyeOff className="h-3 w-3" />
                 비공개
@@ -195,7 +195,7 @@ function ModerationQueue({ botId }: { botId: string }) {
           </li>
         ))}
         {handled.slice(0, 3).map(q => (
-          <li key={q.id} className="bg-white/5 rounded-lg p-1.5 text-micro text-pullim-slate-400">
+          <li key={q.id} className="bg-white/5 rounded-lg p-1.5 text-2xs text-pullim-slate-400">
             <span className={cn('mr-1', q.status === 'shared' ? 'text-pullim-blue-400' : 'text-pullim-slate-500')}>
               {q.status === 'shared' ? '🔵 공유' : '⚪ 비공개'}
             </span>

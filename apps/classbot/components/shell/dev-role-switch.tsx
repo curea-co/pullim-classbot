@@ -115,7 +115,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
               감싸지 않으면 드롭다운을 여는 순간 트리가 죽는다.
               같은 형태: notification-bell.tsx · app-header.tsx */}
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="text-pullim-slate-600 font-mono text-micro tracking-[.08em] uppercase">
+            <DropdownMenuLabel className="text-pullim-slate-600 font-mono text-2xs tracking-[.08em] uppercase">
               dev · 역할 전환
             </DropdownMenuLabel>
           </DropdownMenuGroup>

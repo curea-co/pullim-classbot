@@ -29,7 +29,7 @@ export function FilterPills<V extends string = string>({
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {label && (
-        <span className="text-pullim-slate-400 w-10 shrink-0 text-micro font-bold tracking-wider uppercase">
+        <span className="text-pullim-slate-400 w-10 shrink-0 text-2xs font-bold tracking-wider uppercase">
           {label}
         </span>
       )}

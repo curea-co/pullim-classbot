@@ -291,7 +291,7 @@ export function QuestionListEditor({
 
               <span
                 data-testid={`question-grading-${i}`}
-                className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold', grading.className)}
+                className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold', grading.className)}
               >
                 <GradingIcon className="h-3 w-3" aria-hidden />
                 {grading.label}
@@ -328,7 +328,7 @@ export function QuestionListEditor({
               </div>
             </div>
 
-            <p className="text-pullim-slate-400 mt-1 text-micro">{grading.note}</p>
+            <p className="text-pullim-slate-400 mt-1 text-2xs">{grading.note}</p>
 
             <label className="sr-only" htmlFor={`af-q${i}-prompt`}>{i + 1}번 문항 발문</label>
             <Textarea
@@ -360,7 +360,7 @@ export function QuestionListEditor({
                   data-testid={`question-answer-${i}`}
                   className="h-9 text-sm"
                 />
-                <p className="text-pullim-slate-400 mt-1 text-micro">
+                <p className="text-pullim-slate-400 mt-1 text-2xs">
                   띄어쓰기·대소문자 차이는 정답으로 봐요{q.type === 'numeric' ? ' (숫자는 값으로 비교해요)' : ''}.
                 </p>
               </div>
@@ -389,7 +389,7 @@ function McOptions({
 }) {
   return (
     <div className="mt-2 space-y-1.5">
-      <p className="text-pullim-slate-500 text-micro font-bold">보기 · 정답 고르기</p>
+      <p className="text-pullim-slate-500 text-2xs font-bold">보기 · 정답 고르기</p>
       {question.options.map((opt, j) => (
         <div key={j} className="flex items-center gap-2">
           <input
@@ -455,7 +455,7 @@ function RubricRows({
   const matched = weightSum === question.points;
   return (
     <div className="mt-2 space-y-2">
-      <p className="text-pullim-slate-500 flex items-center gap-1 text-micro font-bold">
+      <p className="text-pullim-slate-500 flex items-center gap-1 text-2xs font-bold">
         <ClipboardList className="h-3 w-3" aria-hidden />
         채점 기준
       </p>
@@ -514,7 +514,7 @@ function RubricRows({
             기준 더하기
           </Button>
         )}
-        <span className={cn('ml-auto font-mono text-micro', matched ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}>
+        <span className={cn('ml-auto font-mono text-2xs', matched ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}>
           기준 배점 {weightSum} / 문항 배점 {question.points}점
         </span>
       </div>
@@ -543,7 +543,7 @@ export function PointsTally({ questions }: { questions: DraftQuestion[] }) {
           {total}
           <span className="text-pullim-slate-400 text-xs"> / {TOTAL_POINTS}점</span>
         </span>
-        <span className="text-pullim-slate-500 ml-auto text-micro">
+        <span className="text-pullim-slate-500 ml-auto text-2xs">
           자동 채점 {tally.auto.count}문항 · {tally.auto.points}점 · 선생님이 채점 {tally.teacher.count}문항 · {tally.teacher.points}점
         </span>
       </div>

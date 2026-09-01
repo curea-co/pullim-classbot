@@ -96,20 +96,20 @@ export function TranscriptViewer({
                     {isStudent ? studentName : botName}
                   </span>
                   {t.offTopic && (
-                    <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-micro font-bold text-white">
+                    <span className="bg-pullim-danger inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs font-bold text-white">
                       <CircleAlert className="h-2.5 w-2.5" aria-hidden />
                       범위 밖
                     </span>
                   )}
                   {isStudent && t.kind === 'shortcut' && (
-                    <span className="bg-pullim-slate-200 text-pullim-slate-700 rounded-full px-1.5 py-0.5 text-micro font-bold">
+                    <span className="bg-pullim-slate-200 text-pullim-slate-700 rounded-full px-1.5 py-0.5 text-2xs font-bold">
                       지름길
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => setOpenMemo(openMemo === t.id ? null : t.id)}
-                    className="text-pullim-blue-600 hover:text-pullim-blue-700 ml-auto inline-flex items-center gap-0.5 text-micro font-bold"
+                    className="text-pullim-blue-600 hover:text-pullim-blue-700 ml-auto inline-flex items-center gap-0.5 text-2xs font-bold"
                   >
                     <PenLine className="h-3 w-3" aria-hidden />
                     {memo ? '메모 고치기' : '메모 달기'}

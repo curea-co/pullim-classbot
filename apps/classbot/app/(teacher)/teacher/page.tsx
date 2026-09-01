@@ -86,7 +86,7 @@ export default function TeacherHomePage() {
           <KpiStat label="목표 수준 미달" value={`${monitoringSummary.depthShort}명`} />
           <KpiStat label="오늘 안 들어옴" value={`${monitoringSummary.offlineToday}명`} />
         </KpiStatBar>
-        <p className="text-pullim-slate-400 px-1 text-micro font-semibold">
+        <p className="text-pullim-slate-400 px-1 text-2xs font-semibold">
           {`${monitoredClass.classroomLabel} · ${monitoredClass.botName} · ${monitoredClass.unit} · ${monitoredClass.updatedAtLabel}`}
         </p>
       </div>
@@ -191,7 +191,7 @@ function AttentionRow({ student }: { student: MonitoredStudent }) {
             <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">
               {student.name}
             </span>
-            <span className="text-pullim-slate-500 text-micro">{student.grade}</span>
+            <span className="text-pullim-slate-500 text-2xs">{student.grade}</span>
           </span>
         </span>
 

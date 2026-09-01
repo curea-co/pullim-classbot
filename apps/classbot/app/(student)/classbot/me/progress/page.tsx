@@ -164,7 +164,7 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
             {face.name} · {s.unitLabel}
           </p>
         </div>
-        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-micro font-bold', attainmentChipClass[s.level])}>
+        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-2xs font-bold', attainmentChipClass[s.level])}>
           {attainmentLabel[s.level]}
         </span>
       </div>
@@ -200,7 +200,7 @@ function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: st
         <div className="space-y-3">
           {days.map(day => (
             <div key={day.dayLabel} className="space-y-1.5">
-              <p className="text-pullim-slate-400 px-1 text-micro font-bold tracking-wider uppercase">
+              <p className="text-pullim-slate-400 px-1 text-2xs font-bold tracking-wider uppercase">
                 {day.dayLabel}
               </p>
               <ul className="space-y-1.5">
@@ -216,7 +216,7 @@ function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: st
                         {face.avatarEmoji}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 text-micro">
+                        <div className="flex items-center gap-1.5 text-2xs">
                           <span className="text-pullim-slate-500 font-bold">{face.name}</span>
                           <span className="text-pullim-slate-300">·</span>
                           <span className="text-pullim-slate-500">{item.timeLabel}</span>
@@ -261,7 +261,7 @@ function SubmissionSection({ rows, meta }: { rows: SubmissionHistoryRow[]; meta:
                       {face.name} · {r.classroomLabel} · {r.dateLabel}
                     </p>
                   </div>
-                  <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-micro font-bold', submissionStatusChipClass[r.status])}>
+                  <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-2xs font-bold', submissionStatusChipClass[r.status])}>
                     {submissionStatusLabel[r.status]}
                   </span>
                 </div>

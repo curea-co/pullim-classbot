@@ -184,7 +184,7 @@ export function AssignmentChatWorkspace({
             {/* 로그인 여부와 무관하게 아직 이 기기에만 남는다 — 서버 영속이 없다
                 (`lib/store/assignment-chat.ts`). 로그인 상태에서만 안내를 감추면
                 로그인한 학생이 기기를 옮겼을 때 사라지는 걸 예고받지 못한다. */}
-            <p className="text-pullim-slate-400 mt-1.5 text-micro">
+            <p className="text-pullim-slate-400 mt-1.5 text-2xs">
               이 대화는 아직 이 기기에만 남아요. 다른 기기에서는 이어지지 않아요.
             </p>
           </div>
@@ -220,7 +220,7 @@ function AssignmentTurnRow({
         ) : (
           <>
             {turn.tag && (
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 mb-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold">
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 mb-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold">
                 {turn.tag}
               </span>
             )}
@@ -229,7 +229,7 @@ function AssignmentTurnRow({
             </div>
             {/* 선생님에게 전해진다고 말하지 않는다 — 교사용 집계가 아직 없다(위 store 주석). */}
             {turn.redirected && (
-              <p className="text-pullim-slate-400 mt-1 text-micro">
+              <p className="text-pullim-slate-400 mt-1 text-2xs">
                 수업 주제로 되돌렸어요
               </p>
             )}
@@ -252,10 +252,10 @@ function ProgressStrip({ assignment: a, gradingMode }: { assignment: AssignmentR
       <div className="bg-pullim-slate-200 h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
         <div className="bg-pullim-blue-600 h-full rounded-full transition-all" style={{ width: `${percent}%` }} />
       </div>
-      <span className="text-pullim-slate-500 shrink-0 font-mono text-micro font-bold">
+      <span className="text-pullim-slate-500 shrink-0 font-mono text-2xs font-bold">
         {a.completedCount}/{a.questionCount}문항
       </span>
-      <span className="text-pullim-slate-500 inline-flex shrink-0 items-center gap-1 text-micro font-bold">
+      <span className="text-pullim-slate-500 inline-flex shrink-0 items-center gap-1 text-2xs font-bold">
         <Clock className="h-3 w-3" />
         {a.dDay}
       </span>
@@ -348,13 +348,13 @@ function AutoGradedTracker({
                     <span className="text-pullim-slate-600">{q.prompt}</span>
                   </p>
                   {done ? (
-                    <p className="text-pullim-blue-700 mt-1 text-micro font-semibold">
+                    <p className="text-pullim-blue-700 mt-1 text-2xs font-semibold">
                       {myAnswer !== undefined
                         ? `낸 답 — ${myAnswer}`
                         : '냈어요 · 낸 답은 풀이 화면에 있어요'}
                     </p>
                   ) : (
-                    <p className="text-pullim-slate-400 mt-1 text-micro">아직 안 냈어요</p>
+                    <p className="text-pullim-slate-400 mt-1 text-2xs">아직 안 냈어요</p>
                   )}
                 </div>
               </div>
@@ -411,7 +411,7 @@ function TeacherGradedTracker({
       <CriterionGroup label="다룬 항목" items={covered} covered />
       <CriterionGroup label="안 다룬 항목" items={notCovered} />
 
-      <p className="text-pullim-slate-400 mt-3 text-micro leading-relaxed">
+      <p className="text-pullim-slate-400 mt-3 text-2xs leading-relaxed">
         낸 답을 기준으로 표시해요. 대화에서 다뤘는지 자동으로 찾아 주는 건 준비 중이에요.
       </p>
     </section>
@@ -427,12 +427,12 @@ function CriterionGroup({
 }) {
   return (
     <div className="mt-2 first:mt-0">
-      <p className="text-pullim-slate-400 inline-flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+      <p className="text-pullim-slate-400 inline-flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
         <ListChecks className="h-3 w-3" />
         {label} {items.length}개
       </p>
       {items.length === 0 ? (
-        <p className="text-pullim-slate-400 mt-1 text-micro">없어요</p>
+        <p className="text-pullim-slate-400 mt-1 text-2xs">없어요</p>
       ) : (
         <ul className="mt-1 space-y-1">
           {items.map(c => (

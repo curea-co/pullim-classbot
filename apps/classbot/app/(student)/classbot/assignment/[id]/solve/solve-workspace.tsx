@@ -109,7 +109,7 @@ export function SolveWorkspace({
   return (
     <div className="max-w-2xl space-y-3">
       {/* 컨텍스트 바 */}
-      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-micro text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
+      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-2xs text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
         <Link
           href={`/classbot/assignment/${assignment.id}`}
           className="text-pullim-slate-300 hover:text-white inline-flex items-center gap-1"
@@ -168,7 +168,7 @@ export function SolveWorkspace({
 
       {/* 답안 입력 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">내 답안</h3>
+        <h3 className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">내 답안</h3>
         {q.type === 'mc' && q.options ? (
           <ul role="radiogroup" aria-label="객관식 선택지" className="mt-2 grid grid-cols-1 gap-2">
             {q.options.map((opt, i) => {

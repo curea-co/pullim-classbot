@@ -112,7 +112,7 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-pullim-slate-500 truncate text-xs">{replay.botName} · {replay.classroom}</span>
-              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold', meta.tone)}>
+              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold', meta.tone)}>
                 <Icon className="h-3 w-3" />
                 {meta.label}
               </span>

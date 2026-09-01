@@ -74,7 +74,7 @@ export function WellbeingGauge({
           <Heart className={cn('h-3 w-3', tone.text)} />
           <span className={cn('font-mono text-sm font-bold', tone.text)}>{score}</span>
           <span className="text-pullim-slate-400 text-2xs">/100</span>
-          <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold', tone.chipBg, tone.chipText)}>
+          <span className={cn('ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold', tone.chipBg, tone.chipText)}>
             {tone.label}
           </span>
         </header>

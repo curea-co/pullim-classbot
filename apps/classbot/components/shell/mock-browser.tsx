@@ -37,7 +37,7 @@ export function MockBrowser({ children, label, dark, className }: Props) {
         {label && (
           <span
             className={cn(
-              'ml-2 truncate font-mono text-micro',
+              'ml-2 truncate font-mono text-2xs',
               dark ? 'text-pullim-slate-400' : 'text-pullim-slate-500',
             )}
           >

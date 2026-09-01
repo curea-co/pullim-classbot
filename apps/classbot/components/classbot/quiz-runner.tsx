@@ -74,7 +74,7 @@ export function QuizRunner({
             style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
           />
         </div>
-        <span className="text-pullim-slate-500 text-micro font-mono font-bold">
+        <span className="text-pullim-slate-500 text-2xs font-mono font-bold">
           {correctCount}정답
         </span>
       </div>
@@ -88,7 +88,7 @@ export function QuizRunner({
 
       {/* 선택지 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 mb-2 text-micro font-bold tracking-wider uppercase">
+        <h3 className="text-pullim-slate-400 mb-2 text-2xs font-bold tracking-wider uppercase">
           선택지
         </h3>
         <ul role="radiogroup" aria-label="객관식 선택지" className="grid grid-cols-1 gap-2">
@@ -105,7 +105,10 @@ export function QuizRunner({
                 // 틀린 선택: 빨간색으로 표시
                 optionClass = 'border-pullim-danger bg-pullim-danger-bg text-pullim-danger';
               } else {
-                optionClass = 'border-pullim-slate-200 bg-white text-pullim-slate-500 opacity-60';
+                // 알파로 후퇴시키지 않는다(계약 §4.1) — 채점 뒤에도 학생이 읽어야 하는 본문이고
+                // disabled 도 장식도 아니다. opacity-60 이면 흰 배경 대비 2.29:1,
+                // 알파를 걷으면 4.68:1. 평시 slate-700 대비 한 칸 후퇴는 알파가 아니라 색이 낸다.
+                optionClass = 'border-pullim-slate-200 bg-white text-pullim-slate-500';
               }
             } else {
               optionClass = isSelected

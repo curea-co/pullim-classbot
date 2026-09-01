@@ -61,7 +61,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
               disabled
               aria-disabled="true"
               title="준비 중 (v2 — 1:1 상담)"
-              className="bg-pullim-danger text-white hover:bg-pullim-danger/90 opacity-60 cursor-not-allowed"
+              className="bg-pullim-danger text-white hover:bg-pullim-danger/90 cursor-not-allowed"
             >
               <MessageCircle />
               1:1 상담 (v2)
@@ -73,7 +73,7 @@ export default async function ReportDetailPage({ params }: { params: Params }) {
               disabled
               aria-disabled="true"
               title="준비 중 (v2 — Wee센터 연계)"
-              className="opacity-60 cursor-not-allowed"
+              className="cursor-not-allowed"
             >
               Wee센터 연결 (v2)
             </Button>

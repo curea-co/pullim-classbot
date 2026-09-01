@@ -178,7 +178,7 @@ function SafetyTab() {
                     {meta.short}
                   </span>
                   {inUse && (
-                    <span className="text-pullim-blue-700 ml-auto text-micro font-bold">쓰는 중</span>
+                    <span className="text-pullim-blue-700 ml-auto text-2xs font-bold">쓰는 중</span>
                   )}
                 </div>
                 <div className="text-pullim-slate-900 mt-1 text-xs font-bold">{meta.label}</div>
@@ -227,7 +227,7 @@ function DriftTab() {
                     {level.label}
                   </span>
                   {active && (
-                    <span className="bg-pullim-blue-600 ml-auto rounded-full px-1.5 py-0.5 text-micro font-bold text-white">
+                    <span className="bg-pullim-blue-600 ml-auto rounded-full px-1.5 py-0.5 text-2xs font-bold text-white">
                       지금 설정
                     </span>
                   )}

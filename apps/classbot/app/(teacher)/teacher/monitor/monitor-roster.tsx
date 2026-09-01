@@ -81,7 +81,7 @@ export function MonitorRoster({
       <SectionHeading title="학생 한 줄 보기" />
 
       <div className="mb-4 space-y-2">
-        {context && <p className="text-pullim-slate-400 text-micro font-semibold">{context}</p>}
+        {context && <p className="text-pullim-slate-400 text-2xs font-semibold">{context}</p>}
 
         {ownsFilter ? (
           <FilterPillButtons
@@ -177,7 +177,7 @@ function RosterRow({ student: s }: { student: MonitoredStudent }) {
           </span>
           <span className="min-w-0">
             <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">{s.name}</span>
-            <span className="text-pullim-slate-500 text-micro">{s.grade}</span>
+            <span className="text-pullim-slate-500 text-2xs">{s.grade}</span>
           </span>
         </span>
 

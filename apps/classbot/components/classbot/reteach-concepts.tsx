@@ -51,7 +51,7 @@ export function ReteachConcepts({
                     <b className="text-pullim-slate-700 font-mono">{`${c.studentCount}/${totalStudents}명`}</b>
                     <span>이 여기서 막혔어요</span>
                   </div>
-                  <p className="text-pullim-slate-500 mt-0.5 line-clamp-2 text-micro">
+                  <p className="text-pullim-slate-500 mt-0.5 line-clamp-2 text-2xs">
                     {c.studentNames.join(' · ')}
                   </p>
                 </div>

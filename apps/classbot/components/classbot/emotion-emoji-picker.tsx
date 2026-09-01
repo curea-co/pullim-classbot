@@ -51,7 +51,7 @@ export function EmotionEmojiPicker({
               >
                 <span className="text-2xl leading-none">{meta.emoji}</span>
                 <span className={cn(
-                  'text-micro font-bold',
+                  'text-2xs font-bold',
                   active ? 'text-pullim-slate-900' : 'text-pullim-slate-500',
                 )}>
                   {meta.label}
@@ -85,7 +85,7 @@ export function EmotionEmojiPicker({
             <span>살짝</span>
             <span>많이</span>
           </div>
-          <p className="text-pullim-slate-400 mt-1 text-micro">하루 동안 변동 폭을 적어주세요. 두 점을 따로 움직일 수 있어요.</p>
+          <p className="text-pullim-slate-400 mt-1 text-2xs">하루 동안 변동 폭을 적어주세요. 두 점을 따로 움직일 수 있어요.</p>
         </div>
       )}
     </div>

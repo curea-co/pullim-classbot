@@ -44,7 +44,7 @@ export function StudentRoster() {
           disabled
           aria-disabled="true"
           title="준비 중 (v2)"
-          className="text-pullim-blue-600 text-xs font-semibold opacity-60 cursor-not-allowed"
+          className="text-pullim-blue-600 text-xs font-semibold disabled:opacity-60 cursor-not-allowed"
         >
           전체 메시지
         </button>
@@ -89,7 +89,7 @@ function RosterRow({ student: s }: { student: ClassroomStudent }) {
             </span>
           )}
         </div>
-        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-micro">
+        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-2xs">
           <MessageCircle className="h-2.5 w-2.5" />
           <span>{s.botQuestions}질문</span>
           <span>·</span>
