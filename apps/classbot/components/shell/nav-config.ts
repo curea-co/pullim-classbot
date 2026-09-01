@@ -27,6 +27,8 @@ export type NavSubItem = {
   label: string;
   icon?: LucideIcon;
   badge?: number | string;
+  /** 이 항목 소속이지만 href 아래에 있지 않은 경로 (NavItem 과 같은 뜻) */
+  matchPrefix?: string[];
   description?: string;
   locked?: boolean;
 };
@@ -43,7 +45,9 @@ export type Role = 'student' | 'teacher';
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
-  { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능' },
+  // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
+  // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
+  { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
   // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) · 봇 찾기(/classbot/discover) 진입점 비노출. 재개 시 되살린다
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
@@ -77,11 +81,18 @@ export const teacherNav: NavGroup[] = [
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
-      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
+      // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
+      // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
+      // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
+      // 나중에 형제 경로가 생기면 소속을 새로 정하게 두려는 것이다(조용히 물려받지 않게).
+      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링', matchPrefix: ['/teacher/assignment/new'] },
       // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
       //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
       { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
-      { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입' },
+      // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
+      // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
+      // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).
+      { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
     ],
@@ -107,7 +118,10 @@ export function navForRole(role: Role): NavGroup[] {
 export const studentBottomTabs = [
   { href: '/classbot',            label: '홈',       icon: Home,          matchPrefix: ['/classbot'] as string[] },
   { href: '/classbot/assignment', label: '과제',     icon: Target,        matchPrefix: ['/classbot/assignment'] as string[] },
-  { href: '/classbot/chat',       label: '대화',     icon: MessageCircle, matchPrefix: ['/classbot/chat'] as string[] },
+  // 커리큘럼(`/classbot/learn/*`)은 레일의 「봇 대화」와 같은 소속이다 — 같은 화면인데
+  // 레일만 켜지고 탭은 꺼져 있으면 모바일에서 「내가 어디 있는지」를 잃는다.
+  // `/classbot/chat` 은 여기 적지 않는다 — 정확 일치와 경계 접두사가 이미 잡는다.
+  { href: '/classbot/chat',       label: '대화',     icon: MessageCircle, matchPrefix: ['/classbot/learn'] as string[] },
 ] as const;
 
 export function findActiveSection(pathname: string, role: Role): NavItem | undefined {
