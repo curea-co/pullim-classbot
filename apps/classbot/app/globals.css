@@ -184,10 +184,23 @@
  *    **규칙을 모르는 채로도 `static` 은 안전하다 — 그게 `static` 을 쓰는 이유다.**
  *
  *    변수 표면이 필요한 이유: `--shadow-pullim-glow` 는 지금 참조가 0 이지만,
- *    나중에 focus ring 등으로 `var(--shadow-pullim-glow)` 를 읽는 자리가 생겼을 때
- *    변수가 없으면 조용히 빈 값이 된다.
- *    (`proc/spec/08-design-system.md:241` 이 이 토큰을 그 용도로 적어 두고 있다.
- *     단 `proc/` 는 **Tailwind 스캔 대상이 아니다** — 통제 실험으로 확인했다.
+ *    나중에 그 값을 읽는 자리가 생겼을 때 변수가 없으면 조용히 빈 값이 된다.
+ *    이 토큰의 용도는 `proc/spec/08-design-system.md:241` 이 이렇게 적어 둔다:
+ *
+ *      | `--shadow-pullim-glow` | `0 0 0 4px rgba(59, 111, 246, 0.15)`
+ *      |                        | 컨테이너·카드 강조 hover (legacy)
+ *
+ *    **포커스 링이 아니다.** 같은 표(§5.1)의 다른 두 줄이 포커스 링이고,
+ *    §12.1 은 키보드 포커스에 `--focus-ring` 을 무조건 쓰라고 못박는다:
+ *      `--focus-ring`(기본 키보드 포커스) · `--focus-ring-danger`(destructive)
+ *    glow 를 다시 읽게 되는 자연스러운 자리는 legacy hover 강조를 되살릴 때다.
+ *
+ *    ⚠️ **q 저장소는 같은 이름의 토큰을 focus ring 으로 쓴다.** 이름이 같아도
+ *    용도가 다르니 **저쪽 문서를 이 앱의 근거로 삼지 마라.** 판단은 위
+ *    classbot spec 으로 한다. (같은 이름·다른 뜻은 이 저장소에서 반복되는
+ *    함정이다 — `--radius-*` / `--text-<size>` 의 두 스케일도 같은 부류다.)
+ *
+ *    (부수: `proc/` 자체는 **Tailwind 스캔 대상이 아니다** — 통제 실험으로 확인했다.
  *     저장소 루트에 있고 Tailwind 의 base 는 `apps/classbot` 이다.)
  *
  * 값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
