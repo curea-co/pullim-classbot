@@ -1,15 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { EmptyState } from '@/components/classbot/empty-state';
 import {
   GradingPendingBadge, LastSeenBadge, StudentReachBadge,
 } from '@/components/classbot/roster-badges';
+import { RosterTable, type RosterColumn } from '@/components/classbot/roster-table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   lastSeenRank, stuckConceptLabel, type MonitoredStudent,
@@ -40,7 +39,29 @@ import {
  *
  * 줄 전체가 `/teacher/students/[id]` 로 가는 링크다 — 그 학생이 **어떤 봇과 무슨 대화를 했고
  * 어디서 막혔는지** 는 이미 그 화면이 답한다. 여기서 다시 만들지 않는다.
+ *
+ * **머리글 있는 표**다. 표 껍데기(머리글 줄·이름·학년 칸·줄 전체 링크·좁은 화면 처리)는
+ * 관제소 「학생 한 줄 보기」와 같은 것을 쓴다 — `components/classbot/roster-table.tsx`.
+ * 여기서는 가운데 열만 정한다. 맨숫자·맨글자 칸(막힌 곳·AI 초안)은 칸마다 되풀이하던
+ * 이름표를 머리글로 올리고 값만 남긴다. 배지는 제 글자를 그대로 둔다 — 스스로 무엇인지
+ * 말하는 칩이라 머리글과 겹쳐도 읽는 데 방해가 안 된다.
  */
+
+/** 채점 허브가 담는 열 — 이름·학년 다음, 꺾쇠 앞. */
+const gradingColumns: RosterColumn<GradingRosterRow>[] = [
+  // 배지 세 벌 — 도달 · 최근 접속 · 채점 대기
+  { head: '도달', cell: r => <StudentReachBadge student={r.student} /> },
+  { head: '최근 접속', cell: r => <LastSeenBadge student={r.student} /> },
+  { head: '채점 대기', cell: r => <GradingPendingBadge count={r.pending} /> },
+  // 어디서 막혔나 — 학급 「다시 가르칠 개념」과 같은 값
+  { head: '막힌 곳', cell: r => <StuckCell student={r.student} /> },
+  // 검수할 게 있으면 그 한 건의 AI 초안 점수 — 없으면 빈 칸으로 둔다
+  {
+    head: 'AI 초안',
+    cell: r => (r.next ? `${r.next.draftScore}/${r.next.maxScore}` : null),
+    className: 'text-pullim-slate-700 font-mono text-2xs',
+  },
+];
 
 /**
  * 거르개·정렬 값은 화면 안에서도 한 벌 들고 있다. 누르는 즉시 목록이 움직여야 해서다
@@ -107,7 +128,7 @@ export function GradingStudentList({
   return (
     <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
-        title={`등록 학생 ${students.length}명`}
+        title="학생 목록"
         description="채점할 게 없는 학생도 함께 보여요."
       />
 
@@ -142,9 +163,16 @@ export function GradingStudentList({
           action={{ onClick: () => selectFilter('all'), label: '전체 보기' }}
         />
       ) : (
-        <ul className="divide-pullim-slate-100 divide-y">
-          {visible.map(row => <StudentRow key={row.student.id} row={row} />)}
-        </ul>
+        <RosterTable
+          label="학생 목록"
+          minWidth="35rem"
+          rows={visible}
+          rowKey={row => row.student.id}
+          student={row => row.student}
+          // 되돌아갈 곳을 넘긴다 — 이게 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
+          href={row => `/teacher/students/${row.student.id}?from=grading`}
+          columns={gradingColumns}
+        />
       )}
 
       {/* 배지가 무엇을 세는지는 화면 어디에도 없다 — 그것만 적는다. 「왜 남기나」는 아래 FlywheelNote 몫. */}
@@ -155,59 +183,19 @@ export function GradingStudentList({
   );
 }
 
-function StudentRow({ row }: { row: GradingRosterRow }) {
-  const s = row.student;
+/**
+ * 어디서 막혔나 — 머리글이 「막힌 곳」이라 칸에는 개념 이름만 남는다.
+ * 개념 이름이 길어 줄을 밀지 않게 칸 안에서 잘라 낸다.
+ */
+function StuckCell({ student: s }: { student: MonitoredStudent }) {
   const stuck = stuckConceptLabel(s);
   const moreStuck = s.stuckConcepts.length - 1;
 
-  // 열 너비를 고정해 20줄이 세로로 정렬되게 한다 — 훑는 화면이라 정렬이 곧 가독성
+  if (!stuck) return <span className="text-pullim-slate-400 text-2xs">없음</span>;
   return (
-    <li>
-      <Link
-        // 되돌아갈 곳을 넘긴다 — 이게 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
-        href={`/teacher/students/${s.id}?from=grading`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[9rem_3.5rem_4.5rem_5rem_minmax(0,1fr)_6rem_auto]"
-      >
-        {/* 이름 · 학년 */}
-        <span className="flex items-center gap-2">
-          <span className="bg-pullim-slate-100 text-pullim-slate-700 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-2xs font-bold">
-            {s.name.slice(1, 2)}
-          </span>
-          <span className="min-w-0">
-            <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">{s.name}</span>
-            <span className="text-pullim-slate-500 text-2xs">{s.grade}</span>
-          </span>
-        </span>
-
-        {/* 배지 세 벌 — 도달 · 최근 접속 · 채점 대기 */}
-        <StudentReachBadge student={s} />
-        <LastSeenBadge student={s} />
-        <GradingPendingBadge count={row.pending} />
-
-        {/* 어디서 막혔나 — 학급 「다시 가르칠 개념」과 같은 값 */}
-        <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">
-          {stuck ? (
-            <>
-              막힌 곳 <b className="text-pullim-slate-700">{stuck}</b>
-              {moreStuck > 0 && <span className="text-pullim-slate-400">{` 외 ${moreStuck}개`}</span>}
-            </>
-          ) : (
-            <span className="text-pullim-slate-400">막힌 곳 없음</span>
-          )}
-        </span>
-
-        {/* 검수할 게 있으면 그 한 건의 AI 초안 점수 — 없으면 빈 칸으로 둔다 */}
-        <span className="text-pullim-slate-500 shrink-0 font-mono text-2xs">
-          {row.next ? (
-            <>
-              <span className="text-pullim-slate-400">AI 초안 </span>
-              <b className="text-pullim-slate-700">{`${row.next.draftScore}/${row.next.maxScore}`}</b>
-            </>
-          ) : null}
-        </span>
-
-        <ChevronRight className="text-pullim-slate-400 ml-auto h-4 w-4 shrink-0" aria-hidden />
-      </Link>
-    </li>
+    <span className="text-pullim-slate-700 block max-w-[10rem] truncate text-2xs">
+      {stuck}
+      {moreStuck > 0 && <span className="text-pullim-slate-400">{` 외 ${moreStuck}개`}</span>}
+    </span>
   );
 }

@@ -10,15 +10,31 @@ import { useGradingStore } from '@/lib/store/grading';
  *   ① 등록된 학생이 **전부** 보인다 — 채점 대기가 0건이어도 줄이 남는다
  *   ② 요약은 배지가 말한다 — 도달 · 최근 접속 · 채점 대기
  *   ③ 학생을 누르면 그 학생 상세로 간다
+ *   ④ 열마다 머리글이 **눈에 보이고**, 이름과 학년은 서로 다른 칸에 있다 (관제소 명단과 같은 표)
  */
 
-/** 학생 명단 = 마지막 list (앞의 list 는 거르개·정렬 알약 줄이 아니라 버튼이라 실제로는 이것뿐) */
+/** 학생 명단 = 표 하나. 이름으로 집어 거르개·정렬 알약 줄과 헷갈리지 않게 한다. */
 function roster() {
-  return screen.getAllByRole('list').at(-1)!;
+  return screen.getByRole('table', { name: '학생 목록' });
+}
+
+/** 학생 줄만 — 줄묶음 둘 중 두 번째(`tbody`)다. 첫 번째는 머리글 줄. */
+function body() {
+  return within(roster()).getAllByRole('rowgroup')[1];
 }
 
 function rows() {
-  return within(roster()).getAllByRole('listitem');
+  return within(body()).getAllByRole('row');
+}
+
+/**
+ * 그 학생의 줄.
+ *
+ * 예전에는 줄 전체가 링크 하나라 `.closest('a')` 가 곧 줄이었다. 이제는 줄이 표의 한 행이고
+ * 링크는 이름 칸 하나뿐이라, 배지 같은 **다른 칸의 값은 링크 밖에 있다.** 줄로 집어야 한다.
+ */
+function rowOf(name: string) {
+  return within(body()).getByText(name).closest('tr')!;
 }
 
 function renderList() {
@@ -43,9 +59,7 @@ describe('등록된 학생 전체가 보인다', () => {
     expect(withoutGrading.length).toBeGreaterThan(0);
 
     for (const row of withoutGrading) {
-      const cell = screen.getByText(row.student.name).closest('a');
-      expect(cell).not.toBeNull();
-      expect(within(cell!).getByLabelText('검수할 채점 없음')).toBeTruthy();
+      expect(within(rowOf(row.student.name)).getByLabelText('검수할 채점 없음')).toBeTruthy();
     }
   });
 });
@@ -54,17 +68,16 @@ describe('배지가 요약을 말한다', () => {
   it('줄마다 도달 · 최근 접속 · 채점 대기 배지가 함께 있다', () => {
     renderList();
     // 최근 접속 배지는 읽어주기 문장을 갖는다 — 줄 수만큼 있어야 한다.
-    expect(within(roster()).getAllByLabelText(/마지막 접속 /)).toHaveLength(monitoredRoster.length);
+    expect(within(body()).getAllByLabelText(/마지막 접속 /)).toHaveLength(monitoredRoster.length);
     // 채점 대기 배지도 줄마다 하나 — 0건이면 「검수할 채점 없음」.
-    const pendingBadges = within(roster()).getAllByLabelText(/검수 대기 |검수할 채점 없음/);
+    const pendingBadges = within(body()).getAllByLabelText(/검수 대기 |검수할 채점 없음/);
     expect(pendingBadges).toHaveLength(monitoredRoster.length);
   });
 
   it('채점 대기 배지가 그 학생의 대기 건수를 말한다', () => {
     renderList();
     for (const row of buildGradingRoster().filter(r => r.pending > 0)) {
-      const cell = screen.getByText(row.student.name).closest('a');
-      expect(within(cell!).getByLabelText(`검수 대기 ${row.pending}건`)).toBeTruthy();
+      expect(within(rowOf(row.student.name)).getByLabelText(`검수 대기 ${row.pending}건`)).toBeTruthy();
     }
   });
 
@@ -75,7 +88,7 @@ describe('배지가 요약을 말한다', () => {
 
     const { rerender } = renderList();
     expect(
-      within(screen.getByText(student.name).closest('a')!).getByLabelText(`검수 대기 ${before.pending}건`),
+      within(rowOf(student.name)).getByLabelText(`검수 대기 ${before.pending}건`),
     ).toBeTruthy();
 
     act(() => {
@@ -89,9 +102,8 @@ describe('배지가 요약을 말한다', () => {
     });
     rerender(<GradingStudentList students={monitoredRoster} items={allGradingItems} />);
 
-    const cell = screen.getByText(student.name).closest('a')!;
     const label = before.pending === 1 ? '검수할 채점 없음' : `검수 대기 ${before.pending - 1}건`;
-    expect(within(cell).getByLabelText(label)).toBeTruthy();
+    expect(within(rowOf(student.name)).getByLabelText(label)).toBeTruthy();
   });
 });
 
@@ -109,8 +121,8 @@ describe('학생을 누르면 상세로 간다', () => {
   it('링크가 그 학생의 id 를 가리킨다', () => {
     renderList();
     const s = monitoredRoster[3]; // m04 최도현
-    const link = screen.getByText(s.name).closest('a');
-    expect(link?.getAttribute('href')).toBe(`/teacher/students/${s.id}?from=grading`);
+    const link = within(rowOf(s.name)).getByRole('link');
+    expect(link.getAttribute('href')).toBe(`/teacher/students/${s.id}?from=grading`);
   });
 });
 
@@ -152,8 +164,7 @@ describe('채점 항목은 그 학생 줄에 붙는다', () => {
     expect(withGrading).toHaveLength(allGradingItems.length);
 
     for (const row of withGrading) {
-      const cell = screen.getByText(row.student.name).closest('a');
-      expect(cell).not.toBeNull();
+      expect(rowOf(row.student.name)).not.toBeNull();
     }
   });
 });
@@ -188,5 +199,32 @@ describe('거르개·정렬은 URL 이 1차 (spec 11 § 10)', () => {
     expect(toStudentFilter(undefined)).toBe('all');
     expect(toStudentSort('bogus')).toBe('pending');
     expect(toStudentSort(undefined)).toBe('pending');
+  });
+});
+
+describe('머리글 있는 표 — 관제소 「학생 한 줄 보기」와 같은 껍데기', () => {
+  it('머리글이 화면 순서대로 있고 눈에서 감춰져 있지 않다', () => {
+    renderList();
+    const headers = within(roster()).getAllByRole('columnheader');
+
+    expect(headers.map(h => h.textContent)).toEqual(
+      // 마지막은 꺾쇠 자리 — 값이 아니라 「갈 수 있다」는 표시라 부를 이름이 없다
+      ['이름', '학년', '도달', '최근 접속', '채점 대기', '막힌 곳', 'AI 초안', ''],
+    );
+    // 머리글을 `sr-only` 로 감추면 표가 아니라 그냥 줄 스무 개가 된다
+    for (const h of headers) expect(h.className).not.toContain('sr-only');
+  });
+
+  it('이름과 학년은 서로 다른 칸에 있다 — 한 칸에 겹쳐 있던 것을 뗐다', () => {
+    renderList();
+
+    for (const s of monitoredRoster) {
+      const row = rowOf(s.name);
+      const nameCell = within(row).getByRole('rowheader');
+      expect(nameCell).toHaveTextContent(s.name);
+      expect(nameCell.textContent).not.toContain(s.grade);
+      // 학년은 이름 다음 칸 — `th`(이름)는 cell 에 들어오지 않으므로 첫 칸이 학년이다
+      expect(within(row).getAllByRole('cell')[0]).toHaveTextContent(s.grade);
+    }
   });
 });

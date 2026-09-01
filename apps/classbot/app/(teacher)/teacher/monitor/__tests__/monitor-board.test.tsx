@@ -7,10 +7,10 @@ function cardBar() {
   return screen.getAllByRole('list')[0];
 }
 
-/** 학생 명단 줄 */
+/** 학생 명단 줄 — 명단은 표다. 머리글 줄을 뺀 두 번째 줄묶음(`tbody`)이 학생 줄이다. */
 function rosterRows() {
-  const roster = screen.getAllByRole('list').at(-1)!;
-  return within(roster).getAllByRole('listitem');
+  const roster = screen.getByRole('table', { name: '학생 한 줄 보기' });
+  return within(within(roster).getAllByRole('rowgroup')[1]).getAllByRole('row');
 }
 
 function card(name: RegExp) {
