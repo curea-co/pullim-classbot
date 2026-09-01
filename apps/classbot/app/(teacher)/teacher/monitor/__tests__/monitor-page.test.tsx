@@ -28,8 +28,10 @@ function cardBlock(): HTMLElement {
   return screen.getByText('카드를 누르면 아래 명단에 그 학생만 남아요.').parentElement!;
 }
 
+/** 명단은 표다 — 머리글 줄을 뺀 두 번째 줄묶음(`tbody`)이 학생 줄이다 */
 function rosterRows() {
-  return within(sectionOf(ROSTER)).getAllByRole('listitem');
+  const table = within(sectionOf(ROSTER)).getByRole('table');
+  return within(within(table).getAllByRole('rowgroup')[1]).getAllByRole('row');
 }
 
 describe('학급 관제소 화면 순서', () => {
