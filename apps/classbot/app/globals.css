@@ -190,13 +190,13 @@
  *      `--focus-ring`(기본 키보드 포커스) · `--focus-ring-danger`(destructive)
  *    glow 를 다시 읽게 되는 자연스러운 자리는 legacy hover 강조를 되살릴 때다.
  *
- *    ⚠️ **q 저장소는 같은 이름의 토큰을 focus ring 으로 쓴다.** 이름이 같아도
- *    용도가 다르니 **저쪽 문서를 이 앱의 근거로 삼지 마라.** 판단은 위
- *    classbot spec 으로 한다. (같은 이름·다른 뜻은 이 저장소에서 반복되는
- *    함정이다 — `--radius-*` / `--text-<size>` 의 두 스케일도 같은 부류다.)
+ *    ⚠️ 다른 서비스 저장소가 **같은 이름의 토큰을 다른 뜻으로** 쓸 수 있다.
+ *    **이 토큰의 용도 근거는 이 저장소의 `proc/spec/08-design-system.md` 뿐이다** —
+ *    다른 저장소 문서를 근거로 삼지 마라. (같은 이름·다른 뜻은 이 저장소 안에서도
+ *    반복되는 함정이다 — `--radius-*` / `--text-<size>` 의 두 스케일이 그렇다.)
  *
- *    (부수: `proc/` 자체는 **Tailwind 스캔 대상이 아니다** — 통제 실험으로 확인했다.
- *     저장소 루트에 있고 Tailwind 의 base 는 `apps/classbot` 이다.)
+ *    (`proc/` 는 저장소 루트에 있고 Tailwind 의 스캔 base 는 `apps/classbot` 이다 —
+ *     그래서 `proc/` 안의 문자열은 스캔 대상이 아니다. base 가 바뀌면 이 관계도 바뀐다.)
  *
  * 값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
  * `shadow-pullim-sm` 을 `shadow-sm` 으로 치환해 정리하지 마라 — 그림자가 바뀐다.
