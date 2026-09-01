@@ -152,6 +152,20 @@
   --text-2xl:  1.5625rem;  --text-2xl--line-height:  2.125rem;    /* v2 title1   25/34 */
   --text-3xl:  1.875rem;   --text-3xl--line-height:  2.375rem;    /* v2 display2 30/38 */
   --text-4xl:  2.125rem;   --text-4xl--line-height:  2.625rem;    /* v2 display1 34/42 */
+  /* 풀림 그림자 — **`@theme` 안에 있어야 한다.**
+     bare `:root` 에 선언하면 커스텀 프로퍼티는 생기지만 Tailwind v4 가
+     `--shadow-*` 네임스페이스를 읽지 못해 `.shadow-pullim-xs/sm/md/lg` 유틸리티를
+     **아예 생성하지 않는다** — 27 곳의 호출부가 유효한 클래스명인 채로
+     조용히 아무 그림자도 얻지 못했다.
+     값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
+     `shadow-pullim-sm` 을 `shadow-sm` 으로 치환해 정리하지 마라 — 그림자가 바뀐다. */
+  --shadow-pullim-xs: 0 1px 2px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-sm: 0 1px 3px rgba(18, 22, 39, 0.06), 0 1px 2px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-md: 0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
+  --shadow-pullim-lg: 0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
+  /* glow 는 현재 호출부 0 — 클래스로도 var() 로도 참조되지 않는다.
+     네 형제와 한 벌이라 자리만 함께 옮긴다(유틸리티는 실제로 쓰일 때만 생성된다). */
+  --shadow-pullim-glow: 0 0 0 4px rgba(59, 111, 246, 0.15);
 }
 
 :root {
@@ -202,12 +216,8 @@
   --sidebar-border: oklch(0.920 0.003 286);
   --sidebar-ring: oklch(0.524 0.197 258);
 
-  /* 풀림 그림자 */
-  --shadow-pullim-xs: 0 1px 2px rgba(18, 22, 39, 0.04);
-  --shadow-pullim-sm: 0 1px 3px rgba(18, 22, 39, 0.06), 0 1px 2px rgba(18, 22, 39, 0.04);
-  --shadow-pullim-md: 0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
-  --shadow-pullim-lg: 0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
-  --shadow-pullim-glow: 0 0 0 4px rgba(59, 111, 246, 0.15);
+  /* 풀림 그림자 --shadow-pullim-* 는 위 `@theme inline` 블록으로 옮겼다.
+     Tailwind v4 는 @theme 네임스페이스에 등록된 것만 유틸리티로 만든다. */
 
   /* 포커스 링 ([08-design-system § 5.1] a11y 필수) */
   --focus-ring:        0 0 0 3px rgba(59, 111, 246, 0.35);
@@ -311,6 +321,72 @@
   --sidebar-accent-foreground: var(--color-action-secondary-fg);
   --sidebar-border: var(--border-subtle);
   --sidebar-ring: var(--focus-ring-color);
+}
+
+/* =====================================================================
+ * data-theme 폴백 — pullim-os 라이트 값 한 벌
+ *
+ * 아래 25 개 토큰은 `app/tokens/pullim-os.css` 의 `[data-theme="pullim-os"]`
+ * 스코프에만 선언돼 있고 bare `:root` 기본값이 없었다. 지금 화면이 멀쩡한 건
+ * `app/layout.tsx` 의 <html data-theme="pullim-os"> 한 줄 덕이다 — 즉 방어선이
+ * **JSX 한 줄**이고, 그게 깨져도 타입도 테스트도 콘솔도 아무 말을 안 한다.
+ * 빈 var() 는 조용히 투명이 된다.
+ *
+ * 특히 --shadow-sm/md/lg/xl 은 Tailwind 기본 테마에 **같은 이름이 있어**
+ * 사라지는 대신 「그럴듯한 다른 그림자」로 대체된다 — 육안 탐지가 더 어렵다.
+ * (컴파일 산출물 실측: 속성 없을 때 --shadow-md 가 Tailwind 의
+ *  `0 4px 6px -1px rgb(0 0 0 / .1) …` 로 해석됐다.)
+ * 그리고 --color-action-primary 는 :root 의 --primary 로, --color-primary-*
+ * 는 --chart-1..5 로 흘러 shadcn 계층 전체를 통째로 끌고 간다.
+ *
+ * **`@layer base` 안에 두는 것이 핵심이다.** 레이어 없는 규칙은 특정도와
+ * 무관하게 레이어 안의 규칙을 항상 이긴다. `[data-theme="pullim-os"]`(0,1,0)
+ * 와 `:root`(0,1,0)는 특정도가 같아 소스 순서로 갈리는데, 이 파일의 `:root`
+ * 블록들은 pullim-os import(5 행)보다 **뒤**라 그냥 두면 폴백이 아니라
+ * **오버라이드**가 된다. 레이어에 넣으면 순서와 무관하게:
+ *   - 레이어 밖 [data-theme="pullim-os"] 가 이긴다        → 속성 있을 때 무변화
+ *   - 레이어 밖 [data-theme][data-scheme="dark"] 도 이긴다 → 다크 무변화
+ *   - Tailwind 의 @layer theme 는 진다(theme < base)      → 가짜 그림자 차단
+ *
+ * 값은 pullim-os.css 의 **첫 블록(라이트)**에서 그대로 가져왔다. 다크 블록
+ * (`[data-scheme="dark"]` · `@media (prefers-color-scheme: dark)`)의 값이
+ * 아니다. pullim-os.css 를 고치면 여기도 함께 고쳐야 한다.
+ * ===================================================================== */
+@layer base {
+  :root {
+    /* primary ramp (hue 258) */
+    --color-primary-50:  oklch(0.972 0.024 258);
+    --color-primary-100: oklch(0.940 0.039 258);
+    --color-primary-200: oklch(0.890 0.069 258);
+    --color-primary-300: oklch(0.820 0.108 258);
+    --color-primary-400: oklch(0.730 0.154 258);
+    --color-primary-500: oklch(0.640 0.189 258);
+    --color-primary-600: oklch(0.524 0.197 258);
+    --color-primary-700: oklch(0.474 0.181 258);
+    --color-primary-800: oklch(0.414 0.154 258);
+    --color-primary-900: oklch(0.364 0.118 258);
+    --color-primary-950: oklch(0.264 0.083 258);
+
+    /* semantic actions */
+    --color-action-primary:       var(--color-primary-600);
+    --color-action-primary-hover: var(--color-primary-700);
+    --color-action-primary-fg:    #ffffff;
+    --color-action-secondary:     var(--color-primary-50);
+    --color-action-secondary-fg:  var(--color-primary-700);
+
+    /* shadows */
+    --shadow-sm: 0 1px 2px rgba(13,26,31,.06);
+    --shadow-md: 0 2px 8px rgba(13,26,31,.08);
+    --shadow-lg: 0 12px 40px rgba(3,98,218,.12);
+    --shadow-xl: 0 20px 60px rgba(3,98,218,.18);
+
+    /* font weights + brand font */
+    --font-weight-body:   400;
+    --font-weight-medium: 500;
+    --font-weight-bold:   700;
+    --font-weight-h:      700;
+    --font-display:       var(--font-sans-kr);
+  }
 }
 
 @utility glow-lemon {

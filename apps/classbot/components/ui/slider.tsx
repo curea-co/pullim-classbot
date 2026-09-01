@@ -42,7 +42,12 @@ function Slider({
               'bg-pullim-blue-600 ring-offset-background block size-4 shrink-0 cursor-grab rounded-full border-2 border-white shadow-sm transition-transform',
               'hover:scale-110 active:scale-115 active:cursor-grabbing',
               'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-              'disabled:pointer-events-none disabled:opacity-50',
+              // Base UI SliderThumb 은 <div> 를 렌더하고 네이티브 `disabled` 는
+              // 안쪽 숨은 <input type="range"> 에만 간다. CSS `:disabled` 는 폼
+              // 컨트롤에만 매치하므로 `disabled:` 로 쓰면 **유효한 CSS 인 채로
+              // 영원히 아무것도 매치하지 않는다** — 비활성 슬라이더가 활성처럼 보였다.
+              // 실측(jsdom): thumb 의 속성은 data-disabled="" 뿐이다.
+              'data-disabled:pointer-events-none data-disabled:opacity-50',
               thumbClassName,
             )}
           />

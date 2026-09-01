@@ -24,7 +24,7 @@ import { useSyncExternalStore } from 'react';
 import { Check, GraduationCap, School, Wrench, type LucideIcon } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Role } from './nav-config';
@@ -110,27 +110,35 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
           <Wrench className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuLabel className="text-pullim-slate-600 font-mono text-micro tracking-[.08em] uppercase">
-            dev · 역할 전환
-          </DropdownMenuLabel>
+          {/* Base UI: DropdownMenuLabel 은 Menu.GroupLabel 이라 Menu.Group 밖에서 쓰면
+              useMenuGroupRootContext() 가 개발·운영 양쪽에서 throw 한다 —
+              감싸지 않으면 드롭다운을 여는 순간 트리가 죽는다.
+              같은 형태: notification-bell.tsx · app-header.tsx */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-pullim-slate-600 font-mono text-micro tracking-[.08em] uppercase">
+              dev · 역할 전환
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          {DEV_ROLES.map((target) => {
-            const active = target.role === role;
-            const Icon = target.icon;
-            return (
-              <DropdownMenuItem key={target.role} className="p-0">
-                <Link
-                  href={target.href}
-                  aria-current={active ? 'true' : undefined}
-                  className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm"
-                >
-                  <Icon className="h-4 w-4" />
-                  {target.label}
-                  {active && <Check className="text-pullim-slate-700 ml-auto h-4 w-4" />}
-                </Link>
-              </DropdownMenuItem>
-            );
-          })}
+          <DropdownMenuGroup>
+            {DEV_ROLES.map((target) => {
+              const active = target.role === role;
+              const Icon = target.icon;
+              return (
+                <DropdownMenuItem key={target.role} className="p-0">
+                  <Link
+                    href={target.href}
+                    aria-current={active ? 'true' : undefined}
+                    className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {target.label}
+                    {active && <Check className="text-pullim-slate-700 ml-auto h-4 w-4" />}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </>

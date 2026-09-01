@@ -4,7 +4,6 @@ import { useState } from 'react';
 import type { GradingItem } from '@/lib/mock';
 import { Slider } from '@/components/ui/slider';
 import { ScoreDisplay } from '@/components/classbot/score-display';
-import { cn } from '@/lib/utils';
 
 type RubricItem = GradingItem['rubric'][number];
 
@@ -73,6 +72,10 @@ export function RubricEditor({
                   <ScoreDisplay score={r.score} max={r.weight} size="md" tone="threshold" />
                 </div>
               </div>
+              {/* 예전에는 여기 루트에 `readOnly && 'opacity-60'` 을 손으로 붙였다.
+                  Slider thumb 의 흐림이 `disabled:` 접두사라 매치되지 않아서 낸
+                  우회였다. 계약은 JS 조건부 opacity 를 금지한다 — 후퇴는
+                  접두사 variant 로만 한다. thumb 이 이제 스스로 흐려지므로 지웠다. */}
               <Slider
                 min={0}
                 max={r.weight}
@@ -81,7 +84,7 @@ export function RubricEditor({
                 onValueChange={(v) => updateScore(i, Array.isArray(v) ? v[0] : v)}
                 disabled={readOnly}
                 aria-label={`${r.criterion} 점수`}
-                className={cn('mt-2', readOnly && 'opacity-60')}
+                className="mt-2"
               />
             </li>
           );
