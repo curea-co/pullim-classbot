@@ -286,7 +286,7 @@ export function Yard2Answers({ draft, onPick }: YardProps) {
             </ul>
           )}
 
-          <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
+          <p className="text-pullim-slate-500 mt-1.5 text-xs leading-relaxed">
             {draft.files.length
               ? '올린 자료는 봇이 읽을 수 있게 정리하는 데 2~5분쯤 걸려요. 정리가 끝나면 답에 반영돼요.'
               : '아직 올린 자료가 없어요. 자료가 없으면 봇은 교과서 밖 일반 지식으로 답해요.'}
@@ -387,7 +387,7 @@ export function Yard3Teaching({ draft, onPick }: YardProps) {
               />
             ))}
           </RadioCardGroup>
-          <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
+          <p className="text-pullim-slate-500 mt-1.5 text-xs leading-relaxed">
             배점과 채점 기준은 여기서 정하지 않아요.
           </p>
         </div>

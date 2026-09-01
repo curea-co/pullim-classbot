@@ -92,7 +92,7 @@ export function FilledSummary({ draft, view, yard, className }: Props) {
         );
       })}
 
-      <p className="bg-pullim-blue-50 text-pullim-blue-800 mt-3 flex items-start gap-2 rounded-xl p-3 text-2xs leading-relaxed">
+      <p className="bg-pullim-blue-50 text-pullim-blue-800 mt-3 flex items-start gap-2 rounded-xl p-3 text-xs leading-relaxed">
         <ShieldCheck className="text-pullim-blue-600 mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <span>
           <b>{alwaysOnSafety.join(' · ')}</b>은 모든 봇에 늘 켜져 있어요. 여기서 끌 수 없어요.

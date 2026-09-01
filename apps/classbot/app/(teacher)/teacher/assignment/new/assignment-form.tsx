@@ -248,7 +248,7 @@ export function AssignmentForm() {
                 className="h-10 text-sm"
               />
               {title !== '' && !titleValid && (
-                <p id="af-title-err" className="text-pullim-danger mt-1 text-2xs">제목은 5~50자 사이여야 해요.</p>
+                <p id="af-title-err" className="text-pullim-danger mt-1 text-xs">제목은 5~50자 사이여야 해요.</p>
               )}
             </Field>
 
@@ -277,7 +277,7 @@ export function AssignmentForm() {
                       )}
                     >
                       <div className="text-pullim-slate-900 text-xs font-bold">{meta.label}</div>
-                      <div className="text-pullim-slate-500 mt-0.5 text-2xs leading-tight">{meta.description}</div>
+                      <div className="text-pullim-slate-500 mt-0.5 text-xs leading-tight">{meta.description}</div>
                     </button>
                   );
                 })}
@@ -424,7 +424,7 @@ export function AssignmentForm() {
             })}
           </div>
           {!targetValid && (
-            <p className="text-pullim-danger mt-2 text-2xs">최소 1명을 선택해주세요.</p>
+            <p className="text-pullim-danger mt-2 text-xs">최소 1명을 선택해주세요.</p>
           )}
         </section>
 
@@ -451,7 +451,7 @@ export function AssignmentForm() {
                 {formatDueLabel(dueIso)} ({computeDDay(dueIso)})
               </p>
               {!dueValid && (
-                <p id="af-due-err" className="text-pullim-danger mt-1 text-2xs">미래 시각으로 설정해주세요.</p>
+                <p id="af-due-err" className="text-pullim-danger mt-1 text-xs">미래 시각으로 설정해주세요.</p>
               )}
             </Field>
 

@@ -180,7 +180,7 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
         <span className="text-pullim-slate-500 font-mono text-micro font-bold">{s.percent}%</span>
       </div>
 
-      <p className="text-pullim-slate-600 mt-2 text-2xs leading-relaxed">{s.evidence}</p>
+      <p className="text-pullim-slate-600 mt-2 text-xs leading-relaxed">{s.evidence}</p>
     </li>
   );
 }

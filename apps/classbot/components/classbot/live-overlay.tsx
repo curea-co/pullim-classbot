@@ -251,7 +251,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
           {myQuestions.map(q => <QuestionStatusItem key={q.id} q={q} />)}
         </ul>
       )}
-      <p className="text-pullim-slate-500 mt-2 text-2xs">
+      <p className="text-pullim-slate-500 mt-2 text-xs">
         교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
       </p>
     </section>
@@ -269,7 +269,7 @@ function QuestionStatusItem({ q }: { q: PendingQuestion }) {
       )}
     >
       <div className="font-bold">“{q.text}”</div>
-      <div className="mt-0.5 text-2xs">
+      <div className="mt-0.5 text-xs">
         {q.status === 'pending' && '⏳ 교사 검토 중…'}
         {q.status === 'shared'  && '🔵 전체 공유됨! 곧 답변 받으실 거예요.'}
         {q.status === 'hidden'  && '⚪ 비공개로 처리됨 (선생님 1:1 답변)'}

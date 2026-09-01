@@ -184,7 +184,7 @@ export function AssignmentChatWorkspace({
             {/* 로그인 여부와 무관하게 아직 이 기기에만 남는다 — 서버 영속이 없다
                 (`lib/store/assignment-chat.ts`). 로그인 상태에서만 안내를 감추면
                 로그인한 학생이 기기를 옮겼을 때 사라지는 걸 예고받지 못한다. */}
-            <p className="text-pullim-slate-500 mt-1.5 text-2xs">
+            <p className="text-pullim-slate-500 mt-1.5 text-xs">
               이 대화는 아직 이 기기에만 남아요. 다른 기기에서는 이어지지 않아요.
             </p>
           </div>
@@ -229,7 +229,7 @@ function AssignmentTurnRow({
             </div>
             {/* 선생님에게 전해진다고 말하지 않는다 — 교사용 집계가 아직 없다(위 store 주석). */}
             {turn.redirected && (
-              <p className="text-pullim-slate-500 mt-1 text-2xs">
+              <p className="text-pullim-slate-500 mt-1 text-xs">
                 수업 주제로 되돌렸어요
               </p>
             )}
@@ -342,7 +342,7 @@ function AutoGradedTracker({
                     : <Circle className="text-pullim-slate-300 h-3.5 w-3.5" aria-hidden />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-pullim-slate-700 text-2xs">
+                  <p className="text-pullim-slate-700 text-xs">
                     <span className="font-mono font-bold">{q.order}번</span>
                     <span className="text-pullim-slate-300"> · </span>
                     <span className="text-pullim-slate-600">{q.prompt}</span>
@@ -411,7 +411,7 @@ function TeacherGradedTracker({
       <CriterionGroup label="다룬 항목" items={covered} covered />
       <CriterionGroup label="안 다룬 항목" items={notCovered} />
 
-      <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
+      <p className="text-pullim-slate-500 mt-3 text-xs leading-relaxed">
         낸 답을 기준으로 표시해요. 대화에서 다뤘는지 자동으로 찾아 주는 건 준비 중이에요.
       </p>
     </section>

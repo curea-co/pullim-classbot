@@ -303,7 +303,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
             </div>
 
             {a.reasonHint && (
-              <p className="text-pullim-blue-700 mt-2 text-2xs leading-relaxed">
+              <p className="text-pullim-blue-700 mt-2 text-xs leading-relaxed">
                 <Sparkles className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {a.reasonHint}
               </p>

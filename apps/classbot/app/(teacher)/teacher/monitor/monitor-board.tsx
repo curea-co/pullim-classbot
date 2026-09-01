@@ -63,7 +63,7 @@ export function MonitorBoard({
             />
           ))}
         </KpiStatBar>
-        <p className="text-pullim-slate-500 px-1 text-2xs font-semibold">
+        <p className="text-pullim-slate-500 px-1 text-xs font-semibold">
           카드를 누르면 아래 명단에 그 학생만 남아요.
         </p>
       </div>

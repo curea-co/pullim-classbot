@@ -29,7 +29,7 @@ export function ParentMessagePreview({ initialMessage, status }: { initialMessag
         <Mail className="text-pullim-blue-600 h-4 w-4" />
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-sm font-bold">학부모 발송 미리보기</h3>
-          <p className="text-pullim-slate-500 text-2xs">카카오 BIZ MESSAGE 템플릿 · 24시간 안에 자동 발송돼요</p>
+          <p className="text-pullim-slate-500 text-xs">카카오 BIZ MESSAGE 템플릿 · 24시간 안에 자동 발송돼요</p>
         </div>
         {sent && (
           <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-2xs font-bold">

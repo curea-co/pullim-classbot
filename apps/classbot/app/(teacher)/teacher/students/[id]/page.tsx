@@ -87,7 +87,7 @@ export default async function TeacherStudentReportPage({
           current={period}
           href={v => `/teacher/students/${id}${query(v)}`}
         />
-        <p className="text-pullim-slate-500 mt-2 text-2xs">
+        <p className="text-pullim-slate-500 mt-2 text-xs">
           기간을 바꿔도 지금은 같은 스냅샷을 보여줘요. (준비 중)
         </p>
       </section>
@@ -172,7 +172,7 @@ export default async function TeacherStudentReportPage({
                   ))}
                 </ol>
               )}
-              <p className="text-pullim-slate-500 mt-2.5 text-2xs leading-relaxed">
+              <p className="text-pullim-slate-500 mt-2.5 text-xs leading-relaxed">
                 이 건수는 학급 관제소 명단의 <b className="text-pullim-slate-700">{student.name} 이탈 {report.scopeExitCount}회</b>와 같은 값이에요.
               </p>
             </section>
