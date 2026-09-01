@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
-  Rocket, ToggleRight, Shield, Wrench, Settings, Gauge, School, Pause, Play,
+  Rocket, ToggleRight, Shield, Wrench, School, Pause, Play,
   MoreHorizontal,
 } from 'lucide-react';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -161,17 +161,19 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
  * 봇 하나에서 나가는 길 — 전부 「더보기」 안에 모은다.
  * 카드마다 링크를 깔면 봇 3개에 12개가 반복돼 정작 「지금 잘 도나」가 안 읽힌다.
  *
- * 봇 관리는 봇 하나에 매인 화면이라 **그 봇의 설정으로 곧장 보낸다** —
- * 어느 봇의 더보기를 눌렀는지가 링크에 실린다 (`proc/spec/03 § 4.4`).
+ * **둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
+ * 둘 다 어느 봇의 더보기를 눌렀는지가 링크에 실린다. 봇을 가리키지 못하는 길은 여기 두지 않는다.
+ *
+ * 걷어낸 셋:
+ *  - 「봇 관리」·「안전 등급 바꾸기」 — 같은 화면(`/teacher/bots/[botId]`)으로 가는 길이
+ *    한 메뉴에 둘이었다. 봇 관리는 왼쪽 레일에 제 자리가 있다.
+ *  - 「학급 관제소」 — 봇이 아니라 학급을 보는 화면이라 **어느 봇의 더보기를 눌렀는지가
+ *    실리지 않는다.** 위쪽 「등록 학생」 카드가 같은 데로 간다.
  */
 function botMenuLinks(botId: string) {
   return [
-    { href: '/teacher/builder',                  icon: Wrench,   label: '봇 손보기' },
-    { href: `/teacher/bots/${botId}`,            icon: Settings, label: '봇 관리' },
-    { href: `/teacher/bots/${botId}?tab=safety`, icon: Shield,   label: '안전 등급 바꾸기' },
-    { href: '/teacher/assignment/new',           icon: Send,     label: '과제 내기' },
-    // 학생 관제는 이 화면이 하지 않는다 — 관제소로 보낸다
-    { href: '/teacher/monitor',                  icon: Gauge,    label: '학급 관제소' },
+    { href: `/teacher/builder/${botId}`,            icon: Wrench, label: '수정하기' },
+    { href: `/teacher/assignment/new?bot=${botId}`, icon: Send,   label: '과제 내기' },
   ];
 }
 
@@ -237,7 +239,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
               )}
               {runStateLabels[ops.runState]}
             </Chip>
-            {/* 안전 등급 — 배지 하나로 읽어준다. 설명·변경은 봇 관리(더보기 안). */}
+            {/* 안전 등급 — 배지 하나로 읽어준다. 설명·변경은 봇 관리(왼쪽 레일). */}
             <Chip tone="outline" className="py-1">
               <Shield className="text-pullim-blue-600" aria-hidden />
               <span>

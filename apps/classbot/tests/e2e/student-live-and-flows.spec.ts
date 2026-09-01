@@ -62,8 +62,13 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await expect(card.getByRole('link')).toHaveCount(0);
     await card.getByRole('button', { name: /더보기/ }).click();
     const menu = page.getByRole('menu');
-    for (const label of ['봇 손보기', '봇 관리', '안전 등급 바꾸기', '과제 내기', '학급 관제소']) {
+    // 남는 길은 둘 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길
+    for (const label of ['수정하기', '과제 내기']) {
       await expect(menu.getByRole('menuitem', { name: label })).toBeVisible();
+    }
+    // 걷어낸 셋은 다시 들어오면 안 된다
+    for (const label of ['봇 관리', '안전 등급 바꾸기', '학급 관제소']) {
+      await expect(menu.getByRole('menuitem', { name: label })).toHaveCount(0);
     }
 
     // 보류 pane 은 내려갔다
@@ -71,12 +76,30 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await expect(page.getByText('라이브 시작', { exact: true })).toHaveCount(0);
   });
 
-  test('봇 카드 더보기 → 학급 관제소로 나간다', async ({ page }) => {
+  test('봇 카드 더보기 → 그 봇의 수정 화면으로, 값이 채워진 채로 열린다', async ({ page }) => {
     await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
 
-    await page.getByTestId('bot-ops-card-cb_001').getByRole('button', { name: /더보기/ }).click();
-    await page.getByRole('menu').getByRole('menuitem', { name: '학급 관제소' }).click();
-    await expect(page).toHaveURL(BASE + '/teacher/monitor');
+    await page.getByTestId('bot-ops-card-cb_004').getByRole('button', { name: /더보기/ }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: '수정하기' }).click();
+    await expect(page).toHaveURL(BASE + '/teacher/builder/cb_004');
+
+    // 빈 빌더가 아니라 그 봇의 지금 값 — 이름·과목·학년·붙어 있는 반
+    await expect(page.getByRole('heading', { level: 1, name: '국어봇 수정하기' })).toBeVisible();
+    const filled = page.getByTestId('summary-row-subject');
+    await expect(filled).toContainText('국어');
+    await expect(page.getByTestId('summary-row-name')).toContainText('국어봇');
+    await expect(page.getByTestId('summary-row-grade')).toContainText('중3');
+    await expect(page.getByTestId('summary-row-classes')).toContainText('중3 국어 A반');
+  });
+
+  test('봇 카드 더보기 → 과제 내기는 그 봇이 골라진 채로 열린다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
+
+    await page.getByTestId('bot-ops-card-cb_004').getByRole('button', { name: /더보기/ }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: '과제 내기' }).click();
+    await expect(page).toHaveURL(BASE + '/teacher/assignment/new?bot=cb_004');
+    // 「발사 봇」이 눌러 온 봇이다 — 종전에는 늘 첫 봇(수학봇)이 골라져 있었다
+    await expect(page.getByTestId('bot-select')).toHaveValue('cb_004');
   });
 });
 

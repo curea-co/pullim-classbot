@@ -67,16 +67,24 @@ function defaultDueLabel(): string {
 
 // formatDueLabel/computeDDay 는 재발사(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
 
-export function AssignmentForm() {
+/** 어느 봇에서 왔는지 모를 때 여는 봇 — 목록 첫 줄. */
+const defaultBotId = classBots[0]?.id ?? '';
+
+/**
+ * `initialBotId` — 운영 화면 봇 카드의 「과제 내기」가 어느 봇에서 눌렸는지 (`?bot=`).
+ * 실어 오지 않으면 첫 봇으로 연다. 종전에는 늘 첫 봇이라, 국어봇 카드에서 눌러도
+ * 수학봇 과제 폼이 열렸다 — 교사가 봇을 다시 골라야 했다.
+ */
+export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?: string }) {
   const router = useRouter();
   const dispatch = useAssignmentStore((s) => s.dispatch);
 
   // 입력 state — 초기값으로 자동 채움
-  const [botId, setBotId] = useState<string>('cb_001');
+  const [botId, setBotId] = useState<string>(initialBotId);
   const [title, setTitle] = useState('');
   const [mode, setMode] = useState<AssignmentMode>('practice');
   const [difficulty, setDifficulty] = useState<'하' | '중' | '상'>('중');
-  const [unitId, setUnitId] = useState<string>(() => getBotCurriculum('cb_001')[0]?.id ?? '');
+  const [unitId, setUnitId] = useState<string>(() => getBotCurriculum(initialBotId)[0]?.id ?? '');
   const [questions, setQuestions] = useState<DraftQuestion[]>(createDefaultQuestions);
   const [targetIds, setTargetIds] = useState<string[]>(() => classRoster.map(s => s.id));
   const [dueIso, setDueIso] = useState(defaultDueLabel());
