@@ -149,7 +149,7 @@ lib/cn.ts
 
 ```bash
 cd apps/classbot
-PUDS=https://pullim-design-system.vercel.app/v/0.5.0   # components.json 과 같은 버전을 쓸 것
+PUDS=https://pullim-design-system.vercel.app/v/0.5.1   # components.json 과 같은 버전을 쓸 것
 ITEM=combobox                                          # ← 들이려는 아이템 이름. 여기만 바꾼다
 ```
 
@@ -652,11 +652,11 @@ curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -n 'cva(\|VariantPr
 레지스트리는 `apps/classbot/components.json` 의 한 줄이 전부다:
 
 ```json
-"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.5.0/{name}.json" }
+"registries": { "@puds": "https://pullim-design-system.vercel.app/v/0.5.1/{name}.json" }
 ```
 
-**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.5.0/` 이 내려주는 내용은 PUDS 저장소의
-`registry-releases/0.5.0/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
+**고정은 호스트가 아니라 경로(`/v/<버전>/`)가 한다.** `/v/0.5.1/` 이 내려주는 내용은 PUDS 저장소의
+`registry-releases/0.5.1/` 에 **커밋돼 있어서** main 에 무엇이 푸시돼도 변하지 않는다.
 
 > ⛔ **`/r/{name}.json` 을 서비스가 직접 참조하면 안 된다.** 그 경로는 항상 **main 최신**을
 > 따라가므로 `shadcn add` 를 돌리는 **시점마다 받아오는 소스가 달라진다.** 어제 벤더링한 셸과
@@ -673,7 +673,7 @@ curl -s "$PUDS/$ITEM.json" | jq -r '.files[].content' | grep -n 'cva(\|VariantPr
 ```bash
 cd apps/classbot
 
-# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.5.0/ → /v/0.6.0/
+# 1) components.json 의 URL 에서 **경로의 버전만** 바꾼다.  /v/0.5.1/ → /v/0.6.0/
 #    (호스트는 그대로 pullim-design-system.vercel.app 이다)
 
 # 2) 레인 1 파일을 재설치한다
