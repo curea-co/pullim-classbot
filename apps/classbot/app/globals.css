@@ -159,23 +159,41 @@
  *
  * ① bare `:root` 면 안 된다.
  *    커스텀 프로퍼티는 생기지만 Tailwind v4 는 `@theme` 네임스페이스에 등록된
- *    `--shadow-*` 만 읽어 유틸리티를 만든다. `:root` 시절 컴파일 산출물의
- *    `.shadow-pullim-*` 규칙은 **0 개**였고, 27 곳의 호출부가 유효한 클래스명인
- *    채로 조용히 아무 그림자도 얻지 못했다.
+ *    `--shadow-*` 만 읽어 유틸리티를 만든다. bare `:root` 로 두면 `.shadow-pullim-*`
+ *    규칙이 **하나도 생성되지 않고**, 호출부는 유효한 클래스명인 채로 조용히
+ *    아무 그림자도 얻지 못한다.
  *
- * ② `@theme inline` 도 안 된다 — **참조 없는 변수를 산출물에서 걷어낸다.**
- *    격리 실험(같은 파일에 static/inline 두 벌을 넣고 컴파일):
- *      @theme static → 쓰인 것·안 쓰인 것 **둘 다** :root 에 방출
- *      @theme inline → 쓰인 것·안 쓰인 것 **둘 다** 방출 안 함
- *    그리고 두 경우 **유틸리티 출력은 완전히 같다** — `--shadow-*` 는 색 오버라이드
- *    훅(`var(--tw-shadow-color, …)`) 때문에 어차피 리터럴이 인라인된다.
- *    즉 `static` 은 유틸리티를 그대로 두고 **변수 표면만 되살린다.**
+ * ② `@theme inline` 도 안 된다 — **일부 변수를 `:root` 에서 걷어낸다.**
+ *    확인 방법: 이 블록을 `inline` 으로 바꿔 빌드하면, 유틸리티 출력은 그대로인데
+ *    `:root` 에서 일부 `--shadow-pullim-*` 가 사라진다.
  *
- *    이게 실제로 문제가 되는 건 `--shadow-pullim-glow` 다. 클래스로도 `var()` 로도
- *    참조가 0 이라 `inline` 에서는 산출물에서 사라진다. 값이 죽는 건 아니지만
- *    **변수 표면이 없어져서**, 나중에 focus ring 등으로 `var(--shadow-pullim-glow)`
- *    를 읽는 순간 조용히 빈 값이 된다.
- *    (`proc/spec/08-design-system.md:241` 이 이 토큰을 그 용도로 적어 두고 있다.)
+ *    **무엇이 걷히고 무엇이 남는지의 규칙은 확정되지 않았다** — 위 확인 방법으로
+ *    일부가 사라지는 것은 보이지만, 어느 것이 사라지는지는 이 주석이 말하지 않는다.
+ *
+ *    확실한 것은 이것뿐이다 — **`@theme static` 은 참조 여부와 무관하게 전부 방출하고,
+ *    유틸리티 출력을 한 글자도 바꾸지 않는다.** `--shadow-*` 는 색 오버라이드 훅
+ *    (`var(--tw-shadow-color, …)`) 때문에 `inline` 이든 `static` 이든 리터럴이
+ *    인라인되기 때문이다. 즉 `static` 은 유틸리티를 그대로 두고 **변수 표면만 되살린다.**
+ *    **규칙을 모르는 채로도 `static` 은 안전하다 — 그게 `static` 을 쓰는 이유다.**
+ *
+ *    변수 표면이 필요한 이유: 지금 아무도 안 읽는 토큰이라도, 나중에 그 값을 읽는
+ *    자리가 생겼을 때 변수가 없으면 조용히 빈 값이 된다.
+ *    이 토큰의 용도는 `proc/spec/08-design-system.md:241` 이 이렇게 적어 둔다:
+ *
+ *      | `--shadow-pullim-glow` | `0 0 0 4px rgba(59, 111, 246, 0.15)`
+ *      |                        | 컨테이너·카드 강조 hover (legacy)
+ *
+ *    **포커스 링이 아니다.** 같은 표(§5.1)의 다른 두 줄이 포커스 링이고,
+ *    §12.1 은 키보드 포커스에 `--focus-ring` 을 무조건 쓰라고 못박는다:
+ *      `--focus-ring`(기본 키보드 포커스) · `--focus-ring-danger`(destructive)
+ *    glow 를 다시 읽게 되는 자연스러운 자리는 legacy hover 강조를 되살릴 때다.
+ *
+ *    ⚠️ **이 토큰의 용도 근거는 이 저장소의 `proc/spec/08-design-system.md` 뿐이다.**
+ *    (같은 이름·다른 뜻은 이 저장소 안에서도 반복되는 함정이다 —
+ *     `--radius-*` / `--text-<size>` 의 두 스케일이 그렇다.)
+ *
+ *    (`proc/` 는 저장소 루트에 있고 Tailwind 의 스캔 base 는 `apps/classbot` 이다 —
+ *     그래서 `proc/` 안의 문자열은 스캔 대상이 아니다. base 가 바뀌면 이 관계도 바뀐다.)
  *
  * 값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
  * `shadow-pullim-sm` 을 `shadow-sm` 으로 치환해 정리하지 마라 — 그림자가 바뀐다.
@@ -236,8 +254,7 @@
   --sidebar-border: oklch(0.920 0.003 286);
   --sidebar-ring: oklch(0.524 0.197 258);
 
-  /* 풀림 그림자 --shadow-pullim-* 는 위 `@theme inline` 블록으로 옮겼다.
-     Tailwind v4 는 @theme 네임스페이스에 등록된 것만 유틸리티로 만든다. */
+  /* 풀림 그림자 --shadow-pullim-* 는 위 `@theme static` 블록에 있다(근거는 그 블록 주석). */
 
   /* 포커스 링 ([08-design-system § 5.1] a11y 필수) */
   --focus-ring:        0 0 0 3px rgba(59, 111, 246, 0.35);
