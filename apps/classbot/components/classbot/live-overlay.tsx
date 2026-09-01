@@ -184,7 +184,7 @@ function TranscriptStream({ botId, startedAt }: { botId: string; startedAt: stri
       <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2">
         <Radio className="text-pullim-danger h-3.5 w-3.5 animate-pulse" />
         <h2 className="text-pullim-slate-900 text-xs font-bold">실시간 자막</h2>
-        <span className="text-pullim-slate-400 ml-auto text-2xs">STT · 1~3s 지연</span>
+        <span className="text-pullim-slate-500 ml-auto text-2xs">STT · 1~3s 지연</span>
       </header>
       <div ref={scrollRef} className="max-h-48 space-y-1.5 overflow-y-auto p-3 text-xs leading-relaxed">
         {visible.length === 0 ? (
@@ -225,7 +225,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
       <header className="mb-2 flex items-center gap-1.5">
         <MessageCircle className="text-pullim-blue-500 h-3.5 w-3.5" />
         <h2 className="text-pullim-slate-900 text-xs font-bold">선생님에게 질문</h2>
-        <span className="text-pullim-slate-400 ml-auto text-2xs">{studentName} 이름으로 전달돼요</span>
+        <span className="text-pullim-slate-500 ml-auto text-2xs">{studentName} 이름으로 전달돼요</span>
       </header>
       <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} className="flex items-center gap-1.5">
         <input
@@ -251,7 +251,7 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
           {myQuestions.map(q => <QuestionStatusItem key={q.id} q={q} />)}
         </ul>
       )}
-      <p className="text-pullim-slate-400 mt-2 text-2xs">
+      <p className="text-pullim-slate-500 mt-2 text-2xs">
         교사가 검토한 뒤 “전체 공유”하면 다른 학생에게도 보이고, “비공개”면 선생님과 1:1.
       </p>
     </section>

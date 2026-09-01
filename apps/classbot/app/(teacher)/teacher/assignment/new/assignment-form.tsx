@@ -202,7 +202,7 @@ export function AssignmentForm() {
             <ArrowLeft className="h-3 w-3" />
             취소
           </Link>
-          <span className="text-pullim-slate-400 font-mono text-2xs">진행도 {progress}/5</span>
+          <span className="text-pullim-slate-500 font-mono text-2xs">진행도 {progress}/5</span>
         </div>
 
         <PageHeader
@@ -370,7 +370,7 @@ export function AssignmentForm() {
                 고르게 나누기
               </Button>
               <span
-                className={cn('ml-auto font-mono text-2xs', countValid ? 'text-pullim-slate-400' : 'text-pullim-danger font-bold')}
+                className={cn('ml-auto font-mono text-2xs', countValid ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}
                 data-testid="question-count"
               >
                 {questions.length}/{maxQuestions}문항 · {pointsTotal}점
@@ -566,7 +566,7 @@ function Field({
         className="text-pullim-slate-700 mb-1 flex items-center justify-between text-xs font-bold"
       >
         <span>{label}</span>
-        {hint && <span className="text-pullim-slate-400 font-mono text-2xs">{hint}</span>}
+        {hint && <span className="text-pullim-slate-500 font-mono text-2xs">{hint}</span>}
       </Label>
       {children}
     </div>

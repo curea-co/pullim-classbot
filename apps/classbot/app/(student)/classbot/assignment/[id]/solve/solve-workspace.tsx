@@ -168,7 +168,7 @@ export function SolveWorkspace({
 
       {/* 답안 입력 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">내 답안</h3>
+        <h3 className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 답안</h3>
         {q.type === 'mc' && q.options ? (
           <ul role="radiogroup" aria-label="객관식 선택지" className="mt-2 grid grid-cols-1 gap-2">
             {q.options.map((opt, i) => {

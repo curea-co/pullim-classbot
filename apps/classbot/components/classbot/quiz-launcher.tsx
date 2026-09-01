@@ -36,7 +36,7 @@ export function QuizLauncher() {
         <header className="mb-3 flex items-center gap-2">
           <Zap className="text-pullim-blue-600 h-4 w-4" />
           <h2 className="text-pullim-slate-900 text-sm font-bold flex-1">즉석 퀴즈</h2>
-          <span className="text-pullim-slate-400 text-2xs font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
+          <span className="text-pullim-slate-500 text-2xs font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
         </header>
 
         <p className="text-pullim-slate-700 text-xs leading-snug font-medium">{q.question}</p>

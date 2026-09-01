@@ -200,7 +200,7 @@ function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: st
         <div className="space-y-3">
           {days.map(day => (
             <div key={day.dayLabel} className="space-y-1.5">
-              <p className="text-pullim-slate-400 px-1 text-2xs font-bold tracking-wider uppercase">
+              <p className="text-pullim-slate-500 px-1 text-2xs font-bold tracking-wider uppercase">
                 {day.dayLabel}
               </p>
               <ul className="space-y-1.5">

@@ -46,7 +46,7 @@ export function AppBrand({ role }: { role: Role }) {
           한국어(「클래스봇」)라 계약 §1(한국어 12px 미만 금지)에 걸린다.
           대괄호 임의 크기 자체도 금지라 토큰 클래스 text-2xs(12px)로 올린다.
           divider 간격(pl 9px·ml 2px)은 스펙대로 둔다. */}
-      <span className="text-pullim-slate-400 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
+      <span className="text-pullim-slate-500 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
         클래스봇
       </span>
     </Link>

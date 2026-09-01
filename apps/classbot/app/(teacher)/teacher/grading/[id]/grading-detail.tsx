@@ -192,7 +192,7 @@ export function GradingDetail({
                     <li key={i} className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg p-2">
                       <div className="min-w-0 flex-1">
                         <div className="text-pullim-slate-700 truncate text-2xs font-semibold">{h.assignmentTitle}</div>
-                        <div className="text-pullim-slate-400 text-2xs">{h.gradedAt}</div>
+                        <div className="text-pullim-slate-500 text-2xs">{h.gradedAt}</div>
                       </div>
                       <ScoreDisplay score={h.score} max={h.maxScore} size="sm" tone="threshold" />
                     </li>

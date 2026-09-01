@@ -328,7 +328,7 @@ export function QuestionListEditor({
               </div>
             </div>
 
-            <p className="text-pullim-slate-400 mt-1 text-2xs">{grading.note}</p>
+            <p className="text-pullim-slate-500 mt-1 text-2xs">{grading.note}</p>
 
             <label className="sr-only" htmlFor={`af-q${i}-prompt`}>{i + 1}번 문항 발문</label>
             <Textarea
@@ -360,7 +360,7 @@ export function QuestionListEditor({
                   data-testid={`question-answer-${i}`}
                   className="h-9 text-sm"
                 />
-                <p className="text-pullim-slate-400 mt-1 text-2xs">
+                <p className="text-pullim-slate-500 mt-1 text-2xs">
                   띄어쓰기·대소문자 차이는 정답으로 봐요{q.type === 'numeric' ? ' (숫자는 값으로 비교해요)' : ''}.
                 </p>
               </div>

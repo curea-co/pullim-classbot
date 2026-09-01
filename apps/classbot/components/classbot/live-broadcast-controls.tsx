@@ -80,7 +80,7 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
         <header className="mb-2 flex items-center gap-2">
           <Radio className="text-pullim-slate-400 h-4 w-4" />
           <h2 className="text-pullim-slate-900 text-sm font-bold">라이브 수업</h2>
-          <span className="text-pullim-slate-400 ml-auto text-2xs">현재 대기</span>
+          <span className="text-pullim-slate-500 ml-auto text-2xs">현재 대기</span>
         </header>
         <p className="text-pullim-slate-600 text-xs">
           시작하면 학생 홈에 LIVE 카드가 노출되고, <strong>{bot.name}</strong>의 봇 scope이 라이브 정책({bot.scope === 3 ? 'L3 · 개념까지' : `L${bot.scope}`})으로 자동 잠겨요.

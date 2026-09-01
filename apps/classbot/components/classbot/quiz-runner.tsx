@@ -88,7 +88,7 @@ export function QuizRunner({
 
       {/* 선택지 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 mb-2 text-2xs font-bold tracking-wider uppercase">
+        <h3 className="text-pullim-slate-500 mb-2 text-2xs font-bold tracking-wider uppercase">
           선택지
         </h3>
         <ul role="radiogroup" aria-label="객관식 선택지" className="grid grid-cols-1 gap-2">

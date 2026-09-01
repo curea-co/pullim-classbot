@@ -246,7 +246,7 @@ function TranscriptVisibility({
             기본 모두 노출. 가리고 싶은 라인을 눌러서 비공개로.
           </p>
         </div>
-        <span className="text-pullim-slate-400 text-2xs font-mono">
+        <span className="text-pullim-slate-500 text-2xs font-mono">
           {replay.transcript.length - hiddenLines.size}/{replay.transcript.length} 노출
         </span>
       </header>

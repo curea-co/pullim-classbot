@@ -49,7 +49,7 @@ export function RubricEditor({
           </p>
         </div>
         <div className="text-right">
-          <div className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">최종</div>
+          <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">최종</div>
           <ScoreDisplay score={totalPct} max={100} size="lg" tone="fixed-accent" />
         </div>
       </header>
@@ -62,7 +62,7 @@ export function RubricEditor({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-pullim-slate-900 text-xs font-bold">{r.criterion}</span>
-                    <span className="text-pullim-slate-400 font-mono text-2xs">가중 {r.weight}%</span>
+                    <span className="text-pullim-slate-500 font-mono text-2xs">가중 {r.weight}%</span>
                   </div>
                   <p className="text-pullim-slate-500 mt-0.5 text-2xs">
                     <span className="text-pullim-slate-400 font-bold">AI 사유:</span> {r.reason}

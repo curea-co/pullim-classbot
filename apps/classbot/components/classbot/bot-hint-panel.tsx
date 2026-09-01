@@ -55,7 +55,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-2xs">단계별 힌트만 줄 수 있어요 <span className="font-mono text-micro text-pullim-slate-400">(L4)</span></p>
+          <p className="text-pullim-slate-500 text-2xs">단계별 힌트만 줄 수 있어요 <span className="font-mono text-micro text-pullim-slate-500">(L4)</span></p>
         </div>
       </header>
 
@@ -95,7 +95,7 @@ function PracticeHints({ question, botName }: { question: AssignmentQuestion; bo
           )}
 
           {revealed === hints.length && (
-            <p className="text-pullim-slate-400 mt-3 text-center text-2xs">
+            <p className="text-pullim-slate-500 mt-3 text-center text-2xs">
               다 본 다음에 다시 처음부터 풀어봐요.
             </p>
           )}
@@ -114,7 +114,7 @@ function WrongConquestPanel({ question, botName }: { question: AssignmentQuestio
         </span>
         <div className="flex-1">
           <h3 className="text-pullim-slate-900 text-xs font-bold">{botName}</h3>
-          <p className="text-pullim-slate-500 text-2xs">이번엔 잡아내봐요 <span className="font-mono text-micro text-pullim-slate-400">(L5)</span></p>
+          <p className="text-pullim-slate-500 text-2xs">이번엔 잡아내봐요 <span className="font-mono text-micro text-pullim-slate-500">(L5)</span></p>
         </div>
       </header>
 

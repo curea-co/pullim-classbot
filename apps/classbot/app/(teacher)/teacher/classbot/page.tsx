@@ -402,7 +402,7 @@ function DispatchedAssignments({
               <div className="mb-1.5 flex items-baseline gap-1.5">
                 <h3 className="text-pullim-slate-900 text-xs font-bold">{g.botName}</h3>
                 <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">{g.classLabel}</span>
-                <span className="text-pullim-slate-400 ml-auto shrink-0 font-mono text-2xs font-bold">
+                <span className="text-pullim-slate-500 ml-auto shrink-0 font-mono text-2xs font-bold">
                   {g.items.length}건
                 </span>
               </div>
@@ -549,7 +549,7 @@ function EnrollmentToggleSection() {
         // 명단 mock 은 수학봇 A반 한 반치다 — 어느 반 명단인지 밝히고 쓴다.
         description={`${myClassBot.name} · 중2 수학 A반 · ${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
         action={
-          <span className="text-pullim-slate-400 text-2xs">데모 — 새로고침 시 초기화</span>
+          <span className="text-pullim-slate-500 text-2xs">데모 — 새로고침 시 초기화</span>
         }
       />
       {enrolled.length === 0 ? (

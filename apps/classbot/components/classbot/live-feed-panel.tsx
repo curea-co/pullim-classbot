@@ -23,7 +23,7 @@ export function LiveFeedPanel() {
       <header className="border-pullim-slate-200 border-b p-4">
         <div className="flex items-baseline justify-between">
           <h2 className="text-pullim-slate-900 text-sm font-bold">실시간 봇 질문 피드</h2>
-          <span className="text-pullim-slate-400 text-2xs font-mono">
+          <span className="text-pullim-slate-500 text-2xs font-mono">
             지난 10분 · {items.length}건
           </span>
         </div>

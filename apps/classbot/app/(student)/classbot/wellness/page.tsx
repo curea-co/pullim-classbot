@@ -120,7 +120,7 @@ export default function WellnessPage() {
                     )}
                   </div>
                   {c.intensity && (
-                    <span className="text-pullim-slate-400 font-mono text-2xs">
+                    <span className="text-pullim-slate-500 font-mono text-2xs">
                       강도 {c.intensity}/5
                     </span>
                   )}

@@ -93,13 +93,13 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     <section className="bg-card rounded-2xl border p-5">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">자동 채점</div>
+          <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">자동 채점</div>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
           <p className="text-pullim-slate-500 mt-0.5 text-2xs">객관식·단답·수치는 즉시</p>
         </div>
         {submission ? (
           <div>
-            <div className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">내 점수</div>
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
             <div data-testid="result-score" className="mt-1">
               <ScoreDisplay score={submission.scorePercent} max={100} size="xl" tone="threshold" />
             </div>
@@ -107,7 +107,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           </div>
         ) : essayCount > 0 ? (
           <div>
-            <div className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">검수 대기</div>
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">검수 대기</div>
             <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
               {essayCount}<span className="text-pullim-slate-400 text-base">문항</span>
             </div>
@@ -201,7 +201,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
                       </span>
                       <span className="text-pullim-slate-700 truncate text-xs font-bold">{q.prompt}</span>
                       {meta && (
-                        <span className="text-pullim-slate-400 ml-auto shrink-0 text-2xs">
+                        <span className="text-pullim-slate-500 ml-auto shrink-0 text-2xs">
                           {meta.label}
                         </span>
                       )}

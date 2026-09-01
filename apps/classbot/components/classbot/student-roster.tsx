@@ -89,7 +89,7 @@ function RosterRow({ student: s }: { student: ClassroomStudent }) {
             </span>
           )}
         </div>
-        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-2xs">
+        <div className="text-pullim-slate-500 flex items-center gap-1.5 text-2xs">
           <MessageCircle className="h-2.5 w-2.5" />
           <span>{s.botQuestions}질문</span>
           <span>·</span>

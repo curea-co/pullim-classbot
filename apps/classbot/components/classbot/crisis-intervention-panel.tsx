@@ -168,7 +168,7 @@ function CrisisDetailModal({
                       <span className="text-pullim-slate-700 w-12 font-bold">{c.daysAgo === 0 ? '오늘' : `${c.daysAgo}일 전`}</span>
                       <span className="text-pullim-slate-500">{m.label}</span>
                       {c.freeText && (
-                        <span className="text-pullim-slate-400 ml-auto truncate text-2xs italic">“{c.freeText}”</span>
+                        <span className="text-pullim-slate-500 ml-auto truncate text-2xs italic">“{c.freeText}”</span>
                       )}
                     </li>
                   );
@@ -193,7 +193,7 @@ function CrisisDetailModal({
               <MessageCircle className="h-3.5 w-3.5" />
               {student.name} 학생과 1:1 채팅 시작
             </button>
-            <p className="text-pullim-slate-400 text-2xs text-center">
+            <p className="text-pullim-slate-500 text-2xs text-center">
               v2: Wee센터·학부모 알림 동시 발송 옵션 추가 예정
             </p>
           </section>

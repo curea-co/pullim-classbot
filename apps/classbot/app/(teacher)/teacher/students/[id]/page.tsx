@@ -87,7 +87,7 @@ export default async function TeacherStudentReportPage({
           current={period}
           href={v => `/teacher/students/${id}${query(v)}`}
         />
-        <p className="text-pullim-slate-400 mt-2 text-2xs">
+        <p className="text-pullim-slate-500 mt-2 text-2xs">
           기간을 바꿔도 지금은 같은 스냅샷을 보여줘요. (준비 중)
         </p>
       </section>

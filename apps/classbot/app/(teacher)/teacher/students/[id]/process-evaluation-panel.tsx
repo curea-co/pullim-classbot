@@ -54,7 +54,7 @@ export function ProcessEvaluationPanel({
         description={`${studentName} 학생이 답에 이르기까지 무엇을 했는지 봐요. AI 제안 점수는 출발점이고, 정하는 사람은 선생님이에요.`}
         action={
           <div className="text-right">
-            <div className="text-pullim-slate-400 text-2xs font-bold tracking-wider uppercase">합계</div>
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">합계</div>
             <ScoreDisplay score={total} max={maxTotal} size="lg" tone="fixed-accent" />
           </div>
         }
@@ -67,7 +67,7 @@ export function ProcessEvaluationPanel({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-pullim-slate-900 text-xs font-bold">{c.label}</span>
-                  <span className="text-pullim-slate-400 font-mono text-2xs">배점 {c.weight}</span>
+                  <span className="text-pullim-slate-500 font-mono text-2xs">배점 {c.weight}</span>
                 </div>
                 <p className="text-pullim-slate-500 mt-0.5 text-2xs leading-relaxed">
                   <span className="text-pullim-slate-400 font-bold">이유:</span> {c.reason}

@@ -56,7 +56,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
           <KpiStat label="D-day" value={a.dDay} tone={isUrgent ? 'alert' : 'default'} />
         </KpiStatBar>
 
-        <p className="text-pullim-slate-400 mt-3 text-2xs">
+        <p className="text-pullim-slate-500 mt-3 text-2xs">
           {m.tone} · 마감 {a.dueLabel}
         </p>
 
