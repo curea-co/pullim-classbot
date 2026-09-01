@@ -152,19 +152,39 @@
   --text-2xl:  1.5625rem;  --text-2xl--line-height:  2.125rem;    /* v2 title1   25/34 */
   --text-3xl:  1.875rem;   --text-3xl--line-height:  2.375rem;    /* v2 display2 30/38 */
   --text-4xl:  2.125rem;   --text-4xl--line-height:  2.625rem;    /* v2 display1 34/42 */
-  /* 풀림 그림자 — **`@theme` 안에 있어야 한다.**
-     bare `:root` 에 선언하면 커스텀 프로퍼티는 생기지만 Tailwind v4 가
-     `--shadow-*` 네임스페이스를 읽지 못해 `.shadow-pullim-xs/sm/md/lg` 유틸리티를
-     **아예 생성하지 않는다** — 27 곳의 호출부가 유효한 클래스명인 채로
-     조용히 아무 그림자도 얻지 못했다.
-     값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
-     `shadow-pullim-sm` 을 `shadow-sm` 으로 치환해 정리하지 마라 — 그림자가 바뀐다. */
+}
+
+/* =====================================================================
+ * 풀림 그림자 — **`@theme` 안이어야 하고, 그 중에서도 `static` 이어야 한다.**
+ *
+ * ① bare `:root` 면 안 된다.
+ *    커스텀 프로퍼티는 생기지만 Tailwind v4 는 `@theme` 네임스페이스에 등록된
+ *    `--shadow-*` 만 읽어 유틸리티를 만든다. `:root` 시절 컴파일 산출물의
+ *    `.shadow-pullim-*` 규칙은 **0 개**였고, 27 곳의 호출부가 유효한 클래스명인
+ *    채로 조용히 아무 그림자도 얻지 못했다.
+ *
+ * ② `@theme inline` 도 안 된다 — **참조 없는 변수를 산출물에서 걷어낸다.**
+ *    격리 실험(같은 파일에 static/inline 두 벌을 넣고 컴파일):
+ *      @theme static → 쓰인 것·안 쓰인 것 **둘 다** :root 에 방출
+ *      @theme inline → 쓰인 것·안 쓰인 것 **둘 다** 방출 안 함
+ *    그리고 두 경우 **유틸리티 출력은 완전히 같다** — `--shadow-*` 는 색 오버라이드
+ *    훅(`var(--tw-shadow-color, …)`) 때문에 어차피 리터럴이 인라인된다.
+ *    즉 `static` 은 유틸리티를 그대로 두고 **변수 표면만 되살린다.**
+ *
+ *    이게 실제로 문제가 되는 건 `--shadow-pullim-glow` 다. 클래스로도 `var()` 로도
+ *    참조가 0 이라 `inline` 에서는 산출물에서 사라진다. 값이 죽는 건 아니지만
+ *    **변수 표면이 없어져서**, 나중에 focus ring 등으로 `var(--shadow-pullim-glow)`
+ *    를 읽는 순간 조용히 빈 값이 된다.
+ *    (`proc/spec/08-design-system.md:241` 이 이 토큰을 그 용도로 적어 두고 있다.)
+ *
+ * 값은 PUDS 의 --shadow-sm / --shadow-md / --shadow-lg 와 **다른 고유 리터럴**이다.
+ * `shadow-pullim-sm` 을 `shadow-sm` 으로 치환해 정리하지 마라 — 그림자가 바뀐다.
+ * ===================================================================== */
+@theme static {
   --shadow-pullim-xs: 0 1px 2px rgba(18, 22, 39, 0.04);
   --shadow-pullim-sm: 0 1px 3px rgba(18, 22, 39, 0.06), 0 1px 2px rgba(18, 22, 39, 0.04);
   --shadow-pullim-md: 0 4px 12px rgba(18, 22, 39, 0.06), 0 2px 4px rgba(18, 22, 39, 0.04);
   --shadow-pullim-lg: 0 12px 24px rgba(18, 22, 39, 0.08), 0 4px 8px rgba(18, 22, 39, 0.04);
-  /* glow 는 현재 호출부 0 — 클래스로도 var() 로도 참조되지 않는다.
-     네 형제와 한 벌이라 자리만 함께 옮긴다(유틸리티는 실제로 쓰일 때만 생성된다). */
   --shadow-pullim-glow: 0 0 0 4px rgba(59, 111, 246, 0.15);
 }
 
@@ -339,54 +359,63 @@
  * 그리고 --color-action-primary 는 :root 의 --primary 로, --color-primary-*
  * 는 --chart-1..5 로 흘러 shadcn 계층 전체를 통째로 끌고 간다.
  *
- * **`@layer base` 안에 두는 것이 핵심이다.** 레이어 없는 규칙은 특정도와
- * 무관하게 레이어 안의 규칙을 항상 이긴다. `[data-theme="pullim-os"]`(0,1,0)
- * 와 `:root`(0,1,0)는 특정도가 같아 소스 순서로 갈리는데, 이 파일의 `:root`
- * 블록들은 pullim-os import(5 행)보다 **뒤**라 그냥 두면 폴백이 아니라
- * **오버라이드**가 된다. 레이어에 넣으면 순서와 무관하게:
- *   - 레이어 밖 [data-theme="pullim-os"] 가 이긴다        → 속성 있을 때 무변화
- *   - 레이어 밖 [data-theme][data-scheme="dark"] 도 이긴다 → 다크 무변화
- *   - Tailwind 의 @layer theme 는 진다(theme < base)      → 가짜 그림자 차단
+ * **선택자가 `:where(:root)` 인 것이 핵심이다 — 맨 `:root` 로 쓰면 안 된다.**
+ *
+ * `:root`(0,1,0)와 `[data-theme="pullim-os"]`(0,1,0)는 특정도가 같아 **소스 순서**로
+ * 갈린다. 그리고 이 파일에서는 순서가 폴백에게 유리한 쪽이 아니다 — 4·5 행의
+ * `@import "./tokens/*"` 가 맨 위에서 인라인되므로 테마 블록이 **먼저** 오고,
+ * 이 블록은 **나중**에 온다. 맨 `:root` 로 쓰면 폴백이 테마를 이겨서,
+ * `data-theme` 이 붙어 있는데도 폴백 값이 적용된다 — 다크 스킴이 os 라이트 값으로
+ * 뭉개진다. 「폴백」이 아니라 조용한 **오버라이드**가 되는 것이다.
+ *
+ * `:where()` 는 안에 든 것의 **특정도를 0 으로 만든다.** 그래서 소스 순서와
+ * 무관하게 전부 폴백을 이긴다:
+ *   - `[data-theme="pullim-os"]`(0,1,0)                  → 속성 있을 때 무변화
+ *   - `[data-theme="pullim-os"][data-scheme="dark"]`(0,2,0) → 다크 무변화
+ *   - `:root`(0,1,0) — 이 파일·_base.css 의 다른 :root 블록도 이긴다
+ * 그러면서 **레이어 밖**이라 Tailwind 의 `@layer theme` 기본값은 여전히 진다
+ *   → 위에서 말한 「그럴듯한 다른 그림자」가 차단된다.
+ *
+ * 검증은 「data-theme 있음/없음」 두 가지로는 부족하다 — scheme × theme 네 조합을
+ * 전부 해석해야 한다. 이 블록을 고치면 그 검사를 다시 돌려라.
  *
  * 값은 pullim-os.css 의 **첫 블록(라이트)**에서 그대로 가져왔다. 다크 블록
  * (`[data-scheme="dark"]` · `@media (prefers-color-scheme: dark)`)의 값이
  * 아니다. pullim-os.css 를 고치면 여기도 함께 고쳐야 한다.
  * ===================================================================== */
-@layer base {
-  :root {
-    /* primary ramp (hue 258) */
-    --color-primary-50:  oklch(0.972 0.024 258);
-    --color-primary-100: oklch(0.940 0.039 258);
-    --color-primary-200: oklch(0.890 0.069 258);
-    --color-primary-300: oklch(0.820 0.108 258);
-    --color-primary-400: oklch(0.730 0.154 258);
-    --color-primary-500: oklch(0.640 0.189 258);
-    --color-primary-600: oklch(0.524 0.197 258);
-    --color-primary-700: oklch(0.474 0.181 258);
-    --color-primary-800: oklch(0.414 0.154 258);
-    --color-primary-900: oklch(0.364 0.118 258);
-    --color-primary-950: oklch(0.264 0.083 258);
+:where(:root) {
+  /* primary ramp (hue 258) */
+  --color-primary-50:  oklch(0.972 0.024 258);
+  --color-primary-100: oklch(0.940 0.039 258);
+  --color-primary-200: oklch(0.890 0.069 258);
+  --color-primary-300: oklch(0.820 0.108 258);
+  --color-primary-400: oklch(0.730 0.154 258);
+  --color-primary-500: oklch(0.640 0.189 258);
+  --color-primary-600: oklch(0.524 0.197 258);
+  --color-primary-700: oklch(0.474 0.181 258);
+  --color-primary-800: oklch(0.414 0.154 258);
+  --color-primary-900: oklch(0.364 0.118 258);
+  --color-primary-950: oklch(0.264 0.083 258);
 
-    /* semantic actions */
-    --color-action-primary:       var(--color-primary-600);
-    --color-action-primary-hover: var(--color-primary-700);
-    --color-action-primary-fg:    #ffffff;
-    --color-action-secondary:     var(--color-primary-50);
-    --color-action-secondary-fg:  var(--color-primary-700);
+  /* semantic actions */
+  --color-action-primary:       var(--color-primary-600);
+  --color-action-primary-hover: var(--color-primary-700);
+  --color-action-primary-fg:    #ffffff;
+  --color-action-secondary:     var(--color-primary-50);
+  --color-action-secondary-fg:  var(--color-primary-700);
 
-    /* shadows */
-    --shadow-sm: 0 1px 2px rgba(13,26,31,.06);
-    --shadow-md: 0 2px 8px rgba(13,26,31,.08);
-    --shadow-lg: 0 12px 40px rgba(3,98,218,.12);
-    --shadow-xl: 0 20px 60px rgba(3,98,218,.18);
+  /* shadows */
+  --shadow-sm: 0 1px 2px rgba(13,26,31,.06);
+  --shadow-md: 0 2px 8px rgba(13,26,31,.08);
+  --shadow-lg: 0 12px 40px rgba(3,98,218,.12);
+  --shadow-xl: 0 20px 60px rgba(3,98,218,.18);
 
-    /* font weights + brand font */
-    --font-weight-body:   400;
-    --font-weight-medium: 500;
-    --font-weight-bold:   700;
-    --font-weight-h:      700;
-    --font-display:       var(--font-sans-kr);
-  }
+  /* font weights + brand font */
+  --font-weight-body:   400;
+  --font-weight-medium: 500;
+  --font-weight-bold:   700;
+  --font-weight-h:      700;
+  --font-display:       var(--font-sans-kr);
 }
 
 @utility glow-lemon {
