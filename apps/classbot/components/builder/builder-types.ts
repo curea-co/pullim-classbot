@@ -1,3 +1,4 @@
+import { BookOpen, Earth, FlaskConical, Languages, Sigma, type LucideIcon } from 'lucide-react';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
 import { scopeMeta, type ScopeLevel } from '@/lib/mock';
 
@@ -72,12 +73,17 @@ export const emptyDraft: BotDraft = {
 
 /* ─── 고를 수 있는 것들 ─── */
 
-export const subjectMeta: Record<SubjectId, { label: string; initial: string; botName: string }> = {
-  science: { label: '과학', initial: '과', botName: '과학봇' },
-  math:    { label: '수학', initial: '수', botName: '수학봇' },
-  english: { label: '영어', initial: '영', botName: '영어봇' },
-  korean:  { label: '국어', initial: '국', botName: '국어봇' },
-  social:  { label: '사회', initial: '사', botName: '사회봇' },
+/**
+ * `icon` 은 과목 카드 오른쪽 위를 채우는 **무늬**다 — 이름을 대신하는 그림이 아니다.
+ * 카드 밖으로 8px 걸쳐 잘리므로 알아보라고 두는 것이 아니라 빈 자리를 메우는 결에 가깝다.
+ * 화면이 아니라 이 표가 들고 있어야 과목을 늘릴 때 한 곳만 고친다.
+ */
+export const subjectMeta: Record<SubjectId, { label: string; initial: string; botName: string; icon: LucideIcon }> = {
+  science: { label: '과학', initial: '과', botName: '과학봇', icon: FlaskConical },
+  math:    { label: '수학', initial: '수', botName: '수학봇', icon: Sigma },
+  english: { label: '영어', initial: '영', botName: '영어봇', icon: Languages },
+  korean:  { label: '국어', initial: '국', botName: '국어봇', icon: BookOpen },
+  social:  { label: '사회', initial: '사', botName: '사회봇', icon: Earth },
 };
 
 export const subjectIds = Object.keys(subjectMeta) as SubjectId[];
