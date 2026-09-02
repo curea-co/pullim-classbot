@@ -12,16 +12,31 @@ import { ReportRoster } from '../report-roster';
  *   ① 리포트가 없는 학생도 명단에 있는가 (이 화면이 리포트 6건짜리로 좁아지지 않는가)
  *   ② 거르개가 관제소·교사 홈과 **같은 숫자**를 내는가 (규칙이 두 벌이 되지 않았는가)
  *   ③ 정렬이 실제로 순서를 바꾸고, 줄을 누르면 그 학생 기록으로 가는가
+ *   ④ 열마다 머리글이 **눈에 보이고**, 이름과 학년은 서로 다른 칸에 있다 (관제소 명단과 같은 표)
  */
 
-/** 학생 줄 목록 = 마지막 list */
-function rosterRows() {
-  const roster = screen.getAllByRole('list').at(-1)!;
-  return within(roster).getAllByRole('listitem');
+/** 학생 명단 = 표 하나. 이름으로 집어 거르개·정렬 알약 줄과 헷갈리지 않게 한다. */
+function roster() {
+  return screen.getByRole('table', { name: `등록된 학생 ${monitoredRoster.length}명` });
 }
 
+/** 학생 줄만 — 줄묶음 둘 중 두 번째(`tbody`)다. 첫 번째는 머리글 줄. */
+function body() {
+  return within(roster()).getAllByRole('rowgroup')[1];
+}
+
+function rosterRows() {
+  return within(body()).getAllByRole('row');
+}
+
+/** 줄이 가리키는 학생 이름 — 이제 이름 칸의 링크 글자가 곧 그 이름이다. */
 function names() {
-  return rosterRows().map(li => within(li).getByRole('link').textContent ?? '');
+  return rosterRows().map(tr => within(tr).getByRole('link').textContent ?? '');
+}
+
+/** 그 학생의 줄 — 배지·숫자는 링크 밖 다른 칸에 있으므로 줄로 집어야 한다. */
+function rowOf(name: string) {
+  return within(body()).getByText(name).closest('tr')!;
 }
 
 function pill(name: RegExp) {
@@ -171,10 +186,42 @@ describe('줄에 담는 것 — 거르개·정렬이 쓰는 값만', () => {
     fireEvent.click(screen.getByRole('button', { name: '이름순' }));
 
     const first = [...monitoredRoster].sort((a, b) => a.name.localeCompare(b.name, 'ko'))[0];
-    const row = rosterRows()[0].textContent ?? '';
-    expect(row).toContain(`지름길 ${shortcutTries(first)}회`);
-    expect(row).toContain(`이탈 ${scopeExits(first)}회`);
-    expect(row).toMatch(first.reach === 'not-reached' ? /미도달/ : isDepthShort(first) ? /미달/ : /도달/);
+    /*
+      「지름길 3회」처럼 칸마다 달고 다니던 이름표는 머리글로 올라갔다. 그래서 줄 글자만 보면
+      「3회」가 지름길인지 이탈인지 못 가른다 — 값이 같을 수도 있다. 자리로 집는다.
+      칸 차례: 학년 · 도달 · 지름길 · 이탈 · 최근 접속 · 꺾쇠 (이름은 `th` 라 cell 에 안 들어온다)
+    */
+    const cells = within(rosterRows()[0]).getAllByRole('cell');
+    expect(cells[2]).toHaveTextContent(`${shortcutTries(first)}회`);
+    expect(cells[3]).toHaveTextContent(`${scopeExits(first)}회`);
+    // 글자를 통째로 견준다 — 「도달」은 「미도달」의 일부라 부분 일치로는 둘이 안 갈린다
+    expect(cells[1].textContent).toBe(
+      first.reach === 'not-reached' ? '미도달' : isDepthShort(first) ? '미달' : '도달',
+    );
+  });
+
+  it('머리글이 화면 순서대로 있고 눈에서 감춰져 있지 않다', () => {
+    render(<ReportRoster students={monitoredRoster} />);
+    const headers = within(roster()).getAllByRole('columnheader');
+
+    expect(headers.map(h => h.textContent)).toEqual(
+      // 마지막은 꺾쇠 자리 — 값이 아니라 「갈 수 있다」는 표시라 부를 이름이 없다
+      ['이름', '학년', '도달', '지름길', '이탈', '최근 접속', ''],
+    );
+    // 머리글을 `sr-only` 로 감추면 표가 아니라 그냥 줄 스무 개가 된다
+    for (const h of headers) expect(h.className).not.toContain('sr-only');
+  });
+
+  it('이름과 학년은 서로 다른 칸에 있다 — 한 칸에 겹쳐 있던 것을 뗐다', () => {
+    render(<ReportRoster students={monitoredRoster} />);
+
+    for (const s of monitoredRoster) {
+      const nameCell = within(rowOf(s.name)).getByRole('rowheader');
+      expect(nameCell).toHaveTextContent(s.name);
+      expect(nameCell.textContent).not.toContain(s.grade);
+      // 학년은 이름 다음 칸 — `th`(이름)는 cell 에 들어오지 않으므로 첫 칸이 학년이다
+      expect(within(rowOf(s.name)).getAllByRole('cell')[0]).toHaveTextContent(s.grade);
+    }
   });
 
   it('감정·웰빙 지수는 명단에 담지 않는다 — 20줄을 훑는 화면이고 열람 범위가 좁은 값이다', () => {

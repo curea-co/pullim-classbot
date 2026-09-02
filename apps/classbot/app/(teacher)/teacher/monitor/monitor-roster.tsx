@@ -6,7 +6,9 @@ import { X } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { EmptyState } from '@/components/classbot/empty-state';
-import { LastSeenBadge, StudentReachBadge } from '@/components/classbot/roster-badges';
+import {
+  exitColumn, lastSeenColumn, reachColumn, shortcutColumn,
+} from '@/components/classbot/roster-columns';
 import { RosterTable, type RosterColumn } from '@/components/classbot/roster-table';
 import {
   depthLabels, shortcutTries, type MonitoredStudent,
@@ -50,26 +52,18 @@ import {
 
 /**
  * 관제소가 담는 열 — 이름·학년 다음, 꺾쇠 앞.
- * 맨숫자 칸(지름길·이탈)은 이름표를 머리글로 올리고 값만 남긴다.
+ *
+ * 넷은 리포트 센터 명단과 **같은 열**이라 `roster-columns` 에서 한 벌만 가져다 쓴다.
+ * 관제소에만 있는 것은 진단 열 「목표 · 닿음」 하나다 — 「누구를 먼저 볼까」만 고르는
+ * 리포트 센터에는 필요 없어서 거기서는 빠진다.
  */
 const monitorColumns: RosterColumn<MonitoredStudent>[] = [
-  // 도달 배지 — 도달 · 미달 · 미도달 셋 중 하나
-  { head: '도달', cell: s => <StudentReachBadge student={s} /> },
-  // 요구 수준 대비 깊이 — 머리글이 「목표 · 닿음」이라 칸에는 숫자만 남긴다
+  reachColumn,
+  // 요구 수준 대비 깊이 — 머리글이 「목표 · 닿음」이라 칸에는 숫자만 남긴다. 관제소 몫.
   { head: '목표 · 닿음', cell: s => <DepthCell student={s} /> },
-  // 지름길 시도 — 중립색. 경고 톤 금지
-  {
-    head: '지름길',
-    cell: s => `${shortcutTries(s)}회`,
-    className: 'text-pullim-slate-700 font-mono text-2xs',
-  },
-  // 범위 이탈 — 학생 리포트와 같은 원천(scopeExits)에서 읽는다
-  {
-    head: '이탈',
-    cell: s => `${scopeExits(s)}회`,
-    className: 'text-pullim-slate-700 font-mono text-2xs',
-  },
-  { head: '최근 접속', cell: s => <LastSeenBadge student={s} /> },
+  shortcutColumn,
+  exitColumn,
+  lastSeenColumn,
 ];
 
 export function MonitorRoster({
