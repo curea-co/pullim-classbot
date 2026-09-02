@@ -6,11 +6,9 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { EmptyState } from '@/components/classbot/empty-state';
-import { LastSeenBadge, StudentReachBadge } from '@/components/classbot/roster-badges';
 import { currentTeacher, pendingItems, type PendingItem } from '@/lib/mock';
-import {
-  monitoredClass, monitoringSummary, stuckConceptLabel, type MonitoredStudent,
-} from '@/lib/mock/classbot-monitoring';
+import { monitoredClass, monitoringSummary } from '@/lib/mock/classbot-monitoring';
+import { AttentionRoster } from './attention-roster';
 import { countAttentionStudents, pickAttentionStudents } from '@/lib/mock/classbot-teacher-home';
 
 /**
@@ -115,11 +113,7 @@ export default function TeacherHomePage() {
             />
           ) : (
             <>
-              <ul className="divide-pullim-slate-100 divide-y">
-                {attention.map(({ student }) => (
-                  <AttentionRow key={student.id} student={student} />
-                ))}
-              </ul>
+              <AttentionRoster students={attention.map(a => a.student)} />
 
               {attentionTotal > attention.length && (
                 <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
@@ -161,58 +155,6 @@ export default function TeacherHomePage() {
         </section>
       </div>
     </div>
-  );
-}
-
-/**
- * 먼저 볼 학생 한 줄 — 줄 전체가 그 학생의 기록으로 가는 링크 하나다.
- *
- * 줄 안에 또 다른 누를 것을 두지 않는다. 예전에는 오른쪽 끝에 작은 글씨 이동 문구가 있었는데
- * 줄 링크와 같은 곳으로 가면서 글자만 작아 누르기 어려웠다 — 상단 카드에서 걷어낸 것과 같은 이유다.
- *
- * 상태는 배지 두 벌이 말하니(도달 · 최근 접속) 「오늘 안 들어왔어요」 같은 설명문은 겹친다.
- * 그 자리에는 배지가 말하지 못하는 것 — 대화에서 어디가 막혔는지 — 를 둔다.
- */
-function AttentionRow({ student }: { student: MonitoredStudent }) {
-  const stuck = stuckConceptLabel(student);
-
-  return (
-    <li>
-      <Link
-        // 되돌아갈 곳을 넘긴다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
-        href={`/teacher/students/${student.id}?from=home`}
-        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 -mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 sm:grid-cols-[8rem_minmax(0,1fr)_3.5rem_5rem_auto]"
-      >
-        <span className="flex items-center gap-2">
-          <span className="bg-pullim-slate-100 text-pullim-slate-700 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-2xs font-bold">
-            {student.name.slice(1, 2)}
-          </span>
-          <span className="min-w-0">
-            <span className="text-pullim-slate-900 block text-sm leading-tight font-bold">
-              {student.name}
-            </span>
-            <span className="text-pullim-slate-500 text-2xs">{student.grade}</span>
-          </span>
-        </span>
-
-        {/* 배지가 말하지 못하는 것 — 대화에서 막힌 자리 */}
-        <span className="text-pullim-slate-600 min-w-0 truncate text-2xs">
-          {stuck ? `막힌 곳 · ${stuck}` : '아직 막힌 곳이 안 보여요'}
-        </span>
-
-        {/* 도달 배지 — 상단 카드 도달 · 미도달 · 목표 수준 미달과 같은 판정 */}
-        <StudentReachBadge student={student} />
-
-        {/*
-          최근 접속 배지 — 상단 카드 「오늘 안 들어옴」과 같은 선.
-          좁은 화면에서는 꺾쇠와 한 칸에 붙어 다니고, 넓은 화면에서는 제 열로 돌아간다.
-        */}
-        <span className="ml-auto flex items-center gap-1 sm:contents">
-          <LastSeenBadge student={student} />
-          <ChevronRight className="text-pullim-slate-400 ml-auto h-4 w-4 shrink-0" aria-hidden />
-        </span>
-      </Link>
-    </li>
   );
 }
 

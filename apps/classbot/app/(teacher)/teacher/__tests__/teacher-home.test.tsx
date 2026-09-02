@@ -10,13 +10,23 @@ import TeacherHomePage from '../page';
  * 홈은 몇 명만 보여주므로 전체 집계가 카드와 맞는지는 관제소 명단 쪽(monitor-roster.test)에서 못박는다.
  */
 
-/** 요약 카드 = 첫 번째 list, 먼저 볼 학생 = 두 번째 list */
+/** 요약 카드 = 첫 번째 list (「먼저 볼 학생」은 이제 목록이 아니라 표다) */
 function cardBar() {
   return screen.getAllByRole('list')[0];
 }
 
+/** 먼저 볼 학생 = 표 하나. 이름으로 집어 요약 카드 줄과 헷갈리지 않게 한다. */
+function attentionTable() {
+  return screen.getByRole('table', { name: '먼저 볼 학생' });
+}
+
+/** 학생 줄만 — 줄묶음 둘 중 두 번째(`tbody`)다. 첫 번째는 머리글 줄. */
+function attentionBody() {
+  return within(attentionTable()).getAllByRole('rowgroup')[1];
+}
+
 function attentionRows() {
-  return within(screen.getAllByRole('list')[1]).getAllByRole('listitem');
+  return within(attentionBody()).getAllByRole('row');
 }
 
 describe('교사 홈 상단 카드', () => {
@@ -78,5 +88,39 @@ describe('먼저 볼 학생 한 줄', () => {
     ]) {
       expect(screen.queryByText(gone)).not.toBeInTheDocument();
     }
+  });
+});
+
+describe('먼저 볼 학생 표 — 관제소·리포트 센터와 같은 껍데기', () => {
+  it('머리글이 화면 순서대로 있고 눈에서 감춰져 있지 않다', () => {
+    render(<TeacherHomePage />);
+    const headers = within(attentionTable()).getAllByRole('columnheader');
+
+    expect(headers.map(h => h.textContent)).toEqual(
+      // 마지막은 꺾쇠 자리 — 값이 아니라 「갈 수 있다」는 표시라 부를 이름이 없다
+      ['이름', '학년', '막힌 곳', '도달', '최근 접속', ''],
+    );
+    // 머리글을 `sr-only` 로 감추면 표가 아니라 그냥 줄 몇 개가 된다
+    for (const h of headers) expect(h.className).not.toContain('sr-only');
+  });
+
+  it('이름과 학년은 서로 다른 칸에 있다 — 한 칸에 겹쳐 있던 것을 뗐다', () => {
+    render(<TeacherHomePage />);
+
+    pickAttentionStudents().forEach(({ student }, i) => {
+      const row = attentionRows()[i];
+      const nameCell = within(row).getByRole('rowheader');
+      expect(nameCell).toHaveTextContent(student.name);
+      expect(nameCell.textContent).not.toContain(student.grade);
+      // 학년은 이름 다음 칸 — `th`(이름)는 cell 에 들어오지 않으므로 첫 칸이 학년이다
+      expect(within(row).getAllByRole('cell')[0]).toHaveTextContent(student.grade);
+    });
+  });
+
+  it('「막힌 곳」 이름표는 머리글이 맡는다 — 줄마다 되풀이하지 않는다', () => {
+    render(<TeacherHomePage />);
+    // 머리글에 한 번. 줄에는 개념 이름만 남는다.
+    expect(within(attentionBody()).queryByText(/^막힌 곳/)).not.toBeInTheDocument();
+    expect(screen.queryByText('아직 막힌 곳이 안 보여요')).not.toBeInTheDocument();
   });
 });
