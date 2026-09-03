@@ -33,10 +33,10 @@ interface ChatBody {
  * @returns 201 { id, studentId, botId } | 400 | 401
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
 
   // 쓰기 가드 — per-user 쓰기는 본인 세션 필수(데모 폴백 불가).
-  if (!isAuthenticated) {
+  if (!isIdentified) {
     return NextResponse.json(
       { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
       { status: 401 },
