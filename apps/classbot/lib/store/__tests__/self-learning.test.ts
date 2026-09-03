@@ -86,6 +86,17 @@ describe('공부한 날', () => {
     expect(recordOf(SEOYEON)?.studyDays ?? []).toEqual([]);
   });
 
+  // `Date.parse('2026-02-30')` 은 NaN 이 아니라 3월 2일로 정규화된다 — 형식만 보면 통과한다.
+  // 그 값이 저장소에 남으면 연속일수와 백필의 입력이 되고, 서버는 같은 값을 거절한다.
+  it('달력에 없는 날은 형식이 맞아도 받지 않는다 — 서버와 같은 판정', () => {
+    act(() => {
+      store().recordStudyDay(SEOYEON, '2026-02-30');
+      store().recordStudyDay(SEOYEON, '2026-04-31');
+      store().recordStudyDay(SEOYEON, '2027-02-29');
+    });
+    expect(recordOf(SEOYEON)?.studyDays ?? []).toEqual([]);
+  });
+
   it('사용자끼리 서로의 날짜를 보지 않는다', () => {
     act(() => {
       store().recordStudyDay(SEOYEON, '2026-09-01');
