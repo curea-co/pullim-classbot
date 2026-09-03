@@ -35,6 +35,8 @@ type Mode = (typeof MODES)[number];
 
 /** 문항 수 상한 — 시험 모드 최대치를 넉넉히 덮는 방어값. */
 const MAX_QUESTION_COUNT = 100;
+/** 단원 표시 문자열 상한 — 화면에 한 줄로 그려지는 값이라 길 이유가 없다. */
+const MAX_SCOPE_LEN = 200;
 
 /**
  * 마감 라벨에서 D-day 를 뽑는다 — `d_day` 가 NOT NULL 이라 빈칸을 둘 수 없다.
@@ -133,6 +135,20 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
   const mode = body.mode as Mode;
 
+  /*
+    단원 — 교사가 고른 값을 그대로 싣는다.
+
+    예전엔 여기서 '단원 미정'·''·'' 을 박아 넣었다. 그래서 교사 화면의 로컬 사본에는 고른
+    단원이 남는데 **서버에서 읽는 학생·학부모 화면은 그 단원을 영영 잃었다**(계약 14 §1·§3.3.1·§5.4
+    는 발사 payload 에 단원이 따라가야 한다고 정한다).
+
+    길이 상한은 표시용 문자열 기준으로 넉넉히 둔다 — 없으면 본문 한 덩어리가 그대로 컬럼에 들어간다.
+    비워 보내면 예전 기본값으로 떨어진다(단원을 안 고르고 낸 경로가 실제로 있다).
+  */
+  const scope = readTrimmed(body.scope).slice(0, MAX_SCOPE_LEN);
+  const chapterFrom = readTrimmed(body.chapterFrom).slice(0, MAX_SCOPE_LEN);
+  const chapterTo = readTrimmed(body.chapterTo).slice(0, MAX_SCOPE_LEN);
+
   const targetStudentIds = readStudentIds(body.targetStudentIds);
   if (targetStudentIds === null) {
     return invalidInput('보낼 학생 목록이 올바르지 않아요.');
@@ -181,11 +197,11 @@ export async function POST(req: Request): Promise<NextResponse> {
         // 반 단위 발사 — 학생별 행을 만들지 않는다.
         studentId: null,
         title,
-        scope: '단원 미정',
+        scope: scope || '단원 미정',
         subject: bot.subject,
         grade: bot.grade,
-        chapterFrom: '',
-        chapterTo: '',
+        chapterFrom,
+        chapterTo,
         questionCount,
         difficulty,
         mode,
