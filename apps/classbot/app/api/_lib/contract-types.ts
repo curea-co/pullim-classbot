@@ -152,6 +152,10 @@ export interface DispatchAssignmentInput {
   questionCount: number;
   difficulty: '하' | '중' | '상';
   mode: 'practice' | 'exam' | 'wrong-conquest';
+  /** 교사가 고른 단원(표시 문자열). 생략하면 '단원 미정'·''·'' 로 떨어진다. */
+  scope?: string;
+  chapterFrom?: string;
+  chapterTo?: string;
   /** 생략·빈 배열이면 반 전체. */
   targetStudentIds?: string[];
 }
