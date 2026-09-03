@@ -79,9 +79,19 @@ function previousDayKey(key: string): string {
   return `${prev.getUTCFullYear()}-${mm}-${dd}`;
 }
 
-/** 저장 가능한 날짜 키인가 — 백필 대상이라 형식이 어긋난 값은 아예 받지 않는다. */
+/**
+ * 저장 가능한 날짜 키인가 — 백필 대상이라 형식이 어긋난 값은 아예 받지 않는다.
+ *
+ * 형식만 보면 부족하다. `Date.parse('2026-02-30')` 은 NaN 이 아니라 **3월 2일로 정규화**되므로
+ * 달력에 없는 날이 그대로 통과한다. 그 값은 이 저장소에 남았다가 연속일수 계산과 백필의
+ * 입력이 되는데, 서버는 같은 값을 round-trip 으로 거른다 — 환경마다 날짜 규칙이 갈린다.
+ * 그래서 서버(`app/api/_lib/study-date.ts` 의 `isDayKey`)와 **같은 방식**으로 판정한다.
+ */
 function isDayKey(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const at = new Date(Date.UTC(y, m - 1, d));
+  return at.getUTCFullYear() === y && at.getUTCMonth() === m - 1 && at.getUTCDate() === d;
 }
 
 /**
