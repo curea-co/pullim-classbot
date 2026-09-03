@@ -908,6 +908,24 @@ describe('한 번만 올리는 백필 (계약 §4)', () => {
     expect(backfilledDays()).toEqual(['2026-09-02']); // 서버에 있던 날은 빠졌다
   });
 
+  /**
+   * 완료 표시를 잃은 사람이 다시 와도 **같은 날짜를 다시 보내지 않는다.** 서버 목록을 먼저
+   * 빼기 때문이다 — 그래서 서버의 중복 방어(`onConflictDoNothing`)는 이 경로에서 쓰이지 않고,
+   * 두 탭이 겹치는 경합 때나 쓰인다. 요청이 **한 건도** 안 나가는 것이 그 증거다.
+   */
+  it('표시를 잃어도 이미 서버에 있는 날만 있으면 아무것도 보내지 않는다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01', '2026-09-02']);
+    serverDays[SEOYEON] = ['2026-09-01', '2026-09-02'];
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-01', '2026-09-02']));
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON),
+    );
+
+    expect(backfillCalls()).toHaveLength(0);
+  });
+
   it('두 번 마운트해도 한 번만 올린다 — 완료 표시가 남는다', async () => {
     seedLocalDays(SEOYEON, ['2026-09-01']);
 
