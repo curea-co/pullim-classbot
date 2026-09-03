@@ -57,8 +57,9 @@ export function isRetriableUploadError(error: unknown): boolean {
  * ⚠️ `useCurrentUser().isAuthenticated` 를 쓰면 **안 된다.** 이름과 달리 이 질문의 답이
  * 아니다. 그 플래그는 「진짜 로그인 세션인가」라서 **개발용 신원 쿠키에 일부러 false** 를
  * 준다(`lib/current-user.ts` 의 ⚠️ 주석 — RoleGuard 가 데모 통과 경로를 인증으로 세는 것을
- * 막는 값이다). 그런데 **서버는 그 쿠키를 인정한다**(`getCurrentUserIdFromRequest` 는 dev
- * 쿠키에 `isAuthenticated: true`). 두 값은 뜻이 달라서 어긋난 게 아니라 각자 맞다.
+ * 막는 값이다). 서버도 같은 뜻으로 쓴다 — 서버가 dev 쿠키에 주는 것은 `isAuthenticated`
+ * 가 아니라 **`isIdentified: true`**(명의)이고, 라우트 가드는 그쪽을 본다. 즉 이 훅이
+ * 다시 적는 조건은 **서버의 `isIdentified` 와 같은 조건**이다.
  *
  * 그 플래그로 갈랐다면 개발 쿠키를 쓴 로컬·dev preview 전체가 데모로 떨어져 **서버에 한 번도
  * 안 가고**, 그러면서 prod 만 서버를 부르는 정반대 동작이 된다. 그래서 여기서는 서버의

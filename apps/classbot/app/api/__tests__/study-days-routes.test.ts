@@ -138,7 +138,7 @@ function req(
   });
 }
 
-/** 신원이 전혀 없는 요청 — 데모 폴백이라 `isAuthenticated:false` 다. */
+/** 신원이 전혀 없는 요청 — 데모 폴백이라 `isIdentified:false` 다. */
 function anonReq(init: RequestInit = {}): Request {
   return new Request('http://localhost/api/me/study-days', init);
 }

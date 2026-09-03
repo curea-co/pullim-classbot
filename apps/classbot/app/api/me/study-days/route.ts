@@ -44,8 +44,8 @@ export const runtime = 'nodejs';
  * @returns 200 { days: string[] } | 401
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const rows = await getDb()
     .select({ day: sql<string>`to_char(${selfStudyDays.studyDate}, 'YYYY-MM-DD')` })
@@ -73,8 +73,8 @@ export async function GET(req: Request): Promise<NextResponse> {
  * @returns 201 { recorded, date } | 200 { recorded, date }(이미 있음) | 400 | 401
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const read = await readBodyAllowingEmpty(req);
   if (!read.ok) return invalidInput('요청 본문을 읽지 못했어요.');

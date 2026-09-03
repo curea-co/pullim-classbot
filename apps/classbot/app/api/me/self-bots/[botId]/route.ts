@@ -31,8 +31,8 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ botId: string }> },
 ): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const { botId } = await ctx.params;
   if (!botId.trim()) return invalidInput('뺄 봇을 골라 주세요.');

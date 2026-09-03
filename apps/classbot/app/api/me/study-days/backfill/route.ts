@@ -56,8 +56,8 @@ export const runtime = 'nodejs';
  * @returns 200 { inserted, skipped } | 400 | 401
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const body = await readJsonBody(req);
   if (!body) return invalidInput('요청 본문을 읽지 못했어요.');

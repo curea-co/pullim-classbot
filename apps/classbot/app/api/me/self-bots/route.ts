@@ -32,8 +32,8 @@ export const runtime = 'nodejs';
  * @returns 200 { bots: SelfBotRow[] } | 401
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const rows = await getDb()
     .select({ botId: selfEnrollments.botId, addedAt: selfEnrollments.addedAt })
@@ -63,8 +63,8 @@ export async function GET(req: Request): Promise<NextResponse> {
  * @returns 201 { bot: SelfBotRow } | 200 { bot: SelfBotRow }(이미 담음) | 400 | 401
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const body = await readJsonBody(req);
   if (!body) return invalidInput('요청 본문을 읽지 못했어요.');
