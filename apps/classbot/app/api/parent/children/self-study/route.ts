@@ -57,7 +57,7 @@ export const runtime = 'nodejs';
  */
 export async function GET(req: Request): Promise<NextResponse> {
   const actor = await resolveActor(req);
-  if (!actor.isAuthenticated) return unauthorized();
+  if (!actor.isIdentified) return unauthorized();
   if (actor.role !== 'parent') return forbidden('보호자만 볼 수 있어요.');
 
   const db = getDb();
