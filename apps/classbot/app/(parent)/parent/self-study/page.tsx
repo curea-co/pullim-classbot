@@ -47,6 +47,14 @@ export default function ParentSelfStudyPage() {
     selfStudy.isLoading || (children.length === 0 && linked.isLoading);
   const hasNoLinkedChild =
     linked.isSuccess && linked.data.children.length === 0;
+  /*
+    ④ 와 ⑤ 를 가르는 사실을 **못 읽은** 상태.
+
+    보여줄 카드가 없을 때 이 조회가 실패했으면 「자녀가 없다」인지 「볼 것이 없다」인지 아직
+    모른다. 그걸 ⑤ 로 떨어뜨리면 네트워크 오류를 「아이가 아직 안 보여줬어요」로 바꿔 말하는
+    셈이 된다 — 아이가 하지 않은 일을 한 것처럼 만드는 자리라 오류로 남긴다.
+  */
+  const linkedUnknown = children.length === 0 && linked.isError;
 
   return (
     <div className="space-y-7">
@@ -66,6 +74,8 @@ export default function ParentSelfStudyPage() {
           error={selfStudy.error}
           onRetry={() => void selfStudy.refetch()}
         />
+      ) : linkedUnknown ? (
+        <ParentErrorState error={linked.error} onRetry={() => void linked.refetch()} />
       ) : children.length > 0 ? (
         children.map(child => <ChildSelfStudyCard key={child.id} child={child} />)
       ) : hasNoLinkedChild ? (

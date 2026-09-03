@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight, Sparkles, Users } from 'lucide-react';
+import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat } from '@/components/classbot/kpi-stat';
 import { PageHeader } from '@/components/shell/page-header';
@@ -51,6 +52,16 @@ export default function ParentHomePage() {
     visibleChildren(selfStudy.data?.children ?? []).map(c => [c.id, c]),
   );
 
+  /*
+    실패는 「없음」과 같은 모습이면 안 된다.
+
+    위 Map 은 응답 전에도 비어 있고 **실패했을 때도** 비어 있다 — 그 둘이 화면에서 같은
+    모습이면 부모는 아이가 안 보여준 것인지 못 불러온 것인지 구분할 수 없고 다시 시도할
+    길도 없다. 그래서 실패만 따로 한 줄로 말한다(계약 §4.8: 오류는 오류라고 적는다).
+    401 은 여기서 그리지 않는다 — 로그인 게이트는 홈 본체가 이미 세운다.
+  */
+  const selfStudyFailed = selfStudy.isError && selfStudy.error.status !== 401;
+
   return (
     <div className="space-y-7">
       <PageHeader
@@ -62,6 +73,22 @@ export default function ParentHomePage() {
             : '자녀가 들어간 수업방과 받은 과제를 한눈에 봐요.'
         }
       />
+
+      {selfStudyFailed && !isLoading && !isError && (
+        <AlertCard tone="notice" icon={Sparkles} title="자기주도 학습 한 줄을 불러오지 못했어요">
+          <p className="text-pullim-slate-700 text-sm">
+            아이가 혼자 공부한 기록만 못 읽은 거예요. 아래 수업방·과제는 그대로예요.{' '}
+            <button
+              type="button"
+              onClick={() => void selfStudy.refetch()}
+              className="text-pullim-blue-700 underline underline-offset-2"
+              data-testid="self-study-retry"
+            >
+              다시 시도
+            </button>
+          </p>
+        </AlertCard>
+      )}
 
       {isLoading ? (
         <ParentLoading />

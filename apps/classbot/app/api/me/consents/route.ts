@@ -70,21 +70,39 @@ export async function GET(req: Request): Promise<NextResponse> {
   const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
   if (!isIdentified) return unauthorized();
 
-  const [recipient, rows] = await Promise.all([
-    // 부여 라우트와 **같은 함수**다 — 화면이 적은 이름과 실제로 grant 가 갈 보호자가
-    // 같다는 보장이 여기서 나온다.
-    resolveGrantRecipient(studentId),
-    getDb()
-      .select({
-        type: consentLogs.type,
-        scopeLabel: consentLogs.scopeLabel,
-        grantedAt: consentLogs.grantedAt,
-        expiresAt: consentLogs.expiresAt,
-      })
-      .from(consentLogs)
-      .where(and(eq(consentLogs.studentId, studentId), livingConsent()))
-      .orderBy(asc(consentLogs.grantedAt), asc(consentLogs.type)),
-  ]);
+  // 부여 라우트와 **같은 함수**다 — 화면이 적은 이름과 실제로 grant 가 갈 보호자가
+  // 같다는 보장이 여기서 나온다.
+  const recipient = await resolveGrantRecipient(studentId);
+
+  /*
+    동의를 **받는 사람으로도** 좁힌다.
+
+    학생 id 하나로만 읽으면, 링크 우선순위가 바뀐 뒤 남아 있는 **옛 보호자 대상 동의**가
+    지금 보호자의 이름과 함께 실린다. 화면은 「어머니께 보여드리는 중」이라 쓰는데 실제 권한은
+    다른 사람에게 열려 있는 상태 — 동의 화면이 낼 수 있는 가장 나쁜 종류의 거짓이다.
+    (부여는 이미 `parentId: recipient.id` 로 쓴다. 읽기만 그 조건이 빠져 있었다.)
+
+    받는 사람이 없으면 목록도 비어 있다 — 줄 사람이 없으면 살아 있는 동의도 없다는 뜻이고,
+    화면은 `parent: null` 로 이미 「지금은 줄 수 없다」를 말한다.
+  */
+  const rows = recipient
+    ? await getDb()
+        .select({
+          type: consentLogs.type,
+          scopeLabel: consentLogs.scopeLabel,
+          grantedAt: consentLogs.grantedAt,
+          expiresAt: consentLogs.expiresAt,
+        })
+        .from(consentLogs)
+        .where(
+          and(
+            eq(consentLogs.studentId, studentId),
+            eq(consentLogs.parentId, recipient.id),
+            livingConsent(),
+          ),
+        )
+        .orderBy(asc(consentLogs.grantedAt), asc(consentLogs.type))
+    : [];
 
   const body: MyConsentsResponse = {
     // id 를 떼고 이름·관계만 — 구조분해로 명시해서 필드가 늘어도 새 나가지 않게 한다.
