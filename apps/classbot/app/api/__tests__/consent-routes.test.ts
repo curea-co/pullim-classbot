@@ -316,6 +316,49 @@ describe('동의는 조회 조건 안에 있다 — 읽고 나서 거르지 않�
   });
 });
 
+describe('봇에서 내보내는 칸은 넷뿐 — 행을 그대로 흘리지 않는다', () => {
+  it('botId·name·subject·avatarEmoji·addedAt 말고는 나가지 않는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [
+        {
+          id: 'student_001',
+          name: '서연',
+          relation: 'mother',
+          scopeLabel: '계속',
+          expiresAt: null,
+        },
+      ],
+      // `class_bots` 를 그대로 흘렸다면 여기 붙은 인사말·톤·교사명이 응답에 샌다.
+      [
+        {
+          botId: 'cb_003',
+          name: '과학 쌤',
+          subject: '통합과학',
+          avatarEmoji: '🧑‍🔬',
+          addedAt: new Date('2026-09-01T00:00:00Z'),
+        },
+      ],
+      [],
+    ];
+
+    const res = await getSelfStudy(req('parent_001', 'student'));
+    const body = (await res.json()) as {
+      children: Array<{ bots: Array<Record<string, unknown>> }>;
+    };
+
+    expect(Object.keys(body.children[0].bots[0]).sort()).toEqual([
+      'addedAt',
+      'avatarEmoji',
+      'botId',
+      'name',
+      'subject',
+    ]);
+    // 아이가 보는 얼굴이 그대로 부모에게 간다.
+    expect(body.children[0].bots[0].avatarEmoji).toBe('🧑‍🔬');
+  });
+});
+
 describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', () => {
   it.each([
     ['parentId', { parentId: 'parent_999' }],
