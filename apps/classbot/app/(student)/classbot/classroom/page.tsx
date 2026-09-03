@@ -90,7 +90,9 @@ export default function StudentClassroomPage() {
         <ul className="grid gap-2 sm:grid-cols-2">
           {rooms.map((room) => (
             <RoomCard
-              key={room.bot.id}
+              // 방 목록의 key 는 봇이 아니라 **반**이다 — 같은 봇을 쓰는 반이 둘이면
+              // 봇 id 는 겹친다(서버 계약이 classroomId·botId 를 따로 둔 이유).
+              key={room.enrollment.classroomId}
               room={room}
               onLeave={room.source === 'local' ? () => leaveClass(room.bot.id) : undefined}
             />
