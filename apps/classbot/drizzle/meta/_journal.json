@@ -36,6 +36,13 @@
       "when": 1788327536544,
       "tag": "0004_gray_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788412277498,
+      "tag": "0005_lethal_omega_red",
+      "breakpoints": true
     }
   ]
 }

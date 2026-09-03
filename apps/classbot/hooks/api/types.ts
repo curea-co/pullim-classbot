@@ -7,6 +7,8 @@
  */
 
 export type {
+  AddSelfBotInput,
+  AddSelfBotResponse,
   AssignmentRow,
   ClassBotRow,
   ClassroomRow,
@@ -24,10 +26,12 @@ export type {
   MarketplaceBotResponse,
   MarketplaceBotsResponse,
   MyClassroomsResponse,
+  MySelfBotsResponse,
   ParentChildItem,
   ParentChildrenResponse,
   PublishBotInput,
   PublishBotResponse,
+  RemoveSelfBotResponse,
   StudentClassroomItem,
   TeacherAssignmentsResponse,
   TeacherClassroomItem,

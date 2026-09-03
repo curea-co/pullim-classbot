@@ -17,10 +17,15 @@ const recordOf = (userId: string): SelfUserRecord | undefined =>
   useSelfLearningStore.getState().byUser[userId];
 
 beforeEach(() => {
-  useSelfLearningStore.setState({ byUser: {}, goals: [], unitProgress: [] });
+  useSelfLearningStore.setState({
+    byUser: {},
+    botsMigratedUserIds: [],
+    goals: [],
+    unitProgress: [],
+  });
 });
 
-describe('담은 봇', () => {
+describe('담은 봇 — P3 이후 비로그인 데모 전용', () => {
   it('두 번 담아도 한 줄이고, 빼면 사라진다', () => {
     act(() => {
       store().addSelfBot(SEOYEON, BOT_A);
@@ -46,6 +51,35 @@ describe('담은 봇', () => {
     act(() => store().removeSelfBot(SEOYEON, BOT_A));
     expect(recordOf(SEOYEON)?.bots).toHaveLength(0);
     expect(recordOf(MINJUN)?.bots.map((b) => b.botId)).toEqual([BOT_B]);
+  });
+
+  it('남아 있는 행은 사용자별로 갈린 채 읽힌다 — 이관이 남의 봇을 올리지 않게', () => {
+    act(() => {
+      useSelfLearningStore.setState({
+        byUser: {
+          [SEOYEON]: { bots: [{ botId: BOT_A, addedAt: '2026-09-01T00:00:00.000Z' }], studyDays: [] },
+          [MINJUN]: { bots: [{ botId: BOT_B, addedAt: '2026-09-01T00:00:00.000Z' }], studyDays: [] },
+        },
+      });
+    });
+    expect(recordOf(SEOYEON)?.bots.map((b) => b.botId)).toEqual([BOT_A]);
+    expect(recordOf(MINJUN)?.bots.map((b) => b.botId)).toEqual([BOT_B]);
+  });
+});
+
+describe('이관 완료 표시 — 「한 번만」의 그 한 번', () => {
+  it('두 번 표시해도 한 칸이고, 사용자별로 따로 남는다', () => {
+    act(() => {
+      store().markBotsMigrated(SEOYEON);
+      store().markBotsMigrated(SEOYEON);
+      store().markBotsMigrated(MINJUN);
+    });
+    expect(store().botsMigratedUserIds).toEqual([SEOYEON, MINJUN]);
+  });
+
+  it('빈 사용자 id 는 표시하지 않는다', () => {
+    act(() => store().markBotsMigrated(''));
+    expect(store().botsMigratedUserIds).toEqual([]);
   });
 });
 
@@ -202,6 +236,7 @@ describe('persist 마이그레이션 v0 → v1', () => {
               studyDays: ['2026-09-01', '2026-09-02'],
             },
           },
+          botsMigratedUserIds: [MINJUN],
           goals: [],
           unitProgress: [],
         },
@@ -212,8 +247,24 @@ describe('persist 마이그레이션 v0 → v1', () => {
       await useSelfLearningStore.persist.rehydrate();
     });
 
+    // 담은 봇의 로컬 사본은 살아남는다 — 이관(계약 §4)이 읽을 유일한 소스다.
     expect(recordOf(SEOYEON)?.bots.map((b) => b.botId)).toEqual([BOT_A]);
     expect(deriveStreak(recordOf(SEOYEON)?.studyDays ?? [])).toMatchObject({ count: 2 });
     expect(recordOf(MINJUN)).toBeUndefined();
+    // 완료 표시도 함께 살아남는다 — 안 그러면 매 로드마다 다시 올린다.
+    expect(store().botsMigratedUserIds).toEqual([MINJUN]);
+  });
+
+  it('v0 에서 올라온 사람은 이관 완료 표시가 없다 — 아직 한 번도 안 올렸다', async () => {
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({ state: { goals: [], unitProgress: [] } }),
+    );
+
+    await act(async () => {
+      await useSelfLearningStore.persist.rehydrate();
+    });
+
+    expect(store().botsMigratedUserIds).toEqual([]);
   });
 });

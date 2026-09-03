@@ -147,6 +147,34 @@ export const enrollments = pgTable(
 );
 
 /**
+ * 스스로 담은 봇 — 마켓에서 학생이 직접 골라 자기 목록에 넣은 봇 (자기주도 계약 §1).
+ *
+ * `enrollments` 와 **PK 모양을 맞춘다**(bot_id, student_id). 「이미 담았나」 검사가 「이미
+ * 참여했나」와 같은 형태로 읽혀야 두 경로를 나란히 두고도 헷갈리지 않는다.
+ *
+ * `classroom_id` · `classroom_label` · `assigned_by` · `via` · `assigned_at` 을 **일부러
+ * 두지 않았다.** 그 다섯은 「누가 어디로 넣어 줬다」를 뜻하는데, 자기주도에는 준 사람도
+ * 들어간 곳도 없다. `added_at` 은 `assigned_at` 의 개명이 아니다 — 아무도 배정하지 않았다.
+ * `source` 컬럼도 없다 — 이 테이블의 모든 행은 실재하는 `class_bots.id` 를 가리킨다.
+ *
+ * 담기 시점에 `is_published` 를 보지 않는 것도 같은 이유다(마켓에서 내려간 봇을 이미 담은
+ * 학생의 봇은 계속 돈다). FK 가 「실재하는 봇인가」만 지킨다.
+ */
+export const selfEnrollments = pgTable(
+  'self_enrollments',
+  {
+    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.botId, t.studentId] }),
+    // 읽기는 언제나 「내가 담은 것」이라 student_id 단독 조회가 유일한 조회 축이다.
+    byStudent: index('self_enrollments_student_idx').on(t.studentId),
+  }),
+);
+
+/**
  * 클래스 참여 코드 — mock `class-codes.ts` CODE_MAP 의 실전판 (실출시 M2).
  * 학생이 코드를 입력하면 code → (bot, classroom) 을 해석해 enrollment 를 생성한다.
  *
@@ -707,6 +735,7 @@ export const templates = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   enrollments: many(enrollments),
+  selfEnrollments: many(selfEnrollments),
   assignments: many(assignments),
   emotionCheckIns: many(emotionCheckIns),
   wellbeingSnapshots: many(wellbeingSnapshots),
@@ -720,6 +749,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const classBotsRelations = relations(classBots, ({ many, one }) => ({
   enrollments: many(enrollments),
+  selfEnrollments: many(selfEnrollments),
   curriculum: many(botCurriculumUnits),
   settings: one(botSettings, { fields: [classBots.id], references: [botSettings.botId] }),
   lessons: many(lessons),
@@ -738,6 +768,11 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
   bot: one(classBots, { fields: [enrollments.botId], references: [classBots.id] }),
   student: one(users, { fields: [enrollments.studentId], references: [users.id] }),
   classroom: one(classrooms, { fields: [enrollments.classroomId], references: [classrooms.id] }),
+}));
+
+export const selfEnrollmentsRelations = relations(selfEnrollments, ({ one }) => ({
+  bot: one(classBots, { fields: [selfEnrollments.botId], references: [classBots.id] }),
+  student: one(users, { fields: [selfEnrollments.studentId], references: [users.id] }),
 }));
 
 export const lessonsRelations = relations(lessons, ({ one, many }) => ({
@@ -825,6 +860,7 @@ export type ConsentLog = typeof consentLogs.$inferSelect;
 export type Classroom = typeof classrooms.$inferSelect;
 export type ClassBotRow = typeof classBots.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
+export type SelfEnrollment = typeof selfEnrollments.$inferSelect;
 export type BotCurriculumUnitRow = typeof botCurriculumUnits.$inferSelect;
 export type BotSettingsRow = typeof botSettings.$inferSelect;
 export type LessonRow = typeof lessons.$inferSelect;

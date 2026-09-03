@@ -289,3 +289,42 @@ export interface PublishBotInput {
 export interface PublishBotResponse {
   bot: ClassBotRow;
 }
+
+/* ── 자기주도 ─────────────────────────────────────────── */
+
+/**
+ * `self_enrollments` 한 행 — **P1 에서 이미 고정된 모양 그대로**
+ * (`lib/store/self-learning.ts` 의 `SelfBotRow`). 서버가 소스가 되어도 훅이 필드를
+ * 다시 매핑하지 않도록 여기서도 같은 두 칸만 둔다.
+ */
+export interface SelfBotRow {
+  /** 마켓이 주는 **`class_bots.id`**. 은퇴한 mock 카탈로그 id(`ot_*`) 아님. */
+  botId: string;
+  /** 담은 시각(ISO 8601). */
+  addedAt: string;
+}
+
+/** `GET /api/me/self-bots` 응답 — 담은 순 오름차순. */
+export interface MySelfBotsResponse {
+  bots: SelfBotRow[];
+}
+
+/** `POST /api/me/self-bots` 본문. */
+export interface AddSelfBotInput {
+  botId: string;
+}
+
+/** `POST /api/me/self-bots` 응답 — 새로 담았으면 201, 이미 담았으면 200(둘 다 같은 몸통). */
+export interface AddSelfBotResponse {
+  bot: SelfBotRow;
+}
+
+/**
+ * `DELETE /api/me/self-bots/[botId]` 응답.
+ *
+ * `removed:false` 는 실패가 아니라 **없던 것을 뺐다**는 뜻이다 — 부르는 쪽의 의도
+ * (「이건 내 목록에 없어야 한다」)는 어느 쪽이든 이미 이뤄져 있다.
+ */
+export interface RemoveSelfBotResponse {
+  removed: boolean;
+}

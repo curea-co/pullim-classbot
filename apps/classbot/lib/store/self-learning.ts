@@ -1,15 +1,42 @@
 /**
- * 자기주도 학습 저장소 — 학생이 마켓에서 «담은 봇»과 «공부한 날».
+ * 자기주도 학습 저장소 — «담은 봇»(데모 전용)과 «공부한 날».
  *
- * 담기는 **반 참여가 아니다.** 이 저장소에 행이 생겨도 `enrollments` 는 건드리지 않고,
- * 교사의 학생 수·학급 관제소·과제에는 아무 영향이 없다(자기주도 계약 §1).
+ * ## P3 이후 이 파일이 무엇인가
+ *
+ * 담은 봇의 **정본은 서버**(`self_enrollments`)다. 다만 이 파일이 죽은 건 아니고,
+ * 신원에 따라 역할이 셋으로 갈린다 — 화면이 읽는 입구는 어느 쪽이든
+ * `hooks/api/self-bots.ts` 하나다:
+ *
+ * | 지금 누구인가 | 담은 봇을 어디서 읽고 쓰나 |
+ * |---|---|
+ * | 로그인 세션(JWT) · 개발용 신원 쿠키 | **서버.** 이 파일의 `bots` 는 읽지 않는다 |
+ * | 그 둘 다 없음(= 공개 데모) | **이 파일.** 서버에 아예 요청하지 않는다 |
+ *
+ * 아래 칸이 데모에서 살아 있어야 하는 이유는 `hooks/api/self-bots.ts` 머리주석에 있다.
+ * 요지만 옮기면: prod(`classbot.pullim.ai`)는 로그인 없이 열리는 공개 데모이고 서버 라우트는
+ * 미인증에 401 이라, 거기서 서버를 부르면 **담기 버튼이 전부 오류가 된다.**
+ *
+ * 공부한 날·연속 학습은 신원과 무관하게 아직 전부 여기다 — 서버로 옮기는 건 **P4** 몫이다.
+ *
+ * 담기는 **반 참여가 아니다.** 서버로 옮긴 뒤에도 같다 — `self_enrollments` 에 행이 생겨도
+ * `enrollments` 는 건드리지 않고, 교사의 학생 수·학급 관제소·과제에 아무 영향이 없다(계약 §1).
  *
  * ## 화면은 이 파일을 직접 읽지 않는다
- * 소비 입구는 `hooks/api/self-bots.ts` 하나다. P3 에서 이 자리가 localStorage 에서
- * 서버로 바뀔 때 훅 내부만 갈아 끼우면 되도록, 컴포넌트에 zustand 를 노출하지 않는다.
+ * 소비 입구는 `hooks/api/self-bots.ts` 하나다. 담은 봇의 출처가 localStorage 에서 서버로
+ * 바뀔 때 훅 내부만 갈아 끼우면 됐던 게 그 덕이다 — 화면 파일은 한 줄도 안 바뀌었다.
+ * 데모/서버로 갈리는 것도 그 안에서 끝나서, 화면은 그런 갈래가 있는지도 모른다.
+ *
+ * ## 로그인한 사람의 `byUser[].bots` 는 남은 찌꺼기다 — 일부러 남긴다
+ * 서버가 정본이 된 뒤에도 그 사람의 로컬 행을 **지우지 않는다.** 비대칭이 결정한다:
+ * 지웠는데 올리기가 미묘하게 틀렸으면 데이터가 사라지고, 남겨 두면 최악이 P4 까지 남는
+ * 죽은 바이트다. 그래서 **읽기만 끊고 그대로 둔다** — 이관(계약 §4)의 소스이자 안전망이다.
+ * **P4 가 `studyDays` 를 서버로 옮기면서 이 칸도 함께 정리한다** — 청소를 두 번 하지 않는다.
  *
  * ## 지금 모양이 곧 나중 API 행 모양이다
- *  - `SelfBotRow` = 미래 `GET /api/self/bots` 한 행. P3 가 필드를 다시 매핑하지 않는다.
+ *  - `SelfBotRow` = `GET /api/me/self-bots` 한 행. P3 가 필드를 다시 매핑하지 않았다.
+ *    (타입이 아직 여기 있는 이유: 훅이 이 스토어를 import 하므로 반대 방향은 순환이다.
+ *    서버는 `app/api/_lib/contract-types.ts` 에 같은 두 칸을 따로 적어 둔다 — 라우트가
+ *    `'use client'` zustand 모듈을 import 할 수는 없어서다.)
  *  - `studyDays` 의 한 칸 = 미래 `self_study_days` 한 행. **카운터가 아니라 날짜 배열**이라
  *    나중에 서버로 백필할 수 있다(카운터는 과거 달력을 복원할 수 없다).
  *  - 봇 id 는 마켓이 주는 **`class_bots.id`** 다. 은퇴하는 mock 카탈로그 id(`ot_*`)는
@@ -28,7 +55,7 @@ import { persist } from 'zustand/middleware';
 import { useCurrentUserId } from '@/lib/current-user';
 import { todayKey } from './today-key';
 
-/** 미래 API 행 모양 그대로 — P3 가 필드를 다시 매핑하지 않게. */
+/** `GET /api/me/self-bots` 의 한 행 — P1 이 굳혀 P3 가 그대로 쓴 모양. */
 export interface SelfBotRow {
   /** 마켓(`GET /api/marketplace/bots`)이 주는 **`class_bots.id`**. `ot_*` 아님. */
   botId: string;
@@ -42,9 +69,15 @@ export type Streak = {
   lastStudyDate: string | null;
 };
 
-/** 사용자 한 명의 자기주도 기록. P3 에서 이 통 하나가 서버 응답으로 대체된다. */
+/** 사용자 한 명의 자기주도 기록. */
 export interface SelfUserRecord {
-  /** 담은 봇 — 담은 순서(오래된 것 먼저). */
+  /**
+   * 담은 봇 — 담은 순서(오래된 것 먼저).
+   *
+   * P3 이후 읽고 쓰는 곳이 **비로그인 데모 하나뿐**이다. 로그인·개발 쿠키 신원에게는
+   * 정본이 서버(`self_enrollments`)라 이 칸을 읽지 않고, 남은 행은 이관(계약 §4)의
+   * 소스이자 안전망으로 **지우지 않고 둔다**(위 머리주석). P4 가 함께 정리한다.
+   */
   bots: SelfBotRow[];
   /** 공부한 날 `'YYYY-MM-DD'` — 오름차순·중복 없음. P4 `self_study_days` 한 행 = 한 칸. */
   studyDays: string[];
@@ -136,10 +169,28 @@ interface SelfLearningStore {
    * 개발용 신원 전환만으로 서연의 기록이 민준의 화면에 그대로 뜬다.
    */
   byUser: Record<string, SelfUserRecord>;
-  /** 봇 담기 — 이미 담았으면 아무 일도 하지 않는다(멱등). */
+  /**
+   * 봇 담기 — 이미 담았으면 아무 일도 하지 않는다(멱등).
+   *
+   * ⚠️ **비로그인 데모에서만 부른다.** 신원이 있는 사람의 담기는 서버로 가고(`POST
+   * /api/me/self-bots`) 이 함수를 거치지 않는다. 부르는 곳은 `hooks/api/self-bots.ts`
+   * 하나이고, 그 안에서 갈래를 정한다 — 화면이 직접 부르면 로그인한 사람의 담기가
+   * 서버에 안 남는다.
+   */
   addSelfBot: (userId: string, botId: string) => void;
-  /** 담은 봇 빼기. */
+  /** 담은 봇 빼기 — 위와 같이 **비로그인 데모 전용**이다. */
   removeSelfBot: (userId: string, botId: string) => void;
+  /**
+   * 담은 봇을 서버로 올리는 이관(계약 §4)을 마친 사용자 id.
+   *
+   * 「한 번만」의 그 한 번을 세는 자리다. 사용자별인 이유는 `byUser` 와 같다 —
+   * 개발용 신원 전환으로 계정을 오가면 사람마다 따로 한 번씩 올라가야 한다.
+   * localStorage 를 비우면 이 표시도 함께 사라지지만, 그때는 올릴 로컬 행도 같이
+   * 사라진 뒤라 다시 훑어도 올릴 게 없다.
+   */
+  botsMigratedUserIds: string[];
+  /** 이관 완료 표시 — 두 번 불러도 한 칸이다(멱등). */
+  markBotsMigrated: (userId: string) => void;
   /** 공부한 날 기록 — 같은 날 여러 번 불러도 한 칸이다(멱등). */
   recordStudyDay: (userId: string, date?: string) => void;
 
@@ -152,7 +203,10 @@ interface SelfLearningStore {
 }
 
 /** persist 에 실제로 내려앉는 필드만. */
-type PersistedState = Pick<SelfLearningStore, 'byUser' | 'goals' | 'unitProgress'>;
+type PersistedState = Pick<
+  SelfLearningStore,
+  'byUser' | 'botsMigratedUserIds' | 'goals' | 'unitProgress'
+>;
 
 /** 네임스페이스 이전(v0) 모양 — `migrate` 가 읽기만 하고 옮기지는 않는다. */
 interface LegacyStateV0 {
@@ -180,6 +234,7 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
   persist(
     (set, get) => ({
       byUser: {},
+      botsMigratedUserIds: [],
 
       addSelfBot: (userId, botId) => {
         if (!userId || !botId) return;
@@ -200,6 +255,15 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
               : r,
           ),
         }));
+      },
+
+      markBotsMigrated: (userId) => {
+        if (!userId) return;
+        set((s) =>
+          s.botsMigratedUserIds.includes(userId)
+            ? s
+            : { botsMigratedUserIds: [...s.botsMigratedUserIds, userId] },
+        );
       },
 
       recordStudyDay: (userId, date) => {
@@ -262,6 +326,7 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
       version: PERSIST_VERSION,
       partialize: (s): PersistedState => ({
         byUser: s.byUser,
+        botsMigratedUserIds: s.botsMigratedUserIds,
         goals: s.goals,
         unitProgress: s.unitProgress,
       }),
@@ -290,6 +355,7 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
         const old = (persisted ?? {}) as LegacyStateV0;
         return {
           byUser: {},
+          botsMigratedUserIds: [],
           goals: old.goals ?? [],
           unitProgress: old.unitProgress ?? [],
         };
