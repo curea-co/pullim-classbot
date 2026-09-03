@@ -3,29 +3,34 @@
  *
  * 목적: 도메인 읽기의 mock 폴백 제거 → **인증 + 실DB**.
  *  - 인증 필수: 세션 없으면 **401** (D1 로그인월 — 익명 mock 통과 없음).
- *  - 명의(studentId)는 JWT claim(sub)에서만 결정(위조 방지).
+ *  - 명의(studentId)는 신원 해석기에서만 결정(위조 방지).
  *  - assignments 를 본인 명의로 필터해 반환(신원 격리).
+ *
+ * **반 단위 발사도 함께 본다.** 교사가 반 전체에 쏜 과제는 학생 1인 행을 만들지 않으므로
+ * `student_id = 나` 한 줄로는 학생 화면에 영영 안 나온다. 넓힌 술어는
+ * `app/api/_lib/assignment-visibility.ts` 가 소유한다.
  *
  * 문항(assignment_questions) 등 상세는 Stage 2 `/api/assignments/[id]` 범위.
  */
 
 import { NextResponse } from 'next/server';
-import { desc, eq } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { assignments } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
+import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 import { denyUnlessRole } from '@/app/api/_lib/guards';
 
 export const runtime = 'nodejs';
 
 /**
- * 내게 배정된 과제 목록을 본인 명의로 조회한다(학생 시점).
+ * 내게 보여야 할 과제 목록 — 개인 배정 + 반 단위 발사(학생 시점).
  *
  * 스펙 § 4.5 는 이 경로를 `?audience=student|teacher` 공용 표면으로 두었으나, **구현된 것은
  * 학생 시점뿐이다.** 교사 시점(출제한 과제)이 비어 있는 이유와 그것을 채우려면 무엇을 먼저
  * 정해야 하는지는 아래 가드 옆 주석에 적혀 있다.
- * @param req - Authorization: Bearer access
+ * @param req - Authorization: Bearer access 또는 개발용 신원 쿠키
  * @returns 200 { assignments: [...] } | 401 | 403
  */
 export async function GET(req: Request): Promise<NextResponse> {
@@ -56,8 +61,9 @@ export async function GET(req: Request): Promise<NextResponse> {
   const rows = await getDb()
     .select()
     .from(assignments)
-    .where(eq(assignments.studentId, studentId))
-    .orderBy(desc(assignments.id));
+    .where(visibleAssignmentsWhere(studentId))
+    // id 는 uuid 라 시간순이 아니다 — 발사 시각을 먼저 본다.
+    .orderBy(desc(assignments.dispatchedAt), desc(assignments.id));
 
   return NextResponse.json({ assignments: rows });
 }
