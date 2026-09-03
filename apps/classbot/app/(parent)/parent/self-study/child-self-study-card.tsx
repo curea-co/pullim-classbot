@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, Share2 } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 
 import { KpiStat } from '@/components/classbot/kpi-stat';
 import { formatAddedAt } from '@/components/classbot/marketplace';
@@ -104,15 +104,19 @@ export function ChildSelfStudyCard({ child }: { child: ParentSelfStudyChild }) {
  * 면이 너무 세게 튄다. 20% 틴트는 다섯을 같은 밝기로 눕혀 두면서 색상은 남긴다 —
  * 「어느 과목인지 알아보는 표시」라는 원래 용도에는 그걸로 충분하다.
  *
- * ## 타일 안의 그림은 **임시다** — `avatarEmoji` 가 오면 갈아 끼운다
+ * ## 타일 안은 **아이가 보는 그 얼굴**이다 — lucide 글리프로 되돌리지 마라
  *
- * 아이는 봇을 🧑‍🔬 로 보고 「과학봇」이라 부르는데 부모는 회색 lucide 글리프를 본다.
- * 둘이 같은 봇을 이야기하면서 다른 것을 보고 있는 셈이라, 이건 취향 문제가 아니라 **어긋남**이다.
- * `avatarEmoji` 는 아이가 고른 봇의 공개 필드라 내보내도 새는 게 없어서
- * `ParentSelfStudyBot` 에 추가를 요청해 뒀다(계약 §4 가 막는 값이 아니다).
+ * 아이는 봇을 🧑‍🔬 로 보고 「과학봇」이라 부른다. 부모 화면에 회색 글리프가 떠 있으면 둘이
+ * 같은 봇을 이야기하면서 서로 다른 것을 보고 있는 셈이라, `avatarEmoji` 가 이 자리에 왔다.
  *
- * 오면 아래 한 줄만 바꾼다 — `{bot.avatarEmoji || <Bot … />}`.
- * **글리프를 지우지 마라.** 이모지가 빈 봇이 있을 수 있어 그대로 대체 그림으로 남는다.
+ * 처음엔 「이모지가 없는 봇은 글리프로」를 대비책으로 두려 했는데 **그게 틀렸다.**
+ * `class_bots.avatar_emoji` 는 `NOT NULL DEFAULT '🤖'` 라 이모지를 안 고른 봇은 null 이
+ * 아니라 **로봇 얼굴 🤖 로 도착한다.** 그 자리에 글리프를 그리면 아이는 🤖 를 보고 부모는
+ * 회색 글리프를 보게 되어, 이 필드가 없애려던 어긋남을 **정확히 다시 만든다.**
+ * 그래서 대비책은 글리프가 아니라 **같은 🤖** 다 — 담은 봇 카드가 쓰는 것과 같은 값이다
+ * (`my-bots/my-bot-card.tsx` 의 `bot?.avatarEmoji || '🤖'`).
+ *
+ * 기준은 「빈 값을 어떻게 메우나」가 아니라 **「아이 화면과 같은가」**다. 그 하나만 지키면 된다.
  */
 function SelfStudyBotRow({ bot }: { bot: ParentSelfStudyBot }) {
   const sig = botSignature({ id: bot.botId, subject: bot.subject });
@@ -121,11 +125,11 @@ function SelfStudyBotRow({ bot }: { bot: ParentSelfStudyBot }) {
   return (
     <li className="border-pullim-slate-100 flex items-center gap-3 rounded-xl border px-3 py-2.5">
       <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
         style={{ backgroundColor: `color-mix(in oklab, ${sig.hex} 20%, white)` }}
         aria-hidden
       >
-        <Bot className="h-4 w-4" style={{ color: sig.inkLight }} />
+        {bot.avatarEmoji || '🤖'}
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-pullim-slate-900 truncate text-sm font-bold">{bot.name}</p>
