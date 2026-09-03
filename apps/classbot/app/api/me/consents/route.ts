@@ -67,8 +67,8 @@ export const runtime = 'nodejs';
  * @returns 200 { parent, consents } | 401
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const [recipient, rows] = await Promise.all([
     // 부여 라우트와 **같은 함수**다 — 화면이 적은 이름과 실제로 grant 가 갈 보호자가
@@ -111,8 +111,8 @@ export async function GET(req: Request): Promise<NextResponse> {
  * @returns 201 { consent } | 200 { consent }(갱신) | 400 | 401
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const body = await readJsonBody(req);
   if (!body) return invalidInput('요청 본문을 읽지 못했어요.');

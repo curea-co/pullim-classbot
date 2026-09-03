@@ -59,8 +59,8 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ type: string }> },
 ): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
-  if (!isAuthenticated) return unauthorized();
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  if (!isIdentified) return unauthorized();
 
   const { type } = await ctx.params;
   // 세그먼트는 인코딩되어 올 수 있고, 망가진 escape(`%E0%A4%A`)는 디코드가 **던진다** —

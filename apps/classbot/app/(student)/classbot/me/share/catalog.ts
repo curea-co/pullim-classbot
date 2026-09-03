@@ -2,6 +2,10 @@ import type { LucideIcon } from 'lucide-react';
 import { BookOpen, HeartOff, ListX, MessageCircleOff } from 'lucide-react';
 
 import type { ConsentType } from '@/hooks/api/consents';
+// 서버가 학생에게 허용한 타입 목록 — **타입만** 가져온다.
+// `_lib/consent.ts` 는 drizzle 과 DB 스키마를 무는 서버 모듈이라, 값으로 import 하면
+// 그 둘이 브라우저 번들에 실린다. `import type` 은 컴파일에서 지워진다.
+import type { StudentGrantableType } from '@/app/api/_lib/consent';
 
 /**
  * 공유 화면이 말하는 **두 목록** — 나갈 수 있는 것과, 어떻게 해도 안 나가는 것.
@@ -24,11 +28,20 @@ export interface ShareableItem {
    * 이 동의 하나로 나가는 칸들을 **하나씩** 적는다.
    * 「학습 요약」처럼 뭉뚱그리면 학생은 자기가 무엇을 줬는지 끝내 모른다.
    */
-  fields: string[];
+  fields: readonly string[];
 }
 
-/** 지금 켤 수 있는 것. 동의는 타입별로 쪼갠다 — 한 줄이 한 동의다. */
-export const SHAREABLE_ITEMS: readonly ShareableItem[] = [
+/**
+ * 지금 켤 수 있는 것. 동의는 타입별로 쪼갠다 — 한 줄이 한 동의다.
+ *
+ * ⛔ **서버가 학생에게 허용한 타입은 여기 전부 있어야 한다.**
+ * 아래 `UnrenderedGrantableType` 이 그것을 컴파일 시점에 강제한다. 없으면 이렇게 샌다 —
+ * 서버가 새 타입을 학생에게 열었는데 이 목록에 줄을 안 더하면, 학생은 그 동의를
+ * **화면에서 볼 수도 끌 수도 없는 채로** 주게 된다. 배열끼리는 TypeScript 가
+ * 빠짐을 잡아 주지 않으므로(길이·원소를 검사하지 않는다) 명시적으로 못박는다.
+ * 반대 방향(화면이 서버가 모르는 타입을 그리는 것)은 `type: ConsentType` 이 이미 막는다.
+ */
+export const SHAREABLE_ITEMS = [
   {
     type: 'self_study_summary',
     icon: BookOpen,
@@ -40,7 +53,7 @@ export const SHAREABLE_ITEMS: readonly ShareableItem[] = [
       '며칠 이어서 공부했는지',
     ],
   },
-];
+] as const satisfies readonly ShareableItem[];
 
 /** 어떻게 해도 안 나가는 것. 켜고 끄는 자리가 아예 없다 — 그래서 스위치도 안 그린다. */
 export const NEVER_SHARED: ReadonlyArray<{
@@ -84,3 +97,13 @@ export const NEVER_SHARED: ReadonlyArray<{
 export function isShareableType(type: string): boolean {
   return SHAREABLE_ITEMS.some((item) => item.type === type);
 }
+
+/*
+  서버가 학생에게 허용한 타입(`STUDENT_GRANTABLE_TYPES`) 중 위 목록이 그리지 않는 것.
+  하나라도 남으면 `never` 가 아니게 되어 **이 줄에서 타입 에러가 난다** —
+  「끌 수 없는 동의」가 배포되기 전에 여기서 걸린다.
+*/
+type RenderedType = (typeof SHAREABLE_ITEMS)[number]['type'];
+type UnrenderedGrantableType = Exclude<StudentGrantableType, RenderedType>;
+const _allGrantableTypesAreRendered: UnrenderedGrantableType extends never ? true : never = true;
+void _allGrantableTypesAreRendered;
