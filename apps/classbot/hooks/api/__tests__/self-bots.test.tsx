@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -11,7 +11,11 @@ import {
   useSelfStreak,
   useSelfStudyDays,
 } from '../self-bots';
-import { useSelfLearningStore, type SelfBotRow } from '@/lib/store/self-learning';
+import {
+  useSelfLearningStore,
+  useStreak,
+  type SelfBotRow,
+} from '@/lib/store/self-learning';
 
 const SEOYEON = 'student_001';
 const MINJUN = 'student_002';
@@ -42,6 +46,19 @@ jest.mock('@/lib/auth/auth-context', () => ({
   useAuth: () => ({ user: authUser }),
 }));
 
+/**
+ * 하이드레이션이 끝났는가 — 기본값은 **끝난 뒤**(마운트 직후의 현실)다.
+ *
+ * `false` 로 두면 **첫 페인트 상태**를 재현한다. 그때는 쿠키도 세션도 아직 안 읽혀서
+ * 신원이 있는 사람도 비로그인으로 보이고, `useCurrentUserId()` 가 데모 폴백을 준다.
+ * 실물에서는 `useSyncExternalStore` 가 하이드레이션 커밋에서 갈리므로 훅 모킹만으로는
+ * 그 창을 만들 수 없다 — 그래서 이 값으로 만든다.
+ */
+let storesHydrated = true;
+jest.mock('@/lib/store/use-hydrated', () => ({
+  useStoresHydrated: () => storesHydrated,
+}));
+
 /** 공개 데모(비로그인)로 바꾼다 — 세션도 개발 쿠키도 없는 상태. */
 function goDemo(): void {
   devIdentityId = '';
@@ -57,10 +74,38 @@ function goDemo(): void {
 
 /** 사용자 id → 그 사람이 담은 봇(담은 순). */
 let serverBots: Record<string, SelfBotRow[]>;
+/** 사용자 id → 그 사람이 공부한 날(오름차순). */
+let serverDays: Record<string, string[]>;
 /** 오간 요청 전부 — 「한 번만 올린다」를 세는 자리. */
-let calls: { method: string; path: string; body?: { botId?: string } }[];
+let calls: {
+  method: string;
+  path: string;
+  body?: { botId?: string; date?: string; days?: string[] };
+}[];
 /** botId → 이 봇을 담으려 하면 낼 응답 코드(이관 실패 시나리오용). */
 let addFailures: Record<string, number>;
+/** 0 이 아니면 백필 라우트가 그 코드로 답한다(백필 실패 시나리오용). */
+let backfillFailure: number;
+/** 0 이 아니면 공부한 날 조회가 그 코드로 답한다. */
+let daysListFailure: number;
+
+/**
+ * 서버가 아는 「오늘」 — KST. 진짜 시계를 읽지 않는다.
+ *
+ * 날짜를 생략한 기록의 답과 「미래는 거절」의 기준이 **서버 쪽에 있다**는 것이 계약 §2 라,
+ * 테스트에서도 그 판정을 서버 흉내 쪽에 둔다. 클라이언트가 자기 오늘을 만들어 보내면
+ * 이 상수와 어긋나 곧바로 드러난다.
+ */
+const SERVER_TODAY = '2026-09-03';
+/** 2년 이전은 거절 — 계약 §2. */
+const OLDEST_ALLOWED = '2024-09-03';
+
+/** 서버가 받아 주는 날짜인가 — 형식·미래·2년 이전(계약 §2). */
+function isAcceptableDay(day: unknown): day is string {
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  if (Number.isNaN(Date.parse(day))) return false;
+  return day <= SERVER_TODAY && day >= OLDEST_ALLOWED;
+}
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -73,10 +118,62 @@ function jsonResponse(status: number, body: unknown): Response {
 function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const path = String(input);
   const method = init?.method ?? 'GET';
-  const body = init?.body ? (JSON.parse(String(init.body)) as { botId?: string }) : undefined;
+  const body = init?.body
+    ? (JSON.parse(String(init.body)) as { botId?: string; date?: string; days?: string[] })
+    : undefined;
   calls.push({ method, path, body });
 
   const rows = (serverBots[currentUserId] ??= []);
+  const days = (serverDays[currentUserId] ??= []);
+
+  if (method === 'GET' && path === '/api/me/study-days') {
+    if (daysListFailure) {
+      return Promise.resolve(
+        jsonResponse(daysListFailure, { message: '서버 오류', code: 'UNKNOWN' }),
+      );
+    }
+    return Promise.resolve(jsonResponse(200, { days: [...days].sort() }));
+  }
+
+  if (method === 'POST' && path === '/api/me/study-days') {
+    const day = body?.date ?? SERVER_TODAY;
+    if (!isAcceptableDay(day)) {
+      return Promise.resolve(
+        jsonResponse(400, { message: '기록할 수 없는 날짜예요.', code: 'INVALID_INPUT' }),
+      );
+    }
+    if (days.includes(day)) {
+      return Promise.resolve(jsonResponse(200, { recorded: true, date: day })); // 멱등
+    }
+    days.push(day);
+    days.sort();
+    return Promise.resolve(jsonResponse(201, { recorded: true, date: day }));
+  }
+
+  if (method === 'POST' && path === '/api/me/study-days/backfill') {
+    if (backfillFailure) {
+      return Promise.resolve(
+        jsonResponse(backfillFailure, { message: '올리지 못했어요.', code: 'UNKNOWN' }),
+      );
+    }
+    const sent = body?.days ?? [];
+    if (sent.length > 400) {
+      return Promise.resolve(
+        jsonResponse(400, { message: '한 번에 너무 많아요.', code: 'INVALID_INPUT' }),
+      );
+    }
+    let inserted = 0;
+    for (const day of sent) {
+      // 형식·미래·2년 이전·중복은 전부 skip 이다 — 400 으로 요청 전체를 죽이지 않는다.
+      if (!isAcceptableDay(day) || days.includes(day)) continue;
+      days.push(day);
+      inserted += 1;
+    }
+    days.sort();
+    return Promise.resolve(
+      jsonResponse(200, { inserted, skipped: sent.length - inserted }),
+    );
+  }
 
   if (method === 'GET' && path === '/api/me/self-bots') {
     return Promise.resolve(jsonResponse(200, { bots: [...rows] }));
@@ -107,11 +204,31 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   return Promise.resolve(jsonResponse(404, { message: '없어요.', code: 'NOT_FOUND' }));
 }
 
-/** GET 이 몇 번 나갔나 — 무효화가 실제로 다시 읽었는지 세는 자리. */
-const getCount = () => calls.filter((c) => c.method === 'GET').length;
+/** 담은 봇 GET 이 몇 번 나갔나 — 무효화가 실제로 다시 읽었는지 세는 자리. */
+const getCount = () =>
+  calls.filter((c) => c.method === 'GET' && c.path === '/api/me/self-bots').length;
 /** 이 봇을 담으려는 POST 가 몇 번 나갔나. */
 const addCount = (botId: string) =>
   calls.filter((c) => c.method === 'POST' && c.body?.botId === botId).length;
+/** 백필 요청이 몇 번 나갔나 — 「한 번만」을 세는 자리. */
+const backfillCalls = () =>
+  calls.filter((c) => c.path === '/api/me/study-days/backfill');
+/** 백필로 실제 올라간 날짜 전부(나눠 보냈으면 합쳐서). */
+const backfilledDays = () => backfillCalls().flatMap((c) => c.body?.days ?? []);
+
+/**
+ * 학습 화면(`app/(student)/classbot/learn/[tutorId]/page.tsx`)이 훅을 쓰는 모양 그대로.
+ *
+ * **마운트 effect 에서 기록을 부른다** — 이 자리가 하이드레이션 창과 겹쳐서, 훅이 판정을
+ * 의존성에 넣으면 루프가 되고 첫 페인트에 로컬로 쓰면 남의 통에 들어간다.
+ */
+function useLearnPageLike(): { data: string[] } {
+  const { mutate } = useRecordSelfStudyDay();
+  useEffect(() => {
+    mutate();
+  }, [mutate]);
+  return useSelfStudyDays();
+}
 
 /** 테스트 하나가 쓰는 QueryClient — 신원을 바꿔도 **같은 캐시**여야 분리를 증명한다. */
 let queryClient: QueryClient;
@@ -121,12 +238,26 @@ function Wrapper({ children }: { children: ReactNode }) {
 
 /** 로컬(P1·P2)에 담겨 있던 행을 심는다 — 이관의 소스. */
 function seedLocalBots(userId: string, botIds: string[]): void {
+  seedLocal(userId, { bots: botIds.map((botId) => ({ botId, addedAt: '2026-09-01T00:00:00.000Z' })) });
+}
+
+/** 로컬(P1~P3)에 쌓여 있던 공부한 날을 심는다 — 백필의 소스. */
+function seedLocalDays(userId: string, studyDays: string[]): void {
+  seedLocal(userId, { studyDays });
+}
+
+/** 한 사용자 통을 통째로 심는다(안 준 칸은 빈 값). */
+function seedLocal(
+  userId: string,
+  patch: { bots?: SelfBotRow[]; studyDays?: string[] },
+): void {
+  const byUser = useSelfLearningStore.getState().byUser;
   useSelfLearningStore.setState({
     byUser: {
-      ...useSelfLearningStore.getState().byUser,
+      ...byUser,
       [userId]: {
-        bots: botIds.map((botId) => ({ botId, addedAt: '2026-09-01T00:00:00.000Z' })),
-        studyDays: [],
+        bots: patch.bots ?? byUser[userId]?.bots ?? [],
+        studyDays: patch.studyDays ?? byUser[userId]?.studyDays ?? [],
       },
     },
   });
@@ -136,12 +267,17 @@ beforeEach(() => {
   currentUserId = SEOYEON;
   devIdentityId = SEOYEON;
   authUser = null;
+  storesHydrated = true;
   serverBots = {};
+  serverDays = {};
   calls = [];
   addFailures = {};
+  backfillFailure = 0;
+  daysListFailure = 0;
   useSelfLearningStore.setState({
     byUser: {},
     botsMigratedUserIds: [],
+    studyDaysBackfilledUserIds: [],
     goals: [],
     unitProgress: [],
   });
@@ -369,6 +505,10 @@ describe('공개 데모 (비로그인)', () => {
 
     expect(calls).toHaveLength(0);
     expect(useSelfLearningStore.getState().botsMigratedUserIds).toEqual([]);
+    // 서버 목록이 없으니 청소도 돌지 않는다 — 이 통은 찌꺼기가 아니라 유일한 사본이다(계약 §5).
+    expect(
+      useSelfLearningStore.getState().byUser[SEOYEON]?.bots.map((b) => b.botId),
+    ).toEqual([BOT_A]);
   });
 
   it('데모로 담아 둔 뒤 신원이 생기면 그때 올라간다', async () => {
@@ -407,14 +547,56 @@ describe('한 번만 올리는 이관 (계약 §4)', () => {
     expect(addCount(BOT_A)).toBe(0); // 서버에 이미 있다
   });
 
-  it('올린 뒤에도 로컬 행을 지우지 않는다 — 실패했으면 그게 유일한 사본이다', async () => {
+  /**
+   * 계약 §5 — P3 가 미룬 청소. 지우는 근거는 **「올리기가 성공했다」가 아니라 「서버 목록에
+   * 돌아왔다」**여서, 올린 뒤 무효화가 목록을 다시 읽은 다음에 걷힌다.
+   */
+  it('서버 목록에 돌아온 행은 로컬에서 걷는다 (계약 §5)', async () => {
     seedLocalBots(SEOYEON, [BOT_A]);
     const { result } = renderHook(() => useMySelfBots(), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.data?.map((b) => b.botId)).toEqual([BOT_A]));
 
-    expect(useSelfLearningStore.getState().byUser[SEOYEON]?.bots.map((b) => b.botId)).toEqual([
-      BOT_A,
-    ]);
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().byUser[SEOYEON]?.bots).toEqual([]),
+    );
+  });
+
+  /**
+   * ⛔ 계약 §5 의 판별자는 **`botsMigratedUserIds`** 다. 그 목록에 없는 통은 서버를 만난 적이
+   * 없는 **공개 데모의 유일한 사본**이라, 서버가 같은 botId 를 알고 있어도 걷지 않는다.
+   *
+   * 여기서는 「올리기가 다시 해 볼 만하게 실패해 표시가 안 남은」 상태로 그 조건을 만든다 —
+   * 서버는 BOT_A 를 알고 있지만 이 통은 아직 이관을 마치지 않았다.
+   */
+  it('⛔ 완료 표시가 없는 통은 서버가 그 행을 알아도 걷지 않는다', async () => {
+    seedLocalBots(SEOYEON, [BOT_A, BOT_B]);
+    serverBots[SEOYEON] = [{ botId: BOT_A, addedAt: '2026-08-01T00:00:00.000Z' }];
+    addFailures[BOT_B] = 503; // 다시 해 볼 만한 실패 → 완료 표시가 남지 않는다
+
+    const { result } = renderHook(() => useMySelfBots(), { wrapper: Wrapper });
+    await waitFor(() => expect(addCount(BOT_B)).toBe(1));
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().botsMigratedUserIds).not.toContain(SEOYEON),
+    );
+
+    // 서버가 BOT_A 를 돌려줬지만 표시가 없으니 두 행 다 그대로다.
+    expect(
+      useSelfLearningStore.getState().byUser[SEOYEON]?.bots.map((b) => b.botId),
+    ).toEqual([BOT_A, BOT_B]);
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('P3 시절 찌꺼기도 걷는다 — 이관을 이미 마친 사람이라 다시 올리지는 않는다', async () => {
+    seedLocalBots(SEOYEON, [BOT_A]);
+    serverBots[SEOYEON] = [{ botId: BOT_A, addedAt: '2026-08-01T00:00:00.000Z' }];
+    useSelfLearningStore.setState({ botsMigratedUserIds: [SEOYEON] });
+
+    renderHook(() => useMySelfBots(), { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().byUser[SEOYEON]?.bots).toEqual([]),
+    );
+    expect(addCount(BOT_A)).toBe(0); // 완료 표시가 있어 이관은 돌지 않았다
   });
 
   it('두 번 마운트해도 한 번만 올린다 — 완료 표시가 남는다', async () => {
@@ -496,49 +678,159 @@ describe('한 번만 올리는 이관 (계약 §4)', () => {
       expect(useSelfLearningStore.getState().botsMigratedUserIds).toContain(SEOYEON),
     );
     expect(result.current.isError).toBe(false);
+    // 서버 목록에 끝내 안 돌아온 행이라 **로컬에 남는다** — 그게 유일한 사본이다(계약 §5).
+    expect(
+      useSelfLearningStore.getState().byUser[SEOYEON]?.bots.map((b) => b.botId),
+    ).toEqual([BOT_A]);
   });
 });
 
-/* ── 공부한 날 · 연속 학습 — 아직 localStorage (P4 몫) ────────────────────── */
+/* ── 공부한 날 · 연속 학습 — 서버 (계약 §3) ────────────────────────────────── */
 
-describe('공부한 날 기록', () => {
-  it('같은 날 두 번 눌러도 한 칸이다', () => {
+describe('공부한 날 — 서버에서 읽고 쓴다', () => {
+  it('서버가 준 날짜를 그대로 읽는다', async () => {
+    serverDays[SEOYEON] = ['2026-09-01', '2026-09-02'];
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(result.current.data).toEqual(['2026-09-01', '2026-09-02']),
+    );
+    expect(calls.some((c) => c.method === 'GET' && c.path === '/api/me/study-days')).toBe(
+      true,
+    );
+  });
+
+  it('기록하면 서버에 남는다 — 같은 날 두 번 눌러도 한 칸이다', async () => {
     const { result } = renderHook(
       () => ({ days: useSelfStudyDays(), record: useRecordSelfStudyDay() }),
       { wrapper: Wrapper },
     );
-    act(() => {
-      result.current.record.mutate('2026-09-02');
-      result.current.record.mutate('2026-09-02');
-    });
-    expect(result.current.days.data).toEqual(['2026-09-02']);
+    await waitFor(() => expect(result.current.days.data).toEqual([]));
+
+    await act(async () => result.current.record.mutate('2026-09-02'));
+    await act(async () => result.current.record.mutate('2026-09-02'));
+
+    await waitFor(() => expect(result.current.days.data).toEqual(['2026-09-02']));
+    expect(serverDays[SEOYEON]).toEqual(['2026-09-02']);
   });
 
-  it('날짜를 안 주면 오늘로 기록한다', () => {
+  /**
+   * 「오늘」을 두 벌 만들지 않는다 — 클라이언트가 자기 시계로 날짜를 지어내 보내면
+   * 기기 시간대만큼 남의 날짜가 된다. 본문은 빈 객체로 가고 **서버가 정한 날**이 돌아온다.
+   */
+  it('날짜를 안 주면 서버가 오늘을 정한다 — 본문은 빈 객체다', async () => {
     const { result } = renderHook(
       () => ({ days: useSelfStudyDays(), record: useRecordSelfStudyDay() }),
       { wrapper: Wrapper },
     );
-    act(() => result.current.record.mutate());
-    expect(result.current.days.data).toHaveLength(1);
-    expect(result.current.days.data[0]).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await waitFor(() => expect(result.current.days.data).toEqual([]));
+
+    await act(async () => result.current.record.mutate());
+
+    await waitFor(() => expect(result.current.days.data).toEqual([SERVER_TODAY]));
+    const post = calls.find((c) => c.method === 'POST' && c.path === '/api/me/study-days');
+    expect(post?.body).toEqual({});
   });
 
-  it('빈 날을 사이에 두면 연속이 끊긴다', () => {
+  /**
+   * ⛔ 회귀 방지. 학습 화면이 이 `mutate` 를 **effect 의존성**에 넣고 부른다
+   * (`app/(student)/classbot/learn/[tutorId]/page.tsx`). 정체가 왕복마다 바뀌면 effect 가
+   * 다시 돌고 또 왕복해 **무한 루프**가 된다 — P4 첫 판이 실제로 그랬다(초당 수천 건).
+   */
+  it('⛔ mutate 정체가 고정이다 — effect 에서 불러도 한 번만 나간다', async () => {
+    const { result } = renderHook(() => useLearnPageLike(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual([SERVER_TODAY]));
+    // 왕복이 끝나 `isPending` 이 다시 바뀐 뒤에도 늘지 않는다.
+    await waitFor(() => expect(serverDays[SEOYEON]).toEqual([SERVER_TODAY]));
+    expect(
+      calls.filter((c) => c.method === 'POST' && c.path === '/api/me/study-days'),
+    ).toHaveLength(1);
+  });
+
+  /**
+   * ⛔ 첫 페인트에서는 **모두가 「아무도 아니다」.** 그 순간 로컬에 쓰면 민준의 공부한 날이
+   * 데모 폴백(서연)의 통에 들어가고, P4 의 백필이 그것을 **서연 명의로 서버에 올린다.**
+   * 그래서 판정이 설 때까지 들고 있다가 그때 보낸다 — 기록을 버리지도 않는다.
+   *
+   * (브라우저 실측이 근거다: `pullim_dev_identity=s2` 로 학습 화면을 열면 서버에는 `s2` 로
+   * 남는데 localStorage 에는 `byUser.student_001` 에 적혔다.)
+   */
+  it('⛔ 첫 페인트의 「아무도 아님」에 로컬로 쓰지 않고, 신원이 서면 그쪽으로 보낸다', async () => {
+    storesHydrated = false;
+    devIdentityId = ''; // 쿠키를 아직 못 읽었다 — 비로그인과 구별되지 않는 구간
+    currentUserId = SEOYEON; // 그 구간의 `useCurrentUserId()` = 데모 폴백
+
+    const { rerender } = renderHook(() => useLearnPageLike(), { wrapper: Wrapper });
+
+    // 어느 통에도 쓰지 않았다.
+    expect(useSelfLearningStore.getState().byUser).toEqual({});
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+
+    // 하이드레이션 — 쿠키가 읽히고 진짜 신원이 정해진다.
+    storesHydrated = true;
+    devIdentityId = SEOYEON;
+    rerender();
+
+    await waitFor(() => expect(serverDays[SEOYEON]).toEqual([SERVER_TODAY]));
+    expect(calls.filter((c) => c.method === 'POST' && c.path === '/api/me/study-days')).toHaveLength(1);
+    expect(useSelfLearningStore.getState().byUser).toEqual({}); // 로컬에는 끝내 안 썼다
+  });
+
+  it('연속일수는 서버 날짜에서 계산된다 — 숫자를 받아 오지 않는다', async () => {
+    serverDays[SEOYEON] = ['2026-09-01', '2026-09-02', '2026-09-03'];
+    const { result } = renderHook(() => useSelfStreak(), { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(result.current).toEqual({ count: 3, lastStudyDate: '2026-09-03' }),
+    );
+    // 서버 응답에 연속일수 같은 숫자 칸이 없다는 것 — 계약 §1.
+    const listed = calls.filter((c) => c.path === '/api/me/study-days' && c.method === 'GET');
+    expect(listed.length).toBeGreaterThan(0);
+    expect(calls.some((c) => /streak|count/i.test(c.path))).toBe(false);
+  });
+
+  it('빈 날을 사이에 두면 연속이 끊긴다', async () => {
+    serverDays[SEOYEON] = ['2026-09-01', '2026-09-02', '2026-09-05'];
+    const { result } = renderHook(() => useSelfStreak(), { wrapper: Wrapper });
+    await waitFor(() =>
+      expect(result.current).toEqual({ count: 1, lastStudyDate: '2026-09-05' }),
+    );
+  });
+
+  it('신원이 바뀌면 남의 날짜가 남지 않는다 (queryKey 꼬리)', async () => {
+    serverDays[SEOYEON] = ['2026-09-01', '2026-09-02'];
+    serverDays[MINJUN] = ['2026-09-03'];
+
+    const { result, rerender } = renderHook(() => useSelfStreak(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.count).toBe(2));
+
+    currentUserId = MINJUN;
+    rerender();
+    await waitFor(() =>
+      expect(result.current).toEqual({ count: 1, lastStudyDate: '2026-09-03' }),
+    );
+  });
+
+  /**
+   * 셸 헤더 뱃지(`components/shell/app-header.tsx`)가 부르는 이름. 화면 파일을 건드리지
+   * 않고 출처만 서버로 옮겼다 — `useSelfStreak()` 와 **같은 값**이어야 한다.
+   */
+  it('셸 뱃지의 useStreak() 도 같은 값을 서버에서 읽는다', async () => {
+    serverDays[SEOYEON] = ['2026-09-02', '2026-09-03'];
     const { result } = renderHook(
-      () => ({ streak: useSelfStreak(), record: useRecordSelfStudyDay() }),
+      () => ({ shell: useStreak(), page: useSelfStreak() }),
       { wrapper: Wrapper },
     );
-    act(() => {
-      result.current.record.mutate('2026-09-01');
-      result.current.record.mutate('2026-09-02');
-      result.current.record.mutate('2026-09-05');
-    });
-    expect(result.current.streak).toEqual({ count: 1, lastStudyDate: '2026-09-05' });
-  });
 
-  it('공부한 날·연속일수도 사용자별로 갈린다 — 서버로 안 갔어도 그대로다', () => {
-    const { result, rerender } = renderHook(
+    await waitFor(() => expect(result.current.shell.count).toBe(2));
+    expect(result.current.shell).toEqual(result.current.page);
+  });
+});
+
+describe('공개 데모 — 공부한 날도 서버에 가지 않는다', () => {
+  it('⛔ 요청을 한 건도 내보내지 않고 localStorage 에 남는다', async () => {
+    goDemo();
+    const { result } = renderHook(
       () => ({
         days: useSelfStudyDays(),
         streak: useSelfStreak(),
@@ -547,22 +839,217 @@ describe('공부한 날 기록', () => {
       { wrapper: Wrapper },
     );
 
-    act(() => {
-      result.current.record.mutate('2026-09-01');
-      result.current.record.mutate('2026-09-02');
-    });
-    expect(result.current.days.data).toEqual(['2026-09-01', '2026-09-02']);
-    expect(result.current.streak).toEqual({ count: 2, lastStudyDate: '2026-09-02' });
+    act(() => result.current.record.mutate('2026-09-02'));
+    act(() => result.current.record.mutate('2026-09-03'));
+
+    expect(calls).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.current.days.data).toEqual(['2026-09-02', '2026-09-03']);
+    expect(result.current.streak).toEqual({ count: 2, lastStudyDate: '2026-09-03' });
+    expect(useSelfLearningStore.getState().byUser[SEOYEON]?.studyDays).toEqual([
+      '2026-09-02',
+      '2026-09-03',
+    ]);
+  });
+
+  it('백필을 돌리지 않는다 — 올릴 서버가 없는데 완료 표시를 남기면 진짜 백필을 건너뛴다', async () => {
+    goDemo();
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-01']));
+    expect(calls).toHaveLength(0);
+    expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toEqual([]);
+  });
+
+  /**
+   * ⛔ 미뤄 두는 장치(`deferred`)가 **데모의 기록을 삼키면 안 된다.** 하이드레이션 전에
+   * 들어온 기록은 버려지는 게 아니라 판정이 선 뒤 로컬로 간다.
+   */
+  it('학습 화면처럼 마운트 effect 에서 불러도 데모 기록이 남는다', async () => {
+    goDemo();
+    const { result } = renderHook(() => useLearnPageLike(), { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().byUser[SEOYEON]?.studyDays).toHaveLength(1),
+    );
+    expect(result.current.data).toHaveLength(1);
+    expect(calls).toHaveLength(0);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('공부한 날도 사용자별로 갈린다 — 서버에 안 갔어도 그대로다', () => {
+    goDemo();
+    const { result, rerender } = renderHook(
+      () => ({ days: useSelfStudyDays(), record: useRecordSelfStudyDay() }),
+      { wrapper: Wrapper },
+    );
+
+    act(() => result.current.record.mutate('2026-09-01'));
+    expect(result.current.days.data).toEqual(['2026-09-01']);
 
     currentUserId = MINJUN;
     rerender();
     expect(result.current.days.data).toEqual([]);
-    expect(result.current.streak).toEqual({ count: 0, lastStudyDate: null });
+  });
+});
+
+describe('한 번만 올리는 백필 (계약 §4)', () => {
+  it('로컬에 쌓인 날짜를 올리고, 이미 서버에 있는 날은 다시 올리지 않는다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01', '2026-09-02']);
+    serverDays[SEOYEON] = ['2026-09-01'];
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() =>
+      expect(result.current.data).toEqual(['2026-09-01', '2026-09-02']),
+    );
+
+    expect(backfillCalls()).toHaveLength(1);
+    expect(backfilledDays()).toEqual(['2026-09-02']); // 서버에 있던 날은 빠졌다
   });
 
-  it('공부한 날은 서버에 가지 않는다 — P4 몫이다', () => {
-    const { result } = renderHook(() => useRecordSelfStudyDay(), { wrapper: Wrapper });
-    act(() => result.current.mutate('2026-09-02'));
-    expect(calls.filter((c) => c.path.includes('study'))).toHaveLength(0);
+  it('두 번 마운트해도 한 번만 올린다 — 완료 표시가 남는다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+
+    const first = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(first.result.current.data).toEqual(['2026-09-01']));
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON),
+    );
+    expect(backfillCalls()).toHaveLength(1);
+    first.unmount();
+
+    const second = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(second.result.current.data).toEqual(['2026-09-01']));
+    expect(backfillCalls()).toHaveLength(1); // 늘지 않았다
+  });
+
+  it('같은 화면에 훅이 여럿이어도 한 번만 올린다 (셸 뱃지 + 화면)', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    const { result } = renderHook(
+      () => ({ shell: useStreak(), page: useSelfStudyDays(), streak: useSelfStreak() }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(result.current.page.data).toEqual(['2026-09-01']));
+    expect(backfillCalls()).toHaveLength(1);
+  });
+
+  it('올릴 게 없어도 완료 표시를 남긴다 — 매 로드마다 다시 훑지 않는다', async () => {
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual([]));
+
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON),
+    );
+    expect(backfillCalls()).toHaveLength(0);
+  });
+
+  /**
+   * ⛔ 남의 통을 훑으면 서연의 공부한 날이 **민준 명의로** 박힌다 — 사용자별 네임스페이스가
+   * 막으려던 그 버그가 아직 일어날 수 있는 마지막 자리다.
+   */
+  it('현재 사용자의 통만 올린다 — 남의 날짜는 건드리지 않는다', async () => {
+    seedLocalDays(MINJUN, ['2026-08-01']);
+    serverDays[SEOYEON] = ['2026-09-02'];
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    // 서버 응답이 실제로 온 뒤에 판정한다 — 응답 전에도 `data` 는 `[]` 라 그것만으로는
+    // 「백필이 안 돌았다」를 증명하지 못한다.
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-02']));
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON),
+    );
+
+    expect(backfillCalls()).toHaveLength(0);
+    expect(serverDays[SEOYEON]).toEqual(['2026-09-02']); // 민준의 8월 1일이 섞이지 않았다
+    expect(useSelfLearningStore.getState().byUser[MINJUN]?.studyDays).toEqual(['2026-08-01']);
+    expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).not.toContain(MINJUN);
+  });
+
+  it('서버 목록을 못 읽으면 아무것도 올리지 않는다 — 무엇이 이미 있는지 모른다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    daysListFailure = 500;
+
+    renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    // 5xx 는 한 번 다시 물어본다(`retryUnlessGuarded`) — 두 번째 조회까지 실패한 뒤에 본다.
+    await waitFor(() =>
+      expect(
+        calls.filter((c) => c.method === 'GET' && c.path === '/api/me/study-days').length,
+      ).toBeGreaterThan(1),
+    );
+
+    expect(backfillCalls()).toHaveLength(0);
+    expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).not.toContain(SEOYEON);
+    expect(useSelfLearningStore.getState().byUser[SEOYEON]?.studyDays).toHaveLength(1);
+  });
+
+  it('다시 해 볼 만한 실패(5xx)면 완료 표시를 남기지 않는다 — 다음 로드에서 또 해 본다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    backfillFailure = 503;
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(backfillCalls().length).toBeGreaterThan(0));
+
+    // 백필 실패가 화면을 죽이지 않는다 — 서버 목록은 그대로 읽힌다.
+    expect(result.current.data).toEqual([]);
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).not.toContain(SEOYEON),
+    );
+    expect(useSelfLearningStore.getState().byUser[SEOYEON]?.studyDays).toEqual(['2026-09-01']);
+  });
+
+  it('400 은 다시 보내도 같으니 표시를 남기고 넘어간다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    backfillFailure = 400;
+
+    renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON),
+    );
+  });
+
+  /**
+   * 형식이 어긋난 값·미래 날짜를 **클라이언트가 먼저 자르지 않는다.** 거르는 자리는
+   * 서버 하나여야 규칙이 두 벌로 갈리지 않는다(계약 §2). 그래서 요청 본문에는 그대로 실리고,
+   * 서버 목록에는 안 들어간다.
+   */
+  it('형식이 틀린 값·미래 날짜도 그대로 보내고, 서버가 걸러 낸다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01', '2099-01-01', '어제', '2020-01-01']);
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(backfillCalls()).toHaveLength(1));
+
+    // 보낸 것: 로컬에 있던 넷 그대로.
+    expect(backfilledDays()).toEqual(['2026-09-01', '2099-01-01', '어제', '2020-01-01']);
+    // 남은 것: 서버가 받아 준 하나뿐.
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-01']));
+    expect(serverDays[SEOYEON]).toEqual(['2026-09-01']);
+  });
+
+  it('상한(400개)을 넘으면 나눠 보낸다 — 잘라 버리지 않는다', async () => {
+    // 2026-09-03 에서 하루씩 거슬러 올라간 401 일. 전부 2년 안쪽이라 서버가 다 받는다.
+    const many = Array.from({ length: 401 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 8, 3) - i * 86_400_000);
+      return d.toISOString().slice(0, 10);
+    }).sort();
+    seedLocalDays(SEOYEON, many);
+
+    renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(backfillCalls()).toHaveLength(2));
+
+    expect(backfillCalls()[0].body?.days).toHaveLength(400);
+    expect(backfillCalls()[1].body?.days).toHaveLength(1);
+    await waitFor(() => expect(serverDays[SEOYEON]).toHaveLength(401));
+  });
+
+  it('올린 뒤에도 로컬 날짜는 남는다 — 걷는 것은 P5 다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-01']));
+
+    expect(useSelfLearningStore.getState().byUser[SEOYEON]?.studyDays).toEqual([
+      '2026-09-01',
+    ]);
   });
 });

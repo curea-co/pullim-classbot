@@ -9,6 +9,7 @@
 
 import {
   boolean,
+  date,
   doublePrecision,
   foreignKey,
   index,
@@ -171,6 +172,47 @@ export const selfEnrollments = pgTable(
     pk: primaryKey({ columns: [t.botId, t.studentId] }),
     // 읽기는 언제나 「내가 담은 것」이라 student_id 단독 조회가 유일한 조회 축이다.
     byStudent: index('self_enrollments_student_idx').on(t.studentId),
+  }),
+);
+
+/**
+ * 공부한 날 — 자기주도로 학습한 **날짜**를 하루 한 줄로 쌓는다 (자기주도 계약 §1).
+ *
+ * **숫자를 저장하지 않는다.** 연속일수는 읽을 때 날짜에서 계산한다(`deriveStreak`) —
+ * 저장된 카운터는 어느 날들로 그 수가 나왔는지 알 수 없어 검증도 복구도 안 된다.
+ * 날짜가 정본이고 연속일수는 파생이다.
+ *
+ * `study_date` 는 **KST 기준의 하루**다. 서버가 「오늘」을 정하는 곳은 한 군데
+ * (`app/api/_lib/study-date.ts` 의 `kstToday()`)이고, 그 하루의 경계는 브라우저가 쓰는
+ * 로컬 자정(`lib/store/today-key.ts`)과 **한국에서 같은 자리**에 있다.
+ *
+ * ⚠️ **이 컬럼을 그대로 select 하지 마라.** 타입은 `string` 이지만 node-postgres 는
+ * DATE(oid 1082)를 **로컬시간 `Date` 객체로 파싱**해서 돌려준다(`postgres-date`) —
+ * 타입과 런타임이 어긋나고, 서버 TZ 가 KST 가 아니면 하루가 밀린다. 읽는 쪽은 언제나
+ * `to_char(study_date, 'YYYY-MM-DD')` 로 **캐스팅해서** 읽는다(라우트 참조).
+ *
+ * `origin` 이 있는 이유: 백필된 날은 **학생 기기가 준 기록**이라, 그날 앱에서 실제로
+ * 학습해 서버가 받은 날과 신뢰도가 다르다. 학부모에게 보일 때 이 구분이 필요해진다.
+ * 지금 화면에 내보내지는 않는다 — 컬럼만 정확히 남긴다. 그리고 **'app' 이 'backfill' 로
+ * 되돌아가는 경로는 없다**(백필 삽입은 `onConflictDoNothing`).
+ */
+export const selfStudyDays = pgTable(
+  'self_study_days',
+  {
+    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** `'YYYY-MM-DD'`(KST 기준의 하루). 읽기는 위 ⚠️ 대로 to_char 캐스팅으로. */
+    studyDate: date('study_date', { mode: 'string' }).notNull(),
+    /** 'app' = 그날 앱에서 받은 기록 · 'backfill' = 학생 기기가 나중에 올린 기록. */
+    origin: text('origin', { enum: ['app', 'backfill'] }).notNull().default('app'),
+  },
+  (t) => ({
+    // 읽기는 언제나 「내가 공부한 날」이라 student_id 단독 조회가 유일한 조회 축인데,
+    // **그 축은 이 PK 가 이미 덮는다**(선행 컬럼이 student_id 라 같은 btree 로 찾는다).
+    // 그래서 `self_enrollments` 와 달리 student_id 보조 인덱스를 두지 않는다 — 저 테이블은
+    // PK 가 (bot_id, student_id) 라서 학생 축이 선행이 아니고, 그래서 보조 인덱스가 필요했다.
+    // 여기에 같은 모양을 따라 두면 쓰기 비용만 영원히 물고, 다음 사람은 「내가 못 보는 이유가
+    // 있나」를 먼저 의심하게 된다.
+    pk: primaryKey({ columns: [t.studentId, t.studyDate] }),
   }),
 );
 
@@ -736,6 +778,7 @@ export const templates = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   enrollments: many(enrollments),
   selfEnrollments: many(selfEnrollments),
+  selfStudyDays: many(selfStudyDays),
   assignments: many(assignments),
   emotionCheckIns: many(emotionCheckIns),
   wellbeingSnapshots: many(wellbeingSnapshots),
@@ -773,6 +816,10 @@ export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
 export const selfEnrollmentsRelations = relations(selfEnrollments, ({ one }) => ({
   bot: one(classBots, { fields: [selfEnrollments.botId], references: [classBots.id] }),
   student: one(users, { fields: [selfEnrollments.studentId], references: [users.id] }),
+}));
+
+export const selfStudyDaysRelations = relations(selfStudyDays, ({ one }) => ({
+  student: one(users, { fields: [selfStudyDays.studentId], references: [users.id] }),
 }));
 
 export const lessonsRelations = relations(lessons, ({ one, many }) => ({
@@ -861,6 +908,7 @@ export type Classroom = typeof classrooms.$inferSelect;
 export type ClassBotRow = typeof classBots.$inferSelect;
 export type Enrollment = typeof enrollments.$inferSelect;
 export type SelfEnrollment = typeof selfEnrollments.$inferSelect;
+export type SelfStudyDayRow = typeof selfStudyDays.$inferSelect;
 export type BotCurriculumUnitRow = typeof botCurriculumUnits.$inferSelect;
 export type BotSettingsRow = typeof botSettings.$inferSelect;
 export type LessonRow = typeof lessons.$inferSelect;

@@ -20,6 +20,7 @@ beforeEach(() => {
   useSelfLearningStore.setState({
     byUser: {},
     botsMigratedUserIds: [],
+    studyDaysBackfilledUserIds: [],
     goals: [],
     unitProgress: [],
   });
@@ -80,6 +81,78 @@ describe('이관 완료 표시 — 「한 번만」의 그 한 번', () => {
   it('빈 사용자 id 는 표시하지 않는다', () => {
     act(() => store().markBotsMigrated(''));
     expect(store().botsMigratedUserIds).toEqual([]);
+  });
+});
+
+describe('서버가 아는 행 걷기 — dropUploadedBots (계약 §5)', () => {
+  it('서버 목록에 있는 행만 걷고, 없는 행은 남긴다', () => {
+    act(() => {
+      store().addSelfBot(SEOYEON, BOT_A);
+      store().addSelfBot(SEOYEON, BOT_B);
+      store().dropUploadedBots(SEOYEON, [BOT_A]);
+    });
+    expect(recordOf(SEOYEON)?.bots.map((b) => b.botId)).toEqual([BOT_B]);
+  });
+
+  it('남의 통은 건드리지 않는다', () => {
+    act(() => {
+      store().addSelfBot(SEOYEON, BOT_A);
+      store().addSelfBot(MINJUN, BOT_A);
+      store().dropUploadedBots(SEOYEON, [BOT_A]);
+    });
+    expect(recordOf(SEOYEON)?.bots).toEqual([]);
+    expect(recordOf(MINJUN)?.bots.map((b) => b.botId)).toEqual([BOT_A]);
+  });
+
+  it('빈 목록은 아무것도 걷지 않는다 — 서버가 「하나도 없다」고 답한 것과 「모른다」를 섞지 않는다', () => {
+    act(() => {
+      store().addSelfBot(SEOYEON, BOT_A);
+      store().dropUploadedBots(SEOYEON, []);
+    });
+    expect(recordOf(SEOYEON)?.bots.map((b) => b.botId)).toEqual([BOT_A]);
+  });
+
+  it('걷을 게 없으면 스토어를 흔들지 않는다 — 서버 목록이 올 때마다 도는 자리다', () => {
+    act(() => store().addSelfBot(SEOYEON, BOT_A));
+    const before = useSelfLearningStore.getState().byUser;
+    act(() => store().dropUploadedBots(SEOYEON, [BOT_B]));
+    expect(useSelfLearningStore.getState().byUser).toBe(before);
+  });
+
+  it('공부한 날은 건드리지 않는다 — 이번에 걷는 것은 담은 봇뿐이다', () => {
+    act(() => {
+      store().addSelfBot(SEOYEON, BOT_A);
+      store().recordStudyDay(SEOYEON, '2026-09-01');
+      store().dropUploadedBots(SEOYEON, [BOT_A]);
+    });
+    expect(recordOf(SEOYEON)?.bots).toEqual([]);
+    expect(recordOf(SEOYEON)?.studyDays).toEqual(['2026-09-01']);
+  });
+});
+
+describe('백필 완료 표시 — 담은 봇 이관과 따로 센다', () => {
+  it('두 번 표시해도 한 칸이고, 사용자별로 따로 남는다', () => {
+    act(() => {
+      store().markStudyDaysBackfilled(SEOYEON);
+      store().markStudyDaysBackfilled(SEOYEON);
+      store().markStudyDaysBackfilled(MINJUN);
+    });
+    expect(store().studyDaysBackfilledUserIds).toEqual([SEOYEON, MINJUN]);
+  });
+
+  it('빈 사용자 id 는 표시하지 않는다', () => {
+    act(() => store().markStudyDaysBackfilled(''));
+    expect(store().studyDaysBackfilledUserIds).toEqual([]);
+  });
+
+  /** 두 이관은 다른 단계에 다른 라우트로 나갔다 — 한쪽 성공이 다른 쪽을 건너뛰게 하면 안 된다. */
+  it('담은 봇 이관 표시와 서로 영향을 주지 않는다', () => {
+    act(() => store().markBotsMigrated(SEOYEON));
+    expect(store().studyDaysBackfilledUserIds).toEqual([]);
+
+    act(() => store().markStudyDaysBackfilled(MINJUN));
+    expect(store().botsMigratedUserIds).toEqual([SEOYEON]);
+    expect(store().studyDaysBackfilledUserIds).toEqual([MINJUN]);
   });
 });
 
@@ -253,6 +326,9 @@ describe('persist 마이그레이션 v0 → v1', () => {
     expect(recordOf(MINJUN)).toBeUndefined();
     // 완료 표시도 함께 살아남는다 — 안 그러면 매 로드마다 다시 올린다.
     expect(store().botsMigratedUserIds).toEqual([MINJUN]);
+    // P4 가 더한 칸은 v1 저장본에 없다. 버전을 올리지 않았고, 기본 병합이 초기값을 남긴다 —
+    // 「아직 한 번도 백필 안 함」이라는 맞는 뜻이다(migrate 주석).
+    expect(store().studyDaysBackfilledUserIds).toEqual([]);
   });
 
   it('v0 에서 올라온 사람은 이관 완료 표시가 없다 — 아직 한 번도 안 올렸다', async () => {

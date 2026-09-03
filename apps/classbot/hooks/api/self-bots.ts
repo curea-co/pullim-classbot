@@ -7,15 +7,17 @@
  * 안쪽만 localStorage → 서버로 갈아 끼웠다. 화면 파일은 한 줄도 손대지 않았다.
  * 시그니처는 그대로 **동결**이다 — 고쳐야 할 것 같으면 바꾸지 말고 보고한다.
  *
- * ## 두 슬라이스가 지금 서로 다른 곳에 산다
- *  - **담은 봇** — 서버(`/api/me/self-bots`). 기기·브라우저를 넘어 남는다. ← 이번 단계
- *  - **공부한 날·연속 학습** — 아직 localStorage(`lib/store/self-learning.ts`). **P4 몫**이라
- *    이번엔 손대지 않는다. 한 파일이 두 출처를 읽는 게 어색해 보이는 건 맞지만,
- *    그게 지금의 사실이라 감추지 않고 적어 둔다.
+ * ## 두 슬라이스가 이제 같은 곳에 산다 — 서버
+ *  - **담은 봇** — `/api/me/self-bots`(P3).
+ *  - **공부한 날·연속 학습** — `/api/me/study-days`(P4, 이번 단계). 기기·브라우저를 넘어
+ *    남는다. **`localStorage.clear()` 를 해도 연속일수가 그대로인 것**이 이 단계의 요점이다.
+ *
+ * 연속일수는 **숫자로 저장하지 않는다.** 서버가 주는 날짜 배열에서 `deriveStreak` 로 그때그때
+ * 계산한다 — 카운터는 어느 날들로 그 수가 나왔는지 검증할 수 없다(계약 §1).
  *
  * ## ⛔ 신원이 없으면 서버를 부르지 않는다 — 지우지 마라
  *
- * 담은 봇은 **신원이 있을 때만** 서버로 간다. 없으면 예전처럼 localStorage 를 읽고 쓰고,
+ * 담은 봇도 공부한 날도 **신원이 있을 때만** 서버로 간다. 없으면 예전처럼 localStorage 를 읽고 쓰고,
  * **요청을 아예 내보내지 않는다.** 「일단 보내고 401 을 화면이 받는다」(`classroom.ts` 규약)를
  * 여기서만 따르지 않는 이유가 있다:
  *
@@ -26,7 +28,7 @@
  *  - 401 을 「고장」이 아니라 **데모 상태**로 다루는 건 과제 폼에서 이미 내린 판단이다.
  *    새 규칙이 아니라 그 선례를 같은 이유로 따르는 것이다.
  *
- * 그래서 아래 `useHasServerIdentity()` 가 갈래를 정한다. **「간단히 하겠다」며 이 분기를 걷어
+ * 그래서 `useHasServerIdentity()`(`./self-server`)가 갈래를 정한다. **「간단히 하겠다」며 이 분기를 걷어
  * 무조건 쿼리로 만들면 prod 데모가 조용히 깨진다.** 로컬에서는 개발 쿠키가 있어 티가 안 난다.
  *
  * 신원이 있을 때 게이트는 `useAuth().user` 가 아니라 `useCurrentUserId()` 다 — 개발용 신원
@@ -42,23 +44,32 @@
  *  - `isPending` — 담기·빼기 왕복 중. 데모의 쓰기는 동기라 언제나 `false` 다.
  */
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiClientError, apiDelete, apiGet, apiPost } from '@/lib/api/client-fetch';
-import { useAuth } from '@/lib/auth/auth-context';
 import { useCurrentUserId } from '@/lib/current-user';
-import { useDevIdentityId } from '@/lib/use-dev-identity';
 import {
   deriveStreak,
   useSelfLearningStore,
+  useStudyDayBackfill,
   type SelfBotRow,
 } from '@/lib/store/self-learning';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import {
+  isRetriableUploadError,
+  retryUnlessGuarded,
+  selfStudyDayKeys,
+  useHasServerIdentity,
+  useServerStudyDays,
+} from '@/hooks/api/self-server';
 import type {
   AddSelfBotInput,
   AddSelfBotResponse,
   MySelfBotsResponse,
+  MyStudyDaysResponse,
+  RecordStudyDayInput,
+  RecordStudyDayResponse,
   RemoveSelfBotResponse,
 } from '@/hooks/api/types';
 
@@ -84,41 +95,14 @@ export const selfBotKeys = {
   mine: ['self-bots'] as const,
 };
 
-/** 401 은 다시 물어도 같은 답이다 — 게이트로 넘긴다. 그 밖에는 1회만 다시. */
-function retryUnlessGuarded(failureCount: number, error: unknown): boolean {
-  if (error instanceof ApiClientError && error.status < 500) return false;
-  return failureCount < 1;
-}
-
-/**
- * 서버가 **내 명의를 인정해 주는 상태인가** — 담은 봇이 서버로 갈지 데모로 갈지 가르는 값.
- *
- * ⚠️ `useCurrentUser().isAuthenticated` 를 쓰면 **안 된다.** 이름과 달리 이 질문의 답이
- * 아니다. 그 플래그는 「진짜 로그인 세션인가」라서 **개발용 신원 쿠키에 일부러 false** 를
- * 준다(`lib/current-user.ts` 의 ⚠️ 주석 — RoleGuard 가 데모 통과 경로를 인증으로 세는 것을
- * 막는 값이다). 그런데 **서버는 그 쿠키를 인정한다**(`getCurrentUserIdFromRequest` 는 dev
- * 쿠키에 `isAuthenticated: true`). 두 값은 뜻이 달라서 어긋난 게 아니라 각자 맞다.
- *
- * 그 플래그로 갈랐다면 개발 쿠키를 쓴 로컬·dev preview 전체가 데모로 떨어져 **서버에 한 번도
- * 안 가고**, 그러면서 prod 만 서버를 부르는 정반대 동작이 된다. 그래서 여기서는 서버의
- * 판정 조건을 그대로 다시 적는다 — **JWT 세션이거나, 유효한 개발 신원 쿠키이거나.**
- *
- * `useDevIdentityId()` 는 prod 호스트에서 **항상 빈 문자열**이다(`resolveDevIdentity` 가
- * 호스트로 먼저 거른다). 그래서 prod 에 낡은 쿠키가 남아 있어도 데모로 떨어진다 —
- * 서버가 그 쿠키를 무시하는 것과 같은 판정이다.
- *
- * SSR 스냅샷도 빈 문자열이라 첫 페인트는 데모 쪽이고 하이드레이션 직후 갈린다. 그 구간에
- * 빈 목록이 새지 않는 이유는 `useMySelfBots` 의 `isLoading` 처리에 적어 뒀다.
- *
- * (다른 훅도 같은 갈래가 필요해지면 이 판정을 `lib/current-user.ts` 로 올려야 한다.
- * 그건 공유 파일이라 별건 승인 사항이라서, 지금은 이 파일 안에 둔다.)
- * @returns 서버에 물어봐도 되는 신원이면 true
- */
-function useHasServerIdentity(): boolean {
-  const { user } = useAuth();
-  const devIdentityId = useDevIdentityId();
-  return Boolean(user) || Boolean(devIdentityId);
-}
+/*
+  신원 판정(`useHasServerIdentity`)·재시도 규칙(`retryUnlessGuarded` ·
+  `isRetriableUploadError`)·공부한 날 조회는 `./self-server` 로 옮겼다.
+  P3 때는 이 파일 안에 있었는데, P4 에서 **스토어의 `useStreak()`** 도 같은 판정과 같은
+  조회를 필요로 하게 됐다. 스토어가 이 파일을 import 하면 순환이라(이 파일이 스토어를
+  import 한다) 스토어를 모르는 얇은 층을 따로 두고 양쪽이 그것을 읽는다.
+  **판정 자체는 한 글자도 바뀌지 않았다** — 옮기기만 했다.
+*/
 
 /** 조회 훅 공통 모양 — react-query 결과에서 화면이 쓰는 세 칸만 추린 것. */
 export interface SelfQueryResult<T> {
@@ -222,6 +206,11 @@ export function useAddSelfBot(): SelfMutationResult<string> {
       void queryClient.invalidateQueries({ queryKey: selfBotKeys.mine });
     },
   });
+  // ⚠️ 의존성에 `mutation` **객체**를 넣지 마라 — 왕복마다 정체가 바뀌어 이 `mutate` 도
+  // 매번 새 함수가 된다. 그 함수를 `useEffect` 의존성에 넣은 화면이 무한 루프에 빠진다
+  // (`useRecordSelfStudyDay` 주석에 실제 사례). `mutation.mutate` 는 react-query 가
+  // 정체를 고정해 주는 함수라 그것만 뽑아 쓴다.
+  const { mutate: runMutation } = mutation;
   const mutate = useCallback(
     (botId: string) => {
       // 데모는 서버에 가지 않고 예전 자리에 그대로 쓴다(머리주석 ⛔).
@@ -229,9 +218,9 @@ export function useAddSelfBot(): SelfMutationResult<string> {
         addLocalSelfBot(userId, botId);
         return;
       }
-      mutation.mutate(botId);
+      runMutation(botId);
     },
-    [hasServerIdentity, addLocalSelfBot, userId, mutation],
+    [hasServerIdentity, addLocalSelfBot, userId, runMutation],
   );
   return useMemo(
     // 데모의 쓰기는 동기라 기다릴 구간이 없다.
@@ -265,15 +254,16 @@ export function useRemoveSelfBot(): SelfMutationResult<string> {
       void queryClient.invalidateQueries({ queryKey: selfBotKeys.mine });
     },
   });
+  const { mutate: runMutation } = mutation; // 정체 고정 — 위 `useAddSelfBot` 주석 참조
   const mutate = useCallback(
     (botId: string) => {
       if (!hasServerIdentity) {
         removeLocalSelfBot(userId, botId);
         return;
       }
-      mutation.mutate(botId);
+      runMutation(botId);
     },
-    [hasServerIdentity, removeLocalSelfBot, userId, mutation],
+    [hasServerIdentity, removeLocalSelfBot, userId, runMutation],
   );
   return useMemo(
     () => ({ mutate, isPending: hasServerIdentity && mutation.isPending }),
@@ -295,12 +285,6 @@ export function useRemoveSelfBot(): SelfMutationResult<string> {
  */
 const uploading = new Set<string>();
 
-/** 다시 해 볼 만한 실패인가 — 네트워크 단절·5xx·401 만. 404 는 다시 해도 같은 답이다. */
-function isRetriableUploadError(error: unknown): boolean {
-  if (!(error instanceof ApiClientError)) return true; // 네트워크가 끊긴 경우 등
-  return error.status >= 500 || error.status === 401;
-}
-
 /**
  * 로컬에만 있는 담은 봇을 서버로 한 번 올린다 — 실패해도 화면은 죽지 않는다.
  *
@@ -317,11 +301,23 @@ function isRetriableUploadError(error: unknown): boolean {
  * 그게 아직 일어날 수 있는 마지막 자리에서 되살리는 셈이다. 다른 통은 **그 신원이 다음에
  * 활성일 때** 자기 손으로 올라간다. 그때까지 건드리지 않는다.
  *
- * ## 올린 뒤에도 로컬 행을 **지우지 않는다**
- * 비대칭이 결정한다: 지웠는데 올리기가 미묘하게 틀렸으면 데이터가 사라지고, 남겨 두면
- * 최악이 P4 까지 남는 죽은 바이트다. 그래서 **읽기만 끊고 그대로 둔다.** 서버가 정본이 된 뒤
- * 화면은 서버만 읽으므로 남은 로컬 행이 목록에 겹쳐 보이는 일은 없다.
- * 정리는 **P4** 가 `studyDays` 를 서버로 옮기면서 함께 한다 — 청소를 두 번 하지 않는다.
+ * ## 걷는 조건은 **둘**이다 (계약 §5 — P3 가 미룬 정리)
+ * P3 는 「올린 뒤에도 지우지 않는다」로 두고 정리를 P4 에 넘겼다. 그 청소가 이것인데,
+ * **`byUser[].bots` 는 절반만 찌꺼기다.** 공개 데모 방문자는 신원이 없어 데모 폴백
+ * `student_001` 이 되므로, `byUser['student_001'].bots` 는 **이관을 마친 서연의 찌꺼기**일
+ * 수도 **prod 익명 방문자의 유일한 사본**일 수도 있다. 모양으로는 구별되지 않는다.
+ *
+ *  ① **`botsMigratedUserIds` 에 그 id 가 있어야 한다.** 계약이 지목한 판별자다. 없으면
+ *     그 통은 서버를 만난 적이 없다 — 한 줄도 지우지 않는다.
+ *  ② **그 행이 서버 목록에 돌아와 있어야 한다.** 「우리 요청이 201 을 받았다」를 근거로
+ *     지우지 않는다 — 서버가 자기 목록에 실어 주는 쪽이 한 단계 강한 증거다. 올린 직후
+ *     무효화가 목록을 다시 읽으므로 보통 같은 화면에서 끝나고, 그 왕복이 실패하면 다음
+ *     로드에서 걷힌다.
+ *
+ * 그래서 남는 로컬 행의 뜻이 하나로 좁혀진다 — **서버가 아직 모르는 행.** 없는 봇(404)처럼
+ * 영영 못 올라가는 행은 그대로 남는다. 그게 그 행의 유일한 사본이라 지울 수 없다.
+ * 비로그인 데모는 ① 도 ② 도 성립하지 않는다(`serverBots` 자체가 `undefined` 다) —
+ * 그 통은 찌꺼기가 아니라 **살아 있는 데이터**다(스토어 머리주석의 표).
  * @param userId - 현재 사용자
  * @param serverBots - 서버 목록. `undefined` 면 아직 안 왔거나 데모라 아무것도 안 한다
  */
@@ -334,16 +330,40 @@ function useLocalSelfBotUpload(
 
   useEffect(() => {
     if (!userId || !hydrated || !serverBots) return;
+    const serverBotIds = serverBots.map((b) => b.botId);
+
+    /**
+     * 청소(계약 §5) — **두 조건이 다 맞을 때만** 이 통에서 행을 걷는다.
+     *  ① 이 신원이 이관을 마쳤다(`botsMigratedUserIds`). 계약이 지목한 판별자이고,
+     *     **없으면 그 통은 서버를 만난 적이 없는 공개 데모의 유일한 사본**이다.
+     *  ② 그 행이 방금 받은 서버 목록에 **들어 있다**. 「우리 요청이 201 을 받았다」보다
+     *     서버가 자기 목록에 실어 주는 쪽이 한 단계 강한 증거다.
+     *
+     * 둘 중 하나만으로도 데모는 안전하다(신원이 없으면 `serverBots` 자체가 오지 않는다).
+     * 그래도 둘을 다 거는 이유: **머리주석의 표가 ① 로 두 절반을 가른다고 적혀 있다.**
+     * 코드가 ② 만 보고 지우면 문서와 코드가 다른 것을 근거로 삼게 되고, 다음 사람이
+     * 어느 쪽을 믿어야 할지 알 수 없다.
+     */
+    const dropIfMigrated = () => {
+      const s = useSelfLearningStore.getState();
+      if (!s.botsMigratedUserIds.includes(userId)) return;
+      s.dropUploadedBots(userId, serverBotIds);
+    };
+
+    dropIfMigrated();
+
     if (uploading.has(userId)) return;
     const state = useSelfLearningStore.getState();
     if (state.botsMigratedUserIds.includes(userId)) return;
 
-    const onServer = new Set(serverBots.map((b) => b.botId));
+    const onServer = new Set(serverBotIds);
     const pending = (state.byUser[userId]?.bots ?? []).filter(
       (b) => !onServer.has(b.botId),
     );
     if (pending.length === 0) {
+      // 올릴 게 없다 = 이 통은 서버와 이미 같다. 표시를 남기고, 그 표시로 곧바로 걷는다.
       state.markBotsMigrated(userId);
+      dropIfMigrated();
       return;
     }
 
@@ -365,6 +385,9 @@ function useLocalSelfBotUpload(
       );
       if (!retriable) useSelfLearningStore.getState().markBotsMigrated(userId);
 
+      // 올린 행을 여기서 걷지 않는다 — 지금 손에 든 목록은 **올리기 전** 것이라 방금 올린
+      // 행이 없다. 무효화가 새 목록을 가져오면 이 effect 가 다시 돌고, 그때 위 `dropIfMigrated`
+      // 가 「서버가 돌려준 행」으로 걷는다.
       if (results.some((r) => r.status === 'fulfilled')) {
         void queryClient.invalidateQueries({ queryKey: selfBotKeys.mine });
       }
@@ -374,45 +397,154 @@ function useLocalSelfBotUpload(
   }, [userId, hydrated, serverBots, queryClient]);
 }
 
-/* ── 공부한 날 · 연속 학습 — 아직 localStorage (P4 몫) ────────────────────────
- * 위 담은 봇과 달리 이 아래는 서버에 가지 않는다. 같은 파일에 있는 이유는 화면이 읽는
- * 입구가 하나여야 해서고, P4 에서 이쪽도 같은 방식으로 안쪽만 갈아 끼운다.
+/* ── 공부한 날 · 연속 학습 — 서버 (계약 §3) ──────────────────────────────────
+ * 담은 봇과 **같은 규율**이다: 신원이 있으면 서버, 없으면 localStorage 이고 요청은 아예
+ * 안 나간다. export 시그니처는 P1 이 정한 그대로라 화면 파일은 이번에도 한 줄도 안 바뀌었다.
  * ------------------------------------------------------------------------- */
 
 /**
  * 공부한 날 `'YYYY-MM-DD'` — 오름차순·중복 없음.
  *
- * P4 `self_study_days` 의 한 행이 이 배열의 한 칸이다. 카운터가 아니라 날짜를 쌓아 두는
- * 이유가 그것 — 나중에 이 배열을 그대로 서버로 올린다.
+ * `self_study_days` 의 한 행이 이 배열의 한 칸이다. 카운터가 아니라 날짜를 쌓는 이유가
+ * 그것 — 이 배열이 그대로 서버의 행이고, 연속일수는 여기서 **읽을 때** 계산된다.
+ *
+ * ⚠️ 이 시그니처에는 **로딩 칸이 없다**(계약 §3 동결). 서버 응답 전에는 `[]` 다.
+ * 「기록 없음」과 「아직 안 옴」이 구별되지 않으므로, 그 둘을 갈라 그려야 하는 화면이
+ * 생기면 시그니처를 바꿀 게 아니라 **보고해라**(머리주석). 지금 유일한 소비자인 연속일수
+ * 뱃지는 0 이면 숨는 자리라 문제가 되지 않는다.
  * @returns 날짜 배열(없으면 빈 배열)
  */
 export function useSelfStudyDays(): { data: string[] } {
   const userId = useCurrentUserId();
-  const days = useSelfLearningStore(
+  const { days: serverDays, hasServerIdentity } = useServerStudyDays();
+
+  // 데모 경로 — 신원이 있을 때는 이 구독이 값을 쓰지 않지만, 훅 순서를 지키려 항상 건다.
+  const localDays = useSelfLearningStore(
     (s) => s.byUser[userId]?.studyDays ?? EMPTY_DAYS,
   );
-  return useMemo(() => ({ data: days }), [days]);
+
+  // 로컬에 쌓여 있던 날짜를 한 번 올린다(계약 §4). 셸 뱃지(`useStreak`)도 같은 훅을
+  // 부르는데, 자물쇠와 완료 표시가 모듈 전역이라 둘이 함께 떠 있어도 한 번만 올라간다.
+  useStudyDayBackfill(serverDays);
+
+  return useMemo(
+    () => ({ data: hasServerIdentity ? (serverDays ?? EMPTY_DAYS) : localDays }),
+    [hasServerIdentity, serverDays, localDays],
+  );
 }
 
 /**
- * 오늘 공부했다고 기록 — 하루에 여러 번 불러도 한 칸이다(멱등).
- * @returns `mutate(date?)` — 날짜를 안 주면 오늘(`lib/store/today-key.ts`)
+ * 오늘 공부했다고 기록 — `POST /api/me/study-days`. 하루에 여러 번 불러도 한 칸이다(멱등).
+ *
+ * **날짜를 안 주면 「오늘」을 서버가 정한다**(KST). 클라이언트가 자기 시계로 오늘을 만들어
+ * 보내면 기기 시간대·시계 오차만큼 남의 날짜가 된다 — 그래서 두 번째 「오늘」을 만들지 않고,
+ * 응답이 돌려주는 `date` 를 그대로 캐시에 얹는다. (데모는 서버가 없으니 예전처럼
+ * `lib/store/today-key.ts` 의 오늘을 쓴다. 사용자가 한국에 있어 로컬 = KST 다.)
+ * @returns `mutate(date?)` — 날짜를 안 주면 오늘
  */
 export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   const userId = useCurrentUserId();
-  const recordStudyDay = useSelfLearningStore((s) => s.recordStudyDay);
-  const mutate = useCallback(
-    (date?: string) => recordStudyDay(userId, date),
-    [recordStudyDay, userId],
+  const hasServerIdentity = useHasServerIdentity();
+  const recordLocalStudyDay = useSelfLearningStore((s) => s.recordStudyDay);
+  // 하이드레이션이 끝났는가 — 아래 ⛔ 「첫 페인트에서는 아무도 아니다」에서 쓴다.
+  const settled = useStoresHydrated(useSelfLearningStore);
+  const queryClient = useQueryClient();
+  const mutation = useMutation<RecordStudyDayResponse, ApiClientError, string | undefined>({
+    // 날짜가 없어도 **본문은 보낸다**(`{}`) — 빈 본문은 서버가 JSON 을 파싱할 게 없어
+    // 갈래가 하나 늘어난다. 「생략」의 뜻은 빈 객체로 싣는다.
+    mutationFn: (date) =>
+      apiPost<RecordStudyDayResponse>(
+        '/api/me/study-days',
+        (date ? { date } : {}) satisfies RecordStudyDayInput,
+      ),
+    onSuccess: (res) => {
+      // 담기와 같은 이유로 캐시를 먼저 늘린다 — 다시 읽어 오는 한 왕복 동안 연속일수가
+      // 예전 값으로 남아 있으면 기록이 안 된 것처럼 보인다.
+      queryClient.setQueryData<MyStudyDaysResponse>(
+        [...selfStudyDayKeys.mine, userId],
+        (old) =>
+          old && !old.days.includes(res.date)
+            ? { ...old, days: [...old.days, res.date].sort() }
+            : old,
+      );
+      void queryClient.invalidateQueries({ queryKey: selfStudyDayKeys.mine });
+    },
+  });
+  const { mutate: runMutation } = mutation;
+
+  /*
+    ⛔ **이 `mutate` 의 정체는 고정이다 — 그래야 하는 이유가 둘이다.**
+
+    부르는 화면이 이렇게 쓴다:
+
+        const { mutate: recordStudyDay } = useRecordSelfStudyDay();
+        useEffect(() => { recordStudyDay(); }, [recordStudyDay]);
+        // app/(student)/classbot/learn/[tutorId]/page.tsx
+
+    ① **무한 루프.** P4 첫 판은 `useMutation()` 이 돌려주는 **객체**를 `useCallback`
+       의존성에 넣었다. 왕복이 끝날 때마다 그 객체가 새것이 되고 → `mutate` 도 새것이 되고 →
+       위 effect 가 다시 돌고 → 또 왕복. 브라우저 확인에서 **초당 수천 건**으로 잡혔다.
+    ② **첫 페인트에서는 모두가 「아무도 아니다」.** `useDevIdentityId()` 의 SSR 스냅샷은 빈
+       문자열이고 `useAuth().user` 도 처음엔 null 이라, 하이드레이션 직전 한 박자 동안
+       **신원이 있는 사람도 비로그인으로 보인다.** 그때 `useCurrentUserId()` 는 데모 폴백
+       `student_001` 을 준다(`lib/current-user.ts`). 그 순간 로컬에 쓰면 **민준의 공부한 날이
+       서연의 통에 적힌다** — 실측으로 확인했다(`pullim_dev_identity=s2` 로 학습 화면을 열면
+       서버에는 `s2` 로 남는데 localStorage 에는 `byUser.student_001` 에 적혔다).
+       P1~P3 에서는 그 찌꺼기가 로컬에만 있었지만 **P4 의 백필이 그것을 서버로 올린다.**
+
+    그래서 판정을 의존성이 아니라 **ref** 로 들고(정체 고정), 판정이 서기 전에 들어온 기록은
+    **버리지 않고 미뤄 뒀다가**(`deferred`) 신원이 정해진 뒤 그쪽으로 보낸다. 결과적으로
+    화면의 effect 는 **마운트당 한 번** 돌고, 기록도 **한 번** 나간다 — 로그인·데모 양쪽 다.
+
+    (담기·빼기에는 이 장치가 없다. 그쪽은 클릭 핸들러라 하이드레이션 뒤에만 불린다.)
+  */
+  const latest = useRef({
+    userId,
+    hasServerIdentity,
+    settled,
+    recordLocalStudyDay,
+    runMutation,
+  });
+  /** 판정이 서기 전에 들어온 기록 — 서면 그때 보낸다. `null` 이면 미뤄 둔 게 없다. */
+  const deferred = useRef<{ date?: string } | null>(null);
+
+  useEffect(() => {
+    latest.current = { userId, hasServerIdentity, settled, recordLocalStudyDay, runMutation };
+    if (!settled || !deferred.current) return;
+    const { date } = deferred.current;
+    deferred.current = null;
+    // 이제 신원을 안다 — 그제야 어느 쪽으로 보낼지 정한다.
+    if (hasServerIdentity) runMutation(date);
+    else recordLocalStudyDay(userId, date);
+  }, [userId, hasServerIdentity, settled, recordLocalStudyDay, runMutation]);
+
+  const mutate = useCallback((date?: string) => {
+    const now = latest.current;
+    if (!now.settled) {
+      // 하이드레이션 전. 지금 쓰면 남의 통에 갈 수 있으니 들고만 있는다(위 ②).
+      deferred.current = { date };
+      return;
+    }
+    // 데모는 서버에 가지 않고 예전 자리에 그대로 쓴다(머리주석 ⛔).
+    if (!now.hasServerIdentity) {
+      now.recordLocalStudyDay(now.userId, date);
+      return;
+    }
+    now.runMutation(date);
+  }, []);
+  return useMemo(
+    // 데모의 쓰기는 동기라 기다릴 구간이 없다.
+    () => ({ mutate, isPending: hasServerIdentity && mutation.isPending }),
+    [mutate, hasServerIdentity, mutation.isPending],
   );
-  return useMemo(() => ({ mutate, isPending: false }), [mutate]);
 }
 
 /**
  * 연속 학습 — **`useSelfStudyDays()` 에서 읽을 때 계산한다.**
  *
  * 숫자로 저장하지 않는 이유: 카운터는 검증할 수 없고(어느 날들로 그 수가 나왔는지 모른다)
- * 되돌릴 수도 없다. 날짜가 정본이고 이 값은 파생이다.
+ * 되돌릴 수도 없다. 날짜가 정본이고 이 값은 파생이다. **서버로 옮긴 뒤에도 같다** —
+ * 서버는 날짜만 돌려주고 계산은 여기서 한다(계약 §1·§3).
  * @returns 연속일수와 마지막 학습일
  */
 export function useSelfStreak(): { count: number; lastStudyDate: string | null } {
