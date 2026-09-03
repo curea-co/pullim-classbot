@@ -440,6 +440,11 @@ export function useSelfStudyDays(): { data: string[] } {
  * 보내면 기기 시간대·시계 오차만큼 남의 날짜가 된다 — 그래서 두 번째 「오늘」을 만들지 않고,
  * 응답이 돌려주는 `date` 를 그대로 캐시에 얹는다. (데모는 서버가 없으니 예전처럼
  * `lib/store/today-key.ts` 의 오늘을 쓴다. 사용자가 한국에 있어 로컬 = KST 다.)
+ *
+ * ⚠️ **오늘을 기록할 때 날짜를 넣지 마라 — `mutate()` 로 부른다.** 날짜를 실어 보내면 서버가
+ * 그 값을 검사해서 형식이 틀리거나 **KST 기준 미래**이거나 2년보다 오래됐으면 **400** 을
+ * 낸다(조용히 넘기는 건 백필 라우트뿐이다). KST 보다 앞선 시간대의 브라우저가 `todayKey()`
+ * 로 만든 「오늘」은 서버에서 **미래**라 그대로 400 이 된다.
  * @returns `mutate(date?)` — 날짜를 안 주면 오늘
  */
 export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
