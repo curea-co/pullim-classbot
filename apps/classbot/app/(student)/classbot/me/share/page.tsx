@@ -61,7 +61,14 @@ export default function SharePage() {
   const parent = consents.data?.parent ?? null;
   const relationLabel = parent ? RELATION_LABEL[parent.relation] : null;
 
-  /** 타입 → 지금 살아 있는 동의. 없으면 안 켜진 것이다. */
+  /**
+   * 타입 → 지금 살아 있는 동의. 없으면 안 켜진 것이다.
+   *
+   * 한 타입에 살아 있는 행이 둘이면 **나중에 준 것**이 남는다(응답이 준 순 오름차순이라
+   * 뒤에 덮인다). 부여가 멱등이라 정상 경로로는 안 생기지만, 손으로 넣으면 생긴다 —
+   * 실제로 한 번 그런 표를 봤다. 그때 한 줄을 둘로 그리는 것보다 「지금 유효한 약속」
+   * 하나를 그리는 편이 맞다. 끄기는 어차피 그 타입의 살아 있는 행을 **전부** 거둔다.
+   */
   const byType = useMemo(() => {
     const map = new Map<string, ConsentItem>();
     for (const row of consents.data?.consents ?? []) map.set(row.type, row);
