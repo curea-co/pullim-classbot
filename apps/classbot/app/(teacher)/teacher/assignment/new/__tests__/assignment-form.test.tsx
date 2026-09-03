@@ -10,6 +10,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentForm } from '../assignment-form';
 import { useAssignmentStore, getQuestionsForAssignment } from '@/lib/store/assignments';
+import { ApiClientError } from '@/lib/api/client-fetch';
 
 /** 서버가 만들어 준 과제 id — 로컬 사본은 이 id 로 맞춰져야 학생 링크와 문항이 어긋나지 않는다. */
 const SERVER_ASSIGNMENT_ID = 'as_server_1';
@@ -32,19 +33,19 @@ const mockStudents = [
 
 const mutateAsync = jest.fn();
 
+/** 두 조회의 상태 — 테스트마다 갈아 끼운다(명단 실패·비로그인 데모를 세우려면 필요하다). */
+type QueryState<T> = { data: T | undefined; isPending: boolean; isError: boolean; error: unknown };
+const queries: {
+  classrooms: QueryState<{ classrooms: (typeof mockRoom)[] }>;
+  students: QueryState<{ students: typeof mockStudents }>;
+} = {
+  classrooms: { data: { classrooms: [mockRoom] }, isPending: false, isError: false, error: null },
+  students: { data: { students: mockStudents }, isPending: false, isError: false, error: null },
+};
+
 jest.mock('@/hooks/api/classroom', () => ({
-  useTeacherClassrooms: () => ({
-    data: { classrooms: [mockRoom] },
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
-  useClassroomStudents: () => ({
-    data: { students: mockStudents },
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
+  useTeacherClassrooms: () => queries.classrooms,
+  useClassroomStudents: () => queries.students,
 }));
 
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
@@ -60,6 +61,8 @@ beforeEach(() => {
   useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [], lastDispatched: null });
   mutateAsync.mockReset();
   mutateAsync.mockResolvedValue({ assignment: { id: SERVER_ASSIGNMENT_ID } });
+  queries.classrooms = { data: { classrooms: [mockRoom] }, isPending: false, isError: false, error: null };
+  queries.students = { data: { students: mockStudents }, isPending: false, isError: false, error: null };
 });
 
 /** 발사 — 서버 응답을 기다린 뒤에야 로컬 사본이 쓰인다(낙관적 선반영을 하지 않는다). */
@@ -206,4 +209,56 @@ it('발문을 일부만 쓰면 발사를 막는다 — 쓴 발문이 조용히 �
   // 다시 비우면(=전부 비움) 단원 자동 추출 경로라 발사가 열린다
   fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '' } });
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+});
+
+/* ── 명단·데모 분기 ─────────────────────────────────────────────────────── */
+
+it('명단을 못 읽으면 발사를 막는다 — 조회 실패가 「전원 발사」로 바뀌지 않게', () => {
+  // 빈 배열은 「학생 0명인 반」과 모양이 같고, 그때 나가는 targetStudentIds=[] 는
+  // 서버에서 **반 전체**로 읽힌다. 즉 막지 않으면 명단을 못 본 채 전원에게 나간다.
+  queries.students = {
+    data: undefined,
+    isPending: false,
+    isError: true,
+    error: new Error('명단을 불러오지 못했어요.'),
+  };
+  render(<AssignmentForm />);
+  fillTitle();
+
+  expect(screen.getByTestId('students-error')).toBeInTheDocument();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('명단이 아직 안 왔을 때도 발사를 막는다 — 빈 명단과 구별되지 않는다', () => {
+  queries.students = { data: undefined, isPending: true, isError: false, error: null };
+  render(<AssignmentForm />);
+  fillTitle();
+
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('비로그인 데모(401)에서는 오류 카드를 띄우지 않는다 — 고장이 아니라 데모 상태다', () => {
+  queries.classrooms = {
+    data: undefined,
+    isPending: false,
+    isError: true,
+    // 401 판정은 `instanceof ApiClientError` + status 다 — 진짜 타입으로 세운다.
+    error: new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED'),
+  };
+  render(<AssignmentForm />);
+
+  expect(screen.queryByTestId('rooms-error')).not.toBeInTheDocument();
+});
+
+it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  expect(mutateAsync).toHaveBeenCalledTimes(1);
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  expect(typeof payload.scope).toBe('string');
+  expect(payload.scope).not.toBe('');
+  expect(payload.chapterFrom).toBe(payload.scope);
+  expect(payload.chapterTo).toBe(payload.scope);
 });
