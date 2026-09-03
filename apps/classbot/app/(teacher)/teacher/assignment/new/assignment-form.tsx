@@ -179,8 +179,19 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
 
   // 검증
   const titleValid = title.trim().length >= 5 && title.trim().length <= 50;
+  /*
+    명단을 **못 읽은 상태**를 「학생 0명인 반」과 같이 취급하면 안 된다.
+
+    조회가 실패하면 `students` 가 빈 배열이라 예전 조건은 그대로 통과했고, 그때 나가는
+    `targetPayload` 는 빈 배열 — 서버가 **반 전체**로 읽는 값이다. 즉 명단을 못 본 채로
+    전원 발사가 나갔다. 아직 안 온 상태(pending)도 같은 이유로 막는다(빈 명단과 구별이 안 된다).
+
+    비로그인 데모는 예외다 — 거기서는 명단 조회가 401 이고 발사도 서버로 가지 않는다.
+  */
+  const rosterUnknown =
+    !signedOut && !!room && (studentsQuery.isPending || studentsQuery.isError);
   // 아직 아무도 안 들어온 방에도 낼 수 있다 — 반 전체로 나가고, 뒤에 들어온 학생이 받는다.
-  const targetValid = students.length === 0 || selectedIds.length >= 1;
+  const targetValid = !rosterUnknown && (students.length === 0 || selectedIds.length >= 1);
   const dueValid = new Date(dueIso).getTime() > Date.now();
   const pointsTotal = sumPoints(questions);
   // 문항 수 상한 — 종전 `문항 수` 슬라이더의 max 를 편집기가 물려받는다(연습·오답정복 50 / 시험 60).
@@ -287,6 +298,11 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
         questionCount: questions.length,
         difficulty,
         mode,
+        // 교사가 고른 단원 — 서버가 저장한다. 안 실으면 서버에서 읽는 학생·학부모 화면이
+        // 단원을 잃는다(계약 14 §1·§3.3.1·§5.4). 로컬 사본과 같은 값을 쓴다.
+        scope: selectedUnit?.fullPath,
+        chapterFrom: selectedUnit?.fullPath,
+        chapterTo: selectedUnit?.fullPath,
         targetStudentIds: targetPayload,
       });
 
@@ -341,8 +357,11 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       </div>
 
       <div className="max-w-3xl space-y-6">
-        {/* 수업방을 못 읽으면 발사 봇 목록이 비어 폼 전체가 뜻을 잃는다 — 이유를 먼저 말한다 */}
-        {classroomsQuery.isError && (
+        {/* 수업방을 못 읽으면 발사 봇 목록이 비어 폼 전체가 뜻을 잃는다 — 이유를 먼저 말한다.
+            단 401 은 제외한다: 그건 고장이 아니라 로그인 안 한 데모 상태이고(위 signedOut),
+            그때 폼은 mock 카탈로그로 정상 동작한다. 오류 카드를 함께 띄우면 분기 의미가 무너진다 —
+            학생 쪽 `app/(student)/classbot/classroom/page.tsx` 가 같은 규약을 쓴다. */}
+        {classroomsQuery.isError && !signedOut && (
           <AlertCard tone="danger" icon={School} title="수업방을 불러오지 못했어요">
             <p className="text-pullim-slate-700 text-sm" data-testid="rooms-error">
               {classroomsQuery.error.message}
