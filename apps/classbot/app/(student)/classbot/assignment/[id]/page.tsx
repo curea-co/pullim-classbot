@@ -11,7 +11,7 @@ import { ContextRail } from '@/components/shell/context-rail';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
-import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { useVisibleAssignment } from '../use-assignment-reads';
 import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const api = useMyAssignment(id);
+  const api = useVisibleAssignment(id);
   // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)에서 lookup.
   // 인증 사용자는 Phase7 실API 경로 그대로. 목록의 데모 폴백과 짝을 이룬다.
   const localA = useAssignmentLookup(id);

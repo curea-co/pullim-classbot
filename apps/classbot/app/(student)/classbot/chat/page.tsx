@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Suspense, type Dispatch, type SetStateAction } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   pickClassbotReply, type ReplyKey,
@@ -11,8 +12,10 @@ import {
   type ClassBot,
   LESSON_FLOW_KEYS,
 } from '@/lib/mock';
-import { useModeBots } from '@/lib/store/mode-bots';
-import { useStudentMode } from '@/lib/store/student-mode';
+import { useStudentBots, type StudentBotSource } from '@/lib/store/mode-bots';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import { Chip } from '@/components/ui/chip';
 import {
   getBotLesson, getSelfExplain,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz, type SelfExplainPrompt,
@@ -142,6 +145,33 @@ type SummaryPayload = {
 type SelfExplainPayload = { prompt: SelfExplainPrompt };
 
 
+/**
+ * 봇이 학생에게 온 두 경로를 **말로** 적어 둔 곳 — 칩 그룹 이름·챗 헤더 태그가 같은 문구를 쓴다.
+ *
+ * 한 학생의 목록에 둘이 섞이므로, 학생은 지금 말 거는 봇이 어느 쪽인지 알아야 한다.
+ * 반 봇은 선생님이 낸 과제가 오고 그 학습을 선생님이 본다. 담은 봇은 그렇지 않다 —
+ * `enrollments` 행이 없어서 과제도 관제소 노출도 따라오지 않는다(계약 §1).
+ */
+const BOT_SOURCE_META: Record<StudentBotSource, { label: string; hint: string; icon: LucideIcon }> = {
+  class: { label: '선생님 반의 봇', hint: '선생님이 낸 과제가 여기로 와요', icon: GraduationCap },
+  self: { label: '내가 담은 봇', hint: '내가 담은 봇이라 과제는 오지 않아요', icon: Bookmark },
+};
+
+/** 목록에 싣는 순서 — 반 봇이 먼저다(과제가 걸린 쪽). */
+const BOT_SOURCE_ORDER: StudentBotSource[] = ['class', 'self'];
+
+/** 지금 말 거는 봇이 어느 쪽인지 — 칩 하나짜리 봇(칩 strip 이 안 뜨는 경우)에도 보여야 해서 헤더에 둔다. */
+function BotSourceTag({ source }: { source: StudentBotSource }) {
+  const meta = BOT_SOURCE_META[source];
+  const Icon = meta.icon;
+  return (
+    <Chip tone="outline" className={cn(source === 'self' && 'border-dashed')}>
+      <Icon aria-hidden />
+      {meta.label}
+    </Chip>
+  );
+}
+
 export default function ClassbotChatPage() {
   return (
     <Suspense fallback={<div className="text-pullim-slate-500 text-sm">불러오는 중…</div>}>
@@ -155,29 +185,33 @@ function ClassbotChatPageInner() {
   const searchParams = useSearchParams();
   const botParam = searchParams.get('bot');
   const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
-  // 모드별 봇만 노출 (spec §2) — class: 교사 배정 봇, self: 자기 등록 튜터. 두 소스를 섞지 않는다.
-  const { mode, hydrated } = useStudentMode();
-  const myBots = useModeBots();
-  const initialBotId = botParam && myBots.some(b => b.id === botParam) ? botParam : (myBots[0]?.id ?? 'cb_001');
+  // 반 봇과 담은 봇을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
+  // 걷었다 — 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
+  const { slots, isLoading: botsLoading } = useStudentBots();
+  // 반 참여는 localStorage persist 라 하이드레이션 전에는 빈 목록으로 평가된다.
+  // (담은 봇 쪽 대기 구간은 `useStudentBots().isLoading` 이 이미 들고 있다.)
+  const classHydrated = useStoresHydrated(useClassEnrollmentStore);
+  const initialBotId = botParam && slots.some(s => s.bot.id === botParam) ? botParam : (slots[0]?.bot.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
-  const bot = myBots.find(b => b.id === selectedBotId) ?? myBots[0];
+  const current = slots.find(s => s.bot.id === selectedBotId) ?? slots[0];
+  const bot = current?.bot;
   const activeLive = useLiveStore(s => s.active);
 
   // selectedBotId / ?bot= 정규화
   useEffect(() => {
     // 1) 외부 링크가 유효한 봇을 지정 → 반영
-    if (botParam && botParam !== selectedBotId && myBots.some(b => b.id === botParam)) {
+    if (botParam && botParam !== selectedBotId && slots.some(s => s.bot.id === botParam)) {
       setSelectedBotId(botParam);
       return;
     }
-    // 2) 모드 전환·나가기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
-    //    (보이는 봇 = myBots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
-    if (myBots.length > 0 && !myBots.some(b => b.id === selectedBotId)) {
-      const next = myBots[0].id;
+    // 2) 반 나가기·담은 봇 빼기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
+    //    (보이는 봇 = slots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
+    if (slots.length > 0 && !slots.some(s => s.bot.id === selectedBotId)) {
+      const next = slots[0].bot.id;
       setSelectedBotId(next);
       if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
     }
-  }, [botParam, myBots, selectedBotId, router]);
+  }, [botParam, slots, selectedBotId, router]);
 
   function handleBotChange(nextId: string) {
     setSelectedBotId(nextId);
@@ -185,8 +219,8 @@ function ClassbotChatPageInner() {
     router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
   }
 
-  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
-  if (!hydrated) {
+  // persist(참여·담기) hydration 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  if (!classHydrated || botsLoading) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
@@ -194,25 +228,33 @@ function ClassbotChatPageInner() {
     );
   }
 
-  // 대화할 봇이 없을 때 — 모드별로 다른 빈 상태 (spec: self 전용 surface를 class 모드에 노출 금지)
+  // 대화할 봇이 하나도 없을 때 — 봇을 얻는 길이 **둘 다** 여기 있어야 한다.
+  //
+  // 예전에는 학습 모드로 갈라 한쪽 길만 내줬다. 그래서 마켓으로 갈 수 없는 학생과
+  // 참여 코드를 쓸 수 없는 학생이 각각 생겼고, 선생님이 없는 학생에게는 이 화면이
+  // 「참여 코드를 받아 오세요」 하나뿐인 막다른 길이었다 — 이번에 고치는 게 그 자리다.
+  // 마켓을 앞에 두는 이유: 담기는 학생이 **혼자서 지금 할 수 있는** 유일한 길이다.
   if (!bot) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
-        {mode === 'class' ? (
-          <EmptyState
-            icon={GraduationCap}
-            title="아직 참여한 클래스가 없어요"
-            description="선생님께 받은 참여 코드로 클래스에 참여하면 봇과 대화할 수 있어요."
-            action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
-          />
-        ) : (
+        <div className="flex flex-col items-center gap-2">
           <EmptyState
             icon={Compass}
-            title="아직 등록한 튜터가 없어요"
-            description="봇 마켓에서 과목 튜터를 골라 대화를 시작해 보세요."
+            title="아직 대화할 봇이 없어요"
+            description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
             action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
           />
-        )}
+          <p className="text-pullim-slate-500 text-2xs">
+            선생님께 참여 코드를 받았다면{' '}
+            <Link
+              href="/classbot"
+              aria-label="참여 코드 입력하러 가기"
+              className="text-pullim-blue-700 font-bold underline underline-offset-2"
+            >
+              코드로 반에 들어가기
+            </Link>
+          </p>
+        </div>
       </div>
     );
   }
@@ -221,37 +263,59 @@ function ClassbotChatPageInner() {
     // lg+: 페이지에 확정 높이를 줘 flex 체인을 복구 → 챗 섹션이 남은 높이를 정확히 채우고
     // main(중앙) 스크롤바가 생기지 않는다. 모바일은 h-full + 스크롤 max-h 휴리스틱 유지.
     <div className="flex h-full min-h-0 flex-col gap-3 lg:h-[calc(100dvh-11rem)]">
-      {/* 봇 선택 chip strip */}
-      {myBots.length > 1 && (
-        <section className="bg-card rounded-xl border p-2">
-          <ul className="flex gap-1.5 overflow-x-auto">
-            {myBots.map(b => {
-              const isActive = b.id === bot.id;
-              const isLiveNow = Boolean(activeLive[b.id]);
-              const sig = botSignature(b);
-              // [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X)
-              return (
-                <li key={b.id} className="shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleBotChange(b.id)}
-                    aria-pressed={isActive}
-                    style={isActive ? { backgroundColor: sig.hex, color: sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF' } : undefined}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors',
-                      !isActive && 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100',
-                    )}
-                  >
-                    <span className="text-base leading-none">{b.avatarEmoji}</span>
-                    <span>{b.name}</span>
-                    {isLiveNow && (
-                      <LiveBadge variant="dot" aria-label="라이브 진행 중" />
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+      {/*
+        봇 선택 chip strip — **종류별로 나눠** 싣는다.
+        학생이 알아야 할 것은 「어느 봇인가」만이 아니라 「선생님 반의 봇인가, 내가 담은 봇인가」다.
+        그 구분을 색으로 하지 않는 이유: 시그니처 색은 이미 「어느 봇인가」에 쓰였고
+        (`lib/tokens/bot-signature.ts` 머리주석), 초록·앰버는 앱 전역에서 걷어냈다.
+        그래서 **말(그룹 이름)과 모양(담은 봇은 점선 테두리)** 으로 가른다 — 범례가 필요 없다.
+      */}
+      {slots.length > 1 && (
+        <section className="bg-card space-y-1.5 rounded-xl border p-2" aria-label="대화할 봇 고르기">
+          {BOT_SOURCE_ORDER.filter(source => slots.some(s => s.source === source)).map(source => {
+            const meta = BOT_SOURCE_META[source];
+            const GroupIcon = meta.icon;
+            return (
+              <div key={source}>
+                <p className="text-pullim-slate-500 flex items-center gap-1 px-1 pb-1 text-2xs font-semibold">
+                  <GroupIcon className="h-3 w-3 shrink-0" aria-hidden />
+                  {meta.label}
+                </p>
+                <ul className="flex gap-1.5 overflow-x-auto">
+                  {slots.filter(s => s.source === source).map(({ bot: b }) => {
+                    const isActive = b.id === bot.id;
+                    const isLiveNow = Boolean(activeLive[b.id]);
+                    const sig = botSignature(b);
+                    // [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X)
+                    return (
+                      <li key={b.id} className="shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleBotChange(b.id)}
+                          aria-pressed={isActive}
+                          aria-label={`${b.name} — ${meta.label}`}
+                          style={isActive ? { backgroundColor: sig.hex, color: sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF' } : undefined}
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors',
+                            isActive && 'border-transparent',
+                            // 담은 봇은 점선 — 반 봇의 채워진 칩과 한눈에 갈린다(색을 더 쓰지 않고).
+                            !isActive && source === 'self' && 'border-pullim-slate-300 border-dashed text-pullim-slate-700 hover:bg-pullim-slate-50',
+                            !isActive && source === 'class' && 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100 border-transparent',
+                          )}
+                        >
+                          <span className="text-base leading-none">{b.avatarEmoji}</span>
+                          <span>{b.name}</span>
+                          {isLiveNow && (
+                            <LiveBadge variant="dot" aria-label="라이브 진행 중" />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </section>
       )}
 
@@ -259,14 +323,14 @@ function ClassbotChatPageInner() {
       <AiDisclosureNotice />
 
       {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
-      <ChatPanel key={bot.id} bot={bot} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
+      <ChatPanel key={bot.id} bot={bot} source={current.source} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
     </div>
   );
 }
 
 const STICKY_THRESHOLD = 80;
 
-function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) {
+function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: StudentBotSource; initialAsk?: string }) {
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
@@ -616,6 +680,13 @@ function ChatPanel({ bot, initialAsk }: { bot: ClassBot; initialAsk?: string }) 
       <section className="bg-card flex flex-1 min-h-0 min-w-0 flex-col rounded-2xl border">
         <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
           <span className="text-pullim-slate-700 font-bold">봇과 대화</span>
+          {/* 이 봇이 어느 쪽인지 — 칩 strip 이 없는 「봇 하나뿐」 학생도 여기서 안다. */}
+          <BotSourceTag source={source} />
+          {!isLive && (
+            <span className="text-pullim-slate-400 hidden text-2xs sm:inline">
+              {BOT_SOURCE_META[source].hint}
+            </span>
+          )}
           {isLive && (
             <span className="text-pullim-slate-400 ml-auto">
               개념 질문은 여기서 — 라이브 모더레이션 큐는 “라이브 수업 펼치기 → 선생님에게 질문”

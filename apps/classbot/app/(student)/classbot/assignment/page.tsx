@@ -10,8 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
-import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
-import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
+import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
+import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import { useVisibleAssignments } from './use-assignment-reads';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
@@ -57,19 +58,25 @@ interface GroupBot {
 }
 
 /**
- * 학생 받은 과제 목록 — Phase 7 Stage 2: `GET /api/assignments`(실DB·인증) 배선.
+ * 학생 받은 과제 목록 — `GET /api/assignments`(실DB·신원 스코프) 배선.
  *
- * mock(`useMergedAssignments`/`getMyBots`) 제거. **전부 세션(JWT sub) 명의 실API** 만
- * 쓰는 단일 신원 surface 다(봇 메타도 같은 sub-scoped `/api/bots` 조인 — 데모/mock 혼합
- * 없음). 미로그인은 로그인 게이트(D1 로그인월), 로딩/빈/에러 상태를 각각 처리한다.
- * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 `/api/bots` 행을
- * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
+ * **개인 배정과 반 단위 발사를 함께 본다.** 선생님이 반 전체에 쏜 과제는 학생 1인 행을
+ * 만들지 않고 `student_id IS NULL` + `target_student_ids = []` 로 한 행만 남는다 —
+ * 서버의 술어(`app/api/_lib/assignment-visibility.ts`)가 그것을 펼쳐 주고, 여기서는
+ * 개인 과제와 똑같이 그린다(카드가 `student_id` 를 읽는 자리는 없다).
+ *
+ * 읽기는 `useVisibleAssignments()` 로 간다 — JWT 세션으로 잠그지 않고 **서버가 준 401**
+ * 로 데모 폴백을 세우는 훅이다. 개발용 신원 쿠키로 보는 동안에도 실제로 요청이 나간다.
+ * 미로그인(401)이면 로컬 스토어(교사 발사분 포함)를 보여 준다 — 데모/e2e 의 발사→수령
+ * 흐름이 그대로 동작한다.
+ * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 참여 중인
+ * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
  */
 export default function StudentAssignmentListPage() {
   const me = useRosterMe();
-  const { data, isLoading, isUnauthenticated, isError, refetch } = useMyAssignments();
-  // 그룹 헤더 페르소나 조인용 — 같은 sub-scoped 소스. 봇 메타 미도착이어도 과제는 렌더.
-  const { data: botsData } = useMyBots();
+  const { data, isLoading, isUnauthenticated, isError, refetch } = useVisibleAssignments();
+  // 그룹 헤더 페르소나 조인용 — 참여 중인 수업방(서버 + 데모 스토어). 미도착이어도 과제는 렌더.
+  const { rooms } = useMyRooms();
 
   // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)를 보여준다.
   // 인증 사용자는 Phase7 실API 경로 그대로 유지. 데모/e2e 의 발사→수령 흐름이 동작.
@@ -89,7 +96,7 @@ export default function StudentAssignmentListPage() {
 
       <AssignmentListBody
         data={isUnauthenticated ? demoData : data}
-        bots={botsData?.bots ?? []}
+        rooms={rooms}
         isLoading={isUnauthenticated ? !demoHydrated : isLoading}
         isUnauthenticated={false}
         isError={isUnauthenticated ? false : isError}
@@ -100,10 +107,10 @@ export default function StudentAssignmentListPage() {
 }
 
 function AssignmentListBody({
-  data, bots, isLoading, isUnauthenticated, isError, onRetry,
+  data, rooms, isLoading, isUnauthenticated, isError, onRetry,
 }: {
   data: { assignments: AssignmentReadRow[] } | undefined;
-  bots: BotReadRow[];
+  rooms: RoomSlot[];
   isLoading: boolean;
   isUnauthenticated: boolean;
   isError: boolean;
@@ -119,8 +126,8 @@ function AssignmentListBody({
   const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
   const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
 
-  // botId → 봇 행(페르소나 메타) 조인 맵.
-  const botById = new Map(bots.map(b => [b.id, b]));
+  // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 수업방에서 온다.
+  const botById = new Map(rooms.map(r => [r.bot.id, r.bot]));
 
   // 봇별 그룹핑 — 과제 행에 등장하는 botId 순서를 유지.
   const groups = new Map<string, { bot: GroupBot; items: AssignmentReadRow[] }>();
@@ -193,11 +200,9 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
+  // 묶음 표시는 머리줄(아바타·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
   return (
-    <section
-      className="space-y-2 border-l-[3px] pl-3"
-      style={{ borderLeftColor: groupHex }}
-    >
+    <section className="space-y-2">
       <header className="flex items-center gap-2">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"

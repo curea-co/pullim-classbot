@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target,
+  LayoutDashboard, Bot, Plus, Target, Compass, BookMarked,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -48,9 +48,10 @@ export type NavGroup = {
  * breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는 답**을 지금
  * 적어 두게 된다. 그 답은 화면을 만드는 PR 이 해야 맞다.
  *
- * 그러니 학부모 화면 PR 이 이 union 을 넓히면서 시작한다. 넓히는 순간 아래 `switch` 와
- * 헤더 표 셋이 **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 ·
- * 라벨은 무엇인가」를 그 PR 이 한 자리씩 답하게 된다.
+ * 그러니 학부모 화면 PR 이 이 union 을 넓히면서 시작한다 — **이 PR 이 그 PR 이다.**
+ * `/parent` · `/parent/assignments` 가 여기서 도착하므로 union 을 넓혔고, 그 순간 아래
+ * `switch` 와 헤더 표 셋이 **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려 「홈은 어디인가 ·
+ * 라벨은 무엇인가」를 한 자리씩 답하게 됐다.
  *
  * **신원 층은 이것과 다르다.** 서버는 이미 학부모를 말한다 — 개발용 신원 allowlist 에
  * `parent_001` 이 있고(`lib/dev-identity.ts` 의 `DevIdentityRole`), 해석기가
@@ -58,13 +59,18 @@ export type NavGroup = {
  * `/api/*` 가 학생 표면에서 학부모를 403 으로 막는다(`app/api/_lib/guards.ts`).
  * **명의는 이미 셋, 셸은 아직 둘** — 그 어긋남이 이 PR 이 여는 것과 열지 않는 것의 경계다.
  */
-export type Role = 'student' | 'teacher';
+export type Role = 'student' | 'teacher' | 'parent';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
-  // 「내 수업방」·「내가 담은 봇」은 그 화면이 도착하는 PR 에서 여기 들어온다 —
-  // nav 는 라우트 인벤토리라 페이지보다 먼저 열면 누르는 즉시 404 다.
+  // 참여 코드 입력이 여기 산다. 예전엔 참여한 반이 0개일 때만 뜨는 홈 히어로가 유일한
+  // 입구라, 한 반에 들어간 뒤엔 다른 선생님 반에 들어갈 길이 화면에서 사라졌다.
+  { href: '/classbot/classroom',  label: '내 수업방',   icon: GraduationCap, description: '참여한 반 · 코드로 참여하기' },
+  // 마켓에서 담은 봇이 사는 자리. 「내 수업방」 바로 뒤에 두는 이유는 봇이 사는 곳 둘이
+  // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
+  // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
+  { href: '/classbot/my-bots',    label: '내가 담은 봇', icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
@@ -134,13 +140,29 @@ export const teacherNav: NavGroup[] = [
   },
 ];
 
-// 학부모 레일(`parentNav`)은 여기 없다 — `/parent/*` 화면과 같은 PR 에서 `Role` 확장과
-// 함께 들어온다. 학부모는 자기 학습 화면이 없어 자녀를 보는 창구로 고정이다(계약 §6).
+/**
+ * 학부모 사이드바 — 자녀 요약 + 자녀 과제 둘뿐.
+ *
+ * 1/6 은 `Role` 을 `student | teacher` 로 두고 이 레일을 비워 뒀다 — 화면이 없는 역할의
+ * 메뉴를 먼저 열면 누르는 즉시 404 라서다. `/parent/*` 화면이 이 PR 에서 도착하므로
+ * **여기서 `Role` 확장과 함께 레일이 열린다.**
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 둘로 고정이다(계약 §6).
+ */
+export const parentNav: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
+      { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
+    ],
+  },
+];
 
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
     case 'student': return studentNav;
     case 'teacher': return teacherNav;
+    case 'parent': return parentNav;
   }
 }
 

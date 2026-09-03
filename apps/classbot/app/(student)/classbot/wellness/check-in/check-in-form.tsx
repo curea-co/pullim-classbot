@@ -56,10 +56,7 @@ export function CheckInForm() {
         {reaction && (() => {
           const sig = botSignature(reaction.bot);
           return (
-            <section
-              className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border border-l-[4px] p-3 text-left"
-              style={{ borderLeftColor: sig.hex }}
-            >
+            <section className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border p-3 text-left">
               <div className="flex items-center gap-2">
                 <span
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"

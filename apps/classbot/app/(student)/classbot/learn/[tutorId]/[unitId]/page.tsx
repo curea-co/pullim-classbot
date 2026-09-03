@@ -6,6 +6,7 @@ import { Check } from 'lucide-react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
 import { getUnitContent } from '@/lib/mock/classbot-learning-content';
 import { useUnitProgress, useSelfLearningStore } from '@/lib/store/self-learning';
+import { useRecordSelfStudyDay } from '@/hooks/api/self-bots';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import BackLink from '@/components/classbot/back-link';
 import { PageHeader } from '@/components/shell/page-header';
@@ -31,6 +32,9 @@ export default function UnitPage({
   // ── Store hooks (unconditional) ──────────────────────────────────────────
   const progress = useUnitProgress(tutorId, unitId);
   const completeStep = useSelfLearningStore((s) => s.completeStep);
+  // 종전에는 completeStep 이 몰래 연속일수를 올렸다. 이제 공부한 날은 사용자 명의가
+  // 필요해(스토어가 사용자별로 갈렸다) 이 화면이 직접 기록한다.
+  const { mutate: recordStudyDay } = useRecordSelfStudyDay();
 
   // ── Derived data (unconditional) ─────────────────────────────────────────
   const tutor = getOfficialTutor(tutorId);
@@ -139,6 +143,7 @@ export default function UnitPage({
         onComplete={(passed) => {
           if (passed) {
             completeStep(tutorId, unitId, 'check');
+            recordStudyDay();
             // isDone will flip on next render from store
           } else {
             setCheckRetry((n) => n + 1);

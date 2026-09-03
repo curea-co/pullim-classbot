@@ -2,7 +2,7 @@
 
 import { use, useEffect } from 'react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
-import { useSelfLearningStore } from '@/lib/store/self-learning';
+import { useRecordSelfStudyDay } from '@/hooks/api/self-bots';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import BackLink from '@/components/classbot/back-link';
 import { PageHeader } from '@/components/shell/page-header';
@@ -14,16 +14,17 @@ export default function LearnPage({ params }: { params: Promise<{ tutorId: strin
   const { tutorId } = use(params);
   const tutor = getOfficialTutor(tutorId);
 
-  const recordStudyToday = useSelfLearningStore((s) => s.recordStudyToday);
+  // 공부한 날은 이제 사용자 명의로 쌓인다 — 스토어를 직접 부르지 않고 훅을 거친다.
+  const { mutate: recordStudyDay } = useRecordSelfStudyDay();
   useEffect(() => {
-    recordStudyToday();
-  }, [recordStudyToday]);
+    recordStudyDay();
+  }, [recordStudyDay]);
 
   if (!tutor) {
     return (
       <div className="px-4 py-10">
         <EmptyState
-          title="튜터를 찾을 수 없어요"
+          title="봇을 찾을 수 없어요"
           action={{ href: '/classbot', label: '홈', ariaLabel: '클래스봇 홈으로 가기' }}
         />
       </div>
