@@ -37,14 +37,17 @@ describe('과제 조회 술어 — 자기주도 유출 덫', () => {
       if (typeof node === 'string') { parts.push(node); return; }
       if (typeof node === 'number' || typeof node === 'boolean') { parts.push(String(node)); return; }
       if (typeof node !== 'object') return;
+
+      // 컬럼은 이름만 취한다 — 테이블로 내려가면 순환한다.
+      // **순회 기록(seen)보다 먼저** 본다: 같은 컬럼 객체가 여러 항에 나오는데 dedupe 뒤에 두면
+      // 두 번째 항의 컬럼이 통째로 사라져 「양쪽에 걸렸나」를 셀 수 없다.
+      const record = node as Record<string, unknown>;
+      if (typeof record.name === 'string' && 'table' in record) { parts.push(record.name); return; }
+
       if (seen.has(node as object)) return;
       seen.add(node as object);
 
       if (Array.isArray(node)) { for (const item of node) walk(item); return; }
-
-      // 컬럼은 이름만 취한다 — 테이블로 내려가면 순환한다.
-      const record = node as Record<string, unknown>;
-      if (typeof record.name === 'string' && 'table' in record) { parts.push(record.name); return; }
 
       for (const key of ['queryChunks', 'value', 'values', 'sql', 'left', 'right']) {
         if (key in record) walk(record[key]);
@@ -77,8 +80,13 @@ describe('과제 조회 술어 — 자기주도 유출 덫', () => {
     expect(asStudent).toContain('student_001');
   });
 
-  it('발사 상태 조건이 살아 있다 — draft/withdrawn 이 학생·학부모에게 새면 안 된다', () => {
+  it('발사 상태 조건이 두 항 모두에 살아 있다 — draft/withdrawn 이 학생·학부모에게 새면 안 된다', () => {
     const sql = predicateText('student_001');
     expect(sql).toContain('sent');
+
+    // 개인 배정 항과 반 단위 항 — 게이트가 **양쪽**에 있어야 한다. 한쪽만 걸려 있으면
+    // 개인 배정 초안·회수 행이 그대로 뜬다(그 상태가 실제로 쓰이기 시작하는 순간).
+    const gates = sql.split('dispatch_status').length - 1;
+    expect(gates).toBe(2);
   });
 });
