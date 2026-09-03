@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BarChart3, GraduationCap, Lock, Sparkles, UserRound } from 'lucide-react';
+import { ArrowRight, BarChart3, GraduationCap, Lock, Share2, Sparkles, UserRound } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
+import { useMyConsents } from '@/hooks/api/consents';
+import { useHasServerIdentity } from '@/hooks/api/self-server';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
@@ -39,6 +41,10 @@ export default function MyProfilePage() {
   // 학년은 소속 수업(봇)에서 온다 — 학생 행에는 학년 칸이 없다.
   const grade = myBots[0]?.bot.grade;
 
+  // 공유 상태 한 줄. 지금 무엇을 내주고 있는지는 **찾아 들어가야 아는 것**이면 안 된다 —
+  // 프로필에 와서 이 줄만 봐도 「켜져 있나」가 보이게 둔다(끄러 오는 길의 첫 표지판이다).
+  const shareState = useShareSummary();
+
   const rail = (
     <>
       <Link
@@ -65,6 +71,24 @@ export default function MyProfilePage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-pullim-slate-900 text-sm font-bold">주간 리포트</div>
+        </div>
+        <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
+      </Link>
+
+      <Link
+        href="/classbot/me/share"
+        aria-label="공유 — 부모님께 무엇을 보여드릴지 정하기"
+        className="bg-card hover:bg-pullim-slate-50/50 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
+        data-testid="me-share-link"
+      >
+        <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <Share2 className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-pullim-slate-900 text-sm font-bold">공유</div>
+          {shareState && (
+            <div className="text-pullim-slate-500 mt-0.5 truncate text-2xs">{shareState}</div>
+          )}
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
@@ -157,6 +181,27 @@ export default function MyProfilePage() {
       </ContextRail>
     </div>
   );
+}
+
+/**
+ * 사이드 링크에 붙는 공유 상태 한 줄.
+ *
+ * 「켜져 있나」만 답한다 — 범위·날짜는 적지 않는다. 이 줄이 길어지면 프로필에서 결정을
+ * 내리게 되는데, 그 결정에 필요한 나머지 절반(무엇이 나가나 · 되돌릴 수 없다는 것)은
+ * 저쪽 화면에만 있다. 여기서는 **들어가 볼 이유**까지만 준다.
+ *
+ * 아직 모를 때(신원 없음·조회 전·실패)는 상태를 지어내지 않고 `null` 을 준다 —
+ * 「안 보여요」라고 적었다가 실은 켜져 있으면 학생이 껐다고 착각한다.
+ * @returns 한 줄 문구, 아직 모르면 null
+ */
+function useShareSummary(): string | null {
+  const hasServerIdentity = useHasServerIdentity();
+  const consents = useMyConsents();
+
+  if (!hasServerIdentity || consents.isError || consents.data === undefined) return null;
+  if (consents.data.parent === null) return '연결된 보호자가 없어요';
+  if (consents.data.consents.length === 0) return '지금은 아무것도 안 보여요';
+  return `${consents.data.parent.name}께 보여드리는 중`;
 }
 
 function InfoRow({

@@ -30,6 +30,8 @@ import { randomUUID } from 'node:crypto';
 import { getDb, getPool } from '../lib/db';
 import {
   assignments,
+  consentLogs,
+  parentChildLinks,
   classBots,
   classrooms,
   enrollments,
@@ -198,6 +200,22 @@ async function main(): Promise<void> {
   await db.delete(joinCodes).where(eq(joinCodes.classroomId, SEEDED_ROOM_WITH_CODE.classroomId));
   const seededCode = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
 
+  // ── 3.4 학부모 — 자녀 둘, 동의는 아무것도 없음 ────────────────────
+  //
+  // 자녀를 둘로 두는 이유: 학부모 화면의 핵심 케이스가 「한 자녀는 공유, 한 자녀는 미공유」다.
+  // 그 상태를 우연에 맡기면 재현이 안 된다.
+  //
+  // 동의는 **비워 두고 시작한다.** 이 화면의 전제는 「자녀가 주지 않으면 안 보인다」이고,
+  // 그게 실제로 작동하는지 보려면 출발점이 미동의여야 한다. 학생 화면에서 직접 켜 보게 한다.
+  await db
+    .insert(parentChildLinks)
+    .values([
+      { parentId: 'parent_001', studentId: 'student_001', relation: 'mother', primary: true },
+      { parentId: 'parent_001', studentId: 's2', relation: 'mother', primary: false },
+    ])
+    .onConflictDoNothing();
+  await db.delete(consentLogs).where(eq(consentLogs.parentId, 'parent_001'));
+
   // ── 3.5 마켓 예시 하나 ────────────────────────────────────────────
   // 빈 마켓만 보면 「게시가 되긴 하나」를 알 수 없다. 시드 봇 하나를 올려 두고,
   // 교사가 직접 올리고 내리는 것은 화면에서 해 보게 한다.
@@ -230,6 +248,8 @@ async function main(): Promise<void> {
   }
   console.log('');
   console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
+  console.log('');
+  console.log('  학부모 · 어머니   자녀 둘(서연·민준) · 동의 0건 ← 학생 화면에서 켜 보세요');
   console.log('');
   console.log('  학생 · 민준 (s2)   참여 0곳  ← 여기서 코드를 넣어 보세요');
   console.log('  학생 · 서연 (student_001)   기존 5개 반 · 과제 3건 그대로');
