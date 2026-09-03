@@ -9,6 +9,7 @@ import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useMyConsents } from '@/hooks/api/consents';
+import { isShareableType } from './share/catalog';
 import { useHasServerIdentity } from '@/hooks/api/self-server';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
@@ -200,7 +201,9 @@ function useShareSummary(): string | null {
 
   if (!hasServerIdentity || consents.isError || consents.data === undefined) return null;
   if (consents.data.parent === null) return '연결된 보호자가 없어요';
-  if (consents.data.consents.length === 0) return '지금은 아무것도 안 보여요';
+  // 응답에는 이 화면 소관이 아닌 동의도 섞여 올 수 있다 — 세기 전에 거른다(`isShareableType`).
+  const mine = consents.data.consents.filter((row) => isShareableType(row.type));
+  if (mine.length === 0) return '지금은 아무것도 안 보여요';
   return `${consents.data.parent.name}께 보여드리는 중`;
 }
 

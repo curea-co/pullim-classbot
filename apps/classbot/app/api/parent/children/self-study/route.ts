@@ -157,8 +157,11 @@ function dedupeByChild(rows: ConsentedChildRow[]): ConsentedChildRow[] {
 /**
  * 자녀가 스스로 담은 봇 — 담은 순(오래된 것 먼저).
  *
- * 봇에서 가져오는 것은 **이름과 과목뿐**이다. `class_bots` 행을 그대로 흘리면 교사·기관·
- * 라이브 상태·인사말까지 학부모에게 나가는데, 계약이 준 것은 「무엇을 스스로 골랐나」다.
+ * 봇에서 가져오는 것은 **이름·과목·얼굴 이모지 셋뿐**이다. `class_bots` 행을 그대로
+ * 흘리면 교사·기관·라이브 상태·인사말까지 학부모에게 나가는데, 계약이 준 것은
+ * 「무엇을 스스로 골랐나」다. 이모지가 그 셋에 드는 이유는 **아이가 보는 얼굴과 부모가
+ * 보는 얼굴이 같아야** 둘이 같은 봇을 이야기할 수 있기 때문이다(새 정보가 아니라 같은 봇의
+ * 정직한 표현). 인사말·톤은 여전히 안 나간다 — 그건 아이와 봇 사이의 것이다.
  * @param studentId - 동의가 확인된 자녀
  * @returns 봇 목록
  */
@@ -168,6 +171,7 @@ async function listSelfBots(studentId: string): Promise<ParentSelfStudyBot[]> {
       botId: selfEnrollments.botId,
       name: classBots.name,
       subject: classBots.subject,
+      avatarEmoji: classBots.avatarEmoji,
       addedAt: selfEnrollments.addedAt,
     })
     .from(selfEnrollments)
@@ -181,6 +185,7 @@ async function listSelfBots(studentId: string): Promise<ParentSelfStudyBot[]> {
     botId: r.botId,
     name: r.name,
     subject: r.subject,
+    avatarEmoji: r.avatarEmoji,
     addedAt: r.addedAt.toISOString(),
   }));
 }

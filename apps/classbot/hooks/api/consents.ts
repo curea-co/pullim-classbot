@@ -102,22 +102,11 @@ export type ConsentType = StudentGrantableType;
  */
 export type ConsentScopeLabel = ScopeLabel;
 
-/**
- * 이 행이 학생이 켜고 끌 수 있는 것인가 — 목록에서 **남의 인가 모델 위의 동의**를 가른다.
- *
- * 서버가 `isStudentGrantableType` 으로 부여·철회를 막는 그 경계를, 화면에서는 「내가 준
- * 것으로 세도 되는가」에 쓴다. 이 술어 없이 `consents.length` 를 세면 교사 승인으로 생긴
- * 주간 리포트 동의 하나가 프로필에 「보여드리는 중」으로 뜨는데, 정작 공유 화면에는 켜진
- * 줄이 하나도 없다 — 학생이 끄러 와서 끌 것을 못 찾는다.
- * @param row - 서버가 준 동의 한 줄
- * @returns 이 화면이 책임지는 종류면 true
- */
-export function isStudentGrantable(row: ConsentItem): boolean {
-  return STUDENT_GRANTABLE_TYPES.includes(row.type as StudentGrantableType);
-}
-
-/** 학생이 켜고 끌 수 있는 종류 전부 — 서버 목록을 화면 쪽에 그대로 옮겨 둔 것. */
-const STUDENT_GRANTABLE_TYPES: readonly ConsentType[] = ['self_study_summary'];
+/*
+  「이 행이 이 화면 소관인가」를 여기서 판정하지 않는다 — 그 목록은 화면이 든다
+  (`app/(student)/classbot/me/share/catalog.ts` 의 `SHAREABLE_ITEMS`). 여기에 같은 배열을
+  한 벌 더 두면 위에서 타입을 서버에 매어 둔 이유가 그 줄에서 무너진다.
+*/
 
 /**
  * 쿼리 키 — 무효화할 때 이 상수를 쓴다(문자열을 손으로 다시 적지 마라).
