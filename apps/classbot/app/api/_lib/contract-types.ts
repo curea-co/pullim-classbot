@@ -371,3 +371,180 @@ export interface BackfillStudyDaysResponse {
   inserted: number;
   skipped: number;
 }
+
+/* ── 동의 · 학부모 자기주도 ──────────────────────────── */
+
+/**
+ * `consent_logs.type` 이 받는 값 전부 — 스키마의 enum 배열과 **같은 여섯**.
+ *
+ * 스키마에서 `import type` 으로 끌어오지 않고 여기 따로 적는다. 이 파일의 약속이
+ * 「런타임 코드 없음 · 서버 모듈이 딸려 오지 않음」이라(위 머리주석), 타입만이라도
+ * 서버 모듈을 가리키기 시작하면 다음 사람이 그 옆에 값 import 를 붙인다.
+ * **갈라짐은 `app/api/_lib/consent.ts` 의 `ContractMatchesSchema` 가 typecheck 로 잡는다** —
+ * 한쪽만 고치면 빌드가 깨지므로 이 중복은 방치되지 않는다.
+ *
+ * ⚠️ 이 중 **학생이 스스로 켤 수 있는 값은 `'self_study_summary'` 하나뿐**이다. 나머지
+ * 다섯은 교사·기관 승인이라는 다른 인가 모델 위에 있다(`STUDENT_GRANTABLE_TYPES`).
+ * 「목록에 있으니 학생이 켤 수 있다」로 읽지 마라.
+ */
+export type ConsentTypeValue =
+  | 'weekly_report'
+  | 'monthly_report'
+  | 'weak_nodes'
+  | 'emotion_share'
+  | 'realtime_alert'
+  | 'self_study_summary';
+
+/**
+ * 학생이 준 동의 한 줄 — `GET /api/me/consents` · `POST /api/me/consents` 공용.
+ *
+ * `parentId` 를 싣지 않는다. **본문으로 받지 않는 값을 응답으로 돌려주면** 다음 사람이
+ * 「그럼 보내도 되나」로 읽는다. 받는 사람은 `parent_child_links` 가 정하지 요청이 정하지
+ * 않는다(계약 §2). 받는 사람을 **화면에 이름으로** 보여야 하는 건 별개의 필요라,
+ * id 가 아니라 `MyConsentsResponse.parent` 의 이름·관계가 답한다.
+ *
+ * `revokedAt` 도 없다 — 이 목록은 **살아 있는 동의**만 담는다. 거둔 기록은 DB 에 남지만
+ * (감사 기록) 화면에 「예전에 줬던 것」 목록을 그리지 않는 것이 이번 계약의 범위다.
+ */
+export interface MyConsentRow {
+  /**
+   * `consent_logs.type`. 조회는 **타입으로 거르지 않으므로** 여섯 중 무엇이든 올 수 있다
+   * (지금 DB 에는 자기주도 것만 있지만, 다른 인가 모델이 행을 넣기 시작하면 여기 섞인다).
+   * `'self_study_summary'` 로 좁혀 놓고 쓰면 그날 화면이 조용히 틀린다.
+   */
+  type: ConsentTypeValue;
+  /**
+   * 학생이 고른 범위 — `'계속'` · `'이번 달만'` · `'이번 주만'`.
+   *
+   * **union 이 아니라 `string` 이다.** DB 의 `scope_label` 은 CHECK 없는 `text` 라
+   * 세 값을 강제하는 것이 없고, 이 칸은 애초에 **사람이 읽는 문장을 그대로 저장한 것**이라
+   * (`SCOPE_LABELS` 주석) 화면은 분기하지 말고 **그대로 출력**하면 된다. 새 범위가 생겨도
+   * 화면은 안 고쳐도 된다 — 좁혀 두면 그때 고쳐야 한다.
+   * 값을 **만드는** 쪽(범위 고르기 UI)은 `ScopeLabel` union 을 쓴다.
+   */
+  scopeLabel: string;
+  /** 준 시각(ISO 8601) — 화면의 「언제부터」. */
+  grantedAt: string;
+  /** 만료(ISO 8601). `'계속'` 이면 null — 학생이 거둘 때까지다. */
+  expiresAt: string | null;
+}
+
+/**
+ * 이 학생의 동의를 받게 될 보호자 — **이름과 관계만**.
+ *
+ * id 가 없는 것은 위 `MyConsentRow` 와 같은 이유다(본문으로 받지 않는 값을 응답에 실으면
+ * 「보내도 되나」로 읽힌다). 이름·관계는 **되돌려 보낼 수 있는 식별자가 아니라서** 그 문을
+ * 열지 않는다 — 부여 라우트는 여전히 본문의 `parentId` 를 400 으로 거절한다.
+ *
+ * 값의 출처는 부여 라우트가 쓰는 것과 **같은 함수**다(`resolveGrantRecipient`). 그래서
+ * 화면에 뜬 이름은 「지금 켜면 이 사람에게 간다」와 **같은 사람임이 보장된다** — 조회와
+ * 부여가 링크를 각자 고르면 그 보장이 우연이 된다.
+ */
+export interface MyConsentParent {
+  name: string;
+  relation: 'mother' | 'father' | 'guardian';
+}
+
+/**
+ * `GET /api/me/consents` 응답 — **살아 있는** 동의만, 준 순(오래된 것 먼저).
+ *
+ * `parent` 가 `null` 이면 **이 학생은 지금 동의를 줄 수 없다** — 부여 라우트가
+ * 400 `공유할 보호자가 연결되어 있지 않아요.` 로 답하는 바로 그 상태다. 화면은 스위치를
+ * 그려 놓고 눌러 보게 해서 알려 주는 대신, **미리 「아직 연결된 보호자가 없어요」를 그린다.**
+ */
+export interface MyConsentsResponse {
+  parent: MyConsentParent | null;
+  consents: MyConsentRow[];
+}
+
+/**
+ * `POST /api/me/consents` 본문.
+ *
+ * ⛔ `parentId` 도 `expiresAt` 도 **여기 없다, 있어도 무시가 아니라 거절이다.**
+ * 받는 사람을 본문이 정하면 학생이 남에게 자기 기록을 넘길 수 있고, 만료를 본문이
+ * 정하면 「이번 주만」에 서기 3000년을 적어 보낼 수 있다. 둘 다 서버가 정한다(계약 §2).
+ */
+export interface GrantConsentInput {
+  type: string;
+  scopeLabel: string;
+}
+
+/**
+ * `POST /api/me/consents` 응답 — 새로 줬으면 201, 살아 있던 동의를 갱신했으면 200
+ * (둘 다 같은 몸통).
+ */
+export interface GrantConsentResponse {
+  consent: MyConsentRow;
+}
+
+/**
+ * `DELETE /api/me/consents/[type]` 응답.
+ *
+ * `revoked:false` 는 실패가 아니라 **줄 게 없었다**는 뜻이다 — 부르는 쪽의 의도
+ * (「이건 공유되지 않아야 한다」)는 어느 쪽이든 이미 이뤄져 있다(담은 봇 빼기와 같은 규약).
+ */
+export interface RevokeConsentResponse {
+  revoked: boolean;
+}
+
+/** 학부모가 보는 「스스로 담은 봇」 한 장. */
+export interface ParentSelfStudyBot {
+  botId: string;
+  name: string;
+  subject: string;
+  /** 담은 날(ISO 8601) — 화면은 「시작한 날」로 읽는다. */
+  addedAt: string;
+}
+
+/**
+ * 학부모가 보는 연속 학습.
+ *
+ * 서버가 **날짜에서 계산해** 내려준다 — 학부모 화면에 날짜 배열을 통째로 주지 않는다.
+ * 「어느 날 공부했는지」의 목록은 요약보다 촘촘한 정보이고, 계약이 준 것은 요약이다.
+ */
+export interface ParentSelfStudyStreak {
+  /** 마지막 학습일부터 거꾸로 이어지는 구간의 길이(`deriveStreak` 과 같은 뜻). */
+  count: number;
+  /** `'YYYY-MM-DD'`. 한 번도 없으면 null. */
+  lastStudyDate: string | null;
+  /** 이번 주(KST 월요일 시작) 공부한 날 수 — 0~7. */
+  thisWeekDays: number;
+}
+
+/**
+ * `GET /api/parent/children/self-study` 의 자녀 한 명.
+ *
+ * ⛔ **동의하지 않은 자녀는 이 배열에 아예 없다** — 필드가 null 로 오는 게 아니다.
+ * 조회가 `INNER JOIN consent_logs` 라 미동의 자녀는 결과 집합에서 통째로 빠진다.
+ * 그래야 화면이 따로 기억하지 않아도 「미동의」와 「무활동」이 같아 보인다(계약 §2·§3).
+ *
+ * 그래서 **필드 마스킹을 쓰지 마라.** 동의 타입 하나 = 응답 블록 하나이고, 새 필드의
+ * 기본값은 「안 나감」이어야 한다. 여기에 null 자리를 만들면 다음 사람이 그 자리에
+ * 감정·대화 요약을 넣는다.
+ */
+export interface ParentSelfStudyChild {
+  id: string;
+  name: string;
+  relation: 'mother' | 'father' | 'guardian';
+  /** 자녀가 고른 공유 범위 — 카드 머리에 그대로 표시한다(범위를 숨기지 않는다). */
+  scopeLabel: string;
+  /** 동의 만료(ISO 8601). `'계속'` 이면 null. */
+  expiresAt: string | null;
+  /** 스스로 담은 봇 — 담은 순(오래된 것 먼저). */
+  bots: ParentSelfStudyBot[];
+  streak: ParentSelfStudyStreak;
+}
+
+/**
+ * `GET /api/parent/children/self-study` 응답.
+ *
+ * `GET /api/parent/children` 과 **일부러 분리했다.** 한 응답에 인가 모델이 둘
+ * (교사 파생 = 무조건 / 자기주도 = 동의 게이트)이 되면 다음 사람이 새 필드를 어느
+ * 규칙으로 더할지 알 수 없다(계약 §2).
+ *
+ * ⛔ 단원 진행은 여기 없다 — P5 다(`bot_curriculum_units` 가 비어 있다).
+ * 대화 원문·요약, 문항별 오답, 감정·웰빙도 없다 — 문서가 고정한 「넘지 않는 선」이다.
+ */
+export interface ParentSelfStudyResponse {
+  children: ParentSelfStudyChild[];
+}

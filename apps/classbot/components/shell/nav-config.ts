@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, School, Compass, BookMarked,
+  LayoutDashboard, Bot, Plus, Target, School, Compass, BookMarked, Sprout,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -132,6 +132,9 @@ export const parentNav: NavGroup[] = [
     items: [
       { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
       { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
+      // 자녀가 스스로 고른 봇으로 한 공부. 교사 파생인 위 둘과 인가 모델이 다르다 —
+      // 여기만 **자녀 본인의 동의**가 있어야 보인다(교사가 승인할 주체가 없는 학습이라서).
+      { href: '/parent/self-study',  label: '스스로 공부', icon: Sprout, description: '자녀가 스스로 고른 봇 · 공부한 날' },
     ],
   },
 ];

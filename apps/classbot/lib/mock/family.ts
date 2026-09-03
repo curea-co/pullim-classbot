@@ -28,13 +28,21 @@ export type ChildLink = {
   primary: boolean;
 };
 
-/** 학생이 부모와 공유 동의한 데이터 종류 */
+/**
+ * 학생이 부모와 공유 동의한 데이터 종류.
+ *
+ * `lib/db/schema.ts` 의 `consent_logs.type` enum 배열과 **같은 값들**이다. 실제 DB 의
+ * `type` 은 CHECK 도 PG enum 도 없는 `text` 라(적용된 스키마 실측), 이 두 곳이 값의
+ * 유일한 테두리다 — 한쪽만 고치면 타입은 통과하는데 화면이 `consentTypeMeta` 에서
+ * 라벨을 못 찾는다. 항상 같이 고친다.
+ */
 export type ConsentType =
-  | 'weekly_report'    // 주간 학습 요약
-  | 'monthly_report'   // 월간 회고
-  | 'weak_nodes'       // 약점 단원 정보
-  | 'emotion_share'    // 감정 평균 (민감, 별도 동의)
-  | 'realtime_alert';  // 학습 시작·완료 실시간 알림
+  | 'weekly_report'       // 주간 학습 요약
+  | 'monthly_report'      // 월간 회고
+  | 'weak_nodes'          // 약점 단원 정보
+  | 'emotion_share'       // 감정 평균 (민감, 별도 동의)
+  | 'realtime_alert'      // 학습 시작·완료 실시간 알림
+  | 'self_study_summary'; // 스스로 담은 봇·공부한 날 (대화 원문·요약은 포함 안 함)
 
 export type ConsentLog = {
   id: string;
@@ -54,6 +62,9 @@ export const consentTypeMeta: Record<ConsentType, { label: string; description: 
   weak_nodes:       { label: '약점 단원',     description: '내가 어려워하는 단원 목록',             sensitive: false },
   emotion_share:    { label: '감정 평균',     description: '블록별 감정 체크인 평균 — 민감',         sensitive: true },
   realtime_alert:   { label: '실시간 알림',   description: '학습 시작·완료·미수행 즉시 카톡',        sensitive: false },
+  // 자기주도 학습에는 승인할 교사가 구조적으로 없어(학생이 스스로 고른 봇), 이 하나만은
+  // 학생 본인이 승인 주체다. `sensitive: false` — 대화 원문·감정은 애초에 안 들어간다.
+  self_study_summary: { label: '스스로 공부', description: '스스로 고른 봇·공부한 날 — 대화 내용은 빼고', sensitive: false },
 };
 
 /* ─── 데모 데이터 ─────────────────────────────────────────── */

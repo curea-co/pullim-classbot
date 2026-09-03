@@ -1,21 +1,24 @@
 'use client';
 
-import { Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Sparkles, Users } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat } from '@/components/classbot/kpi-stat';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { MetaRow } from '@/components/ui/meta-row';
-import { useParentChildren } from '@/hooks/api/parent';
+import { useParentChildren, useParentSelfStudy } from '@/hooks/api/parent';
 import type { ParentChildItem } from '@/hooks/api/types';
 import { countChildAssignments, relationLabel } from './assignment-status';
 import { NoChildrenState, ParentErrorState, ParentLoading } from './parent-state';
+import { homeTeaserLine, visibleChildren } from './self-study/self-study-visibility';
 
 /**
  * 학부모 홈 — 「우리 아이 요즘 어때요?」에 한 화면으로 답한다.
  *
  * 자녀 한 명이 카드 한 장이다. 카드 안에서 묻는 것은 셋뿐이다 —
  * 어느 수업방에 들어가 있나 · 아직 남은 과제가 몇 개인가 · 그중 늦은 것이 있나.
+ * (자기주도는 넷째 질문이 아니라 **다른 화면으로 나가는 한 줄**이다. 카드 맨 아래 주석 참조.)
  * 자녀가 여럿이면 카드가 여러 장 쌓인다(API 가 배열을 준다). 고르는 장치를 두지 않는 이유는,
  * 부모가 아이를 「골라서」 보는 게 아니라 **다 같이** 보기 때문이다.
  *
@@ -30,6 +33,23 @@ import { NoChildrenState, ParentErrorState, ParentLoading } from './parent-state
 export default function ParentHomePage() {
   const { data, isLoading, isError, error, refetch } = useParentChildren();
   const children = data?.children ?? [];
+
+  /*
+    자기주도 한 줄 — 이 홈이 읽는 **두 번째** 입구다(계약 §3).
+
+    ⛔ 이 조회를 위 `isLoading` 과 묶지 마라. 홈의 본체는 수업방·과제이고 자기주도는
+    덧줄이다. 덧줄을 기다리느라 본체가 늦어지면 안 되고, 반대로 **아직 안 온 상태를
+    「없음」으로 그려서도 안 된다.** 아래 Map 이 그 둘을 동시에 만족시킨다 —
+    응답 전에는 비어 있고, 비어 있으면 줄이 아예 안 그려진다. 「불러오는 중」이라는
+    세 번째 모습이 없으므로 잘못 말할 자리 자체가 없다.
+
+    거르개(`visibleChildren`)는 자기주도 화면과 **같은 함수**다. 홈만 기준이 느슨하면
+    거기서만 보이는 아이가 생기고, 그 차이로 동의 여부가 드러난다.
+  */
+  const selfStudy = useParentSelfStudy();
+  const selfStudyByChild = new Map(
+    visibleChildren(selfStudy.data?.children ?? []).map(c => [c.id, c]),
+  );
 
   return (
     <div className="space-y-7">
@@ -50,14 +70,31 @@ export default function ParentHomePage() {
       ) : children.length === 0 ? (
         <NoChildrenState />
       ) : (
-        children.map(child => <ChildSummaryCard key={child.id} child={child} />)
+        children.map(child => (
+          <ChildSummaryCard
+            key={child.id}
+            child={child}
+            selfStudyLine={
+              selfStudyByChild.has(child.id)
+                ? homeTeaserLine(selfStudyByChild.get(child.id)!)
+                : null
+            }
+          />
+        ))
       )}
     </div>
   );
 }
 
 /** 자녀 한 명 — 숫자 셋과 수업방 목록. */
-function ChildSummaryCard({ child }: { child: ParentChildItem }) {
+function ChildSummaryCard({
+  child,
+  selfStudyLine,
+}: {
+  child: ParentChildItem;
+  /** 자기주도 한 줄. 보여줄 것이 없거나 아직 안 왔으면 null — 그러면 줄이 없다. */
+  selfStudyLine: string | null;
+}) {
   const counts = countChildAssignments(child.assignments);
   const rooms = child.classrooms;
 
@@ -131,6 +168,25 @@ function ChildSummaryCard({ child }: { child: ParentChildItem }) {
           </ul>
         )}
       </div>
+
+      {/*
+        자기주도 한 줄 — 홈이 자기주도에 대해 말하는 전부다(계약 §3).
+        숫자를 위 KPI 칸에 섞지 않은 이유는 그 셋이 「수업방 · 과제」 눈금이라
+        마감 없는 값이 끼면 안 낸 일처럼 읽히기 때문이다. 카드 맨 아래 나가는 길로 둔다.
+      */}
+      {selfStudyLine && (
+        <Link
+          href="/parent/self-study"
+          aria-label={`${child.name} 자기주도 학습 보기`}
+          className="border-pullim-slate-100 hover:bg-pullim-slate-50/50 focus-visible:ring-pullim-blue-400/50 mt-3 flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2"
+        >
+          <Sparkles className="text-pullim-blue-600 h-4 w-4 shrink-0" aria-hidden />
+          <span className="text-pullim-slate-700 min-w-0 flex-1 truncate text-2xs font-semibold">
+            {selfStudyLine}
+          </span>
+          <ArrowRight className="text-pullim-slate-400 h-3.5 w-3.5 shrink-0" aria-hidden />
+        </Link>
+      )}
     </section>
   );
 }

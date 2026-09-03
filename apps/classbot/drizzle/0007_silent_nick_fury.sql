@@ -1,0 +1,1 @@
+ALTER TABLE "consent_logs" ADD COLUMN "revoked_at" timestamp with time zone;
