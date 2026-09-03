@@ -1,14 +1,73 @@
 /**
  * 출제 폼 — 배점 합계 100점 규칙이 발사를 막는지, 문항 편집이 과제에 실리는지.
+ *
+ * 폼은 이제 **DB 를 본다** — 발사 봇은 내 수업방(`useTeacherClassrooms`)이고, 대상 학생은
+ * 그 방의 참여자(`useClassroomStudents`)이며, 발사는 `useDispatchAssignment` 로 나간다.
+ * 여기서 확인하려는 것은 그 세 훅의 동작이 아니라 **폼의 규칙**이라, 훅은 mock 으로 세우고
+ * 서버가 성공을 준 뒤의 자리(문항이 로컬 사본에 실리는지)를 본다.
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentForm } from '../assignment-form';
 import { useAssignmentStore, getQuestionsForAssignment } from '@/lib/store/assignments';
 
+/** 서버가 만들어 준 과제 id — 로컬 사본은 이 id 로 맞춰져야 학생 링크와 문항이 어긋나지 않는다. */
+const SERVER_ASSIGNMENT_ID = 'as_server_1';
+
+const mockRoom = {
+  classroomId: 'cr_test',
+  label: '고2 미적분 A반',
+  organization: '풀림',
+  botId: 'cb_001',
+  botName: '수학이 형',
+  subject: '수학Ⅱ',
+  grade: '고2',
+  studentCount: 2,
+  joinCode: 'ABC123',
+};
+const mockStudents = [
+  { id: 'student_001', name: '서연', joinedAt: '2026-03-04T08:20:00.000Z' },
+  { id: 's2', name: '민준', joinedAt: '2026-03-05T08:20:00.000Z' },
+];
+
+const mutateAsync = jest.fn();
+
+jest.mock('@/hooks/api/classroom', () => ({
+  useTeacherClassrooms: () => ({
+    data: { classrooms: [mockRoom] },
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+  useClassroomStudents: () => ({
+    data: { students: mockStudents },
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
+jest.mock('@/hooks/api/assignment-dispatch', () => ({
+  useDispatchAssignment: () => ({
+    mutateAsync,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
 beforeEach(() => {
   useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [], lastDispatched: null });
+  mutateAsync.mockReset();
+  mutateAsync.mockResolvedValue({ assignment: { id: SERVER_ASSIGNMENT_ID } });
 });
+
+/** 발사 — 서버 응답을 기다린 뒤에야 로컬 사본이 쓰인다(낙관적 선반영을 하지 않는다). */
+async function clickDispatch() {
+  await act(async () => {
+    fireEvent.click(screen.getByTestId('dispatch-btn'));
+  });
+}
 
 function fillTitle() {
   fireEvent.change(screen.getByTestId('title-input'), { target: { value: '배점 규칙 확인 과제' } });
@@ -39,7 +98,7 @@ it('문항 더하기·배점 고르게 나누기로 다시 100점을 맞출 수 
   expect(screen.getByTestId('points-tally').textContent).toContain('100 / 100점');
 });
 
-it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대로 쓰인다', () => {
+it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대로 쓰인다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   // 기본 5문항 중 1문항만 남기고 발문을 채운다
@@ -50,9 +109,14 @@ it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대�
   fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '얼음이 녹는 동안 온도는?' } });
   fireEvent.change(screen.getByTestId('question-option-0-0'), { target: { value: '그대로' } });
   fireEvent.change(screen.getByTestId('question-option-0-1'), { target: { value: '오른다' } });
-  fireEvent.click(screen.getByTestId('dispatch-btn'));
+  await clickDispatch();
 
+  // 서버가 소유권·대상을 검사한 뒤에야 로컬 사본이 생긴다 — id 도 서버가 준 것이다
+  expect(mutateAsync).toHaveBeenCalledWith(
+    expect.objectContaining({ botId: 'cb_001', questionCount: 1, difficulty: '중', mode: 'practice' }),
+  );
   const [dispatched] = useAssignmentStore.getState().dispatched;
+  expect(dispatched.id).toBe(SERVER_ASSIGNMENT_ID);
   expect(dispatched.questions).toHaveLength(1);
   expect(getQuestionsForAssignment(dispatched)[0]).toMatchObject({
     prompt: '얼음이 녹는 동안 온도는?',
@@ -81,10 +145,10 @@ it('발문을 다 썼는데 자동 채점 문항 정답이 비면 발사를 막�
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
 
-it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남긴다', () => {
+it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남긴다', async () => {
   render(<AssignmentForm />);
   fillTitle();
-  fireEvent.click(screen.getByTestId('dispatch-btn'));
+  await clickDispatch();
 
   const [dispatched] = useAssignmentStore.getState().dispatched;
   expect(dispatched.questions).toBeUndefined();
