@@ -354,6 +354,44 @@ describe('POST /api/teacher/assignments — 반 단위 발사', () => {
     expect(values.id).toMatch(/^as_/);
   });
 
+  it('교사가 고른 단원을 그대로 적는다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_2', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(
+      dispatchReq({
+        scope: '수학Ⅱ > 미분 > 도함수',
+        chapterFrom: '수학Ⅱ > 미분 > 도함수',
+        chapterTo: '수학Ⅱ > 미분 > 도함수',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      scope: '수학Ⅱ > 미분 > 도함수',
+      chapterFrom: '수학Ⅱ > 미분 > 도함수',
+      chapterTo: '수학Ⅱ > 미분 > 도함수',
+    });
+  });
+
+  it('단원을 안 보내면 예전 기본값으로 떨어진다 — 단원 없이 내는 경로가 실제로 있다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_3', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq());
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({ scope: '단원 미정', chapterFrom: '', chapterTo: '' });
+  });
+
   it('이 방에 없는 학생을 지정하면 400', async () => {
     mockSelectQueue = [
       [{ role: 'teacher' }],
