@@ -53,7 +53,10 @@ export default function MyBotsPage() {
   // 마켓과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
   const isSignedOut = market.error instanceof ApiClientError && market.error.status === 401;
   const isMarketBroken = market.isError && !isSignedOut;
-  const isLoading = mine.isLoading || (rows.length > 0 && market.isPending);
+  // 담은 봇이 0개여도 마켓이 끝날 때까지 기다린다 — 「빈 목록」과 「로그인 안 함」을 가르는
+  // 근거가 마켓의 401 이라서다. 예전엔 rows 가 없으면 기다리지 않아, 비로그인 사용자가
+  // 「아직 담은 봇이 없어요」를 한 번 본 뒤에야 로그인 안내로 바뀌었다.
+  const isLoading = mine.isLoading || market.isPending;
   const isEmpty =
     !mine.isError && !isSignedOut && !isMarketBroken && !isLoading && rows.length === 0;
 

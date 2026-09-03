@@ -113,7 +113,8 @@ export default function MyProfilePage() {
               {myBots.map(({ bot, enrollment }) => {
                 const hex = botSignature(bot).hex;
                 return (
-                  <li key={bot.id} className="bg-card flex items-center gap-3 rounded-2xl border p-3">
+                  // 여기서 세는 것은 봇이 아니라 소속 반이다 — 같은 봇의 두 반이 한 줄로 접히면 안 된다.
+                  <li key={enrollment.classroomId} className="bg-card flex items-center gap-3 rounded-2xl border p-3">
                     <span
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
                       style={{ backgroundColor: hex }}

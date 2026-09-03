@@ -107,6 +107,11 @@ export function useMyRooms(): MyRoomsResult {
 
   const rooms = useMemo(() => {
     const apiRooms = (data?.classrooms ?? []).map(toSlot);
+    // 합치는 기준이 **봇 id** 인 이유: 두 소스의 반 id 는 서로 다른 공간이다.
+    // 스토어 쪽은 `classroomId === botId`(mock 카탈로그 id)이고 서버 쪽은 진짜 반 id 라,
+    // 반 id 로 맞추면 같은 봇의 데모 방과 실제 방이 **둘 다** 그려진다.
+    // 서버가 같은 봇으로 여러 반을 주는 경우는 이 집합이 가리지 않는다 — apiRooms 는 전부 남는다.
+    // (화면의 목록 key 는 그래서 봇이 아니라 `enrollment.classroomId` 를 쓴다.)
     const seen = new Set(apiRooms.map((r) => r.bot.id));
     const localRooms: RoomSlot[] = local
       .filter((slot) => !seen.has(slot.bot.id))

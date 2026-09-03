@@ -46,7 +46,8 @@ export function JoinedClasses({ rooms }: { rooms: RoomSlot[] }) {
           <span className="flex shrink-0 items-center -space-x-2" aria-hidden="true">
             {stack.map((room) => (
               <span
-                key={room.bot.id}
+                // 같은 봇을 쓰는 반이 둘일 수 있다 — key 는 반 단위여야 한다.
+                key={room.enrollment.classroomId}
                 className="bg-pullim-slate-100 ring-card flex h-9 w-9 items-center justify-center rounded-full text-base ring-2"
               >
                 {room.bot.avatarEmoji}
