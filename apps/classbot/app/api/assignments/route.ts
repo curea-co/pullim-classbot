@@ -24,10 +24,10 @@ export const runtime = 'nodejs';
  * @returns 200 { assignments: [...] } | 401
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
+  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
 
   // 읽기 가드 — D1 로그인월. 미로그인은 401(mock 폴백 없음).
-  if (!isAuthenticated) {
+  if (!isIdentified) {
     return NextResponse.json(
       { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
       { status: 401 },

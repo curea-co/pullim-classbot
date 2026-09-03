@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target,
+  LayoutDashboard, Bot, Plus, Target, Compass,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -39,17 +39,22 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-export type Role = 'student' | 'teacher';
+export type Role = 'student' | 'teacher' | 'parent';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
+  // 「내 수업방」·「내가 담은 봇」은 그 화면이 도착하는 PR 에서 여기 들어온다 —
+  // nav 는 라우트 인벤토리라 페이지보다 먼저 열면 누르는 즉시 404 다.
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
-  // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) · 봇 찾기(/classbot/discover) 진입점 비노출. 재개 시 되살린다
+  // 봇 마켓(/classbot/discover) 는 오래 「기획 보류·nav 비노출」이었다. 교사가 자기 봇을
+  // 밖에 게시하는 기능이 생기면서 **게시된 봇이 실제로 모이는 화면**이 됐으므로 다시 연다.
+  { href: '/classbot/discover',   label: '봇 마켓',    icon: Compass,       description: '선생님들이 공유한 봇 둘러보기' },
+  // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
   { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
@@ -81,6 +86,7 @@ export const teacherNav: NavGroup[] = [
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
+      // 「내 수업방」(/teacher/classroom)은 그 화면이 도착하는 PR 에서 홈 바로 뒤에 들어온다.
       // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
       // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
       // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
@@ -95,6 +101,7 @@ export const teacherNav: NavGroup[] = [
       { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
+      // 「봇 마켓」(/teacher/marketplace)도 그 화면이 도착하는 PR 에서 봇 관리 뒤에 들어온다.
     ],
   },
   {
@@ -107,10 +114,20 @@ export const teacherNav: NavGroup[] = [
   },
 ];
 
+/**
+ * 학부모 사이드바 — **아직 비어 있다.**
+ *
+ * 역할(`Role`)은 이 PR 에서 서지만 `/parent/*` 화면은 뒤 PR 에서 온다. 없는 라우트를
+ * 미리 열면 레일에서 누르는 즉시 404 이므로, 항목은 화면과 같은 PR 에서 채운다.
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 둘로 고정이다(계약 §6).
+ */
+export const parentNav: NavGroup[] = [];
+
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
     case 'student': return studentNav;
     case 'teacher': return teacherNav;
+    case 'parent': return parentNav;
   }
 }
 
@@ -159,8 +176,10 @@ export function findActiveNav(pathname: string, role: Role): NavItem | undefined
 
 export function buildBreadcrumb(pathname: string, role: Role): { label: string; href?: string }[] {
   const nav = navForRole(role);
+  // 역할마다 뿌리가 다르다 — 셋이 됐으니 학생/그 밖 이분법으로 두면 학부모가 교사 뿌리를 쓴다.
   const root =
     role === 'student' ? { label: '풀림 클래스봇', href: '/' }
+    : role === 'parent' ? { label: '풀림 학부모', href: '/parent' }
     : { label: '풀림 교사', href: '/teacher' };
   const trail: { label: string; href?: string }[] = [root];
 

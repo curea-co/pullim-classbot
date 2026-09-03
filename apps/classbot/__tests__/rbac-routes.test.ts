@@ -33,7 +33,7 @@ jest.mock("@/lib/db/schema", () => ({
 }));
 
 const getCurrentUserIdFromRequest = jest.fn<
-  { id: string; role: string; isAuthenticated: boolean },
+  { id: string; role: string; isAuthenticated: boolean; isIdentified: boolean },
   [Request]
 >();
 jest.mock("@/lib/current-user", () => ({
@@ -63,6 +63,7 @@ describe("POST /api/chat (쓰기 가드 + 명의)", () => {
       id: "student_001",
       role: "student",
       isAuthenticated: false,
+      isIdentified: false,
     });
 
     const res = await chatPOST(jsonRequest({ botId: "cb_1", text: "안녕" }));
@@ -75,6 +76,7 @@ describe("POST /api/chat (쓰기 가드 + 명의)", () => {
       id: "uuid-session-A",
       role: "student",
       isAuthenticated: true,
+      isIdentified: true,
     });
 
     const res = await chatPOST(
@@ -91,6 +93,7 @@ describe("POST /api/chat (쓰기 가드 + 명의)", () => {
       id: "uuid-A",
       role: "student",
       isAuthenticated: true,
+      isIdentified: true,
     });
     const res = await chatPOST(jsonRequest({ botId: "", text: "" }));
     expect(res.status).toBe(400);
@@ -110,6 +113,7 @@ describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
       id: "student_001",
       role: "student",
       isAuthenticated: false,
+      isIdentified: false,
     });
     const res = await botsPOST(jsonRequest(validBody));
     expect(res.status).toBe(401);
@@ -121,6 +125,7 @@ describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
       id: "uuid-student",
       role: "student",
       isAuthenticated: true,
+      isIdentified: true,
     });
     const res = await botsPOST(jsonRequest(validBody));
     expect(res.status).toBe(403);
@@ -132,6 +137,7 @@ describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
       id: "uuid-teacher",
       role: "teacher",
       isAuthenticated: true,
+      isIdentified: true,
     });
     const res = await botsPOST(jsonRequest(validBody));
     expect(res.status).toBe(201);
@@ -146,6 +152,7 @@ describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
       id: "uuid-teacher",
       role: "teacher",
       isAuthenticated: true,
+      isIdentified: true,
     });
     const res = await botsPOST(jsonRequest({ name: "", subject: "", grade: "" }));
     expect(res.status).toBe(400);

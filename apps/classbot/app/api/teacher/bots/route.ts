@@ -38,10 +38,10 @@ interface BotBody {
  * @returns 201 { id, teacherId } | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: teacherId, role, isAuthenticated } = getCurrentUserIdFromRequest(req);
+  const { id: teacherId, role, isIdentified } = getCurrentUserIdFromRequest(req);
 
   // 쓰기 가드 — 미로그인 차단.
-  if (!isAuthenticated) {
+  if (!isIdentified) {
     return NextResponse.json(
       { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
       { status: 401 },
