@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Send, Save, Eye, Sparkles,
-  CheckCircle2, Users, Calendar, BookOpen, Shield, Plus, Scale, Split,
+  CheckCircle2, Users, Calendar, BookOpen, Shield, Plus, Scale, Split, School,
 } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { BotNote } from '@/components/classbot/bot-note';
@@ -18,10 +18,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import {
-  classBots, classRoster, getBotCurriculum,
-  type AssignmentMode, type ClassBot, type BotCurriculumUnit,
+  classBots,
+  getBotCurriculum,
+  type AssignmentMode, type BotCurriculumUnit,
   type Assignment, type ScopeLevel,
 } from '@/lib/mock';
+import { ApiClientError } from '@/lib/api/client-fetch';
+import { useClassroomStudents, useTeacherClassrooms } from '@/hooks/api/classroom';
+import { useDispatchAssignment } from '@/hooks/api/assignment-dispatch';
+import type { TeacherClassroomItem } from '@/hooks/api/types';
 import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib/store/assignments';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
@@ -67,49 +72,115 @@ function defaultDueLabel(): string {
 
 // formatDueLabel/computeDDay 는 재발사(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
 
-/** 어느 봇에서 왔는지 모를 때 여는 봇 — 목록 첫 줄. */
-const defaultBotId = classBots[0]?.id ?? '';
+/** 봇이 붙은 수업방 — 과제는 `bot_id` 로 방에 매이므로 봇 없는 반에는 낼 수 없다. */
+type DispatchableRoom = TeacherClassroomItem & { botId: string };
 
 /**
  * `initialBotId` — 운영 화면 봇 카드의 「과제 내기」가 어느 봇에서 눌렸는지 (`?bot=`).
- * 실어 오지 않으면 첫 봇으로 연다. 종전에는 늘 첫 봇이라, 국어봇 카드에서 눌러도
- * 수학봇 과제 폼이 열렸다 — 교사가 봇을 다시 골라야 했다.
+ * 실어 오지 않거나 내 방이 아닌 봇이면 목록 첫 방으로 연다.
+ *
+ * 발사 봇 목록은 **DB 의 내 수업방**(`GET /api/teacher/classrooms`)에서 온다.
+ * mock 카탈로그(`classBots`)를 쓰면 안 된다 — 발사는 `POST /api/teacher/assignments` 가
+ * `class_bots.teacher_id = 나` 로 소유권을 검사하므로, 카탈로그에만 있는 봇 id 는
+ * 그 자리에서 404 로 튕긴다. 대상 학생도 같은 이유로 **그 방의 실제 참여자**여야 한다
+ * (서버가 `enrollments` 로 대조한다).
  */
-export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?: string }) {
+export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string }) {
   const router = useRouter();
   const dispatch = useAssignmentStore((s) => s.dispatch);
+
+  const classroomsQuery = useTeacherClassrooms();
+  const dispatchAssignment = useDispatchAssignment();
 
   // 입력 state — 초기값으로 자동 채움
   const [botId, setBotId] = useState<string>(initialBotId);
   const [title, setTitle] = useState('');
   const [mode, setMode] = useState<AssignmentMode>('practice');
   const [difficulty, setDifficulty] = useState<'하' | '중' | '상'>('중');
-  const [unitId, setUnitId] = useState<string>(() => getBotCurriculum(initialBotId)[0]?.id ?? '');
+  const [unitId, setUnitId] = useState<string>('');
   const [questions, setQuestions] = useState<DraftQuestion[]>(createDefaultQuestions);
-  const [targetIds, setTargetIds] = useState<string[]>(() => classRoster.map(s => s.id));
+  /** 지정 대상. `null` = 아직 손대지 않음 = 반 전체 — 명단이 늦게 도착해도 고른 것이 어긋나지 않는다. */
+  const [targetIds, setTargetIds] = useState<string[] | null>(null);
   const [dueIso, setDueIso] = useState(defaultDueLabel());
   const [botMessage, setBotMessage] = useState('');
   const [examTimeLimit, setExamTimeLimit] = useState(60);
 
   const [preview, setPreview] = useState(false);
 
-  // 자동 채움
-  const bot = useMemo<ClassBot | undefined>(() => classBots.find(b => b.id === botId), [botId]);
-  const curriculum = useMemo<BotCurriculumUnit[]>(() => getBotCurriculum(botId), [botId]);
+  /*
+    고른 방은 **state 가 아니라 파생**이다 — 목록이 늦게 도착하므로, 첫 방으로 되돌리는 일을
+    effect 로 하면 교사가 고른 방을 나중에 덮어쓸 수 있다. 고른 id 가 목록에 없으면
+    (아직 안 왔거나 남의 봇이면) 그때만 첫 방으로 읽는다.
+  */
+  /*
+    비로그인(401)은 **오류가 아니라 데모 상태**다.
+    prod(classbot.pullim.ai)는 공개 화면이라 방문자에게 세션이 없고, prod-verify 도 쿠키 없이
+    이 화면을 친다. 401 을 오류로 그리면 공개 데모에서 이 화면이 통째로 죽는다 —
+    같은 판단을 학생 쪽 `app/(student)/classbot/classroom/page.tsx` 가 이미 하고 있다.
+    그래서 세션이 없을 때는 mock 카탈로그로 폼을 굴리고, 발사도 API 를 건드리지 않고
+    로컬 사본에만 쓴다(아래 handleDispatch). mock 봇 id 를 서버로 보내면 소유권 검사에서
+    404 로 튕기므로, **두 경로를 섞지 않는 것**이 이 분기의 핵심이다.
+  */
+  const signedOut =
+    classroomsQuery.isError &&
+    classroomsQuery.error instanceof ApiClientError &&
+    classroomsQuery.error.status === 401;
+
+  const demoRooms = useMemo<DispatchableRoom[]>(
+    () =>
+      classBots.map((b) => ({
+        classroomId: `demo_${b.id}`,
+        label: `${b.grade} ${b.subject}`,
+        organization: b.organization,
+        botId: b.id,
+        botName: b.name,
+        subject: b.subject,
+        grade: b.grade,
+        studentCount: 0,
+        joinCode: null,
+        isPublished: false,
+        publishedAt: null,
+        publishBlurb: null,
+      })),
+    [],
+  );
+
+  const rooms = useMemo<DispatchableRoom[]>(
+    () =>
+      signedOut
+        ? demoRooms
+        : (classroomsQuery.data?.classrooms ?? []).filter(
+            (r): r is DispatchableRoom => typeof r.botId === 'string' && r.botId.length > 0,
+          ),
+    [signedOut, demoRooms, classroomsQuery.data],
+  );
+  const room = rooms.find(r => r.botId === botId) ?? rooms[0];
+  const selectedBotId = room?.botId ?? '';
+  const noRooms = !classroomsQuery.isPending && !classroomsQuery.isError && rooms.length === 0;
+
+  // 대상 명단 — 이 방에 실제로 들어와 있는 학생. 방을 고르기 전에는 조회하지 않는다.
+  const studentsQuery = useClassroomStudents(room?.classroomId);
+  const students = useMemo(() => studentsQuery.data?.students ?? [], [studentsQuery.data]);
+  const selectedIds = targetIds ?? students.map(s => s.id);
+  // 전원 = 반 전체(빈 배열)로 보낸다 — 나중에 들어오는 학생도 같은 과제를 받는다.
+  const allSelected = targetIds === null || selectedIds.length === students.length;
+
+  // 자동 채움 — 단원 카탈로그는 mock 이 소유한다(DB 에 커리큘럼 테이블이 없다).
+  // 새로 연 수업방의 봇은 카탈로그에 없어 단원이 비는데, 그때는 「단원 미정」으로 낸다.
+  const curriculum = useMemo<BotCurriculumUnit[]>(() => getBotCurriculum(selectedBotId), [selectedBotId]);
   const selectedUnit = curriculum.find(u => u.id === unitId) ?? curriculum[0];
 
-  // 봇 변경 핸들러 — 단원 첫 항목으로 자동 reset
+  // 봇 변경 핸들러 — 단원·대상은 그 방의 것으로 다시 잡는다
   function handleBotChange(nextBotId: string) {
     setBotId(nextBotId);
-    const nextCurriculum = getBotCurriculum(nextBotId);
-    if (nextCurriculum.length > 0) {
-      setUnitId(nextCurriculum[0].id);
-    }
+    setUnitId('');
+    setTargetIds(null);
   }
 
   // 검증
   const titleValid = title.trim().length >= 5 && title.trim().length <= 50;
-  const targetValid = targetIds.length >= 1;
+  // 아직 아무도 안 들어온 방에도 낼 수 있다 — 반 전체로 나가고, 뒤에 들어온 학생이 받는다.
+  const targetValid = students.length === 0 || selectedIds.length >= 1;
   const dueValid = new Date(dueIso).getTime() > Date.now();
   const pointsTotal = sumPoints(questions);
   // 문항 수 상한 — 종전 `문항 수` 슬라이더의 max 를 편집기가 물려받는다(연습·오답정복 50 / 시험 60).
@@ -141,19 +212,29 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
   }
   const blockedReason = questionBlockedReason();
 
-  const canDispatch = !!bot && titleValid && targetValid && dueValid && blockedReason === null;
+  const canDispatch =
+    !!room && titleValid && targetValid && dueValid && blockedReason === null && !dispatchAssignment.isPending;
 
-  function buildAssignment(): UserAssignment {
-    const id = nextAssignmentId();
+  /** 서버가 받는 대상 — 전원이면 빈 배열(반 전체)이다. 스키마가 정한 규약. */
+  const targetPayload = allSelected ? [] : selectedIds;
+
+  /**
+   * 로컬 사본 한 벌 — **문항 본문은 아직 DB 에 없다.**
+   * `assignments` 테이블에는 문항 수만 있고 발문·보기·정답을 담을 자리가 없어서,
+   * 교사가 쓴 문항은 지금도 localStorage 스토어가 갖는다(학생 풀이 화면이 그걸 읽는다).
+   * 그래서 id 를 **서버가 준 것**으로 맞춰 둔다 — 두 벌이 같은 과제를 가리켜야
+   * 학생이 연 링크와 문항이 어긋나지 않는다.
+   */
+  function buildAssignment(id: string = nextAssignmentId()): UserAssignment {
     // 발문을 전부 채웠을 때만 문항을 실어 보낸다 — 하나라도 비면 단원 RAG 자동 추출 규약.
     const authored = toAssignmentQuestions(id, questions);
     const assignment: UserAssignment = {
       id,
-      botId,
+      botId: selectedBotId,
       title: title.trim(),
       scope: selectedUnit?.fullPath ?? '단원 미정',
-      subject: bot?.subject ?? '',
-      grade: bot?.grade ?? '',
+      subject: room?.subject ?? '',
+      grade: room?.grade ?? '',
       chapterFrom: selectedUnit?.fullPath ?? '',
       chapterTo: selectedUnit?.fullPath ?? '',
       achievementCodes: selectedUnit?.achievementCodes ?? [],
@@ -162,7 +243,7 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
       mode,
       scopeOverride: mode === 'exam' ? 1 : undefined,
       source: 'teacher-assigned',
-      assignedBy: bot?.name ?? '',
+      assignedBy: room?.botName ?? '',
       assignedAt: '방금 발사',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
@@ -172,28 +253,63 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
       solveHref: `/classbot/assignment/${id}/solve?step=1`,
       // UserAssignment 확장 필드
       dispatchStatus: 'sent',
-      targetStudentIds: targetIds.length === classRoster.length ? [] : targetIds,
+      targetStudentIds: targetPayload,
       examTimeLimitMin: mode === 'exam' ? examTimeLimit : undefined,
       questions: authored ?? undefined,
     };
     return assignment;
   }
 
-  function handleDispatch() {
-    if (!canDispatch) return;
-    const a = buildAssignment();
-    dispatch(a);
-    toast.success(`${a.assignedBy}이 ${targetIds.length}명에게 보냈어요`, {
-      description: `"${a.title}" · ${a.dueLabel}`,
-    });
-    router.push('/teacher/classbot');
+  /**
+   * 발사 — **DB 가 먼저**다. 서버가 행을 만든 뒤에야 로컬 사본을 쓴다.
+   * 낙관적으로 먼저 로컬에 쓰면, 소유권(404)·대상(400)에서 튕겼을 때 화면에는 낸 것으로
+   * 보이는데 학생에게는 아무것도 안 간 상태가 남는다.
+   */
+  async function handleDispatch() {
+    if (!canDispatch || !room) return;
+
+    // 비로그인 데모 — 서버로 보내지 않는다. mock 봇 id 는 소유권 검사에서 404 다.
+    if (signedOut) {
+      const a = buildAssignment(nextAssignmentId());
+      dispatch(a);
+      toast.success('데모라서 이 브라우저에만 저장했어요', {
+        description: `"${a.title}" · 로그인하면 실제 수업방 학생에게 나갑니다`,
+      });
+      router.push('/teacher/classbot');
+      return;
+    }
+
+    try {
+      const { assignment } = await dispatchAssignment.mutateAsync({
+        botId: room.botId,
+        title: title.trim(),
+        dueLabel: formatDueLabel(dueIso),
+        questionCount: questions.length,
+        difficulty,
+        mode,
+        targetStudentIds: targetPayload,
+      });
+
+      // 서버가 준 id 로 로컬 사본(문항 본문)을 맞춘다 — 위 buildAssignment 주석 참고.
+      const a = buildAssignment(assignment.id);
+      dispatch(a);
+
+      const sentCount = targetPayload.length === 0 ? students.length : targetPayload.length;
+      toast.success(`${a.assignedBy}이 ${sentCount}명에게 보냈어요`, {
+        description: `"${a.title}" · ${a.dueLabel}`,
+      });
+      router.push('/teacher/classbot');
+    } catch (error) {
+      // ApiClientError.message 는 서버가 준 우리말 문구다 — 그대로 보여준다.
+      toast.error(error instanceof Error ? error.message : '과제를 내지 못했어요.');
+    }
   }
 
   // 진행도
   const progress = [
-    !!botId,
+    !!room,
     titleValid,
-    !!unitId && blockedReason === null,
+    blockedReason === null,
     targetValid,
     dueValid,
   ].filter(Boolean).length;
@@ -216,11 +332,39 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
         <PageHeader
           eyebrow={{ icon: Send, text: '새 과제' }}
           title="과제 발사하기"
-          description={bot ? `${bot.name} · ${bot.subject} ${bot.grade}` : '먼저 봇을 선택해주세요'}
+          description={
+            room
+              ? `${room.label} · ${room.botName ?? '봇'} · ${room.subject ?? ''} ${room.grade ?? ''}`.trim()
+              : '먼저 수업방을 선택해주세요'
+          }
         />
       </div>
 
       <div className="max-w-3xl space-y-6">
+        {/* 수업방을 못 읽으면 발사 봇 목록이 비어 폼 전체가 뜻을 잃는다 — 이유를 먼저 말한다 */}
+        {classroomsQuery.isError && (
+          <AlertCard tone="danger" icon={School} title="수업방을 불러오지 못했어요">
+            <p className="text-pullim-slate-700 text-sm" data-testid="rooms-error">
+              {classroomsQuery.error.message}
+            </p>
+          </AlertCard>
+        )}
+
+        {/* 방이 없으면 낼 곳이 없다 — 폼을 붙잡고 있게 두지 않고 만들러 보낸다 */}
+        {noRooms && (
+          <AlertCard tone="notice" icon={School} title="아직 수업방이 없어요">
+            <p className="text-pullim-slate-700 text-sm" data-testid="rooms-empty">
+              과제는 수업방에 내는 거예요. 먼저 수업방을 열고 참여 코드를 학생에게 알려주세요.
+            </p>
+            <Link
+              href="/teacher/classroom"
+              className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
+            >
+              <Plus className="h-4 w-4" />
+              수업방 만들기
+            </Link>
+          </AlertCard>
+        )}
         {/* ① 정체성 */}
         <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
@@ -231,16 +375,23 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
             <Field label="발사 봇" htmlFor="af-bot">
               <select
                 id="af-bot"
-                value={botId}
+                value={selectedBotId}
                 onChange={(e) => handleBotChange(e.target.value)}
+                disabled={rooms.length === 0}
                 data-testid="bot-select"
-                className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border px-3 py-2 text-sm outline-none disabled:bg-pullim-slate-50 disabled:text-pullim-slate-400"
               >
-                {classBots.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.avatarEmoji} {b.name} — {b.subject} {b.grade} ({b.enrolledCount}명)
+                {rooms.length === 0 ? (
+                  <option value="">
+                    {classroomsQuery.isPending ? '수업방을 불러오는 중…' : '아직 수업방이 없어요'}
                   </option>
-                ))}
+                ) : (
+                  rooms.map(r => (
+                    <option key={r.botId} value={r.botId}>
+                      {r.label} — {r.subject ?? ''} {r.grade ?? ''} ({r.studentCount}명)
+                    </option>
+                  ))
+                )}
               </select>
             </Field>
 
@@ -326,14 +477,20 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
             <Field label="단원" htmlFor="af-unit">
               <select
                 id="af-unit"
-                value={unitId}
+                value={selectedUnit?.id ?? ''}
                 onChange={(e) => setUnitId(e.target.value)}
+                disabled={curriculum.length === 0}
                 data-testid="unit-select"
-                className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border px-3 py-2 text-sm outline-none disabled:bg-pullim-slate-50 disabled:text-pullim-slate-400"
               >
-                {curriculum.map(u => (
-                  <option key={u.id} value={u.id}>{u.fullPath}</option>
-                ))}
+                {/* 새로 연 수업방의 봇은 단원 카탈로그에 아직 없다 — 그때는 「단원 미정」으로 낸다 */}
+                {curriculum.length === 0 ? (
+                  <option value="">단원 미정</option>
+                ) : (
+                  curriculum.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullPath}</option>
+                  ))
+                )}
               </select>
               <BotNote icon={BookOpen} className="mt-1">
                 발문은 <b>전부 쓰거나 전부 비우거나</b> 둘 중 하나예요 — 전부 비우면 선택 단원의
@@ -391,46 +548,71 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
         <section className="bg-card rounded-2xl border p-5">
           <SectionHeading
             title={<><span className="text-pullim-blue-600 font-mono mr-1">③</span> 대상</>}
-            description={`${targetIds.length}/${classRoster.length}명 선택됨`}
+            description={
+              students.length === 0
+                ? '이 수업방 참여 학생'
+                : `${selectedIds.length}/${students.length}명 선택됨`
+            }
             action={
-              <Button
-                type="button"
-                variant="link"
-                size="xs"
-                onClick={() => setTargetIds(targetIds.length === classRoster.length ? [] : classRoster.map(s => s.id))}
-                className="text-pullim-blue-600 hover:text-pullim-blue-700"
-              >
-                <Users />
-                {targetIds.length === classRoster.length ? '전체 해제' : '전체 선택'}
-              </Button>
+              students.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  onClick={() => setTargetIds(allSelected ? [] : null)}
+                  className="text-pullim-blue-600 hover:text-pullim-blue-700"
+                >
+                  <Users />
+                  {allSelected ? '전체 해제' : '전체 선택'}
+                </Button>
+              ) : undefined
             }
           />
 
-          <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {classRoster.map(s => {
-              const active = targetIds.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setTargetIds(
-                    active ? targetIds.filter(id => id !== s.id) : [...targetIds, s.id]
-                  )}
-                  data-testid={`student-${s.id}`}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-xs font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
-                    active
-                      ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
-                      : 'border-pullim-slate-200 bg-white text-pullim-slate-600 hover:border-pullim-slate-400',
-                  )}
-                >
-                  {active && <CheckCircle2 className="h-3 w-3" aria-hidden />}
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
+          {studentsQuery.isPending && room ? (
+            <p className="text-pullim-slate-500 text-2xs" data-testid="students-loading">
+              참여 학생을 불러오는 중이에요…
+            </p>
+          ) : studentsQuery.isError ? (
+            <p className="text-pullim-danger text-2xs" role="alert" data-testid="students-error">
+              {studentsQuery.error.message}
+            </p>
+          ) : students.length === 0 ? (
+            /*
+              아직 아무도 안 들어온 방 — 발사를 막지 않는다. 반 전체(빈 배열)로 나가므로
+              나중에 참여 코드로 들어오는 학생이 그대로 이 과제를 받는다.
+            */
+            <BotNote icon={Users}>
+              이 수업방에 들어온 학생이 아직 없어요. 지금 내면 <b>반 전체</b>로 나가서,
+              나중에 참여 코드로 들어오는 학생도 이 과제를 받아요.
+            </BotNote>
+          ) : (
+            <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {students.map(s => {
+                const active = selectedIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setTargetIds(
+                      active ? selectedIds.filter(id => id !== s.id) : [...selectedIds, s.id]
+                    )}
+                    data-testid={`student-${s.id}`}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border-2 px-2 py-1.5 text-xs font-bold transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
+                      active
+                        ? 'border-pullim-blue-500 bg-pullim-blue-50 text-pullim-blue-700'
+                        : 'border-pullim-slate-200 bg-white text-pullim-slate-600 hover:border-pullim-slate-400',
+                    )}
+                  >
+                    {active && <CheckCircle2 className="h-3 w-3" aria-hidden />}
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {!targetValid && (
             <p className="text-pullim-danger mt-2 text-xs">최소 1명을 선택해주세요.</p>
           )}
@@ -529,11 +711,16 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
           <Save />
           임시저장
         </Button>
-        {blockedReason && (
+        {blockedReason ? (
           <span className="text-pullim-danger ml-auto text-2xs font-bold" data-testid="dispatch-blocked">
             {blockedReason}
           </span>
-        )}
+        ) : dispatchAssignment.isError ? (
+          /* 서버가 막은 이유 — 문구는 서버가 준 우리말 그대로다(대상·소유권·입력) */
+          <span className="text-pullim-danger ml-auto text-2xs font-bold" role="alert" data-testid="dispatch-error">
+            {dispatchAssignment.error.message}
+          </span>
+        ) : null}
         <Button
           type="button"
           variant={mode === 'exam' ? 'pullim-danger' : 'pullim'}
@@ -541,20 +728,20 @@ export function AssignmentForm({ initialBotId = defaultBotId }: { initialBotId?:
           onClick={handleDispatch}
           disabled={!canDispatch}
           data-testid="dispatch-btn"
-          className={cn(blockedReason ? 'ml-2' : 'ml-auto')}
+          className={cn(blockedReason || dispatchAssignment.isError ? 'ml-2' : 'ml-auto')}
         >
           <Send />
-          발사 →
+          {dispatchAssignment.isPending ? '보내는 중…' : '발사 →'}
         </Button>
       </div>
 
       {/* 미리보기 모달 */}
-      {preview && bot && (
+      {preview && room && (
         <PreviewModal
           assignment={buildAssignment()}
-          bot={bot}
+          botName={room.botName ?? '봇'}
           questions={questions}
-          targetCount={targetIds.length}
+          targetCount={targetPayload.length === 0 ? students.length : targetPayload.length}
           onClose={() => setPreview(false)}
         />
       )}
@@ -582,9 +769,9 @@ function Field({
 }
 
 function PreviewModal({
-  assignment, bot, questions, targetCount, onClose,
+  assignment, botName, questions, targetCount, onClose,
 }: {
-  assignment: Assignment; bot: ClassBot; questions: DraftQuestion[];
+  assignment: Assignment; botName: string; questions: DraftQuestion[];
   targetCount: number; onClose: () => void;
 }) {
   const meta = modeOptions[assignment.mode];
@@ -613,7 +800,7 @@ function PreviewModal({
           <h4 className="text-pullim-slate-900 mt-2 text-base font-bold">{assignment.title}</h4>
           <p className="text-pullim-slate-600 mt-0.5 text-xs">{assignment.scope}</p>
           <p className="text-pullim-slate-500 mt-1 text-2xs">
-            {assignment.questionCount}문항 · {sumPoints(questions)}점 · 난이도 {assignment.difficulty} · {bot.name}
+            {assignment.questionCount}문항 · {sumPoints(questions)}점 · 난이도 {assignment.difficulty} · {botName}
           </p>
           <p className="text-pullim-slate-500 mt-0.5 text-2xs">
             자동 채점 {tally.auto.count}문항 · 선생님이 채점 {tally.teacher.count}문항
