@@ -580,7 +580,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
 });
 
 describe('내 동의 목록 — 살아 있는 것만', () => {
-  /** GET 은 보호자 조회와 동의 조회를 **동시에** 던진다(Promise.all) — 큐도 그 순서다. */
+  /** GET 은 보호자를 먼저 고르고 그 사람으로 동의를 좁혀 읽는다 — 큐도 그 순서다. */
   const LINK = [{ id: 'parent_001', name: '어머니', relation: 'mother' }];
 
   it('조회 술어에 철회·만료 판정이 들어 있다', async () => {
@@ -630,8 +630,21 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
     expect(body.parent).not.toHaveProperty('id');
   });
 
+  it('지금 보호자에게 준 것만 읽는다 — 옛 보호자 대상 동의가 섞이지 않게', async () => {
+    mockSelectQueue = [LINK, []];
+    await getConsents(req('student_001', 'student'));
+
+    // 마지막 where 가 동의 조회의 술어다. 학생만이 아니라 **받는 사람**으로도 좁혀야
+    // 「어머니께 보여드리는 중」이라 쓰면서 실제 권한은 다른 사람에게 열려 있는 상태가 안 된다.
+    const where = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]);
+    expect(where.params).toContain('student_001');
+    expect(where.params).toContain('parent_001');
+    expect(where.text).toContain('"parent_id"');
+  });
+
   it('링크가 없으면 parent 는 null — 화면이 스위치를 그리기 전에 안다', async () => {
-    mockSelectQueue = [[], []];
+    // 받는 사람이 없으면 동의 조회 자체를 하지 않는다 — 큐에 링크 0행 하나뿐이다.
+    mockSelectQueue = [[]];
 
     const res = await getConsents(req('s2', 'student'));
     const body = (await res.json()) as { parent: unknown; consents: unknown[] };
