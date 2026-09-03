@@ -34,12 +34,12 @@ function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
       <Link
         href={`/classbot/chat?bot=${slot.bot.id}`}
         className={cn(
-          'group bg-card focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 gap-3 rounded-xl border border-l-4 p-3 transition-all shadow-pullim-xs',
+          // 봇 시그니처는 아바타 한 곳에서만 — 라이너까지 칠하면 한 화면에 hue 가 [08 § 14.1] 한도(≤3종)를 넘는다
+          'group bg-card focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 gap-3 rounded-xl border p-3 transition-all shadow-pullim-xs',
           isLive
             ? 'border-pullim-danger/40 bg-pullim-danger/5 hover:bg-pullim-danger/10'
             : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40',
         )}
-        style={{ borderLeftColor: sig.hex }}
       >
         {/* Avatar */}
         <div className="relative shrink-0">
@@ -101,7 +101,7 @@ export function TutorShowcase({
   return (
     <section>
       <SectionHeading
-        title="내 튜터"
+        title="내 봇"
         action={<span className="text-pullim-slate-500 text-xs font-bold">{bots.length}명</span>}
       />
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">

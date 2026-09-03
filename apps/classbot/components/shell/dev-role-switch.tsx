@@ -60,16 +60,16 @@ function identityFor(id: string): DevIdentity {
 /**
  * 전환 UI 가 여는 역할 — **착지점이 있는 역할만** 편다.
  *
- * allowlist(`DEV_IDENTITIES`)에는 학부모 데모 계정도 있지만 `/parent` 화면은 뒤 PR 에서
- * 온다. 없는 라우트를 여기 실으면 누르는 즉시 404 이므로, 화면이 도착하는 PR 에서 이 표에
- * 한 줄이 늘고 세그먼트·드롭다운이 함께 열린다(아래 SWITCHABLE 이 이 표를 따른다).
+ * 학부모 화면(`/parent`)이 이 PR 에서 도착했으므로 한 줄이 늘어 셋이 된다 —
+ * 세그먼트와 드롭다운(아래 SWITCHABLE)이 이 표 하나를 함께 따른다.
  */
 const DEV_ROLES: DevRoleTarget[] = [
   { role: 'student', label: '학생', href: '/classbot', icon: GraduationCap, identity: identityFor('student_001') },
   { role: 'teacher', label: '교사', href: '/teacher', icon: School, identity: identityFor('teacher_001') },
+  { role: 'parent', label: '학부모', href: '/parent', icon: Users, identity: identityFor('parent_001') },
 ];
 
-/** 드롭다운에 펴는 계정 — 착지점이 있는 역할의 계정만. 서버 allowlist 는 그대로다. */
+/** 드롭다운에 펴는 계정 — 착지점이 있는 역할의 계정만(지금은 allowlist 전원). */
 const SWITCHABLE: readonly DevIdentity[] = DEV_IDENTITIES.filter((identity) =>
   DEV_ROLES.some((target) => target.role === identity.role),
 );

@@ -17,8 +17,20 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
   return { title: first.title, dDay: first.dDay, href: first.solveHref ?? '/classbot/assignment' };
 }
 
-export function LearningHero({ incompleteAssignments }: { incompleteAssignments: Assignment[] }) {
-  const { name, streakDays } = currentPersona;
+/**
+ * 학생 홈 상단 인사 띠.
+ * @param incompleteAssignments - 아직 안 끝낸 과제(가장 급한 것이 앞)
+ * @param name - 부르는 이름. 안 주면 데모 페르소나(서연)로 떨어진다 —
+ *   개발용 신원으로 다른 학생을 보고 있는데 「서연님」이라고 부르면 안 된다.
+ */
+export function LearningHero({
+  incompleteAssignments,
+  name = currentPersona.name,
+}: {
+  incompleteAssignments: Assignment[];
+  name?: string;
+}) {
+  const { streakDays } = currentPersona;
   const nextAction = pickNextAction(incompleteAssignments);
 
   return (

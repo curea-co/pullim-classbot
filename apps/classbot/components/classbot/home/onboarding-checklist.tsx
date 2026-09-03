@@ -23,7 +23,7 @@ interface OnboardingChecklistProps {
 export function OnboardingChecklist({ enrolled, hasGoal, studied, firstTutorId }: OnboardingChecklistProps) {
   const learnHref = firstTutorId ? `/classbot/learn/${firstTutorId}` : '/classbot/discover';
   const steps = [
-    { label: '튜터 등록하기', done: enrolled, href: '/classbot/discover', cta: '봇 마켓' },
+    { label: '봇 등록하기', done: enrolled, href: '/classbot/discover', cta: '봇 마켓' },
     { label: '학습 목표 정하기', done: hasGoal, href: enrolled ? learnHref : '/classbot/discover', cta: enrolled ? '목표 정하기' : '먼저 등록' },
     { label: '첫 학습 완료하기', done: studied, href: enrolled ? learnHref : '/classbot/discover', cta: enrolled ? '학습 시작' : '먼저 등록' },
   ];
