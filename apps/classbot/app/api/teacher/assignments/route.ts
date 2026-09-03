@@ -1,0 +1,214 @@
+/**
+ * 교사 과제 — 출제(발사) + 내가 낸 과제 목록 (계약 §4 「교사」).
+ *
+ * 발사는 학생 수만큼 행을 만들지 않는다. **행 하나**에 `student_id = NULL` 과
+ * `target_student_ids` 로 대상을 적고, 학생 쪽 조회 술어가 그걸 펼쳐 읽는다
+ * (`app/api/_lib/assignment-visibility.ts`). `target_student_ids = []` 는 반 전체다.
+ *
+ * `dispatched_at` 은 스키마 주석(lib/db/schema.ts:421)이 "실제 발사 전이에서만 기록" 하라고
+ * 못박은 컬럼이다 — 이 라우트가 바로 그 전이라서 여기서 지금 시각을 적는다.
+ */
+
+import { randomUUID } from 'node:crypto';
+import { NextResponse } from 'next/server';
+import { and, desc, eq, inArray } from 'drizzle-orm';
+
+import { getDb } from '@/lib/db';
+import { assignments, classBots, enrollments } from '@/lib/db/schema';
+import {
+  forbidden,
+  invalidInput,
+  notFound,
+  readJsonBody,
+  readTrimmed,
+  resolveActor,
+  unauthorized,
+} from '@/app/api/_lib/guards';
+
+export const runtime = 'nodejs';
+
+const DIFFICULTIES = ['하', '중', '상'] as const;
+type Difficulty = (typeof DIFFICULTIES)[number];
+
+const MODES = ['practice', 'exam', 'wrong-conquest'] as const;
+type Mode = (typeof MODES)[number];
+
+/** 문항 수 상한 — 시험 모드 최대치를 넉넉히 덮는 방어값. */
+const MAX_QUESTION_COUNT = 100;
+
+/**
+ * 마감 라벨에서 D-day 를 뽑는다 — `d_day` 가 NOT NULL 이라 빈칸을 둘 수 없다.
+ *
+ * 라벨은 FE `formatDueLabel` 이 만든 `오늘 22:00` · `내일 22:00` · `7/3 22:00` 세 모양이다.
+ * 날짜꼴이면 남은 날을 세고, 못 읽으면 `D-1`(폼 기본값) 로 둔다.
+ * @param dueLabel - 마감 라벨
+ * @returns `오늘` 또는 `D-n`
+ */
+function deriveDDay(dueLabel: string): string {
+  if (dueLabel.startsWith('오늘')) return '오늘';
+  if (dueLabel.startsWith('내일')) return 'D-1';
+
+  const match = /^(\d{1,2})\/(\d{1,2})/.exec(dueLabel);
+  if (!match) return 'D-1';
+
+  const now = new Date();
+  const due = new Date(now.getFullYear(), Number(match[1]) - 1, Number(match[2]));
+  // 해가 바뀌는 마감(12월 → 1월)은 과거로 계산되므로 한 해를 더한다.
+  if (due.getTime() < now.getTime() - 86400000 * 180) {
+    due.setFullYear(due.getFullYear() + 1);
+  }
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / 86400000);
+  return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
+}
+
+/** 문자열 배열인지 확인하고 다듬어 돌려준다. 배열이 아니면 null. */
+function readStudentIds(value: unknown): string[] | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string' || !item.trim()) return null;
+    ids.push(item.trim());
+  }
+  return [...new Set(ids)];
+}
+
+/**
+ * 내가 낸 과제 목록 — `created_by` 가 나인 행.
+ * @param req - 신원(쿠키 또는 Bearer)
+ * @returns 200 { assignments } | 401 | 403
+ */
+export async function GET(req: Request): Promise<NextResponse> {
+  const actor = await resolveActor(req);
+  if (!actor.isIdentified) return unauthorized();
+  if (actor.role !== 'teacher') return forbidden('선생님만 볼 수 있어요.');
+
+  const rows = await getDb()
+    .select()
+    .from(assignments)
+    .where(eq(assignments.createdBy, actor.id))
+    // id 는 uuid 라 시간순이 아니다 — 발사 시각으로 정렬한다.
+    .orderBy(desc(assignments.dispatchedAt), desc(assignments.id));
+
+  return NextResponse.json({ assignments: rows });
+}
+
+/**
+ * 과제를 발사한다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
+ * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, targetStudentIds? }`
+ * @returns 201 { assignment } | 400 | 401 | 403(역할) | 404(내 봇이 아님)
+ */
+export async function POST(req: Request): Promise<NextResponse> {
+  const actor = await resolveActor(req);
+  if (!actor.isIdentified) return unauthorized();
+  if (actor.role !== 'teacher') return forbidden('선생님만 과제를 낼 수 있어요.');
+
+  const body = await readJsonBody(req);
+  if (!body) return invalidInput('요청 본문을 읽지 못했어요.');
+
+  const botId = readTrimmed(body.botId);
+  const title = readTrimmed(body.title);
+  const dueLabel = readTrimmed(body.dueLabel);
+  if (!botId) return invalidInput('어느 수업방에 낼지 골라 주세요.');
+  if (!title) return invalidInput('과제 이름을 적어 주세요.');
+  if (!dueLabel) return invalidInput('마감을 정해 주세요.');
+
+  const questionCount = body.questionCount;
+  if (
+    typeof questionCount !== 'number' ||
+    !Number.isInteger(questionCount) ||
+    questionCount < 1 ||
+    questionCount > MAX_QUESTION_COUNT
+  ) {
+    return invalidInput(`문항 수는 1에서 ${MAX_QUESTION_COUNT} 사이 정수로 적어 주세요.`);
+  }
+
+  if (!DIFFICULTIES.includes(body.difficulty as Difficulty)) {
+    return invalidInput('난이도는 하·중·상 중에서 골라 주세요.');
+  }
+  const difficulty = body.difficulty as Difficulty;
+
+  if (!MODES.includes(body.mode as Mode)) {
+    return invalidInput('과제 방식이 올바르지 않아요.');
+  }
+  const mode = body.mode as Mode;
+
+  const targetStudentIds = readStudentIds(body.targetStudentIds);
+  if (targetStudentIds === null) {
+    return invalidInput('보낼 학생 목록이 올바르지 않아요.');
+  }
+
+  const db = getDb();
+
+  // 봇 소유권 — 요청이 준 botId 를 그대로 믿지 않고 **조회 조건에 명의를 넣는다**.
+  // 남의 봇이면 0행 → 404. 403 으로 답하면 그 봇이 존재한다는 사실이 새 나간다.
+  const [bot] = await db
+    .select({
+      id: classBots.id,
+      name: classBots.name,
+      subject: classBots.subject,
+      grade: classBots.grade,
+    })
+    .from(classBots)
+    .where(and(eq(classBots.id, botId), eq(classBots.teacherId, actor.id)))
+    .limit(1);
+  if (!bot) return notFound('수업방을 찾을 수 없어요.');
+
+  // 지정 발사면 그 학생들이 정말 이 방에 있는지 본다 — 밖의 학생에게 새는 걸 막는다.
+  if (targetStudentIds.length > 0) {
+    const enrolled = await db
+      .select({ studentId: enrollments.studentId })
+      .from(enrollments)
+      .where(
+        and(
+          eq(enrollments.botId, botId),
+          inArray(enrollments.studentId, targetStudentIds),
+        ),
+      );
+    if (enrolled.length !== targetStudentIds.length) {
+      return invalidInput('이 수업방에 없는 학생이 섞여 있어요.');
+    }
+  }
+
+  const id = `as_${randomUUID()}`;
+  let assignment: typeof assignments.$inferSelect | undefined;
+  try {
+    [assignment] = await db
+      .insert(assignments)
+      .values({
+        id,
+        botId,
+        // 반 단위 발사 — 학생별 행을 만들지 않는다.
+        studentId: null,
+        title,
+        scope: '단원 미정',
+        subject: bot.subject,
+        grade: bot.grade,
+        chapterFrom: '',
+        chapterTo: '',
+        questionCount,
+        difficulty,
+        mode,
+        scopeOverride: mode === 'exam' ? 1 : null,
+        source: 'teacher-assigned',
+        assignedBy: bot.name,
+        assignedAtLabel: '방금 발사',
+        dueLabel,
+        dDay: deriveDDay(dueLabel),
+        state: 'todo',
+        solveHref: `/classbot/assignment/${id}/solve?step=1`,
+        // 빈 배열 = 반 전체(스키마가 정한 규약 — null 이중표현 금지).
+        targetStudentIds,
+        dispatchStatus: 'sent',
+        createdBy: actor.id,
+        // 지금이 실제 발사 전이다 — 그래서 여기서만 적는다.
+        dispatchedAt: new Date(),
+      })
+      .returning();
+  } catch {
+    // FK 위반 등 쓰기 실패 — 정본 라우트와 같게 400 으로 답한다(500 을 흘리지 않는다).
+    return invalidInput('과제를 내지 못했어요.');
+  }
+
+  return NextResponse.json({ assignment }, { status: 201 });
+}

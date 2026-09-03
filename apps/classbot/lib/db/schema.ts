@@ -111,6 +111,15 @@ export const classBots = pgTable(
       .default(sql`'[]'::jsonb`),
     enrolledCount: integer('enrolled_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * 마켓 게시 여부 — 마켓 목록이 **이 컬럼으로 필터**한다.
+     * JSONB(설정 뭉치)에 숨기면 목록 조회가 매번 문서를 풀어야 해서 컬럼으로 뺐다.
+     */
+    isPublished: boolean('is_published').notNull().default(false),
+    /** 실제 게시 시점. 내리면 다시 null — 스테일 타임스탬프를 남기지 않는다. */
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    /** 마켓 카드 한 줄 소개(200자 이내). 교사가 게시할 때 쓴다. */
+    publishBlurb: text('publish_blurb'),
   },
   (t) => ({
     bySubject: index('class_bots_subject_idx').on(t.subject),
