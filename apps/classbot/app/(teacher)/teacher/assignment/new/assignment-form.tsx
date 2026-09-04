@@ -190,7 +190,17 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   */
   const rosterUnknown =
     !signedOut && !!room && (studentsQuery.isPending || studentsQuery.isError);
-  // 아직 아무도 안 들어온 방에도 낼 수 있다 — 반 전체로 나가고, 뒤에 들어온 학생이 받는다.
+  /*
+    아직 아무도 안 들어온 방에도 낼 수 있다 — 반 전체로 나가고, 뒤에 들어온 학생이 받는다.
+
+    ⚠ 이것은 **문서보다 앞선 규칙이다.** spec 14 §5.1 은 발사 전 조건으로 「대상 학생 1명
+    이상」을 요구한다. 그 문서는 명단이 먼저 있고 교사가 거기서 고르는 흐름을 전제했는데,
+    참여 코드가 생기면서 **학생이 뒤에 들어오는 반**이 정상 상태가 됐다. 빈 방 발사를 막으면
+    교사는 반을 열어 놓고 학생이 들어올 때까지 아무것도 낼 수 없다.
+
+    유지하기로 **결정된 사항**이고(2026-09-04), spec 14 갱신은 별건 문서 작업으로 남아 있다.
+    막는 쪽으로 뒤집으려면 `students.length === 0` 항을 빼면 된다.
+  */
   const targetValid = !rosterUnknown && (students.length === 0 || selectedIds.length >= 1);
   const dueValid = new Date(dueIso).getTime() > Date.now();
   const pointsTotal = sumPoints(questions);
