@@ -158,8 +158,15 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   const selectedBotId = room?.botId ?? '';
   const noRooms = !classroomsQuery.isPending && !classroomsQuery.isError && rooms.length === 0;
 
-  // 대상 명단 — 이 방에 실제로 들어와 있는 학생. 방을 고르기 전에는 조회하지 않는다.
-  const studentsQuery = useClassroomStudents(room?.classroomId);
+  /*
+    대상 명단 — 이 방에 실제로 들어와 있는 학생. 방을 고르기 전에는 조회하지 않는다.
+
+    **비로그인 데모에서도 조회하지 않는다.** 그때 `room` 은 위 `demoRooms` 라 classroomId 가
+    `demo_*` — 서버에 없는 id 다. 보내 봐야 401 이 돌아오고, 그 401 을 아래 ③ 대상 섹션이
+    「명단을 불러오지 못했어요」 오류로 그리면 **공개 데모가 고장난 화면으로 보인다.**
+    위 `signedOut` 주석이 정한 「두 경로를 섞지 않는다」가 명단에도 그대로 걸린다.
+  */
+  const studentsQuery = useClassroomStudents(signedOut ? undefined : room?.classroomId);
   const students = useMemo(() => studentsQuery.data?.students ?? [], [studentsQuery.data]);
   const selectedIds = targetIds ?? students.map(s => s.id);
   // 전원 = 반 전체(빈 배열)로 보낸다 — 나중에 들어오는 학생도 같은 과제를 받는다.
@@ -602,11 +609,16 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
             }
           />
 
-          {studentsQuery.isPending && room ? (
+          {/*
+            비로그인 데모는 위에서 조회 자체를 걸어 뒀다 — 그러면 react-query 는 `isPending`
+            에 머무르므로, 두 분기 다 `signedOut` 을 먼저 본다. 데모는 「학생 0명인 방」
+            안내로 내려가고, 그건 mock 방(studentCount 0)의 사실과도 맞는다.
+          */}
+          {!signedOut && studentsQuery.isPending && room ? (
             <p className="text-pullim-slate-500 text-2xs" data-testid="students-loading">
               참여 학생을 불러오는 중이에요…
             </p>
-          ) : studentsQuery.isError ? (
+          ) : !signedOut && studentsQuery.isError ? (
             <p className="text-pullim-danger text-2xs" role="alert" data-testid="students-error">
               {studentsQuery.error.message}
             </p>
