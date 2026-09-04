@@ -309,26 +309,37 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 11.1 세션
 - Next.js 15+ App Router 기반
 - **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
-- **개발 전용 신원 폴백(2026-09-03)** — JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안,
-  `/api/*` 를 실제 DB 로 확인할 수 없었다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한
-  뒤에만** 폴백으로 읽는다. **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가
-  아니라 `isIdentified`(그 사용자 **명의로** 처리해도 되는가)이고, 라우트 가드가 보는 값이 그쪽이다.
-  경계 셋: ① prod 호스트(`classbot.pullim.ai`)에서는 **읽지 않는다** ② allowlist 밖 id 는 무시
-  ③ 유효한 JWT 가 있으면 JWT 가 이긴다. 정식 오픈 전 제거하며, 절차는 `lib/dev-identity.ts`
-  머리주석에 있다.
+- **`[예정]` 개발 전용 신원 폴백** — **`dev` 에는 아직 없다. #266 이 인도한다**(`lib/dev-identity.ts` ·
+  `lib/current-user.ts`). 아래는 그 PR 이 지켜야 할 규칙이고, **현재 동작 설명이 아니다.**
+  JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안 `/api/*` 를 실제 DB 로 확인할 수
+  없다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한 뒤에만** 폴백으로 읽는다.
+  **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가 아니라
+  `isIdentified`(그 사용자 **명의로** 처리해도 되는가)이고, 라우트 가드가 보는 값이 그쪽이다.
+  경계 셋을 **규칙으로 못 박는다**: ① prod 호스트(`classbot.pullim.ai`)에서는 **읽지 않는다**
+  ② allowlist 밖 id 는 무시 ③ 유효한 JWT 가 있으면 JWT 가 이긴다. 정식 오픈 전 제거하며,
+  제거 절차는 `lib/dev-identity.ts` 머리주석이 진다. 셋 중 하나라도 빠지면 그 PR 은 이 절 위반이다.
 
 ### 11.2 라우트 보호
 - `(student)/*` — Learner 권한 필수
 - `(teacher)/*` — Manager/Owner 권한 필수
-- `/parent/*` — 자녀 매칭(`parent_child_links`) 검증 + **자녀 동의**(§ 11.4). 2026-09-04 구현,
-  단 실제 로그인 학부모는 아직 진입 불가([03 § 2.3](03-features-and-ia.md))
+- **`[예정]`** `/parent/*` — 자녀 매칭(`parent_child_links`) 검증 + **자녀 동의**(§ 11.4).
+  `dev` 에는 `app/(parent)` 트리가 없다 — **#268**(홈·자녀 과제)과 **#271**(자기주도)이 인도한다.
+  들어온 뒤에도 **실제 로그인 학부모는 진입 불가**다([03 § 2.3](03-features-and-ia.md))
 
 ### 11.3 데이터 접근
 - Student는 자신 데이터만 read/write
 - Teacher는 자신이 만든 자원만 write, 학생 데이터는 read (집계)
 - Parent는 자녀 매핑 + 자녀 승인 후 read만
 
-### 11.4 학부모 열람 동의 (`consent_logs`) — 2026-09-04
+### 11.4 학부모 열람 동의 (`consent_logs`)
+
+> **이 절은 규칙을 먼저 세운다 — 구현은 뒤에 온다.**
+> `dev` 시점에 있는 것: `consent_logs` 표 자체(축 **다섯** · `granted_at` · `expires_at` ·
+> `scope_label`)와 `parent_child_links`(둘 다 마이그레이션 `0000`~`0003`).
+> **`[예정]`** 로 표시한 것은 **`dev` 에 없고** 뒤따르는 PR 이 인도한다 — 축 **둘**과
+> `revoked_at` 은 **#271**(`0007`), 열람 라우트는 **#267**(`/api/parent/children`) ·
+> **#271**(`/api/parent/children/self-study` · `/api/me/consents/*`).
+> 이 절은 **그 PR 들이 통과해야 할 기준**이지, 현재 동작 설명이 아니다.
 
 학부모의 개인 열람은 **「승인 후」** 다([04 UC-T1 7단계](04-ux-flow.md) · [13 § 4.6](13-reports-and-emotion-checkin.md)).
 승인 주체는 **무엇을 보느냐로 갈린다**:
@@ -339,10 +350,15 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 | `weak_nodes` | 약점 단원 | 교사·기관 |
 | `emotion_share` | 감정 평균 (민감) | 교사·기관 · **다른 동의에 딸려 나가지 않는다** |
 | `realtime_alert` | 학습 시작·완료 알림 | 교사·기관 |
-| `self_study_summary` | 스스로 담은 봇 · 공부한 날 · 연속일수 | **학생 본인** — 자기주도에는 승인할 교사가 구조적으로 없다 |
-| `class_assignment_summary` | 참여한 반 · 받은 과제 현황 (답안·점수 제외) | **학생 본인** |
+| **`[예정]`** `self_study_summary` | 스스로 담은 봇 · 공부한 날 · 연속일수 | **학생 본인** — 자기주도에는 승인할 교사가 구조적으로 없다 |
+| **`[예정]`** `class_assignment_summary` | 참여한 반 · 받은 과제 현황 (답안·점수 제외) | **학생 본인** |
 
-**규칙 넷** (구현: `app/api/parent/*` · `app/api/me/consents/*`):
+앞 네 줄(축 다섯)은 `dev` 의 `consent_logs.type` 에 이미 있고, **`[예정]`** 둘은 **#271** 이 enum 에 넣는다.
+축이 학생 본인 승인으로 갈린 것이 2026-09-04 결정이다 — 자기주도와 「반·과제」에는 승인할
+교사가 구조적으로 없다.
+
+**규칙 넷** — 인도할 라우트(**`[예정]`** `app/api/parent/*` · `app/api/me/consents/*`, #267·#271)가
+지켜야 할 기준이다. `dev` 에는 그 라우트가 아직 없다:
 
 1. **동의는 조회 조건 안에 있다** — 읽고 나서 거르지 않는다. 미동의 자녀의 데이터는 **애초에
    읽지 않는다**(읽어 놓고 안 보내는 것과 다르다 — 로그·에러·타이밍 어디로도 새지 않는다).
@@ -350,13 +366,14 @@ Attempt (1) ── (N) ErrorPatternOccurrence
    동의 없이 아이의 활동 유무를 추론할 수 있다. 화면 문구도 어느 쪽인지 말하지 않는다.
    단 **자녀 목록(이름·관계) 자체는 가리지 않는다** — 링크가 이미 말하는 사실이고, 가리면
    「이어진 자녀가 없다」와 구분이 사라진다.
-3. **철회는 행 삭제도 `expires_at = now()` 도 아니다** — `revoked_at` 이 따로 있다(감사 기록).
+3. **철회는 행 삭제도 `expires_at = now()` 도 아니다** — `revoked_at` 을 따로 둔다(감사 기록).
+   그 칼럼은 **`[예정]`** 이다(#271 `0007`) — `dev` 의 `consent_logs` 에는 없다.
    살아 있는 동의 = `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
    **철회해도 이미 본 것은 되돌릴 수 없다** — 학생 화면이 그 사실을 그대로 말한다.
 4. **열람 기록은 없다** — 부모가 언제 봤는지 학생에게 알려주지 않고, 그 테이블을 만들지도 않는다.
    학생이 「보면 알겠지」로 기대하기 쉬운 자리라 화면에 명시한다.
 
-### 11.4 API 호출 비용 통제
+### 11.5 API 호출 비용 통제
 - 사용자별 일/월 호출 한도 (T1 무제한, T2 1000회/일, T3 100회/일 — 권장)
 - 한도 초과 시 graceful degradation (T3 → T2 fallback 또는 다음날 대기)
 

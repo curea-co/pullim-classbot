@@ -4,21 +4,24 @@
 **Status:** approved (brainstorming) → ready for writing-plans
 **Scope:** new product capability inside the existing single classbot app. FE-only, mock-first (BE is a separate later track per repo rule).
 
-> **[2026-09-04 개정] 「FE-only · mock-first」 보류가 해제됐다.** 아래 §6 의 Out(deferred) 에 있던
-> **BE persistence + real auth-scoped self-enrollment** 와 **teacher-side publish to market** 은
-> 2026-09-03~04 작업으로 **구현됐다**:
+> **[2026-09-04 개정] 「FE-only · mock-first」 보류를 푸는 것이 정해졌다 — 인도는 `[예정]` 이다.**
+> 아래 §6 의 Out(deferred) 에 있던 **BE persistence + real auth-scoped self-enrollment** 와
+> **teacher-side publish to market** 은 스택 PR **#266~#271** 이 인도한다. **`dev` 시점에는
+> 셋 다 아직 없다** — 마이그레이션은 `0000`~`0003` 까지이고 아래 라우트도 없다. 그러니 이
+> 표의 「인도」 칸은 **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
 >
-> | 이 문서의 deferred 항목 | 지금 상태 |
-> |---|---|
-> | BE persistence (자기주도) | **구현** — `self_enrollments`(0005) · `self_study_days`(0006) · `/api/me/self-bots` · `/api/me/study-days`(+백필) |
-> | real auth-scoped self-enrollment | **구현** — 신원별 행. 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
-> | teacher-side publish to market | **구현** — `class_bots.is_published`(0004) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` |
-> | 학부모 × 자기주도 | **구현** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` 0007) |
-> | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** |
-> | 목표·단원 진행(§3 의 goal/path) | **여전히 미구현** — `bot_curriculum_units` 가 정의만 있고 비어 있다. 실제 봇에 커리큘럼이 없어 이 단계(P5)가 뒤로 밀렸다 |
+> | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
+> |---|---|---|
+> | BE persistence (자기주도) | **`[예정]`** | **#270** — `self_enrollments`(`0005`) · `self_study_days`(`0006`) · `/api/me/self-bots` · `/api/me/study-days`(+백필) |
+> | real auth-scoped self-enrollment | **`[예정]`** | **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
+> | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published`(`0004`) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면) |
+> | 학부모 × 자기주도 | **`[예정]`** | **#271** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` `0007`) |
+> | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
+> | 목표·단원 진행(§3 의 goal/path) | **여전히 미구현** | 이 시리즈에도 없다. `bot_curriculum_units` 는 `dev` 에 정의만 있고 비어 있다 — 실제 봇에 커리큘럼이 없어 이 단계(P5)가 뒤로 밀렸다 |
 >
 > 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
-> (서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라갔다.
+> (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에
+> 들어오면 이 박스의 `[예정]` 표기를 지우고 §6 의 Out 목록에서 세 줄을 실제로 뺀다.
 
 ## Goal
 
