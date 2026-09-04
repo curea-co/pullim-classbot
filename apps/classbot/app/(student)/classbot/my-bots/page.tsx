@@ -13,7 +13,37 @@ import { useMarketplaceBots } from '@/hooks/api/marketplace';
 import { useMySelfBots, useRemoveSelfBot } from '@/hooks/api/self-bots';
 import { ApiClientError } from '@/lib/api/client-fetch';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
+import { classBots as botCatalog } from '@/lib/mock/classbot';
 import { MyBotCard } from './my-bot-card';
+
+/**
+ * 마켓이 이 봇을 못 알려줄 때 시드 카탈로그에서 이름표를 찾는다.
+ *
+ * `lib/store/mode-bots.ts` 의 `fallbackBot()` 과 **같은 판단**이다 — 비로그인 데모 학생이
+ * 담은 봇은 대개 시드 봇(`cb_001`…)이라, 여기서 이름을 되찾으면 마켓이 막혀도 목록이
+ * 제 모습으로 선다. 카탈로그에도 없으면 `null` 을 주고, 그때는 `MyBotCard` 가 이름 자리에
+ * 상태를 적는다.
+ * @param botId - 담은 봇 id
+ * @returns 카드가 그릴 수 있는 마켓 한 칸, 없으면 null
+ */
+function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
+  const seeded = botCatalog.find((b) => b.id === botId);
+  if (!seeded) return null;
+  return {
+    botId: seeded.id,
+    name: seeded.name,
+    avatarEmoji: seeded.avatarEmoji,
+    subject: seeded.subject,
+    grade: seeded.grade,
+    tone: seeded.tone,
+    greeting: seeded.greeting,
+    blurb: null,
+    teacherName: seeded.teacherName,
+    organization: seeded.organization,
+    publishedAt: null,
+    enrolledCount: seeded.enrolledCount,
+  };
+}
 
 /**
  * 내가 담은 봇 — 마켓에서 담은 봇들이 사는 자리.
@@ -29,11 +59,18 @@ import { MyBotCard } from './my-bot-card';
  * (계약 §3 — 그 두 칸이 미래 API 의 행 모양이라 늘리지 않는다) 이름·아바타·과목은
  * 마켓 목록에서 id 로 찾아 붙인다.
  *
- * 그래서 **마켓 쪽 상태가 이 화면의 상태를 먹는다:**
- *  - 마켓을 아직 못 읽었으면 담은 봇이 전부 이름 없는 칸이 된다 → 뼈대만 그리고 기다린다
- *  - 401(로그인 안 함)이면 마켓 화면과 **같은 안내**를 낸다. 여기서만 다른 말을 하면
- *    같은 이유로 막힌 두 화면이 서로 다른 고장처럼 보인다
- *  - 그 밖의 실패는 목록을 그리지 않는다. 이름 없는 카드 세 장보다 「다시 시도」가 낫다
+ * **그러나 마켓이 이 목록의 정본은 아니다.** 담은 사실은 내 저장소에 있고 마켓은 이름표만
+ * 붙인다. 그래서 마켓이 막혔다고 **목록을 통째로 덮지 않는다** — 예전엔 401 이면 로그인
+ * 안내가 담은 봇 목록을 지웠고, 그 결과 학생은 같은 봇과 **대화는 되는데
+ * 「내가 담은 봇」에서는 안 보이는** 갈린 상태를 봤다(`lib/store/mode-bots.ts` 는 401 에도
+ * 담은 봇을 계속 싣는다). 두 화면이 같은 저장소를 읽으니 답도 같아야 한다.
+ *
+ * 지금 규약:
+ *  - 마켓을 **아직 못 읽었으면** 뼈대만 그리고 기다린다(이름이 늦게 바뀌어 번쩍이지 않게)
+ *  - 마켓이 **막혔으면**(401·오류) 담은 목록은 **그대로 그리고**, 이름을 못 붙인 까닭만
+ *    목록 위에 한 줄로 적는다. 시드 봇은 카탈로그가 이름을 알고 있어 그대로 보인다
+ *  - **담은 것이 하나도 없을 때만** 화면이 갈린다 — 로그인 안 했으면 로그인 안내,
+ *    로그인했으면 「아직 담은 봇이 없어요」
  *
  * 담은 목록 자체(`isLoading`)는 지금 하이드레이션 대기 구간이다. P3 에서 서버 조회가
  * 되면 같은 자리가 진짜 로딩이 된다 — 화면은 한 줄도 안 바뀐다.
@@ -53,12 +90,17 @@ export default function MyBotsPage() {
   // 마켓과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
   const isSignedOut = market.error instanceof ApiClientError && market.error.status === 401;
   const isMarketBroken = market.isError && !isSignedOut;
+  // 이름표를 못 붙인 까닭. 목록을 지우는 대신 목록 위에 한 줄로만 적는다.
+  const labelNotice = isSignedOut
+    ? '로그인하면 봇 이름과 소개를 읽어 와요. 담아 둔 봇은 그대로 쓸 수 있어요.'
+    : isMarketBroken
+      ? '지금은 봇 이름과 소개를 읽어 오지 못했어요. 담아 둔 봇은 그대로 쓸 수 있어요.'
+      : null;
   // 담은 봇이 0개여도 마켓이 끝날 때까지 기다린다 — 「빈 목록」과 「로그인 안 함」을 가르는
   // 근거가 마켓의 401 이라서다. 예전엔 rows 가 없으면 기다리지 않아, 비로그인 사용자가
   // 「아직 담은 봇이 없어요」를 한 번 본 뒤에야 로그인 안내로 바뀌었다.
   const isLoading = mine.isLoading || market.isPending;
-  const isEmpty =
-    !mine.isError && !isSignedOut && !isMarketBroken && !isLoading && rows.length === 0;
+  const isEmpty = !mine.isError && !isLoading && rows.length === 0;
 
   return (
     <div className="space-y-5">
@@ -95,7 +137,11 @@ export default function MyBotsPage() {
       {mine.isError ? (
         // 훅에 다시 읽기가 없다(계약 §3) — 있으면 그때 여기에 붙인다.
         <ReadErrorState />
-      ) : isSignedOut ? (
+      ) : isLoading ? (
+        <MyBotsSkeleton />
+      ) : rows.length === 0 && isSignedOut ? (
+        // 담은 것도 없고 로그인도 안 됐다 — 이때만 로그인 안내가 목록 자리를 대신한다.
+        // 담은 것이 있으면 아래 목록이 그대로 뜬다(마켓이 막혀도).
         <div data-testid="my-bots-signin">
           <EmptyState
             icon={LogIn}
@@ -103,10 +149,6 @@ export default function MyBotsPage() {
             description="담은 봇이 무슨 봇인지는 로그인한 뒤에 읽어 올 수 있어요."
           />
         </div>
-      ) : isMarketBroken ? (
-        <ReadErrorState onRetry={() => void market.refetch()} />
-      ) : isLoading ? (
-        <MyBotsSkeleton />
       ) : rows.length === 0 ? (
         <div data-testid="my-bots-empty">
           <EmptyState
@@ -121,17 +163,28 @@ export default function MyBotsPage() {
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="my-bots-list">
-          {rows.map((row) => (
-            <MyBotCard
-              key={row.botId}
-              row={row}
-              bot={catalog.get(row.botId) ?? null}
-              onRemove={() => remove.mutate(row.botId)}
-              isRemoving={remove.isPending}
-            />
-          ))}
-        </ul>
+        <>
+          {/* 목록을 지우지 않고 까닭만 적는다 — 담은 봇은 내 저장소의 것이라 계속 쓸 수 있다 */}
+          {labelNotice && (
+            <p
+              className="text-pullim-slate-500 bg-pullim-slate-50 rounded-xl px-3 py-2.5 text-2xs"
+              data-testid="my-bots-label-notice"
+            >
+              {labelNotice}
+            </p>
+          )}
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2" data-testid="my-bots-list">
+            {rows.map((row) => (
+              <MyBotCard
+                key={row.botId}
+                row={row}
+                bot={catalog.get(row.botId) ?? seedAsMarketItem(row.botId)}
+                onRemove={() => remove.mutate(row.botId)}
+                isRemoving={remove.isPending}
+              />
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );
