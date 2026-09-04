@@ -7,11 +7,18 @@
 > **[2026-09-04 개정] 「FE-only · mock-first」 보류를 푸는 것이 정해졌다 — 인도는 `[예정]` 이다.**
 > 아래 §6 의 Out(deferred) 에 있던 **BE persistence + real auth-scoped self-enrollment** 와
 > **teacher-side publish to market** 은 스택 PR **#266~#271** 이 인도한다. 풀리는 것은
-> **「mock-first」 의 mock 쪽**이지 자기주도 기능 전체가 아니다 — **FE 는 이미 `dev` 에서
-> 돈다**: 모드 분기(`student-mode` · 학생 홈의 `mode === 'self'`), `useModeBots()`,
-> `/classbot/discover`(공식 튜터 마켓) · `/classbot/learn/[tutorId]`, 그리고 goal·unitProgress·
-> streak 를 들고 있는 `lib/store/self-learning.ts`. 없는 것은 **그 뒤를 받칠 서버**다 —
-> 마이그레이션은 `0000`~`0003` 까지이고 아래 라우트도 없다. 그러니 이 표의 「인도」 칸은
+> **「mock-first」 의 mock 쪽**이지 자기주도 기능 전체가 아니다.
+>
+> **`dev` 의 자기주도는 「부품은 있고 문은 닫힌」 상태다.** 있는 것: 모드 분기 코드
+> (`student-mode` · 학생 홈의 `mode === 'self'`), `useModeBots()` 의 self 분기,
+> `/classbot/discover`(공식 튜터 마켓) · `/classbot/learn/[tutorId]{,/[unitId]}`, goal·
+> unitProgress·streak 를 들고 있는 `lib/store/self-learning.ts`, `tutor-market-card` 의 등록·해제.
+> **닫힌 것: self 모드로 들어가는 길** — 「기획 보류」로 헤더 토글(`StudentModeToggle`)이
+> `app-header.tsx` 에서 비노출이고 `useStudentMode()` 의 default 가 `class` 로 고정돼 있다
+> (스토어 구조·`setMode` 계약은 그대로라 재개는 그 두 자리를 되돌리는 일이다).
+> **그래서 「self 화면이 있다」와 「자기주도가 열려 있다」는 같은 말이 아니고, 진입 복구는
+> 이 스택이 서버와 함께 져야 할 몫이다** — 서버만 열면 끝나는 것으로 읽지 마라.
+> 서버 쪽은 마이그레이션이 `0000`~`0003` 까지이고 아래 라우트도 없다. 이 표의 「인도」 칸은
 > **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
 >
 > | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
@@ -21,7 +28,7 @@
 > | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published`(`0004`) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면) |
 > | 학부모 × 자기주도 | **`[예정]`** | **#271** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` `0007`) |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
-> | 목표·단원 진행(§3 의 goal/path) | **FE 는 `dev` 에 있다 · 서버 백킹만 남는다** | 이 시리즈가 손대지 않는다. `officialTutors`(`lib/mock/classbot-official.ts`)에 커리큘럼이 있고, `lib/store/self-learning.ts` 가 goal·unitProgress·streak 를 들고, `/classbot/learn/[tutorId]` 가 단원 카드를 그린다 — **거기까지가 mock-first 로 이미 돈다.** 남은 것은 **교사가 만든 실제 봇**에 커리큘럼이 붙는 경로다: `bot_curriculum_units` 가 `dev` 에 정의만 있고 비어 있어 P5 가 뒤로 밀렸다 |
+> | 목표·단원 진행(§3 의 goal/path) | **FE 는 mock-first 로 돈다 · 실제 봇으로 잇는 경로가 없다** | 이 시리즈가 손대지 않는다. `officialTutors`(`lib/mock/classbot-official.ts`)에 커리큘럼이 있고, `lib/store/self-learning.ts` 가 goal·unitProgress·streak 를 들고, `/classbot/learn/[tutorId]` 가 단원 카드를 그린다 — **거기까지가 mock 위에서 돈다.** `bot_curriculum_units` 도 비어 있지 않다 — `scripts/seed.ts` 가 `botCurriculum` 을 넣는다. 없는 것은 **경로**다: 교사가 만든 봇에 커리큘럼을 붙이는 publish 쪽도, 그 표를 읽어 학습 화면에 대는 read 쪽도 없어 FE 가 여전히 mock 을 읽는다. 그래서 P5 가 뒤로 밀렸다 |
 >
 > 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
 > (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에

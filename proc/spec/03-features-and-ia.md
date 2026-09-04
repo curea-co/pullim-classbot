@@ -116,9 +116,11 @@
 │  ├─ /classbot/my-bots        ← 내가 담은 봇 — 자기주도 ([예정] #268)
 │  ├─ /classbot/learn/[tutorId] ← 자기주도 학습 — 단원 카드 · 목표 (mock-first, 이미 있다)
 │  ├─ /classbot/learn/[tutorId]/[unitId] ← 단원 학습 (mock-first, 이미 있다)
+│  │                             ※ 둘 다 self 모드 화면 — 진입은 [지금] 닫혀 있다 (아래 메모)
 │  ├─ /classbot/me/share       ← 공유 — 무엇을 보호자에게 보여줄지 켜고 끈다 ([예정] #271)
 │  ├─ /classbot/chat           ← 봇 채팅 — 모드별 봇 목록(`useModeBots()`: class=배정 봇 / self=자기 등록 튜터).
-│  │                             self 목록에 **마켓에서 담은 봇**이 더해지는 것만 [예정] #268
+│  │                             self 분기·등록 배선은 [지금] 있다. [예정] #268 은 그 목록에 마켓 봇을 얹는다
+│  │                             ※ self 모드 진입은 [지금] 닫혀 있다 — 아래 「자기주도 모드 진입」 메모
 │  ├─ /classbot/replay         ← 리플레이 리스트
 │  └─ /classbot/replay/[id]    ← 타임라인 + 트랜스크립트 + 본인 답변 비교
 │
@@ -138,6 +140,8 @@
 │
 └─ /me                         ← 내 정보
 ```
+
+**메모 (자기주도 모드 진입 — `[지금]` 닫혀 있다)**: 위 self 라우트·스토어·배선은 `dev` 에 있지만 **학생이 그리로 가는 길이 없다.** 「기획 보류」로 헤더의 학습 모드 토글(`StudentModeToggle`)이 `app-header.tsx` 에서 비노출이고, `useStudentMode()` 의 default 가 `class` 로 고정돼 있다(종전: 교사 enrollment 0개면 `self`). 스토어 구조와 `setMode` 계약은 그대로라 **재개는 그 두 자리를 되돌리는 일**이다. 그러니 「self 화면이 있다」와 「자기주도가 열려 있다」를 같은 말로 읽지 않는다 — 진입 복구는 **아직 남은 일**이다.
 
 ### 2.2 교사 영역 `(teacher)`
 
