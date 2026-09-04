@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, Compass,
+  LayoutDashboard, Bot, Plus, Target,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -39,6 +39,21 @@ export type NavGroup = {
   items: NavItem[];
 };
 
+/**
+ * 셸이 아는 역할.
+ *
+ * `parent` 는 **여기서 이름만 선다** — 이 PR 이 여는 것은 신원(서버가 `parent_001` 을
+ * 그 명의로 인정하는 것)까지이고, 화면·nav·전환 UI 는 열지 않는다. 실제로 이 값이 셸에
+ * 들어오려면 `AppShell role="parent"` 를 쓰는 `app/(parent)/layout.tsx` 가 있어야 하는데
+ * 그 트리는 아직 없다(`proc/spec/03 § 2.3` — `[예정]`). 지금 `role` 을 넘기는 곳은
+ * `app/(student)/layout.tsx` 와 `app/(teacher)/layout.tsx` 두 리터럴뿐이다.
+ *
+ * 그래도 union 에 미리 세워 두는 이유: 아래 `navForRole` 과 헤더의 `Record<Role, …>` 표들이
+ * **빠짐없음(exhaustiveness)** 으로 컴파일에 걸리게 하려는 것이다. 학부모 화면 PR 이
+ * 도착할 때 「홈은 어디인가 · 라벨은 무엇인가」를 조용히 학생 기본값으로 물려받지 않고
+ * 한 자리씩 답하게 된다. 값 자체는 지금 어떤 화면에도 도달하지 않는다
+ * (`parentNav` 는 빈 배열이고, 전환 UI 의 `DEV_ROLES` 에도 학부모 줄이 없다).
+ */
 export type Role = 'student' | 'teacher' | 'parent';
 
 /** 풀림 클래스봇(학생) 섹션 */
@@ -51,10 +66,11 @@ export const classbotStudentSection: NavSubItem[] = [
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
-  // 봇 마켓(/classbot/discover) 는 오래 「기획 보류·nav 비노출」이었다. 교사가 자기 봇을
-  // 밖에 게시하는 기능이 생기면서 **게시된 봇이 실제로 모이는 화면**이 됐으므로 다시 연다.
-  { href: '/classbot/discover',   label: '봇 마켓',    icon: Compass,       description: '선생님들이 공유한 봇 둘러보기' },
   // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
+  // 봇 마켓(/classbot/discover) 도 아직 비노출이다. 화면은 있지만 지금 거기 있는 건
+  // 「공식 튜터 마켓」(mock 공식 튜터 + 「곧 만날 봇」)이라, nav 만 먼저 열면 레일 라벨과
+  // 도착지가 어긋난다. 교사가 공유한 봇으로 **화면을 갈아끼우는 PR** 이 nav 도 함께 되살린다
+  // (`proc/spec/03 § 2.1`).
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
   { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
