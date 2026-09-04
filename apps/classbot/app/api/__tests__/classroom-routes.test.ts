@@ -393,6 +393,95 @@ describe('POST /api/teacher/assignments — 반 단위 발사', () => {
     expect(values).toMatchObject({ scope: '단원 미정', chapterFrom: '', chapterTo: '' });
   });
 
+  /*
+    시험 제한 시간 — 단원과 같은 모양의 유실이었다(컬럼은 있는데 쓰는 경로가 없었다).
+    경계값은 교사 폼 슬라이더의 min/max 와 같아야 한다: 10 ~ 180.
+  */
+  const examBody = { mode: 'exam', examTimeLimitMin: 90 };
+
+  it('시험 모드의 제한 시간을 그대로 적는다 — 화면이 시간을 잃지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_4', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq(examBody));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({ mode: 'exam', examTimeLimitMin: 90, scopeOverride: 1 });
+  });
+
+  it('슬라이더 양 끝(10·180)은 통과한다 — 서버가 폼보다 좁으면 안 된다', async () => {
+    for (const minutes of [10, 180]) {
+      insertValuesSpy.mockClear();
+      mockSelectQueue = [
+        [{ role: 'teacher' }],
+        [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+      ];
+      mockInsertQueue = [[{ id: 'as_5', botId: 'cb_001' }]];
+
+      const res = await dispatchAssignment(
+        dispatchReq({ mode: 'exam', examTimeLimitMin: minutes }),
+      );
+
+      expect(res.status).toBe(201);
+      const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+      expect(values.examTimeLimitMin).toBe(minutes);
+    }
+  });
+
+  it('시험 모드인데 시간을 안 보내면 null', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_6', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq({ mode: 'exam' }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.examTimeLimitMin).toBeNull();
+  });
+
+  it('시험이 아닌데 시간이 오면 400 이 아니라 null 로 떨어뜨린다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_7', botId: 'cb_001' }]];
+
+    // 폼에서 모드를 바꾸면 남아 있던 슬라이더 값이 같이 실려 올 수 있다. 그걸 오류로
+    // 되받으면 「시간 제한」이 보이지도 않는 화면에서 이유 모를 400 을 만난다.
+    const res = await dispatchAssignment(
+      dispatchReq({ mode: 'practice', examTimeLimitMin: 90 }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.examTimeLimitMin).toBeNull();
+    expect(values.scopeOverride).toBeNull();
+  });
+
+  it.each([9, 181, 30.5, '60'])('범위 밖(%p)이면 400 이고 아무것도 안 쓴다', async (bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(
+      dispatchReq({ mode: 'exam', examTimeLimitMin: bad }),
+    );
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { code?: string; message?: string };
+    expect(parsed.code).toBe('INVALID_INPUT');
+    expect(parsed.message).toContain('시험 시간');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
   it('이 방에 없는 학생을 지정하면 400', async () => {
     mockSelectQueue = [
       [{ role: 'teacher' }],
