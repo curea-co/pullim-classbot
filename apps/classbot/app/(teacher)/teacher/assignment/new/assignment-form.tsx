@@ -251,6 +251,23 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   /** 서버가 받는 대상 — 전원이면 빈 배열(반 전체)이다. 스키마가 정한 규약. */
   const targetPayload = allSelected ? [] : selectedIds;
 
+  /*
+    교사에게 보여 줄 대상 표기 — **숫자가 뜻을 뒤집는 자리라 말로 적는다.**
+
+    빈 배열은 「0명」이 아니라 **「반 전체」**다(spec 14 §5.1). 아직 아무도 안 들어온 방에
+    내면 명단이 0명이라 인원수로 적으면 「0명에게 보냈어요」가 되는데, 실제로는 뒤에 참여
+    코드로 들어오는 학생이 그대로 이 과제를 받는다 — 낸 사람에게 「아무에게도 안 갔다」로
+    읽히는 것이 사실과 정반대다.
+
+    명단을 아는 전원 발사는 인원수가 더 쓸모 있다 — 「18명 전체」가 「반 전체」보다 많이 말한다.
+  */
+  const targetLabel =
+    targetPayload.length > 0
+      ? `${targetPayload.length}명`
+      : students.length > 0
+        ? `${students.length}명 전체`
+        : '반 전체';
+
   /**
    * 로컬 사본 한 벌 — **문항 본문은 아직 DB 에 없다.**
    * `assignments` 테이블에는 문항 수만 있고 발문·보기·정답을 담을 자리가 없어서,
@@ -332,8 +349,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       const a = buildAssignment(assignment.id);
       dispatch(a);
 
-      const sentCount = targetPayload.length === 0 ? students.length : targetPayload.length;
-      toast.success(`${a.assignedBy}이 ${sentCount}명에게 보냈어요`, {
+      toast.success(`${a.assignedBy}이 ${targetLabel}에게 보냈어요`, {
         description: `"${a.title}" · ${a.dueLabel}`,
       });
       router.push('/teacher/classbot');
@@ -795,7 +811,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
           assignment={buildAssignment()}
           botName={room.botName ?? '봇'}
           questions={questions}
-          targetCount={targetPayload.length === 0 ? students.length : targetPayload.length}
+          targetLabel={targetLabel}
           onClose={() => setPreview(false)}
         />
       )}
@@ -823,10 +839,11 @@ function Field({
 }
 
 function PreviewModal({
-  assignment, botName, questions, targetCount, onClose,
+  assignment, botName, questions, targetLabel, onClose,
 }: {
   assignment: Assignment; botName: string; questions: DraftQuestion[];
-  targetCount: number; onClose: () => void;
+  /** 「3명」·「18명 전체」·「반 전체」 — 빈 배열은 0명이 아니라 반 전체다(spec 14 §5.1). */
+  targetLabel: string; onClose: () => void;
 }) {
   const meta = modeOptions[assignment.mode];
   const tally = gradingTally(questions);
@@ -842,7 +859,7 @@ function PreviewModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-pullim-slate-900 text-base font-bold">학생들에게 이렇게 보여요</h3>
-        <p className="text-pullim-slate-500 mt-1 text-xs">{targetCount}명 학생 홈에 등장</p>
+        <p className="text-pullim-slate-500 mt-1 text-xs">{targetLabel} 학생 홈에 등장</p>
 
         <div className={cn('mt-4 rounded-2xl border-2 p-4', meta.color)}>
           <div className="flex items-center gap-2 text-2xs">

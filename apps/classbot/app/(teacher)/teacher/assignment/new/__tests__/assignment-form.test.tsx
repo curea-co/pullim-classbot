@@ -48,6 +48,12 @@ jest.mock('@/hooks/api/classroom', () => ({
   useClassroomStudents: () => queries.students,
 }));
 
+/** 발사 성공 토스트 — 대상 표기가 사실과 맞는지 여기서 읽는다. */
+const toastSuccess = jest.fn();
+jest.mock('sonner', () => ({
+  toast: { success: (...args: unknown[]) => toastSuccess(...args), error: jest.fn() },
+}));
+
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useDispatchAssignment: () => ({
     mutateAsync,
@@ -60,6 +66,7 @@ jest.mock('@/hooks/api/assignment-dispatch', () => ({
 beforeEach(() => {
   useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [], lastDispatched: null });
   mutateAsync.mockReset();
+  toastSuccess.mockReset();
   mutateAsync.mockResolvedValue({ assignment: { id: SERVER_ASSIGNMENT_ID } });
   queries.classrooms = { data: { classrooms: [mockRoom] }, isPending: false, isError: false, error: null };
   queries.students = { data: { students: mockStudents }, isPending: false, isError: false, error: null };
@@ -302,6 +309,30 @@ it('비로그인 데모(401)에서는 대상 명단도 오류로 그리지 않�
   // 명단을 못 읽은 게 아니라 「아직 아무도 안 들어온 방」이므로 발사도 막지 않는다.
   fillTitle();
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+});
+
+/*
+  빈 배열은 「0명」이 아니라 「반 전체」다(spec 14 §5.1). 인원수로 적으면 빈 방 발사가
+  「0명에게 보냈어요」가 되는데, 실제로는 뒤에 참여 코드로 들어온 학생이 그대로 받는다 —
+  낸 사람에게 사실과 정반대로 읽힌다.
+*/
+it('빈 방에 내면 「0명」이 아니라 「반 전체」라고 말한다', async () => {
+  queries.students = { data: { students: [] }, isPending: false, isError: false, error: null };
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  const message = toastSuccess.mock.calls[0][0] as string;
+  expect(message).toContain('반 전체');
+  expect(message).not.toContain('0명');
+});
+
+it('명단을 아는 전원 발사는 인원수로 말한다 — 「반 전체」보다 많이 말한다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  expect(toastSuccess.mock.calls[0][0]).toContain(`${mockStudents.length}명 전체`);
 });
 
 it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {

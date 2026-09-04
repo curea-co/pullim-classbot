@@ -3,12 +3,29 @@
 import { use } from 'react';
 import { notFound } from 'next/navigation';
 import { ReadErrorState } from '@/components/classbot/read-state';
-import { classBots } from '@/lib/mock';
+import { classBots, type Assignment } from '@/lib/mock';
 import { readRowToAssignment } from '@/lib/assignment-demo';
-import { useAssignmentStore, useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
+import {
+  useAssignmentStore, useAssignmentLookup, getQuestionsForAssignment,
+  type UserAssignment,
+} from '@/lib/store/assignments';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useVisibleAssignment } from '../../use-assignment-reads';
 import { SolveWorkspace } from './solve-workspace';
+
+/**
+ * 로컬 사본에서 **문항 출처만** 뽑는다 — 교사가 직접 쓴 문항과 오답 재발사 집합.
+ *
+ * 스토어에 들어 있는 것은 `UserAssignment` 라 이 둘을 갖는데, `useAssignmentLookup()` 의
+ * 반환 타입은 `Assignment` 라 그 사실이 지워진다. 여기서만 좁혀 읽고, **뽑는 키를 둘로
+ * 묶어 둔다** — 다른 필드까지 퍼 오면 서버가 정한 접근 판정을 로컬 값이 덮는다.
+ * @param a - 같은 id 의 로컬 사본
+ * @returns 문항 해석에 쓰는 두 필드
+ */
+function questionSources(a: Assignment): Pick<UserAssignment, 'questions' | 'requizQuestionIds'> {
+  const { questions, requizQuestionIds } = a as UserAssignment;
+  return { questions, requizQuestionIds };
+}
 
 export default function SolvePage({
   params, searchParams,
@@ -19,22 +36,25 @@ export default function SolvePage({
   const { id } = use(params);
   const { step } = use(searchParams);
 
-  /*
-    과제는 두 곳에서 온다.
-
-    ① 서버 — 교사 발사가 실DB 로 가면서 학생에게 오는 과제의 **정본**이 됐다. 목록·상세·
-       대화·결과는 이미 이 경로를 읽는데 풀이 화면만 로컬 스토어를 봐서, 서버에서 온 과제를
-       누르면 404 였다(교사는 냈고 목록에도 보이는데 풀 수는 없는 상태).
-    ② 로컬 스토어 — 비로그인 데모와 시드 과제. prod 는 공개·비로그인이라 이쪽이 기본 경로다.
-
-    문항 **본문**은 어느 쪽에서도 오지 않는다 — 서버 행은 과제 메타뿐이다(M2 경계).
-    `getQuestionsForAssignment()` 가 시드에서 채운다.
-  */
   const api = useVisibleAssignment(id);
   const local = useAssignmentLookup(id);
   // 목록 화면(`../../page.tsx`)이 스켈레톤을 유지하는 것과 같은 신호를 쓴다.
   const demoHydrated = useStoresHydrated(useAssignmentStore);
-  const a = local ?? (api.data ? readRowToAssignment(api.data) : undefined);
+
+  /*
+    **누가 이 과제를 열 수 있는지는 서버가 정한다.**
+
+    한때 여기서 `local ?? server` 로 로컬 사본을 먼저 봤다. 그러면 서버가 안 보여 주는
+    과제(남의 반 것, 대상이 아닌 것, 지워진 것)라도 **같은 브라우저에 사본만 남아 있으면**
+    풀이 화면이 열린다 — `useAssignmentLookup()` 은 대상 학생 필터 없이 `dispatched` 를
+    그대로 돌려주기 때문이다. 개요·대화·결과는 서버 visibility 를 따르는데 풀이만 안 따르는
+    구멍이었다.
+
+    로컬이 정본인 경우는 하나뿐이다: **비로그인 데모**(서버가 401). prod 는 공개·비로그인이라
+    이쪽이 기본 경로이고, 거기서는 애초에 서버에 아무것도 없다.
+  */
+  const server = api.data ? readRowToAssignment(api.data) : undefined;
+  const a = api.isUnauthenticated ? local : server;
 
   if (!a) {
     /*
@@ -71,7 +91,17 @@ export default function SolvePage({
     if (api.isError) return <ReadErrorState onRetry={() => void api.refetch()} />;
     notFound();
   }
-  const questions = getQuestionsForAssignment(a);
+  /*
+    판정이 끝난 **뒤에** 문항 본문만 로컬에서 빌린다.
+
+    서버 행에는 문항이 없다(M2 경계) — 교사가 출제 화면에서 직접 쓴 발문·배점·정답과 오답
+    재발사 집합은 같은 id 의 로컬 사본에만 있다. 그걸 안 합치면 서버로 연 과제가 교사가 쓴
+    문항 대신 mode 시드로 떨어진다.
+
+    **빌리는 것은 문항 출처 둘뿐이다.** 나머지 필드(대상·상태·마감)는 서버가 정본이라 로컬
+    값으로 덮지 않는다 — 그게 위 접근 판정을 우회하는 뒷문이 된다.
+  */
+  const questions = getQuestionsForAssignment(local ? { ...a, ...questionSources(local) } : a);
   if (questions.length === 0) notFound();
 
   const bot = classBots.find(b => b.id === a.botId);
