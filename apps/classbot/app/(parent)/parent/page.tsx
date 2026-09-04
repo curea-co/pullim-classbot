@@ -93,14 +93,21 @@ function ChildSummaryCard({ child }: { child: ParentChildItem }) {
 
       <div className="mt-5">
         <h3 className="text-pullim-slate-900 mb-2 text-sm leading-tight font-bold">
-          들어간 수업방 {rooms.length}개
+          수업방 {rooms.length}개
         </h3>
         {rooms.length === 0 ? (
+          /*
+           * 빈 자리는 **왜 비었는지 말하지 않는다** (05 § 11.4 규칙 2).
+           * 자녀가 아직 반에 안 들어간 것과, 자녀가 「반·과제 현황」을 안 켠 것
+           * (`consent_logs.type = class_assignment_summary`)이 부모에게 같은 모양이어야 한다.
+           * 구별되면 그 차이 자체가 정보가 되어, 동의 없이 아이의 활동 유무를 알아낼 수 있다.
+           * 그래서 「참여 코드를 받아 들어가면」처럼 한쪽 까닭을 짚는 안내를 두지 않는다.
+           */
           <EmptyState
             tone="plain"
             size="sm"
-            title="아직 들어간 수업방이 없어요"
-            description="선생님께 참여 코드를 받아 들어가면 여기에 보여요."
+            title="보여줄 수업방이 없어요"
+            description="보여줄 것이 생기면 여기에 나와요."
           />
         ) : (
           <ul className="space-y-2">

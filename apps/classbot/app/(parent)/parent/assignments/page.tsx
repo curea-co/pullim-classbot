@@ -49,7 +49,11 @@ export default function ParentAssignmentsPage() {
   );
 }
 
-/** 자녀 한 명의 과제 표 한 장. 과제가 아직 없으면 빈 화면 대신 왜 비었는지 적는다. */
+/**
+ * 자녀 한 명의 과제 표 한 장.
+ *
+ * 비었을 때 **까닭은 적지 않는다** (05 § 11.4 규칙 2) — 아래 빈 자리 주석 참조.
+ */
 function ChildAssignmentsCard({ child }: { child: ParentChildItem }) {
   const counts = countChildAssignments(child.assignments);
 
@@ -64,11 +68,16 @@ function ChildAssignmentsCard({ child }: { child: ParentChildItem }) {
         }
       />
       {child.assignments.length === 0 ? (
+        /*
+         * 홈의 수업방 빈 자리와 같은 규약 (05 § 11.4 규칙 2) — 부모는 「미동의」와
+         * 「활동 없음」을 구별할 수 없어야 한다. 「선생님이 과제를 내면」이라고 적으면
+         * 아직 안 켠 자녀도 「과제를 안 받았다」로 읽혀, 동의 없이 활동 유무가 새어 나간다.
+         */
         <EmptyState
           tone="plain"
           size="sm"
-          title="아직 받은 과제가 없어요"
-          description="선생님이 과제를 내면 여기에 보여요."
+          title="보여줄 과제가 없어요"
+          description="보여줄 것이 생기면 여기에 나와요."
         />
       ) : (
         <ChildAssignmentTable childName={child.name} assignments={child.assignments} />
