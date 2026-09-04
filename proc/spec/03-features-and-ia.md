@@ -177,7 +177,7 @@
 > **[2026-09-04 정정]** 이 메모는 종전에 「v1 후보 · 현행 계약 아님」으로 적고 「지금 소스에는 학생 목록 화면도 `?view=` 탭도 학생 상세로 가는 링크도 없다」고 단정하고 있었다. **셋 다 `dev` 에 있다** — `app/(teacher)/teacher/grading/page.tsx` 가 `?view=queue` 가 아니면 `students` 로 떨어뜨리고, `grading-student-list.tsx` 가 `?from=grading` 을 달아 학생 상세로 보낸다. 이 PR 이 만든 변화가 아니라 **문서가 뒤처져 있던 것**이라 여기서 바로잡는다.
 > **아직 어긋난 채 남는 것** — [`11-grading-hub.md` § 1.5](11-grading-hub.md) 가 같은 낡은 서술을 들고 있다. 이 PR 의 범위 밖이라 손대지 않았고 **별도 문서 PR 사안**이다.
 
-**메모 4 (학생 상세 진입원)**: `/teacher/students/[id]` 는 여러 화면이 함께 보내는 곳이다. **`[지금]` 링크하는 곳은 넷** — 관제소 명단(`?from=monitor`) · 교사 홈 「먼저 볼 학생」(`?from=home`) · 채점 허브 학생 탭(`?from=grading`) · 리포트 명단(**`from` 을 안 넘긴다**). 다만 **받는 쪽이 아직 그 값을 안 읽는다** — `students/[id]` 가 `from` 으로 되돌아갈 곳을 가르지 않아 뒤로 가기는 여전히 한 곳으로 간다. 그러니 [11] § 3.3.3 [S8] 의 `?from=` 계약은 **절반만 들어온 상태**다(보내는 쪽 셋 ✅ / 받는 쪽 ❌ · 리포트 명단 ❌). *(종전 이 메모는 「링크하는 곳은 셋 · 셋 다 source 를 안 넘긴다」로 적고 있었다 — 그 뒤 링크가 늘고 셋이 `from` 을 달았다. 2026-09-04 정정.)* **학생 목록** 화면 자체는 학급 관제소이고 `/teacher/students` 는 `[id]` 의 부모 경로일 뿐 진입점이 아니다. 명단은 화면마다 따로 세지 않고 데이터 한 곳에서 읽는다 — 지금은 `monitoredRoster` 이고, 이는 **현재 학생 목록이 읽는 단일 UI 원천**일 뿐 등록 명단(enrollment)의 진실원이 아니다.
+**메모 4 (학생 상세 진입원)**: `/teacher/students/[id]` 는 여러 화면이 함께 보내는 곳이다. **`[지금]` 링크하는 곳은 넷** — 관제소 명단(`?from=monitor`) · 교사 홈 「먼저 볼 학생」(`?from=home`) · 채점 허브 학생 탭(`?from=grading`) · 리포트 명단(**`from` 을 안 넘긴다**). **받는 쪽도 읽는다** — `students/[id]/entry-source.ts` 가 `resolveEntrySource()`/`entryTarget()` 으로 `from` 을 되돌아갈 곳에 매핑하고(`grading` · `grading-queue` · `home` · `monitor` · `reports` 다섯 값), 페이지가 그 값으로 back link 를 가른다. **모르는 값·빈 값은 `monitor` 로 떨어진다**(규칙 R2) — 그래서 `from` 을 안 붙이는 리포트 명단도 깨지지 않고 관제소로 간다. `reports` 값은 미리 정의만 해 뒀다(리포트 쪽이 `?from=reports` 를 붙이는 날 이 파일을 안 고쳐도 되게). 즉 [11] § 3.3.3 [S8] 의 `?from=` 계약은 **들어와 있고**, 남은 것은 리포트 명단이 값을 붙이는 한 자리다. *(종전 이 메모는 「링크하는 곳은 셋 · 셋 다 source 를 안 넘긴다 · `?from=` 은 미구현 계약」으로 적고 있었다 — 셋 다 낡았다. 2026-09-04 정정.)* **학생 목록** 화면 자체는 학급 관제소이고 `/teacher/students` 는 `[id]` 의 부모 경로일 뿐 진입점이 아니다. 명단은 화면마다 따로 세지 않고 데이터 한 곳에서 읽는다 — 지금은 `monitoredRoster` 이고, 이는 **현재 학생 목록이 읽는 단일 UI 원천**일 뿐 등록 명단(enrollment)의 진실원이 아니다.
 
 ### 2.3 영역 분리 원칙
 
@@ -187,6 +187,12 @@
   - **`dev` 에는 `app/(parent)` 트리가 없다.** `/parent`(홈 — 자녀 요약) · `/parent/assignments`
     (자녀 과제)는 **#268**, `/parent/self-study`(자녀 자기주도 학습)는 **#271** 이 인도한다.
     세 화면이 다 들어오기 전까지 이 줄은 계획이고, 현재 상태 설명이 아니다.
+  - **홈 경로 정정** — [04 UC-P1](04-ux-flow.md) 이 학부모 진입점을 `/parent/dashboard` 로
+    적고 있었으나, 인도되는 것은 **`/parent`** 다(`app/(parent)/parent/page.tsx`). 문서마다
+    첫 진입 경로가 갈리지 않게 **04 쪽을 `/parent` 로 맞췄다** — 세그먼트를 하나 더 두면
+    `(parent)` 라우트 그룹 안에서 `/parent/parent/dashboard` 가 되거나 홈이 리다이렉트
+    자리로만 남는다. `dashboard` 라는 이름은 이 리포의 다른 역할 홈(`/teacher` · `/classbot`)
+    어디에도 쓰지 않는다.
   - **들어온 뒤에도 실제 로그인 학부모는 들어올 수 없다.** 공유 인증 claim 의 role
     union(`packages/types` 의 `UserRole`)과 BE 의 진입 역할(`user-role.enum.ts`)이 둘 다
     `student | teacher | admin` 이고 OS SSO 도 학부모를 `student` 로 내리므로, RoleGuard 가
