@@ -138,13 +138,22 @@ describe("nav-adapter", () => {
       .filter((r) => r.labels.length > 1);
     expect(overlitTabs).toEqual([]);
   });
-  // 학부모 레일 — 자녀 요약 + 자녀 과제 둘뿐. 그룹 label 이 비어 있어 head 는 ROLE_LABEL 을 쓴다.
-  it("parent rail exposes exactly the two 자녀 routes under a 학부모 head", () => {
+  // 학부모 레일 — 그룹 label 이 비어 있어 head 는 ROLE_LABEL 을 쓴다.
+  //
+  // 셋인 이유: 앞 둘은 **교사 파생**이라 자녀가 반에 들어간 사실만으로 보이고,
+  // 「스스로 공부」만 **자녀 본인의 동의**가 있어야 보인다. 자기주도 학습에는 열람을
+  // 승인할 교사가 없어서 그 자리를 학생이 대신하기 때문이다. 인가 모델이 다른 항목이라
+  // 앞 둘에 섞지 않고 따로 세운다.
+  it("parent rail exposes the 자녀 routes under a 학부모 head", () => {
     const secs = railSectionsForRole("parent", "/parent");
     expect(secs).toHaveLength(1);
     expect(secs[0].head).toBe("학부모");
-    expect(secs[0].items.map((i) => i.href)).toEqual(["/parent", "/parent/assignments"]);
-    expect(secs[0].items.map((i) => i.label)).toEqual(["홈", "자녀 과제"]);
+    expect(secs[0].items.map((i) => i.href)).toEqual([
+      "/parent",
+      "/parent/assignments",
+      "/parent/self-study",
+    ]);
+    expect(secs[0].items.map((i) => i.label)).toEqual(["홈", "자녀 과제", "스스로 공부"]);
   });
   // `/parent` 는 `/parent/assignments` 의 상위 경로다 — 접두사로 잡으면 어디서나 함께 켜진다.
   it("parent 홈 is active only on the exact /parent route", () => {

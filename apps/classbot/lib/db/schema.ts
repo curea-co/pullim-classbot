@@ -59,16 +59,66 @@ export const parentChildLinks = pgTable(
   }),
 );
 
+/**
+ * 학생 → 학부모 공유 동의 — **감사 기록**이다 (학부모×자기주도 계약 §1).
+ *
+ * ## 왜 이 테이블이 자기주도의 인가 축인가
+ * 기존 스펙에서 학부모의 개인 열람은 「승인 후」이고 그 승인 주체는 **교사·기관**이다
+ * (`proc/spec/13-reports-and-emotion-checkin.md` §5.3·§5.4). 그런데 자기주도 학습에는
+ * **승인할 교사가 구조적으로 없다** — 학생이 스스로 고른 봇이다. 그 자리를 대신할 수 있는
+ * 당사자는 **학생 본인뿐**이라, 자기주도 요약의 인가는 여기 한 행이 전부다.
+ *
+ * ## 철회는 **행 삭제도 `expires_at = now()` 도 아니다**
+ * 이 테이블은 감사 기록이라 「누가 언제 무엇을 줬는가」가 남아야 한다. 지우면 그 사실이
+ * 사라지고, 만료 시각을 지금으로 당겨 때우면 **「기간이 지났다」와 「학생이 거뒀다」가
+ * 구분되지 않는다.** 그래서 `revoked_at` 이 따로 있다 — 살아 있는 동의의 조건은
+ * `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())` 이고,
+ * 그 술어가 조회 **조건 안**에 들어간다(읽고 나서 거르지 않는다).
+ *
+ * ## `type` 에 DB 제약이 없는 것은 의도가 아니라 **현재 상태**다
+ * 실제 DB 의 `type` 은 CHECK 도 PG enum 도 없는 `text` 다(`drizzle/0000_stiff_ulik.sql:107`
+ * · 적용된 스키마 실측). 그래서 값을 늘려도 DDL 이 필요 없고, 아래 배열과
+ * `lib/mock/family.ts` 의 `ConsentType`·`consentTypeMeta` 가 **유일한 테두리**다.
+ * 둘 중 하나만 고치면 타입은 통과하는데 화면이 라벨을 못 찾는다 — 항상 같이 고친다.
+ *
+ * ⛔ **동의는 타입별로 쪼갠다.** 자기주도 요약 하나를 줬다고 감정·웰빙이 딸려 나가면
+ * 안 된다(`13:288`). 새 공유 축이 생기면 이 union 에 값을 더하지, 기존 값의 뜻을 넓히지 않는다.
+ */
 export const consentLogs = pgTable('consent_logs', {
   id: text('id').primaryKey(),
   parentId: text('parent_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: text('type', {
-    enum: ['weekly_report', 'monthly_report', 'weak_nodes', 'emotion_share', 'realtime_alert'],
+    enum: [
+      'weekly_report',
+      'monthly_report',
+      'weak_nodes',
+      'emotion_share',
+      'realtime_alert',
+      /** 자기주도 요약(스스로 담은 봇 · 공부한 날) — 대화 원문·요약은 포함하지 않는다. */
+      'self_study_summary',
+      /**
+       * 반·과제 현황(참여한 수업방 · 받은 과제의 상태) — 문항·답안·점수는 포함하지 않는다.
+       *
+       * 자기주도와 인가 모델이 다르지 않다는 결정이 여기 반영돼 있다. 스펙은 학부모 전달을
+       * 「학생 승인 후」로 두는데(`04-ux-flow.md:154`), 예전 구현은 링크만 있으면 반·과제를
+       * 무조건 열었다 — 승인 주체가 교사·기관이라고 봤기 때문이다. 그 둘이 갈리면 같은
+       * 화면 안에서 한 칸은 동의 뒤에, 다른 칸은 동의 없이 놓인다. 축을 하나 더 만들어
+       * **양쪽 다 학생 동의 뒤**로 옮겼다.
+       */
+      'class_assignment_summary',
+    ],
   }).notNull(),
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   scopeLabel: text('scope_label').notNull(),
+  /**
+   * 학생이 거둔 시각 — null 이면 아직 살아 있다.
+   *
+   * 위 머리주석대로 **행을 지우거나 `expires_at` 을 당겨 대신하지 않는다.**
+   * 만료(기간 종료)와 철회(학생의 의사)는 다른 사실이고, 감사 기록은 둘을 구분해야 한다.
+   */
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
 });
 
 /* ============================================================

@@ -1,13 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BarChart3, GraduationCap, Lock, Sparkles, UserRound } from 'lucide-react';
+import { ArrowRight, BarChart3, GraduationCap, Lock, Share2, Sparkles, UserRound } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
+import { useMyConsents } from '@/hooks/api/consents';
+import { isShareableType } from './share/catalog';
+import { useServerIdentityState } from '@/hooks/api/self-server';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
@@ -39,6 +42,10 @@ export default function MyProfilePage() {
   // 학년은 소속 수업(봇)에서 온다 — 학생 행에는 학년 칸이 없다.
   const grade = myBots[0]?.bot.grade;
 
+  // 공유 상태 한 줄. 지금 무엇을 내주고 있는지는 **찾아 들어가야 아는 것**이면 안 된다 —
+  // 프로필에 와서 이 줄만 봐도 「켜져 있나」가 보이게 둔다(끄러 오는 길의 첫 표지판이다).
+  const shareState = useShareSummary();
+
   const rail = (
     <>
       <Link
@@ -65,6 +72,24 @@ export default function MyProfilePage() {
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-pullim-slate-900 text-sm font-bold">주간 리포트</div>
+        </div>
+        <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
+      </Link>
+
+      <Link
+        href="/classbot/me/share"
+        aria-label="공유 — 부모님께 무엇을 보여드릴지 정하기"
+        className="bg-card hover:bg-pullim-slate-50/50 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
+        data-testid="me-share-link"
+      >
+        <span className="bg-pullim-slate-100 text-pullim-slate-500 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <Share2 className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-pullim-slate-900 text-sm font-bold">공유</div>
+          {shareState && (
+            <div className="text-pullim-slate-500 mt-0.5 truncate text-2xs">{shareState}</div>
+          )}
         </div>
         <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
       </Link>
@@ -157,6 +182,53 @@ export default function MyProfilePage() {
       </ContextRail>
     </div>
   );
+}
+
+/**
+ * 사이드 링크에 붙는 공유 상태 한 줄.
+ *
+ * 「켜져 있나」만 답한다 — 범위·날짜는 적지 않는다. 이 줄이 길어지면 프로필에서 결정을
+ * 내리게 되는데, 그 결정에 필요한 나머지 절반(무엇이 나가나 · 되돌릴 수 없다는 것)은
+ * 저쪽 화면에만 있다. 여기서는 **들어가 볼 이유**까지만 준다.
+ *
+ * 아직 모를 때(신원 없음·조회 전·실패)는 상태를 지어내지 않고 `null` 을 준다 —
+ * 「안 보여요」라고 적었다가 실은 켜져 있으면 학생이 껐다고 착각한다.
+ *
+ * ## 세는 범위를 **문구가 밝힌다**
+ *
+ * `GET /api/me/consents` 는 타입으로 거르지 않는다 — 교사·기관 승인 흐름이 넣은 동의
+ * (주간 리포트 등)도 같은 목록에 섞여 온다(계약 `MyConsentRow`). 그건 공유 화면이 켜지도
+ * 끄지도 못하는 종류라 여기서 세면 안 되고(`isShareableType`), 그렇게 걸러 놓고
+ * 「지금은 **아무것도** 안 보여요」라고 쓰면 **거른 만큼이 거짓말이 된다.** 그래서 문구가
+ * 「여기서 켠」으로 범위를 밝힌다 — 세는 범위와 말하는 범위를 같게 둔다.
+ * @returns 한 줄 문구, 아직 모르면 null
+ */
+function useShareSummary(): string | null {
+  /*
+    ⛔ 판정은 **셋**이다 — `'pending'`(세션 복원 중)을 `'demo'` 와 같이 접으면 안 된다.
+    접으면 로그인한 학생이 한순간 데모 명의로 읽히는데, 이 줄에서는 그것이 **남의 공유
+    상태를 내 프로필에 적는 일**이 된다. `'server'` 가 아닌 동안은 아래에서 `null` 로
+    빠져 줄 자체를 안 그린다 — 이 함수가 원래 지키던 「모르면 지어내지 않는다」 그대로다.
+  */
+  const identity = useServerIdentityState();
+  const consents = useMyConsents();
+
+  if (identity !== 'server' || consents.isError || consents.data === undefined) return null;
+
+  // 응답에는 이 화면 소관이 아닌 동의도 섞여 올 수 있다 — 세기 전에 거른다(`isShareableType`).
+  const mine = consents.data.consents.filter((row) => isShareableType(row.type));
+
+  /*
+    다른 보호자에게 남은 공유가 **가장 먼저** 나온다.
+
+    지금 보호자께 켠 것이 함께 있어도 이 줄이 이긴다 — 이 한 줄의 일은 「들어가 볼 이유」를
+    주는 것이고, 학생이 모르고 있을 가능성이 가장 큰 상태가 이쪽이다(주 보호자가 바뀌면
+    저절로 생긴다). 누구인지는 적지 않는다 — 서버가 주지 않고 끄는 데도 필요 없다.
+  */
+  if (mine.some((row) => !row.toCurrentParent)) return '다른 보호자께 남은 공유가 있어요';
+  if (consents.data.parent === null) return '연결된 보호자가 없어요';
+  if (mine.length === 0) return '여기서 켠 공유는 없어요';
+  return `${consents.data.parent.name}께 보여드리는 중`;
 }
 
 function InfoRow({

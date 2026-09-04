@@ -30,6 +30,8 @@ import { randomUUID } from 'node:crypto';
 import { getDb, getPool } from '../lib/db';
 import {
   assignments,
+  consentLogs,
+  parentChildLinks,
   classBots,
   classrooms,
   enrollments,
@@ -198,6 +200,41 @@ async function main(): Promise<void> {
   await db.delete(joinCodes).where(eq(joinCodes.classroomId, SEEDED_ROOM_WITH_CODE.classroomId));
   const seededCode = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
 
+  // ── 3.4 학부모 — 자녀 둘, 동의는 아무것도 없음 ────────────────────
+  //
+  // 자녀를 둘로 두는 이유: 학부모 화면의 핵심 케이스가 「한 자녀는 공유, 한 자녀는 미공유」다.
+  // 그 상태를 우연에 맡기면 재현이 안 된다.
+  //
+  // 동의는 **한 자녀만 켜 놓고 시작한다** — 서연은 반·과제를 공유 중, 민준은 미동의.
+  //
+  // 예전에는 전부 비워 두고 시작했다. 그때는 반·과제가 동의 밖에 있어서 학부모 화면에
+  // 내용이 있었고, 비워 둔 것은 자기주도 한 줄뿐이었다. 반·과제까지 게이트 뒤로 들어온
+  // 지금 같은 출발점을 쓰면 **학부모 화면이 통째로 비어** 데모가 고장 난 것처럼 보인다.
+  //
+  // 그래서 둘로 가른다 — 한 자녀는 켜져 있어 화면이 살아 있고, 다른 자녀는 꺼져 있어
+  // 「자녀가 주지 않으면 안 보인다」가 같은 화면에서 눈에 보인다. 끄고 켜는 것은 여전히
+  // 학생 화면(`/classbot/me/share`)에서 해 본다. 자기주도(`self_study_summary`)는 **비워 둔다** —
+  // 그쪽은 학생이 켜는 흐름을 처음부터 밟아 보는 자리다.
+  await db
+    .insert(parentChildLinks)
+    .values([
+      { parentId: 'parent_001', studentId: 'student_001', relation: 'mother', primary: true },
+      { parentId: 'parent_001', studentId: 's2', relation: 'mother', primary: false },
+    ])
+    .onConflictDoNothing();
+  await db.delete(consentLogs).where(eq(consentLogs.parentId, 'parent_001'));
+  await db.insert(consentLogs).values({
+    id: `cs_${randomUUID()}`,
+    parentId: 'parent_001',
+    studentId: 'student_001',
+    type: 'class_assignment_summary',
+    grantedAt: new Date(),
+    // 기한 없음 = 학생이 끌 때까지. 화면의 기본 범위(「이번 주만」)와 다른 값을 일부러 쓴다 —
+    // 데모에서 기한이 지나 조용히 사라지면 그것이 버그처럼 보인다.
+    expiresAt: null,
+    scopeLabel: '계속',
+  });
+
   // ── 3.5 마켓 예시 하나 ────────────────────────────────────────────
   // 빈 마켓만 보면 「게시가 되긴 하나」를 알 수 없다. 시드 봇 하나를 올려 두고,
   // 교사가 직접 올리고 내리는 것은 화면에서 해 보게 한다.
@@ -230,6 +267,9 @@ async function main(): Promise<void> {
   }
   console.log('');
   console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
+  console.log('');
+  console.log('  학부모 · 어머니   서연 = 반·과제 공유 중 · 민준 = 미동의(빈 자리)');
+  console.log('                    자기주도는 둘 다 꺼져 있습니다 ← 학생 화면 /classbot/me/share 에서 켜 보세요');
   console.log('');
   console.log('  학생 · 민준 (s2)   참여 0곳  ← 여기서 코드를 넣어 보세요');
   console.log('  학생 · 서연 (student_001)   기존 5개 반 · 과제 3건 그대로');
