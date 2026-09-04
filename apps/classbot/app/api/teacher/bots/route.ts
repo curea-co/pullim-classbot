@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { classBots, users } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
+import { denyUnlessRole } from '@/app/api/_lib/guards';
 
 export const runtime = 'nodejs';
 
@@ -38,22 +39,13 @@ interface BotBody {
  * @returns 201 { id, teacherId } | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: teacherId, role, isIdentified } = getCurrentUserIdFromRequest(req);
+  const actor = getCurrentUserIdFromRequest(req);
+  const teacherId = actor.id;
 
-  // 쓰기 가드 — 미로그인 차단.
-  if (!isIdentified) {
-    return NextResponse.json(
-      { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
-      { status: 401 },
-    );
-  }
-  // RBAC — 교사 전용. 학생/기타 role 은 403.
-  if (role !== 'teacher') {
-    return NextResponse.json(
-      { message: '교사만 사용할 수 있는 기능입니다.', code: 'FORBIDDEN_ROLE' },
-      { status: 403 },
-    );
-  }
+  // 쓰기 가드(미로그인 401) + RBAC(교사 전용, 학생·학부모·admin 은 403).
+  // 판정은 학생 표면과 같은 곳에서 온다 — 역할 표가 라우트마다 갈라지지 않게.
+  const denied = denyUnlessRole(actor, ['teacher'], '교사만 사용할 수 있는 기능입니다.');
+  if (denied) return denied;
 
   let body: BotBody;
   try {
