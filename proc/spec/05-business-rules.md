@@ -322,9 +322,11 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 11.2 라우트 보호
 - `(student)/*` — Learner 권한 필수
 - `(teacher)/*` — Manager/Owner 권한 필수
-- **`[예정]`** `/parent/*` — 자녀 매칭(`parent_child_links`) 검증 + **자녀 동의**(§ 11.4).
-  `dev` 에는 `app/(parent)` 트리가 없다 — **#268**(홈·자녀 과제)과 **#271**(자기주도)이 인도한다.
-  들어온 뒤에도 **실제 로그인 학부모는 진입 불가**다([03 § 2.3](03-features-and-ia.md))
+- **`[예정]`** `/parent/*` — Assistant 권한 + 자녀 매칭(`parent_child_links`) 검증, 그리고
+  **자녀 동의**(§ 11.4). 종전 줄의 「Assistant 권한 + 자녀 매칭」은 그대로 두고 동의 한 겹을
+  더한 것이다. `dev` 에는 `app/(parent)` 트리가 없다 — **#268**(홈·자녀 과제)과
+  **#271**(자기주도)이 인도한다. 들어온 뒤에도 **실제 로그인 학부모는 진입
+  불가**다([03 § 2.3](03-features-and-ia.md))
 
 ### 11.3 데이터 접근
 - Student는 자신 데이터만 read/write
