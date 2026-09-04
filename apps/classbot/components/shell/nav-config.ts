@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, Compass, BookMarked,
+  LayoutDashboard, Bot, Plus, Target, School, Compass, BookMarked,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -91,7 +91,8 @@ export const teacherNav: NavGroup[] = [
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
-      // 「내 수업방」(/teacher/classroom)은 그 화면이 도착하는 PR 에서 홈 바로 뒤에 들어온다.
+      // 반을 열고 참여 코드를 내는 곳. 학생을 들이는 유일한 입구라 홈 바로 다음에 둔다.
+      { href: '/teacher/classroom', label: '내 수업방',  icon: School,          description: '반 만들기 · 참여 코드 · 참여 학생' },
       // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
       // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
       // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
@@ -106,7 +107,9 @@ export const teacherNav: NavGroup[] = [
       { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
-      // 「봇 마켓」(/teacher/marketplace)도 그 화면이 도착하는 PR 에서 봇 관리 뒤에 들어온다.
+      // 내 봇을 밖에 게시하고, 다른 선생님이 게시한 봇을 둘러보는 곳.
+      // 게시 버튼 자체는 「내 수업방」 카드에 있다 — 실제 DB 봇이 거기 있어서다.
+      { href: '/teacher/marketplace', label: '봇 마켓', icon: Compass,       description: '공유된 봇 둘러보기 · 내 봇 공유' },
     ],
   },
   {
