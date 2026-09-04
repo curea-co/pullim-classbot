@@ -45,6 +45,20 @@ export function ClassroomWorkspace() {
   // 방이 하나도 없으면 폼이 곧 이 화면의 본문이다 — 접어 두면 여기서 할 수 있는 일이 없다.
   const showForm = formOpen || (!query.isPending && rooms.length === 0);
 
+  /*
+    갓 만든 방의 코드는 **목록에서 다시 찾는다.** `created` 는 만들던 순간의 스냅샷이라,
+    아래 배너 안 `JoinCodeBlock` 에서 코드를 다시 내면 목록은 갱신돼도 배너의 큰 글자는
+    죽은 코드로 남는다. 코드 다시 내기는 되돌릴 수 없어서(옛 코드는 그 순간 못 쓴다)
+    교사가 그 값을 학생에게 건네면 아무도 못 들어온다 — 갓 만든 반에서 가장 먼저 보는
+    자리가 여기라 더 그렇다.
+
+    스냅샷은 **목록이 아직 그 방을 모를 때만** 쓴다(만든 직후 재조회가 오기 전 한 구간).
+  */
+  const createdRoom = created
+    ? rooms.find((r) => r.classroomId === created.classroomId)
+    : undefined;
+  const createdCode = createdRoom ? createdRoom.joinCode : (created?.joinCode ?? null);
+
   return (
     <>
       {/*
@@ -57,7 +71,7 @@ export function ClassroomWorkspace() {
             이 코드를 학생에게 알려주세요. 학생이 코드를 넣으면 바로 이 반에 들어와요.
           </p>
           <div className="mt-3">
-            <JoinCodeBlock classroomId={created.classroomId} code={created.joinCode} size="lg" />
+            <JoinCodeBlock classroomId={created.classroomId} code={createdCode} size="lg" />
           </div>
           <Button
             type="button"
