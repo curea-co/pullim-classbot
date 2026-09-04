@@ -82,6 +82,10 @@ export type {
  * 행을 넣기 시작하면 이 목록에 섞인다. **그 행들은 이 화면이 켜고 끌 수 있는 것이 아니다**
  * (서버가 학생의 부여·철회를 `self_study_summary` 하나로 막는다). 그래서 이 목록을
  * 「내가 켠 것」으로 곧장 세면 안 되고, 아래 `isStudentGrantable` 로 걸러서 센다.
+ *
+ * ⚠️ 받는 사람도 **한 사람이 아니다.** 주 보호자가 바뀌면 옛 보호자 대상 동의가 그대로
+ * 살아 있고, 목록은 그것까지 전부 준다(안 주면 학생이 끌 수가 없다). 어디로 가는지는
+ * `toCurrentParent` 가 답한다 — `data.parent` 의 이름을 **모든 행에 붙이면 안 된다.**
  */
 export type ConsentItem = MyConsentRow;
 

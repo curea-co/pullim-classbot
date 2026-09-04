@@ -28,6 +28,10 @@ import { NOTHING_SHARED, visibleChildren } from './self-study-visibility';
  * 모르는 상태에서 부모에게 「아이가 아직 안 보여줬다」를 스치듯 말하는 셈이 된다.
  * 잠깐이어도 읽히고, 읽히면 아이가 하지 않은 일을 한 것처럼 된다.
  *
+ * 다만 ① 이 앞이라는 것은 **아직 모를 때만 로딩**이라는 뜻이지, 이미 안 것을 로딩 뒤에
+ * 두라는 뜻이 아니다. 본 조회가 실패한 순간 ② 는 이미 결정된 사실이라 보조 조회를
+ * 기다리지 않는다(아래 `isLoading` 주석).
+ *
  * **④ 와 ⑤ 를 가르는 것은 동의가 아니다.** ④ 는 「이 사람에게 이어진 자녀가 아예 없다」는
  * 계정 사실이고 동의와 무관하다(홈에서 이미 보이는 것과 같은 사실이라 새로 새는 게 없다).
  * 그 하나를 알기 위해서만 `useParentChildren` 을 함께 부른다 — 두 응답을 섞는 게 아니라
@@ -42,9 +46,18 @@ export default function ParentSelfStudyPage() {
 
   const children = visibleChildren(selfStudy.data?.children ?? []);
 
-  // 보여줄 카드가 이미 있으면 자녀 목록을 기다리지 않는다 — 그건 ④ 를 가릴 때만 쓰는 사실이다.
+  /*
+    ① 은 **본 조회**(자기주도)의 상태다.
+
+    보조 조회(`linked`)는 ④ 와 ⑤ 를 가를 때만 필요하므로, 보여줄 카드가 이미 있으면
+    기다리지 않는다. 그리고 본 조회가 **이미 실패했으면** 아예 기다리지 않는다 —
+    기다리면 ② 가 자녀 목록 응답이 끝날 때까지 스켈레톤 뒤에 가려지고, 부모는 이미
+    드러난 오류를 「불러오는 중」으로 읽으며 다시 시도 버튼도 늦게 만난다.
+    ①→② 라는 순서는 「로딩을 먼저 그린다」가 아니라 「아직 모를 때만 로딩이다」라는 뜻이다.
+  */
   const isLoading =
-    selfStudy.isLoading || (children.length === 0 && linked.isLoading);
+    !selfStudy.isError &&
+    (selfStudy.isLoading || (children.length === 0 && linked.isLoading));
   const hasNoLinkedChild =
     linked.isSuccess && linked.data.children.length === 0;
   /*

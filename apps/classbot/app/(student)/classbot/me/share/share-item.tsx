@@ -77,13 +77,29 @@ function formatDay(value: string | null | undefined): string | null {
 export function ShareItem({
   item,
   consent,
+  elsewhere = null,
   parentName,
 }: {
   item: ShareableItem;
-  /** 지금 살아 있는 동의. 안 켜져 있으면 null. */
+  /** 지금 보호자에게 가는 살아 있는 동의. 안 켜져 있으면 null. */
   consent: ConsentItem | null;
-  /** 보여드릴 사람 이름 — 버튼 글자에 들어간다(누구에게 주는지 손끝에서도 보이게). */
-  parentName: string;
+  /**
+   * **다른 보호자**에게 아직 열려 있는 살아 있는 동의. 없으면 null.
+   *
+   * 주 보호자가 바뀌어도 옛 보호자 대상 동의는 그대로 유효하다(그 사정은
+   * `app/api/me/consents/route.ts` GET 머리주석). 그 줄을 안 그리면 이 카드가
+   * **「지금은 아무에게도 안 보여요」라고 거짓을 말한다** — 실제로는 열려 있는데.
+   *
+   * ⛔ 그 보호자가 **누구인지는 알 수 없고, 알려 주지도 않는다** — 서버가 id·이름을
+   * 싣지 않는다(계약 `MyConsentRow.toCurrentParent`). 학생에게 필요한 것은
+   * 「저쪽에도 열려 있다 · 여기서 끌 수 있다」 둘뿐이다.
+   */
+  elsewhere?: ConsentItem | null;
+  /**
+   * 보여드릴 사람 이름 — 버튼 글자에 들어간다(누구에게 주는지 손끝에서도 보이게).
+   * 이어진 보호자가 없으면 `null` 이고, 그때는 켜는 버튼을 아예 그리지 않는다.
+   */
+  parentName: string | null;
 }) {
   const [picking, setPicking] = useState(false);
   const [scope, setScope] = useState<ConsentScopeLabel>(DEFAULT_SCOPE);
@@ -95,6 +111,9 @@ export function ShareItem({
   const revoke = useRevokeConsent();
 
   const isOn = consent !== null;
+  // 끌 것이 있는가 — 지금 보호자든 다른 보호자든. 철회는 `(학생, 타입)` 기준이라
+  // 한 번 누르면 **양쪽이 함께** 꺼진다(`app/api/me/consents/[type]/route.ts`).
+  const hasLiving = isOn || elsewhere !== null;
   const Icon = item.icon;
 
   /*
@@ -131,12 +150,21 @@ export function ShareItem({
     revoke.mutate({ type: item.type }, { onSuccess: () => setConfirmingStop(false) });
   }
 
-  const grantedLabel = formatDay(consent?.grantedAt);
-  const untilLabel = consent
+  /*
+    상태 줄이 말하는 동의 — 지금 보호자 것이 있으면 그것, 없으면 다른 보호자 것.
+
+    「없으면 안 그린다」로 두면 다른 보호자에게만 열려 있는 줄이 날짜도 범위도 없이
+    남아, 학생이 **언제 켠 것인지 모른 채** 끄기만 하게 된다.
+  */
+  const showing = consent ?? elsewhere;
+  const isElsewhereOnly = consent === null && elsewhere !== null;
+
+  const grantedLabel = formatDay(showing?.grantedAt);
+  const untilLabel = showing
     ? // `계속` 은 만료가 null 로 온다 — 없는 날짜를 지어내지 않고 뜻을 그대로 적는다.
-      (formatDay(consent.expiresAt) ?? '내가 끌 때까지')
+      (formatDay(showing.expiresAt) ?? '내가 끌 때까지')
     : null;
-  const untilSuffix = consent?.expiresAt ? '까지' : '';
+  const untilSuffix = showing?.expiresAt ? '까지' : '';
 
   return (
     <li
@@ -170,11 +198,17 @@ export function ShareItem({
       <div
         className={cn(
           'mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3 py-2.5',
-          isOn ? 'bg-pullim-blue-50' : 'bg-pullim-slate-50',
+          isElsewhereOnly
+            ? 'bg-pullim-danger-bg'
+            : isOn
+              ? 'bg-pullim-blue-50'
+              : 'bg-pullim-slate-50',
         )}
         data-testid={`share-state-${item.type}`}
       >
-        {isOn ? (
+        {isElsewhereOnly ? (
+          <TriangleAlert className="text-pullim-danger h-3.5 w-3.5 shrink-0" aria-hidden />
+        ) : isOn ? (
           <Eye className="text-pullim-blue-600 h-3.5 w-3.5 shrink-0" aria-hidden />
         ) : (
           <EyeOff className="text-pullim-slate-400 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -182,22 +216,47 @@ export function ShareItem({
         <span
           className={cn(
             'text-xs font-bold',
-            isOn ? 'text-pullim-blue-700' : 'text-pullim-slate-600',
+            isElsewhereOnly
+              ? 'text-pullim-danger'
+              : isOn
+                ? 'text-pullim-blue-700'
+                : 'text-pullim-slate-600',
           )}
         >
-          {isOn ? `${parentName}께 보여요` : '지금은 아무에게도 안 보여요'}
+          {isOn
+            ? `${parentName}께 보여요`
+            : isElsewhereOnly
+              ? '다른 보호자께 아직 보여요'
+              : '지금은 아무에게도 안 보여요'}
         </span>
-        {consent && <Chip tone="info">{consent.scopeLabel}</Chip>}
-        {consent && (
+        {showing && (
+          <Chip tone={isElsewhereOnly ? 'danger' : 'info'}>{showing.scopeLabel}</Chip>
+        )}
+        {showing && (
           <span className="text-pullim-slate-500 basis-full text-2xs">
             {grantedLabel ? `${grantedLabel}부터` : '오늘부터'}
             {untilLabel ? ` · ${untilLabel}${untilSuffix}` : ''}
           </span>
         )}
+        {/*
+          다른 보호자에게 남은 줄은 **글자로 적는다.** 색만으로 말하면 그 상태가 있다는 것을
+          모르는 학생에게는 그냥 다른 색 카드다. 누구인지는 적지 않는다 — 서버가 주지 않고,
+          알려 주는 것이 이 화면의 일도 아니다(끄는 데 필요 없다).
+        */}
+        {elsewhere && (
+          <span
+            className="text-pullim-danger basis-full text-2xs leading-relaxed"
+            data-testid={`share-elsewhere-${item.type}`}
+          >
+            {isOn
+              ? '예전에 다른 보호자께 켠 것도 아직 살아 있어요. 끄면 둘 다 함께 꺼져요.'
+              : '지금 이어진 분이 아닌 다른 보호자께 예전에 켠 것이 아직 살아 있어요. 여기서 끄면 그것도 꺼져요.'}
+          </span>
+        )}
       </div>
 
-      {/* ─── 범위 고르기 ─── */}
-      {picking ? (
+      {/* ─── 범위 고르기 ─── 이어진 보호자가 없으면 줄 상대가 없어 판도 열리지 않는다 */}
+      {picking && parentName !== null ? (
         <div
           ref={pickPanelRef}
           tabIndex={-1}
@@ -287,7 +346,17 @@ export function ShareItem({
               지금 열어 두신 화면에는 잠깐 더 남아 있을 수도 있고요. 끄면 그다음부터 새로
               보이지 않게 되는 거예요.
             </p>
-            <p className="mt-2">다시 보여드리고 싶어지면 언제든 여기서 다시 켤 수 있어요.</p>
+            {/* 받는 사람이 여럿일 수 있다는 사실을 **끄기 직전**에 적는다 — 끄면 어디까지
+                꺼지는지 모르고 누르면, 남아 있는 쪽을 껐다고 착각한다. */}
+            {elsewhere && (
+              <p className="text-pullim-slate-900 mt-2 text-xs font-bold">
+                다른 보호자께 남아 있던 것도 함께 꺼져요. 이 항목은 아무에게도 안 보이게 돼요.
+              </p>
+            )}
+
+            {parentName !== null && (
+              <p className="mt-2">다시 보여드리고 싶어지면 언제든 여기서 다시 켤 수 있어요.</p>
+            )}
 
             {revoke.isError && (
               <p className="text-pullim-danger mt-2 font-bold" role="alert">
@@ -318,15 +387,22 @@ export function ShareItem({
         </div>
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            variant={isOn ? 'outline' : 'pullim'}
-            size="touch"
-            onClick={openPicker}
-            data-testid={`share-open-${item.type}`}
-          >
-            {isOn ? '범위 바꾸기' : `${parentName}께 보여드리기`}
-          </Button>
-          {isOn && (
+          {parentName !== null && (
+            <Button
+              variant={isOn ? 'outline' : 'pullim'}
+              size="touch"
+              onClick={openPicker}
+              data-testid={`share-open-${item.type}`}
+            >
+              {isOn ? '범위 바꾸기' : `${parentName}께 보여드리기`}
+            </Button>
+          )}
+          {/*
+            끄기는 **살아 있는 줄이 하나라도 있으면** 그린다 — 지금 보호자 것이 없어도
+            다른 보호자에게 남아 있으면 끌 것이 있다. `isOn` 으로만 그리면 그 줄이 화면에
+            보이는데 끄는 버튼이 없는 상태가 된다.
+          */}
+          {hasLiving && (
             // 끄기는 범위 바꾸기와 **같은 무게**로 그린다. 흐리게 두면 되돌리는 길이 덜
             // 열린 것처럼 보이고, 빨갛게 두면 「그러면 안 되는 일」처럼 보인다 — 켠 것을
             // 다시 끄는 건 잘못이 아니라 이 화면이 약속한 일이다.
