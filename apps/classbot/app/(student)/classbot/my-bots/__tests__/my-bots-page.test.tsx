@@ -54,7 +54,7 @@ const added = (botId: string): SelfBotRow => ({
 
 it('마켓이 401 이어도 담은 봇이 있으면 목록을 그린다 — 대화되는 봇이 여기서 사라지지 않게', () => {
   selfRows = [added('cb_001')];
-  marketError = new ApiClientError('로그인이 필요해요.', 401);
+  marketError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   render(<MyBotsPage />);
 
@@ -66,7 +66,7 @@ it('마켓이 401 이어도 담은 봇이 있으면 목록을 그린다 — 대�
 
 it('마켓이 401 이어도 시드 봇은 카탈로그가 이름을 되찾아 준다', () => {
   selfRows = [added('cb_001')];
-  marketError = new ApiClientError('로그인이 필요해요.', 401);
+  marketError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   render(<MyBotsPage />);
 
@@ -76,7 +76,7 @@ it('마켓이 401 이어도 시드 봇은 카탈로그가 이름을 되찾아 �
 
 it('마켓이 오류여도 목록은 남는다 — 까닭만 달라진다', () => {
   selfRows = [added('cb_001')];
-  marketError = new ApiClientError('서버 오류', 500);
+  marketError = new ApiClientError('서버 오류', 500, 'INTERNAL');
 
   render(<MyBotsPage />);
 
@@ -86,7 +86,7 @@ it('마켓이 오류여도 목록은 남는다 — 까닭만 달라진다', () =
 
 it('담은 것이 없고 로그인도 안 됐을 때만 로그인 안내가 목록 자리를 대신한다', () => {
   selfRows = [];
-  marketError = new ApiClientError('로그인이 필요해요.', 401);
+  marketError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   render(<MyBotsPage />);
 
