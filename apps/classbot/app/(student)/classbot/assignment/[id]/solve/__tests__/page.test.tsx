@@ -23,17 +23,22 @@ jest.mock('../solve-workspace', () => ({
   SolveWorkspace: () => <div data-testid="solve-workspace" />,
 }));
 
-/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음). */
-let apiResult: { data: AssignmentReadRow | undefined; isLoading: boolean } = {
+/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음 · 실패). */
+let apiResult: {
+  data: AssignmentReadRow | undefined;
+  isLoading: boolean;
+  isError?: boolean;
+} = {
   data: undefined,
   isLoading: false,
 };
 jest.mock('../../../use-assignment-reads', () => ({
   useVisibleAssignment: () => ({
-    ...apiResult,
+    data: apiResult.data,
+    isLoading: apiResult.isLoading,
+    isError: apiResult.isError ?? false,
     isUnauthenticated: false,
     isNotFound: false,
-    isError: false,
     refetch: jest.fn(),
   }),
 }));
@@ -128,6 +133,21 @@ describe('풀이 화면 진입', () => {
     await renderSolve(a.id);
 
     expect(screen.getByTestId('solve-workspace')).toBeInTheDocument();
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  /*
+    「없다」와 「못 읽었다」는 다르다. 서버 장애를 404 로 덮으면 교사는 냈는데 학생에게는
+    과제가 사라진 것처럼 보이고, 다시 시도할 길도 없어진다.
+  */
+  it('서버 조회가 실패하면 404 가 아니라 다시 시도할 수 있는 오류로 그린다', async () => {
+    apiResult = { data: undefined, isLoading: false, isError: true };
+
+    await renderSolve('as_9a1c4e2f');
+
+    expect(screen.getByText('불러오지 못했어요')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
+    expect(screen.queryByTestId('not-found')).not.toBeInTheDocument();
     expect(notFound).not.toHaveBeenCalled();
   });
 

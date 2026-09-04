@@ -2,6 +2,7 @@
 
 import { use } from 'react';
 import { notFound } from 'next/navigation';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { classBots } from '@/lib/mock';
 import { readRowToAssignment } from '@/lib/assignment-demo';
 import { useAssignmentStore, useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
@@ -58,6 +59,16 @@ export default function SolvePage({
         </div>
       );
     }
+    /*
+      **「없다」와 「못 읽었다」는 다르다.** 서버가 5xx·네트워크로 실패한 것을 404 로 덮으면
+      교사는 냈는데 학생에게는 「과제가 사라졌다」로 보이고, 다시 시도할 길도 없어진다.
+      개요(`../page.tsx`)·대화 화면이 같은 단건 읽기에서 이미 하는 것과 같은 자리를 쓴다.
+
+      401(비로그인 데모)과 404 는 여기 안 온다 — `useVisibleAssignment` 가 그 둘을
+      `isError` 에서 빼 두었다. 그래서 데모의 401 은 그대로 아래 `notFound()` 로 간다:
+      로컬 스토어에도 없는 id 라면 실제로 없는 게 맞다.
+    */
+    if (api.isError) return <ReadErrorState onRetry={() => void api.refetch()} />;
     notFound();
   }
   const questions = getQuestionsForAssignment(a);
