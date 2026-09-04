@@ -102,8 +102,12 @@
 │
 ├─ /classbot                   ← 풀림 클래스봇 (학생) 홈
 │  ├─ /classbot/onboarding     ← 클래스봇 온보딩
-│  ├─ /classbot/discover       ← 클래스봇 발견 (참여 가능 봇 탐색)
-│  ├─ /classbot/chat           ← 봇 채팅
+│  ├─ /classbot/classroom      ← 내 수업방 — 참여한 반 · 참여 코드 넣기 (2026-09-03)
+│  ├─ /classbot/discover       ← 봇 마켓 — 선생님들이 공유한 봇 (2026-09-03 nav 재노출)
+│  ├─ /classbot/discover/[botId] ← 마켓 봇 상세 · 담기 (2026-09-03)
+│  ├─ /classbot/my-bots        ← 내가 담은 봇 — 자기주도 (2026-09-03)
+│  ├─ /classbot/me/share       ← 공유 — 무엇을 보호자에게 보여줄지 켜고 끈다 (2026-09-03)
+│  ├─ /classbot/chat           ← 봇 채팅 (반 봇 + 담은 봇)
 │  ├─ /classbot/replay         ← 리플레이 리스트
 │  └─ /classbot/replay/[id]    ← 타임라인 + 트랜스크립트 + 본인 답변 비교
 │
@@ -128,6 +132,9 @@
 
 ```
 /teacher                       ← 교사 홈 (대시보드)
+├─ /teacher/classroom          ← 내 수업방 — 반 만들기 · 참여 코드 · 참여 학생 · 봇 공유 (2026-09-03)
+├─ /teacher/marketplace        ← 봇 마켓 — 공유된 봇 둘러보기 (2026-09-03)
+├─ /teacher/marketplace/[botId] ← 마켓 봇 상세 (2026-09-03)
 ├─ /teacher/classbot           ← 클래스봇 운영 메인
 ├─ /teacher/builder            ← 봇 빌더 (8단계 위저드 → 한 길·세 마당 재편 인도 중, #223)
 │
@@ -158,7 +165,14 @@
 
 - 학생 — `app/(student)/*` (`AppShell role="student"`, `max-w-screen-md`, BottomNav 5탭)
 - 교사 — `app/(teacher)/*` (`AppShell role="teacher"`, `w-full` 와이드, 데스크탑 우선)
-- 학부모 — `/parent/*` (현재 미구현, 향후 분리)
+- 학부모 — `app/(parent)/parent/*` (**2026-09-04 구현 · 개발·데모 한정**)
+  - `/parent` (홈 — 자녀 요약) · `/parent/assignments` (자녀 과제) · `/parent/self-study` (자녀 자기주도 학습)
+  - **실제 로그인 학부모는 아직 들어올 수 없다.** 공유 인증 claim 의 role union(`packages/types`
+    의 `UserRole`)에 `parent` 가 없고 OS SSO 도 학부모를 `student` 로 내리므로, RoleGuard 가
+    항상 본인 홈으로 되돌린다. 지금 이 화면을 여는 것은 **개발용 신원 쿠키**(또는 비로그인
+    데모)뿐이다. 실제 로그인 학부모에게 열려면 claim union + SSO 매핑을 넓히는 **별도 PR** 이
+    선행한다 (`packages/*` 는 apps 양쪽 영향 — 별건 승인 사항).
+  - 보이는 **내용**은 자녀 동의 뒤에 있다 → [05 § 11.4](05-business-rules.md).
 - 관리자 — `/admin/*` (현재 미구현, 향후 분리)
 
 ---

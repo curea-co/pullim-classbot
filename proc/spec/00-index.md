@@ -44,6 +44,13 @@
 
 ## 변경 이력
 
+- **2026-09-04 (학부모 열람 동의 · 빈 방 발사 · 자기주도 보류 해제)**: 코드가 앞서 나간 세 자리를 명세로 따라잡음. **문서가 먼저 머지되고 구현 PR 이 그 뒤에 온다**(리뷰가 base 스냅샷 기준으로 수렴하게).
+  - `05-business-rules.md` **§ 11.4 신설** — 학부모 열람 동의(`consent_logs`) 축 6종과 **승인 주체**(교사·기관 4 / 학생 본인 2), 규칙 넷(조회 조건 안 · 미동의와 무활동을 못 가름 · `revoked_at` 철회 · 열람 기록 없음). `class_assignment_summary` 가 새 축이다 — **반·과제도 자녀 동의 뒤로** 옮긴 결정(2026-09-04)의 근거가 여기다. § 11.1 에 **개발 전용 신원 폴백**(`pullim_dev_identity` · 인증이 아니라 「명의」 · prod 비노출) 한 항목, § 11.2 의 `/parent/*` 를 Future 에서 현행으로.
+  - `03-features-and-ia.md` **§ 2.1·2.2 라우트 인벤토리** — 이 시리즈가 낸 화면 아홉을 등재: 학생 `/classbot/{classroom,my-bots,me/share,discover/[botId]}` · 교사 `/teacher/{classroom,marketplace,marketplace/[botId]}` · 학부모 `/parent{,/assignments,/self-study}`. `/classbot/discover` 는 「기획 보류·nav 비노출」에서 **봇 마켓**으로 되살아났다(교사 공유가 생기면서 게시된 봇이 실제로 모이는 화면이 됐다).
+  - `03-features-and-ia.md` **§ 2.3** — 학부모 라우트를 「현재 미구현」에서 **구현(개발·데모 한정)** 으로. 실제 로그인 학부모가 아직 못 들어오는 이유(claim union 에 `parent` 없음 · OS SSO 가 student 로 내림)와 선행 조건(별도 PR)을 명시.
+  - `14-teacher-assignment-workspace.md` **§ 5.1** — 「대상 학생 1명 이상」 제약을 **걷음**. 참여 코드 도입 후 「반을 먼저 열고 학생이 뒤에 들어오는」 상태가 정상이 됐다. 대신 **명단을 못 읽은 상태**는 발사 불가(그 빈 배열은 「학생 0명인 반」과 모양이 같아 전원 발사로 바뀐다).
+  - `2026-06-23_classbot-dual-mode-design.md` — **FE-only · mock-first 보류 해제**. deferred 였던 BE persistence · auth-scoped self-enrollment · teacher publish 가 구현됐고, **목표·단원 진행(P5)만 남음**(`bot_curriculum_units` 가 비어 있어 막혀 있다).
+
 - **2026-05-06**: 기존 `docs/` 11개 문서 + `pullim-study-screens` 스킬을 본 spec으로 합성 (역설계 마이그레이션)
 - **2026-05-06**: UX/디자인 베이스라인 보강 — `04 § 6.6` 오버플로 처리 규칙 신설, `08 § 7.3` 버튼 어포던스 규칙 신설, `07 § 5.2` 학술 기호·약어 매핑 추가, `07 § 6` UX writing(한자어 정책) 신설. 트리거: `/q/infinity/solve` 시험 모드 다이얼로그 viewport 초과 버그, `/q/review` "정복 세트 풀이" 버튼 어포던스 미달, θ 등 학술 기호 노출 + 한자어("잔존" 등) 사용성 이슈.
 - **2026-05-07**: 명세 회귀 사례 closing — `04 § 6.6.3/6.6.4` (오버플로·다이얼로그 footer cleanup), `08 § 7.3.5` (버튼 어포던스 회귀: Q·라이브러리·클래스봇·플래너 처리 완료), `07 § 5.2` (학술 기호 회귀: 2026-05-06 시점 5건 + 2026-05-07 시점 신규 도메인 발견 처리 완료) 갱신. [2026-05-07 spec-regression-closing plan](../archive/2026-05-07_spec-regression-closing.md).

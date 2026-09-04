@@ -309,16 +309,52 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 11.1 세션
 - Next.js 15+ App Router 기반
 - **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
+- **개발 전용 신원 폴백(2026-09-03)** — JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안,
+  `/api/*` 를 실제 DB 로 확인할 수 없었다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한
+  뒤에만** 폴백으로 읽는다. **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가
+  아니라 `isIdentified`(그 사용자 **명의로** 처리해도 되는가)이고, 라우트 가드가 보는 값이 그쪽이다.
+  경계 셋: ① prod 호스트(`classbot.pullim.ai`)에서는 **읽지 않는다** ② allowlist 밖 id 는 무시
+  ③ 유효한 JWT 가 있으면 JWT 가 이긴다. 정식 오픈 전 제거하며, 절차는 `lib/dev-identity.ts`
+  머리주석에 있다.
 
 ### 11.2 라우트 보호
 - `(student)/*` — Learner 권한 필수
 - `(teacher)/*` — Manager/Owner 권한 필수
-- `/parent/*` (Future) — Assistant 권한 + 자녀 매칭 검증
+- `/parent/*` — 자녀 매칭(`parent_child_links`) 검증 + **자녀 동의**(§ 11.4). 2026-09-04 구현,
+  단 실제 로그인 학부모는 아직 진입 불가([03 § 2.3](03-features-and-ia.md))
 
 ### 11.3 데이터 접근
 - Student는 자신 데이터만 read/write
 - Teacher는 자신이 만든 자원만 write, 학생 데이터는 read (집계)
 - Parent는 자녀 매핑 + 자녀 승인 후 read만
+
+### 11.4 학부모 열람 동의 (`consent_logs`) — 2026-09-04
+
+학부모의 개인 열람은 **「승인 후」** 다([04 UC-T1 7단계](04-ux-flow.md) · [13 § 4.6](13-reports-and-emotion-checkin.md)).
+승인 주체는 **무엇을 보느냐로 갈린다**:
+
+| 축 (`consent_logs.type`) | 무엇이 나가나 | 승인 주체 |
+|---|---|---|
+| `weekly_report` · `monthly_report` | 주간·월간 리포트 | 교사·기관 (리포트 승인 워크플로 — [13 § 5.3·5.4](13-reports-and-emotion-checkin.md)) |
+| `weak_nodes` | 약점 단원 | 교사·기관 |
+| `emotion_share` | 감정 평균 (민감) | 교사·기관 · **다른 동의에 딸려 나가지 않는다** |
+| `realtime_alert` | 학습 시작·완료 알림 | 교사·기관 |
+| `self_study_summary` | 스스로 담은 봇 · 공부한 날 · 연속일수 | **학생 본인** — 자기주도에는 승인할 교사가 구조적으로 없다 |
+| `class_assignment_summary` | 참여한 반 · 받은 과제 현황 (답안·점수 제외) | **학생 본인** |
+
+**규칙 넷** (구현: `app/api/parent/*` · `app/api/me/consents/*`):
+
+1. **동의는 조회 조건 안에 있다** — 읽고 나서 거르지 않는다. 미동의 자녀의 데이터는 **애초에
+   읽지 않는다**(읽어 놓고 안 보내는 것과 다르다 — 로그·에러·타이밍 어디로도 새지 않는다).
+2. **부모는 「미동의」와 「활동 없음」을 구별할 수 없다.** 구별되면 그 차이 자체가 정보가 되어
+   동의 없이 아이의 활동 유무를 추론할 수 있다. 화면 문구도 어느 쪽인지 말하지 않는다.
+   단 **자녀 목록(이름·관계) 자체는 가리지 않는다** — 링크가 이미 말하는 사실이고, 가리면
+   「이어진 자녀가 없다」와 구분이 사라진다.
+3. **철회는 행 삭제도 `expires_at = now()` 도 아니다** — `revoked_at` 이 따로 있다(감사 기록).
+   살아 있는 동의 = `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
+   **철회해도 이미 본 것은 되돌릴 수 없다** — 학생 화면이 그 사실을 그대로 말한다.
+4. **열람 기록은 없다** — 부모가 언제 봤는지 학생에게 알려주지 않고, 그 테이블을 만들지도 않는다.
+   학생이 「보면 알겠지」로 기대하기 쉬운 자리라 화면에 명시한다.
 
 ### 11.4 API 호출 비용 통제
 - 사용자별 일/월 호출 한도 (T1 무제한, T2 1000회/일, T3 100회/일 — 권장)

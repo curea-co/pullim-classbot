@@ -4,6 +4,22 @@
 **Status:** approved (brainstorming) → ready for writing-plans
 **Scope:** new product capability inside the existing single classbot app. FE-only, mock-first (BE is a separate later track per repo rule).
 
+> **[2026-09-04 개정] 「FE-only · mock-first」 보류가 해제됐다.** 아래 §6 의 Out(deferred) 에 있던
+> **BE persistence + real auth-scoped self-enrollment** 와 **teacher-side publish to market** 은
+> 2026-09-03~04 작업으로 **구현됐다**:
+>
+> | 이 문서의 deferred 항목 | 지금 상태 |
+> |---|---|
+> | BE persistence (자기주도) | **구현** — `self_enrollments`(0005) · `self_study_days`(0006) · `/api/me/self-bots` · `/api/me/study-days`(+백필) |
+> | real auth-scoped self-enrollment | **구현** — 신원별 행. 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
+> | teacher-side publish to market | **구현** — `class_bots.is_published`(0004) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` |
+> | 학부모 × 자기주도 | **구현** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` 0007) |
+> | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** |
+> | 목표·단원 진행(§3 의 goal/path) | **여전히 미구현** — `bot_curriculum_units` 가 정의만 있고 비어 있다. 실제 봇에 커리큘럼이 없어 이 단계(P5)가 뒤로 밀렸다 |
+>
+> 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
+> (서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라갔다.
+
 ## Goal
 
 Make **classbot one service with two student modes** — **교사 주도형** (current: bots assigned by a teacher) and **학생 자기주도형** (new: student self-enrolls in official curriculum tutors and learns goal-by-goal) — reusing the existing student layer (3-col chat, quiz/study-guide rail, wellbeing, replay, primitives, DS) and adding only the mode toggle, a dual home, the official-tutor library + market, a goal/path/progress layer, and self-enrollment.
