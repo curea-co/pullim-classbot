@@ -7,7 +7,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  parentNav, studentBottomTabs, studentNav, teacherNav,
+  studentBottomTabs, studentNav, teacherNav,
   type NavGroup,
 } from './nav-config';
 
@@ -52,12 +52,11 @@ describe('nav-config 라우트 인벤토리', () => {
   const matchers = collectRoutes(APP_DIR).map(routeMatcher);
   const exists = (href: string) => matchers.some((re) => re.test(href === '' ? '/' : href));
 
-  // 학부모(`parentNav`)까지 한 번에 훑는다 — 지금은 비어 있지만 화면 없이 항목만
-  // 채워지는 순간 여기서 걸린다.
+  // 역할이 느는 날(학부모) 그 레일도 이 표에 한 줄로 들어온다 — 화면 없이 항목만
+  // 채워지는 순간 여기서 걸리게.
   it.each([
     ['학생 레일', hrefsOf(studentNav)],
     ['교사 레일', hrefsOf(teacherNav)],
-    ['학부모 레일', hrefsOf(parentNav)],
     ['학생 하단탭', studentBottomTabs.map((t) => t.href)],
   ])('%s 의 모든 항목은 app 트리에 대응 page 가 있다', (_label, hrefs) => {
     expect(hrefs.filter((href) => !exists(href))).toEqual([]);

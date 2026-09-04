@@ -20,7 +20,7 @@ type NavSource = {
   matchPrefix?: string[];
 };
 
-const ROLE_LABEL: Record<Role, string> = { student: "클래스봇", teacher: "교사", parent: "학부모" };
+const ROLE_LABEL: Record<Role, string> = { student: "클래스봇", teacher: "교사" };
 
 /** '/' 은 /classbot 로 redirect → 같은 목적지로 취급해 홈 중복 제거 */
 const normHref = (href: string): string => (href === "/" ? "/classbot" : href);

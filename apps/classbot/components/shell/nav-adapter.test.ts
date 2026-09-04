@@ -134,11 +134,6 @@ describe("nav-adapter", () => {
       .filter((r) => r.labels.length > 1);
     expect(overlitTabs).toEqual([]);
   });
-  // 학부모 레일은 **아직 비어 있다** — 역할은 섰지만 `/parent/*` 화면이 뒤 PR 에서 온다.
-  // 항목이 화면보다 먼저 열리면 레일에서 누르는 즉시 404 라, 여기서는 빈 것을 못박는다.
-  it("parent rail is empty until the /parent screens land", () => {
-    expect(railSectionsForRole("parent", "/parent")).toEqual([]);
-  });
   // 웰빙·리플레이는 기획 보류로 하단 탭에서 내려 3개만 남는다 (nav-config).
   it("tabItems returns the 3 student bottom tabs with active detection", () => {
     const tabs = tabItems("/classbot/assignment/123");
