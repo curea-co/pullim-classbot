@@ -205,10 +205,16 @@ async function main(): Promise<void> {
   // 자녀를 둘로 두는 이유: 학부모 화면의 핵심 케이스가 「한 자녀는 공유, 한 자녀는 미공유」다.
   // 그 상태를 우연에 맡기면 재현이 안 된다.
   //
-  // 동의는 **비워 두고 시작한다.** 이 화면의 전제는 「자녀가 주지 않으면 안 보인다」이고,
-  // 그게 실제로 작동하는지 보려면 출발점이 미동의여야 한다. 학생 화면에서 직접 켜 보게 한다.
-  // 이제 **반·과제도** 그 게이트 뒤에 있다(`class_assignment_summary`) — 학부모 화면은
-  // 자녀가 둘 중 하나라도 켜기 전까지 이름만 있고 내용은 비어 있는 것이 정상이다.
+  // 동의는 **한 자녀만 켜 놓고 시작한다** — 서연은 반·과제를 공유 중, 민준은 미동의.
+  //
+  // 예전에는 전부 비워 두고 시작했다. 그때는 반·과제가 동의 밖에 있어서 학부모 화면에
+  // 내용이 있었고, 비워 둔 것은 자기주도 한 줄뿐이었다. 반·과제까지 게이트 뒤로 들어온
+  // 지금 같은 출발점을 쓰면 **학부모 화면이 통째로 비어** 데모가 고장 난 것처럼 보인다.
+  //
+  // 그래서 둘로 가른다 — 한 자녀는 켜져 있어 화면이 살아 있고, 다른 자녀는 꺼져 있어
+  // 「자녀가 주지 않으면 안 보인다」가 같은 화면에서 눈에 보인다. 끄고 켜는 것은 여전히
+  // 학생 화면(`/classbot/me/share`)에서 해 본다. 자기주도(`self_study_summary`)는 **비워 둔다** —
+  // 그쪽은 학생이 켜는 흐름을 처음부터 밟아 보는 자리다.
   await db
     .insert(parentChildLinks)
     .values([
@@ -217,6 +223,17 @@ async function main(): Promise<void> {
     ])
     .onConflictDoNothing();
   await db.delete(consentLogs).where(eq(consentLogs.parentId, 'parent_001'));
+  await db.insert(consentLogs).values({
+    id: `cs_${randomUUID()}`,
+    parentId: 'parent_001',
+    studentId: 'student_001',
+    type: 'class_assignment_summary',
+    grantedAt: new Date(),
+    // 기한 없음 = 학생이 끌 때까지. 화면의 기본 범위(「이번 주만」)와 다른 값을 일부러 쓴다 —
+    // 데모에서 기한이 지나 조용히 사라지면 그것이 버그처럼 보인다.
+    expiresAt: null,
+    scopeLabel: '계속',
+  });
 
   // ── 3.5 마켓 예시 하나 ────────────────────────────────────────────
   // 빈 마켓만 보면 「게시가 되긴 하나」를 알 수 없다. 시드 봇 하나를 올려 두고,
@@ -251,8 +268,8 @@ async function main(): Promise<void> {
   console.log('');
   console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
   console.log('');
-  console.log('  학부모 · 어머니   자녀 둘(서연·민준) · 동의 0건 ← 학생 화면에서 켜 보세요');
-  console.log('                    (반·과제도 동의 뒤에 있습니다 — 켜기 전에는 비어 보이는 게 정상)');
+  console.log('  학부모 · 어머니   서연 = 반·과제 공유 중 · 민준 = 미동의(빈 자리)');
+  console.log('                    자기주도는 둘 다 꺼져 있습니다 ← 학생 화면 /classbot/me/share 에서 켜 보세요');
   console.log('');
   console.log('  학생 · 민준 (s2)   참여 0곳  ← 여기서 코드를 넣어 보세요');
   console.log('  학생 · 서연 (student_001)   기존 5개 반 · 과제 3건 그대로');
