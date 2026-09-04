@@ -5,9 +5,17 @@ import { cn } from '@/lib/utils';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
 import { SectionHeading } from '@/components/shell/section-heading';
-import type { ClassBot, StudentEnrollment } from '@/lib/mock';
+import type { ClassBot } from '@/lib/mock';
 
-type BotSlot = { bot: ClassBot; enrollment: StudentEnrollment };
+/**
+ * 이 카드가 그리는 데 필요한 것은 **봇 하나뿐이다.**
+ *
+ * 예전엔 `enrollment` 까지 받았는데 카드가 그 값을 한 번도 읽지 않았고, 대신 「반에 속한
+ * 봇」만 이 자리에 올 수 있다는 뜻이 돼서 **마켓에서 담은 봇(반 관계가 없다)이 홈에
+ * 못 올라왔다.** 담은 봇도 학생에게는 「내 봇」이므로 그 제약을 뗀다 —
+ * 반 봇(`RoomSlot`)과 담은 봇(`StudentBotSlot`) 둘 다 이 모양을 만족한다.
+ */
+type BotSlot = { bot: ClassBot };
 
 function LiveBadge() {
   return (
