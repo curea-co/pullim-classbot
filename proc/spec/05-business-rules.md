@@ -309,8 +309,15 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 11.1 세션
 - Next.js 15+ App Router 기반
 - **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
-- **`[예정]` 개발 전용 신원 폴백** — **`dev` 에는 아직 없다. #266 이 인도한다**(`lib/dev-identity.ts` ·
-  `lib/current-user.ts`). 아래는 그 PR 이 지켜야 할 규칙이고, **현재 동작 설명이 아니다.**
+- **현재 사용자 해석기** — `lib/current-user.ts` 가 도메인 신원의 단일 진입점이고 **`dev` 에
+  이미 있다.** 서버는 `getCurrentUserIdFromRequest(req)` 로 `Authorization: Bearer` 토큰을
+  **서명까지 검증**한 뒤에만 claim(sub/role)을 믿고, 토큰이 없거나 검증에 실패하면
+  **데모 폴백**(`student_001` · `isAuthenticated: false`)으로 본다. 쓰기 가드가 그
+  `isAuthenticated: false` 를 401 로 처리한다.
+- **`[예정]` 개발 전용 신원 폴백** — 위 해석기에 **한 겹을 더한다.** 새로 생기는 것은
+  `lib/dev-identity.ts` 와 `pullim_dev_identity` 쿠키 경로이고, **`dev` 에는 그 파일도 그
+  쿠키 처리도 없다 — #266 이 인도한다.** 아래는 그 PR 이 지켜야 할 규칙이고, **현재 동작
+  설명이 아니다.**
   JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안 `/api/*` 를 실제 DB 로 확인할 수
   없다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한 뒤에만** 폴백으로 읽는다.
   **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가 아니라
@@ -318,6 +325,8 @@ Attempt (1) ── (N) ErrorPatternOccurrence
   경계 셋을 **규칙으로 못 박는다**: ① prod 호스트(`classbot.pullim.ai`)에서는 **읽지 않는다**
   ② allowlist 밖 id 는 무시 ③ 유효한 JWT 가 있으면 JWT 가 이긴다. 정식 오픈 전 제거하며,
   제거 절차는 `lib/dev-identity.ts` 머리주석이 진다. 셋 중 하나라도 빠지면 그 PR 은 이 절 위반이다.
+  위의 데모 폴백(`student_001`)과는 다른 것이다 — 그쪽은 **아무나 서연으로 보는** 읽기 편의이고,
+  이쪽은 **지목한 신원의 명의로** 쓰기까지 허용한다.
 
 ### 11.2 라우트 보호
 - `(student)/*` — Learner 권한 필수
@@ -367,9 +376,11 @@ or 가 아니다.
 앞 네 줄(축 다섯)은 `dev` 의 `consent_logs.type` 에 이미 있고, **`[예정]`** 둘은 **#271** 이 enum 에 넣는다.
 
 **2026-09-04 결정은 「반·과제도 `consent_logs` 뒤로」다** — 승인 주체를 학생에서 교사로도,
-교사에서 학생으로도 옮기지 않았다. 구현이 반·과제 요약을 **자녀 링크만 있으면** 열고 있어
-§ 11.3 과 어긋나 있었고, 같은 화면의 자기주도 칸은 이미 동의 뒤에 있어 **한 화면 안에 인가
-모델이 둘**이었다. 그 둘을 § 11.3 쪽으로 맞추는 것이 이 결정이다.
+교사에서 학생으로도 옮기지 않았다. `dev` 에는 학부모 화면도 `app/api/parent/*` 도 아직 없으니
+이 결정은 **`dev` 의 동작을 고치는 것이 아니라 스택 PR 안에서 갈린 것**이다 — #268 이 낸
+학부모 과제 화면이 자녀 링크만으로 열렸고, 같은 스택의 자기주도 칸(#271)은 동의 뒤에 두기로
+되어 있어 **한 화면 안에 인가 모델이 둘**이 될 참이었다. 그 둘을 § 11.3 쪽으로 맞추는 것이
+이 결정이고, #271 이 그렇게 인도한다.
 
 **규칙 넷** — 인도할 라우트(**`[예정]`** `app/api/parent/*` · `app/api/me/consents/*`, #267·#271)가
 지켜야 할 기준이다. `dev` 에는 그 라우트가 아직 없다:

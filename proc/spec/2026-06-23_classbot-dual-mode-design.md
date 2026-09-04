@@ -6,9 +6,13 @@
 
 > **[2026-09-04 개정] 「FE-only · mock-first」 보류를 푸는 것이 정해졌다 — 인도는 `[예정]` 이다.**
 > 아래 §6 의 Out(deferred) 에 있던 **BE persistence + real auth-scoped self-enrollment** 와
-> **teacher-side publish to market** 은 스택 PR **#266~#271** 이 인도한다. **`dev` 시점에는
-> 셋 다 아직 없다** — 마이그레이션은 `0000`~`0003` 까지이고 아래 라우트도 없다. 그러니 이
-> 표의 「인도」 칸은 **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
+> **teacher-side publish to market** 은 스택 PR **#266~#271** 이 인도한다. 풀리는 것은
+> **「mock-first」 의 mock 쪽**이지 자기주도 기능 전체가 아니다 — **FE 는 이미 `dev` 에서
+> 돈다**: 모드 분기(`student-mode` · 학생 홈의 `mode === 'self'`), `useModeBots()`,
+> `/classbot/discover`(공식 튜터 마켓) · `/classbot/learn/[tutorId]`, 그리고 goal·unitProgress·
+> streak 를 들고 있는 `lib/store/self-learning.ts`. 없는 것은 **그 뒤를 받칠 서버**다 —
+> 마이그레이션은 `0000`~`0003` 까지이고 아래 라우트도 없다. 그러니 이 표의 「인도」 칸은
+> **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
 >
 > | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
 > |---|---|---|
@@ -17,7 +21,7 @@
 > | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published`(`0004`) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면) |
 > | 학부모 × 자기주도 | **`[예정]`** | **#271** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` `0007`) |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
-> | 목표·단원 진행(§3 의 goal/path) | **여전히 미구현** | 이 시리즈에도 없다. `bot_curriculum_units` 는 `dev` 에 정의만 있고 비어 있다 — 실제 봇에 커리큘럼이 없어 이 단계(P5)가 뒤로 밀렸다 |
+> | 목표·단원 진행(§3 의 goal/path) | **FE 는 `dev` 에 있다 · 서버 백킹만 남는다** | 이 시리즈가 손대지 않는다. `officialTutors`(`lib/mock/classbot-official.ts`)에 커리큘럼이 있고, `lib/store/self-learning.ts` 가 goal·unitProgress·streak 를 들고, `/classbot/learn/[tutorId]` 가 단원 카드를 그린다 — **거기까지가 mock-first 로 이미 돈다.** 남은 것은 **교사가 만든 실제 봇**에 커리큘럼이 붙는 경로다: `bot_curriculum_units` 가 `dev` 에 정의만 있고 비어 있어 P5 가 뒤로 밀렸다 |
 >
 > 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
 > (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에
