@@ -6,8 +6,10 @@
  *  (목록의 실DB 과제를 클릭하면 상세에서 404)을 제거한다.
  *
  *  - 미인증: **401** (D1 로그인월 — mock 폴백 없음).
- *  - 명의(studentId)는 JWT claim(sub)에서만 결정(위조 방지).
- *  - 본인 명의 + id 일치 행이 없으면 **404**(타인 과제 존재 노출 차단 포함).
+ *  - 명의(studentId)는 신원 해석기에서만 결정(위조 방지).
+ *  - 내가 볼 수 있는 과제(개인 배정 + 반 단위 발사) 중 id 가 맞는 행이 없으면
+ *    **404**(타인 과제 존재 노출 차단 포함). 목록과 **같은 술어**를 쓴다 —
+ *    목록에 뜨는데 상세가 404 나는 split-brain 을 막는다.
  *
  * 문항(assignment_questions)·풀이 진행(solve/submit) 상태는 더 깊은 레이어로
  * 이 읽기 슬라이스 범위 밖이다(문항은 여전히 mock, 진행 상태는 store).
@@ -19,6 +21,7 @@ import { and, eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { assignments } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
+import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 
 export const runtime = 'nodejs';
 
@@ -44,11 +47,11 @@ export async function GET(
 
   const { id } = await ctx.params;
 
-  // 본인 명의(studentId)로만 단건 조회 — 타인 과제는 조회 자체가 0행 → 404.
+  // 볼 수 있는 과제로만 좁혀 단건 조회 — 남의 과제는 조회 자체가 0행 → 404.
   const [row] = await getDb()
     .select()
     .from(assignments)
-    .where(and(eq(assignments.id, id), eq(assignments.studentId, studentId)))
+    .where(and(eq(assignments.id, id), visibleAssignmentsWhere(studentId, 'student-own')))
     .limit(1);
 
   if (!row) {
