@@ -104,7 +104,8 @@ describe.each(SELF_ROUTES)('%s — 학생 본인 표면', (_name, call) => {
     expect(dbTouched).not.toHaveBeenCalled();
   });
 
-  it('JWT 로 인증된 교사여도 학생 표면은 403', async () => {
+  // 시점을 안 적으면 학생 시점이다 — 공용 목록 둘도 여기서는 학생 것으로 판정된다.
+  it('시점을 안 적은 교사는 학생 시점으로 판정돼 403', async () => {
     getCurrentUserIdFromRequest.mockReturnValue({
       id: 'uuid-teacher',
       role: 'teacher',
@@ -127,5 +128,73 @@ describe.each(SELF_ROUTES)('%s — 학생 본인 표면', (_name, call) => {
     });
     await call().catch(() => undefined);
     expect(dbTouched).toHaveBeenCalled();
+  });
+});
+
+/**
+ * 공용 목록 둘 — 스펙 § 4.2 `GET /api/bots?role=` · § 4.5 `GET /api/assignments?audience=` 는
+ * 이 두 경로를 학생·교사가 **시점으로 나눠 쓰는 표면**으로 정의한다. 가드가 역할을 학생으로
+ * 못박으면 그 계약이 사라지므로, 시점을 읽고 **그 시점의 주인인지**만 본다.
+ *
+ * 교사 시점의 몸통은 아직 없다. 그래서 403(권한 없음)이 아니라 501(아직 없음)이다 —
+ * 그 둘을 뭉개면 교사 화면이 붙는 날 무엇이 막힌 것인지 알 수 없다.
+ */
+const SHARED_LISTS: [name: string, param: string, call: (url: string) => Promise<Response>][] = [
+  ['GET /api/bots', 'role', (url) => botsGET(new Request(url))],
+  ['GET /api/assignments', 'audience', (url) => assignmentsGET(new Request(url))],
+];
+
+describe.each(SHARED_LISTS)('%s — 학생·교사 공용 목록', (name, param, call) => {
+  const base = `http://localhost${name.split(' ')[1]}`;
+
+  const asRole = (role: string) =>
+    getCurrentUserIdFromRequest.mockReturnValue({
+      id: `uuid-${role}`,
+      role,
+      isAuthenticated: true,
+      isIdentified: true,
+    });
+
+  it('교사가 교사 시점을 부르면 403 이 아니라 501 — 계약은 살아 있다', async () => {
+    asRole('teacher');
+    const res = await call(`${base}?${param}=teacher`);
+    expect(res.status).toBe(501);
+    expect(await res.json()).toMatchObject({ code: 'NOT_IMPLEMENTED' });
+    expect(dbTouched).not.toHaveBeenCalled();
+  });
+
+  it('학생이 교사 시점을 부르면 403 — 남의 시점은 못 받는다', async () => {
+    asRole('student');
+    const res = await call(`${base}?${param}=teacher`);
+    expect(res.status).toBe(403);
+    expect(dbTouched).not.toHaveBeenCalled();
+  });
+
+  it('교사가 학생 시점을 부르면 403', async () => {
+    asRole('teacher');
+    const res = await call(`${base}?${param}=student`);
+    expect(res.status).toBe(403);
+    expect(dbTouched).not.toHaveBeenCalled();
+  });
+
+  it('학생이 학생 시점을 부르면 가드를 지나 조회까지 내려간다', async () => {
+    asRole('student');
+    await call(`${base}?${param}=student`).catch(() => undefined);
+    expect(dbTouched).toHaveBeenCalled();
+  });
+
+  it('학부모는 어느 시점의 주인도 아니라 403', async () => {
+    asRole('parent');
+    const res = await call(`${base}?${param}=teacher`);
+    expect(res.status).toBe(403);
+    expect(dbTouched).not.toHaveBeenCalled();
+  });
+
+  it('모르는 시점 값은 400 — 조용히 학생으로 떨어뜨리지 않는다', async () => {
+    asRole('student');
+    const res = await call(`${base}?${param}=principal`);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ code: 'INVALID_AUDIENCE' });
+    expect(dbTouched).not.toHaveBeenCalled();
   });
 });
