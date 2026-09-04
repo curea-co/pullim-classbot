@@ -160,11 +160,15 @@ function ChildSummaryCard({
           들어간 수업방 {rooms.length}개
         </h3>
         {rooms.length === 0 ? (
+          /* 두 상황이 여기로 온다 — 아직 반에 안 들어간 아이, 그리고 반·과제를 아직
+             보여주기로 하지 않은 아이(서버가 그 아이의 반·과제를 읽지 않는다). 문구가
+             둘을 가르면 그 차이가 곧 동의 여부가 되므로 **어느 쪽인지 말하지 않는다.**
+             자기주도 화면의 `NOTHING_SHARED` 와 같은 규칙이다. */
           <EmptyState
             tone="plain"
             size="sm"
-            title="아직 들어간 수업방이 없어요"
-            description="선생님께 참여 코드를 받아 들어가면 여기에 보여요."
+            title="여기 보여드릴 수업방이 아직 없어요"
+            description="아이가 반에 들어가고 보여주기로 하면 여기 나와요. 무엇을 보여줄지는 아이가 정해요."
           />
         ) : (
           <ul className="space-y-2">

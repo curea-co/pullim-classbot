@@ -383,9 +383,9 @@ export interface BackfillStudyDaysResponse {
  * **갈라짐은 `app/api/_lib/consent.ts` 의 `ContractMatchesSchema` 가 typecheck 로 잡는다** —
  * 한쪽만 고치면 빌드가 깨지므로 이 중복은 방치되지 않는다.
  *
- * ⚠️ 이 중 **학생이 스스로 켤 수 있는 값은 `'self_study_summary'` 하나뿐**이다. 나머지
- * 다섯은 교사·기관 승인이라는 다른 인가 모델 위에 있다(`STUDENT_GRANTABLE_TYPES`).
- * 「목록에 있으니 학생이 켤 수 있다」로 읽지 마라.
+ * ⚠️ 이 중 **학생이 스스로 켤 수 있는 값은 둘**이다 — `'self_study_summary'` 와
+ * `'class_assignment_summary'`. 나머지 다섯은 교사·기관 승인이라는 다른 인가 모델 위에 있다
+ * (`STUDENT_GRANTABLE_TYPES`). 「목록에 있으니 학생이 켤 수 있다」로 읽지 마라.
  */
 export type ConsentTypeValue =
   | 'weekly_report'
@@ -393,7 +393,8 @@ export type ConsentTypeValue =
   | 'weak_nodes'
   | 'emotion_share'
   | 'realtime_alert'
-  | 'self_study_summary';
+  | 'self_study_summary'
+  | 'class_assignment_summary';
 
 /**
  * 학생이 준 동의 한 줄 — `GET /api/me/consents` · `POST /api/me/consents` 공용.
@@ -408,9 +409,9 @@ export type ConsentTypeValue =
  */
 export interface MyConsentRow {
   /**
-   * `consent_logs.type`. 조회는 **타입으로 거르지 않으므로** 여섯 중 무엇이든 올 수 있다
-   * (지금 DB 에는 자기주도 것만 있지만, 다른 인가 모델이 행을 넣기 시작하면 여기 섞인다).
-   * `'self_study_summary'` 로 좁혀 놓고 쓰면 그날 화면이 조용히 틀린다.
+   * `consent_logs.type`. 조회는 **타입으로 거르지 않으므로** 일곱 중 무엇이든 올 수 있다
+   * (지금 DB 에는 학생이 켠 둘만 있지만, 다른 인가 모델이 행을 넣기 시작하면 여기 섞인다).
+   * 한 값으로 좁혀 놓고 쓰면 그날 화면이 조용히 틀린다.
    */
   type: ConsentTypeValue;
   /**

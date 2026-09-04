@@ -64,11 +64,13 @@ function ChildAssignmentsCard({ child }: { child: ParentChildItem }) {
         }
       />
       {child.assignments.length === 0 ? (
+        /* 「아직 안 받았다」와 「아직 안 보여준다」가 같은 자리로 온다 — 가르지 않는다
+           (학부모 홈의 수업방 빈 자리와 같은 규칙). */
         <EmptyState
           tone="plain"
           size="sm"
-          title="아직 받은 과제가 없어요"
-          description="선생님이 과제를 내면 여기에 보여요."
+          title="여기 보여드릴 과제가 아직 없어요"
+          description="선생님이 과제를 내고 아이가 보여주기로 하면 여기 나와요."
         />
       ) : (
         <ChildAssignmentTable childName={child.name} assignments={child.assignments} />

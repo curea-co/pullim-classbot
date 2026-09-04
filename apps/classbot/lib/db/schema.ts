@@ -97,6 +97,16 @@ export const consentLogs = pgTable('consent_logs', {
       'realtime_alert',
       /** 자기주도 요약(스스로 담은 봇 · 공부한 날) — 대화 원문·요약은 포함하지 않는다. */
       'self_study_summary',
+      /**
+       * 반·과제 현황(참여한 수업방 · 받은 과제의 상태) — 문항·답안·점수는 포함하지 않는다.
+       *
+       * 자기주도와 인가 모델이 다르지 않다는 결정이 여기 반영돼 있다. 스펙은 학부모 전달을
+       * 「학생 승인 후」로 두는데(`04-ux-flow.md:154`), 예전 구현은 링크만 있으면 반·과제를
+       * 무조건 열었다 — 승인 주체가 교사·기관이라고 봤기 때문이다. 그 둘이 갈리면 같은
+       * 화면 안에서 한 칸은 동의 뒤에, 다른 칸은 동의 없이 놓인다. 축을 하나 더 만들어
+       * **양쪽 다 학생 동의 뒤**로 옮겼다.
+       */
+      'class_assignment_summary',
     ],
   }).notNull(),
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),

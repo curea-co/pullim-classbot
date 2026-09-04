@@ -42,7 +42,8 @@ export type ConsentType =
   | 'weak_nodes'          // 약점 단원 정보
   | 'emotion_share'       // 감정 평균 (민감, 별도 동의)
   | 'realtime_alert'      // 학습 시작·완료 실시간 알림
-  | 'self_study_summary'; // 스스로 담은 봇·공부한 날 (대화 원문·요약은 포함 안 함)
+  | 'self_study_summary'  // 스스로 담은 봇·공부한 날 (대화 원문·요약은 포함 안 함)
+  | 'class_assignment_summary'; // 참여한 반·받은 과제 현황 (문항·답안·점수는 포함 안 함)
 
 export type ConsentLog = {
   id: string;
@@ -65,6 +66,8 @@ export const consentTypeMeta: Record<ConsentType, { label: string; description: 
   // 자기주도 학습에는 승인할 교사가 구조적으로 없어(학생이 스스로 고른 봇), 이 하나만은
   // 학생 본인이 승인 주체다. `sensitive: false` — 대화 원문·감정은 애초에 안 들어간다.
   self_study_summary: { label: '스스로 공부', description: '스스로 고른 봇·공부한 날 — 대화 내용은 빼고', sensitive: false },
+  // 반·과제도 학생 동의 뒤에 둔다(스펙 04:154 「학생 승인 후」). 문항·답안·점수는 안 들어간다.
+  class_assignment_summary: { label: '수업방·과제', description: '참여한 반과 받은 과제 현황 — 답안·점수는 빼고', sensitive: false },
 };
 
 /* ─── 데모 데이터 ─────────────────────────────────────────── */

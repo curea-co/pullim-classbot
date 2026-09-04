@@ -99,6 +99,7 @@ jest.mock('@/lib/db', () => {
   return { getDb: () => makeDb() };
 });
 
+import { GET as getChildren } from '@/app/api/parent/children/route';
 import { GET as getSelfStudy } from '@/app/api/parent/children/self-study/route';
 import { DELETE as revokeConsent } from '@/app/api/me/consents/[type]/route';
 import { GET as getConsents, POST as grantConsent } from '@/app/api/me/consents/route';
@@ -313,6 +314,70 @@ describe('동의는 조회 조건 안에 있다 — 읽고 나서 거르지 않�
       'scopeLabel',
       'streak',
     ]);
+  });
+});
+
+describe('반·과제도 자녀 동의 뒤에 있다 — 이름은 주고 내용은 안 준다', () => {
+  const LINKED = [{ id: 'student_001', name: '서연', relation: 'mother' }];
+
+  /**
+   * 큐 순서 = 라우트가 읽는 순서.
+   *  ① resolveActor 의 users.role → ② 자녀 링크 → ③ 동의 → (동의가 있을 때만) ④ 반 ⑤ 과제
+   */
+  async function callAsParent(consented: unknown[], views: unknown[][] = []): Promise<Response> {
+    mockSelectQueue = [[{ role: 'parent' }], LINKED, consented, ...views];
+    return getChildren(req('parent_001', 'student'));
+  }
+
+  it('동의 조회 술어에 받는 사람·타입·철회·만료가 전부 들어 있다', async () => {
+    await callAsParent([]);
+
+    const where = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]);
+    expect(where.params).toContain('parent_001');
+    expect(where.params).toContain('class_assignment_summary');
+    expect(where.text).toContain('"revoked_at" is null');
+    // 만료 비교는 DB 시계로 — 앱 서버가 만든 Date 를 넘기지 않는다.
+    expect(where.text).toContain('now()');
+  });
+
+  it('미동의 자녀는 이름만 남고 반·과제는 빈 배열 — 「참여한 반이 없음」과 같은 모습이다', async () => {
+    const res = await callAsParent([]);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { children: Array<Record<string, unknown>> };
+    // 목록에서 지우지 않는다 — 지우면 「이어진 자녀가 아예 없다」와 구분이 사라진다.
+    expect(body.children).toHaveLength(1);
+    expect(body.children[0]).toMatchObject({ id: 'student_001', name: '서연' });
+    expect(body.children[0].classrooms).toEqual([]);
+    expect(body.children[0].assignments).toEqual([]);
+  });
+
+  it('미동의면 반·과제를 **읽지 않는다** — 읽어 놓고 안 보내는 것과 다르다', async () => {
+    // 큐에 반·과제 응답을 넣어 두고도 그것이 소비되지 않아야 한다.
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      LINKED,
+      [], // 동의 0행
+      [{ classroomId: 'cr_1' }], // 이게 읽히면 남는 큐가 줄어든다
+    ];
+    await getChildren(req('parent_001', 'student'));
+
+    expect(mockSelectQueue).toHaveLength(1); // 반 조회가 큐에 그대로 남아 있다
+  });
+
+  it('동의가 있으면 반·과제가 실린다', async () => {
+    const res = await callAsParent(
+      [{ studentId: 'student_001' }],
+      [
+        // student-views 가 Date 를 문자열로 옮기므로 그 모양을 갖춰 준다.
+        [{ classroomId: 'cr_1', label: '고2 미적분 A반', botId: 'cb_001', joinedAt: new Date() }],
+        [],
+      ],
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { children: Array<Record<string, unknown>> };
+    expect(body.children[0].classrooms).toHaveLength(1);
   });
 });
 
