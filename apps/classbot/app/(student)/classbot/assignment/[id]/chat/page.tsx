@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { classBots, getQuestionsByAssignment } from '@/lib/mock';
-import { useMyAssignment, useMyBots } from '@/hooks/api/read/use-student-reads';
+import { useMyRooms } from '@/components/classbot/home/my-rooms';
+import { useVisibleAssignment } from '../../use-assignment-reads';
 import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -22,8 +23,8 @@ import { AssignmentChatWorkspace } from './assignment-chat-workspace';
  */
 export default function AssignmentChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const api = useMyAssignment(id);
-  const { data: botsData } = useMyBots();
+  const api = useVisibleAssignment(id);
+  const { rooms } = useMyRooms();
   const localA = useAssignmentLookup(id);
 
   const demo = api.isUnauthenticated;
@@ -87,8 +88,8 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
   // 문항 — 개요·풀이와 같은 해석기를 쓴다(오답 재발사 계약 포함).
   const questions = localA ? getQuestionsForAssignment(localA) : getQuestionsByAssignment(id);
 
-  // 봇 얼굴 — `/api/bots` 행 우선, 없으면 카탈로그, 그것도 없으면 과제 행 메타로 폴백.
-  const botRow = botsData?.bots.find(b => b.id === a.botId);
+  // 봇 얼굴 — 참여 중인 수업방 행 우선, 없으면 카탈로그, 그것도 없으면 과제 행 메타로 폴백.
+  const botRow = rooms.find(r => r.bot.id === a.botId)?.bot;
   const catalogBot = classBots.find(b => b.id === a.botId);
   const bot = {
     name: botRow?.name ?? catalogBot?.name ?? a.assignedBy,

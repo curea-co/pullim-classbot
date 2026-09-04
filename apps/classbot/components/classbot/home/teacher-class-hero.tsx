@@ -1,35 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { GraduationCap, KeyRound } from 'lucide-react';
-import { toast } from 'sonner';
-import { joinClass } from '@/lib/store/class-enrollment';
+import Link from 'next/link';
+import { ArrowRight, GraduationCap } from 'lucide-react';
+import { JoinCodeForm } from '@/components/classbot/home/join-code-form';
 
 /**
  * 교사수업 모드 신규 사용자 hero — "선생님이 이끄는 구조화된 수업".
  *
- * 참여 코드 입력 → `joinClass()` (Ph7 플래그 스위치 — OFF: mock 스토어 join,
- * ON: BE POST /api/enrollments). 유효 코드면 enrollment가 생겨
- * 홈이 일반 교사수업 홈으로 전환된다(상위 page가 reactive). 알 수 없는 코드는 에러 토스트.
+ * 참여 코드 입력은 `JoinCodeForm` 한 벌이 맡는다 — 실 API(`POST /api/enrollments`)가
+ * 먼저고, 서버가 모르는 코드면 예전 데모 경로로 한 번 더 간다. 유효 코드면 홈이
+ * 일반 교사수업 홈으로 전환된다(상위 page 가 참여 목록을 다시 읽는다).
+ *
+ * 이 hero 는 **참여가 하나도 없을 때만** 뜬다. 그래서 여기가 유일한 입구면 한 번
+ * 참여한 뒤로는 코드를 넣을 곳이 사라진다 — 상시 입구는 `/classbot/classroom`
+ * (내 수업방)이고, 아래 링크가 그리로 간다.
  * 권위 문서(`05_수업방` Step 6) 초대 채널은 코드·링크·QR — 현재 데모는 코드만 동작.
  */
 export function TeacherClassHero({ name }: { name?: string }) {
-  const [code, setCode] = useState('');
-
-  const handleJoin = async () => {
-    if (!code.trim()) {
-      toast.error('참여 코드를 입력해 주세요.');
-      return;
-    }
-    const res = await joinClass(code);
-    if (res.ok) {
-      toast.success(`${res.enrollment.assignedBy}의 ${res.enrollment.classroomLabel}에 참여했어요!`);
-      setCode('');
-    } else {
-      toast.error(res.error);
-    }
-  };
-
   return (
     <section className="relative overflow-hidden rounded-2xl bg-pullim-slate-900 p-5 text-white shadow-pullim-sm">
       <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
@@ -45,29 +32,18 @@ export function TeacherClassHero({ name }: { name?: string }) {
         <strong className="text-white">배정 과제</strong>를 받고 봇과 함께 풀 수 있어요.
       </p>
 
-      {/* 참여 코드 입력 — 유효 코드: MATH-2024 / ENG-2024 / SCI-2024 (데모) */}
-      <div className="mt-4 flex items-center gap-2">
-        <div className="relative flex-1">
-          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pullim-slate-500" />
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-            placeholder="참여 코드 입력 (예: MATH-2024)"
-            aria-label="참여 코드 입력"
-            maxLength={12}
-            className="w-full rounded-xl border border-pullim-slate-700 bg-pullim-slate-800 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-pullim-slate-500 focus:border-pullim-slate-500 focus:outline-none focus:ring-2 focus:ring-pullim-slate-500/30"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleJoin}
-          className="shrink-0 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-pullim-slate-900 transition-colors hover:bg-pullim-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-        >
-          참여
-        </button>
+      <div className="mt-4">
+        <JoinCodeForm tone="dark" />
       </div>
+
+      <Link
+        href="/classbot/classroom"
+        aria-label="내 수업방 — 참여한 반 보기"
+        className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-pullim-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+      >
+        내 수업방
+        <ArrowRight className="h-3 w-3" />
+      </Link>
     </section>
   );
 }

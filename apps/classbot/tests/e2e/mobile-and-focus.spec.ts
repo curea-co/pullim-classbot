@@ -27,7 +27,8 @@ test.describe('모바일 viewport 검증', () => {
     const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
     const page = await context.newPage();
     await page.goto(BASE + '/classbot');
-    // 교사 수업 모드 고정(자기주도 보류) — 신규 사용자 홈은 참여 코드 입력 hero
+    // 홈은 하나다(학습 모드 분기 없음) — 참여한 방이 0 개인 신규 사용자 홈은 참여 코드 입력 hero.
+    // 담은 봇이 있어도 이 hero 는 그대로다: 담기는 반 참여가 아니라서 「참여 중인 클래스」가 아니다.
     await expect(page.getByText('교사 수업', { exact: true })).toBeVisible();
     // 신규 빈 상태 홈 — 참여 코드 핵심 CTA
     await expect(page.getByLabel('참여 코드 입력')).toBeVisible();

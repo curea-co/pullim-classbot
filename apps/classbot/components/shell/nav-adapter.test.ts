@@ -134,10 +134,26 @@ describe("nav-adapter", () => {
       .filter((r) => r.labels.length > 1);
     expect(overlitTabs).toEqual([]);
   });
-  // 학부모 레일은 **아직 비어 있다** — 역할은 섰지만 `/parent/*` 화면이 뒤 PR 에서 온다.
-  // 항목이 화면보다 먼저 열리면 레일에서 누르는 즉시 404 라, 여기서는 빈 것을 못박는다.
-  it("parent rail is empty until the /parent screens land", () => {
-    expect(railSectionsForRole("parent", "/parent")).toEqual([]);
+  // 학부모 레일 — 자녀 요약 + 자녀 과제 둘뿐. 그룹 label 이 비어 있어 head 는 ROLE_LABEL 을 쓴다.
+  it("parent rail exposes exactly the two 자녀 routes under a 학부모 head", () => {
+    const secs = railSectionsForRole("parent", "/parent");
+    expect(secs).toHaveLength(1);
+    expect(secs[0].head).toBe("학부모");
+    expect(secs[0].items.map((i) => i.href)).toEqual(["/parent", "/parent/assignments"]);
+    expect(secs[0].items.map((i) => i.label)).toEqual(["홈", "자녀 과제"]);
+  });
+  // `/parent` 는 `/parent/assignments` 의 상위 경로다 — 접두사로 잡으면 어디서나 함께 켜진다.
+  it("parent 홈 is active only on the exact /parent route", () => {
+    const activeLabels = (pathname: string) =>
+      railSectionsForRole("parent", pathname)
+        .flatMap((s) => s.items)
+        .filter((i) => i.active)
+        .map((i) => i.label);
+    expect(activeLabels("/parent")).toEqual(["홈"]);
+    expect(activeLabels("/parent/assignments")).toEqual(["자녀 과제"]);
+    expect(activeLabels("/parent/assignments/a1")).toEqual(["자녀 과제"]);
+    // 경로 경계까지 맞춘 접두사라 `/parentx` 는 아무것도 켜지 않는다
+    expect(activeLabels("/parenting")).toEqual([]);
   });
   // 웰빙·리플레이는 기획 보류로 하단 탭에서 내려 3개만 남는다 (nav-config).
   it("tabItems returns the 3 student bottom tabs with active detection", () => {

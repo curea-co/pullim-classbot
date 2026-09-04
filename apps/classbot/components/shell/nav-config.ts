@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, Compass,
+  LayoutDashboard, Bot, Plus, Target, Compass, BookMarked,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -44,8 +44,13 @@ export type Role = 'student' | 'teacher' | 'parent';
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
-  // 「내 수업방」·「내가 담은 봇」은 그 화면이 도착하는 PR 에서 여기 들어온다 —
-  // nav 는 라우트 인벤토리라 페이지보다 먼저 열면 누르는 즉시 404 다.
+  // 참여 코드 입력이 여기 산다. 예전엔 참여한 반이 0개일 때만 뜨는 홈 히어로가 유일한
+  // 입구라, 한 반에 들어간 뒤엔 다른 선생님 반에 들어갈 길이 화면에서 사라졌다.
+  { href: '/classbot/classroom',  label: '내 수업방',   icon: GraduationCap, description: '참여한 반 · 코드로 참여하기' },
+  // 마켓에서 담은 봇이 사는 자리. 「내 수업방」 바로 뒤에 두는 이유는 봇이 사는 곳 둘이
+  // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
+  // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
+  { href: '/classbot/my-bots',    label: '내가 담은 봇', icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
@@ -115,13 +120,18 @@ export const teacherNav: NavGroup[] = [
 ];
 
 /**
- * 학부모 사이드바 — **아직 비어 있다.**
- *
- * 역할(`Role`)은 이 PR 에서 서지만 `/parent/*` 화면은 뒤 PR 에서 온다. 없는 라우트를
- * 미리 열면 레일에서 누르는 즉시 404 이므로, 항목은 화면과 같은 PR 에서 채운다.
- * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 둘로 고정이다(계약 §6).
+ * 학부모 사이드바 — 자녀 요약 + 자녀 과제 둘뿐.
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 둘로 고정이다(계약 §6).
  */
-export const parentNav: NavGroup[] = [];
+export const parentNav: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
+      { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
+    ],
+  },
+];
 
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
