@@ -51,7 +51,7 @@ export async function GET(
   const [row] = await getDb()
     .select()
     .from(assignments)
-    .where(and(eq(assignments.id, id), visibleAssignmentsWhere(studentId)))
+    .where(and(eq(assignments.id, id), visibleAssignmentsWhere(studentId, 'student-own')))
     .limit(1);
 
   if (!row) {

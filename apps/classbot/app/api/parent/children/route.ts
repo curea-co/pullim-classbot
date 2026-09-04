@@ -50,7 +50,9 @@ export async function GET(req: Request): Promise<NextResponse> {
     links.map(async (child) => {
       const [classrooms, assignments] = await Promise.all([
         listStudentClassrooms(child.id),
-        listVisibleAssignments(child.id),
+        // 학부모가 보는 축은 `class_assignment_summary` 하나다 — 자기주도는 다른 축이라
+        // 여기로 딸려 나오면 안 된다(05 § 11.4 의 표). 술어가 출처로 그 경계를 긋는다.
+        listVisibleAssignments(child.id, 'class-summary'),
       ]);
       return {
         id: child.id,

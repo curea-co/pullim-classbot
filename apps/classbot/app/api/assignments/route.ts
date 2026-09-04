@@ -42,7 +42,8 @@ export async function GET(req: Request): Promise<NextResponse> {
   const rows = await getDb()
     .select()
     .from(assignments)
-    .where(visibleAssignmentsWhere(studentId))
+    // 학생 본인 화면 — 자기 것은 출처를 가르지 않고 다 본다(축 인자의 뜻은 술어 파일에).
+    .where(visibleAssignmentsWhere(studentId, 'student-own'))
     // id 는 uuid 라 시간순이 아니다 — 발사 시각을 먼저 본다.
     .orderBy(desc(assignments.dispatchedAt), desc(assignments.id));
 

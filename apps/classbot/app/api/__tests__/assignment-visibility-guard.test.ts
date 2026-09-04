@@ -3,90 +3,79 @@
  * 자기주도 학습이 **학부모 화면으로 새지 않게** 지키는 덫(tripwire).
  *
  * 무엇을 막는가:
- *   `visibleAssignmentsWhere` 의 첫 항은 `student_id = 나` 이고 **출처(source)를 가르지 않는다.**
- *   그래서 누군가 자기주도 연습을 `assignments` 행(`source: 'self'`)으로 저장하기 시작하면
- *   그 행은 곧바로 이 술어에 걸린다. 그런데 이 술어는 학생 본인 화면만 쓰는 게 아니다 —
- *   **학부모의 「자녀 과제 현황」이 같은 술어를 쓴다**(`app/api/_lib/student-views.ts` →
- *   `app/api/parent/children/route.ts`). 학부모 열람은 자녀 동의 뒤에만 열기로 설계했는데
- *   (청사진 §05), 자기주도 행이 이 경로로 들어오면 **동의 절차를 통째로 건너뛴 채** 부모 화면에 뜬다.
+ *   `visibleAssignmentsWhere` 의 첫 항은 `student_id = 나` 다. 누군가 자기주도 연습을
+ *   `assignments` 행(`source: 'self'`)으로 저장하기 시작하면 그 행은 곧바로 이 술어에 걸린다.
+ *   그런데 이 술어는 학생 본인 화면만 쓰는 게 아니다 — **학부모의 「자녀 과제 현황」이 같은
+ *   술어를 쓴다**(`app/api/_lib/student-views.ts` → `app/api/parent/children/route.ts`).
+ *   [05 § 11.4](../../../../../proc/spec/05-business-rules.md) 는 학부모 열람을 동의 축별로
+ *   갈라 두었고(`class_assignment_summary` ↔ `self_study_summary`), 그 둘은 학생이 **따로
+ *   켜는** 스위치다. 자기주도 행이 반·과제 경로로 들어오면 **켠 적 없는 축이 딸려 나간다.**
  *
- * 왜 술어에 `source <> 'self'` 를 지금 넣지 않았는가:
- *   지금 `source: 'self'` 행을 만드는 코드가 **하나도 없다.** 없는 데이터를 위한 조건은 투기이고,
- *   조건만 넣어 두면 「이미 막혀 있다」고 오해해 정작 필요한 순간에 아무도 안 본다.
- *   대신 **행이 생기는 순간 실패하는 테스트**를 둔다. 이 테스트가 빨개지면 선택은 둘이다 —
- *   그 행을 만들지 않거나, 술어에 `source` 조건을 **같은 PR 에서** 더하고 이 테스트를 고치거나.
+ * 예전에는 이 자리를 「아직 `source='self'` 행을 만드는 코드가 없다」는 전제 + 「술어에
+ * source 가 없다」를 못박는 덫으로만 지켰다. 그 덫은 방향이 반대였다 — **행이 생기는 순간이
+ * 아니라 고치는 순간에** 빨개져서, 첫 writer PR 은 아무 저항 없이 통과했을 것이다.
+ * 그래서 전제를 **축 인자**(`AssignmentReadAxis`)로 바꿔 컴파일이 강제하게 하고,
+ * 이 파일은 그 경계가 **실제 SQL 에 남아 있는지**를 본다.
  *
  * 이 파일을 지우는 것은 답이 아니다. 지우면 다음 사람이 조용히 새는 쪽으로 간다.
  */
 
+import { PgDialect } from 'drizzle-orm/pg-core';
+
 import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 
+/** 조립된 술어를 실제 Postgres SQL 로 펼친다 — 조각 순회가 아니라 최종 문자열을 본다. */
+const render = (
+  studentId: string,
+  axis: Parameters<typeof visibleAssignmentsWhere>[1],
+): { text: string; params: unknown[] } => {
+  const query = new PgDialect().sqlToQuery(visibleAssignmentsWhere(studentId, axis));
+  return { text: query.sql, params: query.params };
+};
+
+const countOf = (text: string, needle: string): number =>
+  text.split(needle).length - 1;
+
 describe('과제 조회 술어 — 자기주도 유출 덫', () => {
-  /*
-    술어가 어떤 조각으로 조립됐는지 훑는다.
-    `JSON.stringify` 는 못 쓴다 — drizzle 의 컬럼 객체가 자기 테이블을 되가리켜 순환한다
-    (`PgTable.id -> PgText.table -> PgTable`). 그래서 조각을 직접 걷되, 이미 본 객체를
-    기억해 같은 노드로 되돌아가지 않게 한다.
-  */
-  const predicateText = (studentId: string): string => {
-    const seen = new WeakSet<object>();
-    const parts: string[] = [];
+  it('학생 본인 축은 출처를 가르지 않는다 — 자기 것은 자기주도까지 다 본다', () => {
+    const { text, params } = render('student_001', 'student-own');
 
-    const walk = (node: unknown): void => {
-      if (node == null) return;
-      if (typeof node === 'string') { parts.push(node); return; }
-      if (typeof node === 'number' || typeof node === 'boolean') { parts.push(String(node)); return; }
-      if (typeof node !== 'object') return;
-
-      // 컬럼은 이름만 취한다 — 테이블로 내려가면 순환한다.
-      // **순회 기록(seen)보다 먼저** 본다: 같은 컬럼 객체가 여러 항에 나오는데 dedupe 뒤에 두면
-      // 두 번째 항의 컬럼이 통째로 사라져 「양쪽에 걸렸나」를 셀 수 없다.
-      const record = node as Record<string, unknown>;
-      if (typeof record.name === 'string' && 'table' in record) { parts.push(record.name); return; }
-
-      if (seen.has(node as object)) return;
-      seen.add(node as object);
-
-      if (Array.isArray(node)) { for (const item of node) walk(item); return; }
-
-      for (const key of ['queryChunks', 'value', 'values', 'sql', 'left', 'right']) {
-        if (key in record) walk(record[key]);
-      }
-    };
-
-    walk(visibleAssignmentsWhere(studentId));
-    return parts.join(' ');
-  };
-
-  it('개인 배정 항이 출처를 가르지 않는다 — 이 사실 자체를 못박아 둔다', () => {
-    const sql = predicateText('student_001');
-
-    // 지금은 `source` 가 술어에 없다. 이것이 현재 상태이고, 위 주석이 설명하는 위험의 근거다.
-    expect(sql).not.toContain('source');
-
-    // 만약 이 단언이 깨졌다면 누군가 술어에 출처 조건을 더한 것이다. 그 자체는 옳은 방향이니
-    // 이 테스트를 「source 조건이 있다」로 뒤집고, 아래 테스트의 설명도 함께 고쳐라.
+    expect(text).not.toContain('"assignments"."source"');
+    expect(params).not.toContain('teacher-assigned');
+    // 신원 격리는 이 값에 달려 있다.
+    expect(params).toContain('student_001');
   });
 
-  it('학부모 화면이 같은 술어를 쓴다 — 그래서 자기주도 행은 assignments 에 들어가면 안 된다', () => {
-    // 학생 본인과 학부모가 **같은 함수**를 쓴다는 사실을 코드로 고정한다.
-    // (학부모 경로: app/api/parent/children/route.ts → student-views.ts → 이 술어)
-    const asStudent = predicateText('student_001');
-    const asParentViewingChild = predicateText('student_001');
+  it('학부모 축은 출처 허용 목록으로 좁힌다 — `self` 는 그 목록에 없다', () => {
+    const { text, params } = render('student_001', 'class-summary');
 
-    expect(asParentViewingChild).toBe(asStudent);
+    // 조회 조건 **안에** 있어야 한다(05 § 11.4 규칙 1 — 읽고 나서 거르지 않는다).
+    expect(text).toContain('"assignments"."source" in');
+    expect(params).toContain('teacher-assigned');
+    expect(params).toContain('bot-prescribed');
 
-    // 술어에 학생 id 가 실제로 실려 있는지 — 신원 격리가 이 값에 달려 있다.
-    expect(asStudent).toContain('student_001');
+    // 이 한 줄이 이 파일의 전부다 — 자기주도는 반·과제 축으로 나가지 않는다.
+    expect(params).not.toContain('self');
   });
 
-  it('발사 상태 조건이 두 항 모두에 살아 있다 — draft/withdrawn 이 학생·학부모에게 새면 안 된다', () => {
-    const sql = predicateText('student_001');
-    expect(sql).toContain('sent');
+  it('학부모 축은 학생 축을 좁힌 것이다 — 조건을 빼지 않고 더하기만 한다', () => {
+    const own = render('student_001', 'student-own');
+    const parent = render('student_001', 'class-summary');
 
-    // 개인 배정 항과 반 단위 항 — 게이트가 **양쪽**에 있어야 한다. 한쪽만 걸려 있으면
-    // 개인 배정 초안·회수 행이 그대로 뜬다(그 상태가 실제로 쓰이기 시작하는 순간).
-    const gates = sql.split('dispatch_status').length - 1;
-    expect(gates).toBe(2);
+    // 학생 축 술어가 통째로 학부모 축 안에 들어 있어야 한다. 둘이 갈라지면
+    // 「자녀가 보는 것」과 「부모가 보는 것」이 서로 다른 규칙을 타기 시작한다.
+    expect(parent.text).toContain(own.text);
+    expect(parent.params.length).toBeGreaterThan(own.params.length);
+  });
+
+  it('발사 상태 조건이 두 항 모두에 살아 있다 — 두 축 다', () => {
+    for (const axis of ['student-own', 'class-summary'] as const) {
+      const { text, params } = render('student_001', axis);
+      expect(params).toContain('sent');
+
+      // 개인 배정 항과 반 단위 항 — 게이트가 **양쪽**에 있어야 한다. 한쪽만 걸려 있으면
+      // 개인 배정 초안·회수 행이 그대로 뜬다(그 상태가 실제로 쓰이기 시작하는 순간).
+      expect(countOf(text, '"assignments"."dispatch_status"')).toBe(2);
+    }
   });
 });
