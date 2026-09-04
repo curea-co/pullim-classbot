@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { chatMessages } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
+import { denyUnlessStudent } from '@/app/api/_lib/guards';
 
 // node:crypto / pg 사용 — Edge 가 아닌 Node 런타임 강제.
 export const runtime = 'nodejs';
@@ -30,18 +31,17 @@ interface ChatBody {
 /**
  * 학생 채팅 메시지를 본인 명의로 저장한다.
  * @param req - { botId, text } JSON 본문 + Authorization: Bearer
- * @returns 201 { id, studentId, botId } | 400 | 401
+ * @returns 201 { id, studentId, botId } | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
+  const actor = getCurrentUserIdFromRequest(req);
+  const studentId = actor.id;
 
   // 쓰기 가드 — per-user 쓰기는 본인 세션 필수(데모 폴백 불가).
-  if (!isIdentified) {
-    return NextResponse.json(
-      { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
-      { status: 401 },
-    );
-  }
+  // 클래스봇 상호작용은 학생의 것이라 역할도 함께 본다. 이게 없으면 개발용 학부모 신원으로
+  // `parent_001` 명의의 chat row 가 남는다 (`app/api/_lib/guards.ts`).
+  const denied = denyUnlessStudent(actor);
+  if (denied) return denied;
 
   let body: ChatBody;
   try {

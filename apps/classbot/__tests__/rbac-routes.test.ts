@@ -132,6 +132,19 @@ describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
+  // 개발용 신원 쿠키로 role 이 셋이 됐다 — 학부모도 학생과 같이 403 으로 떨어져야 한다.
+  it("개발용 학부모 신원이어도 403", async () => {
+    getCurrentUserIdFromRequest.mockReturnValue({
+      id: "parent_001",
+      role: "parent",
+      isAuthenticated: false,
+      isIdentified: true,
+    });
+    const res = await botsPOST(jsonRequest(validBody));
+    expect(res.status).toBe(403);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
   it("교사면 201 이고 teacherId 가 세션 id 로 설정된다", async () => {
     getCurrentUserIdFromRequest.mockReturnValue({
       id: "uuid-teacher",
