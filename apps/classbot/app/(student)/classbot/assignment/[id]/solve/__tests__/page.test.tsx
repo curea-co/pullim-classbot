@@ -19,15 +19,19 @@ const notFound = jest.fn(() => {
 });
 jest.mock('next/navigation', () => ({ notFound: () => notFound() }));
 
+/* 어느 문항 집합이 실렸는지까지 봐야 「본문만 로컬에서 빌린다」를 확인할 수 있다. */
 jest.mock('../solve-workspace', () => ({
-  SolveWorkspace: () => <div data-testid="solve-workspace" />,
+  SolveWorkspace: ({ questions }: { questions: { id: string }[] }) => (
+    <div data-testid="solve-workspace" data-questions={questions.map((q) => q.id).join(',')} />
+  ),
 }));
 
-/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음 · 실패). */
+/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음 · 실패 · 비로그인). */
 let apiResult: {
   data: AssignmentReadRow | undefined;
   isLoading: boolean;
   isError?: boolean;
+  isUnauthenticated?: boolean;
 } = {
   data: undefined,
   isLoading: false,
@@ -37,7 +41,7 @@ jest.mock('../../../use-assignment-reads', () => ({
     data: apiResult.data,
     isLoading: apiResult.isLoading,
     isError: apiResult.isError ?? false,
-    isUnauthenticated: false,
+    isUnauthenticated: apiResult.isUnauthenticated ?? false,
     isNotFound: false,
     refetch: jest.fn(),
   }),
@@ -126,14 +130,33 @@ describe('풀이 화면 진입', () => {
     expect(notFound).not.toHaveBeenCalled();
   });
 
-  it('로컬 스토어에 있는 과제는 그대로 풀린다', async () => {
+  it('비로그인 데모에서는 로컬 스토어의 과제가 그대로 풀린다', async () => {
     const a = dispatchedFixture('as_user_1700000000000');
     useAssignmentStore.setState({ dispatched: [a] });
+    // 서버가 401 — prod 는 공개·비로그인이라 이쪽이 기본 경로다.
+    apiResult = { data: undefined, isLoading: false, isUnauthenticated: true };
 
     await renderSolve(a.id);
 
     expect(screen.getByTestId('solve-workspace')).toBeInTheDocument();
     expect(notFound).not.toHaveBeenCalled();
+  });
+
+  /*
+    접근 판정을 로컬이 하면, 서버가 안 보여 주는 과제라도 같은 브라우저에 사본만 남아 있으면
+    열린다 — 남의 반 과제, 대상이 아닌 과제, 지워진 과제가 그렇다. 개요·대화·결과는 서버
+    visibility 를 따르는데 풀이만 안 따르면 그게 구멍이다.
+  */
+  it('로그인한 학생은 서버가 안 주는 과제를 로컬 사본만으로 열 수 없다', async () => {
+    const a = dispatchedFixture('as_user_1700000000000');
+    useAssignmentStore.setState({ dispatched: [a] });
+    // 로그인은 돼 있고(401 아님) 서버는 이 과제를 안 준다.
+    apiResult = { data: undefined, isLoading: false };
+
+    await renderSolve(a.id);
+
+    expect(screen.getByTestId('not-found')).toBeInTheDocument();
+    expect(screen.queryByTestId('solve-workspace')).not.toBeInTheDocument();
   });
 
   /*
@@ -159,5 +182,33 @@ describe('풀이 화면 진입', () => {
 
     expect(screen.getByTestId('solve-workspace')).toBeInTheDocument();
     expect(notFound).not.toHaveBeenCalled();
+  });
+
+  /*
+    판정은 서버가 하되 문항 **본문**은 로컬에서 빌린다 — 서버 행에는 문항이 없어서(M2 경계)
+    안 빌리면 교사가 직접 쓴 문항 대신 mode 시드가 실린다.
+  */
+  it('서버로 연 과제도 교사가 직접 쓴 문항을 그대로 쓴다', async () => {
+    const id = 'as_9a1c4e2f';
+    const authored = {
+      id: 'q_authored_1',
+      assignmentId: id,
+      order: 1,
+      type: 'short' as const,
+      prompt: '기울기를 구하시오',
+      points: 100,
+      answerKey: '2',
+    };
+    useAssignmentStore.setState({
+      dispatched: [{ ...dispatchedFixture(id), questions: [authored] }],
+    });
+    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
+
+    await renderSolve(id);
+
+    expect(screen.getByTestId('solve-workspace')).toHaveAttribute(
+      'data-questions',
+      'q_authored_1',
+    );
   });
 });
