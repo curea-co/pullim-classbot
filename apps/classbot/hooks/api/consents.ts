@@ -18,7 +18,7 @@
  *
  * ## ⛔ 신원이 없으면 서버를 부르지 않는다 — `useCurrentUser().isAuthenticated` 로 갈지 마라
  *
- * 갈래는 `useHasServerIdentity()`(`./self-server`)가 정한다. 이름이 그럴듯한
+ * 갈래는 `useServerIdentityState()`(`./self-server`)가 정한다. 이름이 그럴듯한
  * `useCurrentUser().isAuthenticated` 는 **이 질문의 답이 아니다** — 개발용 신원 쿠키에
  * 일부러 `false` 를 주는 값이라 그걸로 잠그면 로컬·dev preview 가 통째로 「신원 없음」이
  * 되고 prod 만 서버를 부르는 정반대 동작이 된다. 그 함정은 이 리포에서 이미 한 번 값을
@@ -42,7 +42,7 @@ import {
 
 import { ApiClientError, apiDelete, apiGet, apiPost } from '@/lib/api/client-fetch';
 import { useCurrentUserId } from '@/lib/current-user';
-import { retryUnlessGuarded, useHasServerIdentity } from '@/hooks/api/self-server';
+import { retryUnlessGuarded, useServerIdentityState } from '@/hooks/api/self-server';
 import type {
   GrantConsentInput,
   GrantConsentResponse,
@@ -126,16 +126,27 @@ export const consentKeys = {
  *
  * 신원이 없으면 **요청을 내보내지 않는다**(`enabled`). 그 상태에는 로컬 정본이 없어서
  * 화면이 「지금은 공유를 켤 수 없어요」를 그린다 — 빈 목록으로 그리지 않는다.
+ *
+ * ## ⛔ `'pending'` 을 `'demo'` 와 **같이 다루지 마라**
+ *
+ * 판정은 셋이다(`ServerIdentityState`). 세션 복원이 끝나기 전(`'pending'`)에 물으면
+ * 쿼리 키의 `useCurrentUserId()` 가 아직 데모 폴백(`student_001`)이라 **남의 키에 내
+ * 응답이 캐시된다** — 상류(`hooks/api/self-server.ts`)가 boolean 을 셋으로 쪼갠 이유가
+ * 그 결함이다. 여기서 `identity !== 'demo'` 같은 조건으로 되돌리면 그 결함이 동의
+ * 목록에서 되살아난다. **서버로 가도 되는 것은 `'server'` 하나뿐이다.**
+ *
+ * 안 물은 동안 결과는 `isPending` 으로 남는다 — 화면은 그 상태를 「아직 모른다」로
+ * 그려야 하고(스켈레톤), 「켜 둔 게 없다」로 단정하면 안 된다.
  * @returns react-query 결과(`data.parent` · `data.consents`)
  */
 export function useMyConsents(): UseQueryResult<MyConsentsResponse, ApiClientError> {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
 
   return useQuery<MyConsentsResponse, ApiClientError>({
     queryKey: [...consentKeys.mine, userId],
     queryFn: () => apiGet<MyConsentsResponse>('/api/me/consents'),
-    enabled: hasServerIdentity,
+    enabled: identity === 'server',
     retry: retryUnlessGuarded,
   });
 }

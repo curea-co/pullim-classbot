@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useMyConsents } from '@/hooks/api/consents';
 import { isShareableType } from './share/catalog';
-import { useHasServerIdentity } from '@/hooks/api/self-server';
+import { useServerIdentityState } from '@/hooks/api/self-server';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
@@ -204,10 +204,16 @@ export default function MyProfilePage() {
  * @returns 한 줄 문구, 아직 모르면 null
  */
 function useShareSummary(): string | null {
-  const hasServerIdentity = useHasServerIdentity();
+  /*
+    ⛔ 판정은 **셋**이다 — `'pending'`(세션 복원 중)을 `'demo'` 와 같이 접으면 안 된다.
+    접으면 로그인한 학생이 한순간 데모 명의로 읽히는데, 이 줄에서는 그것이 **남의 공유
+    상태를 내 프로필에 적는 일**이 된다. `'server'` 가 아닌 동안은 아래에서 `null` 로
+    빠져 줄 자체를 안 그린다 — 이 함수가 원래 지키던 「모르면 지어내지 않는다」 그대로다.
+  */
+  const identity = useServerIdentityState();
   const consents = useMyConsents();
 
-  if (!hasServerIdentity || consents.isError || consents.data === undefined) return null;
+  if (identity !== 'server' || consents.isError || consents.data === undefined) return null;
 
   // 응답에는 이 화면 소관이 아닌 동의도 섞여 올 수 있다 — 세기 전에 거른다(`isShareableType`).
   const mine = consents.data.consents.filter((row) => isShareableType(row.type));

@@ -10,7 +10,11 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { MetaRow } from '@/components/ui/meta-row';
 import { useParentChildren, useParentSelfStudy } from '@/hooks/api/parent';
 import type { ParentChildItem } from '@/hooks/api/types';
-import { countChildAssignments, relationLabel } from './assignment-status';
+import {
+  countChildAssignments,
+  hasSchoolWorkToShow,
+  relationLabel,
+} from './assignment-status';
 import { NoChildrenState, ParentErrorState, ParentLoading } from './parent-state';
 import { homeTeaserLine, visibleChildren } from './self-study/self-study-visibility';
 
@@ -124,6 +128,12 @@ function ChildSummaryCard({
 }) {
   const counts = countChildAssignments(child.assignments);
   const rooms = child.classrooms;
+  /*
+    숫자를 적어도 되는 자녀인가 — 미동의 자녀의 빈 배열을 「0개」로 확정하지 않기 위한 판정.
+    까닭과 그 반대편(「알 수 없음」이라고 적으면 동의 여부가 새는 것)은 판정 함수의
+    머리주석에 있다(`./assignment-status.ts` 의 `hasSchoolWorkToShow`).
+  */
+  const knowsSchoolWork = hasSchoolWorkToShow(child);
 
   return (
     <section className="bg-card rounded-2xl border p-5">
@@ -132,21 +142,23 @@ function ChildSummaryCard({
         description={`${relationLabel[child.relation]}로 이어진 자녀예요.`}
       />
 
-      <ul className="grid grid-cols-3 gap-3">
-        <KpiStat label="수업방" value={`${rooms.length}개`} />
-        <KpiStat
-          label="남은 과제"
-          value={`${counts.remaining}개`}
-          /* 0개는 눈을 끌 까닭이 없다 — 할 일이 남았을 때만 색을 준다 */
-          tone={counts.late > 0 ? 'alert' : counts.remaining > 0 ? 'accent' : 'default'}
-          action={
-            child.assignments.length > 0
-              ? { label: '과제 보기', href: '/parent/assignments' }
-              : undefined
-          }
-        />
-        <KpiStat label="다 낸 과제" value={`${counts.done}개`} />
-      </ul>
+      {knowsSchoolWork && (
+        <ul className="grid grid-cols-3 gap-3">
+          <KpiStat label="수업방" value={`${rooms.length}개`} />
+          <KpiStat
+            label="남은 과제"
+            value={`${counts.remaining}개`}
+            /* 0개는 눈을 끌 까닭이 없다 — 할 일이 남았을 때만 색을 준다 */
+            tone={counts.late > 0 ? 'alert' : counts.remaining > 0 ? 'accent' : 'default'}
+            action={
+              child.assignments.length > 0
+                ? { label: '과제 보기', href: '/parent/assignments' }
+                : undefined
+            }
+          />
+          <KpiStat label="다 낸 과제" value={`${counts.done}개`} />
+        </ul>
+      )}
 
       {/* 색만으로 말하지 않는다 — 「남은 과제」가 빨개진 까닭을 글자로 한 번 더 적는다 */}
       {counts.late > 0 && (
@@ -157,7 +169,10 @@ function ChildSummaryCard({
 
       <div className="mt-5">
         <h3 className="text-pullim-slate-900 mb-2 text-sm leading-tight font-bold">
-          수업방 {rooms.length}개
+          {/* 셀 수 있을 때만 센다 — 위 KPI 와 같은 까닭이다(`hasSchoolWorkToShow`).
+              「들어간」을 붙이지 않는 것도 같은 규칙이다 — 그 말이 빈 자리를 「안 들어갔다」로
+              읽히게 해서 미동의와 무활동을 가른다(05 § 11.4 규칙 2). */}
+          수업방{knowsSchoolWork ? ` ${rooms.length}개` : ''}
         </h3>
         {rooms.length === 0 ? (
           /*
@@ -170,6 +185,7 @@ function ChildSummaryCard({
           <EmptyState
             tone="plain"
             size="sm"
+            {/* 문구는 `knowsSchoolWork` 로 갈리지 않는다 — 갈리면 그 차이가 곧 동의 여부다. */}
             title="보여줄 수업방이 없어요"
             description="보여줄 것이 생기면 여기에 나와요."
           />
