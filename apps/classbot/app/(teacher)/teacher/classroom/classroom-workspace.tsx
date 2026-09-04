@@ -6,11 +6,13 @@ import {
 } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadLoginGate } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTeacherClassrooms } from '@/hooks/api/classroom';
+import { ApiClientError } from '@/lib/api/client-fetch';
 import type { TeacherClassroomItem } from '@/hooks/api/types';
 import { ClassroomRoster } from './classroom-roster';
 import { CreateClassroomForm, type CreatedClassroom } from './create-classroom-form';
@@ -30,6 +32,20 @@ export function ClassroomWorkspace() {
   const query = useTeacherClassrooms();
   const [formOpen, setFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedClassroom | null>(null);
+
+  /*
+    비로그인(401)은 **고장이 아니다.** prod 는 공개 화면이라 방문자에게 세션이 없고,
+    prod-verify 도 쿠키 없이 이 화면을 친다. 401 을 빨간 카드로 그리면 데모로 들어온
+    사람에게 이 화면은 언제나 깨져 있고, 새로 낸 탐색 경로가 사실상 막힌다.
+
+    다만 여기서는 `assignment-form.tsx` 처럼 mock 으로 굴리지 **않는다.** 이 화면이 건네는
+    것은 **참여 코드**이고, 가짜 반에 붙은 코드는 학생이 넣어도 안 열린다(위 머리주석).
+    없는 코드를 크게 보여 주는 것이 빈 화면보다 나쁘다 — 그래서 로그인으로 안내한다.
+  */
+  const signedOut =
+    query.isError && query.error instanceof ApiClientError && query.error.status === 401;
+
+  if (signedOut) return <ReadLoginGate label="수업방 참여 코드" />;
 
   if (query.isError) {
     return (
