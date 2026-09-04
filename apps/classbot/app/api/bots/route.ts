@@ -16,25 +16,34 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/lib/db';
 import { classBots, enrollments } from '@/lib/db/schema';
 import { getCurrentUserIdFromRequest } from '@/lib/current-user';
+import { denyUnlessRole } from '@/app/api/_lib/guards';
 
 // node:crypto / pg(JWT 검증·DB) 사용 — Edge 가 아닌 Node 런타임 강제.
 export const runtime = 'nodejs';
 
 /**
- * 내가 수강 중인 봇 목록을 본인 명의로 조회한다.
+ * 내가 수강 중인 봇 목록을 본인 명의로 조회한다(학생 시점).
+ *
+ * 스펙 § 4.2 는 이 경로를 `?role=student|teacher` 공용 표면으로 두었다. 교사 시점의
+ * 몸통(owned 봇 조회)은 `dev` 에도 없고 이 PR 도 만들지 않는다 — 교사 목록 PR 의 몫이다.
+ * 여기서 하는 일은 **학부모·admin 을 막는 것**뿐이고, 학생·교사의 응답은 `dev` 그대로다.
  * @param req - Authorization: Bearer access
- * @returns 200 { bots: [...] } | 401
+ * @returns 200 { bots: [...] } | 401 | 403
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isAuthenticated } = getCurrentUserIdFromRequest(req);
+  const actor = getCurrentUserIdFromRequest(req);
+  const studentId = actor.id;
 
   // 읽기 가드 — D1 로그인월. 미로그인은 401(mock 폴백 없음).
-  if (!isAuthenticated) {
-    return NextResponse.json(
-      { message: '로그인이 필요합니다.', code: 'AUTH_REQUIRED' },
-      { status: 401 },
-    );
-  }
+  // 이 경로는 학생·교사가 시점(`?role=`)으로 나눠 쓰는 공용 목록이다(스펙 § 4.2).
+  // 그래서 **역할을 학생으로 좁히지 않는다** — 좁히면 계약에 있는 교사 시점이 닫힌다.
+  // 이 PR 이 막는 것은 개발용 신원 쿠키가 새로 데려온 역할뿐이다: 학부모·admin 은
+  // 어느 시점의 주인도 아니라 403 이고, 학생·교사가 받던 응답은 `dev` 그대로다.
+  //
+  // 시점 파라미터는 **읽지 않는다.** 교사 시점의 몸통(owned 봇 목록)이 아직 없어서인데,
+  // 그건 `dev` 도 마찬가지다 — 이 PR 이 만든 자리가 아니라 교사 목록 PR 이 채울 자리다.
+  const denied = denyUnlessRole(actor, ['student', 'teacher'], '학생·교사만 쓸 수 있는 기능입니다.');
+  if (denied) return denied;
 
   // enrollments(본인) ⋈ class_bots — 등록된 봇만, 본인 명의로 격리.
   const rows = await getDb()

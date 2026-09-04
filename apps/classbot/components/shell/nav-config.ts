@@ -39,17 +39,42 @@ export type NavGroup = {
   items: NavItem[];
 };
 
+/**
+ * **셸이 가진 역할** — `AppShell role=…` 로 실제 들어오는 값만 적는다.
+ *
+ * 지금 `role` 을 넘기는 곳은 `app/(student)/layout.tsx` 와 `app/(teacher)/layout.tsx`
+ * 두 리터럴뿐이라 둘이다. 학부모는 여기 없다 — `app/(parent)` 트리가 아직 없고
+ * (`proc/spec/03 § 2.3` — `[예정]`), 셸이 받을 수 없는 값을 미리 세워 두면 `navForRole` ·
+ * breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는 답**을 지금
+ * 적어 두게 된다. 그 답은 화면을 만드는 PR 이 해야 맞다.
+ *
+ * 그러니 학부모 화면 PR 이 이 union 을 넓히면서 시작한다. 넓히는 순간 아래 `switch` 와
+ * 헤더 표 셋이 **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 ·
+ * 라벨은 무엇인가」를 그 PR 이 한 자리씩 답하게 된다.
+ *
+ * **신원 층은 이것과 다르다.** 서버는 이미 학부모를 말한다 — 개발용 신원 allowlist 에
+ * `parent_001` 이 있고(`lib/dev-identity.ts` 의 `DevIdentityRole`), 해석기가
+ * `role: 'parent'` 를 돌려준다(`lib/current-user.ts` 의 `AppUserRole`). 그래서
+ * `/api/*` 가 학생 표면에서 학부모를 403 으로 막는다(`app/api/_lib/guards.ts`).
+ * **명의는 이미 셋, 셸은 아직 둘** — 그 어긋남이 이 PR 이 여는 것과 열지 않는 것의 경계다.
+ */
 export type Role = 'student' | 'teacher';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
+  // 「내 수업방」·「내가 담은 봇」은 그 화면이 도착하는 PR 에서 여기 들어온다 —
+  // nav 는 라우트 인벤토리라 페이지보다 먼저 열면 누르는 즉시 404 다.
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
-  // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) · 봇 찾기(/classbot/discover) 진입점 비노출. 재개 시 되살린다
+  // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
+  // 봇 마켓(/classbot/discover) 도 아직 비노출이다. 화면은 있지만 지금 거기 있는 건
+  // 「공식 튜터 마켓」(mock 공식 튜터 + 「곧 만날 봇」)이라, nav 만 먼저 열면 레일 라벨과
+  // 도착지가 어긋난다. 교사가 공유한 봇으로 **화면을 갈아끼우는 PR** 이 nav 도 함께 되살린다
+  // (`proc/spec/03 § 2.1`).
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
   { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
@@ -81,6 +106,7 @@ export const teacherNav: NavGroup[] = [
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
+      // 「내 수업방」(/teacher/classroom)은 그 화면이 도착하는 PR 에서 홈 바로 뒤에 들어온다.
       // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
       // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
       // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
@@ -95,6 +121,7 @@ export const teacherNav: NavGroup[] = [
       { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
+      // 「봇 마켓」(/teacher/marketplace)도 그 화면이 도착하는 PR 에서 봇 관리 뒤에 들어온다.
     ],
   },
   {
@@ -106,6 +133,9 @@ export const teacherNav: NavGroup[] = [
     ],
   },
 ];
+
+// 학부모 레일(`parentNav`)은 여기 없다 — `/parent/*` 화면과 같은 PR 에서 `Role` 확장과
+// 함께 들어온다. 학부모는 자기 학습 화면이 없어 자녀를 보는 창구로 고정이다(계약 §6).
 
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
@@ -159,6 +189,8 @@ export function findActiveNav(pathname: string, role: Role): NavItem | undefined
 
 export function buildBreadcrumb(pathname: string, role: Role): { label: string; href?: string }[] {
   const nav = navForRole(role);
+  // 역할마다 뿌리가 다르다. 역할이 늘면 여기 한 줄이 함께 늘어야 한다 —
+  // 이분법으로 둔 채 union 만 넓히면 새 역할이 조용히 교사 뿌리를 물려받는다.
   const root =
     role === 'student' ? { label: '풀림 클래스봇', href: '/' }
     : { label: '풀림 교사', href: '/teacher' };
