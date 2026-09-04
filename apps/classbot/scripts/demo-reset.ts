@@ -207,6 +207,8 @@ async function main(): Promise<void> {
   //
   // 동의는 **비워 두고 시작한다.** 이 화면의 전제는 「자녀가 주지 않으면 안 보인다」이고,
   // 그게 실제로 작동하는지 보려면 출발점이 미동의여야 한다. 학생 화면에서 직접 켜 보게 한다.
+  // 이제 **반·과제도** 그 게이트 뒤에 있다(`class_assignment_summary`) — 학부모 화면은
+  // 자녀가 둘 중 하나라도 켜기 전까지 이름만 있고 내용은 비어 있는 것이 정상이다.
   await db
     .insert(parentChildLinks)
     .values([
@@ -250,6 +252,7 @@ async function main(): Promise<void> {
   console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
   console.log('');
   console.log('  학부모 · 어머니   자녀 둘(서연·민준) · 동의 0건 ← 학생 화면에서 켜 보세요');
+  console.log('                    (반·과제도 동의 뒤에 있습니다 — 켜기 전에는 비어 보이는 게 정상)');
   console.log('');
   console.log('  학생 · 민준 (s2)   참여 0곳  ← 여기서 코드를 넣어 보세요');
   console.log('  학생 · 서연 (student_001)   기존 5개 반 · 과제 3건 그대로');

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BookOpen, HeartOff, ListX, MessageCircleOff } from 'lucide-react';
+import { BookOpen, GraduationCap, HeartOff, ListX, MessageCircleOff } from 'lucide-react';
 
 import type { ConsentType } from '@/hooks/api/consents';
 // 서버가 학생에게 허용한 타입 목록 — **타입만** 가져온다.
@@ -53,6 +53,18 @@ export const SHAREABLE_ITEMS = [
       '며칠 이어서 공부했는지',
     ],
   },
+  {
+    type: 'class_assignment_summary',
+    icon: GraduationCap,
+    label: '수업방과 받은 과제',
+    // 답안·점수는 여기 없다 — 아래 `NEVER_SHARED` 의 「틀린 문제」와 짝을 이룬다.
+    fields: [
+      '내가 들어간 반 이름과 선생님',
+      '받은 과제 이름과 마감',
+      '과제를 냈는지 · 아직인지',
+      '몇 문항짜리인지',
+    ],
+  },
 ] as const satisfies readonly ShareableItem[];
 
 /** 어떻게 해도 안 나가는 것. 켜고 끄는 자리가 아예 없다 — 그래서 스위치도 안 그린다. */
@@ -82,9 +94,10 @@ export const NEVER_SHARED: ReadonlyArray<{
  * 이 화면이 켜고 끌 수 있는 종류인가.
  *
  * `GET /api/me/consents` 는 **타입으로 거르지 않는다** — 살아 있는 동의를 전부 준다(계약
- * 타입 `MyConsentRow` 주석). 지금은 자기주도 것뿐이지만, 교사·기관 승인 흐름이 행을 넣기
- * 시작하면 주간 리포트 동의 같은 것이 같은 목록에 섞여 온다. **그건 학생이 여기서 켠 것도,
- * 여기서 끌 수 있는 것도 아니다**(서버가 학생의 부여·철회를 자기주도 하나로 막는다).
+ * 타입 `MyConsentRow` 주석). 지금은 학생이 켤 수 있는 둘(자기주도·수업방과 과제)뿐이지만,
+ * 교사·기관 승인 흐름이 행을 넣기 시작하면 주간 리포트 동의 같은 것이 같은 목록에 섞여 온다.
+ * **그건 학생이 여기서 켠 것도, 여기서 끌 수 있는 것도 아니다**(서버가 학생의 부여·철회를
+ * `STUDENT_GRANTABLE_TYPES` 로 막는다).
  *
  * 그래서 「내가 지금 뭔가 공유 중인가」를 셀 때는 `consents.length` 가 아니라 이 술어를
  * 통과한 것만 센다. 안 그러면 프로필에 「보여드리는 중」이 떠 있는데 공유 화면에는 켜진

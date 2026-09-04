@@ -145,14 +145,21 @@ export async function resolveGrantRecipient(
 }
 
 /**
- * 학생 라우트가 받아 주는 동의 타입 — **자기주도 요약 하나뿐**이다.
+ * 학생 라우트가 받아 주는 동의 타입 — **자기주도 요약과 반·과제 현황 둘**이다.
  *
  * 나머지 다섯(주간·월간 리포트 · 약점 단원 · 감정 · 실시간 알림)은 교사·기관 승인이라는
  * 다른 인가 모델 위에 있어, 이 라우트가 학생 혼자 켜고 끄게 두면 그 모델을 우회한다.
  * 감정 공유가 특히 그렇다 — 자기주도 동의 하나에 딸려 나가면 안 된다(계약 §0).
  * 새 타입을 여기 더하려면 그 타입의 승인 주체가 학생 본인인지 먼저 답해야 한다.
+ *
+ * 반·과제(`class_assignment_summary`)가 여기 들어온 것은 그 답이 「학생 본인」으로 정해졌기
+ * 때문이다. 스펙이 학부모 전달을 「학생 승인 후」로 두는데(`04-ux-flow.md:154`) 링크만으로
+ * 열려 있던 자리라, 자기주도와 **같은 게이트 뒤**로 옮겼다.
  */
-export const STUDENT_GRANTABLE_TYPES = ['self_study_summary'] as const;
+export const STUDENT_GRANTABLE_TYPES = [
+  'self_study_summary',
+  'class_assignment_summary',
+] as const;
 
 export type StudentGrantableType = (typeof STUDENT_GRANTABLE_TYPES)[number];
 
