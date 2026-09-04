@@ -659,8 +659,16 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
               })}
             </div>
           )}
-          {!targetValid && (
-            <p className="text-pullim-danger mt-2 text-xs">최소 1명을 선택해주세요.</p>
+          {/*
+            이 문구는 **고를 수 있는데 안 고른** 경우만 말한다. `rosterUnknown` 으로 막힌
+            것까지 여기서 묶으면, 위 ③ 이 이미 「불러오는 중」이나 API 오류를 말하고 있는데
+            그 바로 아래에 빨간 「최소 1명」이 겹쳐 붙는다 — 교사는 아직 아무것도 못 한
+            상태인데 자기가 안 골라서 막힌 것처럼 읽힌다. 원인이 둘인데 문구는 하나였다.
+          */}
+          {!rosterUnknown && students.length > 0 && selectedIds.length === 0 && (
+            <p className="text-pullim-danger mt-2 text-xs" data-testid="target-empty-error">
+              최소 1명을 선택해주세요.
+            </p>
           )}
         </section>
 

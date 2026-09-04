@@ -237,6 +237,42 @@ it('명단이 아직 안 왔을 때도 발사를 막는다 — 빈 명단과 구
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
 });
 
+/*
+  막힌 이유가 둘인데 문구가 하나면 교사가 자기 잘못으로 읽는다. 명단을 못 읽어서 막힌 것은
+  ③ 섹션이 이미 「불러오는 중」·API 오류로 말하고 있고 교사가 할 수 있는 일도 없다 —
+  거기에 「최소 1명을 선택해주세요」까지 겹치면 안 골라서 막힌 것처럼 보인다.
+*/
+it('명단을 못 읽어 막힌 것을 「최소 1명」 탓으로 그리지 않는다', () => {
+  queries.students = {
+    data: undefined,
+    isPending: false,
+    isError: true,
+    error: new Error('명단을 불러오지 못했어요.'),
+  };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('students-error')).toBeInTheDocument();
+  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
+});
+
+it('명단이 아직 안 왔을 때도 「최소 1명」을 띄우지 않는다', () => {
+  queries.students = { data: undefined, isPending: true, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('students-loading')).toBeInTheDocument();
+  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
+});
+
+it('고를 수 있는데 전부 껐을 때만 「최소 1명」을 띄운다', () => {
+  render(<AssignmentForm />);
+  // 기본은 전원 선택 — 하나씩 끄면 0명이 된다.
+  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
+  mockStudents.forEach(s => fireEvent.click(screen.getByTestId(`student-${s.id}`)));
+
+  expect(screen.getByTestId('target-empty-error')).toBeInTheDocument();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
 it('비로그인 데모(401)에서는 오류 카드를 띄우지 않는다 — 고장이 아니라 데모 상태다', () => {
   queries.classrooms = {
     data: undefined,
