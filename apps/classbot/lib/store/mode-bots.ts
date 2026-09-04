@@ -76,6 +76,39 @@ function toClassBot(item: MarketplaceBotItem): ClassBot {
 }
 
 /**
+ * 마켓이 이 봇을 모를 때 — 그래도 대화는 되게 한다.
+ *
+ * 두 경우에 온다: ① 선생님이 공유를 내렸다 ② 마켓 조회가 401·오류로 끝났다(비로그인 데모).
+ * 둘 다 **담은 사실 자체는 살아 있다.** 담은 목록(`SelfBotRow`)에는 `{ botId, addedAt }`
+ * 두 칸뿐이라 이름을 알 데가 없으므로, 시드 카탈로그에 있으면 그것을 쓰고 없으면
+ * 이름 자리에 **상태**를 적는다 — `my-bot-card.tsx` 가 쓰는 말과 **같은 문자열**이다.
+ * 두 화면이 같은 봇을 다른 이름으로 부르면 안 된다.
+ *
+ * 「불러오지 못했어요」로 적지 않는 이유도 그 파일과 같다 — 실패한 게 아니라 찾을 자리에
+ * 없는 것이고, 봇은 멀쩡하다.
+ * @param botId - 담은 봇 id (`class_bots.id`)
+ * @returns 챗·웰빙이 그대로 그릴 수 있는 봇
+ */
+function fallbackBot(botId: string): ClassBot {
+  // 시드 봇(`cb_001`…)은 카탈로그가 전부 갖고 있다 — 비로그인 데모가 여기서 살아난다.
+  const seeded = botCatalog.find((b) => b.id === botId);
+  if (seeded) return seeded;
+  return {
+    ...UNKNOWN_BOT_DEFAULTS,
+    id: botId,
+    name: '지금은 마켓에 없는 봇',
+    avatarEmoji: '🤖',
+    teacherName: '',
+    organization: '',
+    subject: '',
+    grade: '',
+    tone: '친근',
+    greeting: '안녕! 무엇이 궁금해?',
+    enrolledCount: 0,
+  };
+}
+
+/**
  * 학생이 대화할 수 있는 봇 전부 — **반 봇 + 담은 봇을 한 목록으로** (계약 §5).
  *
  * 예전에는 학습 모드(`lib/store/student-mode.ts`)로 갈라 한 번에 한쪽만 보여 줬다.
@@ -86,8 +119,12 @@ function toClassBot(item: MarketplaceBotItem): ClassBot {
  * 그때는 **한 번만** 싣고 **반 관계가 이긴다**: 그 봇에서 과제가 오고 선생님이 보고 있다는
  * 사실이 「내가 담았다」보다 학생이 알아야 할 것이라서다.
  *
- * 담은 봇의 정보는 마켓 조회에서 온다. 게시가 내려간 봇은 조회에 없으므로 목록에서
- * 조용히 빠진다 — 담은 기록은 그대로 두고(계약 §4 저장소는 담은 사실만 갖는다) 화면에서만 빠진다.
+ * 담은 봇의 표시 정보(이름·아바타·과목)는 마켓 조회에서 온다. 그런데 **표시 정보가 없다고
+ * 봇을 목록에서 빼지는 않는다** — 공유가 내려가도 이미 담아 간 학생의 봇은 계속 돈다는 것이
+ * 설계고(청사진 §2), 담기와 공유는 별개다. 여기서 빼면 학생은 `/classbot/my-bots` 에서
+ * 「담아 둔 봇은 그대로 남아 있어요」를 읽고도 **그 봇과 대화할 수 없는** 반쪽 상태가 된다.
+ * 그래서 마켓에 없으면 `fallbackBot()` 으로 **아는 것만 채워** 싣는다
+ * (`app/(student)/classbot/my-bots/my-bot-card.tsx` 와 같은 말·같은 판단).
  * @returns 봇 목록 + 종류별 개수 + 로딩 구간
  */
 export function useStudentBots(): StudentBotsResult {
@@ -109,6 +146,8 @@ export function useStudentBots(): StudentBotsResult {
 
   // 반 목록은 스토어에서 매 렌더 새 배열로 온다(`bridge()`) — id 문자열로 눌러 memo 를 안정시킨다.
   const classKey = classRooms.map((c) => c.bot.id).join('|');
+  // 「아직 안 왔다」와 「와 봤더니 없더라」를 가르는 값. 앞은 기다리고, 뒤는 fallback 이다.
+  const marketPending = market.isPending;
 
   const slots = useMemo<StudentBotSlot[]>(() => {
     const out: StudentBotSlot[] = classRooms.map((c) => ({ bot: c.bot, source: 'class' }));
@@ -119,14 +158,17 @@ export function useStudentBots(): StudentBotsResult {
     for (const row of added) {
       if (seen.has(row.botId)) continue; // 반 관계가 이긴다
       const item = marketById.get(row.botId);
-      if (!item) continue; // 게시가 내려갔거나 마켓 조회가 아직 안 왔다
+      // 마켓이 아직 답하지 않은 구간에는 자리표시자를 만들지 않는다 — 그 구간은 아래
+      // `isLoading` 이 이미 들고 있어서, 여기서 채우면 진짜 이름이 오기 전에
+      // 「지금은 마켓에 없는 봇」이 한 번 번쩍인다.
+      if (!item && marketPending) continue;
       seen.add(row.botId);
-      out.push({ bot: toClassBot(item), source: 'self' });
+      out.push({ bot: item ? toClassBot(item) : fallbackBot(row.botId), source: 'self' });
     }
     return out;
     // classRooms 는 매 렌더 새 배열이라 deps 에 두면 memo 가 무의미해진다 — 내용 키(classKey)로 대신한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classKey, selfBots.data, marketById]);
+  }, [classKey, selfBots.data, marketById, marketPending]);
 
   return {
     slots,

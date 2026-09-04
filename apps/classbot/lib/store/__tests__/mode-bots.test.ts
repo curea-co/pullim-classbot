@@ -122,12 +122,19 @@ it('겹치면 한 번만 싣고 반 관계가 이긴다', async () => {
   expect(result.current.slots[0].bot.name).toBe('수학봇');
 });
 
-it('게시가 내려간 봇은 목록에서 빠진다 — 담은 기록은 건드리지 않는다', async () => {
+/*
+  이 자리에 있던 「게시가 내려간 봇은 목록에서 빠진다」는 **뒤집혔다.**
+  빼면 학생이 `my-bots` 에서 「담아 둔 봇은 그대로 남아 있어요」를 읽고도 그 봇과
+  대화할 수 없는 반쪽 상태가 된다 — 아래 「공유가 내려간 봇」 묶음이 새 규칙이다.
+*/
+it('게시가 내려가도 담은 기록 자체는 건드리지 않는다', async () => {
   marketBots = []; // 마켓에 없다
   selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
   const { result } = render();
   await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots).toHaveLength(0);
+  // 담은 기록은 저장소의 것이고 마켓 조회가 지우지 않는다 — 그래서 칸이 남는다.
+  expect(result.current.slots.map((x) => x.bot.id)).toEqual(['cb_009']);
+  expect(result.current.selfCount).toBe(1);
 });
 
 it('담은 기록이 있는데 마켓이 아직 안 왔으면 로딩 — 빈 목록으로 단정하지 않는다', () => {
@@ -149,4 +156,41 @@ it('담은 기록이 없으면 마켓을 기다리지 않는다 — 반 봇만�
   const { result } = render();
   expect(result.current.isLoading).toBe(false);
   expect(result.current.slots).toHaveLength(1);
+});
+
+/*
+  ── 공유가 내려간 봇 ────────────────────────────────────────
+  담기와 공유는 별개다. 선생님이 마켓에서 내려도 이미 담아 간 학생의 봇은 계속 돈다
+  (청사진 §2). `my-bots` 화면이 학생에게 그렇게 약속하고 있으므로
+  (「담아 둔 봇은 그대로 남아 있어요」), 대화 목록에서 빠지면 그 약속이 거짓이 된다.
+*/
+it('공유가 내려가도 담은 봇은 목록에 남는다 — 시드 봇이면 이름까지 지킨다', async () => {
+  marketBots = []; // 마켓 조회는 끝났고(pending=false) 그 봇이 없다 = 공유가 내려갔다
+  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+  expect(result.current.slots).toHaveLength(1);
+  expect(result.current.slots[0].source).toBe('self');
+  // 시드 카탈로그가 이름을 갖고 있으므로 「알 수 없는 봇」으로 떨어지지 않는다.
+  expect(result.current.slots[0].bot.id).toBe('cb_001');
+  expect(result.current.slots[0].bot.name).not.toBe('지금은 마켓에 없는 봇');
+});
+
+it('카탈로그에도 없는 봇이면 이름 자리에 상태를 적고, 그래도 대화는 열어 둔다', async () => {
+  marketBots = [];
+  selfRows = [{ botId: 'bot_teacher_made_42', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+  expect(result.current.slots).toHaveLength(1);
+  // `my-bot-card.tsx` 와 **같은 문자열** — 두 화면이 같은 봇을 다르게 부르면 안 된다.
+  expect(result.current.slots[0].bot.name).toBe('지금은 마켓에 없는 봇');
+  expect(result.current.slots[0].bot.id).toBe('bot_teacher_made_42');
+});
+
+it('마켓이 아직 안 온 구간에는 자리표시자를 만들지 않는다 — 진짜 이름이 오기 전에 번쩍이지 않게', () => {
+  marketPending = true;
+  selfRows = [{ botId: 'bot_teacher_made_42', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  expect(result.current.isLoading).toBe(true);
+  expect(result.current.slots).toHaveLength(0);
 });
