@@ -189,10 +189,13 @@
     세 화면이 다 들어오기 전까지 이 줄은 계획이고, 현재 상태 설명이 아니다.
   - **홈 경로 정정** — [04 UC-P1](04-ux-flow.md) 이 학부모 진입점을 `/parent/dashboard` 로
     적고 있었으나, 인도되는 것은 **`/parent`** 다(`app/(parent)/parent/page.tsx`). 문서마다
-    첫 진입 경로가 갈리지 않게 **04 쪽을 `/parent` 로 맞췄다** — 세그먼트를 하나 더 두면
-    `(parent)` 라우트 그룹 안에서 `/parent/parent/dashboard` 가 되거나 홈이 리다이렉트
-    자리로만 남는다. `dashboard` 라는 이름은 이 리포의 다른 역할 홈(`/teacher` · `/classbot`)
-    어디에도 쓰지 않는다.
+    첫 진입 경로가 갈리지 않게 **04 쪽을 `/parent` 로 맞췄다.** 이건 URL 이 겹쳐서가 아니라
+    **IA 결정**이다 — `(parent)` 는 라우트 그룹이라 URL 세그먼트에 안 들어가므로
+    `app/(parent)/parent/dashboard/page.tsx` 는 그냥 `/parent/dashboard` 로 뜬다. 둘 다
+    만들 수 있고, 고르는 것은 **홈에 세그먼트를 하나 더 둘지**다. 안 두기로 한다: 학생·교사
+    홈이 `/classbot` · `/teacher` 로 세그먼트 없이 서고, 학부모만 `dashboard` 를 달면 역할
+    홈의 모양이 하나만 어긋난다. 그리고 `/parent` 를 비워 두면 그 자리는 리다이렉트로만
+    남는다.
   - **들어온 뒤에도 실제 로그인 학부모는 들어올 수 없다.** 공유 인증 claim 의 role
     union(`packages/types` 의 `UserRole`)과 BE 의 진입 역할(`user-role.enum.ts`)이 둘 다
     `student | teacher | admin` 이고 OS SSO 도 학부모를 `student` 로 내리므로, RoleGuard 가
