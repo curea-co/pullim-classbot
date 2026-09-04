@@ -52,6 +52,14 @@ export function MarketplaceBotDetail({
   const bot = query.data?.bot ?? null;
   // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
   const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
+  /*
+    404 도 고장이 아니다 — 이 라우트의 404 는 「없는 주소」가 아니라 **「지금은 공개돼 있지
+    않은 봇」이라는 정상 응답**이다(마켓 계약: 공유가 내려갔거나 아직 안 걸린 봇).
+    빨간 장애 카드로 그리면 흔한 상태를 서비스 고장으로 오인하게 만든다. 그리고 그 오인은
+    이 화면 자신의 문구와도 어긋난다 — 제목 밑 설명이 이미 「지금은 이 봇을 볼 수 없어요」로
+    **비가용**을 전제하고 있다. 서버 원문을 그대로 노출하지 않는 이유도 같다.
+  */
+  const isUnavailable = query.error instanceof ApiClientError && query.error.status === 404;
   const sig = botSignature({ id: botId, subject: bot?.subject });
   const publishedLabel = formatPublishedAt(bot?.publishedAt);
 
@@ -76,6 +84,14 @@ export function MarketplaceBotDetail({
             icon={LogIn}
             title="로그인하면 이 봇을 볼 수 있어요"
             description="선생님들이 공유한 봇은 로그인한 뒤에 둘러볼 수 있어요."
+          />
+        </div>
+      ) : isUnavailable ? (
+        <div data-testid="marketplace-detail-unavailable">
+          <EmptyState
+            icon={Store}
+            title="지금은 볼 수 없는 봇이에요"
+            description="공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요."
           />
         </div>
       ) : query.isError ? (
