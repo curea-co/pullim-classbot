@@ -250,6 +250,24 @@ it('비로그인 데모(401)에서는 오류 카드를 띄우지 않는다 — �
   expect(screen.queryByTestId('rooms-error')).not.toBeInTheDocument();
 });
 
+/*
+  데모의 방은 mock(`demo_*`)이라 서버에 없다 — 명단 조회도 401 로 돌아온다. 그 401 까지
+  숨겨야 「비로그인 데모는 고장이 아니다」가 화면 전체에서 성립한다. 수업방 카드만 고치고
+  ③ 대상 섹션을 두면 데모 진입마다 빨간 「로그인이 필요합니다.」가 남는다.
+*/
+it('비로그인 데모(401)에서는 대상 명단도 오류로 그리지 않는다 — 빈 방 안내로 내려간다', () => {
+  const unauthorized = new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED');
+  queries.classrooms = { data: undefined, isPending: false, isError: true, error: unauthorized };
+  queries.students = { data: undefined, isPending: true, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.queryByTestId('students-error')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('students-loading')).not.toBeInTheDocument();
+  // 명단을 못 읽은 게 아니라 「아직 아무도 안 들어온 방」이므로 발사도 막지 않는다.
+  fillTitle();
+  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+});
+
 it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
   render(<AssignmentForm />);
   fillTitle();
