@@ -16,6 +16,8 @@ import {
   useStreak,
   type SelfBotRow,
 } from '@/lib/store/self-learning';
+// 흉내 서버의 날짜 테두리는 **진짜 라우트가 쓰는 그 함수**다 — 아래 `isAcceptableDay` 주석.
+import { isRecordableDay } from '@/app/api/_lib/study-date';
 
 const SEOYEON = 'student_001';
 const MINJUN = 'student_002';
@@ -97,14 +99,22 @@ let daysListFailure: number;
  * 이 상수와 어긋나 곧바로 드러난다.
  */
 const SERVER_TODAY = '2026-09-03';
-/** 2년 이전은 거절 — 계약 §2. */
-const OLDEST_ALLOWED = '2024-09-03';
 
-/** 서버가 받아 주는 날짜인가 — 형식·미래·2년 이전(계약 §2). */
+/**
+ * 서버가 받아 주는 날짜인가 — 형식·달력·미래·2년 이전(계약 §2).
+ *
+ * ⚠️ **판정을 여기서 다시 적지 마라.** 라우트가 쓰는 `isRecordableDay` 를 그대로 부른다.
+ * 손으로 다시 적었을 때 실제로 새던 구멍이 있다: 정규식 + `Date.parse` 로는
+ * `Date.parse('2026-02-30')` 가 `NaN` 이 아니라 **2026-03-02 로 정규화**되어 통과한다.
+ * 그러면 훅이 달력에 없는 날을 보내는 회귀를 이 테스트가 못 잡는다 — 진짜 서버는
+ * `study-date.ts` 의 round-trip 검사로 400 을 내는데, 흉내 서버만 받아 주기 때문이다.
+ *
+ * 흉내 서버가 느슨하면 테스트는 초록인데 배포는 400 이다. 그러니 테두리는 한 곳에서만
+ * 온다 — **`app/api/_lib/study-date.ts`**. 2년 하한도 그 함수가 `SERVER_TODAY` 에서
+ * 직접 계산하므로 여기 상수로 박아 두지 않는다(박아 두면 또 갈라진다).
+ */
 function isAcceptableDay(day: unknown): day is string {
-  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
-  if (Number.isNaN(Date.parse(day))) return false;
-  return day <= SERVER_TODAY && day >= OLDEST_ALLOWED;
+  return isRecordableDay(day, SERVER_TODAY);
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -730,6 +740,53 @@ describe('공부한 날 — 서버에서 읽고 쓴다', () => {
     await waitFor(() => expect(result.current.days.data).toEqual([SERVER_TODAY]));
     const post = calls.find((c) => c.method === 'POST' && c.path === '/api/me/study-days');
     expect(post?.body).toEqual({});
+  });
+
+  /**
+   * ⛔ 회귀 방지. 「생략」을 truthy 로 가르면(`date ? { date } : {}`) **빈 문자열이 생략으로
+   * 바뀐다.** 그러면 서버가 400 으로 막을 값이 조용히 **오늘 기록**이 되고, 부르는 쪽은
+   * 자기가 못 쓸 값을 보냈다는 사실을 영영 모른다. 훅은 서버 계약을 감추지 않는다.
+   */
+  it('⛔ 빈 문자열은 「생략」이 아니다 — 그대로 실어 보내고 서버가 막는다', async () => {
+    const { result } = renderHook(
+      () => ({ days: useSelfStudyDays(), record: useRecordSelfStudyDay() }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.days.data).toEqual([]));
+
+    await act(async () => result.current.record.mutate(''));
+
+    const post = calls.find((c) => c.method === 'POST' && c.path === '/api/me/study-days');
+    // 본문에 빈 문자열이 그대로 실린다 — `{}` 로 바뀌지 않는다.
+    expect(post?.body).toEqual({ date: '' });
+    // 그리고 아무 날도 안 남는다. 여기가 `{}` 였다면 오늘이 기록됐을 것이다.
+    await waitFor(() => expect(serverDays[SEOYEON] ?? []).toEqual([]));
+  });
+
+  /**
+   * ⛔ 흉내 서버의 테두리가 진짜 라우트보다 느슨하면 이 테스트 전체가 헛것이 된다.
+   * `Date.parse('2026-02-30')` 는 `NaN` 이 아니라 2026-03-02 로 정규화되므로, 정규식 +
+   * `Date.parse` 로 손수 적은 판정은 달력에 없는 날을 통과시킨다. 그래서 흉내 서버는
+   * 라우트가 쓰는 `isRecordableDay` 를 그대로 부른다 — 이 테스트가 그 사실을 지킨다.
+   */
+  it.each([
+    ['달력에 없는 날', '2026-02-30'],
+    ['13월', '2026-13-01'],
+    ['미래(KST)', '2026-09-04'],
+    ['2년보다 오래된 날', '2019-05-05'],
+    ['형식이 어긋난 값', '20260903'],
+  ])('%s 은 서버가 거절한다 — 한 날도 안 남는다', async (_label, date) => {
+    const { result } = renderHook(
+      () => ({ days: useSelfStudyDays(), record: useRecordSelfStudyDay() }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.days.data).toEqual([]));
+
+    await act(async () => result.current.record.mutate(date));
+
+    const post = calls.find((c) => c.method === 'POST' && c.path === '/api/me/study-days');
+    expect(post?.body).toEqual({ date });
+    await waitFor(() => expect(serverDays[SEOYEON] ?? []).toEqual([]));
   });
 
   /**

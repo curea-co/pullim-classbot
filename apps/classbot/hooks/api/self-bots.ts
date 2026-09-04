@@ -465,10 +465,16 @@ export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   const mutation = useMutation<RecordStudyDayResponse, ApiClientError, string | undefined>({
     // 날짜가 없어도 **본문은 보낸다**(`{}`) — 빈 본문은 서버가 JSON 을 파싱할 게 없어
     // 갈래가 하나 늘어난다. 「생략」의 뜻은 빈 객체로 싣는다.
+    //
+    // ⚠️ 생략인지 가르는 것은 **`=== undefined`** 다. truthy 로 가르면(`date ? ... : {}`)
+    // `mutate('')` 가 「빈 문자열을 보냈다」가 아니라 「날짜를 생략했다」로 바뀌어,
+    // 서버가 400 `INVALID_INPUT` 으로 막을 값이 **조용히 오늘 기록**이 된다. 이 훅은
+    // 서버 계약을 감추는 자리가 아니라 그대로 태우는 자리다 — 못 쓸 값이면 400 을 받아야
+    // 부르는 쪽이 자기가 뭘 보냈는지 안다. (계약 §2 의 테두리는 서버 한 곳에 있다.)
     mutationFn: (date) =>
       apiPost<RecordStudyDayResponse>(
         '/api/me/study-days',
-        (date ? { date } : {}) satisfies RecordStudyDayInput,
+        (date === undefined ? {} : { date }) satisfies RecordStudyDayInput,
       ),
     onSuccess: (res) => {
       // 담기와 같은 이유로 캐시를 먼저 늘린다 — 다시 읽어 오는 한 왕복 동안 연속일수가
