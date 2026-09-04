@@ -289,3 +289,85 @@ export interface PublishBotInput {
 export interface PublishBotResponse {
   bot: ClassBotRow;
 }
+
+/* ── 자기주도 ─────────────────────────────────────────── */
+
+/**
+ * `self_enrollments` 한 행 — **P1 에서 이미 고정된 모양 그대로**
+ * (`lib/store/self-learning.ts` 의 `SelfBotRow`). 서버가 소스가 되어도 훅이 필드를
+ * 다시 매핑하지 않도록 여기서도 같은 두 칸만 둔다.
+ */
+export interface SelfBotRow {
+  /** 마켓이 주는 **`class_bots.id`**. 은퇴한 mock 카탈로그 id(`ot_*`) 아님. */
+  botId: string;
+  /** 담은 시각(ISO 8601). */
+  addedAt: string;
+}
+
+/** `GET /api/me/self-bots` 응답 — 담은 순 오름차순. */
+export interface MySelfBotsResponse {
+  bots: SelfBotRow[];
+}
+
+/** `POST /api/me/self-bots` 본문. */
+export interface AddSelfBotInput {
+  botId: string;
+}
+
+/** `POST /api/me/self-bots` 응답 — 새로 담았으면 201, 이미 담았으면 200(둘 다 같은 몸통). */
+export interface AddSelfBotResponse {
+  bot: SelfBotRow;
+}
+
+/**
+ * `DELETE /api/me/self-bots/[botId]` 응답.
+ *
+ * `removed:false` 는 실패가 아니라 **없던 것을 뺐다**는 뜻이다 — 부르는 쪽의 의도
+ * (「이건 내 목록에 없어야 한다」)는 어느 쪽이든 이미 이뤄져 있다.
+ */
+export interface RemoveSelfBotResponse {
+  removed: boolean;
+}
+
+/**
+ * `GET /api/me/study-days` 응답 — `'YYYY-MM-DD'` **오름차순·중복 없음**.
+ *
+ * 연속일수는 여기 없다. 숫자를 저장하지도 내려보내지도 않고 **날짜에서 계산한다**
+ * (`deriveStreak`) — 카운터는 어느 날들로 그 수가 나왔는지 알 수 없어 검증할 수 없다.
+ */
+export interface MyStudyDaysResponse {
+  days: string[];
+}
+
+/** `POST /api/me/study-days` 본문 — 날짜를 생략하면 **서버의 오늘(KST)**. */
+export interface RecordStudyDayInput {
+  /** `'YYYY-MM-DD'`. 미래이거나 2년보다 오래됐거나 형식이 어긋나면 400. */
+  date?: string;
+}
+
+/**
+ * `POST /api/me/study-days` 응답 — 새로 기록했으면 201, 이미 있었으면 200(둘 다 같은 몸통).
+ * `date` 는 **서버가 실제로 저장한 날**이라, 생략해 보낸 쪽은 이 값으로 오늘을 안다.
+ */
+export interface RecordStudyDayResponse {
+  recorded: true;
+  date: string;
+}
+
+/** `POST /api/me/study-days/backfill` 본문 — 한 번에 400개까지(넘으면 400 `INVALID_INPUT`). */
+export interface BackfillStudyDaysInput {
+  days: string[];
+}
+
+/**
+ * `POST /api/me/study-days/backfill` 응답.
+ *
+ * `skipped` 는 **보낸 개수에서 새로 생긴 행을 뺀 나머지 전부**다 — 형식이 어긋난 값,
+ * 미래, 2년 이전, 요청 안의 중복, 그리고 이미 서버에 있던 날이 한데 들어간다.
+ * 이유를 갈라 세지 않는 것은 계약이 그렇게 정했기 때문이고(§2), 실제로 부르는 쪽은
+ * 「몇 개가 남았나」만 쓴다.
+ */
+export interface BackfillStudyDaysResponse {
+  inserted: number;
+  skipped: number;
+}
