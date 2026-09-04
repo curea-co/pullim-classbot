@@ -28,8 +28,18 @@
  *  - 401 을 「고장」이 아니라 **데모 상태**로 다루는 건 과제 폼에서 이미 내린 판단이다.
  *    새 규칙이 아니라 그 선례를 같은 이유로 따르는 것이다.
  *
- * 그래서 `useHasServerIdentity()`(`./self-server`)가 갈래를 정한다. **「간단히 하겠다」며 이 분기를 걷어
+ * 그래서 `useServerIdentityState()`(`./self-server`)가 갈래를 정한다. **「간단히 하겠다」며 이 분기를 걷어
  * 무조건 쿼리로 만들면 prod 데모가 조용히 깨진다.** 로컬에서는 개발 쿠키가 있어 티가 안 난다.
+ *
+ * ## ⛔ 갈래는 **셋**이다 — 「아직 모른다」를 데모로 접지 마라
+ * 세션 복원(`AuthProvider` 의 `isReady`)이 끝나기 전에는 로그인 사용자도 `user === null`
+ * 이다. 그 구간을 데모로 접으면 이 훅들이 로컬을 정본으로 삼는데, 그때 `useCurrentUserId()`
+ * 는 데모 폴백 `student_001` 이라 **로그인 사용자가 남의 담은 봇·공부한 날·연속일수를
+ * 잠깐 본다.** 그래서 `'pending'` 에서는 어느 쪽 데이터도 주지 않고 **로딩으로 그린다**
+ * (`isLoading: true` · 날짜는 빈 배열). 쓰기도 마찬가지로 아무 데도 쓰지 않는다.
+ *
+ * 이건 아래 `useRecordSelfStudyDay` 의 ⛔ ② 와 **같은 함정의 읽기 쪽**이다. 그쪽은 처음부터
+ * 막혀 있었고 이쪽만 뚫려 있었다 — 두 자리가 같은 판정을 쓰도록 tri-state 로 합쳤다.
  *
  * ## 서버 쪽 게이트는 **학생 전용**이다 — 이 훅을 학생 아닌 화면에 걸지 마라
  * 자기주도는 학생의 하위 컨텍스트라(dual-mode spec §1·§7) 라우트가 교사·학부모 신원을
@@ -68,7 +78,7 @@ import {
   isRetriableUploadError,
   retryUnlessGuarded,
   selfStudyDayKeys,
-  useHasServerIdentity,
+  useServerIdentityState,
   useServerStudyDays,
 } from '@/hooks/api/self-server';
 import type {
@@ -140,14 +150,15 @@ export interface SelfOptionalMutationResult<TArg> {
  */
 export function useMySelfBots(): SelfQueryResult<SelfBotRow[]> {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
 
   const query = useQuery<MySelfBotsResponse, ApiClientError>({
     queryKey: [...selfBotKeys.mine, userId],
     queryFn: () => apiGet<MySelfBotsResponse>('/api/me/self-bots'),
     // 신원이 없으면 **요청 자체를 내보내지 않는다**(머리주석 ⛔). 401 을 받아 화면에서
-    // 처리하는 게 아니라, 애초에 물어보지 않는다.
-    enabled: hasServerIdentity,
+    // 처리하는 게 아니라, 애초에 물어보지 않는다. 판정 대기 중에도 묻지 않는다 —
+    // 이 키의 `userId` 가 아직 데모 폴백이라 그 상태로 물으면 남의 키에 캐시된다.
+    enabled: identity === 'server',
     retry: retryUnlessGuarded,
   });
 
@@ -157,17 +168,23 @@ export function useMySelfBots(): SelfQueryResult<SelfBotRow[]> {
 
   // 서버 목록이 도착한 다음에야 「로컬에만 있는 행」을 알 수 있다 — 이관은 여기서 걸린다.
   // 데모에서는 올릴 곳이 없으니 `undefined` 를 넘겨 아무것도 하지 않게 둔다.
-  useLocalSelfBotUpload(userId, hasServerIdentity ? query.data?.bots : undefined);
+  useLocalSelfBotUpload(userId, identity === 'server' ? query.data?.bots : undefined);
 
   const serverBots = query.data?.bots;
   return useMemo(() => {
-    if (!hasServerIdentity) {
+    // ⛔ 판정 대기 — **어느 쪽도 보여 주지 않는다.** 여기서 로컬을 주면 세션 복원이
+    // 끝나기 전의 로그인 사용자에게 데모 통(`student_001`)의 목록이 스친다. 그 구간은
+    // 「담은 봇 없음」이 아니라 **아직 모름**이라, 로딩으로 그리는 것이 맞다.
+    if (identity === 'pending') {
+      return { data: undefined, isLoading: true, isError: false };
+    }
+    if (identity === 'demo') {
       // 하이드레이션 전에는 `undefined` 다. SSR·첫 페인트의 빈 목록을 「담은 봇 없음」으로
-      // 그리면 안 되기 때문 — 신원 판정이 갈리는 구간도 이 값이 함께 덮는다.
+      // 그리면 안 되기 때문이다.
       return { data: hydrated ? localBots : undefined, isLoading: !hydrated, isError: false };
     }
     return { data: serverBots, isLoading: query.isLoading, isError: query.isError };
-  }, [hasServerIdentity, hydrated, localBots, serverBots, query.isLoading, query.isError]);
+  }, [identity, hydrated, localBots, serverBots, query.isLoading, query.isError]);
 }
 
 /**
@@ -193,7 +210,7 @@ export function useIsSelfAdded(botId: string | null | undefined): boolean {
  */
 export function useAddSelfBot(): SelfMutationResult<string> {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
   const addLocalSelfBot = useSelfLearningStore((s) => s.addSelfBot);
   const queryClient = useQueryClient();
   const mutation = useMutation<AddSelfBotResponse, ApiClientError, string>({
@@ -221,19 +238,23 @@ export function useAddSelfBot(): SelfMutationResult<string> {
   const { mutate: runMutation } = mutation;
   const mutate = useCallback(
     (botId: string) => {
+      // ⛔ 판정 대기에는 **어느 쪽에도 쓰지 않는다.** 로컬에 쓰면 데모 통(`student_001`)에
+      // 남의 봇이 박히고, 그 찌꺼기를 다음 로드의 이관이 서버로 올린다. 이 구간의 버튼은
+      // `useMySelfBots().isLoading` 이라 스켈레톤이므로 실제로 눌릴 일도 없다.
+      if (identity === 'pending') return;
       // 데모는 서버에 가지 않고 예전 자리에 그대로 쓴다(머리주석 ⛔).
-      if (!hasServerIdentity) {
+      if (identity === 'demo') {
         addLocalSelfBot(userId, botId);
         return;
       }
       runMutation(botId);
     },
-    [hasServerIdentity, addLocalSelfBot, userId, runMutation],
+    [identity, addLocalSelfBot, userId, runMutation],
   );
   return useMemo(
     // 데모의 쓰기는 동기라 기다릴 구간이 없다.
-    () => ({ mutate, isPending: hasServerIdentity && mutation.isPending }),
-    [mutate, hasServerIdentity, mutation.isPending],
+    () => ({ mutate, isPending: identity === 'server' && mutation.isPending }),
+    [mutate, identity, mutation.isPending],
   );
 }
 
@@ -243,7 +264,7 @@ export function useAddSelfBot(): SelfMutationResult<string> {
  */
 export function useRemoveSelfBot(): SelfMutationResult<string> {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
   const removeLocalSelfBot = useSelfLearningStore((s) => s.removeSelfBot);
   const queryClient = useQueryClient();
   const mutation = useMutation<RemoveSelfBotResponse, ApiClientError, string>({
@@ -265,17 +286,19 @@ export function useRemoveSelfBot(): SelfMutationResult<string> {
   const { mutate: runMutation } = mutation; // 정체 고정 — 위 `useAddSelfBot` 주석 참조
   const mutate = useCallback(
     (botId: string) => {
-      if (!hasServerIdentity) {
+      // 담기와 같은 이유로 판정 대기에는 아무것도 하지 않는다(위 ⛔).
+      if (identity === 'pending') return;
+      if (identity === 'demo') {
         removeLocalSelfBot(userId, botId);
         return;
       }
       runMutation(botId);
     },
-    [hasServerIdentity, removeLocalSelfBot, userId, runMutation],
+    [identity, removeLocalSelfBot, userId, runMutation],
   );
   return useMemo(
-    () => ({ mutate, isPending: hasServerIdentity && mutation.isPending }),
-    [mutate, hasServerIdentity, mutation.isPending],
+    () => ({ mutate, isPending: identity === 'server' && mutation.isPending }),
+    [mutate, identity, mutation.isPending],
   );
 }
 
@@ -424,7 +447,7 @@ function useLocalSelfBotUpload(
  */
 export function useSelfStudyDays(): { data: string[] } {
   const userId = useCurrentUserId();
-  const { days: serverDays, hasServerIdentity } = useServerStudyDays();
+  const { days: serverDays, identity } = useServerStudyDays();
 
   // 데모 경로 — 신원이 있을 때는 이 구독이 값을 쓰지 않지만, 훅 순서를 지키려 항상 건다.
   const localDays = useSelfLearningStore(
@@ -436,8 +459,18 @@ export function useSelfStudyDays(): { data: string[] } {
   useStudyDayBackfill(serverDays);
 
   return useMemo(
-    () => ({ data: hasServerIdentity ? (serverDays ?? EMPTY_DAYS) : localDays }),
-    [hasServerIdentity, serverDays, localDays],
+    () => ({
+      data:
+        identity === 'server'
+          ? (serverDays ?? EMPTY_DAYS)
+          : // ⛔ 판정 대기에는 로컬을 주지 않는다 — 세션 복원 전의 로그인 사용자에게
+            // 데모 통(`student_001`)의 날짜가 스친다. 이 시그니처에는 로딩 칸이 없어
+            // 빈 배열로 답한다(연속일수 0 = 뱃지 숨김이라 틀린 수가 보이지 않는다).
+            identity === 'demo'
+            ? localDays
+            : EMPTY_DAYS,
+    }),
+    [identity, serverDays, localDays],
   );
 }
 
@@ -457,10 +490,17 @@ export function useSelfStudyDays(): { data: string[] } {
  */
 export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
   const recordLocalStudyDay = useSelfLearningStore((s) => s.recordStudyDay);
-  // 하이드레이션이 끝났는가 — 아래 ⛔ 「첫 페인트에서는 아무도 아니다」에서 쓴다.
-  const settled = useStoresHydrated(useSelfLearningStore);
+  const hydrated = useStoresHydrated(useSelfLearningStore);
+  /**
+   * 「어디에 쓸지 정해졌는가」 — 아래 ⛔ 「첫 페인트에서는 아무도 아니다」에서 쓴다.
+   *
+   * 조건이 **둘**이다. 스토어 rehydrate 만 보던 때는 세션 복원이 아직 안 끝난 로그인
+   * 사용자를 데모로 봐서, 그 사람의 기록이 데모 통(`student_001`)에 적혔다 —
+   * 두 대기 구간이 서로를 덮어 주지 않는다(localStorage 는 동기, 세션 복원은 왕복이다).
+   */
+  const settled = hydrated && identity !== 'pending';
   const queryClient = useQueryClient();
   const mutation = useMutation<RecordStudyDayResponse, ApiClientError, string | undefined>({
     // 날짜가 없어도 **본문은 보낸다**(`{}`) — 빈 본문은 서버가 JSON 을 파싱할 게 없어
@@ -519,7 +559,7 @@ export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   */
   const latest = useRef({
     userId,
-    hasServerIdentity,
+    identity,
     settled,
     recordLocalStudyDay,
     runMutation,
@@ -528,14 +568,14 @@ export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   const deferred = useRef<{ date?: string } | null>(null);
 
   useEffect(() => {
-    latest.current = { userId, hasServerIdentity, settled, recordLocalStudyDay, runMutation };
+    latest.current = { userId, identity, settled, recordLocalStudyDay, runMutation };
     if (!settled || !deferred.current) return;
     const { date } = deferred.current;
     deferred.current = null;
     // 이제 신원을 안다 — 그제야 어느 쪽으로 보낼지 정한다.
-    if (hasServerIdentity) runMutation(date);
+    if (identity === 'server') runMutation(date);
     else recordLocalStudyDay(userId, date);
-  }, [userId, hasServerIdentity, settled, recordLocalStudyDay, runMutation]);
+  }, [userId, identity, settled, recordLocalStudyDay, runMutation]);
 
   const mutate = useCallback((date?: string) => {
     const now = latest.current;
@@ -545,7 +585,7 @@ export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
       return;
     }
     // 데모는 서버에 가지 않고 예전 자리에 그대로 쓴다(머리주석 ⛔).
-    if (!now.hasServerIdentity) {
+    if (now.identity !== 'server') {
       now.recordLocalStudyDay(now.userId, date);
       return;
     }
@@ -553,8 +593,8 @@ export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {
   }, []);
   return useMemo(
     // 데모의 쓰기는 동기라 기다릴 구간이 없다.
-    () => ({ mutate, isPending: hasServerIdentity && mutation.isPending }),
-    [mutate, hasServerIdentity, mutation.isPending],
+    () => ({ mutate, isPending: identity === 'server' && mutation.isPending }),
+    [mutate, identity, mutation.isPending],
   );
 }
 

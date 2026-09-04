@@ -41,11 +41,20 @@ jest.mock('@/lib/current-user', () => ({
  */
 let devIdentityId = SEOYEON;
 let authUser: { id: string } | null = null;
+/**
+ * 초기 세션 복원이 끝났는가 — `AuthProvider` 의 `isReady`.
+ *
+ * 기본값은 **끝난 뒤**(마운트 직후의 현실)다. `false` 로 두면 **세션 복원 대기 구간**을
+ * 재현한다: 그때는 로그인한 사람도 `user === null` 이라, 이 값을 안 보면 그 구간이 통째로
+ * 「비로그인 데모」로 오판된다(→ 로그인 사용자가 데모 통 `student_001` 의 데이터를 본다).
+ * OS SSO 경로에서는 이 복원이 네트워크 왕복이라 한 페인트가 아니라 수백 ms 다.
+ */
+let authReady = true;
 jest.mock('@/lib/use-dev-identity', () => ({
   useDevIdentityId: () => devIdentityId,
 }));
 jest.mock('@/lib/auth/auth-context', () => ({
-  useAuth: () => ({ user: authUser }),
+  useAuth: () => ({ user: authUser, isReady: authReady }),
 }));
 
 /**
@@ -277,6 +286,7 @@ beforeEach(() => {
   currentUserId = SEOYEON;
   devIdentityId = SEOYEON;
   authUser = null;
+  authReady = true;
   storesHydrated = true;
   serverBots = {};
   serverDays = {};
@@ -881,6 +891,111 @@ describe('공부한 날 — 서버에서 읽고 쓴다', () => {
 
     await waitFor(() => expect(result.current.shell.count).toBe(2));
     expect(result.current.shell).toEqual(result.current.page);
+  });
+});
+
+/**
+ * ⛔ **세션 복원 대기 구간** — 「아직 모른다」를 「비로그인 데모」로 접으면 로그인 사용자가
+ * 남의 데이터를 본다.
+ *
+ * `AuthProvider` 는 `getSession()` 이 끝나야 `isReady` 를 세우고, 그동안 `user` 는 로그인한
+ * 사람도 `null` 이다. 그 구간에 로컬을 정본으로 삼으면 `useCurrentUserId()` 가 주는 데모
+ * 폴백(`student_001`)의 통을 읽게 된다 — 담은 봇도, 공부한 날도, 셸 뱃지의 연속일수도.
+ * OS SSO 경로에서는 그 복원이 네트워크 왕복이라 한 페인트가 아니라 수백 ms 다.
+ *
+ * 쓰기 쪽은 처음부터 막혀 있었고(`useRecordSelfStudyDay` 의 ⛔ ②) 읽기 쪽만 뚫려 있었다.
+ * 아래 넷이 그 구멍을 막아 둔다.
+ */
+describe('⛔ 세션 복원 대기 — 어느 쪽 데이터도 보여 주지 않는다', () => {
+  /** 로그인 사용자인데 아직 세션이 복원되지 않은 상태(쿠키도 없다 = prod 로그인 사용자). */
+  function goRestoring(): void {
+    devIdentityId = '';
+    authUser = null;
+    authReady = false;
+  }
+
+  it('담은 봇은 로딩이다 — 데모 통의 목록을 그리지 않는다', async () => {
+    // 데모 폴백 통에 남의 봇이 들어 있다. 복원 전에 이게 보이면 안 된다.
+    seedLocalBots(SEOYEON, [BOT_A, BOT_B]);
+    goRestoring();
+
+    const { result } = renderHook(() => useMySelfBots(), { wrapper: Wrapper });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.data).toBeUndefined();
+    // 아직 누구인지 모르므로 서버에도 묻지 않는다(이 키의 userId 가 데모 폴백이라
+    // 그 상태로 물으면 남의 키에 응답이 캐시된다).
+    expect(calls).toHaveLength(0);
+  });
+
+  it('공부한 날은 빈 배열이다 — 데모 통의 날짜를 그리지 않는다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01', '2026-09-02']);
+    goRestoring();
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+
+    expect(result.current.data).toEqual([]);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('셸 뱃지의 연속일수도 0 이다 — 0 이면 뱃지가 숨는다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-02', '2026-09-03']);
+    goRestoring();
+
+    const { result } = renderHook(() => ({ shell: useStreak(), page: useSelfStreak() }), {
+      wrapper: Wrapper,
+    });
+
+    // 데모로 접었다면 여기가 2 였다 — 로그인 사용자가 남의 연속일수를 보는 자리다.
+    expect(result.current.shell).toEqual({ count: 0, lastStudyDate: null });
+    expect(result.current.page).toEqual({ count: 0, lastStudyDate: null });
+  });
+
+  it('복원이 끝나면 그제야 갈린다 — 세션이 있으면 서버로 간다', async () => {
+    // 로컬은 비워 둔다 — 여기서 보려는 건 「갈래가 언제 정해지는가」 하나다.
+    // (로컬에 날짜가 있으면 복원 직후 백필이 그걸 올려서 목록이 합쳐진다 — 다른 테스트의 몫.)
+    goRestoring();
+    serverDays[SEOYEON] = ['2026-09-02', '2026-09-03'];
+
+    const { result, rerender } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    expect(result.current.data).toEqual([]);
+
+    // getSession() 이 끝나고 세션이 복원됐다.
+    authUser = { id: SEOYEON };
+    authReady = true;
+    rerender();
+
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-02', '2026-09-03']));
+  });
+
+  it('복원이 끝났는데 세션이 없으면 그때 데모로 굳는다 — 로컬이 정본이다', async () => {
+    seedLocalDays(SEOYEON, ['2026-09-01']);
+    goRestoring();
+
+    const { result, rerender } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+    expect(result.current.data).toEqual([]);
+
+    authReady = true; // 복원 끝 · 세션 없음 = 진짜 익명
+    rerender();
+
+    await waitFor(() => expect(result.current.data).toEqual(['2026-09-01']));
+    expect(calls).toHaveLength(0); // 데모는 끝까지 서버를 부르지 않는다
+  });
+
+  it('복원 대기 중의 쓰기는 어느 쪽에도 남지 않는다 — 데모 통을 더럽히지 않는다', async () => {
+    goRestoring();
+
+    const { result } = renderHook(
+      () => ({ add: useAddSelfBot(), record: useRecordSelfStudyDay() }),
+      { wrapper: Wrapper },
+    );
+
+    act(() => result.current.add.mutate(BOT_A));
+    act(() => result.current.record.mutate('2026-09-02'));
+
+    // 서버에도 안 가고, 데모 폴백 통에도 안 적힌다.
+    expect(calls).toHaveLength(0);
+    expect(useSelfLearningStore.getState().byUser[SEOYEON]).toBeUndefined();
   });
 });
 

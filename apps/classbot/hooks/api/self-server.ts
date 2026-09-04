@@ -51,6 +51,9 @@ export function isRetriableUploadError(error: unknown): boolean {
   return error.status >= 500 || error.status === 401;
 }
 
+/** 지금 신원이 어느 갈래인가 — 「아직 모른다」가 독립된 값이다(아래 ⛔). */
+export type ServerIdentityState = 'pending' | 'server' | 'demo';
+
 /**
  * 서버가 **내 명의를 인정해 주는 상태인가** — 서버로 갈지 데모로 갈지 가르는 값.
  *
@@ -69,17 +72,38 @@ export function isRetriableUploadError(error: unknown): boolean {
  * 호스트로 먼저 거른다). 그래서 prod 에 낡은 쿠키가 남아 있어도 데모로 떨어진다 —
  * 서버가 그 쿠키를 무시하는 것과 같은 판정이다.
  *
- * SSR 스냅샷도 빈 문자열이라 첫 페인트는 데모 쪽이고 하이드레이션 직후 갈린다.
+ * ## ⛔ 답이 **셋**인 이유 — 「아직 모른다」를 「비로그인」으로 세면 안 된다
+ * `AuthProvider` 는 마운트 뒤 `provider.getSession()` 이 끝나야 `isReady` 를 세운다
+ * (`lib/auth/auth-context.tsx`). 그동안 `user` 는 `null` 이다 — **로그인한 사람도** 그렇다.
+ * OS SSO 경로에서는 그 복원이 네트워크 왕복이라 한 페인트가 아니라 수백 ms 일 수 있다.
  *
- * (P3 가 `hooks/api/self-bots.ts` 안에 두었던 함수를 **글자 그대로** 옮겨 온 것이다.
- * 옮긴 이유는 위 머리주석 — 스토어도 같은 판정이 필요해졌는데 그 파일을 import 할 수 없어서다.
+ * 이 구간을 `false`(데모)로 접으면 읽기 훅들이 로컬을 정본으로 삼는데, 그때
+ * `useCurrentUserId()` 는 데모 폴백 `student_001` 이다(`lib/current-user.ts`). 결과는
+ * **로그인 사용자가 남의 담은 봇·공부한 날·연속일수를 잠깐 보는 것**이다. 쓰기 쪽은
+ * 같은 함정을 이미 따로 막고 있었고(`useRecordSelfStudyDay` 의 ⛔ ②), 읽기 쪽에는
+ * 그 방어가 없었다. 그래서 판정을 boolean 이 아니라 **셋**으로 돌려준다:
+ *
+ *  - `'server'` — 서버에 물어봐도 되는 명의다(JWT 세션이거나 개발 신원 쿠키).
+ *  - `'demo'`   — 정말 아무도 아니다(복원이 끝났는데 세션이 없다). 정본은 localStorage.
+ *  - `'pending'`— **아직 모른다.** 어느 쪽 데이터도 보여 주지 않는다(로딩으로 그린다).
+ *
+ * 개발 신원 쿠키는 `isReady` 를 기다리지 않는다 — 그건 세션이 아니라 문서 쿠키라
+ * 하이드레이션 직후 그 자리에서 확정된다. SSR 스냅샷에서는 빈 문자열이지만, 그 순간은
+ * `isReady` 도 아직 false 라 `'pending'` 으로 덮인다.
+ *
+ * (P3 가 `hooks/api/self-bots.ts` 안에 두었던 함수를 옮겨 온 것이다. 옮긴 이유는 위
+ * 머리주석 — 스토어도 같은 판정이 필요해졌는데 그 파일을 import 할 수 없어서다.
  * 더 나아가 `lib/current-user.ts` 로 올리는 것은 공유 파일이라 별건 승인 사항이라 하지 않았다.)
- * @returns 서버에 물어봐도 되는 신원이면 true
+ * @returns 서버·데모·판정 대기 셋 중 하나
  */
-export function useHasServerIdentity(): boolean {
-  const { user } = useAuth();
+export function useServerIdentityState(): ServerIdentityState {
+  const { user, isReady } = useAuth();
   const devIdentityId = useDevIdentityId();
-  return Boolean(user) || Boolean(devIdentityId);
+  // 개발 신원 쿠키는 세션 복원과 무관하게 그 자리에서 확정된다.
+  if (devIdentityId) return 'server';
+  if (user) return 'server';
+  // 복원이 끝났는데도 없으면 그때서야 「아무도 아니다」로 굳힌다.
+  return isReady ? 'demo' : 'pending';
 }
 
 /**
@@ -92,10 +116,13 @@ export const selfStudyDayKeys = {
 
 /** 서버가 아는 공부한 날 — 로컬 갈래는 부르는 쪽이 붙인다. */
 export interface ServerStudyDays {
-  /** `'YYYY-MM-DD'` 오름차순. 아직 안 왔거나 신원이 없으면 `undefined`. */
+  /** `'YYYY-MM-DD'` 오름차순. 아직 안 왔거나 명의가 아니면 `undefined`. */
   days: string[] | undefined;
-  /** 서버에 물어볼 수 있는 신원인가 — `days` 가 `undefined` 인 두 뜻을 가른다. */
-  hasServerIdentity: boolean;
+  /**
+   * 지금 신원이 어느 갈래인가 — `days` 가 `undefined` 인 **세** 뜻을 가른다
+   * (아직 안 옴 / 데모라 갈 곳이 없음 / 판정 자체가 아직 안 섬).
+   */
+  identity: ServerIdentityState;
 }
 
 /**
@@ -111,19 +138,21 @@ export interface ServerStudyDays {
  */
 export function useServerStudyDays(): ServerStudyDays {
   const userId = useCurrentUserId();
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
 
   const query = useQuery<MyStudyDaysResponse, ApiClientError>({
+    // 판정 대기 중에는 묻지 않는다 — 이 키의 `userId` 가 아직 데모 폴백이라, 그 상태로
+    // 물으면 **남의 키에 내 응답이 캐시된다.**
     queryKey: [...selfStudyDayKeys.mine, userId],
     queryFn: () => apiGet<MyStudyDaysResponse>('/api/me/study-days'),
-    enabled: hasServerIdentity,
+    enabled: identity === 'server',
     retry: retryUnlessGuarded,
   });
 
   const days = query.data?.days;
   return useMemo(
-    // 신원이 없으면 캐시에 남아 있던 값이라도 주지 않는다 — 그 상태의 정본은 로컬이다.
-    () => ({ days: hasServerIdentity ? days : undefined, hasServerIdentity }),
-    [days, hasServerIdentity],
+    // 명의가 아니면 캐시에 남아 있던 값이라도 주지 않는다 — 그 상태의 정본은 여기가 아니다.
+    () => ({ days: identity === 'server' ? days : undefined, identity }),
+    [days, identity],
   );
 }

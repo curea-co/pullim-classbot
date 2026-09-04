@@ -647,14 +647,21 @@ export function useIsUnitDone(tutorId: string, unitId: string): boolean {
  */
 export function useStreak(): Streak {
   const userId = useCurrentUserId();
-  const { days: serverDays, hasServerIdentity } = useServerStudyDays();
+  const { days: serverDays, identity } = useServerStudyDays();
   const localDays = useSelfLearningStore(
     (s) => s.byUser[userId]?.studyDays ?? EMPTY_RECORD.studyDays,
   );
   // 학생 화면 전부에 떠 있는 유일한 소비자다 — 백필이 여기서 돌아야 로컬 기록이 올라간다.
   useStudyDayBackfill(serverDays);
-  const studyDays = hasServerIdentity
-    ? (serverDays ?? EMPTY_RECORD.studyDays)
-    : localDays;
+  // ⛔ 판정 대기에는 로컬을 읽지 않는다. 이 뱃지는 **학생 화면 전부에 떠 있어서**, 여기서
+  // 로컬로 떨어지면 세션 복원 전의 로그인 사용자가 데모 통(`student_001`)의 연속일수를
+  // 어느 화면에서든 잠깐 본다. 빈 배열이면 0 이고 0 이면 뱃지가 숨으므로, 틀린 수가
+  // 보이는 대신 한 박자 늦게 나타난다(이 시그니처에는 로딩 칸이 없다 — 위 주석).
+  const studyDays =
+    identity === 'server'
+      ? (serverDays ?? EMPTY_RECORD.studyDays)
+      : identity === 'demo'
+        ? localDays
+        : EMPTY_RECORD.studyDays;
   return useMemo(() => deriveStreak(studyDays), [studyDays]);
 }
