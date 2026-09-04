@@ -2,7 +2,11 @@
 
 **Date:** 2026-06-23
 **Status:** approved (brainstorming) → ready for writing-plans
-**Scope:** new product capability inside the existing single classbot app. FE-only, mock-first (BE is a separate later track per repo rule).
+**Scope:** new product capability inside the existing single classbot app.
+**Scope 이력** — 이 문서를 쓸 때(2026-06-23)의 전제는 **FE-only, mock-first**(BE 는 나중 트랙)였고,
+아래 §3~§6 은 그 전제 위에서 쓰였다. **2026-09-04 그 전제를 푼다** — 스택 PR #266~#271 이
+BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇이 그대로인지는 바로 아래 개정
+박스가 진다. 이 문서를 읽는 사람은 **머리의 옛 전제가 아니라 그 박스를 기준으로** 읽는다.
 
 > **[2026-09-04 개정] 「FE-only · mock-first」 보류를 푸는 것이 정해졌다 — 인도는 `[예정]` 이다.**
 > 아래 §6 의 Out(deferred) 에 있던 **BE persistence + real auth-scoped self-enrollment** 와
