@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMyConsents, type ConsentItem } from '@/hooks/api/consents';
-import { useHasServerIdentity } from '@/hooks/api/self-server';
+import { useServerIdentityState } from '@/hooks/api/self-server';
 import { ApiClientError } from '@/lib/api/client-fetch';
 import { NEVER_SHARED, SHAREABLE_ITEMS } from './catalog';
 import { ShareItem } from './share-item';
@@ -49,12 +49,22 @@ const RELATION_LABEL: Record<'mother' | 'father' | 'guardian', string> = {
 };
 
 export default function SharePage() {
-  const hasServerIdentity = useHasServerIdentity();
+  const identity = useServerIdentityState();
   const consents = useMyConsents();
 
-  // 서버가 401 을 주는 상태는 고장이 아니라 「아직 내 명의가 아님」이다 — 신원 없음과 같이 그린다.
+  /*
+    서버가 401 을 주는 상태는 고장이 아니라 「아직 내 명의가 아님」이다 — 신원 없음과 같이 그린다.
+
+    ## ⛔ `'pending'` 을 여기에 **넣지 마라**
+    판정은 셋이고(`ServerIdentityState`), 「비로그인」으로 굳은 것은 `'demo'` 하나뿐이다.
+    세션 복원 중(`'pending'`)을 여기 넣으면 로그인한 학생이 복원되는 수백 ms 동안
+    **「지금은 공유를 켤 수 없어요」를 읽는다** — 이 화면이 「모를 때는 모른다고만 적는다」로
+    정해 둔 바로 그 자리에서, 모르는 것을 「아니다」로 단정하는 셈이다.
+    `'pending'` 은 아래 `consents.isPending` 갈래(스켈레톤)로 떨어진다 — 훅이 그동안
+    요청을 내보내지 않으므로 쿼리가 대기 상태로 남는다(`hooks/api/consents.ts`).
+  */
   const isSignedOut =
-    !hasServerIdentity ||
+    identity === 'demo' ||
     (consents.error instanceof ApiClientError && consents.error.status === 401);
 
   /*
@@ -102,6 +112,30 @@ export default function SharePage() {
       : SHAREABLE_ITEMS.filter((item) => elsewhere.has(item.type));
   const hasElsewhere = SHAREABLE_ITEMS.some((item) => elsewhere.has(item.type));
 
+  /*
+    **이 화면이 못 보는 동의도 살아 있을 수 있다.**
+
+    `GET /api/me/consents` 는 타입으로 거르지 않는다(계약 `MyConsentRow`). 교사·기관
+    승인 흐름이 넣은 동의(주간 리포트 등)는 여기 목록에 그려지지 않고 여기서 끌 수도
+    없는데, 그렇다고 **없는 것은 아니다.** 그래서 「아무에게도 안 보이는 상태예요」처럼
+    화면 밖까지 단정하는 문구는 이 값이 참일 때 쓰면 안 된다 — 세는 범위와 말하는 범위를
+    같게 두는 규칙(`useShareSummary()` 와 같은 규칙)이 여기에도 걸린다.
+  */
+  const hasAnyLiving = (consents.data?.consents.length ?? 0) > 0;
+
+  /**
+   * 이어진 보호자가 없을 때 뭐라고 적을 것인가 — 아는 만큼만.
+   *
+   * 세 갈래인 이유는 **거짓이 되는 지점이 셋**이기 때문이다: 여기서 끌 수 있는 것이
+   * 남아 있나 · 이 화면 밖의 동의가 살아 있나 · 정말 아무것도 없나.
+   */
+  const noParentDescription = hasElsewhere
+    ? '연결된 분이 있어야 새로 켤 수 있어요. 그런데 예전에 켠 공유가 아직 남아 있어요 — 아래에서 끌 수 있어요.'
+    : hasAnyLiving
+      ? // 화면 밖 동의만 남은 상태. 「안 보인다」고 못 적는다 — 실제로 열려 있다.
+        '연결된 분이 있어야 여기서 공유를 켤 수 있어요. 여기서 정하는 공유는 지금 켜 둔 게 없어요.'
+      : '연결된 분이 있어야 공유를 켤 수 있어요. 지금은 내 기록이 아무에게도 안 보이는 상태예요.';
+
   return (
     <div className="space-y-5">
       <BackLink href="/classbot/me">내 정보</BackLink>
@@ -143,13 +177,9 @@ export default function SharePage() {
                 <EmptyState
                   icon={UserRoundX}
                   title="아직 연결된 보호자가 없어요"
-                  /* 「아무에게도 안 보인다」고 단정하지 않는다 — 예전에 켠 것이 아직
-                     살아 있으면 사실이 아니다. 그 경우는 아래 목록이 이어서 말한다. */
-                  description={
-                    hasElsewhere
-                      ? '연결된 분이 있어야 새로 켤 수 있어요. 그런데 예전에 켠 공유가 아직 남아 있어요 — 아래에서 끌 수 있어요.'
-                      : '연결된 분이 있어야 공유를 켤 수 있어요. 지금은 내 기록이 아무에게도 안 보이는 상태예요.'
-                  }
+                  /* 「아무에게도 안 보인다」고 단정하지 않는다 — 예전에 켠 것이나
+                     이 화면 밖의 동의가 살아 있으면 사실이 아니다(위 `noParentDescription`). */
+                  description={noParentDescription}
                 />
               </div>
             ) : (

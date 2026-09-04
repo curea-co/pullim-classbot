@@ -12,7 +12,7 @@
  * 초록·앰버 없음, 색만으로 뜻을 전하지 않게 칸마다 글자가 함께 붙는다.
  */
 
-import type { AssignmentRow } from '@/hooks/api/types';
+import type { AssignmentRow, ParentChildItem } from '@/hooks/api/types';
 
 /** 학부모 시점 과제 상태 넷 — 서로 배타다. */
 export type ChildAssignmentStatus = 'todo' | 'doing' | 'done' | 'late';
@@ -103,6 +103,36 @@ export function countChildAssignments(rows: AssignmentRow[]): {
     if (status === 'late') late += 1;
   }
   return { remaining, done, late };
+}
+
+/**
+ * 이 자녀에 대해 **숫자를 적어도 되는가** — 반·과제 KPI 를 그릴지 가르는 하나뿐인 판정.
+ *
+ * ## 왜 「0개」를 그냥 그리면 안 되나
+ *
+ * 반·과제가 자녀 동의 뒤로 옮겨 간 뒤(계약 §2), `GET /api/parent/children` 은 **동의하지
+ * 않은 자녀에게 빈 배열**을 준다. 그 배열을 그대로 세면 화면은 `수업방 0개 · 남은 과제
+ * 0개` 라고 **확정해서** 적는데, 실제로는 반도 과제도 있고 다만 안 보여주기로 한 것이다.
+ * 숨긴 것을 「없음」으로 바꿔 말하는 자리라, 부모는 있지도 않은 사실을 읽게 된다.
+ *
+ * ## 그렇다고 「알 수 없음」이라고 적을 수도 없다
+ *
+ * 미동의만 「알 수 없음」으로 적으면 **동의했는데 아직 반이 없는 아이**와 갈린다.
+ * 갈리는 순간 그 차이가 곧 동의 여부가 되어, 부모가 아이의 동의를 화면에서 읽어 낸다 —
+ * 자기주도 화면이 `hasSomethingToShow` 로 막아 둔 것과 **똑같은 누출**이다
+ * (`./self-study/self-study-visibility.ts` 머리주석의 표).
+ *
+ * 그래서 답은 하나뿐이다: **아무것도 안 온 자녀에게는 숫자를 아예 안 적는다.** 미동의도
+ * 무활동도 같은 자리(숫자 없는 카드)로 접히고, 접힌 안에서는 둘이 갈리지 않는다.
+ * 숫자가 있는 카드는 「보여주기로 했고 활동도 있다」 하나뿐이라 언제나 참이다.
+ *
+ * ⛔ **되살리고 싶어질 것이다.** 「0개라도 칸은 있어야 정렬이 예쁘다」는 이유로 KPI 를
+ * 되돌리는 것은 위 두 문제를 동시에 되살리는 일이다.
+ * @param child - 응답에 실려 온 자녀
+ * @returns 반이든 과제든 하나라도 왔으면 true
+ */
+export function hasSchoolWorkToShow(child: ParentChildItem): boolean {
+  return child.classrooms.length > 0 || child.assignments.length > 0;
 }
 
 /** 나와 자녀의 관계 — API 가 주는 세 값. */
