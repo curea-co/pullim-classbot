@@ -198,7 +198,11 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
     참여 코드가 생기면서 **학생이 뒤에 들어오는 반**이 정상 상태가 됐다. 빈 방 발사를 막으면
     교사는 반을 열어 놓고 학생이 들어올 때까지 아무것도 낼 수 없다.
 
-    유지하기로 **결정된 사항**이고(2026-09-04), spec 14 갱신은 별건 문서 작업으로 남아 있다.
+    유지하기로 **결정된 사항**이고(2026-09-04), spec 14 §5.1 을 이 동작에 맞추는 문서 갱신은
+    **PR #272** 가 따로 담고 있다 — 이 리포는 FE/BE·문서를 한 PR 에 섞지 않으므로(루트 CLAUDE.md
+    최상위 규칙) 문서와 코드가 각각 다른 PR 로 가는 게 정상 경로다. 그 PR 이 dev 에 들어가면
+    base 스냅샷의 §5.1 이 이 조건과 같아진다.
+
     막는 쪽으로 뒤집으려면 `students.length === 0` 항을 빼면 된다.
   */
   const targetValid = !rosterUnknown && (students.length === 0 || selectedIds.length >= 1);

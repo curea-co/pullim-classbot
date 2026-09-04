@@ -4,7 +4,8 @@ import { use } from 'react';
 import { notFound } from 'next/navigation';
 import { classBots } from '@/lib/mock';
 import { readRowToAssignment } from '@/lib/assignment-demo';
-import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
+import { useAssignmentStore, useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useVisibleAssignment } from '../../use-assignment-reads';
 import { SolveWorkspace } from './solve-workspace';
 
@@ -30,12 +31,27 @@ export default function SolvePage({
   */
   const api = useVisibleAssignment(id);
   const local = useAssignmentLookup(id);
+  // 목록 화면(`../../page.tsx`)이 스켈레톤을 유지하는 것과 같은 신호를 쓴다.
+  const demoHydrated = useStoresHydrated(useAssignmentStore);
   const a = local ?? (api.data ? readRowToAssignment(api.data) : undefined);
 
   if (!a) {
-    // 아직 모른다 — 서버 조회가 도는 동안, 그리고 데모 스토어가 하이드레이션되는 동안.
-    // 여기서 404 를 그리면 새로고침·딥링크가 곧 도착할 과제를 「없음」으로 단정한다.
-    if (api.isLoading || id.startsWith('as_user_')) {
+    /*
+      기다리는 근거는 **읽을 곳을 다 읽었는가**다 — id 의 모양이 아니다.
+
+      한때 여기서 `id.startsWith('as_user_')` 로 기다렸다. 그 접두사는 로컬에서 발사된 과제의
+      id 라 「곧 스토어에 나타난다」는 뜻으로 읽었는데, 정작 로컬에 **없는** 링크가 바로 그
+      모양이다 — 다른 브라우저에서 연 링크, localStorage 를 지운 뒤의 링크, 오래된 링크.
+      그 값들은 영영 채워지지 않으므로 404 로 정리되지 못하고 스피너에 갇혔다.
+
+      그래서 두 출처가 각각 끝났는지만 본다:
+        ① 서버 단건 조회가 도는 중(`api.isLoading`) — 곧 도착할 수 있다.
+        ② 데모 스토어의 rehydrate 전 — 서버 렌더와 클라이언트 첫 페인트가 여기 해당한다.
+           이 구간을 안 기다리면 새로고침·딥링크가 로컬에 **있는** 과제를 「없음」으로 단정한다.
+
+      둘 다 끝났는데 없으면 진짜 없는 것이다.
+    */
+    if (api.isLoading || !demoHydrated) {
       return (
         <div className="flex min-h-[40vh] items-center justify-center">
           <p className="text-pullim-slate-500 text-sm">과제를 불러오는 중…</p>
