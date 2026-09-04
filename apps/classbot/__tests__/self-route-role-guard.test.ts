@@ -136,8 +136,8 @@ describe.each(SELF_ROUTES)('%s — 학생 본인 표면', (_name, call) => {
  * 이 두 경로를 학생·교사가 **시점으로 나눠 쓰는 표면**으로 정의한다. 가드가 역할을 학생으로
  * 못박으면 그 계약이 사라지므로, 시점을 읽고 **그 시점의 주인인지**만 본다.
  *
- * 교사 시점의 몸통은 아직 없다. 그래서 403(권한 없음)이 아니라 501(아직 없음)이다 —
- * 그 둘을 뭉개면 교사 화면이 붙는 날 무엇이 막힌 것인지 알 수 없다.
+ * 교사 시점의 **응답**은 이 PR 이 건드리지 않는다 — 몸통(owned 봇 · 출제한 과제)을 채우는
+ * 건 교사 화면 PR 이다. 여기서 못박는 건 「교사가 교사 시점에서 가드에 막히지 않는다」까지다.
  */
 const SHARED_LISTS: [name: string, param: string, call: (url: string) => Promise<Response>][] = [
   ['GET /api/bots', 'role', (url) => botsGET(new Request(url))],
@@ -155,12 +155,11 @@ describe.each(SHARED_LISTS)('%s — 학생·교사 공용 목록', (name, param,
       isIdentified: true,
     });
 
-  it('교사가 교사 시점을 부르면 403 이 아니라 501 — 계약은 살아 있다', async () => {
+  // 계약이 살아 있다는 뜻은 **가드가 막지 않는다**는 것이다. 그 뒤 응답은 이 PR 밖이다.
+  it('교사가 교사 시점을 부르면 가드에 막히지 않는다 — 계약은 살아 있다', async () => {
     asRole('teacher');
-    const res = await call(`${base}?${param}=teacher`);
-    expect(res.status).toBe(501);
-    expect(await res.json()).toMatchObject({ code: 'NOT_IMPLEMENTED' });
-    expect(dbTouched).not.toHaveBeenCalled();
+    await call(`${base}?${param}=teacher`).catch(() => undefined);
+    expect(dbTouched).toHaveBeenCalled();
   });
 
   it('학생이 교사 시점을 부르면 403 — 남의 시점은 못 받는다', async () => {

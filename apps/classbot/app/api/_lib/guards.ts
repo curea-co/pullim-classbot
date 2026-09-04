@@ -80,6 +80,9 @@ export type AudienceParam = 'role' | 'audience';
  * 파라미터를 생략하면 **학생 시점**이다 — 지금 이 두 라우트를 부르는 화면이 전부 학생이고
  * 종전 동작이 그것이라, 생략 호출의 뜻을 이 PR 이 바꾸지 않는다.
  *
+ * **이 가드는 시점을 닫지 않는다.** 통과한 뒤 무엇을 돌려줄지는 라우트가 정하고, 교사 시점의
+ * 몸통은 교사 화면 PR 이 채운다. 여기서 하는 일은 **남의 시점을 막는 것**뿐이다.
+ *
  * @param req - 요청(쿼리에서 시점을 읽는다)
  * @param param - 시점 파라미터 이름
  * @param actor - 요청 주체
@@ -108,18 +111,4 @@ export function gateAudience(
     `${audience === 'teacher' ? '교사' : '학생'}만 쓸 수 있는 기능입니다.`,
   );
   return denied ? { deny: denied } : { deny: null, audience };
-}
-
-/**
- * 계약에는 있으나 이 라우트가 **아직 구현하지 않은** 시점.
- *
- * 빈 목록 200 으로 답하지 않는다 — 「네 것이 없다」와 「아직 안 만들었다」는 다른 말이고,
- * 전자로 답하면 교사 화면이 붙는 날까지 그 차이가 숨는다.
- * @param what - 무엇이 아직 없는지(응답 본문에 그대로 실린다)
- */
-export function notImplementedAudience(what: string): NextResponse {
-  return NextResponse.json(
-    { message: `${what}은 아직 준비 중입니다.`, code: 'NOT_IMPLEMENTED' },
-    { status: 501 },
-  );
 }
