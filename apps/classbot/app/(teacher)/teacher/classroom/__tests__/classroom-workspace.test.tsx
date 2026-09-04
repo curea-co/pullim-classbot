@@ -8,6 +8,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ClassroomWorkspace } from '../classroom-workspace';
+import { ApiClientError } from '@/lib/api/client-fetch';
 import type { TeacherClassroomItem } from '@/hooks/api/types';
 
 const CLASSROOM_ID = 'cr_1';
@@ -34,12 +35,14 @@ function room(joinCode: string | null): TeacherClassroomItem {
 }
 
 let classrooms: TeacherClassroomItem[] = [];
+/** 목록 조회 상태 — 데모(401)·장애(5xx)를 세우려면 갈아 끼울 수 있어야 한다. */
+let queryError: unknown = null;
 jest.mock('@/hooks/api/classroom', () => ({
   useTeacherClassrooms: () => ({
     data: { classrooms },
     isPending: false,
-    isError: false,
-    error: null,
+    isError: queryError !== null,
+    error: queryError,
   }),
 }));
 
@@ -74,6 +77,7 @@ jest.mock('../publish-bot-block', () => ({ PublishBotBlock: () => null }));
 
 beforeEach(() => {
   classrooms = [];
+  queryError = null;
 });
 
 /** 반을 만든 직후 상태로 만든다 — 배너가 떠 있다. */
@@ -81,6 +85,28 @@ function createRoom() {
   render(<ClassroomWorkspace />);
   fireEvent.click(screen.getByTestId('fake-create'));
 }
+
+/*
+  prod 는 공개 화면이라 방문자에게 세션이 없고 prod-verify 도 쿠키 없이 이 화면을 친다.
+  401 을 빨간 카드로 그리면 데모로 들어온 사람에게 이 화면은 언제나 깨져 있다.
+*/
+describe('비로그인(401)', () => {
+  it('고장이 아니라 로그인 안내로 그린다', () => {
+    queryError = new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED');
+    render(<ClassroomWorkspace />);
+
+    expect(screen.getByText('로그인이 필요해요')).toBeInTheDocument();
+    expect(screen.queryByTestId('classroom-error')).not.toBeInTheDocument();
+  });
+
+  it('진짜 장애(5xx)는 그대로 오류로 그린다 — 401 과 한 덩어리로 묶지 않는다', () => {
+    queryError = new ApiClientError('서버 오류', 500, 'INTERNAL');
+    render(<ClassroomWorkspace />);
+
+    expect(screen.getByTestId('classroom-error')).toBeInTheDocument();
+    expect(screen.queryByText('로그인이 필요해요')).not.toBeInTheDocument();
+  });
+});
 
 describe('갓 만든 수업방 배너', () => {
   it('코드를 다시 내면 배너도 새 코드를 보여 준다 — 스냅샷에 머무르지 않는다', () => {
