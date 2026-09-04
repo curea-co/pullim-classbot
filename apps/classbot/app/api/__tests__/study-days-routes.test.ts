@@ -91,6 +91,15 @@ const SECRET = 'test-jwt-secret';
 
 beforeAll(() => {
   process.env.JWT_SECRET = SECRET;
+  // 위 FIXED_NOW 주석 — 라우트의 `kstToday()` 와 아래 상수가 같은 하루를 가리키게 한다.
+  jest.useFakeTimers({
+    now: FIXED_NOW,
+    doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
 });
 
 beforeEach(() => {
@@ -176,9 +185,27 @@ function shiftDay(key: string, delta: number): string {
   return `${at.getUTCFullYear()}-${mm}-${dd}`;
 }
 
-const TODAY = kstToday();
-const TOMORROW = shiftDay(TODAY, 1);
-const YESTERDAY = shiftDay(TODAY, -1);
+/**
+ * 이 파일이 도는 동안의 **고정된 순간** — 14:00 KST 라 자정에서 양쪽으로 멀다.
+ *
+ * ## ⛔ 「오늘」을 실제 시계에서 뽑지 마라 — 자정에 걸치면 플래키다
+ * 예전에는 모듈 평가 시점에 `kstToday()` 를 한 번 불러 `TODAY` 를 굳혔다. 그런데 라우트는
+ * **요청 시점**에 자기 `kstToday()` 를 부른다. 두 시점 사이에 KST 자정이 끼면 라우트는 새
+ * 날짜를 쓰고 기대값은 옛 날짜를 쓴다 — 파일이 2026-09-04 23:59 KST 에 로드되고 기록이
+ * 00:01 KST 에 일어나는 식이다. 하루에 한 번, 그것도 CI 가 그 순간에 걸릴 때만 깨지므로
+ * **재현이 안 되는 실패**가 된다.
+ *
+ * 그래서 시계를 고정한다. 그러면 아래 날짜 상수를 **글자 그대로** 적을 수 있고, 라우트가
+ * 부르는 `kstToday()` 도 같은 값을 준다 — 두 「오늘」이 어긋날 창 자체가 없어진다.
+ *
+ * `doNotFake` 로 마이크로태스크·틱 계열은 진짜를 쓴다. 여기서 멈춰 세우려는 것은 **시계**
+ * 하나이고, 그걸 넘어 스케줄러까지 가짜로 바꾸면 라우트의 `await` 가 진행되지 않을 수 있다.
+ */
+const FIXED_NOW = new Date('2026-09-03T05:00:00Z'); // 2026-09-03 14:00 KST
+
+const TODAY = '2026-09-03';
+const TOMORROW = '2026-09-04';
+const YESTERDAY = '2026-09-02';
 
 describe('「오늘」은 KST 다 — 서버 TZ 가 아니라', () => {
   it.each([
@@ -191,6 +218,17 @@ describe('「오늘」은 KST 다 — 서버 TZ 가 아니라', () => {
     ['00:00 KST', '2026-09-03T15:00:00Z', '2026-09-04'],
   ])('%s → %s', (_label, instant, expected) => {
     expect(kstToday(new Date(instant))).toBe(expected);
+  });
+
+  /**
+   * ⛔ 이 파일의 시계가 고정돼 있다는 것 자체를 못박는다. 누가 `jest.useFakeTimers` 를
+   * 걷으면 여기가 먼저 깨진다 — 그러지 않으면 「자정에 걸친 날만 깨지는」 플래키가
+   * 조용히 돌아온다(FIXED_NOW 주석 참조).
+   */
+  it('⛔ 시계가 고정돼 있다 — 인자 없는 kstToday() 도 이 파일의 오늘이다', () => {
+    expect(kstToday()).toBe(TODAY);
+    // 라우트가 부르는 것도 같은 무인자 호출이라, 이 등식이 곧 「두 오늘이 같다」이다.
+    expect(new Date().toISOString()).toBe(FIXED_NOW.toISOString());
   });
 
   it('프로세스 TZ 를 읽지 않는다 — 타임존을 환경에 맡기면 배포지가 하루의 경계를 정한다', () => {
