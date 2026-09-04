@@ -39,6 +39,17 @@ const MAX_QUESTION_COUNT = 100;
 const MAX_SCOPE_LEN = 200;
 
 /**
+ * 시험 제한 시간(분) 경계 — 교사 폼 슬라이더의 `min`/`max` 와 **같은 값**이다
+ * (`app/(teacher)/teacher/assignment/new/assignment-form.tsx`). 여기가 더 좁으면 폼에서
+ * 고를 수 있는 값이 400 으로 튕긴다.
+ *
+ * 슬라이더의 `step={10}` 은 여기서 강제하지 않는다 — 그건 고르기 편하라고 둔 UI 간격이지
+ * 도메인 규칙이 아니다. 잘못 좁히면 나중에 5분 단위를 열 때 서버부터 고쳐야 한다.
+ */
+const EXAM_TIME_LIMIT_MIN = 10;
+const EXAM_TIME_LIMIT_MAX = 180;
+
+/**
  * 마감 라벨에서 D-day 를 뽑는다 — `d_day` 가 NOT NULL 이라 빈칸을 둘 수 없다.
  *
  * 라벨은 FE `formatDueLabel` 이 만든 `오늘 22:00` · `내일 22:00` · `7/3 22:00` 세 모양이다.
@@ -61,6 +72,33 @@ function deriveDDay(dueLabel: string): string {
   }
   const diffDays = Math.ceil((due.getTime() - now.getTime()) / 86400000);
   return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
+}
+
+/**
+ * 시험 제한 시간을 읽는다.
+ *
+ * `null` 이 **정상값**이라 `readStudentIds` 처럼 null 로 잘못을 알릴 수 없다 — 그래서
+ * 성공/실패를 따로 싣는다.
+ *
+ * @param value - 본문의 `examTimeLimitMin`
+ * @param mode - 과제 방식. 시험이 아니면 값이 와도 `null` 로 떨어뜨린다(거절하지 않는다)
+ * @returns `{ ok: true, value }` 또는 범위를 벗어났을 때 `{ ok: false }`
+ */
+function readExamTimeLimit(
+  value: unknown,
+  mode: Mode,
+): { ok: true; value: number | null } | { ok: false } {
+  if (mode !== 'exam') return { ok: true, value: null };
+  if (value === undefined || value === null) return { ok: true, value: null };
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < EXAM_TIME_LIMIT_MIN ||
+    value > EXAM_TIME_LIMIT_MAX
+  ) {
+    return { ok: false };
+  }
+  return { ok: true, value };
 }
 
 /** 문자열 배열인지 확인하고 다듬어 돌려준다. 배열이 아니면 null. */
@@ -97,7 +135,8 @@ export async function GET(req: Request): Promise<NextResponse> {
 
 /**
  * 과제를 발사한다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
- * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, targetStudentIds? }`
+ * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, scope?,
+ *   chapterFrom?, chapterTo?, examTimeLimitMin?, targetStudentIds? }`
  * @returns 201 { assignment } | 400 | 401 | 403(역할) | 404(내 봇이 아님)
  */
 export async function POST(req: Request): Promise<NextResponse> {
@@ -148,6 +187,23 @@ export async function POST(req: Request): Promise<NextResponse> {
   const scope = readTrimmed(body.scope).slice(0, MAX_SCOPE_LEN);
   const chapterFrom = readTrimmed(body.chapterFrom).slice(0, MAX_SCOPE_LEN);
   const chapterTo = readTrimmed(body.chapterTo).slice(0, MAX_SCOPE_LEN);
+
+  /*
+    시험 제한 시간 — 단원과 **같은 모양의 유실**이었다. 컬럼(`exam_time_limit_min`)은 진작
+    있는데 쓰는 경로가 없어서, 교사가 슬라이더로 30분을 고르든 90분을 고르든 서버에는 늘
+    null 이 남았다. 그래서 실DB 를 읽는 학생·교사 화면이 제한 시간을 복원하지 못한다.
+
+    시험 모드가 아닐 때 온 값은 **거절이 아니라 무시**한다(null). 폼이 모드를 바꾸는 순간
+    남아 있던 슬라이더 값이 같이 날아가는 게 정상인데, 그걸 400 으로 되받으면 교사는
+    「시간 제한」이 보이지도 않는 화면에서 이유 모를 오류를 만난다. `scope_override` 가
+    `mode === 'exam'` 에서만 1 인 것과 같은 결이다.
+  */
+  const timeLimit = readExamTimeLimit(body.examTimeLimitMin, mode);
+  if (!timeLimit.ok) {
+    return invalidInput(
+      `시험 시간은 ${EXAM_TIME_LIMIT_MIN}분에서 ${EXAM_TIME_LIMIT_MAX}분 사이 정수로 적어 주세요.`,
+    );
+  }
 
   const targetStudentIds = readStudentIds(body.targetStudentIds);
   if (targetStudentIds === null) {
@@ -206,6 +262,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         difficulty,
         mode,
         scopeOverride: mode === 'exam' ? 1 : null,
+        examTimeLimitMin: timeLimit.value,
         source: 'teacher-assigned',
         assignedBy: bot.name,
         assignedAtLabel: '방금 발사',
