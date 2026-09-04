@@ -73,14 +73,25 @@ export function isDayKey(value: unknown): value is string {
 /**
  * 백필 하한 — `today` 에서 2년 전 같은 날.
  *
- * 2월 29일처럼 2년 전에 없는 날은 `Date.UTC` 가 다음 날로 정규화한다(2028-02-29 → 2026-03-01).
- * 하한이 하루 당겨지는 것뿐이라 판정이 흔들리지 않는다.
+ * ## ⚠️ 2년 전에 **없는 날**은 넘치게 두지 않고 그 달의 마지막 날로 당긴다
+ * 2년 전이 윤년이 아니면 2월 29일은 그 달에 없다. `Date.UTC` 에 그대로 넘기면 다음 달로
+ * **정규화**되어(2028-02-29 → 2026-03-01) 하한이 하루 **뒤로 밀린다** — 창이 넓어지는 게
+ * 아니라 좁아진다. 그러면 계약이 「오늘로부터 2년」이라 받아 줘야 할 `2026-02-28` 이
+ * 2028년 2월 29일 하루 동안 거절된다.
+ *
+ * 그래서 날짜를 넘기기 전에 **그 달의 마지막 날로 클램프**한다(`Date.UTC(y, m, 0)` 이
+ * 그 달의 말일이다). 2년은 짝수라 2년 전이 윤년인 경우가 없으므로, 실제로 걸리는 날은
+ * 2월 29일 하나뿐이다 — 그래도 규칙을 「없는 날은 그 달 안에 머무른다」로 적어 두면
+ * 하한 연수(`BACKFILL_YEARS`)를 홀수로 바꿔도 같은 뜻이 유지된다.
  * @param today - `'YYYY-MM-DD'`(KST 오늘)
  * @returns 받아 주는 가장 이른 날 `'YYYY-MM-DD'`
  */
 export function backfillFloor(today: string): string {
   const [y, m, d] = today.split('-').map(Number);
-  const at = new Date(Date.UTC(y - BACKFILL_YEARS, m - 1, d));
+  const year = y - BACKFILL_YEARS;
+  // `day = 0` 은 그 전달의 마지막 날 — `m` 은 1-based 라 이 호출이 곧 `m` 월의 말일이다.
+  const lastOfMonth = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  const at = new Date(Date.UTC(year, m - 1, Math.min(d, lastOfMonth)));
   const mm = String(at.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(at.getUTCDate()).padStart(2, '0');
   return `${at.getUTCFullYear()}-${mm}-${dd}`;
