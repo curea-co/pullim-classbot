@@ -105,6 +105,7 @@ import {
   POST as createClassroom,
 } from '@/app/api/teacher/classrooms/route';
 import { POST as joinByCode } from '@/app/api/enrollments/route';
+import { GET as getParentChildren } from '@/app/api/parent/children/route';
 import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 import type { TeacherClassroomItem } from '@/app/api/_lib/contract-types';
 
@@ -534,7 +535,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
 
 describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
   it('개인 배정 OR (student_id NULL AND sent AND (지정 OR 반 전체+참여))', () => {
-    const { text, params } = render(visibleAssignmentsWhere('s2'));
+    const { text, params } = render(visibleAssignmentsWhere('s2', 'student-own'));
 
     // ① 개인 배정
     expect(text).toContain('"assignments"."student_id" =');
@@ -563,6 +564,36 @@ describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
     expect(text).toContain('is null');
     expect(text).toContain('dispatch_status');
     expect(text).toContain('"enrollments"');
+
+    // 학생 본인 축 — 자기 것은 출처를 가르지 않는다.
+    expect(text).not.toContain('"assignments"."source"');
+  });
+});
+
+describe('학부모 자녀 조회 — 자기주도는 반·과제 축으로 나가지 않는다 (05 § 11.4)', () => {
+  it('GET /api/parent/children 이 출처 허용 목록을 조회 조건에 싣는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }], // resolveActor — 역할 권위는 도메인 users
+      [{ id: 'child_1', name: '서연', relation: '모' }], // parent_child_links ⨝ users
+      [], // 자녀의 수업방
+      [], // 자녀의 과제
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    // 과제 술어를 찾아낸다 — 라우트가 어떤 순서로 조회하든 흔들리지 않게 내용으로 고른다.
+    const assignmentWhere = whereSpy.mock.calls
+      .map((call) => render(call[0]))
+      .find((q) => q.text.includes('"assignments"."student_id"'));
+
+    if (!assignmentWhere) throw new Error('과제 술어가 조회에 실리지 않았다');
+
+    // 읽고 나서 거르는 게 아니라 **조회 조건 안에** 있어야 한다(규칙 1).
+    expect(assignmentWhere.text).toContain('"assignments"."source" in');
+    expect(assignmentWhere.params).toContain('teacher-assigned');
+    // 자기주도는 다른 동의 축이다 — 부모가 켠 적 없는 것이 딸려 나가면 안 된다.
+    expect(assignmentWhere.params).not.toContain('self');
   });
 });
 
