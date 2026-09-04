@@ -26,24 +26,24 @@ import { NotificationBell } from './notification-bell';
 const roleHomeHref: Record<Role, string> = {
   student: '/',
   teacher: '/teacher',
-  parent: '/parent',
 };
 
 /** 프로필 메뉴에 적는 역할 이름. */
 const roleLabels: Record<Role, string> = {
   student: '학생',
   teacher: '교사',
-  parent: '학부모',
 };
 
 /**
  * 프로필 메뉴의 '내 정보' 착지점.
- * 학생만 전용 화면(`/classbot/me`)이 있고, 교사·학부모는 아직 없어 각자 홈으로 보낸다.
+ * 학생만 전용 화면(`/classbot/me`)이 있고, 교사는 아직 없어 교사 홈으로 보낸다.
+ *
+ * 표 셋 다 `Record<Role, …>` 이다 — 역할이 늘면 세 자리가 **함께** 컴파일에 걸린다.
+ * 그래서 새 역할이 홈·라벨·내 정보를 답하지 않고 들어올 수 없다.
  */
 const roleProfileHref: Record<Role, string> = {
   student: '/classbot/me',
   teacher: '/teacher',
-  parent: '/parent',
 };
 
 /** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */
@@ -81,7 +81,7 @@ export function AppHeaderActions({ role }: { role: Role }) {
       <div className="flex flex-1 items-center justify-end gap-1">
         {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
         <DevRoleSwitch role={role} />
-        {/* 스트릭은 학생 것뿐이다 — 교사·학부모에는 표시할 스트릭이 없어 자리째 빠진다. */}
+        {/* 스트릭은 학생 것뿐이다 — 교사에는 표시할 스트릭이 없어 자리째 빠진다. */}
         {role === 'student' && <StudentStreakBadge />}
         <button
           aria-label="검색"
@@ -95,8 +95,8 @@ export function AppHeaderActions({ role }: { role: Role }) {
         >
           <Search className="h-[22px] w-[22px]" />
         </button>
-        {/* 알림 — 학생은 개입 인박스(교사 개입 수신함). 교사·학부모 수신함은 후속이라
-            둘 다 같은 '준비 중' 버튼으로 떨어진다. */}
+        {/* 알림 — 학생은 개입 인박스(교사 개입 수신함). 교사 수신함은 후속이라
+            '준비 중' 버튼으로 떨어진다. */}
         {role === 'student' ? (
           <NotificationBell />
         ) : (
@@ -167,7 +167,7 @@ function ProfileMenu({ role }: { role: Role }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   // 로그인 세션 사용자 메타만 노출한다(데모 페르소나·역할전환 제거). 비로그인 시 페르소나 미표시.
-  // 역할이 셋이 됐으니 교사/그 밖 이분법으로 두지 않는다 — 그러면 학부모가 '학생'으로 적힌다.
+  // 표를 따라 적는다 — 삼항으로 두면 역할이 느는 날 새 역할이 조용히 '학생'으로 적힌다.
   const profile = {
     name: role === 'teacher' ? `${me.name} 선생님` : me.name,
     sub: roleLabels[role],

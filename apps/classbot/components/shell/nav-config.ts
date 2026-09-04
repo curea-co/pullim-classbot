@@ -40,21 +40,25 @@ export type NavGroup = {
 };
 
 /**
- * 셸이 아는 역할.
+ * **셸이 가진 역할** — `AppShell role=…` 로 실제 들어오는 값만 적는다.
  *
- * `parent` 는 **여기서 이름만 선다** — 이 PR 이 여는 것은 신원(서버가 `parent_001` 을
- * 그 명의로 인정하는 것)까지이고, 화면·nav·전환 UI 는 열지 않는다. 실제로 이 값이 셸에
- * 들어오려면 `AppShell role="parent"` 를 쓰는 `app/(parent)/layout.tsx` 가 있어야 하는데
- * 그 트리는 아직 없다(`proc/spec/03 § 2.3` — `[예정]`). 지금 `role` 을 넘기는 곳은
- * `app/(student)/layout.tsx` 와 `app/(teacher)/layout.tsx` 두 리터럴뿐이다.
+ * 지금 `role` 을 넘기는 곳은 `app/(student)/layout.tsx` 와 `app/(teacher)/layout.tsx`
+ * 두 리터럴뿐이라 둘이다. 학부모는 여기 없다 — `app/(parent)` 트리가 아직 없고
+ * (`proc/spec/03 § 2.3` — `[예정]`), 셸이 받을 수 없는 값을 미리 세워 두면 `navForRole` ·
+ * breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는 답**을 지금
+ * 적어 두게 된다. 그 답은 화면을 만드는 PR 이 해야 맞다.
  *
- * 그래도 union 에 미리 세워 두는 이유: 아래 `navForRole` 과 헤더의 `Record<Role, …>` 표들이
- * **빠짐없음(exhaustiveness)** 으로 컴파일에 걸리게 하려는 것이다. 학부모 화면 PR 이
- * 도착할 때 「홈은 어디인가 · 라벨은 무엇인가」를 조용히 학생 기본값으로 물려받지 않고
- * 한 자리씩 답하게 된다. 값 자체는 지금 어떤 화면에도 도달하지 않는다
- * (`parentNav` 는 빈 배열이고, 전환 UI 의 `DEV_ROLES` 에도 학부모 줄이 없다).
+ * 그러니 학부모 화면 PR 이 이 union 을 넓히면서 시작한다. 넓히는 순간 아래 `switch` 와
+ * 헤더 표 셋이 **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 ·
+ * 라벨은 무엇인가」를 그 PR 이 한 자리씩 답하게 된다.
+ *
+ * **신원 층은 이것과 다르다.** 서버는 이미 학부모를 말한다 — 개발용 신원 allowlist 에
+ * `parent_001` 이 있고(`lib/dev-identity.ts` 의 `DevIdentityRole`), 해석기가
+ * `role: 'parent'` 를 돌려준다(`lib/current-user.ts` 의 `AppUserRole`). 그래서
+ * `/api/*` 가 학생 표면에서 학부모를 403 으로 막는다(`app/api/_lib/guards.ts`).
+ * **명의는 이미 셋, 셸은 아직 둘** — 그 어긋남이 이 PR 이 여는 것과 열지 않는 것의 경계다.
  */
-export type Role = 'student' | 'teacher' | 'parent';
+export type Role = 'student' | 'teacher';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
@@ -130,20 +134,13 @@ export const teacherNav: NavGroup[] = [
   },
 ];
 
-/**
- * 학부모 사이드바 — **아직 비어 있다.**
- *
- * 역할(`Role`)은 이 PR 에서 서지만 `/parent/*` 화면은 뒤 PR 에서 온다. 없는 라우트를
- * 미리 열면 레일에서 누르는 즉시 404 이므로, 항목은 화면과 같은 PR 에서 채운다.
- * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 둘로 고정이다(계약 §6).
- */
-export const parentNav: NavGroup[] = [];
+// 학부모 레일(`parentNav`)은 여기 없다 — `/parent/*` 화면과 같은 PR 에서 `Role` 확장과
+// 함께 들어온다. 학부모는 자기 학습 화면이 없어 자녀를 보는 창구로 고정이다(계약 §6).
 
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
     case 'student': return studentNav;
     case 'teacher': return teacherNav;
-    case 'parent': return parentNav;
   }
 }
 
@@ -192,10 +189,10 @@ export function findActiveNav(pathname: string, role: Role): NavItem | undefined
 
 export function buildBreadcrumb(pathname: string, role: Role): { label: string; href?: string }[] {
   const nav = navForRole(role);
-  // 역할마다 뿌리가 다르다 — 셋이 됐으니 학생/그 밖 이분법으로 두면 학부모가 교사 뿌리를 쓴다.
+  // 역할마다 뿌리가 다르다. 역할이 늘면 여기 한 줄이 함께 늘어야 한다 —
+  // 이분법으로 둔 채 union 만 넓히면 새 역할이 조용히 교사 뿌리를 물려받는다.
   const root =
     role === 'student' ? { label: '풀림 클래스봇', href: '/' }
-    : role === 'parent' ? { label: '풀림 학부모', href: '/parent' }
     : { label: '풀림 교사', href: '/teacher' };
   const trail: { label: string; href?: string }[] = [root];
 
