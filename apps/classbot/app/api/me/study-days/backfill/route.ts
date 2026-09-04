@@ -28,15 +28,22 @@
  * 세는 숫자도 그대로다). 클라이언트의 뺄셈은 **요청을 줄이는 최적화**이지 이 규칙의
  * 대체물이 아니다. 규칙의 집은 여기 한 곳이다.
  *
- * 게이트는 나머지 자기주도 라우트와 같다 — 역할 없음, 미인증 401, 명의는 신원에서만.
+ * 게이트는 나머지 자기주도 라우트와 같다 — 미인증 401, **학생 아니면 403**, 명의는 신원에서만.
+ * 기록 라우트만 막고 여기를 열어 두면 게이트가 없는 것과 같다 — 로컬에 쌓아 둔 날짜를
+ * 이 경로로 그대로 올릴 수 있기 때문이다. 두 라우트의 테두리는 언제나 같이 움직인다.
  */
 
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/lib/db';
 import { selfStudyDays } from '@/lib/db/schema';
-import { getCurrentUserIdFromRequest } from '@/lib/current-user';
-import { invalidInput, readJsonBody, unauthorized } from '@/app/api/_lib/guards';
+import {
+  forbidden,
+  invalidInput,
+  readJsonBody,
+  resolveActor,
+  unauthorized,
+} from '@/app/api/_lib/guards';
 import {
   MAX_BACKFILL_DAYS,
   isRecordableDay,
@@ -53,11 +60,13 @@ export const runtime = 'nodejs';
  * 중복, 이미 서버에 있던 날이 한데 들어간다. 이유별로 세지 않는 것은 부르는 쪽이
  * 「몇 개가 남았나」만 쓰기 때문이고, 계약도 그렇게 정했다(§2).
  * @param req - body `{ days: string[] }`. 명의는 본문이 아니라 신원에서 온다
- * @returns 200 { inserted, skipped } | 400 | 401
+ * @returns 200 { inserted, skipped } | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  if (!actor.isIdentified) return unauthorized();
+  if (actor.role !== 'student') return forbidden('학생만 공부한 날을 올릴 수 있어요.');
+  const studentId = actor.id;
 
   const body = await readJsonBody(req);
   if (!body) return invalidInput('요청 본문을 읽지 못했어요.');

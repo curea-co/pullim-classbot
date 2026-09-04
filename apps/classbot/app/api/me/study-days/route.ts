@@ -1,9 +1,10 @@
 /**
  * 공부한 날 — 읽기 + 기록 (자기주도 계약 §2).
  *
- * 담은 봇 라우트와 **같은 게이트**다: 역할을 보지 않고, 미인증이면 401, `student_id` 는
+ * 담은 봇 라우트와 **같은 게이트**다: 미인증이면 401, **학생이 아니면 403**, `student_id` 는
  * 신원 해석기에서만 온다. 행이 언제나 호출자 명의로만 생기고 호출자 명의로만 읽히므로
- * 남의 기록에 닿는 경로가 없다.
+ * 남의 기록에 닿는 경로가 없고, 역할 게이트가 그 위에서 **학생 아닌 사람의 자기주도
+ * 기록이 아예 생기지 못하게** 막는다(근거는 `app/api/me/self-bots/route.ts` 머리주석).
  *
  * ## 「오늘」은 서버가 KST 로 정한다
  * 날짜를 만드는 쪽은 학생의 브라우저이고 서버는 그 훅을 부를 수 없다. 두 개의 하루가
@@ -24,8 +25,12 @@ import { asc, eq, sql } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { selfStudyDays } from '@/lib/db/schema';
-import { getCurrentUserIdFromRequest } from '@/lib/current-user';
-import { invalidInput, unauthorized } from '@/app/api/_lib/guards';
+import {
+  forbidden,
+  invalidInput,
+  resolveActor,
+  unauthorized,
+} from '@/app/api/_lib/guards';
 import { isRecordableDay, kstToday } from '@/app/api/_lib/study-date';
 import type {
   MyStudyDaysResponse,
@@ -40,12 +45,14 @@ export const runtime = 'nodejs';
  * ⚠️ `study_date` 를 그대로 select 하지 않고 `to_char` 로 **캐스팅해서** 읽는다.
  * node-postgres 는 DATE 를 로컬시간 `Date` 객체로 파싱하므로(`postgres-date`), 그대로
  * 읽으면 타입은 `string` 인데 런타임은 `Date` 이고 서버 TZ 가 KST 가 아니면 하루가 밀린다.
- * @param req - 신원(쿠키 또는 Bearer). 역할은 보지 않는다
- * @returns 200 { days: string[] } | 401
+ * @param req - 신원(쿠키 또는 Bearer). 역할은 도메인 `users.role` 이 권위
+ * @returns 200 { days: string[] } | 401 | 403
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  if (!actor.isIdentified) return unauthorized();
+  if (actor.role !== 'student') return forbidden('학생만 공부한 날을 볼 수 있어요.');
+  const studentId = actor.id;
 
   const rows = await getDb()
     .select({ day: sql<string>`to_char(${selfStudyDays.studyDate}, 'YYYY-MM-DD')` })
@@ -70,11 +77,13 @@ export async function GET(req: Request): Promise<NextResponse> {
  * 막은 것이 아니다. 두 라우트가 다르게 답하는 것(건너뛰기 / 400)은 모양이지, 테두리가
  * 아니다. 테두리는 둘 다 같다.
  * @param req - body `{ date? }`. 명의는 본문이 아니라 신원에서 온다
- * @returns 201 { recorded, date } | 200 { recorded, date }(이미 있음) | 400 | 401
+ * @returns 201 { recorded, date } | 200 { recorded, date }(이미 있음) | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  if (!actor.isIdentified) return unauthorized();
+  if (actor.role !== 'student') return forbidden('학생만 공부한 날을 기록할 수 있어요.');
+  const studentId = actor.id;
 
   const read = await readBodyAllowingEmpty(req);
   if (!read.ok) return invalidInput('요청 본문을 읽지 못했어요.');

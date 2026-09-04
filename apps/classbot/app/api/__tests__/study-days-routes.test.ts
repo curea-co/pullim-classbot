@@ -3,8 +3,8 @@
  *
  * 공부한 날 라우트 단위 테스트 (자기주도 계약 §2).
  *
- * 담은 봇 테스트와 지키는 것이 겹치는 셋(명의는 신원에서만 · 미인증 401 · 멱등)에 더해,
- * 이 라우트에만 있는 넷을 본다:
+ * 담은 봇 테스트와 지키는 것이 겹치는 넷(명의는 신원에서만 · 미인증 401 · 멱등 ·
+ * **학생만**)에 더해, 이 라우트에만 있는 넷을 본다:
  *  1. **「오늘」은 KST 다** — 서버 프로세스 TZ 가 UTC 여도 00:30 KST 는 그날이다.
  *     UTC 로 정했다면 매일 00:00~08:59 KST 에 공부한 학생의 날짜가 「미래」로 버려진다.
  *  2. **클라이언트가 주장할 수 있는 범위** — 형식·미래·2년 테두리. 백필은 그 값만 건너뛰고,
@@ -118,7 +118,13 @@ function signToken(payload: Partial<AccessTokenPayload>): string {
   return `${h}.${p}.${sig}`;
 }
 
-/** 서명된 토큰을 실은 요청. */
+/**
+ * 서명된 토큰을 실은 요청.
+ *
+ * 토큰 claim 의 role 은 공유 `UserRole` 이라 'parent' 가 없다 — 학부모는 claim 이 아니라
+ * **도메인 `users.role`** 로만 식별된다(`app/api/_lib/guards.ts` 머리주석). 그래서 학부모
+ * 사례는 토큰이 아니라 아래 `actorRow('parent')` 로 만든다.
+ */
 function req(
   sub: string,
   role: 'student' | 'teacher',
@@ -142,6 +148,16 @@ function req(
 function anonReq(init: RequestInit = {}): Request {
   return new Request('http://localhost/api/me/study-days', init);
 }
+
+/**
+ * `resolveActor` 가 읽는 도메인 `users.role` 한 줄 — **select 큐의 맨 앞**이다.
+ * 역할 게이트가 붙으면서 세 경로 전부 이 조회를 먼저 한다.
+ *
+ * 큐를 비워 두면 `resolveActor` 는 **토큰 claim 의 role 로 떨어진다**(도메인 행이 아직
+ * 없는 가입 직후 — `app/api/_lib/guards.ts`). 아래 테스트 중 이 줄을 안 넣은 것들은
+ * `req(..., 'student')` 의 claim 으로 통과하는, 그 폴백 경로를 함께 지나간다.
+ */
+const actorRow = (role: 'student' | 'teacher' | 'parent'): unknown[] => [{ role }];
 
 /** 조립된 술어를 실제 Postgres SQL 문자열로 펼친다. */
 function render(sqlLike: unknown): { text: string; params: unknown[] } {
@@ -237,10 +253,16 @@ describe('미인증은 401 — 세 경로 모두', () => {
     expect(res.status).toBe(401);
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
+
+  it('신원이 없으면 역할을 읽으러 가지도 않는다', async () => {
+    await getStudyDays(anonReq());
+    expect(whereSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
   it('POST 는 토큰 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
+    mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
     const res = await recordStudyDay(
@@ -259,6 +281,7 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
   });
 
   it('백필도 토큰 주인으로 쓴다', async () => {
+    mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
     await backfillStudyDays(
@@ -274,18 +297,22 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
   });
 
   it('GET 은 내 행만 — 조회 술어에 토큰 주인이 들어간다', async () => {
-    mockSelectQueue = [[]];
+    mockSelectQueue = [actorRow('student'), []];
 
     await getStudyDays(req('s2', 'student'));
 
-    const { params } = render(whereSpy.mock.calls[0][0]);
+    // 0번째는 `resolveActor` 의 users 조회다. 공부한 날의 술어는 그다음.
+    const { params } = render(whereSpy.mock.calls[1][0]);
     expect(params).toEqual(['s2']);
   });
 });
 
 describe('GET /api/me/study-days', () => {
   it('200 { days } — 오름차순 그대로', async () => {
-    mockSelectQueue = [[{ day: '2026-08-28' }, { day: '2026-09-01' }]];
+    mockSelectQueue = [
+      actorRow('student'),
+      [{ day: '2026-08-28' }, { day: '2026-09-01' }],
+    ];
 
     const res = await getStudyDays(req('student_001', 'student'));
 
@@ -294,10 +321,11 @@ describe('GET /api/me/study-days', () => {
   });
 
   it('날짜를 **캐스팅해서** 읽는다 — 이 to_char 가 빠지면 런타임이 Date 로 돌아온다', () => {
-    mockSelectQueue = [[]];
+    mockSelectQueue = [actorRow('student'), []];
 
     return getStudyDays(req('student_001', 'student')).then(() => {
-      const fields = selectFieldsSpy.mock.calls[0][0] as { day: unknown };
+      // 0번째는 `resolveActor` 의 users 조회다. 공부한 날의 칸은 그다음.
+      const fields = selectFieldsSpy.mock.calls[1][0] as { day: unknown };
       const { text } = render(fields.day);
       expect(text).toContain('to_char');
       expect(text).toContain('YYYY-MM-DD');
@@ -507,14 +535,63 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
   });
 });
 
-describe('역할 게이트가 없다 — 행이 호출자 명의로만 생기므로', () => {
-  it('교사 신원도 자기 기록을 읽는다(403 아님)', async () => {
-    mockSelectQueue = [[]];
+describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨텍스트다', () => {
+  it('교사 신원의 GET 은 403 — 기록을 읽으러 가지도 않는다', async () => {
+    mockSelectQueue = [actorRow('teacher')];
 
     const res = await getStudyDays(req('teacher_001', 'teacher'));
 
-    expect(res.status).toBe(200);
-    const { params } = render(whereSpy.mock.calls[0][0]);
-    expect(params).toEqual(['teacher_001']);
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
+    // users 조회 하나로 끝난다 — self_study_days 는 건드리지 않는다.
+    expect(whereSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('교사 신원의 기록은 403 — 교사 명의의 연속 학습이 쌓이지 않는다', async () => {
+    mockSelectQueue = [actorRow('teacher')];
+
+    const res = await recordStudyDay(
+      req('teacher_001', 'teacher', { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('백필도 403 — 기록만 막고 여기를 열어 두면 게이트가 없는 것과 같다', async () => {
+    mockSelectQueue = [actorRow('teacher')];
+
+    const res = await backfillStudyDays(
+      req('teacher_001', 'teacher', {
+        method: 'POST',
+        body: JSON.stringify({ days: [YESTERDAY] }),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('학부모 신원도 403 — 토큰에 없는 역할이라 도메인 users 행으로만 갈린다', async () => {
+    mockSelectQueue = [actorRow('parent')];
+
+    // 토큰 claim 은 student 다(공유 UserRole 에 parent 가 없다).
+    const res = await recordStudyDay(
+      req('parent_001', 'student', { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('역할의 권위는 **도메인 users.role** — 토큰이 student 라도 그 행이 teacher 면 막힌다', async () => {
+    mockSelectQueue = [actorRow('teacher')];
+
+    const res = await recordStudyDay(
+      req('teacher_001', 'student', { method: 'POST' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 });
