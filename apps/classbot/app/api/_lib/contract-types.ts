@@ -156,6 +156,12 @@ export interface DispatchAssignmentInput {
   scope?: string;
   chapterFrom?: string;
   chapterTo?: string;
+  /**
+   * 시험 모드 제한 시간(분, 10~180). **`mode === 'exam'` 에서만 뜻이 있다** — 다른 모드로
+   * 오면 서버가 `null` 로 떨어뜨린다(`scopeOverride` 가 시험에서만 1 인 것과 같은 결).
+   * 생략하면 `null`.
+   */
+  examTimeLimitMin?: number;
   /** 생략·빈 배열이면 반 전체. */
   targetStudentIds?: string[];
 }
