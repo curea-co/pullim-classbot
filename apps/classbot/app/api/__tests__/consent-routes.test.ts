@@ -510,6 +510,35 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
     expect(where.params).toContain('student_001');
   });
 
+  it('갱신은 옛 보호자에게 매달린 행을 지금 보호자에게 옮겨 붙인다', async () => {
+    mockSelectQueue = [[{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockUpdateQueue = [
+      [
+        {
+          type: 'self_study_summary',
+          scopeLabel: '계속',
+          grantedAt: new Date('2026-09-04T00:00:00Z'),
+          expiresAt: null,
+        },
+      ],
+    ];
+
+    const res = await grantConsent(
+      grantReq('student_001', { type: 'self_study_summary', scopeLabel: '계속' }),
+    );
+
+    /*
+      술어(`livingConsentOf`)가 받는 사람으로 좁히지 않으므로 옛 보호자 대상 행도 잡히고,
+      `parentId` 를 함께 써서 **지금 보호자에게 옮겨진다.** 이것이 학생이 「다른 보호자께
+      남은 공유」를 정리하는 두 번째 길이다(첫 번째는 철회).
+    */
+    expect(updateSetSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: 'parent_001' }),
+    );
+    const body = (await res.json()) as { consent: { toCurrentParent: boolean } };
+    expect(body.consent.toCurrentParent).toBe(true);
+  });
+
   it.each([
     ['자기주도 아닌 타입(감정)', { type: 'emotion_share', scopeLabel: '계속' }],
     ['목록 밖 범위', { type: 'self_study_summary', scopeLabel: '영원히' }],
@@ -578,6 +607,12 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     expect(where.text).toContain('"revoked_at" is null');
     // 한 행으로 좁히는 술어는 파라미터가 늘어난다 — 명의·타입 둘만 쓰는지 본다.
     expect(where.params).toEqual(['student_001', 'self_study_summary']);
+    /*
+      받는 사람이 술어에 **없다**는 것이 화면 문구의 근거다. 목록이 「다른 보호자께 아직
+      열려 있어요 · 끄면 함께 꺼져요」라고 쓸 수 있는 이유가 이 줄이다 — 옛 보호자에게
+      매달린 행도 같은 한 번의 DELETE 에 함께 찍힌다.
+    */
+    expect(where.text).not.toContain('"parent_id"');
   });
 
   it('응답만으로는 「하나만 찍힘」과 구분되지 않는다 — 그래서 위에서 술어를 본다', async () => {
@@ -645,7 +680,10 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
 });
 
 describe('내 동의 목록 — 살아 있는 것만', () => {
-  /** GET 은 보호자를 먼저 고르고 그 사람으로 동의를 좁혀 읽는다 — 큐도 그 순서다. */
+  /**
+   * GET 은 **지금 보호자를 먼저 고르고**(이름을 싣기 위해) 동의를 읽는다 — 큐도 그 순서다.
+   * 동의 조회는 그 보호자로 좁히지 않는다. 그 까닭은 아래 ⛔ 테스트에 적혀 있다.
+   */
   const LINK = [{ id: 'parent_001', name: '어머니', relation: 'mother' }];
 
   it('조회 술어에 철회·만료 판정이 들어 있다', async () => {
@@ -669,6 +707,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
           scopeLabel: '계속',
           grantedAt: new Date('2026-09-03T00:00:00Z'),
           expiresAt: null,
+          parentId: 'parent_001',
         },
       ],
     ];
@@ -680,8 +719,11 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
       'expiresAt',
       'grantedAt',
       'scopeLabel',
+      'toCurrentParent',
       'type',
     ]);
+    // 받는 사람은 boolean 으로만 나간다 — id 를 실으면 「보내도 되나」로 읽힌다.
+    expect(body.consents[0]).not.toHaveProperty('parentId');
   });
 
   it('보호자는 이름·관계만 싣는다 — id 는 떼고 나간다', async () => {
@@ -695,28 +737,90 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
     expect(body.parent).not.toHaveProperty('id');
   });
 
-  it('지금 보호자에게 준 것만 읽는다 — 옛 보호자 대상 동의가 섞이지 않게', async () => {
+  it('⛔ 받는 사람으로 좁히지 않는다 — 학생이 못 끄는 살아 있는 권한을 만들지 않기 위해', async () => {
     mockSelectQueue = [LINK, []];
     await getConsents(req('student_001', 'student'));
 
-    // 마지막 where 가 동의 조회의 술어다. 학생만이 아니라 **받는 사람**으로도 좁혀야
-    // 「어머니께 보여드리는 중」이라 쓰면서 실제 권한은 다른 사람에게 열려 있는 상태가 안 된다.
+    /*
+      한 번 `parent_id = <지금 보호자>` 로 좁혔다가 되돌린 자리다. 좁히면 옛 보호자에게
+      남은 살아 있는 동의가 학생 화면에서만 사라진다 — 그 링크가 남아 있는 한 학부모
+      조회는 계속 열려 있는데(같은 테스트 파일 위쪽 조인 참조) 학생은 보지도 끄지도
+      못한다. 「누구에게 가는가」는 목록을 좁혀서가 아니라 행마다 실리는 boolean 이 답한다.
+    */
     const where = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]);
     expect(where.params).toContain('student_001');
-    expect(where.params).toContain('parent_001');
-    expect(where.text).toContain('"parent_id"');
+    expect(where.params).not.toContain('parent_001');
+    expect(where.text).not.toContain('"parent_id"');
   });
 
-  it('링크가 없으면 parent 는 null — 화면이 스위치를 그리기 전에 안다', async () => {
-    // 받는 사람이 없으면 동의 조회 자체를 하지 않는다 — 큐에 링크 0행 하나뿐이다.
-    mockSelectQueue = [[]];
+  it('행마다 지금 보호자에게 가는지 싣는다 — 옛 보호자 대상 동의도 함께 나온다', async () => {
+    mockSelectQueue = [
+      LINK,
+      [
+        {
+          type: 'self_study_summary',
+          scopeLabel: '계속',
+          grantedAt: new Date('2026-08-01T00:00:00Z'),
+          expiresAt: null,
+          // 주 보호자가 바뀌기 전, 다른 분께 준 동의 — 아직 살아 있다.
+          parentId: 'parent_old',
+        },
+        {
+          type: 'class_assignment_summary',
+          scopeLabel: '이번 주만',
+          grantedAt: new Date('2026-09-03T00:00:00Z'),
+          expiresAt: new Date('2026-09-10T00:00:00Z'),
+          parentId: 'parent_001',
+        },
+      ],
+    ];
+
+    const res = await getConsents(req('student_001', 'student'));
+    const body = (await res.json()) as {
+      parent: { name: string } | null;
+      consents: Array<{ type: string; toCurrentParent: boolean }>;
+    };
+
+    // 둘 다 나온다. 숨기면 학생이 첫 줄을 끌 수 없다.
+    expect(body.consents).toHaveLength(2);
+    expect(body.consents[0]).toMatchObject({
+      type: 'self_study_summary',
+      toCurrentParent: false,
+    });
+    expect(body.consents[1]).toMatchObject({
+      type: 'class_assignment_summary',
+      toCurrentParent: true,
+    });
+    // 이름은 여전히 **지금 보호자** 하나뿐이다 — 옛 보호자의 신원은 새 나가지 않는다.
+    expect(body.parent).toEqual({ name: '어머니', relation: 'mother' });
+  });
+
+  it('링크가 없으면 parent 는 null — 그래도 살아 있는 동의는 돌려준다', async () => {
+    // 링크 0행. 그래도 동의는 읽는다 — 링크가 끊겨도 행은 남고, 되살아나면 열람도 되살아난다.
+    mockSelectQueue = [
+      [],
+      [
+        {
+          type: 'self_study_summary',
+          scopeLabel: '계속',
+          grantedAt: new Date('2026-08-01T00:00:00Z'),
+          expiresAt: null,
+          parentId: 'parent_old',
+        },
+      ],
+    ];
 
     const res = await getConsents(req('s2', 'student'));
-    const body = (await res.json()) as { parent: unknown; consents: unknown[] };
+    const body = (await res.json()) as {
+      parent: unknown;
+      consents: Array<{ toCurrentParent: boolean }>;
+    };
 
     expect(res.status).toBe(200);
     expect(body.parent).toBeNull();
-    expect(body.consents).toEqual([]);
+    // 지금 보호자가 없으니 어느 행도 「지금 보호자에게」가 아니다 — 그래도 화면에는 떠야 한다.
+    expect(body.consents).toHaveLength(1);
+    expect(body.consents[0].toCurrentParent).toBe(false);
   });
 
   it('보호자를 고르는 순서가 부여 라우트와 같다 — 주 보호자 먼저', async () => {

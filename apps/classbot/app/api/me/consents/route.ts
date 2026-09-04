@@ -63,6 +63,27 @@ export const runtime = 'nodejs';
  *
  * id 는 싣지 않는다 — 본문으로 받지 않는 값이라(머리주석 1번). 이름·관계는 되돌려 보낼 수
  * 있는 식별자가 아니라서 그 문을 열지 않는다.
+ *
+ * ## ⛔ 목록을 「지금 보호자」로 좁히지 마라 — 한 번 좁혔다가 되돌렸다
+ *
+ * 좁히고 싶어지는 이유는 분명하다. 링크의 주 보호자가 바뀌면 옛 보호자 대상 동의가
+ * 지금 보호자의 이름과 함께 실려, 화면이 「어머니께 보여드리는 중」이라 쓰는데 실제 권한은
+ * 다른 사람에게 열려 있는 것처럼 읽힌다.
+ *
+ * 그런데 `WHERE parent_id = <지금 보호자>` 로 막으면 **더 나쁜 것**을 얻는다. 옛 보호자의
+ * 링크가 남아 있는 한 그 동의는 여전히 유효하고(학부모 조회는
+ * `consent_logs.parent_id = parent_child_links.parent_id` 로 열린다), 학생 화면에서만
+ * 사라진다 — **권한은 살아 있는데 학생이 보지도 끄지도 못한다.** 프라이버시 화면이
+ * 낼 수 있는 최악의 결과다.
+ *
+ * 그래서 **살아 있는 동의는 전부 돌려주고**, 어디로 가는지를 행마다
+ * `toCurrentParent` boolean 으로 싣는다. 첫 번째 거짓말(누구에게 가는지 흐린 것)은
+ * 그 칸이 막고, 두 번째 사고(못 끄는 권한)는 목록에 남겨 두는 것이 막는다.
+ * 화면은 이 칸으로 「지금 보호자께 보여요」와 「다른 보호자께 아직 열려 있어요」를 갈라
+ * 그리고, 철회는 `(학생, 타입)` 기준이라 받는 사람과 무관하게 꺼진다.
+ *
+ * 받는 사람이 **없어도** 조회한다 — 링크가 끊긴 뒤에도 행은 남는다. 그때야말로 학생이
+ * 그 줄을 봐야 끌 수 있다(링크가 되살아나면 열람도 되살아난다).
  * @param req - 신원(쿠키 또는 Bearer). 역할은 보지 않는다
  * @returns 200 { parent, consents } | 401
  */
@@ -74,40 +95,25 @@ export async function GET(req: Request): Promise<NextResponse> {
   // 같다는 보장이 여기서 나온다.
   const recipient = await resolveGrantRecipient(studentId);
 
-  /*
-    동의를 **받는 사람으로도** 좁힌다.
-
-    학생 id 하나로만 읽으면, 링크 우선순위가 바뀐 뒤 남아 있는 **옛 보호자 대상 동의**가
-    지금 보호자의 이름과 함께 실린다. 화면은 「어머니께 보여드리는 중」이라 쓰는데 실제 권한은
-    다른 사람에게 열려 있는 상태 — 동의 화면이 낼 수 있는 가장 나쁜 종류의 거짓이다.
-    (부여는 이미 `parentId: recipient.id` 로 쓴다. 읽기만 그 조건이 빠져 있었다.)
-
-    받는 사람이 없으면 목록도 비어 있다 — 줄 사람이 없으면 살아 있는 동의도 없다는 뜻이고,
-    화면은 `parent: null` 로 이미 「지금은 줄 수 없다」를 말한다.
-  */
-  const rows = recipient
-    ? await getDb()
-        .select({
-          type: consentLogs.type,
-          scopeLabel: consentLogs.scopeLabel,
-          grantedAt: consentLogs.grantedAt,
-          expiresAt: consentLogs.expiresAt,
-        })
-        .from(consentLogs)
-        .where(
-          and(
-            eq(consentLogs.studentId, studentId),
-            eq(consentLogs.parentId, recipient.id),
-            livingConsent(),
-          ),
-        )
-        .orderBy(asc(consentLogs.grantedAt), asc(consentLogs.type))
-    : [];
+  const rows = await getDb()
+    .select({
+      type: consentLogs.type,
+      scopeLabel: consentLogs.scopeLabel,
+      grantedAt: consentLogs.grantedAt,
+      expiresAt: consentLogs.expiresAt,
+      // 응답에 싣지 않는다 — 아래에서 boolean 으로 접는다(머리주석 ⛔).
+      parentId: consentLogs.parentId,
+    })
+    .from(consentLogs)
+    .where(and(eq(consentLogs.studentId, studentId), livingConsent()))
+    .orderBy(asc(consentLogs.grantedAt), asc(consentLogs.type));
 
   const body: MyConsentsResponse = {
     // id 를 떼고 이름·관계만 — 구조분해로 명시해서 필드가 늘어도 새 나가지 않게 한다.
     parent: recipient ? { name: recipient.name, relation: recipient.relation } : null,
-    consents: rows.map(toRow),
+    consents: rows.map((row) =>
+      toRow(row, recipient !== null && row.parentId === recipient.id),
+    ),
   };
   return NextResponse.json(body);
 }
@@ -171,7 +177,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
 
   if (updated.length > 0) {
-    const consent: GrantConsentResponse = { consent: toRow(updated[0]) };
+    // 갱신은 `parentId: recipient.id` 도 함께 쓴다 — 옛 보호자에게 매달려 있던 행이
+    // 여기서 **지금 보호자에게 옮겨 붙는다.** 그래서 언제나 지금 보호자 것이다.
+    const consent: GrantConsentResponse = { consent: toRow(updated[0], true) };
     return NextResponse.json(consent);
   }
 
@@ -194,7 +202,8 @@ export async function POST(req: Request): Promise<NextResponse> {
         expiresAt: consentLogs.expiresAt,
       });
 
-    const consent: GrantConsentResponse = { consent: toRow(inserted) };
+    // 방금 `recipient.id` 로 넣은 행이다 — 지금 보호자 것임이 자명하다.
+    const consent: GrantConsentResponse = { consent: toRow(inserted, true) };
     return NextResponse.json(consent, { status: 201 });
   } catch {
     // FK 위반(도메인 `users` 에 없는 신원) 등 쓰기 실패 — 이웃 라우트와 같게 400 으로 답한다.
@@ -207,17 +216,27 @@ export async function POST(req: Request): Promise<NextResponse> {
  *
  * `type` 을 `string` 이 아니라 `ConsentTypeValue` 로 받는다 — 넓게 받으면 스키마 enum 이
  * 늘어나도 여기서 조용히 통과하고, 계약 union 과 갈라진 것을 화면에서야 알게 된다.
+ *
+ * `parent_id` 는 **인자로 들어와 boolean 이 되어 나간다.** 행을 통째로 받아 여기서
+ * 꺼내 쓰게 두면 다음 사람이 응답에 그대로 얹기 쉬운데, 그 문은 계약이 닫아 뒀다
+ * (`MyConsentRow` 주석).
+ * @param row - DB 행(받는 사람 id 는 담지 않는다)
+ * @param toCurrentParent - 이 동의가 지금 보호자에게 가는가
  */
-function toRow(row: {
-  type: ConsentTypeValue;
-  scopeLabel: string;
-  grantedAt: Date;
-  expiresAt: Date | null;
-}): MyConsentRow {
+function toRow(
+  row: {
+    type: ConsentTypeValue;
+    scopeLabel: string;
+    grantedAt: Date;
+    expiresAt: Date | null;
+  },
+  toCurrentParent: boolean,
+): MyConsentRow {
   return {
     type: row.type,
     scopeLabel: row.scopeLabel,
     grantedAt: row.grantedAt.toISOString(),
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+    toCurrentParent,
   };
 }

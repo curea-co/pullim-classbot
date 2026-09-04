@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { EyeOff, Lock, Share2, UserRound, UserRoundX } from 'lucide-react';
+import { EyeOff, Lock, Share2, TriangleAlert, UserRound, UserRoundX } from 'lucide-react';
 
 import BackLink from '@/components/classbot/back-link';
 import { AlertCard } from '@/components/classbot/alert-card';
@@ -57,23 +57,50 @@ export default function SharePage() {
     !hasServerIdentity ||
     (consents.error instanceof ApiClientError && consents.error.status === 401);
 
-  // `null` 은 「연결된 보호자가 없다」 — 줄 상대가 없다는 뜻이라 공유 칸을 아예 안 그린다.
+  /*
+    `null` 은 「연결된 보호자가 없다」 — 새로 **켤** 상대가 없다는 뜻이다.
+    그렇다고 목록을 통째로 접지는 않는다: 링크가 끊겨도 예전에 켠 동의는 살아 있을 수
+    있고, 그때 목록이 없으면 학생이 그걸 **끄지 못한다**(아래 `shownItems`).
+  */
   const parent = consents.data?.parent ?? null;
   const relationLabel = parent ? RELATION_LABEL[parent.relation] : null;
 
   /**
-   * 타입 → 지금 살아 있는 동의. 없으면 안 켜진 것이다.
+   * 타입 → 지금 살아 있는 동의. **받는 사람으로 두 갈래**로 나눠 담는다.
+   *
+   * 서버는 살아 있는 동의를 **전부** 준다 — 지금 보호자 것만 주면 옛 보호자에게 남은
+   * 권한을 학생이 보지도 끄지도 못하게 된다(`app/api/me/consents/route.ts` GET 머리주석).
+   * 그 대신 행마다 `toCurrentParent` 가 어디로 가는지를 말하므로, 화면은 그 칸으로
+   * 「지금 보호자께 보여요」와 「다른 보호자께 아직 열려 있어요」를 갈라 그린다.
+   * 한 갈래로 뭉쳐 담으면 옛 보호자 대상 행이 지금 보호자의 이름과 함께 그려진다 —
+   * 이 화면이 낼 수 있는 가장 나쁜 종류의 거짓이다.
    *
    * 한 타입에 살아 있는 행이 둘이면 **나중에 준 것**이 남는다(응답이 준 순 오름차순이라
    * 뒤에 덮인다). 부여가 멱등이라 정상 경로로는 안 생기지만, 손으로 넣으면 생긴다 —
    * 실제로 한 번 그런 표를 봤다. 그때 한 줄을 둘로 그리는 것보다 「지금 유효한 약속」
    * 하나를 그리는 편이 맞다. 끄기는 어차피 그 타입의 살아 있는 행을 **전부** 거둔다.
    */
-  const byType = useMemo(() => {
-    const map = new Map<string, ConsentItem>();
-    for (const row of consents.data?.consents ?? []) map.set(row.type, row);
-    return map;
+  const { current, elsewhere } = useMemo(() => {
+    const current = new Map<string, ConsentItem>();
+    const elsewhere = new Map<string, ConsentItem>();
+    for (const row of consents.data?.consents ?? []) {
+      (row.toCurrentParent ? current : elsewhere).set(row.type, row);
+    }
+    return { current, elsewhere };
   }, [consents.data]);
+
+  /*
+    이어진 보호자가 없어도 **끌 것이 남아 있으면 목록을 그린다.**
+
+    링크가 끊겨도 동의 행은 남고, 링크가 되살아나면 열람도 되살아난다. 그때 「보호자가
+    없으니 그릴 게 없다」로 접으면 학생은 그 줄을 끝내 못 끈다. 반대로 이어진 보호자가
+    있으면 목록 전체를 그린다 — 아직 안 켠 줄도 켜는 자리가 있어야 하니까.
+  */
+  const shownItems =
+    parent !== null
+      ? SHAREABLE_ITEMS
+      : SHAREABLE_ITEMS.filter((item) => elsewhere.has(item.type));
+  const hasElsewhere = SHAREABLE_ITEMS.some((item) => elsewhere.has(item.type));
 
   return (
     <div className="space-y-5">
@@ -116,7 +143,13 @@ export default function SharePage() {
                 <EmptyState
                   icon={UserRoundX}
                   title="아직 연결된 보호자가 없어요"
-                  description="연결된 분이 있어야 공유를 켤 수 있어요. 지금은 내 기록이 아무에게도 안 보이는 상태예요."
+                  /* 「아무에게도 안 보인다」고 단정하지 않는다 — 예전에 켠 것이 아직
+                     살아 있으면 사실이 아니다. 그 경우는 아래 목록이 이어서 말한다. */
+                  description={
+                    hasElsewhere
+                      ? '연결된 분이 있어야 새로 켤 수 있어요. 그런데 예전에 켠 공유가 아직 남아 있어요 — 아래에서 끌 수 있어요.'
+                      : '연결된 분이 있어야 공유를 켤 수 있어요. 지금은 내 기록이 아무에게도 안 보이는 상태예요.'
+                  }
                 />
               </div>
             ) : (
@@ -144,19 +177,50 @@ export default function SharePage() {
           </section>
 
           {/* ─── 무엇을 ─── */}
-          {parent !== null && (
+          {shownItems.length > 0 && (
             <section>
               <SectionHeading
                 title="보여드릴 것"
-                description="켠 것만 보여요. 하나씩 따로 켜고 끌 수 있어요."
+                description={
+                  parent !== null
+                    ? '켠 것만 보여요. 하나씩 따로 켜고 끌 수 있어요.'
+                    : '예전에 켜 둔 것이 아직 남아 있어요. 하나씩 따로 끌 수 있어요.'
+                }
               />
+
+              {/*
+                다른 보호자에게 남은 공유가 있으면 **목록 위에** 적는다 — 줄마다 붙는
+                글자는 그 줄을 읽어야 보이는데, 이건 화면에 들어오자마자 알아야 하는 사실이다.
+                누구인지는 적지 않는다: 서버가 그 사람의 id·이름을 싣지 않고(계약
+                `MyConsentRow.toCurrentParent`), 끄는 데도 필요 없다 — 철회는
+                `(학생, 타입)` 기준이라 받는 사람과 상관없이 꺼진다.
+              */}
+              {hasElsewhere && (
+                <AlertCard
+                  tone="danger"
+                  icon={TriangleAlert}
+                  title="다른 보호자께 아직 열려 있는 공유가 있어요"
+                  className="mb-3"
+                >
+                  <p>
+                    지금 이어진 분이 아닌 다른 보호자께 예전에 켠 것이 아직 살아 있어요.
+                    아래 목록에 빨갛게 표시해 뒀어요.
+                  </p>
+                  <p className="mt-2">
+                    끄기는 항목별로 한 번에 이뤄져요 — 그 항목을 끄면 누구에게 열려 있었든
+                    전부 함께 꺼져요.
+                  </p>
+                </AlertCard>
+              )}
+
               <ul className="space-y-2">
-                {SHAREABLE_ITEMS.map((item) => (
+                {shownItems.map((item) => (
                   <ShareItem
                     key={item.type}
                     item={item}
-                    consent={byType.get(item.type) ?? null}
-                    parentName={parent.name}
+                    consent={current.get(item.type) ?? null}
+                    elsewhere={elsewhere.get(item.type) ?? null}
+                    parentName={parent?.name ?? null}
                   />
                 ))}
               </ul>
