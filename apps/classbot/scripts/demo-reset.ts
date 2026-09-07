@@ -4,10 +4,12 @@
  * `db:seed` 와 다르다 — seed 는 30개 테이블을 TRUNCATE 하고 mock 전체를 다시 넣는다.
  * 이 스크립트는 **자기가 만든 것만** 정해진 출발점으로 되돌린다. 가르는 기준은 하나 —
  * **`*_demo_` id 접두사**다(`cr_demo_` · `cb_demo_` · `as_demo_`):
- *   - 이 스크립트가 연 수업방과 그 참여 코드
- *   - 이 스크립트가 만든 봇 (아무도 참여·출제하지 않은 것만)
- *   - 이 스크립트가 낸 과제
- *   - 학생 민준(s2)의 참여 — 코드 참여를 맨바닥부터 해 보기 위한 자리다
+ *   - 이 스크립트가 낸 과제 — 지운다
+ *   - 이 스크립트가 연 수업방의 참여 코드 — 지우고 새로 뽑는다
+ *   - 학생 민준(s2)의 참여 — 비운다. 코드 참여를 맨바닥부터 해 보기 위한 자리다
+ *   - 데모 수업방·봇 행 자체 — **지우지 않고 덮어쓴다**(upsert). id 가 결정적이라
+ *     지웠다 다시 만들면 남이 쓰던 봇에서 PK 충돌이 나고, 방을 먼저 지우면 그 cascade 가
+ *     보존하려던 학생 참여를 먼저 지운다. 자세한 근거는 아래 해당 자리 주석에 있다
  *   - 게시 상태는 **자기 봇과 아래에서 자기가 올리는 시드 봇 하나**만 내린다
  * 서연(student_001)의 기존 5개 반과 과제 3건, mock 시드가 만든 나머지 데이터, 그리고
  * **사람이 화면·API 로 만든 수업방·봇·과제와 그들이 올린 마켓 게시**는 **건드리지 않는다.**
@@ -158,29 +160,30 @@ async function main(): Promise<void> {
   // 민준의 참여를 비운다 — 코드 참여를 맨바닥부터 해 보기 위한 자리다.
   await db.delete(enrollments).where(eq(enrollments.studentId, 's2'));
 
-  // 지난 실행의 데모 수업방을 지운다 — **접두사가 붙은 것만**.
-  //
-  // 예전에는 `cr_<uuid>` 정규식이라 「런타임에 만들어진 것」을 통째로 걷었다. 그건 이
-  // 스크립트가 만든 방만이 아니라 **교사가 화면에서 만든 방 전부**에 걸리고, 참여 코드와
-  // enrollment 까지 cascade 로 끌고 간다. 데모를 한 번 돌린 대가로 남의 반이 사라졌다.
-  // join_codes 는 classrooms 에 걸린 FK 가 cascade 라 데모 방의 코드만 함께 사라진다.
-  const staleRooms = await db
-    .delete(classrooms)
-    .where(sql`${classrooms.id} like ${`${DEMO_CLASSROOM_ID_PREFIX}%`}`)
-    .returning({ id: classrooms.id });
+  /*
+    데모 수업방·봇은 **지우지 않는다. 덮어쓴다.**
 
-  // 짝 봇도 같은 표식으로. 단 **아무도 참여·출제하지 않은 것만** — 사람이 그 데모 봇에
-  // 과제를 냈거나 학생이 들어와 있으면 남겨서 그 데이터를 깨지 않는다.
-  const staleBots = await db
-    .delete(classBots)
-    .where(
-      and(
-        sql`${classBots.id} like ${`${DEMO_BOT_ID_PREFIX}%`}`,
-        sql`${classBots.id} not in (select distinct bot_id from ${enrollments})`,
-        sql`${classBots.id} not in (select distinct bot_id from ${assignments})`,
-      ),
-    )
-    .returning({ id: classBots.id });
+    id 를 결정적으로 지으면서(`cr_demo_*` · `cb_demo_*`) 「지웠다 다시 만든다」가 성립하지
+    않게 됐다. 두 가지가 한꺼번에 어긋났다:
+
+      ① 사람이 데모 봇에 과제를 냈으면 봇 보존 조건(`not in (select bot_id from assignments)`)이
+         그 봇을 남긴다. 그런데 아래에서 **같은 id 로 다시 INSERT** 하므로 PK 충돌로 리셋이
+         통째로 죽는다. id 가 uuid 이던 시절에는 없던 고장이다.
+      ② 학생이 데모 방에 들어와 있으면, 방을 먼저 지우는 순간 그 cascade 가 enrollment 를
+         먼저 없앤다. 그러면 봇 보존 조건이 「아무도 안 쓴다」로 바뀌어 **보존하려던 봇과
+         학생 참여를 함께 지운다.** 보호 장치가 자기 앞의 삭제에 무력화된 것이다.
+
+    삭제 순서를 손보는 대신 **삭제를 없앤다.** 되돌릴 것은 이 스크립트가 소유한 것 —
+    데모 과제와 데모 참여 코드 — 이고, 그 둘은 아래에서 따로 지운다. 수업방·봇 행 자체는
+    `onConflictDoUpdate` 로 정해진 모양에 맞추기만 하면 된다. 그러면 재실행이 언제나
+    성공하고(멱등), 남의 과제·남의 참여는 어느 경우에도 사라지지 않는다.
+  */
+  // 데모 짝의 옛 참여 코드는 지운다 — 재발급이 곧 무효화다(방을 안 지우니 cascade 도 없다).
+  for (const room of DEMO_ROOMS) {
+    await db
+      .delete(joinCodes)
+      .where(eq(joinCodes.classroomId, demoClassroomId(room.key)));
+  }
 
   // 게시 상태를 내린다 — **이 스크립트가 건드리는 봇만.**
   //
@@ -215,24 +218,31 @@ async function main(): Promise<void> {
     const classroomId = demoClassroomId(room.key);
     const botId = demoBotId(room.key);
 
-    await db.insert(classBots).values({
-      id: botId,
+    const botFields = {
       name: room.botName,
       teacherId: room.teacherId,
       teacherName,
       organization: room.organization,
       subject: room.subject,
       grade: room.grade,
-      tone: '친근',
+      tone: '친근' as const,
       greeting: `안녕! 나는 ${room.botName}야. 모르는 게 있으면 언제든 물어봐.`,
-    });
+    };
+    // 있으면 정해진 모양으로 맞추고, 없으면 만든다 — 재실행이 언제나 성공한다.
+    await db
+      .insert(classBots)
+      .values({ id: botId, ...botFields })
+      .onConflictDoUpdate({ target: classBots.id, set: botFields });
 
-    await db.insert(classrooms).values({
-      id: classroomId,
+    const roomFields = {
       label: room.label,
       organization: room.organization,
       teacherId: room.teacherId,
-    });
+    };
+    await db
+      .insert(classrooms)
+      .values({ id: classroomId, ...roomFields })
+      .onConflictDoUpdate({ target: classrooms.id, set: roomFields });
 
     const code = await issueJoinCode(db, { botId, classroomId, teacherId: room.teacherId });
     created.push({ room, code });
@@ -289,9 +299,9 @@ async function main(): Promise<void> {
   console.log(`\n${line}`);
   console.log('  데모 상태를 새로 맞췄습니다');
   console.log(line);
-  console.log(`  지운 것 — 데모 과제 ${removedAssignments.length}건 · 데모 수업방 ${staleRooms.length}개 · 봇 ${staleBots.length}개 · 민준의 참여 전부`);
+  console.log(`  되돌린 것 — 데모 과제 ${removedAssignments.length}건 · 데모 수업방 ${DEMO_ROOMS.length}개(코드 재발급) · 민준의 참여 전부`);
   if (keptTeacherAssignments > 0) {
-    console.log(`  그대로 둔 것 — 사람이 낸 과제 ${keptTeacherAssignments}건 (이 스크립트는 자기가 만든 것만 지웁니다)`);
+    console.log(`  그대로 둔 것 — 사람이 낸 과제 ${keptTeacherAssignments}건 (이 스크립트는 자기가 만든 것만 되돌립니다)`);
   }
   console.log('');
   console.log('  교사 · 김수학 (teacher_001)');
