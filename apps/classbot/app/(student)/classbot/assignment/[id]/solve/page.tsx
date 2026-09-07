@@ -100,6 +100,13 @@ export default function SolvePage({
 
     **빌리는 것은 문항 출처 둘뿐이다.** 나머지 필드(대상·상태·마감)는 서버가 정본이라 로컬
     값으로 덮지 않는다 — 그게 위 접근 판정을 우회하는 뒷문이 된다.
+
+    ⚠ **이 빌리기가 닿는 곳은 사본이 있는 기기까지다.** 다른 기기의 학생에게는 로컬 사본이
+    없어서, 교사가 쓴 문항 대신 mode 시드가 실린다. `assignment_questions` 테이블은 스키마에
+    있지만 읽기·쓰기 경로가 아직 어디에도 없다 — 문항 콘텐츠의 DB 영속은 M3(QGen) 소관이다
+    (`lib/store/assignments.ts` 412행). 이 화면이 만든 구멍이 아니라 그 경계가 여기서 보이는
+    것이고, 서버가 문항을 주기 시작하면 이 빌리기 자체가 필요 없어진다.
+    경계는 `__tests__/page.test.tsx` 의 `[M2 한계]` 테스트가 못박고 있다.
   */
   const questions = getQuestionsForAssignment(local ? { ...a, ...questionSources(local) } : a);
   if (questions.length === 0) notFound();

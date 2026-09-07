@@ -211,4 +211,46 @@ describe('풀이 화면 진입', () => {
       'q_authored_1',
     );
   });
+
+  /*
+    ⚠ **M2 경계를 그대로 못박는 테스트다 — 통과한다고 좋은 상태가 아니다.**
+
+    위 테스트는 교사 **자기 기기**를 그린다(서버 행과 로컬 사본이 같이 있다). 다른 기기의
+    학생에게는 로컬 사본이 없고, 서버 행에는 문항 본문이 없다 — `assignment_questions`
+    테이블은 스키마에 있지만 읽기·쓰기 경로가 어디에도 없다. 그래서 교사가 쓴 발문 대신
+    mode 시드가 실린다.
+
+    이건 이 화면이 만든 구멍이 아니라 M2 의 알려진 경계다(`lib/store/assignments.ts` 412행).
+    여기 적어 두는 이유는 **문항이 서버로 영속되는 순간 이 테스트가 깨져서** 다음 사람이
+    이 자리를 반드시 다시 보게 하려는 것이다.
+  */
+  it('[M2 한계] 다른 기기 학생은 교사가 쓴 문항 대신 mode 시드를 받는다', async () => {
+    const id = 'as_9a1c4e2f';
+    // 로컬 사본 없음 — 발사한 교사가 아닌 다른 기기다.
+    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
+
+    await renderSolve(id);
+
+    const served = screen.getByTestId('solve-workspace').getAttribute('data-questions');
+    expect(served).not.toBe('');
+    // 교사가 쓴 문항이 아니라 practice 시드다.
+    expect(served).not.toContain('q_authored');
+    expect(served).toContain('q_today');
+  });
+
+  /*
+    「문항 경로가 마련되기 전에는 직접 출제를 서버로 발사하지 마라」가 학생 쪽을 고치지
+    못한다는 근거 — 교사가 발문을 안 썼을 때도 결과가 **똑같다.** 즉 출제를 막아도 학생이
+    받는 문항은 달라지지 않고, 교사 기능만 사라진다.
+  */
+  it('교사가 발문을 안 쓴 과제도 같은 mode 시드로 떨어진다 — 출제 여부가 학생 쪽을 가르지 않는다', async () => {
+    const id = 'as_no_authored';
+    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
+
+    await renderSolve(id);
+
+    expect(screen.getByTestId('solve-workspace').getAttribute('data-questions')).toContain(
+      'q_today',
+    );
+  });
 });
