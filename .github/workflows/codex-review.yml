@@ -196,7 +196,7 @@ jobs:
         # sandbox=workspace-write + safety_strategy 기본값 — .codex-runtime/ 안의 read/write 만 허용.
         # 호스트 외부 파일 시스템 접근 차단 (Codex 지적 round 2 #3).
         run: |
-          cat <<'PROMPT' | codex exec --model gpt-5.4 --sandbox workspace-write -
+          cat <<'PROMPT' | codex exec --model gpt-5.6-terra --sandbox workspace-write -
           .codex-runtime/pr-diff.txt 파일에 이 PR의 변경 diff가 있다.
 
           리뷰 규칙은 `.codex-runtime/base-rules/` 안의 모든 AGENTS.override.md · AGENTS.md ·
