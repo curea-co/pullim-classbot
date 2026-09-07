@@ -157,6 +157,16 @@ export interface DispatchAssignmentInput {
   chapterFrom?: string;
   chapterTo?: string;
   /**
+   * 단원을 고르면 자동으로 따라오는 성취기준 코드(spec 14 § 5.4). 생략하면 빈 배열 —
+   * 컬럼이 `NOT NULL DEFAULT '[]'` 라 「없음」의 표현이 하나뿐이다(null 이중표현 금지).
+   */
+  achievementCodes?: string[];
+  /**
+   * 교사가 적어 보내는 한 줄. 학생 개요 화면이 `reasonHint` 로 읽는다
+   * (spec 12 § 3.3.2 · 14 § 3.3.1). 생략·공백이면 `null`.
+   */
+  reasonHint?: string;
+  /**
    * 시험 모드 제한 시간(분, 10~180). **`mode === 'exam'` 에서만 뜻이 있다** — 다른 모드로
    * 오면 서버가 `null` 로 떨어뜨린다(`scopeOverride` 가 시험에서만 1 인 것과 같은 결).
    * 생략하면 `null`.

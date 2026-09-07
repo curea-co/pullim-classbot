@@ -482,6 +482,102 @@ describe('POST /api/teacher/assignments — 반 단위 발사', () => {
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
+  /*
+    성취기준 코드 · 봇 한 마디 — 단원·제한 시간과 같은 모양의 유실이었다.
+    컬럼은 있는데 쓰는 경로가 없어 학생 개요가 「왜 이 과제가 왔는지」를 못 읽었다.
+  */
+  function okQueue(): void {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_8', botId: 'cb_001' }]];
+  }
+
+  it('성취기준 코드와 봇 한 마디를 그대로 적는다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(
+      dispatchReq({
+        achievementCodes: ['수-일차-1', '수-일차-2'],
+        reasonHint: '어제 부호 변화에서 막혔던 사람들 다시 짚자',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      achievementCodes: ['수-일차-1', '수-일차-2'],
+      reasonHint: '어제 부호 변화에서 막혔던 사람들 다시 짚자',
+    });
+  });
+
+  it('둘 다 생략하면 빈 배열과 null — 안 적고 내는 경로가 정상이다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq());
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    // 컬럼이 NOT NULL DEFAULT '[]' 라 「없음」의 표현은 빈 배열 하나뿐이다.
+    expect(values.achievementCodes).toEqual([]);
+    // 한 마디는 nullable — 빈 문자열을 넣어 「적었는데 빈 칸」처럼 보이게 하지 않는다.
+    expect(values.reasonHint).toBeNull();
+  });
+
+  it('공백만 적은 한 마디는 null 로 떨어진다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ reasonHint: '   ' }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.reasonHint).toBeNull();
+  });
+
+  it('긴 한 마디는 폼과 같은 200자에서 자른다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ reasonHint: '가'.repeat(300) }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.reasonHint).toBe('가'.repeat(200));
+  });
+
+  it('같은 코드가 겹쳐 오면 한 번만 적는다 — 범위 선택이 단원을 겹쳐 고른다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(
+      dispatchReq({ achievementCodes: ['수-일차-1', ' 수-일차-1 ', '수-일차-2'] }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.achievementCodes).toEqual(['수-일차-1', '수-일차-2']);
+  });
+
+  it.each([
+    ['배열이 아님', '수-일차-1'],
+    ['문자열이 아닌 항목', [1]],
+    ['빈 항목', ['']],
+    ['항목 길이 초과', ['x'.repeat(65)]],
+    ['개수 초과', Array.from({ length: 51 }, (_, i) => `c-${i}`)],
+  ])('성취기준 코드가 %s 이면 400 이고 아무것도 안 쓴다', async (_label, bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(dispatchReq({ achievementCodes: bad }));
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { code?: string; message?: string };
+    expect(parsed.code).toBe('INVALID_INPUT');
+    expect(parsed.message).toContain('성취기준');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
   it('이 방에 없는 학생을 지정하면 400', async () => {
     mockSelectQueue = [
       [{ role: 'teacher' }],
