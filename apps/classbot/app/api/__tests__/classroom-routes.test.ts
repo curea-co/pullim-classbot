@@ -1,0 +1,1057 @@
+/**
+ * @jest-environment node
+ *
+ * 수업방·참여 코드·과제 라우트 가드 단위 테스트 (계약 §4).
+ *
+ * 여기서 지키려는 것 넷:
+ *  1. **소유권** — 남의 반 id 를 경로에 넣으면 **404**(403 이 아니다). 403 으로 답하면
+ *     "그 반은 있는데 네 것이 아니다" 를 알려 주는 셈이라 남의 반 존재가 새 나간다.
+ *     역할 불일치(학생이 교사 라우트)만 403 `FORBIDDEN_ROLE` 이다.
+ *  2. **없는 코드** — 404 이지 500 이 아니다.
+ *  3. **멱등 참여** — 같은 방에 두 번 들어가도 오류가 아니라 200.
+ *  4. **넓힌 학생 술어** — 반 단위 발사(student_id NULL)가 학생 조회에 들어온다.
+ *
+ * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다.
+ */
+import { createHmac } from 'node:crypto';
+
+import type { AccessTokenPayload } from '@pullim-classbot/types';
+import { PgDialect } from 'drizzle-orm/pg-core';
+
+// ── getDb mock — select/insert/update/delete/transaction 체인을 가짜로 대체 ──
+const whereSpy = jest.fn();
+const setSpy = jest.fn();
+/** `SELECT ... FOR UPDATE` 호출 기록 — 잠금을 실제로 거는지 본다. */
+const forSpy = jest.fn();
+const insertValuesSpy = jest.fn();
+const deleteSpy = jest.fn();
+
+/** 다음 `select` 들이 차례로 돌려줄 행 묶음(호출 순서대로 shift). */
+let mockSelectQueue: unknown[][] = [];
+/** 다음 `insert ... returning` 들이 차례로 돌려줄 행 묶음. */
+let mockInsertQueue: unknown[][] = [];
+
+jest.mock('@/lib/db', () => {
+  type Chain = Record<string, unknown>;
+
+  const selectChain = (): Chain => {
+    const chain: Chain = {};
+    const ret = () => chain;
+    chain.from = ret;
+    chain.innerJoin = ret;
+    chain.leftJoin = ret;
+    chain.groupBy = ret;
+    chain.orderBy = ret;
+    chain.limit = ret;
+    chain.where = (...args: unknown[]) => {
+      whereSpy(...args);
+      return chain;
+    };
+    chain.for = (...args: unknown[]) => {
+      forSpy(...args);
+      return chain;
+    };
+    chain.then = (resolve: (v: unknown[]) => unknown) =>
+      resolve(mockSelectQueue.shift() ?? []);
+    return chain;
+  };
+
+  const insertChain = (): Chain => {
+    const chain: Chain = {};
+    chain.values = (v: unknown) => {
+      insertValuesSpy(v);
+      return chain;
+    };
+    chain.onConflictDoNothing = () => chain;
+    chain.returning = () => chain;
+    chain.then = (resolve: (v: unknown[]) => unknown) =>
+      resolve(mockInsertQueue.shift() ?? []);
+    return chain;
+  };
+
+  const updateChain = (): Chain => {
+    const chain: Chain = {};
+    chain.set = (v: unknown) => {
+      setSpy(v);
+      return chain;
+    };
+    chain.where = () => chain;
+    chain.then = (resolve: (v: unknown[]) => unknown) => resolve([]);
+    return chain;
+  };
+
+  const deleteChain = (): Chain => {
+    const chain: Chain = {};
+    chain.where = () => chain;
+    chain.then = (resolve: (v: unknown[]) => unknown) => resolve([]);
+    return chain;
+  };
+
+  const makeDb = (): Chain => ({
+    select: () => selectChain(),
+    selectDistinct: () => selectChain(),
+    insert: () => insertChain(),
+    update: () => updateChain(),
+    delete: () => {
+      deleteSpy();
+      return deleteChain();
+    },
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(makeDb()),
+  });
+
+  return { getDb: () => makeDb() };
+});
+
+import { GET as getAssignments } from '@/app/api/assignments/route';
+import { POST as dispatchAssignment } from '@/app/api/teacher/assignments/route';
+import { POST as issueCode } from '@/app/api/teacher/classrooms/[id]/join-codes/route';
+import { GET as getStudents } from '@/app/api/teacher/classrooms/[id]/students/route';
+import {
+  GET as getClassrooms,
+  POST as createClassroom,
+} from '@/app/api/teacher/classrooms/route';
+import { POST as joinByCode } from '@/app/api/enrollments/route';
+import { GET as getParentChildren } from '@/app/api/parent/children/route';
+import { GET as getMyClassrooms } from '@/app/api/me/classrooms/route';
+import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
+import type { TeacherClassroomItem } from '@/app/api/_lib/contract-types';
+
+const SECRET = 'test-jwt-secret';
+
+beforeAll(() => {
+  process.env.JWT_SECRET = SECRET;
+});
+
+beforeEach(() => {
+  whereSpy.mockClear();
+  setSpy.mockClear();
+  forSpy.mockClear();
+  insertValuesSpy.mockClear();
+  deleteSpy.mockClear();
+  mockSelectQueue = [];
+  mockInsertQueue = [];
+});
+
+function base64Url(input: string | Buffer): string {
+  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function signToken(payload: Partial<AccessTokenPayload>): string {
+  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const p = base64Url(JSON.stringify(payload));
+  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
+  return `${h}.${p}.${sig}`;
+}
+
+/** 서명된 토큰을 실은 요청 — role 은 도메인 users 행이 다시 판정한다. */
+function req(
+  sub: string,
+  role: 'student' | 'teacher',
+  init: RequestInit = {},
+): Request {
+  const token = signToken({
+    sub,
+    email: `${sub}@example.com`,
+    role,
+    type: 'access',
+    jti: 'j1',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+  });
+  return new Request('http://localhost/api/x', {
+    ...init,
+    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
+}
+
+/** 조립된 술어를 실제 Postgres SQL 문자열로 펼친다. */
+function render(sqlLike: unknown): { text: string; params: unknown[] } {
+  const query = new PgDialect().sqlToQuery(
+    sqlLike as Parameters<PgDialect['sqlToQuery']>[0],
+  );
+  return { text: query.sql, params: query.params };
+}
+
+describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)', () => {
+  const ctx = { params: Promise.resolve({ id: 'cr_eng_b' }) };
+
+  it('POST /api/teacher/classrooms/[id]/join-codes — 남의 반이면 404', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }], // resolveActor
+      [], // 명의를 조회 조건에 넣었으므로 남의 반은 0행으로 떨어진다
+    ];
+
+    const res = await issueCode(req('teacher_001', 'teacher', { method: 'POST' }), ctx);
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('NOT_FOUND');
+    // 소유권이 아니면 코드를 지우지도 뽑지도 않는다.
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('소유권을 조회 조건에 넣는다 — 읽고 나서 비교하지 않는다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], []];
+
+    await getStudents(req('teacher_001', 'teacher'), ctx);
+
+    // 반 조회 술어에 반 id 와 **명의**가 함께 들어가야 한다.
+    const { params } = render(whereSpy.mock.calls[1][0]);
+    expect(params).toContain('cr_eng_b');
+    expect(params).toContain('teacher_001');
+  });
+
+  it('재발급은 반 행을 잠그고 시작한다 — 동시에 두 코드가 살아남지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }], // resolveActor
+      [{ id: 'cr_math_a', label: '고2 미적분 A반', teacherId: 'teacher_001' }], // 내 반
+      [], // resolveClassroomPairs ① join_codes
+      [{ classroomId: 'cr_math_a', botId: 'cb_001' }], // ② enrollments 로 복원한 짝
+      [{ id: 'cb_001' }], // 짝 봇 소유 확인
+      [{ id: 'cr_math_a' }], // 반 행 잠금(FOR UPDATE)
+    ];
+    mockInsertQueue = [[{ code: 'NEWCODE' }]];
+
+    await issueCode(req('teacher_001', 'teacher', { method: 'POST' }), {
+      params: Promise.resolve({ id: 'cr_math_a' }),
+    });
+
+    /*
+      DELETE→INSERT 순서만으로는 「살아 있는 코드는 하나」가 안 된다 — 동시 재발급 둘이
+      각자 지우고 **서로 다른 코드를 넣으면** 둘 다 남는다(`join_codes` PK 는 `code` 하나라
+      (bot, classroom) 조합을 막지 않는다). 반 행 잠금이 그 둘을 줄 세운다.
+    */
+    expect(forSpy).toHaveBeenCalledWith('update');
+
+    // 잠금이 **지우기보다 먼저** 걸려야 의미가 있다.
+    expect(forSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('GET /api/teacher/classrooms/[id]/students — 남의 반이면 404 (명단 유출 차단)', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], []];
+
+    const res = await getStudents(req('teacher_001', 'teacher'), ctx);
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { students?: unknown; code?: string };
+    expect(body.code).toBe('NOT_FOUND');
+    expect(body.students).toBeUndefined();
+    // 없는 반과 남의 반이 **같은 답**이어야 존재가 새 나가지 않는다.
+  });
+
+  it('학생이 교사 라우트를 치면 403 FORBIDDEN_ROLE (역할 불일치만 403)', async () => {
+    mockSelectQueue = [[{ role: 'student' }]];
+
+    const res = await getStudents(req('student_001', 'student'), ctx);
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('FORBIDDEN_ROLE');
+  });
+});
+
+describe('POST /api/teacher/classrooms — 반 + 봇 + 코드를 한 트랜잭션으로', () => {
+  it('세 행을 다 만들고 201 { classroom, bot, joinCode }', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }], // resolveActor
+      [{ name: '김수학' }], // 교사 이름
+    ];
+    mockInsertQueue = [
+      [{ id: 'cr_new', label: '고2 미적분 B반', organization: '풀림', teacherId: 'teacher_001' }],
+      [{ id: 'cb_new', name: '미적분 도우미', teacherId: 'teacher_001' }],
+      [{ code: 'ABCDEF' }],
+    ];
+
+    const res = await createClassroom(
+      req('teacher_001', 'teacher', {
+        method: 'POST',
+        body: JSON.stringify({
+          label: '고2 미적분 B반',
+          subject: '수학Ⅱ',
+          grade: '고2',
+          organization: '풀림',
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      classroom?: { id?: string };
+      bot?: { id?: string };
+      joinCode?: string;
+    };
+    expect(body.classroom?.id).toBe('cr_new');
+    expect(body.bot?.id).toBe('cb_new');
+    expect(body.joinCode).toBe('ABCDEF');
+
+    // 세 번의 insert — classrooms · class_bots · join_codes.
+    expect(insertValuesSpy).toHaveBeenCalledTimes(3);
+    const [classroomValues, botValues, codeValues] = insertValuesSpy.mock.calls.map(
+      (c) => c[0] as Record<string, unknown>,
+    );
+    expect(classroomValues.id).toMatch(/^cr_/);
+    expect(classroomValues.teacherId).toBe('teacher_001');
+    // class_bots 의 NOT NULL 컬럼을 전부 채운다(default 가 없는 것들).
+    expect(botValues).toMatchObject({
+      teacherId: 'teacher_001',
+      teacherName: '김수학',
+      organization: '풀림',
+      subject: '수학Ⅱ',
+      grade: '고2',
+    });
+    expect(botValues.id).toMatch(/^cb_/);
+    expect(botValues.name).toBeTruthy();
+    expect(botValues.tone).toBeTruthy();
+    expect(botValues.greeting).toBeTruthy();
+    // join_codes.teacher_id 가 비면 소유권 복합 FK 가 검사에서 빠진다.
+    expect(codeValues.teacherId).toBe('teacher_001');
+  });
+
+  it('필수 값이 비면 400 INVALID_INPUT (우리말 문구)', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }]];
+
+    const res = await createClassroom(
+      req('teacher_001', 'teacher', {
+        method: 'POST',
+        body: JSON.stringify({ label: '  ', subject: '수학', grade: '고2' }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code?: string; message?: string };
+    expect(body.code).toBe('INVALID_INPUT');
+    expect(body.message).toContain('수업방 이름');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/teacher/assignments — 반 단위 발사', () => {
+  const body = {
+    botId: 'cb_001',
+    title: '미적분 1단원',
+    dueLabel: '내일 22:00',
+    questionCount: 5,
+    difficulty: '중',
+    mode: 'practice',
+  };
+
+  function dispatchReq(patch: Record<string, unknown> = {}): Request {
+    return req('teacher_001', 'teacher', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, ...patch }),
+    });
+  }
+
+  it('남의 봇이면 404 (403 이 아니다 — 봇 존재를 알리지 않는다)', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [], // 명의를 조회 조건에 넣었으므로 남의 봇은 0행
+    ];
+
+    const res = await dispatchAssignment(dispatchReq({ botId: 'cb_002' }));
+
+    expect(res.status).toBe(404);
+    const parsed = (await res.json()) as { code?: string };
+    expect(parsed.code).toBe('NOT_FOUND');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('내 봇이면 201 + 발사 컬럼을 규약대로 적는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_1', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq());
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      studentId: null, // 반 단위 — 학생별 행을 만들지 않는다
+      targetStudentIds: [], // 빈 배열 = 반 전체
+      dispatchStatus: 'sent',
+      createdBy: 'teacher_001',
+      source: 'teacher-assigned',
+      state: 'todo',
+      subject: '수학Ⅱ', // 봇에서 파생
+      grade: '고2',
+      dDay: 'D-1', // '내일 22:00' 에서 파생
+    });
+    // dispatched_at 은 DEFAULT 가 없다 — 실제 발사 전이인 여기서만 적는다.
+    expect(values.dispatchedAt).toBeInstanceOf(Date);
+    // 학생 풀이 라우트 모양과 정확히 맞아야 한다.
+    expect(values.solveHref).toBe(`/classbot/assignment/${String(values.id)}/solve?step=1`);
+    expect(values.id).toMatch(/^as_/);
+  });
+
+  it('교사가 고른 단원을 그대로 적는다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_2', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(
+      dispatchReq({
+        scope: '수학Ⅱ > 미분 > 도함수',
+        chapterFrom: '수학Ⅱ > 미분 > 도함수',
+        chapterTo: '수학Ⅱ > 미분 > 도함수',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      scope: '수학Ⅱ > 미분 > 도함수',
+      chapterFrom: '수학Ⅱ > 미분 > 도함수',
+      chapterTo: '수학Ⅱ > 미분 > 도함수',
+    });
+  });
+
+  it('단원을 안 보내면 예전 기본값으로 떨어진다 — 단원 없이 내는 경로가 실제로 있다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_3', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq());
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({ scope: '단원 미정', chapterFrom: '', chapterTo: '' });
+  });
+
+  /*
+    시험 제한 시간 — 단원과 같은 모양의 유실이었다(컬럼은 있는데 쓰는 경로가 없었다).
+    경계값은 교사 폼 슬라이더의 min/max 와 같아야 한다: 10 ~ 180.
+  */
+  const examBody = { mode: 'exam', examTimeLimitMin: 90 };
+
+  it('시험 모드의 제한 시간을 그대로 적는다 — 화면이 시간을 잃지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_4', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq(examBody));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({ mode: 'exam', examTimeLimitMin: 90, scopeOverride: 1 });
+  });
+
+  it('슬라이더 양 끝(10·180)은 통과한다 — 서버가 폼보다 좁으면 안 된다', async () => {
+    for (const minutes of [10, 180]) {
+      insertValuesSpy.mockClear();
+      mockSelectQueue = [
+        [{ role: 'teacher' }],
+        [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+      ];
+      mockInsertQueue = [[{ id: 'as_5', botId: 'cb_001' }]];
+
+      const res = await dispatchAssignment(
+        dispatchReq({ mode: 'exam', examTimeLimitMin: minutes }),
+      );
+
+      expect(res.status).toBe(201);
+      const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+      expect(values.examTimeLimitMin).toBe(minutes);
+    }
+  });
+
+  it('시험 모드인데 시간을 안 보내면 null', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_6', botId: 'cb_001' }]];
+
+    const res = await dispatchAssignment(dispatchReq({ mode: 'exam' }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.examTimeLimitMin).toBeNull();
+  });
+
+  it('시험이 아닌데 시간이 오면 400 이 아니라 null 로 떨어뜨린다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_7', botId: 'cb_001' }]];
+
+    // 폼에서 모드를 바꾸면 남아 있던 슬라이더 값이 같이 실려 올 수 있다. 그걸 오류로
+    // 되받으면 「시간 제한」이 보이지도 않는 화면에서 이유 모를 400 을 만난다.
+    const res = await dispatchAssignment(
+      dispatchReq({ mode: 'practice', examTimeLimitMin: 90 }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.examTimeLimitMin).toBeNull();
+    expect(values.scopeOverride).toBeNull();
+  });
+
+  it.each([9, 181, 30.5, '60'])('범위 밖(%p)이면 400 이고 아무것도 안 쓴다', async (bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(
+      dispatchReq({ mode: 'exam', examTimeLimitMin: bad }),
+    );
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { code?: string; message?: string };
+    expect(parsed.code).toBe('INVALID_INPUT');
+    expect(parsed.message).toContain('시험 시간');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  /*
+    성취기준 코드 · 봇 한 마디 — 단원·제한 시간과 같은 모양의 유실이었다.
+    컬럼은 있는데 쓰는 경로가 없어 학생 개요가 「왜 이 과제가 왔는지」를 못 읽었다.
+  */
+  function okQueue(): void {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    mockInsertQueue = [[{ id: 'as_8', botId: 'cb_001' }]];
+  }
+
+  it('성취기준 코드와 봇 한 마디를 그대로 적는다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(
+      dispatchReq({
+        achievementCodes: ['수-일차-1', '수-일차-2'],
+        reasonHint: '어제 부호 변화에서 막혔던 사람들 다시 짚자',
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      achievementCodes: ['수-일차-1', '수-일차-2'],
+      reasonHint: '어제 부호 변화에서 막혔던 사람들 다시 짚자',
+    });
+  });
+
+  it('둘 다 생략하면 빈 배열과 null — 안 적고 내는 경로가 정상이다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq());
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    // 컬럼이 NOT NULL DEFAULT '[]' 라 「없음」의 표현은 빈 배열 하나뿐이다.
+    expect(values.achievementCodes).toEqual([]);
+    // 한 마디는 nullable — 빈 문자열을 넣어 「적었는데 빈 칸」처럼 보이게 하지 않는다.
+    expect(values.reasonHint).toBeNull();
+  });
+
+  it('공백만 적은 한 마디는 null 로 떨어진다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ reasonHint: '   ' }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.reasonHint).toBeNull();
+  });
+
+  it('긴 한 마디는 폼과 같은 200자에서 자른다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ reasonHint: '가'.repeat(300) }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.reasonHint).toBe('가'.repeat(200));
+  });
+
+  it('같은 코드가 겹쳐 오면 한 번만 적는다 — 범위 선택이 단원을 겹쳐 고른다', async () => {
+    okQueue();
+
+    const res = await dispatchAssignment(
+      dispatchReq({ achievementCodes: ['수-일차-1', ' 수-일차-1 ', '수-일차-2'] }),
+    );
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.achievementCodes).toEqual(['수-일차-1', '수-일차-2']);
+  });
+
+  it.each([
+    ['배열이 아님', '수-일차-1'],
+    ['문자열이 아닌 항목', [1]],
+    ['빈 항목', ['']],
+    ['항목 길이 초과', ['x'.repeat(65)]],
+    ['개수 초과', Array.from({ length: 51 }, (_, i) => `c-${i}`)],
+  ])('성취기준 코드가 %s 이면 400 이고 아무것도 안 쓴다', async (_label, bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(dispatchReq({ achievementCodes: bad }));
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { code?: string; message?: string };
+    expect(parsed.code).toBe('INVALID_INPUT');
+    expect(parsed.message).toContain('성취기준');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  /* spec 14 § 5.1 — 문항 수 1~50, 시험만 60까지. 모드와 무관한 100 이던 자리다. */
+  it.each([
+    ['practice', 50, 51],
+    ['wrong-conquest', 50, 51],
+    ['exam', 60, 61],
+  ])('%s 는 %d 까지 통과하고 %d 는 400', async (mode, ok, tooMany) => {
+    okQueue();
+    const passed = await dispatchAssignment(
+      dispatchReq({ mode, questionCount: ok, examTimeLimitMin: mode === 'exam' ? 60 : undefined }),
+    );
+    expect(passed.status).toBe(201);
+
+    insertValuesSpy.mockClear();
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    const rejected = await dispatchAssignment(
+      dispatchReq({ mode, questionCount: tooMany }),
+    );
+    expect(rejected.status).toBe(400);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  /* spec 14 § 5.2 — 시험 1 강제, 오답정복 5 기본, 연습은 봇 기본(null). */
+  it.each([
+    ['exam', 1],
+    ['wrong-conquest', 5],
+    ['practice', null],
+  ])('%s 의 scopeOverride 는 %p', async (mode, expected) => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ mode }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.scopeOverride).toBe(expected);
+  });
+
+  /* spec 14 § 5.1 — 마감은 미래. 표시용 라벨로는 지킬 수 없어 진짜 시각을 함께 받는다. */
+  it('미래 마감이면 통과하고 그 시각에서 D-day 를 센다', async () => {
+    okQueue();
+    const due = new Date(Date.now() + 3 * 86400000);
+
+    const res = await dispatchAssignment(dispatchReq({ dueAt: due.toISOString() }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.dDay).toBe('D-3');
+  });
+
+  it.each([
+    ['지난 시각', new Date(Date.now() - 86400000).toISOString()],
+    ['시각이 아닌 문자열', '내일쯤'],
+    ['문자열이 아님', 1234],
+  ])('마감이 %s 이면 400 이고 아무것도 안 쓴다', async (_label, bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(dispatchReq({ dueAt: bad }));
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { message?: string };
+    expect(parsed.message).toContain('마감');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('이 방에 없는 학생을 지정하면 400', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+      [{ studentId: 'student_001' }], // 둘을 지정했는데 하나만 참여 중
+    ];
+
+    const res = await dispatchAssignment(
+      dispatchReq({ targetStudentIds: ['student_001', 's2'] }),
+    );
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { code?: string };
+    expect(parsed.code).toBe('INVALID_INPUT');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/enrollments — 코드로 참여', () => {
+  const codeRow = {
+    code: 'ABC123',
+    botId: 'cb_001',
+    classroomId: 'cr_math_a',
+    teacherId: 'teacher_001',
+  };
+  const botRow = {
+    id: 'cb_001',
+    teacherName: '김수학',
+    organization: '대치프리미엄 수학학원',
+  };
+  const roomRow = { id: 'cr_math_a', label: '고2 미적분 A반' };
+
+  function joinReq(code: string): Request {
+    return req('s2', 'student', { method: 'POST', body: JSON.stringify({ code }) });
+  }
+
+  it('없는 코드는 404 NOT_FOUND', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }], // resolveActor
+      [], // 코드 조회 실패
+    ];
+
+    const res = await joinByCode(joinReq('ZZZZZZ'));
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('NOT_FOUND');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('처음 참여하면 201 + 7개 필수 컬럼을 전부 적는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [{ id: 'cb_001' }], // 봇 행 잠금
+      [{ n: 1 }], // 잠근 뒤 센 인원
+    ];
+    mockInsertQueue = [
+      [{ botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' }],
+    ];
+
+    // 하이픈·소문자로 쳐도 정규화돼 같은 코드로 모인다.
+    const res = await joinByCode(joinReq('abc-123'));
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { alreadyJoined?: boolean };
+    expect(body.alreadyJoined).toBe(false);
+
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values).toMatchObject({
+      botId: 'cb_001',
+      studentId: 's2',
+      classroomId: 'cr_math_a',
+      classroomLabel: '고2 미적분 A반',
+      assignedBy: '김수학 선생님',
+      via: '대치프리미엄 수학학원',
+    });
+    // assigned_at 은 DEFAULT 가 없다 — 반드시 값이 실려야 한다.
+    expect(values.assignedAt).toBeInstanceOf(Date);
+  });
+
+  it('이미 참여한 방이면 오류가 아니라 200 + alreadyJoined', async () => {
+    const existing = {
+      botId: 'cb_001',
+      studentId: 's2',
+      classroomId: 'cr_math_a',
+      classroomLabel: '고2 미적분 A반',
+      assignedBy: '김수학 선생님',
+      via: '대치프리미엄 수학학원',
+    };
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
+      [{ n: 1 }], // 잠근 뒤 다시 센 인원
+      [existing], // 트랜잭션 안에서 기존 행을 되읽는다
+    ];
+    // 삽입 0행 = PK 충돌(이미 있음).
+    mockInsertQueue = [[]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      alreadyJoined?: boolean;
+      enrollment?: { studentId?: string };
+    };
+    expect(body.alreadyJoined).toBe(true);
+    expect(body.enrollment?.studentId).toBe('s2');
+  });
+
+  it('enrolled_count 는 +1 누적이 아니라 **봇 행을 잠근 뒤** 다시 센 값이다', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123' }], // 코드 잠금
+      [{ id: 'cb_001' }], // 봇 행 잠금
+      [{ n: 2 }], // 잠근 뒤 센 인원 — 동시에 들어온 앞 요청까지 세어진다
+    ];
+    mockInsertQueue = [[{ botId: 'cb_001', studentId: 's2' }]];
+
+    await joinByCode(joinReq('ABC123'));
+
+    // 잠금이 실제로 걸려야 한다 — 이게 없으면 둘 다 1 을 세고 하나가 덮어쓴다.
+    expect(forSpy).toHaveBeenCalledWith('update');
+
+    // 그리고 그 잠금 **뒤에** 센 값이 그대로 저장돼야 한다(+1 누적이 아니다).
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    const patch = setSpy.mock.calls[0][0] as { enrolledCount?: unknown };
+    expect(patch.enrolledCount).toBe(2);
+  });
+
+  it('트랜잭션 직전에 재발급으로 죽은 코드는 404 — 옛 코드는 무효다', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow], // 트랜잭션 **밖** 조회 — 이 시점엔 아직 살아 있었다
+      [botRow],
+      [roomRow],
+      [], // 트랜잭션 안에서 잠그고 보니 이미 지워졌다(교사가 재발급함)
+    ];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(404);
+    // 참여를 만들지 않는다 — 여기가 「옛 코드는 무효」 계약이 지켜지는 자리다.
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('학생이 아니면 403 FORBIDDEN_ROLE', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }]];
+
+    const res = await joinByCode(
+      req('teacher_001', 'teacher', {
+        method: 'POST',
+        body: JSON.stringify({ code: 'ABC123' }),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('FORBIDDEN_ROLE');
+  });
+});
+
+describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
+  it('개인 배정 OR (student_id NULL AND sent AND (지정 OR 반 전체+참여))', () => {
+    const { text, params } = render(visibleAssignmentsWhere('s2', 'student-own'));
+
+    // ① 개인 배정
+    expect(text).toContain('"assignments"."student_id" =');
+    // ② 반 단위 발사 — 학생 행이 없다
+    expect(text).toContain('"assignments"."student_id" is null');
+    // ③ 보내진 것만(draft/scheduled/withdrawn 누출 차단)
+    expect(text).toContain('"assignments"."dispatch_status" =');
+    expect(params).toContain('sent');
+    // ④ 지정 발사 — jsonb 포함
+    expect(text).toContain('@>');
+    expect(params).toContain(JSON.stringify(['s2']));
+    // ⑤ 반 전체(빈 배열) + 그 봇에 참여 중
+    expect(text).toContain(`'[]'::jsonb`);
+    expect(text).toContain('"enrollments"');
+    expect(params.filter((p) => p === 's2').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('GET /api/assignments 가 그 술어로 조회한다', async () => {
+    mockSelectQueue = [[]];
+
+    const res = await getAssignments(req('s2', 'student'));
+
+    expect(res.status).toBe(200);
+    expect(whereSpy).toHaveBeenCalledTimes(1);
+    const { text } = render(whereSpy.mock.calls[0][0]);
+    expect(text).toContain('is null');
+    expect(text).toContain('dispatch_status');
+    expect(text).toContain('"enrollments"');
+
+    // 학생 본인 축 — 자기 것은 출처를 가르지 않는다.
+    expect(text).not.toContain('"assignments"."source"');
+  });
+});
+
+describe('학부모 자녀 조회 — 동의 게이트 전이라 내용은 나가지 않는다 (05 § 11.4)', () => {
+  /*
+    이 라우트는 지금 스택의 맨 앞이고, 동의를 표현할 스키마(`type` 값 둘 · `revoked_at`)는
+    #271 의 마이그레이션 `0007` 에 있다. 게이트를 걸 수 없으면 **열어 두지 않고 닫아 둔다** —
+    자녀 목록(이름·관계)만 내리고 반·과제 내용은 조회조차 하지 않는다.
+
+    #271 이 이 빈 배열을 **조건부**로 바꾼다. 그때까지 다음 사람이 무심코 채우지 못하게
+    여기서 못박는다.
+  */
+  it('자녀 이름·관계는 내리고 반·과제는 빈 배열이다', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }], // resolveActor — 역할 권위는 도메인 users
+      [
+        { id: 'child_1', name: '서연', relation: '모' },
+        { id: 'child_2', name: '지호', relation: '모' },
+      ],
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      children: { id: string; name: string; relation: string; classrooms: unknown[]; assignments: unknown[] }[];
+    };
+
+    // 자녀 목록 자체는 가리지 않는다 — 가리면 「이어진 자녀가 없다」와 구분이 사라진다(규칙 2 단서).
+    expect(body.children).toHaveLength(2);
+    expect(body.children[0]).toMatchObject({ id: 'child_1', name: '서연', relation: '모' });
+
+    // 내용은 빈 배열 — 부모 눈에 「참여한 반이 없다」와 같은 모습이어야 한다(규칙 2).
+    for (const child of body.children) {
+      expect(child.classrooms).toEqual([]);
+      expect(child.assignments).toEqual([]);
+    }
+  });
+
+  it('내용을 **조회조차 하지 않는다** — 읽어 놓고 안 보내는 것과 다르다 (규칙 1)', async () => {
+    // 링크 조회 뒤에 파수꾼 두 묶음을 세워 둔다. 라우트가 반·과제를 조회하면 이것들이
+    // 소비되어 큐가 줄어든다 — 규칙 1 은 「애초에 읽지 않는다」이지 「읽고 안 보낸다」가 아니다.
+    const sentinel = [{ never: 'read' }];
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'child_1', name: '서연', relation: '모' }],
+      sentinel,
+      sentinel,
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    // 파수꾼 둘이 그대로 남아 있어야 한다.
+    expect(mockSelectQueue).toHaveLength(2);
+
+    // 조회는 신원·링크 둘뿐 — `assignments`/`enrollments` 술어는 아예 조립되지 않는다.
+    const rendered = whereSpy.mock.calls.map((call) => render(call[0]).text);
+    expect(rendered.some((t) => t.includes('"assignments"'))).toBe(false);
+    expect(rendered.some((t) => t.includes('"enrollments"'))).toBe(false);
+  });
+
+  it('보호자가 아니면 403, 미인증은 401', async () => {
+    mockSelectQueue = [[{ role: 'student' }]];
+    const forbiddenRes = await getParentChildren(req('s2', 'student'));
+    expect(forbiddenRes.status).toBe(403);
+
+    const unauthRes = await getParentChildren(
+      new Request('http://localhost/api/parent/children'),
+    );
+    expect(unauthRes.status).toBe(401);
+  });
+});
+
+describe('GET /api/me/classrooms — 학생 표면은 학생만', () => {
+  it('학생이면 200', async () => {
+    mockSelectQueue = [[{ role: 'student' }], []];
+
+    const res = await getMyClassrooms(req('s2', 'student'));
+
+    expect(res.status).toBe(200);
+  });
+
+  it.each(['teacher', 'parent', 'admin'])('%s 는 403 FORBIDDEN_ROLE', async (role) => {
+    mockSelectQueue = [[{ role }]];
+
+    const res = await getMyClassrooms(req('u1', 'student'));
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('FORBIDDEN_ROLE');
+  });
+
+  it('미인증은 401', async () => {
+    const res = await getMyClassrooms(new Request('http://localhost/api/me/classrooms'));
+
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('AUTH_REQUIRED');
+  });
+});
+
+describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들고 온다', () => {
+  /** 반 한 칸(`classrooms` 행). */
+  const ROOM = {
+    id: 'cr_math_a',
+    label: '고2 미적분 A반',
+    organization: '풀림',
+    teacherId: 'teacher_001',
+  };
+
+  it('짝 봇의 게시 상태를 그대로 싣는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }], // resolveActor
+      [ROOM], // 내 반
+      [], // resolveClassroomPairs ① join_codes
+      [{ classroomId: ROOM.id, botId: 'cb_001' }], // ② enrollments 로 복원한 짝
+      [
+        {
+          id: 'cb_001',
+          name: '수학이 형',
+          subject: '수학Ⅱ',
+          grade: '고2',
+          isPublished: true,
+          publishedAt: new Date('2026-09-01T00:00:00Z'),
+          publishBlurb: '같이 미적분 뜯어봐요',
+        },
+      ],
+      [{ classroomId: ROOM.id, count: 1 }], // 참여 인원
+    ];
+
+    const res = await getClassrooms(req('teacher_001', 'teacher'));
+    const body = (await res.json()) as { classrooms: TeacherClassroomItem[] };
+
+    expect(res.status).toBe(200);
+    expect(body.classrooms[0]).toMatchObject({
+      botId: 'cb_001',
+      isPublished: true,
+      publishedAt: '2026-09-01T00:00:00.000Z',
+      publishBlurb: '같이 미적분 뜯어봐요',
+    });
+    // 카드가 이걸 들고 오므로 배지 하나 때문에 마켓 목록(남의 봇까지)을 받을 필요가 없다.
+  });
+
+  it('짝 봇이 없는 반은 isPublished:false — 터지지 않는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [ROOM],
+      [], // 코드도 없고
+      [], // 참여 행도 없다 → 짝을 못 찾는다
+      // 짝이 없으면 봇 조회를 아예 건너뛴다(botIds 가 비어 있다) — 다음은 인원 집계다.
+      [],
+    ];
+
+    const res = await getClassrooms(req('teacher_001', 'teacher'));
+    const body = (await res.json()) as { classrooms: TeacherClassroomItem[] };
+
+    expect(res.status).toBe(200);
+    expect(body.classrooms[0]).toMatchObject({
+      botId: null,
+      isPublished: false,
+      publishedAt: null,
+      publishBlurb: null,
+    });
+  });
+});
