@@ -3,11 +3,12 @@
  *
  * `db:seed` 와 다르다 — seed 는 30개 테이블을 TRUNCATE 하고 mock 전체를 다시 넣는다.
  * 이 스크립트는 **이번 흐름이 쓰는 것만** 정해진 출발점으로 되돌린다:
- *   - 교사가 연 수업방과 그 참여 코드
+ *   - 이 스크립트가 연 수업방과 그 참여 코드(런타임 id 모양으로 가른다)
  *   - 학생 민준(s2)의 참여
- *   - 교사가 낸 과제(created_by 가 있는 행)
- * 서연(student_001)의 기존 5개 반과 과제 3건, 그리고 mock 시드가 만든 나머지 데이터는
- * **건드리지 않는다.** 그래야 기존 화면들이 계속 살아 있다.
+ *   - **이 스크립트가 낸 과제**(`as_demo_` 로 시작하는 id)
+ * 서연(student_001)의 기존 5개 반과 과제 3건, mock 시드가 만든 나머지 데이터, 그리고
+ * **사람이 화면·API 로 낸 과제**는 **건드리지 않는다.** 그래야 기존 화면들이 계속 살아 있고,
+ * 데모를 한 번 돌려 본 대가로 남의 작업이 사라지지 않는다.
  *
  * 실행: `bun run demo:reset`  (apps/classbot 에서, 또는 --filter 로)
  *
@@ -79,6 +80,23 @@ const DEMO_ROOMS: DemoRoom[] = [
   },
 ];
 
+/**
+ * 이 스크립트가 만든 과제임을 밝히는 id 접두사 — **삭제 대상을 정하는 유일한 표식**이다.
+ *
+ * `created_by` 로는 가를 수 없다(발사 라우트가 항상 채운다). 수업방·봇처럼 `<uuid>` 모양으로도
+ * 못 가른다(런타임 과제도 `as_<uuid>` 다). 그래서 데모 과제만 id 를 **결정적으로** 짓는다.
+ */
+const DEMO_ASSIGNMENT_ID_PREFIX = 'as_demo_';
+
+/**
+ * 데모 과제 id — 방 key 로 결정된다(매 실행 같은 id).
+ * @param roomKey - `DEMO_ROOMS` 의 key
+ * @returns `as_demo_<key>`
+ */
+function demoAssignmentId(roomKey: string): string {
+  return `${DEMO_ASSIGNMENT_ID_PREFIX}${roomKey}`;
+}
+
 /** 기존 시드 수업방 중 코드를 하나 쥐어 줄 곳 — 「이미 학생이 있는 반」 예시. */
 const SEEDED_ROOM_WITH_CODE = { classroomId: 'cr_math_a', botId: 'cb_001', teacherId: 'teacher_001' };
 
@@ -86,11 +104,32 @@ async function main(): Promise<void> {
   const db = getDb();
 
   // ── 1. 지난 실행이 남긴 것을 걷는다 ───────────────────────────────
-  // 교사가 낸 과제만 지운다(created_by 가 채워진 행). mock 시드 과제는 created_by 가 비어 있어 살아남는다.
+  // **이 스크립트가 만든 과제만** 지운다 — id 접두사가 그 표식이다.
+  //
+  // 예전에는 `created_by IS NOT NULL` 로 골랐다. 그건 「교사가 낸 과제」를 고르는 조건이
+  // 아니라 **API 로 발사된 모든 과제**를 고르는 조건이다 —
+  // `POST /api/teacher/assignments` 는 발사 교사를 항상 `created_by` 에 적는다
+  // (제출 현황 접근 검증의 권위라서 비워 둘 수가 없다). 그래서 데모를 한 번 확인하려고
+  // 이 스크립트를 돌리면 **사람이 화면에서 낸 과제가 통째로 사라졌다.**
+  //
+  // 시드 과제와 런타임 과제가 `as_<uuid>` 로 id 모양까지 같아서, 수업방·봇처럼 모양으로도
+  // 가를 수 없다. 그래서 **소유 표식을 명시적으로 박는다**(아래 `demoAssignmentId`).
   const removedAssignments = await db
     .delete(assignments)
-    .where(isNotNull(assignments.createdBy))
+    .where(sql`${assignments.id} like ${`${DEMO_ASSIGNMENT_ID_PREFIX}%`}`)
     .returning({ id: assignments.id });
+
+  // 남겨 둔 것을 세어 사람에게 보여 준다 — 「왜 내 과제가 그대로지」를 묻지 않게.
+  const [keptRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(assignments)
+    .where(
+      and(
+        isNotNull(assignments.createdBy),
+        sql`${assignments.id} not like ${`${DEMO_ASSIGNMENT_ID_PREFIX}%`}`,
+      ),
+    );
+  const keptTeacherAssignments = keptRow?.n ?? 0;
 
   // 민준의 참여를 비운다 — 코드 참여를 맨바닥부터 해 보기 위한 자리다.
   await db.delete(enrollments).where(eq(enrollments.studentId, 's2'));
@@ -101,6 +140,11 @@ async function main(): Promise<void> {
   // 화면·API 로 만든 것은 `cr_<uuid>` 다. 라벨로 지우면 테스트하다 만든 「1학년 3반」 같은
   // 방이 계속 쌓여, 다음 사람이 어느 게 데모 데이터인지 알 수 없게 된다.
   // join_codes 는 classrooms 에 걸린 FK 가 cascade 라 함께 사라진다.
+  //
+  // 남는 자국 하나 — 사람이 낸 과제를 이제 지우지 않으므로, 그 과제가 달린 런타임 봇은
+  // 아래에서 살아남고 짝 수업방만 사라진다. classrooms 에는 봇을 가리키는 컬럼이 없어서
+  // (짝은 join_codes·enrollments 로 푼다) 여기서 가려내려면 짝 해석을 통째로 들여와야 한다.
+  // 데이터가 깨지는 자국이 아니라 화면에 안 뜨는 자국이고, 남의 과제를 지우는 것보다 낫다.
   const staleRooms = await db
     .delete(classrooms)
     .where(sql`${classrooms.id} ~ '^cr_[0-9a-f]{8}-'`)
@@ -166,7 +210,7 @@ async function main(): Promise<void> {
     if (room.seedAssignment) {
       const a = room.seedAssignment;
       await db.insert(assignments).values({
-        id: `as_${randomUUID()}`,
+        id: demoAssignmentId(room.key),
         botId,
         studentId: null,
         title: a.title,
@@ -215,7 +259,10 @@ async function main(): Promise<void> {
   console.log(`\n${line}`);
   console.log('  데모 상태를 새로 맞췄습니다');
   console.log(line);
-  console.log(`  지운 것 — 교사 출제 과제 ${removedAssignments.length}건 · 데모 수업방 ${staleRooms.length}개 · 봇 ${staleBots.length}개 · 민준의 참여 전부`);
+  console.log(`  지운 것 — 데모 과제 ${removedAssignments.length}건 · 데모 수업방 ${staleRooms.length}개 · 봇 ${staleBots.length}개 · 민준의 참여 전부`);
+  if (keptTeacherAssignments > 0) {
+    console.log(`  그대로 둔 것 — 사람이 낸 과제 ${keptTeacherAssignments}건 (이 스크립트는 자기가 만든 것만 지웁니다)`);
+  }
   console.log('');
   console.log('  교사 · 김수학 (teacher_001)');
   console.log(`    고2 미적분 A반   ${formatJoinCode(seededCode)}   서연 참여 중`);
