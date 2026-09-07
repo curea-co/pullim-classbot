@@ -26,12 +26,14 @@ import { NotificationBell } from './notification-bell';
 const roleHomeHref: Record<Role, string> = {
   student: '/',
   teacher: '/teacher',
+  parent: '/parent',
 };
 
 /** 프로필 메뉴에 적는 역할 이름. */
 const roleLabels: Record<Role, string> = {
   student: '학생',
   teacher: '교사',
+  parent: '학부모',
 };
 
 /**
@@ -44,6 +46,8 @@ const roleLabels: Record<Role, string> = {
 const roleProfileHref: Record<Role, string> = {
   student: '/classbot/me',
   teacher: '/teacher',
+  // 학부모도 전용 「내 정보」가 없다 — 자녀를 보는 창구라 홈으로 보낸다(계약 §6).
+  parent: '/parent',
 };
 
 /** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */

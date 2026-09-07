@@ -25,7 +25,7 @@
  * ═════════════════════════════════════════════════════════════════════════ */
 
 import { useSyncExternalStore } from 'react';
-import { Check, GraduationCap, School, Wrench, type LucideIcon } from 'lucide-react';
+import { Check, GraduationCap, School, Users, Wrench, type LucideIcon } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
