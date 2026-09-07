@@ -107,10 +107,13 @@ function hostnameOf(host: string): string {
  * 세우는 데 쓰이므로, 권한 판정의 근거는 **빌드 때 치환되지 않고 런타임에 서버가 직접 읽는**
  * 값이어야 한다. 클라이언트 번들에는 이 이름이 남아도 값이 없어 undefined 로 접힌다.
  *
- * `NEXT_PUBLIC_VERCEL_ENV` 는 **클라이언트 폴백일 뿐**이다. 브라우저에서 버튼을 보일지
- * 정하는 데만 쓰이고, 프로젝트 설정에 따라 없을 수도 있다. 없으면 아래 판정이
- * **더 닫히는 쪽**으로 접힌다 — 서버가 허용해도 버튼만 안 보이는 방향이라 안전하다.
- * (그 반대 방향은 일어나지 않는다. 아래 `.vercel.app` 규칙이 fail-closed 라서다.)
+ * `NEXT_PUBLIC_VERCEL_ENV` 는 **클라이언트 쪽 출처**다. 브라우저에는 서버 전용 값이
+ * 없어서인데, 그 값은 Vercel 프로젝트 설정에 기대지 않는다 — `next.config.ts` 가 빌드 때
+ * `VERCEL_ENV` 를 이 이름으로 실어 보낸다(그 파일 주석 참고). 그래서 **두 층이 같은
+ * 출처를 읽는다.**
+ *
+ * 그래도 값이 비어 올 수 있다(로컬 개발 · Vercel 밖 배포). 그때 아래 판정은
+ * **닫히는 쪽**으로 접힌다 — 열리는 쪽으로 접히면 이 파일이 막으려던 구멍이 되살아난다.
  */
 function deploymentEnv(): string | undefined {
   return process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV;
