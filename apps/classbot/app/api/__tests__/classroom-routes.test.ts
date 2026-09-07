@@ -756,113 +756,74 @@ describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
   });
 });
 
-describe('학부모 자녀 조회 — 자기주도는 반·과제 축으로 나가지 않는다 (05 § 11.4)', () => {
-  it('GET /api/parent/children 이 출처 허용 목록을 조회 조건에 싣는다', async () => {
+describe('학부모 자녀 조회 — 동의 게이트 전이라 내용은 나가지 않는다 (05 § 11.4)', () => {
+  /*
+    이 라우트는 지금 스택의 맨 앞이고, 동의를 표현할 스키마(`type` 값 둘 · `revoked_at`)는
+    #271 의 마이그레이션 `0007` 에 있다. 게이트를 걸 수 없으면 **열어 두지 않고 닫아 둔다** —
+    자녀 목록(이름·관계)만 내리고 반·과제 내용은 조회조차 하지 않는다.
+
+    #271 이 이 빈 배열을 **조건부**로 바꾼다. 그때까지 다음 사람이 무심코 채우지 못하게
+    여기서 못박는다.
+  */
+  it('자녀 이름·관계는 내리고 반·과제는 빈 배열이다', async () => {
     mockSelectQueue = [
       [{ role: 'parent' }], // resolveActor — 역할 권위는 도메인 users
-      [{ id: 'child_1', name: '서연', relation: '모' }], // parent_child_links ⨝ users
-      [], // 자녀의 수업방
-      [], // 자녀의 과제
-    ];
-
-    const res = await getParentChildren(req('parent_001', 'student'));
-    expect(res.status).toBe(200);
-
-    // 과제 술어를 찾아낸다 — 라우트가 어떤 순서로 조회하든 흔들리지 않게 내용으로 고른다.
-    const assignmentWhere = whereSpy.mock.calls
-      .map((call) => render(call[0]))
-      .find((q) => q.text.includes('"assignments"."student_id"'));
-
-    if (!assignmentWhere) throw new Error('과제 술어가 조회에 실리지 않았다');
-
-    // 읽고 나서 거르는 게 아니라 **조회 조건 안에** 있어야 한다(규칙 1).
-    expect(assignmentWhere.text).toContain('"assignments"."source" in');
-    expect(assignmentWhere.params).toContain('teacher-assigned');
-    // 자기주도는 다른 동의 축이다 — 부모가 켠 적 없는 것이 딸려 나가면 안 된다.
-    expect(assignmentWhere.params).not.toContain('self');
-  });
-
-  /*
-    05 § 11.4 의 표는 이 축이 내보낼 것을 「받은 과제 현황 **(답안·점수 제외)**」으로
-    못박았다. 행을 그대로 전개하면 정답률·풀이 딥링크·오답 문항 키가 함께 나가고,
-    반 단위 발사 행에는 **다른 아이들의 user id** 까지 실려 있다.
-  */
-  it('자녀 과제에서 점수·답안·남의 아이 id 를 빼고 내려보낸다', async () => {
-    const row = {
-      id: 'as_1',
-      botId: 'cb_001',
-      studentId: null,
-      title: '미적분 1단원',
-      scope: '수학Ⅱ > 미분',
-      subject: '수학Ⅱ',
-      grade: '고2',
-      chapterFrom: '수학Ⅱ > 미분',
-      chapterTo: '수학Ⅱ > 미분',
-      achievementCodes: ['수-미분-1'],
-      questionCount: 5,
-      difficulty: '중',
-      mode: 'practice',
-      scopeOverride: null,
-      source: 'teacher-assigned',
-      assignedBy: '수학이 형',
-      assignedAtLabel: '방금 발사',
-      dueLabel: '내일 22:00',
-      dDay: 'D-1',
-      completedCount: 2,
-      recentAccuracy: 87, // ← 점수. 나가면 안 된다
-      state: 'in-progress',
-      reasonHint: '부호 변화에서 막혔어요', // ← 자녀의 약한 지점
-      solveHref: '/classbot/assignment/as_1/solve?step=1', // ← 답안으로 가는 문
-      targetStudentIds: ['child_1', 'child_2'], // ← 남의 아이 id
-      dispatchStatus: 'sent',
-      createdBy: 'teacher_001',
-      dispatchedAt: new Date('2026-09-01T00:00:00Z'),
-      examTimeLimitMin: null,
-      requizQuestionIds: ['q7'], // ← 틀린 문항 키
-    };
-
-    mockSelectQueue = [
-      [{ role: 'parent' }],
-      [{ id: 'child_1', name: '서연', relation: '모' }],
-      [], // 수업방
-      [row], // 과제
+      [
+        { id: 'child_1', name: '서연', relation: '모' },
+        { id: 'child_2', name: '지호', relation: '모' },
+      ],
     ];
 
     const res = await getParentChildren(req('parent_001', 'student'));
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
-      children: { assignments: Record<string, unknown>[] }[];
+      children: { id: string; name: string; relation: string; classrooms: unknown[]; assignments: unknown[] }[];
     };
-    const item = body.children[0].assignments[0];
 
-    // 나가야 할 현황은 그대로 있다.
-    expect(item).toMatchObject({
-      id: 'as_1',
-      title: '미적분 1단원',
-      state: 'in-progress',
-      completedCount: 2, // 진행 현황은 점수가 아니다
-      dDay: 'D-1',
-      dispatchedAt: '2026-09-01T00:00:00.000Z',
-    });
+    // 자녀 목록 자체는 가리지 않는다 — 가리면 「이어진 자녀가 없다」와 구분이 사라진다(규칙 2 단서).
+    expect(body.children).toHaveLength(2);
+    expect(body.children[0]).toMatchObject({ id: 'child_1', name: '서연', relation: '모' });
 
-    // 나가면 안 되는 칸들 — 하나라도 살아 있으면 축 경계가 깨진 것이다.
-    for (const forbidden of [
-      'recentAccuracy',
-      'solveHref',
-      'requizQuestionIds',
-      'targetStudentIds',
-      'reasonHint',
-      'studentId',
-      'createdBy',
-      'source',
-      'dispatchStatus',
-    ]) {
-      expect(item).not.toHaveProperty(forbidden);
+    // 내용은 빈 배열 — 부모 눈에 「참여한 반이 없다」와 같은 모습이어야 한다(규칙 2).
+    for (const child of body.children) {
+      expect(child.classrooms).toEqual([]);
+      expect(child.assignments).toEqual([]);
     }
+  });
 
-    // 직렬화된 JSON 어디에도 남의 아이 id 가 없어야 한다(중첩·이름 변경까지 잡는다).
-    expect(JSON.stringify(body)).not.toContain('child_2');
+  it('내용을 **조회조차 하지 않는다** — 읽어 놓고 안 보내는 것과 다르다 (규칙 1)', async () => {
+    // 링크 조회 뒤에 파수꾼 두 묶음을 세워 둔다. 라우트가 반·과제를 조회하면 이것들이
+    // 소비되어 큐가 줄어든다 — 규칙 1 은 「애초에 읽지 않는다」이지 「읽고 안 보낸다」가 아니다.
+    const sentinel = [{ never: 'read' }];
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'child_1', name: '서연', relation: '모' }],
+      sentinel,
+      sentinel,
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    // 파수꾼 둘이 그대로 남아 있어야 한다.
+    expect(mockSelectQueue).toHaveLength(2);
+
+    // 조회는 신원·링크 둘뿐 — `assignments`/`enrollments` 술어는 아예 조립되지 않는다.
+    const rendered = whereSpy.mock.calls.map((call) => render(call[0]).text);
+    expect(rendered.some((t) => t.includes('"assignments"'))).toBe(false);
+    expect(rendered.some((t) => t.includes('"enrollments"'))).toBe(false);
+  });
+
+  it('보호자가 아니면 403, 미인증은 401', async () => {
+    mockSelectQueue = [[{ role: 'student' }]];
+    const forbiddenRes = await getParentChildren(req('s2', 'student'));
+    expect(forbiddenRes.status).toBe(403);
+
+    const unauthRes = await getParentChildren(
+      new Request('http://localhost/api/parent/children'),
+    );
+    expect(unauthRes.status).toBe(401);
   });
 });
 
