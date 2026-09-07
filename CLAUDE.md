@@ -58,6 +58,7 @@ pullim-classbot/
 - **read-only**: 공유 셸·UI 프리미티브는 클래스봇 단일 도메인이라 사실상 안전하지만 role/nav 변경은 보고
 - **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어) 코드 추가, npm DS **패키지** dependency 추가, i18n / Sentry 도입
 - **학부모(`app/(parent)/parent/*`)는 2026-09-07 부터 이 리포의 범위다** — 금지 목록에서 뺐다.
+  **금지가 풀린 것이지 화면이 이미 있는 것은 아니다** — `dev` 에는 아직 그 트리가 없고 #268·#271 이 인도한다.
   자녀의 반·과제·자기주도를 **자녀 동의 뒤에** 보여주는 창구이고, 인도 배정과 조건은
   [`proc/spec/03 § 2.3`](proc/spec/03-features-and-ia.md) · [`05 § 11.2·§ 11.4`](proc/spec/05-business-rules.md) 가 권위다.
   ⚠ 실제 로그인 학부모는 아직 못 들어온다(공유 claim union 에 `parent` 없음 · OS SSO 가 student 로 내림) —

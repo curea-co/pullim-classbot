@@ -33,7 +33,8 @@ classbot 자체 JWT(Bearer)만 인증 경로로 인식해, **SSO 세션 사용�
 - 도메인 `users` 에 `(id=sub, name, role, profile:{})` **upsert** (auth 모듈 `provisionDomainUser` 의
   `ON CONFLICT DO NOTHING` 패턴 + name 갱신). role 은 재호출 시 **최초 값 유지**(역할 승격 방지).
 - role 은 `student|teacher` 만(400). **parent 거부 근거**(2026-09-07 갱신): 원래 근거는 「보호자
-  표면이 제거된 단일 도메인」이었으나 **그 전제는 끝났다** — 학부모 화면이 들어왔다(`03 § 2.3`).
+  표면이 제거된 단일 도메인이라 금지」였는데, **그 금지가 풀렸다**(가이드 갱신). 다만 화면 자체는
+  아직 `dev` 에 없다 — `03 § 2.3` 이 `[예정]` 으로 두고 #268·#271 에 인도를 배정한 상태다.
   지금의 근거는 다른 것이다: 공유 인증 claim 의 role union(`packages/types` 의 `UserRole`)에
   `parent` 가 없어 SSO 세션이 학부모를 표현하지 못하고, OS SSO 도 학부모를 `student` 로 내린다.
   그래서 학부모 화면은 **개발용 신원·비로그인 데모 전용**이다(`05 § 11.2`).

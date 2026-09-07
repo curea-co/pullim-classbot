@@ -15,7 +15,7 @@
 | 학생 라우트 | `app/(student)/classbot/{,chat,discover,replay,replay/[id],onboarding}` | 5 페이지 + 동적 1 |
 | 학생 루트 | `app/(student)/page.tsx` | `/classbot`로 즉시 redirect — 6 도메인 홈은 사라짐 |
 | 교사 라우트 | `app/(teacher)/teacher/{,classbot,builder}` | 홈/내 클래스봇/봇 빌더 3 페이지 |
-| 학부모 라우트 | `app/(parent)/parent/{,assignments,self-study}` | **2026-09-07 부터 범위 안**(추출 당시엔 제거됐던 영역). 자녀 동의 뒤에만 내용이 보인다 — `proc/spec/05 § 11.4` |
+| 학부모 라우트 | `app/(parent)/parent/{,assignments,self-study}` | **`[예정]`** — `dev` 에는 아직 이 트리가 없다. `/parent`·`/parent/assignments` 는 #268, `/parent/self-study` 는 #271 이 인도한다(`proc/spec/03 § 2.3`). **금지 영역이 아니라는 것이 2026-09-07 의 변경**이고, 내용은 자녀 동의 뒤에만 보인다(`05 § 11.4`) |
 | 도메인 컴포넌트 | `components/classbot/*`, `components/builder/*` | 13 파일 |
 | 공유 셸 | `components/shell/*` | Role = `student | teacher | parent` (**2026-09-07 승인** — 학부모 화면이 들어오며 union 확장. CoachFab 제거) |
 | 공유 UI (shadcn) | `components/ui/*`, `components/brand/*` | shadcn 프리미티브 |
@@ -711,6 +711,8 @@ bun --filter @pullim-classbot/classbot build
 
 **해도 되는 것**
 - `app/(student)/classbot/*`, `app/(teacher)/teacher/{classbot,builder}/*` 페이지·컴포넌트·mock 수정·신규
+- `app/(parent)/parent/*` 페이지·컴포넌트 수정·신규 (2026-09-07 부터 — 아직 `dev` 에 트리가 없고 #268·#271 이 인도한다.
+  내용은 자녀 동의 뒤에만 보인다는 조건이 붙는다: `proc/spec/05 § 11.4`)
 - `components/{classbot,builder}/*` 도메인 컴포넌트 수정·신규
 - `lib/db/*`, `lib/mock/*`, `lib/tokens/*` 수정
 - 클래스봇 import 경로 갱신, 클래스봇 onboarding 페이지/UX 작업
