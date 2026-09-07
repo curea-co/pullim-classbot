@@ -234,6 +234,49 @@ export interface JoinByCodeResponse {
 
 /* ── 학부모 ───────────────────────────────────────────── */
 
+/**
+ * 학부모가 보는 자녀 과제 한 칸 — `assignments` 행을 **그대로 흘리지 않는다.**
+ *
+ * [05 § 11.4](../../../../../proc/spec/05-business-rules.md) 의 표는 `class_assignment_summary`
+ * 축이 내보내는 것을 「참여한 반 · 받은 과제 현황 **(답안·점수 제외)**」으로 못박았다.
+ * 그래서 행 전개(`{ ...row }`)를 쓰면 안 된다 — 그 순간 컬럼이 하나 늘 때마다 학부모 응답이
+ * 조용히 넓어지고, 넓어진 사실을 아무도 모른다. **칸을 손으로 적어** 늘어나는 방향을 막는다.
+ *
+ * 일부러 뺀 것들과 이유:
+ *  - `recentAccuracy` — 정답률. 표가 「점수 제외」로 명시한 바로 그것이다.
+ *  - `solveHref` — 자녀의 풀이 워크스페이스 딥링크. 현황이 아니라 **답안으로 가는 문**이다.
+ *  - `requizQuestionIds` — 오답 문항 키. 틀린 문제를 그대로 가리킨다.
+ *  - `targetStudentIds` — **다른 아이들의 user id**. 반 단위 발사 행에 실려 있어서, 전개하면
+ *    학부모가 남의 자녀 식별자를 받는다.
+ *  - `reasonHint` — 「왜 이 과제가 왔는지」. 대개 자녀의 약한 지점을 적은 문장이다.
+ *  - `studentId` · `createdBy` · `source` · `scopeOverride` · `examTimeLimitMin` ·
+ *    `achievementCodes` · `chapterFrom`/`chapterTo` — 학부모 화면이 쓰지 않는 운영·내부 필드.
+ *
+ * `completedCount` 는 남긴다 — 「몇 개를 풀었나」는 점수가 아니라 **현황** 그 자체이고,
+ * 표가 내보내라고 한 것이 바로 그것이다.
+ */
+export interface ParentAssignmentItem {
+  id: string;
+  botId: string;
+  title: string;
+  subject: string;
+  grade: string;
+  /** 단원 표시 문자열. */
+  scope: string;
+  mode: 'practice' | 'exam' | 'wrong-conquest';
+  difficulty: '하' | '중' | '상';
+  questionCount: number;
+  /** 지금까지 푼 개수 — 점수가 아니라 진행 현황. */
+  completedCount: number;
+  state: 'todo' | 'in-progress' | 'submitted' | 'overdue';
+  assignedBy: string;
+  assignedAtLabel: string;
+  dueLabel: string;
+  dDay: string;
+  /** 발사 시각(ISO). draft/scheduled 행은 애초에 술어에서 걸러진다. */
+  dispatchedAt: string | null;
+}
+
 /** `GET /api/parent/children` 한 명. */
 export interface ParentChildItem {
   id: string;
@@ -241,7 +284,7 @@ export interface ParentChildItem {
   /** 관계(mother/father/guardian). */
   relation: 'mother' | 'father' | 'guardian';
   classrooms: StudentClassroomItem[];
-  assignments: AssignmentRow[];
+  assignments: ParentAssignmentItem[];
 }
 
 /** `GET /api/parent/children` 응답. */

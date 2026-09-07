@@ -106,6 +106,7 @@ import {
 } from '@/app/api/teacher/classrooms/route';
 import { POST as joinByCode } from '@/app/api/enrollments/route';
 import { GET as getParentChildren } from '@/app/api/parent/children/route';
+import { GET as getMyClassrooms } from '@/app/api/me/classrooms/route';
 import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 import type { TeacherClassroomItem } from '@/app/api/_lib/contract-types';
 
@@ -779,6 +780,117 @@ describe('학부모 자녀 조회 — 자기주도는 반·과제 축으로 나�
     expect(assignmentWhere.params).toContain('teacher-assigned');
     // 자기주도는 다른 동의 축이다 — 부모가 켠 적 없는 것이 딸려 나가면 안 된다.
     expect(assignmentWhere.params).not.toContain('self');
+  });
+
+  /*
+    05 § 11.4 의 표는 이 축이 내보낼 것을 「받은 과제 현황 **(답안·점수 제외)**」으로
+    못박았다. 행을 그대로 전개하면 정답률·풀이 딥링크·오답 문항 키가 함께 나가고,
+    반 단위 발사 행에는 **다른 아이들의 user id** 까지 실려 있다.
+  */
+  it('자녀 과제에서 점수·답안·남의 아이 id 를 빼고 내려보낸다', async () => {
+    const row = {
+      id: 'as_1',
+      botId: 'cb_001',
+      studentId: null,
+      title: '미적분 1단원',
+      scope: '수학Ⅱ > 미분',
+      subject: '수학Ⅱ',
+      grade: '고2',
+      chapterFrom: '수학Ⅱ > 미분',
+      chapterTo: '수학Ⅱ > 미분',
+      achievementCodes: ['수-미분-1'],
+      questionCount: 5,
+      difficulty: '중',
+      mode: 'practice',
+      scopeOverride: null,
+      source: 'teacher-assigned',
+      assignedBy: '수학이 형',
+      assignedAtLabel: '방금 발사',
+      dueLabel: '내일 22:00',
+      dDay: 'D-1',
+      completedCount: 2,
+      recentAccuracy: 87, // ← 점수. 나가면 안 된다
+      state: 'in-progress',
+      reasonHint: '부호 변화에서 막혔어요', // ← 자녀의 약한 지점
+      solveHref: '/classbot/assignment/as_1/solve?step=1', // ← 답안으로 가는 문
+      targetStudentIds: ['child_1', 'child_2'], // ← 남의 아이 id
+      dispatchStatus: 'sent',
+      createdBy: 'teacher_001',
+      dispatchedAt: new Date('2026-09-01T00:00:00Z'),
+      examTimeLimitMin: null,
+      requizQuestionIds: ['q7'], // ← 틀린 문항 키
+    };
+
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'child_1', name: '서연', relation: '모' }],
+      [], // 수업방
+      [row], // 과제
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      children: { assignments: Record<string, unknown>[] }[];
+    };
+    const item = body.children[0].assignments[0];
+
+    // 나가야 할 현황은 그대로 있다.
+    expect(item).toMatchObject({
+      id: 'as_1',
+      title: '미적분 1단원',
+      state: 'in-progress',
+      completedCount: 2, // 진행 현황은 점수가 아니다
+      dDay: 'D-1',
+      dispatchedAt: '2026-09-01T00:00:00.000Z',
+    });
+
+    // 나가면 안 되는 칸들 — 하나라도 살아 있으면 축 경계가 깨진 것이다.
+    for (const forbidden of [
+      'recentAccuracy',
+      'solveHref',
+      'requizQuestionIds',
+      'targetStudentIds',
+      'reasonHint',
+      'studentId',
+      'createdBy',
+      'source',
+      'dispatchStatus',
+    ]) {
+      expect(item).not.toHaveProperty(forbidden);
+    }
+
+    // 직렬화된 JSON 어디에도 남의 아이 id 가 없어야 한다(중첩·이름 변경까지 잡는다).
+    expect(JSON.stringify(body)).not.toContain('child_2');
+  });
+});
+
+describe('GET /api/me/classrooms — 학생 표면은 학생만', () => {
+  it('학생이면 200', async () => {
+    mockSelectQueue = [[{ role: 'student' }], []];
+
+    const res = await getMyClassrooms(req('s2', 'student'));
+
+    expect(res.status).toBe(200);
+  });
+
+  it.each(['teacher', 'parent', 'admin'])('%s 는 403 FORBIDDEN_ROLE', async (role) => {
+    mockSelectQueue = [[{ role }]];
+
+    const res = await getMyClassrooms(req('u1', 'student'));
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('FORBIDDEN_ROLE');
+  });
+
+  it('미인증은 401', async () => {
+    const res = await getMyClassrooms(new Request('http://localhost/api/me/classrooms'));
+
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('AUTH_REQUIRED');
   });
 });
 
