@@ -347,3 +347,67 @@ it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽
   expect(payload.chapterFrom).toBe(payload.scope);
   expect(payload.chapterTo).toBe(payload.scope);
 });
+
+/*
+  단원과 같은 이유로 나머지 셋도 payload 에 실려야 한다 — 로컬 사본에만 남으면 그건 이
+  브라우저뿐이고, 학생·학부모·리포트는 서버 행을 읽는다. 풀이 화면마저 접근 판정을 서버로
+  옮겼기 때문에 「로컬에 있으니 괜찮다」가 더는 성립하지 않는다.
+*/
+it('발사 payload 에 성취기준이 실린다 — 한 번 빈 배열로 저장되면 되살릴 수 없다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  expect(Array.isArray(payload.achievementCodes)).toBe(true);
+  expect(payload.achievementCodes).not.toHaveLength(0);
+  // 로컬 사본과 같은 값이어야 한다 — 갈라지면 교사가 낸 것과 학생이 받는 것이 달라진다.
+  expect(payload.achievementCodes).toEqual(
+    useAssignmentStore.getState().dispatched[0].achievementCodes,
+  );
+});
+
+it('발사 payload 에 봇 한 마디가 실린다 — 학생 개요가 읽는 값이다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  fireEvent.change(screen.getByLabelText(/봇 한 마디/), {
+    target: { value: '  어제 부호 변화에서 막혔던 사람들 다시 짚자  ' },
+  });
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  // 앞뒤 공백은 떼고 보낸다 — 서버도 `readTrimmed` 로 같은 판단을 한다.
+  expect(payload.reasonHint).toBe('어제 부호 변화에서 막혔던 사람들 다시 짚자');
+});
+
+it('봇 한 마디를 안 적으면 보내지 않는다 — 공백만 남기지 않는다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  fireEvent.change(screen.getByLabelText(/봇 한 마디/), { target: { value: '   ' } });
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  expect(payload.reasonHint).toBeUndefined();
+});
+
+it('시험 과제는 제한 시간이 실린다 — 서버 범위(10~180) 안이다', async () => {
+  render(<AssignmentForm />);
+  fireEvent.click(screen.getByTestId('mode-exam'));
+  fillTitle();
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  const limit = payload.examTimeLimitMin as number;
+  expect(Number.isInteger(limit)).toBe(true);
+  expect(limit).toBeGreaterThanOrEqual(10);
+  expect(limit).toBeLessThanOrEqual(180);
+});
+
+it('시험이 아니면 제한 시간을 보내지 않는다 — 서버도 그때는 null 로 떨어뜨린다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  expect(payload.examTimeLimitMin).toBeUndefined();
+});
