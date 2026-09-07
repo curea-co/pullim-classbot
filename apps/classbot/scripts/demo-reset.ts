@@ -6,7 +6,9 @@
  * **`*_demo_` id 접두사**다(`cr_demo_` · `cb_demo_` · `as_demo_`):
  *   - 이 스크립트가 낸 과제 — 지운다
  *   - 이 스크립트가 연 수업방의 참여 코드 — 지우고 새로 뽑는다
- *   - 학생 민준(s2)의 참여 — 비운다. 코드 참여를 맨바닥부터 해 보기 위한 자리다
+ *   - 학생 민준(s2)이 **데모 방에** 넣어 둔 참여 — 비운다. 코드 참여를 맨바닥부터 해 보기
+ *     위한 자리다. 민준은 시드 사용자라 이 스크립트의 소유물이 아니므로, 데모 밖 참여는
+ *     그대로 두고 출력이 그 사실을 말한다
  *   - 데모 수업방·봇 행 자체 — **지우지 않고 덮어쓴다**(upsert). id 가 결정적이라
  *     지웠다 다시 만들면 남이 쓰던 봇에서 PK 충돌이 나고, 방을 먼저 지우면 그 cascade 가
  *     보존하려던 학생 참여를 먼저 지운다. 자세한 근거는 아래 해당 자리 주석에 있다
@@ -123,6 +125,12 @@ function demoAssignmentId(roomKey: string): string {
   return `${DEMO_ASSIGNMENT_ID_PREFIX}${roomKey}`;
 }
 
+/**
+ * 코드 참여를 맨바닥부터 해 보는 학생. 시드 사용자라 **이 스크립트의 소유물이 아니다** —
+ * 그래서 이 학생의 참여도 데모 방에 들어간 것만 건드린다.
+ */
+const DEMO_STUDENT_ID = 's2';
+
 /** 기존 시드 수업방 중 코드를 하나 쥐어 줄 곳 — 「이미 학생이 있는 반」 예시. */
 const SEEDED_ROOM_WITH_CODE = { classroomId: 'cr_math_a', botId: 'cb_001', teacherId: 'teacher_001' };
 
@@ -157,8 +165,33 @@ async function main(): Promise<void> {
     );
   const keptTeacherAssignments = keptRow?.n ?? 0;
 
-  // 민준의 참여를 비운다 — 코드 참여를 맨바닥부터 해 보기 위한 자리다.
-  await db.delete(enrollments).where(eq(enrollments.studentId, 's2'));
+  /*
+    민준의 참여를 비운다 — 코드 참여를 맨바닥부터 해 보기 위한 자리다.
+    단 **데모 방에 들어간 것만** 지운다.
+
+    예전에는 `student_id = 's2'` 한 줄이었다. 그런데 `s2` 는 이 스크립트가 만든 표식이 아니라
+    시드 사용자다. 그 조건은 민준이 화면·API 로 **다른 수업방**에 들어가 둔 참여까지 지워서,
+    데모를 한 번 돌린 대가로 사람이 만들어 둔 수업 접근권이 사라졌다 — 머리말의 「사람이
+    만든 것은 건드리지 않는다」와 어긋나던 마지막 자리다.
+
+    그래서 데모 방(`cr_demo_*`)의 참여로 좁힌다. 대신 「참여 0곳」을 장담할 수 없게 되므로,
+    아래 출력이 **남은 참여를 세어 사실대로** 말한다.
+  */
+  await db
+    .delete(enrollments)
+    .where(
+      and(
+        eq(enrollments.studentId, DEMO_STUDENT_ID),
+        sql`${enrollments.classroomId} like ${`${DEMO_CLASSROOM_ID_PREFIX}%`}`,
+      ),
+    );
+
+  // 데모 밖에 남은 민준의 참여 — 지우지 않았으니 사실대로 알린다.
+  const [demoStudentRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(enrollments)
+    .where(eq(enrollments.studentId, DEMO_STUDENT_ID));
+  const demoStudentEnrollments = demoStudentRow?.n ?? 0;
 
   /*
     데모 수업방·봇은 **지우지 않는다. 덮어쓴다.**
@@ -299,7 +332,7 @@ async function main(): Promise<void> {
   console.log(`\n${line}`);
   console.log('  데모 상태를 새로 맞췄습니다');
   console.log(line);
-  console.log(`  되돌린 것 — 데모 과제 ${removedAssignments.length}건 · 데모 수업방 ${DEMO_ROOMS.length}개(코드 재발급) · 민준의 참여 전부`);
+  console.log(`  되돌린 것 — 데모 과제 ${removedAssignments.length}건 · 데모 수업방 ${DEMO_ROOMS.length}개(코드 재발급) · 민준의 데모 방 참여`);
   if (keptTeacherAssignments > 0) {
     console.log(`  그대로 둔 것 — 사람이 낸 과제 ${keptTeacherAssignments}건 (이 스크립트는 자기가 만든 것만 되돌립니다)`);
   }
@@ -318,7 +351,11 @@ async function main(): Promise<void> {
   console.log('');
   console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
   console.log('');
-  console.log('  학생 · 민준 (s2)   참여 0곳  ← 여기서 코드를 넣어 보세요');
+  const minjun =
+    demoStudentEnrollments === 0
+      ? '참여 0곳  ← 여기서 코드를 넣어 보세요'
+      : `데모 밖 참여 ${demoStudentEnrollments}곳 그대로 (사람이 넣은 것이라 안 지웁니다)`;
+  console.log(`  학생 · 민준 (s2)   ${minjun}`);
   console.log('  학생 · 서연 (student_001)   기존 5개 반 · 과제 3건 그대로');
   console.log(line);
   console.log('  헤더의 dev 렌치 버튼에서 계정을 바꿔 가며 확인하세요.\n');
