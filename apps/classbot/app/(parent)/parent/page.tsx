@@ -181,11 +181,11 @@ function ChildSummaryCard({
            * (`consent_logs.type = class_assignment_summary`)이 부모에게 같은 모양이어야 한다.
            * 구별되면 그 차이 자체가 정보가 되어, 동의 없이 아이의 활동 유무를 알아낼 수 있다.
            * 그래서 「참여 코드를 받아 들어가면」처럼 한쪽 까닭을 짚는 안내를 두지 않는다.
+           * 같은 이유로 문구가 `knowsSchoolWork` 로 갈리지도 않는다 — 갈리면 그 차이가 곧 동의 여부다.
            */
           <EmptyState
             tone="plain"
             size="sm"
-            {/* 문구는 `knowsSchoolWork` 로 갈리지 않는다 — 갈리면 그 차이가 곧 동의 여부다. */}
             title="보여줄 수업방이 없어요"
             description="보여줄 것이 생기면 여기에 나와요."
           />

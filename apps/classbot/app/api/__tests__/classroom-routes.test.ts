@@ -760,6 +760,8 @@ describe('학부모 자녀 조회 — 자기주도는 반·과제 축으로 나�
     mockSelectQueue = [
       [{ role: 'parent' }], // resolveActor — 역할 권위는 도메인 users
       [{ id: 'child_1', name: '서연', relation: '모' }], // parent_child_links ⨝ users
+      // 동의 조회 — 이 PR 이 반·과제도 게이트 뒤로 옮겼다(05 § 11.4). 켠 자녀만 읽는다.
+      [{ studentId: 'child_1' }],
       [], // 자녀의 수업방
       [], // 자녀의 과제
     ];
