@@ -337,11 +337,27 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
         questionCount: questions.length,
         difficulty,
         mode,
-        // 교사가 고른 단원 — 서버가 저장한다. 안 실으면 서버에서 읽는 학생·학부모 화면이
-        // 단원을 잃는다(계약 14 §1·§3.3.1·§5.4). 로컬 사본과 같은 값을 쓴다.
+        /*
+          아래 여섯은 **교사가 이 화면에서 고른 것**이고, 여기 안 실으면 서버 행에서 통째로
+          사라진다. 로컬 사본에는 남지만 그건 이 브라우저뿐이라 소용이 없다 — 학생·학부모·
+          리포트는 서버 행을 읽고, 풀이 화면마저 접근 판정을 서버로 옮겼기 때문이다.
+
+          로컬 사본(`buildAssignment`)이 쓰는 값과 **같은 식**을 쓴다. 두 벌이 갈라지면
+          교사가 낸 것과 학생이 받는 것이 달라진다.
+        */
+        // 단원 — 잃으면 학생·학부모 화면의 단원 표시가 빈다(계약 14 §1·§3.3.1·§5.4).
         scope: selectedUnit?.fullPath,
         chapterFrom: selectedUnit?.fullPath,
         chapterTo: selectedUnit?.fullPath,
+        // 성취기준 — 단원에 딸려 오는 값이다(14 §5.4). 한 번 `[]` 로 저장되면 이후
+        // 리포트 경로가 되살릴 방법이 없다(어느 단원이었는지는 문자열로만 남는다).
+        achievementCodes: selectedUnit?.achievementCodes ?? [],
+        // 봇 한 마디 — 학생 개요가 `reasonHint` 로 읽는다(12 §3.3.2 · 14 §3.3.1).
+        // 입력이 이미 200자로 잘려 있어 서버의 `MAX_REASON_HINT_LEN` 과 어긋나지 않는다.
+        reasonHint: botMessage.trim() || undefined,
+        // 시험 시간 제한 — 슬라이더가 10~180(step 10) 이라 서버 범위와 같다. 시험이 아닌
+        // 모드에서는 보내지 않는다(서버도 그때는 값이 와도 null 로 떨어뜨린다).
+        examTimeLimitMin: mode === 'exam' ? examTimeLimit : undefined,
         targetStudentIds: targetPayload,
       });
 
