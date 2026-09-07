@@ -14,7 +14,7 @@
  *
  * 화면만 바꾸면 서버가 여전히 서연으로 보므로, 이동 **직전에** 개발용 신원 쿠키
  * (`lib/dev-identity.ts`)도 함께 쓴다 — 그래야 `/api/*` 가 그 역할의 데모 사용자로 응답한다.
- * 쿠키 역시 prod 호스트에서는 무력이고 allowlist 밖 id 는 쓰지 않는다.
+ * 쿠키 역시 허용 목록 밖 호스트·production 배포에서는 무력이고, allowlist 밖 id 는 쓰지 않는다.
  *
  * ── 제거 방법 ─────────────────────────────────────────────────────────────
  *  1. components/shell/app-header.tsx 에서 `<DevRoleSwitch role={role} />`
@@ -30,23 +30,12 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { DEV_IDENTITIES, writeDevIdentityCookie, type DevIdentity } from '@/lib/dev-identity';
+import {
+  DEV_IDENTITIES, isDevIdentityHost, writeDevIdentityCookie, type DevIdentity,
+} from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
 import { cn } from '@/lib/utils';
 import type { Role } from './nav-config';
-
-/**
- * prod 호스트에서만 자동으로 숨는다.
- *
- * `process.env.NODE_ENV !== 'production'` 으로 가르지 않은 이유: Vercel 은
- * preview 빌드(dev-classbot.pullim.ai)도 NODE_ENV='production' 으로 돌린다.
- * NODE_ENV 기준이면 정작 이 버튼이 필요한 dev preview 에서 사라진다.
- * 빌드·배포 설정(전용 환경변수 추가 등)은 건드리지 않는 제약이라 런타임
- * 호스트 검사로 가른다 — localhost·dev preview 노출, prod 비노출.
- *
- * 같은 기준을 `lib/dev-identity.ts` 의 `isDevIdentityHost` 가 서버 쪽에서 쓴다.
- */
-const PROD_HOST = 'classbot.pullim.ai';
 
 type DevRoleTarget = { role: Role; label: string; href: string; icon: LucideIcon; identity: DevIdentity };
 
@@ -91,9 +80,14 @@ const neverChanges = () => () => {};
 export function DevRoleSwitch({ role, className }: { role: Role; className?: string }) {
   // 호스트는 클라이언트에서만 알 수 있다 → 서버 스냅샷은 항상 false 로 두고
   // 하이드레이션 직후 클라이언트 스냅샷으로 갈린다(SSR 마크업 불일치 방지).
+  //
+  // 판정은 **서버가 쓰는 그 함수**(`isDevIdentityHost`)를 그대로 부른다. 종전에는 여기서
+  // `hostname !== PROD_HOST` 로 따로 비교했는데, 표가 둘이면 갈라진다 — 실제로 서버가
+  // 허용 목록으로 좁혀진 뒤에도 이 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
+  // `.host` 는 포트를 달고 오지만 그쪽이 떼어 준다.
   const visible = useSyncExternalStore(
     neverChanges,
-    () => window.location.hostname !== PROD_HOST,
+    () => isDevIdentityHost(window.location.host),
     () => false,
   );
   // 지금 어느 데모 계정인지 — 드롭다운 체크 표시에만 쓴다.

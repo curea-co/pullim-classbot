@@ -49,21 +49,61 @@ describe('DEV_IDENTITIES', () => {
   });
 });
 
-describe('isDevIdentityHost', () => {
+describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
+  const SAVED = process.env.NEXT_PUBLIC_VERCEL_ENV;
+  const setEnv = (value: string | undefined) => {
+    if (value === undefined) delete process.env.NEXT_PUBLIC_VERCEL_ENV;
+    else process.env.NEXT_PUBLIC_VERCEL_ENV = value;
+  };
+  afterEach(() => setEnv(SAVED));
+
   it.each([
+    // 로컬 — 이 장치가 필요한 자리
     ['localhost:3032', true],
     ['127.0.0.1:3032', true],
+    ['[::1]:3032', true],
+    // dev preview · PR 별 preview — 살려 둔다
     ['dev-classbot.pullim.ai', true],
+    ['pullim-classbot-git-feat-x-curea.vercel.app', true],
+    // prod 이름
     ['classbot.pullim.ai', false],
     ['CLASSBOT.PULLIM.AI', false],
     ['classbot.pullim.ai:443', false],
+    // 목록 밖은 전부 막힌다 — 거부 목록이 아니라 허용 목록이라서
+    ['evil.example.com', false],
+    ['classbot.pullim.ai.attacker.com', false],
+    // `.vercel.app` 접미사를 흉내 낸 이름
+    ['notvercel.app', false],
+    ['vercel.app.attacker.com', false],
   ])('%s → %s', (host, expected) => {
     expect(isDevIdentityHost(host)).toBe(expected);
   });
 
-  it('Host 를 모르면(null) 막지 않는다 — 로컬 fetch·테스트 경로', () => {
-    expect(isDevIdentityHost(null)).toBe(true);
-    expect(isDevIdentityHost(undefined)).toBe(true);
+  // 종전에는 Host 를 모르면 통과였다. 모르면 **닫는다** — fail-open 은 이 장치에서 사고다.
+  it('Host 를 모르면 막는다', () => {
+    expect(isDevIdentityHost(null)).toBe(false);
+    expect(isDevIdentityHost(undefined)).toBe(false);
+    expect(isDevIdentityHost('')).toBe(false);
+    expect(isDevIdentityHost('   ')).toBe(false);
+  });
+
+  // 이름에 기대지 않는 마지막 방어선 — prod 배포는 `*.vercel.app` 로도 열려 있다.
+  it('production 배포면 호스트 이름이 무엇이든 막는다', () => {
+    setEnv('production');
+    for (const host of [
+      'localhost:3032',
+      'dev-classbot.pullim.ai',
+      'pullim-classbot-abc123-curea.vercel.app',
+      'classbot.pullim.ai',
+    ]) {
+      expect(isDevIdentityHost(host)).toBe(false);
+    }
+  });
+
+  it('preview 배포는 계속 동작한다 — 여기서 죽으면 개발 흐름이 상한다', () => {
+    setEnv('preview');
+    expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(true);
+    expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(true);
   });
 });
 
