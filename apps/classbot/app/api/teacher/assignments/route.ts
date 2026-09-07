@@ -33,8 +33,18 @@ type Difficulty = (typeof DIFFICULTIES)[number];
 const MODES = ['practice', 'exam', 'wrong-conquest'] as const;
 type Mode = (typeof MODES)[number];
 
-/** 문항 수 상한 — 시험 모드 최대치를 넉넉히 덮는 방어값. */
-const MAX_QUESTION_COUNT = 100;
+/**
+ * 문항 수 상한 — **모드마다 다르다** (spec 14 § 5.1 「문항 수 1 ≤ N ≤ 50 · 시험은 60까지」).
+ *
+ * 예전에는 모드와 무관하게 100 이었다. 「시험 최대치를 넉넉히 덮는 방어값」이라 적어 뒀는데,
+ * 넉넉한 쪽이 문제였다 — 폼을 우회하면 연습 51~100, 시험 61~100 이 그대로 저장된다.
+ * 상한은 넉넉하라고 있는 게 아니라 계약을 지키라고 있다.
+ */
+const MAX_QUESTION_COUNT: Record<Mode, number> = {
+  practice: 50,
+  'wrong-conquest': 50,
+  exam: 60,
+};
 /** 단원 표시 문자열 상한 — 화면에 한 줄로 그려지는 값이라 길 이유가 없다. */
 const MAX_SCOPE_LEN = 200;
 
@@ -65,6 +75,19 @@ const EXAM_TIME_LIMIT_MIN = 10;
 const EXAM_TIME_LIMIT_MAX = 180;
 
 /**
+ * 모드별 Scope override (spec 14 § 5.2).
+ *
+ * 예전에는 `mode === 'exam' ? 1 : null` 이라 **오답정복이 봇 기본 Scope 로 떨어졌다.**
+ * 명세는 오답정복의 기본값을 5 로 정해 두었다 — 틀린 문제를 다시 푸는 모드라 더 넓게 본다.
+ * `null` 은 「봇 기본 Scope 를 쓴다」는 뜻이고 연습만 그렇다.
+ */
+const SCOPE_OVERRIDE_BY_MODE: Record<Mode, number | null> = {
+  exam: 1,
+  'wrong-conquest': 5,
+  practice: null,
+};
+
+/**
  * 마감 라벨에서 D-day 를 뽑는다 — `d_day` 가 NOT NULL 이라 빈칸을 둘 수 없다.
  *
  * 라벨은 FE `formatDueLabel` 이 만든 `오늘 22:00` · `내일 22:00` · `7/3 22:00` 세 모양이다.
@@ -87,6 +110,40 @@ function deriveDDay(dueLabel: string): string {
   }
   const diffDays = Math.ceil((due.getTime() - now.getTime()) / 86400000);
   return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
+}
+
+/**
+ * 마감 시각을 읽는다 — **표시용 라벨이 아니라 진짜 시각**이다.
+ *
+ * spec 14 § 5.1 은 마감이 **미래**여야 한다고 정한다. 그런데 이 라우트는 오래도록
+ * `dueLabel`(「내일 22:00」 같은 표시 문자열)만 받아서, 비어 있는지 말고는 아무것도 검증할 수
+ * 없었다 — 폼을 우회하면 임의 문자열도 이미 지난 날짜도 그대로 발사됐다.
+ *
+ * 그래서 ISO 시각을 함께 받는다. 교사 폼은 이미 그 값을 들고 있다
+ * (`assignment-form.tsx` 의 `dueIso` — 라벨과 D-day 둘 다 거기서 파생한다).
+ *
+ * **지금은 선택이다.** 보내는 쪽(#269)이 아직 안 싣기 때문이고, 그쪽이 실으면 필수로 좁히는
+ * 것이 다음 단계다. 온 경우에는 반드시 검증한다 — 있으나 마나 한 필드를 두지 않는다.
+ *
+ * @param value - 본문의 `dueAt`(ISO 8601)
+ * @param now - 기준 시각(테스트 주입용)
+ * @returns `{ ok: true, value }` — 없으면 `value: null`. 형식이 틀리거나 과거면 `{ ok: false }`
+ */
+function readDueAt(
+  value: unknown,
+  now: Date,
+): { ok: true; value: Date | null } | { ok: false } {
+  if (value === undefined || value === null || value === '') {
+    return { ok: true, value: null };
+  }
+  if (typeof value !== 'string') return { ok: false };
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { ok: false };
+  // 미래여야 한다 — 이미 지난 마감으로 발사하면 학생 화면에 태어나자마자 지각으로 뜬다.
+  if (parsed.getTime() <= now.getTime()) return { ok: false };
+
+  return { ok: true, value: parsed };
 }
 
 /**
@@ -140,6 +197,19 @@ function readAchievementCodes(value: unknown): string[] | null {
   return [...new Set(codes)];
 }
 
+/**
+ * 마감 시각에서 D-day 를 센다 — 날짜 경계로 자른다(시:분은 안 본다).
+ * @param due - 마감 시각
+ * @param now - 기준 시각
+ * @returns `오늘` 또는 `D-n`
+ */
+function dDayFromDate(due: Date, now: Date): string {
+  const startOfDay = (d: Date): number =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
+  return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
+}
+
 /** 문자열 배열인지 확인하고 다듬어 돌려준다. 배열이 아니면 null. */
 function readStudentIds(value: unknown): string[] | null {
   if (value === undefined || value === null) return [];
@@ -176,7 +246,7 @@ export async function GET(req: Request): Promise<NextResponse> {
  * 과제를 발사한다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
  * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, scope?,
  *   chapterFrom?, chapterTo?, achievementCodes?, reasonHint?, examTimeLimitMin?,
- *   targetStudentIds? }`
+ *   dueAt?, targetStudentIds? }`
  * @returns 201 { assignment } | 400 | 401 | 403(역할) | 404(내 봇이 아님)
  */
 export async function POST(req: Request): Promise<NextResponse> {
@@ -194,14 +264,10 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (!title) return invalidInput('과제 이름을 적어 주세요.');
   if (!dueLabel) return invalidInput('마감을 정해 주세요.');
 
-  const questionCount = body.questionCount;
-  if (
-    typeof questionCount !== 'number' ||
-    !Number.isInteger(questionCount) ||
-    questionCount < 1 ||
-    questionCount > MAX_QUESTION_COUNT
-  ) {
-    return invalidInput(`문항 수는 1에서 ${MAX_QUESTION_COUNT} 사이 정수로 적어 주세요.`);
+  const now = new Date();
+  const dueAt = readDueAt(body.dueAt, now);
+  if (!dueAt.ok) {
+    return invalidInput('마감은 지금보다 뒤인 시각으로 적어 주세요.');
   }
 
   if (!DIFFICULTIES.includes(body.difficulty as Difficulty)) {
@@ -209,10 +275,22 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
   const difficulty = body.difficulty as Difficulty;
 
+  // 문항 수 상한이 모드에 걸리므로 **모드를 먼저** 정한다.
   if (!MODES.includes(body.mode as Mode)) {
     return invalidInput('과제 방식이 올바르지 않아요.');
   }
   const mode = body.mode as Mode;
+
+  const maxQuestions = MAX_QUESTION_COUNT[mode];
+  const questionCount = body.questionCount;
+  if (
+    typeof questionCount !== 'number' ||
+    !Number.isInteger(questionCount) ||
+    questionCount < 1 ||
+    questionCount > maxQuestions
+  ) {
+    return invalidInput(`문항 수는 1에서 ${maxQuestions} 사이 정수로 적어 주세요.`);
+  }
 
   /*
     단원 — 교사가 고른 값을 그대로 싣는다.
@@ -318,13 +396,15 @@ export async function POST(req: Request): Promise<NextResponse> {
         questionCount,
         difficulty,
         mode,
-        scopeOverride: mode === 'exam' ? 1 : null,
+        // spec 14 § 5.2 — 시험은 1 강제, 오답정복은 5 가 기본, 연습은 봇 기본 Scope(null).
+        scopeOverride: SCOPE_OVERRIDE_BY_MODE[mode],
         examTimeLimitMin: timeLimit.value,
         source: 'teacher-assigned',
         assignedBy: bot.name,
         assignedAtLabel: '방금 발사',
         dueLabel,
-        dDay: deriveDDay(dueLabel),
+        // 진짜 시각이 왔으면 그걸로 센다 — 라벨 파싱보다 정확하다.
+        dDay: dueAt.value ? dDayFromDate(dueAt.value, now) : deriveDDay(dueLabel),
         // 안 적고 내는 경로가 정상이다 — 빈 문자열 대신 null 로 둔다(컬럼이 nullable).
         reasonHint: reasonHint || null,
         state: 'todo',

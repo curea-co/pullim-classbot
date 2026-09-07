@@ -2,13 +2,16 @@
  * 수업방·참여 코드·과제 흐름을 **손으로 확인하기 위한** 데모 상태 리셋.
  *
  * `db:seed` 와 다르다 — seed 는 30개 테이블을 TRUNCATE 하고 mock 전체를 다시 넣는다.
- * 이 스크립트는 **이번 흐름이 쓰는 것만** 정해진 출발점으로 되돌린다:
- *   - 이 스크립트가 연 수업방과 그 참여 코드(런타임 id 모양으로 가른다)
- *   - 학생 민준(s2)의 참여
- *   - **이 스크립트가 낸 과제**(`as_demo_` 로 시작하는 id)
+ * 이 스크립트는 **자기가 만든 것만** 정해진 출발점으로 되돌린다. 가르는 기준은 하나 —
+ * **`*_demo_` id 접두사**다(`cr_demo_` · `cb_demo_` · `as_demo_`):
+ *   - 이 스크립트가 연 수업방과 그 참여 코드
+ *   - 이 스크립트가 만든 봇 (아무도 참여·출제하지 않은 것만)
+ *   - 이 스크립트가 낸 과제
+ *   - 학생 민준(s2)의 참여 — 코드 참여를 맨바닥부터 해 보기 위한 자리다
+ *   - 게시 상태는 **자기 봇과 아래에서 자기가 올리는 시드 봇 하나**만 내린다
  * 서연(student_001)의 기존 5개 반과 과제 3건, mock 시드가 만든 나머지 데이터, 그리고
- * **사람이 화면·API 로 낸 과제**는 **건드리지 않는다.** 그래야 기존 화면들이 계속 살아 있고,
- * 데모를 한 번 돌려 본 대가로 남의 작업이 사라지지 않는다.
+ * **사람이 화면·API 로 만든 수업방·봇·과제와 그들이 올린 마켓 게시**는 **건드리지 않는다.**
+ * 그래야 기존 화면들이 계속 살아 있고, 데모를 한 번 돌려 본 대가로 남의 작업이 사라지지 않는다.
  *
  * 실행: `bun run demo:reset`  (apps/classbot 에서, 또는 --filter 로)
  *
@@ -25,9 +28,7 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 loadEnv({ path: '.env' });
 
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
-import { randomUUID } from 'node:crypto';
-
+import { and, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { getDb, getPool } from '../lib/db';
 import {
   assignments,
@@ -89,6 +90,29 @@ const DEMO_ROOMS: DemoRoom[] = [
 const DEMO_ASSIGNMENT_ID_PREFIX = 'as_demo_';
 
 /**
+ * 수업방·봇에도 같은 표식을 쓴다.
+ *
+ * 예전에는 `cr_<uuid>` 정규식으로 「런타임에 만들어진 것」을 통째로 지웠다. 그 조건은 이
+ * 스크립트가 만든 방만이 아니라 **교사가 화면에서 만든 방 전부**에 걸리고, 참여 코드와
+ * enrollment 까지 cascade 로 함께 지운다. 머리주석의 「사람이 화면·API 로 낸 것은 건드리지
+ * 않는다」와 정면으로 어긋나던 자리다.
+ */
+const DEMO_CLASSROOM_ID_PREFIX = 'cr_demo_';
+const DEMO_BOT_ID_PREFIX = 'cb_demo_';
+
+/**
+ * 데모 수업방·봇 id — 방 key 로 결정된다(매 실행 같은 id).
+ * @param roomKey - `DEMO_ROOMS` 의 key
+ * @returns `cr_demo_<key>` · `cb_demo_<key>`
+ */
+function demoClassroomId(roomKey: string): string {
+  return `${DEMO_CLASSROOM_ID_PREFIX}${roomKey}`;
+}
+function demoBotId(roomKey: string): string {
+  return `${DEMO_BOT_ID_PREFIX}${roomKey}`;
+}
+
+/**
  * 데모 과제 id — 방 key 로 결정된다(매 실행 같은 id).
  * @param roomKey - `DEMO_ROOMS` 의 key
  * @returns `as_demo_<key>`
@@ -134,41 +158,47 @@ async function main(): Promise<void> {
   // 민준의 참여를 비운다 — 코드 참여를 맨바닥부터 해 보기 위한 자리다.
   await db.delete(enrollments).where(eq(enrollments.studentId, 's2'));
 
-  // 런타임에 만들어진 수업방을 전부 지운다 — 이 스크립트가 만든 것도, 손으로 만들어 본 것도.
+  // 지난 실행의 데모 수업방을 지운다 — **접두사가 붙은 것만**.
   //
-  // 라벨이 아니라 **id 모양**으로 가른다. 시드 수업방은 `cr_math_a` 처럼 사람이 붙인 id 이고
-  // 화면·API 로 만든 것은 `cr_<uuid>` 다. 라벨로 지우면 테스트하다 만든 「1학년 3반」 같은
-  // 방이 계속 쌓여, 다음 사람이 어느 게 데모 데이터인지 알 수 없게 된다.
-  // join_codes 는 classrooms 에 걸린 FK 가 cascade 라 함께 사라진다.
-  //
-  // 남는 자국 하나 — 사람이 낸 과제를 이제 지우지 않으므로, 그 과제가 달린 런타임 봇은
-  // 아래에서 살아남고 짝 수업방만 사라진다. classrooms 에는 봇을 가리키는 컬럼이 없어서
-  // (짝은 join_codes·enrollments 로 푼다) 여기서 가려내려면 짝 해석을 통째로 들여와야 한다.
-  // 데이터가 깨지는 자국이 아니라 화면에 안 뜨는 자국이고, 남의 과제를 지우는 것보다 낫다.
+  // 예전에는 `cr_<uuid>` 정규식이라 「런타임에 만들어진 것」을 통째로 걷었다. 그건 이
+  // 스크립트가 만든 방만이 아니라 **교사가 화면에서 만든 방 전부**에 걸리고, 참여 코드와
+  // enrollment 까지 cascade 로 끌고 간다. 데모를 한 번 돌린 대가로 남의 반이 사라졌다.
+  // join_codes 는 classrooms 에 걸린 FK 가 cascade 라 데모 방의 코드만 함께 사라진다.
   const staleRooms = await db
     .delete(classrooms)
-    .where(sql`${classrooms.id} ~ '^cr_[0-9a-f]{8}-'`)
+    .where(sql`${classrooms.id} like ${`${DEMO_CLASSROOM_ID_PREFIX}%`}`)
     .returning({ id: classrooms.id });
 
-  // 짝 봇도 같은 기준으로. 단 **아무도 참여·출제하지 않은 것만** — 시드 봇(cb_001…)은
-  // 애초에 id 모양이 걸리지 않고, 실제로 쓰인 런타임 봇은 남겨 데이터를 깨지 않는다.
+  // 짝 봇도 같은 표식으로. 단 **아무도 참여·출제하지 않은 것만** — 사람이 그 데모 봇에
+  // 과제를 냈거나 학생이 들어와 있으면 남겨서 그 데이터를 깨지 않는다.
   const staleBots = await db
     .delete(classBots)
     .where(
       and(
-        sql`${classBots.id} ~ '^cb_[0-9a-f]{8}-'`,
+        sql`${classBots.id} like ${`${DEMO_BOT_ID_PREFIX}%`}`,
         sql`${classBots.id} not in (select distinct bot_id from ${enrollments})`,
         sql`${classBots.id} not in (select distinct bot_id from ${assignments})`,
       ),
     )
     .returning({ id: classBots.id });
 
-  // 게시 상태를 전부 내린다 — 마켓도 정해진 출발점에서 시작해야 한다.
-  // (아래에서 시드 봇 하나만 다시 올려 「빈 마켓이 아닌」 상태를 만든다.)
+  // 게시 상태를 내린다 — **이 스크립트가 건드리는 봇만.**
+  //
+  // 예전에는 `where(isPublished = true)` 라 **모든 봇**의 게시를 내렸다. 교사가 실제로 마켓에
+  // 올려 둔 봇까지 조용히 내려가던 자리다. 데모가 출발점으로 되돌릴 대상은 자기가 만든 봇과
+  // 아래에서 자기가 올리는 시드 봇 하나뿐이다.
   await db
     .update(classBots)
     .set({ isPublished: false, publishedAt: null })
-    .where(eq(classBots.isPublished, true));
+    .where(
+      and(
+        eq(classBots.isPublished, true),
+        or(
+          sql`${classBots.id} like ${`${DEMO_BOT_ID_PREFIX}%`}`,
+          eq(classBots.id, SEEDED_ROOM_WITH_CODE.botId),
+        ),
+      ),
+    );
 
   // ── 2. 데모 수업방을 새로 연다 ────────────────────────────────────
   const created: Array<{ room: DemoRoom; code: string }> = [];
@@ -182,8 +212,8 @@ async function main(): Promise<void> {
     }
     const teacherName = `${teacher.name} 선생님`;
 
-    const classroomId = `cr_${randomUUID()}`;
-    const botId = `cb_${randomUUID()}`;
+    const classroomId = demoClassroomId(room.key);
+    const botId = demoBotId(room.key);
 
     await db.insert(classBots).values({
       id: botId,

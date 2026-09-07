@@ -172,6 +172,12 @@ export interface DispatchAssignmentInput {
    * 생략하면 `null`.
    */
   examTimeLimitMin?: number;
+  /**
+   * 진짜 마감 시각(ISO 8601). `dueLabel` 은 표시용이라 검증할 수 없어서 이 값을 함께 받는다 —
+   * spec 14 § 5.1 의 「마감은 미래」를 서버가 지키는 자리다. 오면 **반드시 미래**여야 하고,
+   * `dDay` 도 라벨 파싱 대신 이 값에서 센다. (보내는 쪽이 실으면 필수로 좁힌다.)
+   */
+  dueAt?: string;
   /** 생략·빈 배열이면 반 전체. */
   targetStudentIds?: string[];
 }

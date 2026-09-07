@@ -95,6 +95,24 @@ export async function POST(req: Request): Promise<NextResponse> {
     : `${bot.teacherName} 선생님`;
 
   const result = await db.transaction(async (tx) => {
+    /*
+      코드 행을 **트랜잭션 안에서 다시, 잠그고** 읽는다.
+
+      위의 조회는 트랜잭션 밖이라 그 뒤의 재발급을 못 본다. 학생 요청이 여기 직전까지 온
+      사이에 교사가 재발급으로 옛 코드를 지우고 커밋하면, 이미 읽어 둔 `codeRow` 로 참여가
+      만들어진다 — 「옛 코드는 무효」라는 재발급의 계약이 그대로 깨진다.
+
+      여기서 다시 읽으면 갈림은 둘뿐이고 둘 다 옳다:
+        - 재발급이 먼저 커밋됐다 → 이 조회가 0행 → 404(없는 코드)
+        - 이 잠금이 먼저다 → 재발급의 DELETE 가 기다린다 → 학생은 코드가 죽기 직전에 들어왔다
+    */
+    const [liveCode] = await tx
+      .select({ code: joinCodes.code })
+      .from(joinCodes)
+      .where(eq(joinCodes.code, codeRow.code))
+      .for('update');
+    if (!liveCode) return null;
+
     const inserted = await tx
       .insert(enrollments)
       .values({
@@ -158,6 +176,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       .limit(1);
     return { enrollment: existing, alreadyJoined: true };
   });
+
+  // 트랜잭션 안에서 코드가 이미 죽어 있었다 — 없는 코드와 같은 답을 준다.
+  if (!result) return notFound('참여 코드를 찾을 수 없어요.');
 
   return NextResponse.json(result, { status: result.alreadyJoined ? 200 : 201 });
 }

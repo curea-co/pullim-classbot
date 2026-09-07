@@ -614,6 +614,75 @@ describe('POST /api/teacher/assignments — 반 단위 발사', () => {
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
+  /* spec 14 § 5.1 — 문항 수 1~50, 시험만 60까지. 모드와 무관한 100 이던 자리다. */
+  it.each([
+    ['practice', 50, 51],
+    ['wrong-conquest', 50, 51],
+    ['exam', 60, 61],
+  ])('%s 는 %d 까지 통과하고 %d 는 400', async (mode, ok, tooMany) => {
+    okQueue();
+    const passed = await dispatchAssignment(
+      dispatchReq({ mode, questionCount: ok, examTimeLimitMin: mode === 'exam' ? 60 : undefined }),
+    );
+    expect(passed.status).toBe(201);
+
+    insertValuesSpy.mockClear();
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+    const rejected = await dispatchAssignment(
+      dispatchReq({ mode, questionCount: tooMany }),
+    );
+    expect(rejected.status).toBe(400);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  /* spec 14 § 5.2 — 시험 1 강제, 오답정복 5 기본, 연습은 봇 기본(null). */
+  it.each([
+    ['exam', 1],
+    ['wrong-conquest', 5],
+    ['practice', null],
+  ])('%s 의 scopeOverride 는 %p', async (mode, expected) => {
+    okQueue();
+
+    const res = await dispatchAssignment(dispatchReq({ mode }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.scopeOverride).toBe(expected);
+  });
+
+  /* spec 14 § 5.1 — 마감은 미래. 표시용 라벨로는 지킬 수 없어 진짜 시각을 함께 받는다. */
+  it('미래 마감이면 통과하고 그 시각에서 D-day 를 센다', async () => {
+    okQueue();
+    const due = new Date(Date.now() + 3 * 86400000);
+
+    const res = await dispatchAssignment(dispatchReq({ dueAt: due.toISOString() }));
+
+    expect(res.status).toBe(201);
+    const values = insertValuesSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(values.dDay).toBe('D-3');
+  });
+
+  it.each([
+    ['지난 시각', new Date(Date.now() - 86400000).toISOString()],
+    ['시각이 아닌 문자열', '내일쯤'],
+    ['문자열이 아님', 1234],
+  ])('마감이 %s 이면 400 이고 아무것도 안 쓴다', async (_label, bad) => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ id: 'cb_001', name: '수학이 형', subject: '수학Ⅱ', grade: '고2' }],
+    ];
+
+    const res = await dispatchAssignment(dispatchReq({ dueAt: bad }));
+
+    expect(res.status).toBe(400);
+    const parsed = (await res.json()) as { message?: string };
+    expect(parsed.message).toContain('마감');
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
   it('이 방에 없는 학생을 지정하면 400', async () => {
     mockSelectQueue = [
       [{ role: 'teacher' }],
@@ -670,6 +739,9 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [codeRow],
       [botRow],
       [roomRow],
+      [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [{ id: 'cb_001' }], // 봇 행 잠금
+      [{ n: 1 }], // 잠근 뒤 센 인원
     ];
     mockInsertQueue = [
       [{ botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' }],
@@ -709,6 +781,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [codeRow],
       [botRow],
       [roomRow],
+      [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
       [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
       [{ n: 1 }], // 잠근 뒤 다시 센 인원
       [existing], // 트랜잭션 안에서 기존 행을 되읽는다
@@ -733,6 +806,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [codeRow],
       [botRow],
       [roomRow],
+      [{ code: 'ABC123' }], // 코드 잠금
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 2 }], // 잠근 뒤 센 인원 — 동시에 들어온 앞 요청까지 세어진다
     ];
@@ -747,6 +821,22 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     expect(setSpy).toHaveBeenCalledTimes(1);
     const patch = setSpy.mock.calls[0][0] as { enrolledCount?: unknown };
     expect(patch.enrolledCount).toBe(2);
+  });
+
+  it('트랜잭션 직전에 재발급으로 죽은 코드는 404 — 옛 코드는 무효다', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow], // 트랜잭션 **밖** 조회 — 이 시점엔 아직 살아 있었다
+      [botRow],
+      [roomRow],
+      [], // 트랜잭션 안에서 잠그고 보니 이미 지워졌다(교사가 재발급함)
+    ];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(404);
+    // 참여를 만들지 않는다 — 여기가 「옛 코드는 무효」 계약이 지켜지는 자리다.
+    expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
   it('학생이 아니면 403 FORBIDDEN_ROLE', async () => {
