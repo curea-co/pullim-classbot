@@ -7,11 +7,12 @@
  *
  * 왜 두는가: classbot 로컬에는 `JWT_SECRET` 이 없고 로그인은 실행되지 않는
  * NestJS(:4032)로 간다 → 로컬에서 모든 `/api/*` 가 401 이라 데모가 아예 안 돈다.
- * 그래서 **prod 호스트가 아닐 때만** 이 쿠키를 신원으로 인정한다.
+ * 그래서 **아는 개발 호스트에서만** 이 쿠키를 신원으로 인정한다.
  *
  * 안전 장치 셋:
- *  1. **prod 무력** — 요청 Host 가 `classbot.pullim.ai` 면 무조건 무시한다
- *     (`isDevIdentityHost`). prod 에서는 이 파일이 있어도 아무 일도 하지 않는다.
+ *  1. **호스트 허용 목록 + fail-closed** — 로컬·preview 같이 **아는 이름에서만** 인정하고,
+ *     production 배포면 어떤 주소로 닿든 무력이다(`isDevIdentityHost`). Host 를 모르면
+ *     막는다 — 신원을 세우는 판정이라 「모른다」를 「괜찮다」로 읽지 않는다.
  *  2. **allowlist** — 아래 `DEV_IDENTITIES` 의 5명 밖 id 는 전부 무시한다.
  *     임의 id 사칭이 불가능하다.
  *  3. **JWT 우선** — 유효한 JWT 가 있으면 JWT 가 이긴다. 이 쿠키는 폴백일 뿐이다
@@ -60,27 +61,95 @@ export const DEV_IDENTITIES: readonly DevIdentity[] = [
 ] as const;
 
 /**
- * prod 호스트. `components/shell/dev-role-switch.tsx` 의 PROD_HOST 와 **같은 기준**이며,
- * 그쪽 주석의 근거를 그대로 따른다:
+ * 개발용 신원을 인정하는 **호스트 허용 목록**.
  *
- * `process.env.NODE_ENV !== 'production'` 으로 가르지 않은 이유 — Vercel 은 preview
- * 빌드(dev-classbot.pullim.ai)도 **NODE_ENV='production' 으로 돌린다.** NODE_ENV 기준이면
- * 정작 이 장치가 필요한 dev preview 에서 신원이 사라져 preview 전체가 401 이 된다.
- * 빌드·배포 설정을 건드리지 않는 제약이라 **런타임 호스트 검사**로 가른다 —
- * localhost·dev preview 는 인정, prod 는 무력.
+ * 종전에는 `classbot.pullim.ai` 하나만 막는 **거부 목록**이었다. 그게 구멍이었다 —
+ * prod 데이터를 쓰는 배포는 그 이름으로만 닿는 게 아니다. Vercel 은 production 배포에도
+ * `*.vercel.app` URL 을 주므로, 그 주소로 들어가 쿠키만 심으면 `parent_001` · `teacher_001`
+ * 명의가 그대로 섰다. 그래서 **아는 이름만 연다**(모르는 이름은 전부 닫힌다).
  */
-const PROD_HOST = 'classbot.pullim.ai';
+const DEV_IDENTITY_HOSTNAMES: readonly string[] = [
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  /** dev preview 고정 도메인 — 외부 차단된 미리보기다. */
+  'dev-classbot.pullim.ai',
+];
+
+/**
+ * PR 별 Vercel preview 도메인 접미사.
+ *
+ * **이 접미사만으로는 안전하지 않다** — production 배포도 같은 접미사를 받는다. 그래서
+ * 아래 판정은 이 접미사를 「배포 환경이 preview 라고 확인됐을 때만」 연다. 접미사를 여는
+ * 이유는 PR 미리보기에서 역할 전환이 죽으면 개발 흐름이 상하기 때문이다.
+ */
+const PREVIEW_HOSTNAME_SUFFIX = '.vercel.app';
+
+/**
+ * `Host` 헤더에서 호스트명만 뗀다.
+ * @param host - `localhost:3032` · `[::1]:3032` 처럼 포트가 붙어 올 수 있다
+ * @returns 소문자 호스트명. 형태가 깨졌으면 빈 문자열
+ */
+function hostnameOf(host: string): string {
+  const trimmed = host.trim().toLowerCase();
+  // IPv6 는 `[::1]:3032` 로 온다 — `:` 로 자르면 `[` 만 남는다.
+  if (trimmed.startsWith('[')) {
+    const end = trimmed.indexOf(']');
+    return end < 0 ? '' : trimmed.slice(1, end);
+  }
+  return trimmed.split(':')[0] ?? '';
+}
+
+/**
+ * 배포 환경 — `production` · `preview` · `development` 중 하나이거나, 모르면 undefined.
+ *
+ * **서버 전용 `VERCEL_ENV` 가 먼저다.** 이 판정은 서버(`lib/current-user.ts`)에서 신원을
+ * 세우는 데 쓰이므로, 권한 판정의 근거는 **빌드 때 치환되지 않고 런타임에 서버가 직접 읽는**
+ * 값이어야 한다. 클라이언트 번들에는 이 이름이 남아도 값이 없어 undefined 로 접힌다.
+ *
+ * `NEXT_PUBLIC_VERCEL_ENV` 는 **클라이언트 쪽 출처**다. 브라우저에는 서버 전용 값이
+ * 없어서인데, 그 값은 Vercel 프로젝트 설정에 기대지 않는다 — `next.config.ts` 가 빌드 때
+ * `VERCEL_ENV` 를 이 이름으로 실어 보낸다(그 파일 주석 참고). 그래서 **두 층이 같은
+ * 출처를 읽는다.**
+ *
+ * 그래도 값이 비어 올 수 있다(로컬 개발 · Vercel 밖 배포). 그때 아래 판정은
+ * **닫히는 쪽**으로 접힌다 — 열리는 쪽으로 접히면 이 파일이 막으려던 구멍이 되살아난다.
+ */
+function deploymentEnv(): string | undefined {
+  return process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV;
+}
 
 /**
  * 이 호스트에서 개발용 신원을 인정해도 되는가.
+ *
+ * **모르면 닫는다(fail-closed).** 종전에는 `Host` 를 모를 때 통과였는데, 이 장치에서
+ * fail-open 은 그 자체로 사고다 — 신원을 세우는 판정이라 「모른다」는 「괜찮다」가 아니다.
+ * 같은 이유로 **배포 환경을 모를 때도 닫는다.** 환경변수가 없을 때 열리는 설계였다면
+ * 그 변수가 빠지는 순간 이 파일이 막으려던 구멍이 조용히 되살아난다.
+ *
+ * `NODE_ENV` 로 가르지 않은 이유는 그대로다 — Vercel 은 preview 빌드도
+ * `NODE_ENV='production'` 으로 돌려서, 그 기준이면 정작 이 장치가 필요한 preview 에서
+ * 신원이 사라져 전체가 401 이 된다. 대신 **배포 환경**(`deploymentEnv()`)을 본다.
+ *
  * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
- * @returns prod 호스트면 false, 그 밖(localhost · dev preview · 미지정)이면 true
+ * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
  */
 export function isDevIdentityHost(host: string | null | undefined): boolean {
-  if (!host) return true;
-  // `localhost:3032` 처럼 포트가 붙어 온다 — 호스트명만 떼어 비교한다.
-  const hostname = host.trim().toLowerCase().split(':')[0] ?? '';
-  return hostname !== PROD_HOST;
+  const env = deploymentEnv();
+  // 이름에 기대지 않는 방어선 — production 배포면 어떤 주소로 닿든, `Host` 를 무엇으로
+  // 위조하든 무력이다.
+  if (env === 'production') return false;
+  if (!host) return false;
+  const hostname = hostnameOf(host);
+  if (!hostname) return false;
+  // `*.vercel.app` 은 **preview 라고 확인됐을 때만** 연다.
+  //
+  // 이 접미사는 production 배포도 받는다 — 그래서 「이름을 열어 두고 production 검사로
+  // 거른다」는 순서면 환경변수가 없을 때 production 기본 URL 이 그대로 통과한다.
+  // 순서를 뒤집어 **positive 확인**으로 둔다: 모르면(undefined) 닫힌다.
+  // `.` 까지 포함해 비교하므로 `notvercel.app` · `vercel.app.attacker.com` 은 안 걸린다.
+  if (hostname.endsWith(PREVIEW_HOSTNAME_SUFFIX)) return env === 'preview';
+  return DEV_IDENTITY_HOSTNAMES.includes(hostname);
 }
 
 /**
@@ -119,7 +188,7 @@ function readCookieValue(cookieHeader: string | null | undefined, name: string):
 /**
  * 요청에서 개발용 신원을 해석한다(서버·클라이언트 공용).
  *
- * **prod 호스트면 쿠키를 아예 읽지 않고 null** 이다. 목록 밖 id 도 null 이라
+ * **허용 목록 밖 호스트·production 배포면 쿠키를 아예 읽지 않고 null** 이다. 목록 밖 id 도 null 이라
  * 호출부는 기존 데모 폴백으로 떨어진다.
  *
  * @param cookieHeader - 요청 `Cookie` 헤더 전문(또는 `document.cookie`)
@@ -149,7 +218,7 @@ export function readDevIdentityCookie(): DevIdentity | null {
 
 /**
  * 브라우저에서 개발용 신원을 쓴다. allowlist 밖 id 는 **쓰지 않는다.**
- * prod 호스트에서도 쓰지 않는다(서버가 어차피 무시하지만, 흔적조차 남기지 않는다).
+ * 허용 목록 밖 호스트·production 배포에서도 쓰지 않는다(서버가 어차피 무시하지만, 흔적조차 남기지 않는다).
  * @param id - allowlist 의 사용자 id
  */
 export function writeDevIdentityCookie(id: string): void {

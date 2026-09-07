@@ -48,15 +48,61 @@ it('누르면 이동 전에 개발용 신원 쿠키를 쓴다', () => {
   expect(document.cookie).toContain(`${DEV_IDENTITY_COOKIE}=student_001`);
 });
 
-it('prod 호스트에서는 아무것도 렌더하지 않는다', () => {
+/** 주어진 host 로 창을 바꿔 렌더하고 원상복구한다. */
+function renderAtHost(host: string) {
   const { location } = window;
   Object.defineProperty(window, 'location', {
     configurable: true,
-    value: { ...location, hostname: 'classbot.pullim.ai', host: 'classbot.pullim.ai' },
+    value: { ...location, hostname: host.split(':')[0], host },
   });
-  const { container } = render(<DevRoleSwitch role="student" />);
-  expect(container).toBeEmptyDOMElement();
+  const result = render(<DevRoleSwitch role="student" />);
   Object.defineProperty(window, 'location', { configurable: true, value: location });
+  return result;
+}
+
+/** 배포 환경 변수를 세우고 되돌린다. */
+function withEnv(value: string | undefined, run: () => void) {
+  const saved = process.env.NEXT_PUBLIC_VERCEL_ENV;
+  if (value === undefined) delete process.env.NEXT_PUBLIC_VERCEL_ENV;
+  else process.env.NEXT_PUBLIC_VERCEL_ENV = value;
+  try {
+    run();
+  } finally {
+    if (saved === undefined) delete process.env.NEXT_PUBLIC_VERCEL_ENV;
+    else process.env.NEXT_PUBLIC_VERCEL_ENV = saved;
+  }
+}
+
+// 이 버튼의 노출 판정은 서버가 쓰는 `isDevIdentityHost` 와 **같은 함수**다.
+// 표가 둘이면 갈라진다 — 종전에는 여기서 `hostname !== PROD_HOST` 로 따로 비교해서,
+// 서버가 허용 목록으로 좁혀진 뒤에도 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
+it.each([
+  ['classbot.pullim.ai', false],
+  // 허용 목록 밖 — 종전에는 여기서 버튼이 떴다
+  ['evil.example.com', false],
+  ['pullim-classbot-abc123.example.net', false],
+  // `*.vercel.app` 은 preview 라고 확인되기 전까지 닫혀 있다(production 도 받는 접미사라서)
+  ['pullim-classbot-abc123-curea.vercel.app', false],
+  // 로컬·dev preview 는 계속 뜬다
+  ['localhost:3032', true],
+  ['dev-classbot.pullim.ai', true],
+])('%s → 렌더 %s', (host, shown) => {
+  const { container } = renderAtHost(host);
+  expect(container.innerHTML === '').toBe(!shown);
+});
+
+it('preview 배포의 PR 미리보기에서는 뜬다', () => {
+  withEnv('preview', () => {
+    const { container } = renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app');
+    expect(container).not.toBeEmptyDOMElement();
+  });
+});
+
+it('production 배포면 preview 도메인에서도 숨는다', () => {
+  withEnv('production', () => {
+    const { container } = renderAtHost('pullim-classbot-abc123-curea.vercel.app');
+    expect(container).toBeEmptyDOMElement();
+  });
 });
 
 // 드롭다운(<md 폴백)을 실제로 연다.
