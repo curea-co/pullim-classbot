@@ -138,13 +138,26 @@ function req(
 }
 
 /**
+ * 개발용 신원이 인정되는 호스트 — `lib/dev-identity.ts` 의 허용 목록 안에 있는 이름이다.
+ *
+ * **명시해야 한다.** `new Request(url)` 은 `Host` 헤더를 만들어 주지 않아서
+ * `req.headers.get('host')` 가 `null` 이고, 개발용 신원 판정은 **모르면 닫는다**(fail-closed).
+ * 예전에는 「모르면 통과」라 이 픽스처가 호스트 없이도 지나갔는데, 그 통과가 바로
+ * prod 배포의 `*.vercel.app` 주소로 쿠키만 심으면 남의 명의가 서던 구멍이었다.
+ */
+const DEV_HOST = 'localhost:3032';
+
+/**
  * 개발용 신원 쿠키를 실은 요청.
  * 학부모는 JWT claim 에 없는 역할(`UserRole` 은 student/teacher/admin)이라
  * 토큰으로는 만들 수 없다 — 마켓의 「역할 무관」을 학부모로 확인하려면 이 경로뿐이다.
  */
-function cookieReq(identity: string): Request {
+function cookieReq(identity: string, host: string | null = DEV_HOST): Request {
   return new Request('http://localhost/api/x', {
-    headers: { cookie: `pullim_dev_identity=${identity}` },
+    headers: {
+      cookie: `pullim_dev_identity=${identity}`,
+      ...(host === null ? {} : { host }),
+    },
   });
 }
 
@@ -346,6 +359,27 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
 
     expect(res.status).toBe(200);
     expect((await res.json()) as { bots?: unknown[] }).toEqual({ bots: [] });
+  });
+
+  /*
+    이 두 줄이 픽스처의 `Host` 를 지킨다.
+
+    개발용 신원 판정은 **모르면 닫는다**(`lib/dev-identity.ts`). 그래서 헬퍼에서 host 를 빼면
+    쿠키가 통째로 무시되는데, 그 결과는 「테스트가 조용히 다른 것을 재는」 쪽으로도, 「구멍이
+    조용히 열리는」 쪽으로도 갈 수 있다. 여기서 **호스트가 신원의 조건이라는 사실 자체**를
+    못박아, 다음 사람이 host 를 빼면 빨개지게 한다.
+  */
+  it('Host 가 없으면 쿠키가 있어도 401 — 개발용 신원은 모르면 닫힌다', async () => {
+    const res = await getMarketplaceBots(cookieReq('student_001', null));
+
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { code?: string }).code).toBe('AUTH_REQUIRED');
+  });
+
+  it('허용 목록 밖 호스트면 쿠키가 있어도 401', async () => {
+    const res = await getMarketplaceBots(cookieReq('student_001', 'classbot.pullim.ai'));
+
+    expect(res.status).toBe(401);
   });
 
   it('역할을 읽지 않는다 — users 조회 자체가 없다', async () => {
