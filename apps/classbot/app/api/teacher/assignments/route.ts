@@ -39,6 +39,21 @@ const MAX_QUESTION_COUNT = 100;
 const MAX_SCOPE_LEN = 200;
 
 /**
+ * 「봇 한 마디」 상한 — 교사 폼이 입력 단계에서 이미 `slice(0, 200)` 로 자르고 라벨에도
+ * 「200자」라고 적어 둔 값과 **같다**(`assignment-form.tsx`). 단원 문자열과 같은 자리에서
+ * 같은 방식으로 자른다.
+ */
+const MAX_REASON_HINT_LEN = 200;
+
+/**
+ * 성취기준 코드 상한 — 단원 하나에 코드 하나가 붙는 게 보통이라(`lib/mock/classbot.ts`
+ * 단원표) 50개면 범위 선택까지 넉넉히 덮는다. 개수·길이 둘 다 막는 이유는 이 값이
+ * `jsonb` 컬럼에 통째로 들어가서, 안 막으면 본문 한 덩어리가 그대로 저장되기 때문이다.
+ */
+const MAX_ACHIEVEMENT_CODES = 50;
+const MAX_ACHIEVEMENT_CODE_LEN = 64;
+
+/**
  * 시험 제한 시간(분) 경계 — 교사 폼 슬라이더의 `min`/`max` 와 **같은 값**이다
  * (`app/(teacher)/teacher/assignment/new/assignment-form.tsx`). 여기가 더 좁으면 폼에서
  * 고를 수 있는 값이 400 으로 튕긴다.
@@ -101,6 +116,30 @@ function readExamTimeLimit(
   return { ok: true, value };
 }
 
+/**
+ * 성취기준 코드 배열을 읽는다.
+ *
+ * `readStudentIds` 와 같은 규약이다 — 생략은 빈 배열, **형식이 틀리면 null**(호출부가 400).
+ * 컬럼이 `NOT NULL DEFAULT '[]'` 라 「없음」은 빈 배열 하나로만 적는다.
+ *
+ * @param value - 본문의 `achievementCodes`
+ * @returns 다듬은 코드 배열(중복 제거), 형식이 틀리면 null
+ */
+function readAchievementCodes(value: unknown): string[] | null {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) return null;
+  if (value.length > MAX_ACHIEVEMENT_CODES) return null;
+
+  const codes: string[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string') return null;
+    const code = item.trim();
+    if (!code || code.length > MAX_ACHIEVEMENT_CODE_LEN) return null;
+    codes.push(code);
+  }
+  return [...new Set(codes)];
+}
+
 /** 문자열 배열인지 확인하고 다듬어 돌려준다. 배열이 아니면 null. */
 function readStudentIds(value: unknown): string[] | null {
   if (value === undefined || value === null) return [];
@@ -136,7 +175,8 @@ export async function GET(req: Request): Promise<NextResponse> {
 /**
  * 과제를 발사한다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
  * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, scope?,
- *   chapterFrom?, chapterTo?, examTimeLimitMin?, targetStudentIds? }`
+ *   chapterFrom?, chapterTo?, achievementCodes?, reasonHint?, examTimeLimitMin?,
+ *   targetStudentIds? }`
  * @returns 201 { assignment } | 400 | 401 | 403(역할) | 404(내 봇이 아님)
  */
 export async function POST(req: Request): Promise<NextResponse> {
@@ -187,6 +227,22 @@ export async function POST(req: Request): Promise<NextResponse> {
   const scope = readTrimmed(body.scope).slice(0, MAX_SCOPE_LEN);
   const chapterFrom = readTrimmed(body.chapterFrom).slice(0, MAX_SCOPE_LEN);
   const chapterTo = readTrimmed(body.chapterTo).slice(0, MAX_SCOPE_LEN);
+
+  /*
+    성취기준 코드 · 봇 한 마디 — 단원과 **같은 모양의 유실**이었다. 컬럼
+    (`achievement_codes` · `reason_hint`)은 진작 있는데 쓰는 경로가 없어서, 교사가 단원을
+    고르고 한 마디를 적어도 서버에는 빈 배열과 null 만 남았다. 그래서 실DB 를 읽는 학생
+    개요가 「왜 이 과제가 왔는지」를 영영 못 보여 준다(spec 12 § 3.3.2 · 14 § 3.3.1 · § 5.4).
+
+    코드는 형식이 틀리면 400 이고(배열이 아님·문자열 아님·빈 값·개수/길이 초과), 한 마디는
+    단원 문자열과 같이 다듬어 자른다 — 폼이 입력 단계에서 이미 같은 길이로 자르고 있다.
+  */
+  const achievementCodes = readAchievementCodes(body.achievementCodes);
+  if (achievementCodes === null) {
+    return invalidInput('성취기준 코드가 올바르지 않아요.');
+  }
+
+  const reasonHint = readTrimmed(body.reasonHint).slice(0, MAX_REASON_HINT_LEN);
 
   /*
     시험 제한 시간 — 단원과 **같은 모양의 유실**이었다. 컬럼(`exam_time_limit_min`)은 진작
@@ -258,6 +314,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         grade: bot.grade,
         chapterFrom,
         chapterTo,
+        achievementCodes,
         questionCount,
         difficulty,
         mode,
@@ -268,6 +325,8 @@ export async function POST(req: Request): Promise<NextResponse> {
         assignedAtLabel: '방금 발사',
         dueLabel,
         dDay: deriveDDay(dueLabel),
+        // 안 적고 내는 경로가 정상이다 — 빈 문자열 대신 null 로 둔다(컬럼이 nullable).
+        reasonHint: reasonHint || null,
         state: 'todo',
         solveHref: `/classbot/assignment/${id}/solve?step=1`,
         // 빈 배열 = 반 전체(스키마가 정한 규약 — null 이중표현 금지).
