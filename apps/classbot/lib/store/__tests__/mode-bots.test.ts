@@ -5,7 +5,7 @@
  * 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
  * 지금 지켜야 할 규칙은 셋이다: **둘 다 실린다 · 겹치면 한 번만 · 겹치면 반이 이긴다.**
  */
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 
 import { useStudentBots } from '../mode-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';

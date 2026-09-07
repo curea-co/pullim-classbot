@@ -60,6 +60,17 @@ export function MarketplaceBotDetail({
     **비가용**을 전제하고 있다. 서버 원문을 그대로 노출하지 않는 이유도 같다.
   */
   const isUnavailable = query.error instanceof ApiClientError && query.error.status === 404;
+  /*
+    비가용 안내도 보는 사람에 따라 갈린다 — 아래 본문이 `viewer` 로 갈리는 것과 같은 이유다.
+    **교사는 담지 않는다**(머리주석). 그런데 「이미 담아 둔 봇이라면 그대로 쓸 수 있어요」는
+    담은 학생에게만 참인 말이라, 교사 셸에서 그대로 띄우면 하지도 않은 일을 한 것처럼 읽힌다.
+    교사에게는 대신 이 상태에서 **되돌리는 방법**을 적는다. 다만 어느 화면에서 하라고는
+    적지 않는다 — 공유를 다시 거는 자리는 교사 화면 PR 소관이라 여기서 단정할 수 없다.
+  */
+  const unavailableDescription =
+    viewer === 'student'
+      ? '공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요.'
+      : '공유가 내려갔거나 아직 공개되지 않았어요. 다시 공유하면 여기에 보여요.';
   const sig = botSignature({ id: botId, subject: bot?.subject });
   const publishedLabel = formatPublishedAt(bot?.publishedAt);
 
@@ -91,7 +102,7 @@ export function MarketplaceBotDetail({
           <EmptyState
             icon={Store}
             title="지금은 볼 수 없는 봇이에요"
-            description="공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요."
+            description={unavailableDescription}
           />
         </div>
       ) : query.isError ? (
