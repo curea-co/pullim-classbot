@@ -21,6 +21,8 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 // ── getDb mock — select/insert/update/delete/transaction 체인을 가짜로 대체 ──
 const whereSpy = jest.fn();
 const setSpy = jest.fn();
+/** `SELECT ... FOR UPDATE` 호출 기록 — 잠금을 실제로 거는지 본다. */
+const forSpy = jest.fn();
 const insertValuesSpy = jest.fn();
 const deleteSpy = jest.fn();
 
@@ -43,6 +45,10 @@ jest.mock('@/lib/db', () => {
     chain.limit = ret;
     chain.where = (...args: unknown[]) => {
       whereSpy(...args);
+      return chain;
+    };
+    chain.for = (...args: unknown[]) => {
+      forSpy(...args);
       return chain;
     };
     chain.then = (resolve: (v: unknown[]) => unknown) =>
@@ -119,6 +125,7 @@ beforeAll(() => {
 beforeEach(() => {
   whereSpy.mockClear();
   setSpy.mockClear();
+  forSpy.mockClear();
   insertValuesSpy.mockClear();
   deleteSpy.mockClear();
   mockSelectQueue = [];
@@ -196,6 +203,34 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
     const { params } = render(whereSpy.mock.calls[1][0]);
     expect(params).toContain('cr_eng_b');
     expect(params).toContain('teacher_001');
+  });
+
+  it('재발급은 반 행을 잠그고 시작한다 — 동시에 두 코드가 살아남지 않게', async () => {
+    mockSelectQueue = [
+      [{ role: 'teacher' }], // resolveActor
+      [{ id: 'cr_math_a', label: '고2 미적분 A반', teacherId: 'teacher_001' }], // 내 반
+      [], // resolveClassroomPairs ① join_codes
+      [{ classroomId: 'cr_math_a', botId: 'cb_001' }], // ② enrollments 로 복원한 짝
+      [{ id: 'cb_001' }], // 짝 봇 소유 확인
+      [{ id: 'cr_math_a' }], // 반 행 잠금(FOR UPDATE)
+    ];
+    mockInsertQueue = [[{ code: 'NEWCODE' }]];
+
+    await issueCode(req('teacher_001', 'teacher', { method: 'POST' }), {
+      params: Promise.resolve({ id: 'cr_math_a' }),
+    });
+
+    /*
+      DELETE→INSERT 순서만으로는 「살아 있는 코드는 하나」가 안 된다 — 동시 재발급 둘이
+      각자 지우고 **서로 다른 코드를 넣으면** 둘 다 남는다(`join_codes` PK 는 `code` 하나라
+      (bot, classroom) 조합을 막지 않는다). 반 행 잠금이 그 둘을 줄 세운다.
+    */
+    expect(forSpy).toHaveBeenCalledWith('update');
+
+    // 잠금이 **지우기보다 먼저** 걸려야 의미가 있다.
+    expect(forSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteSpy.mock.invocationCallOrder[0],
+    );
   });
 
   it('GET /api/teacher/classrooms/[id]/students — 남의 반이면 404 (명단 유출 차단)', async () => {
@@ -674,6 +709,8 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [codeRow],
       [botRow],
       [roomRow],
+      [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
+      [{ n: 1 }], // 잠근 뒤 다시 센 인원
       [existing], // 트랜잭션 안에서 기존 행을 되읽는다
     ];
     // 삽입 0행 = PK 충돌(이미 있음).
@@ -690,17 +727,26 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     expect(body.enrollment?.studentId).toBe('s2');
   });
 
-  it('enrolled_count 는 +1 누적이 아니라 COUNT 로 다시 쓴다', async () => {
-    mockSelectQueue = [[{ role: 'student' }], [codeRow], [botRow], [roomRow]];
+  it('enrolled_count 는 +1 누적이 아니라 **봇 행을 잠근 뒤** 다시 센 값이다', async () => {
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ id: 'cb_001' }], // 봇 행 잠금
+      [{ n: 2 }], // 잠근 뒤 센 인원 — 동시에 들어온 앞 요청까지 세어진다
+    ];
     mockInsertQueue = [[{ botId: 'cb_001', studentId: 's2' }]];
 
     await joinByCode(joinReq('ABC123'));
 
+    // 잠금이 실제로 걸려야 한다 — 이게 없으면 둘 다 1 을 세고 하나가 덮어쓴다.
+    expect(forSpy).toHaveBeenCalledWith('update');
+
+    // 그리고 그 잠금 **뒤에** 센 값이 그대로 저장돼야 한다(+1 누적이 아니다).
     expect(setSpy).toHaveBeenCalledTimes(1);
     const patch = setSpy.mock.calls[0][0] as { enrolledCount?: unknown };
-    const { text } = render(patch.enrolledCount);
-    expect(text).toContain('count(*)');
-    expect(text).toContain('"enrollments"');
+    expect(patch.enrolledCount).toBe(2);
   });
 
   it('학생이 아니면 403 FORBIDDEN_ROLE', async () => {

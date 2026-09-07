@@ -112,12 +112,33 @@ export async function POST(req: Request): Promise<NextResponse> {
       })
       .returning();
 
-    // 누적(+1)이 아니라 세어서 덮어쓴다 — 멱등 재시도에서도 어긋나지 않는다.
+    /*
+      봇 행을 **먼저 잠그고** 그다음에 센다 — 순서가 뒤바뀌면 인원 수가 틀어진다.
+
+      누적(+1)이 아니라 세어서 덮어쓰는 것은 그대로다(멱등 재시도에서도 어긋나지 않는다).
+      문제는 **언제 세느냐**였다. 학생 둘이 동시에 들어오면 각 트랜잭션은 상대의 아직
+      커밋되지 않은 INSERT 를 보지 못한다. 그래서 둘 다 1 을 세고, 나중에 커밋한 쪽이
+      1 을 덮어써 **실제 참여는 2 인데 enrolled_count 는 1** 로 남는다. 그 값은
+      `GET /api/bots` 가 그대로 내보내므로 다음 참여가 있을 때까지 틀린 인원이 보인다.
+
+      잠금을 먼저 걸면 뒤 트랜잭션은 앞이 커밋한 뒤에야 통과하고, READ COMMITTED 에서
+      **그다음 문장은 새 스냅샷을 뜨므로** 앞의 INSERT 까지 세어진다. 자기 자신의
+      미커밋 INSERT 도 함께 보이므로 합이 맞는다.
+    */
+    await tx
+      .select({ id: classBots.id })
+      .from(classBots)
+      .where(eq(classBots.id, bot.id))
+      .for('update');
+
+    const [counted] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(enrollments)
+      .where(eq(enrollments.botId, bot.id));
+
     await tx
       .update(classBots)
-      .set({
-        enrolledCount: sql`(select count(*)::int from ${enrollments} where ${enrollments.botId} = ${bot.id})`,
-      })
+      .set({ enrolledCount: counted?.n ?? 0 })
       .where(eq(classBots.id, bot.id));
 
     if (inserted.length > 0) {
