@@ -79,9 +79,9 @@ const DEV_IDENTITY_HOSTNAMES: readonly string[] = [
 /**
  * PR 별 Vercel preview 도메인 접미사.
  *
- * production 배포도 같은 접미사를 받으므로 **이 접미사만으로는 안전하지 않다.** 그건 아래
- * `NEXT_PUBLIC_VERCEL_ENV` 검사가 잡는다. 접미사를 여는 이유는 PR 미리보기에서 역할 전환이
- * 죽으면 개발 흐름이 상하기 때문이다 — preview 는 살리고 production 만 막는다.
+ * **이 접미사만으로는 안전하지 않다** — production 배포도 같은 접미사를 받는다. 그래서
+ * 아래 판정은 이 접미사를 「배포 환경이 preview 라고 확인됐을 때만」 연다. 접미사를 여는
+ * 이유는 PR 미리보기에서 역할 전환이 죽으면 개발 흐름이 상하기 때문이다.
  */
 const PREVIEW_HOSTNAME_SUFFIX = '.vercel.app';
 
@@ -101,32 +101,52 @@ function hostnameOf(host: string): string {
 }
 
 /**
+ * 배포 환경 — `production` · `preview` · `development` 중 하나이거나, 모르면 undefined.
+ *
+ * **서버 전용 `VERCEL_ENV` 가 먼저다.** 이 판정은 서버(`lib/current-user.ts`)에서 신원을
+ * 세우는 데 쓰이므로, 권한 판정의 근거는 **빌드 때 치환되지 않고 런타임에 서버가 직접 읽는**
+ * 값이어야 한다. 클라이언트 번들에는 이 이름이 남아도 값이 없어 undefined 로 접힌다.
+ *
+ * `NEXT_PUBLIC_VERCEL_ENV` 는 **클라이언트 폴백일 뿐**이다. 브라우저에서 버튼을 보일지
+ * 정하는 데만 쓰이고, 프로젝트 설정에 따라 없을 수도 있다. 없으면 아래 판정이
+ * **더 닫히는 쪽**으로 접힌다 — 서버가 허용해도 버튼만 안 보이는 방향이라 안전하다.
+ * (그 반대 방향은 일어나지 않는다. 아래 `.vercel.app` 규칙이 fail-closed 라서다.)
+ */
+function deploymentEnv(): string | undefined {
+  return process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV;
+}
+
+/**
  * 이 호스트에서 개발용 신원을 인정해도 되는가.
  *
  * **모르면 닫는다(fail-closed).** 종전에는 `Host` 를 모를 때 통과였는데, 이 장치에서
  * fail-open 은 그 자체로 사고다 — 신원을 세우는 판정이라 「모른다」는 「괜찮다」가 아니다.
+ * 같은 이유로 **배포 환경을 모를 때도 닫는다.** 환경변수가 없을 때 열리는 설계였다면
+ * 그 변수가 빠지는 순간 이 파일이 막으려던 구멍이 조용히 되살아난다.
  *
  * `NODE_ENV` 로 가르지 않은 이유는 그대로다 — Vercel 은 preview 빌드도
  * `NODE_ENV='production'` 으로 돌려서, 그 기준이면 정작 이 장치가 필요한 preview 에서
- * 신원이 사라져 전체가 401 이 된다. 대신 **배포 환경**(`NEXT_PUBLIC_VERCEL_ENV`)을 본다.
- * 이건 새로 설정할 환경변수가 아니라 **Vercel 이 자동으로 채워 주는 시스템 값**이라
- * 「빌드·배포 설정을 건드리지 않는다」는 이 파일의 제약과 어긋나지 않는다. 그리고
- * `NEXT_PUBLIC_` 접두사라 **클라이언트 번들에도 같은 값이 새겨진다** — 서버(`current-user.ts`)와
- * 클라이언트(`dev-role-switch.tsx`)가 한 판정을 쓰게 하려면 이쪽이어야 한다.
- * (서버 전용 `VERCEL_ENV` 를 함께 보면 두 층의 판정이 갈릴 수 있어 일부러 보지 않는다.)
+ * 신원이 사라져 전체가 401 이 된다. 대신 **배포 환경**(`deploymentEnv()`)을 본다.
  *
  * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
  * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
  */
 export function isDevIdentityHost(host: string | null | undefined): boolean {
-  // 이름에 기대지 않는 마지막 방어선 — production 배포면 어떤 주소로 닿든 무력이다.
-  if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'production') return false;
+  const env = deploymentEnv();
+  // 이름에 기대지 않는 방어선 — production 배포면 어떤 주소로 닿든, `Host` 를 무엇으로
+  // 위조하든 무력이다.
+  if (env === 'production') return false;
   if (!host) return false;
   const hostname = hostnameOf(host);
   if (!hostname) return false;
-  if (DEV_IDENTITY_HOSTNAMES.includes(hostname)) return true;
-  // `.` 까지 포함해 비교한다 — `notvercel.app` · `vercel.app.attacker.com` 은 걸리지 않는다.
-  return hostname.endsWith(PREVIEW_HOSTNAME_SUFFIX);
+  // `*.vercel.app` 은 **preview 라고 확인됐을 때만** 연다.
+  //
+  // 이 접미사는 production 배포도 받는다 — 그래서 「이름을 열어 두고 production 검사로
+  // 거른다」는 순서면 환경변수가 없을 때 production 기본 URL 이 그대로 통과한다.
+  // 순서를 뒤집어 **positive 확인**으로 둔다: 모르면(undefined) 닫힌다.
+  // `.` 까지 포함해 비교하므로 `notvercel.app` · `vercel.app.attacker.com` 은 안 걸린다.
+  if (hostname.endsWith(PREVIEW_HOSTNAME_SUFFIX)) return env === 'preview';
+  return DEV_IDENTITY_HOSTNAMES.includes(hostname);
 }
 
 /**

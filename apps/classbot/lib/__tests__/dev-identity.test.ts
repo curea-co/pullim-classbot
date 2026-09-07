@@ -50,21 +50,26 @@ describe('DEV_IDENTITIES', () => {
 });
 
 describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
-  const SAVED = process.env.NEXT_PUBLIC_VERCEL_ENV;
-  const setEnv = (value: string | undefined) => {
-    if (value === undefined) delete process.env.NEXT_PUBLIC_VERCEL_ENV;
-    else process.env.NEXT_PUBLIC_VERCEL_ENV = value;
+  const SAVED = { v: process.env.VERCEL_ENV, p: process.env.NEXT_PUBLIC_VERCEL_ENV };
+  const setEnv = (name: 'VERCEL_ENV' | 'NEXT_PUBLIC_VERCEL_ENV', value: string | undefined) => {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
   };
-  afterEach(() => setEnv(SAVED));
+  beforeEach(() => {
+    setEnv('VERCEL_ENV', undefined);
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', undefined);
+  });
+  afterEach(() => {
+    setEnv('VERCEL_ENV', SAVED.v);
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', SAVED.p);
+  });
 
+  // 배포 환경을 모르는 자리 — 로컬 개발이 여기다.
   it.each([
-    // 로컬 — 이 장치가 필요한 자리
     ['localhost:3032', true],
     ['127.0.0.1:3032', true],
     ['[::1]:3032', true],
-    // dev preview · PR 별 preview — 살려 둔다
     ['dev-classbot.pullim.ai', true],
-    ['pullim-classbot-git-feat-x-curea.vercel.app', true],
     // prod 이름
     ['classbot.pullim.ai', false],
     ['CLASSBOT.PULLIM.AI', false],
@@ -75,7 +80,7 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
     // `.vercel.app` 접미사를 흉내 낸 이름
     ['notvercel.app', false],
     ['vercel.app.attacker.com', false],
-  ])('%s → %s', (host, expected) => {
+  ])('배포 환경 모름: %s → %s', (host, expected) => {
     expect(isDevIdentityHost(host)).toBe(expected);
   });
 
@@ -87,23 +92,42 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
     expect(isDevIdentityHost('   ')).toBe(false);
   });
 
-  // 이름에 기대지 않는 마지막 방어선 — prod 배포는 `*.vercel.app` 로도 열려 있다.
-  it('production 배포면 호스트 이름이 무엇이든 막는다', () => {
-    setEnv('production');
-    for (const host of [
-      'localhost:3032',
-      'dev-classbot.pullim.ai',
-      'pullim-classbot-abc123-curea.vercel.app',
-      'classbot.pullim.ai',
-    ]) {
-      expect(isDevIdentityHost(host)).toBe(false);
-    }
+  // **이 파일에서 가장 중요한 자리.** `*.vercel.app` 은 production 배포도 받는 접미사다.
+  // 「이름을 열어 두고 production 검사로 거른다」는 순서였다면, 환경변수가 없을 때
+  // production 기본 URL 이 그대로 통과한다. positive 확인이라 모르면 닫힌다.
+  it('배포 환경을 모르면 *.vercel.app 은 막힌다 — 열어 두고 거르지 않는다', () => {
+    expect(isDevIdentityHost('pullim-classbot-abc123-curea.vercel.app')).toBe(false);
   });
 
-  it('preview 배포는 계속 동작한다 — 여기서 죽으면 개발 흐름이 상한다', () => {
-    setEnv('preview');
+  it('preview 배포의 *.vercel.app 은 열린다 — 여기서 죽으면 개발 흐름이 상한다', () => {
+    setEnv('VERCEL_ENV', 'preview');
     expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(true);
     expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(true);
+    expect(isDevIdentityHost('localhost:3032')).toBe(true);
+  });
+
+  // 이름에 기대지 않는 방어선 — Host 를 위조해도 막힌다.
+  it.each([
+    'pullim-classbot-abc123-curea.vercel.app',
+    'classbot.pullim.ai',
+    'dev-classbot.pullim.ai',
+    'localhost:3032',
+  ])('production 배포면 Host 가 %s 여도 막힌다', (host) => {
+    setEnv('VERCEL_ENV', 'production');
+    expect(isDevIdentityHost(host)).toBe(false);
+  });
+
+  // 서버 전용 값이 권한 판정의 근거다 — 공개 변수가 반대로 말해도 서버 값이 이긴다.
+  it('서버 VERCEL_ENV 가 공개 변수보다 우선한다', () => {
+    setEnv('VERCEL_ENV', 'production');
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', 'preview');
+    expect(isDevIdentityHost('pullim-classbot-abc123-curea.vercel.app')).toBe(false);
+  });
+
+  // 클라이언트에는 서버 전용 값이 없다 — 공개 변수만 있을 때도 preview 는 열려야 한다.
+  it('서버 값이 없으면 공개 변수로 판정한다 — 클라이언트 경로', () => {
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', 'preview');
+    expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(true);
   });
 });
 
