@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import type { ReplayRequizResponse } from '@pullim-classbot/types';
 
-import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
+import { API_BASE } from '@/lib/auth/os-sso';
+import { fetchWithOsCsrfRecovery } from '@/lib/api/csrf-fetch';
 
 /**
  * 리플레이 재응시(requiz) — pullim-api 정본 라우트를 OS 쿠키 세션으로 친다.
@@ -19,15 +20,11 @@ import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
  */
 export async function requizRequest(replayId: string): Promise<ReplayRequizResponse> {
   // write 표면(CsrfGuard) — GET /auth/csrf 로 받은 토큰을 X-CSRF-Token 으로 재전송(double-submit).
-  const csrf = await fetchOsCsrfToken();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (csrf) headers['X-CSRF-Token'] = csrf;
-
-  const res = await fetch(`${API_BASE}/classbot/replay/${replayId}/requiz`, {
+  const res = await fetchWithOsCsrfRecovery(`${API_BASE}/classbot/replay/${replayId}/requiz`, {
     method: 'POST',
     // OS access 쿠키(HttpOnly)를 cross-origin 자동 첨부 — 서버가 sub 를 파생.
     credentials: 'include',
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     cache: 'no-store',
   });
 

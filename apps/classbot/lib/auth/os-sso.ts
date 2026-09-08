@@ -41,7 +41,9 @@ export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
  *
  * @returns CSRF 토큰 또는 null
  */
-export async function fetchOsCsrfToken(): Promise<string | null> {
+let csrfBootstrapFlight: Promise<string | null> | null = null;
+
+async function bootstrapOsCsrfToken(): Promise<string | null> {
   try {
     const res = await fetch(`${API_BASE}/auth/csrf`, {
       credentials: 'include',
@@ -54,6 +56,16 @@ export async function fetchOsCsrfToken(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export function fetchOsCsrfToken(opts?: { force?: boolean }): Promise<string | null>;
+export async function fetchOsCsrfToken(): Promise<string | null> {
+  if (!csrfBootstrapFlight) {
+    csrfBootstrapFlight = bootstrapOsCsrfToken().finally(() => {
+      csrfBootstrapFlight = null;
+    });
+  }
+  return csrfBootstrapFlight;
 }
 
 /**
