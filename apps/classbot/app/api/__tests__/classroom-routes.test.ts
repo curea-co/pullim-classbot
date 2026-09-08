@@ -892,22 +892,57 @@ describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
   });
 });
 
-describe('학부모 자녀 조회 — 동의 게이트 전이라 내용은 나가지 않는다 (05 § 11.4)', () => {
+describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동의 뒤에 있다 (05 § 11.4)', () => {
   /*
-    이 라우트는 지금 스택의 맨 앞이고, 동의를 표현할 스키마(`type` 값 둘 · `revoked_at`)는
-    #271 의 마이그레이션 `0007` 에 있다. 게이트를 걸 수 없으면 **열어 두지 않고 닫아 둔다** —
-    자녀 목록(이름·관계)만 내리고 반·과제 내용은 조회조차 하지 않는다.
+    규칙 1 은 「미동의 자녀의 데이터는 **애초에 읽지 않는다**」이지 「읽어 놓고 안 보낸다」가
+    아니다. 그래서 여기서 보는 것은 응답 모양만이 아니라 **어떤 질의가 조립됐는가**다.
 
-    #271 이 이 빈 배열을 **조건부**로 바꾼다. 그때까지 다음 사람이 무심코 채우지 못하게
-    여기서 못박는다.
+    규칙 2 는 「미동의와 무활동을 구별할 수 없게」다. 그래서 동의가 없을 때의 응답은
+    「참여한 반이 0곳인 아이」와 **같은 모양**이어야 한다 — 이유를 말하는 필드를 더하지 않는다.
   */
-  it('자녀 이름·관계는 내리고 반·과제는 빈 배열이다', async () => {
+
+  /** 과제 한 행 — 학부모에게 나가면 안 되는 칸을 일부러 함께 싣는다. */
+  const ASSIGNMENT_ROW = {
+    id: 'as_1',
+    botId: 'cb_001',
+    studentId: 'child_1',
+    title: '도함수 활용 마무리',
+    scope: '미적분 III',
+    subject: '수학Ⅱ',
+    grade: '고2',
+    chapterFrom: '극값',
+    chapterTo: '변곡점',
+    achievementCodes: ['수2-3-2'],
+    questionCount: 20,
+    difficulty: '중',
+    mode: 'practice',
+    scopeOverride: null,
+    source: 'teacher-assigned',
+    assignedBy: '김수학 선생님',
+    assignedAtLabel: '어제',
+    dueLabel: '내일까지',
+    dDay: 'D-1',
+    completedCount: 8,
+    recentAccuracy: 0.72,
+    state: 'in-progress',
+    reasonHint: '극값에서 자주 틀려요',
+    solveHref: '/classbot/assignment/as_1/solve',
+    targetStudentIds: ['child_1', 'other_kid'],
+    dispatchStatus: 'sent',
+    createdBy: 'teacher_001',
+    dispatchedAt: null,
+    examTimeLimitMin: null,
+    requizQuestionIds: null,
+  };
+
+  it('동의가 없으면 자녀 이름·관계는 내리고 반·과제는 빈 배열이다 (규칙 2)', async () => {
     mockSelectQueue = [
       [{ role: 'parent' }], // resolveActor — 역할 권위는 도메인 users
       [
         { id: 'child_1', name: '서연', relation: '모' },
         { id: 'child_2', name: '지호', relation: '모' },
       ],
+      [], // 살아 있는 동의 없음
     ];
 
     const res = await getParentChildren(req('parent_001', 'student'));
@@ -928,13 +963,14 @@ describe('학부모 자녀 조회 — 동의 게이트 전이라 내용은 나�
     }
   });
 
-  it('내용을 **조회조차 하지 않는다** — 읽어 놓고 안 보내는 것과 다르다 (규칙 1)', async () => {
-    // 링크 조회 뒤에 파수꾼 두 묶음을 세워 둔다. 라우트가 반·과제를 조회하면 이것들이
+  it('동의가 없으면 내용을 **조회조차 하지 않는다** — 읽어 놓고 안 보내는 것과 다르다 (규칙 1)', async () => {
+    // 동의 조회 뒤에 파수꾼 두 묶음을 세워 둔다. 라우트가 반·과제를 조회하면 이것들이
     // 소비되어 큐가 줄어든다 — 규칙 1 은 「애초에 읽지 않는다」이지 「읽고 안 보낸다」가 아니다.
     const sentinel = [{ never: 'read' }];
     mockSelectQueue = [
       [{ role: 'parent' }],
       [{ id: 'child_1', name: '서연', relation: '모' }],
+      [], // 살아 있는 동의 없음
       sentinel,
       sentinel,
     ];
@@ -945,10 +981,67 @@ describe('학부모 자녀 조회 — 동의 게이트 전이라 내용은 나�
     // 파수꾼 둘이 그대로 남아 있어야 한다.
     expect(mockSelectQueue).toHaveLength(2);
 
-    // 조회는 신원·링크 둘뿐 — `assignments`/`enrollments` 술어는 아예 조립되지 않는다.
+    // 조회는 신원·링크·동의 셋뿐 — `assignments`/`enrollments` 술어는 아예 조립되지 않는다.
     const rendered = whereSpy.mock.calls.map((call) => render(call[0]).text);
     expect(rendered.some((t) => t.includes('"assignments"'))).toBe(false);
     expect(rendered.some((t) => t.includes('"enrollments"'))).toBe(false);
+  });
+
+  it('동의를 준 자녀만 열린다 — 안 준 형제는 같은 응답에서 그대로 빈 배열이다', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [
+        { id: 'child_1', name: '서연', relation: '모' },
+        { id: 'child_2', name: '지호', relation: '모' },
+      ],
+      [{ studentId: 'child_1' }], // 서연만 살아 있는 동의를 줬다
+      // `joinedAt` 은 매퍼가 ISO 로 바꾸는 칸이라 Date 여야 한다(`student-views.ts`).
+      [{ classroomId: 'cr_math_a', label: '고2 미적분 A반', joinedAt: new Date('2026-03-02T00:00:00Z') }],
+      [ASSIGNMENT_ROW], // 서연의 과제
+    ];
+
+    const res = await getParentChildren(req('parent_001', 'student'));
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      children: { id: string; classrooms: unknown[]; assignments: Record<string, unknown>[] }[];
+    };
+    const [seoyeon, jiho] = body.children;
+
+    expect(seoyeon.classrooms).toHaveLength(1);
+    expect(seoyeon.assignments).toHaveLength(1);
+    // 동의를 안 준 아이는 **같은 응답 안에서도** 빈 채로 남는다.
+    expect(jiho.classrooms).toEqual([]);
+    expect(jiho.assignments).toEqual([]);
+
+    // 열린 자녀의 과제도 **행 전개가 아니다** — 나가면 안 되는 칸이 빠져 있어야 한다.
+    const assignment = seoyeon.assignments[0];
+    expect(assignment).toMatchObject({ id: 'as_1', title: '도함수 활용 마무리', completedCount: 8 });
+    for (const leaked of ['recentAccuracy', 'solveHref', 'targetStudentIds', 'reasonHint', 'studentId']) {
+      expect(assignment).not.toHaveProperty(leaked);
+    }
+  });
+
+  it('동의 술어는 조회 조건 안에 있다 — 이 보호자 · 이 축 · 살아 있는 것만', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'child_1', name: '서연', relation: '모' }],
+      [],
+    ];
+
+    await getParentChildren(req('parent_001', 'student'));
+
+    const consentWhere = whereSpy.mock.calls
+      .map((call) => render(call[0]).text)
+      .find((text) => text.includes('"consent_logs"'));
+    expect(consentWhere).toBeDefined();
+    // 남의 보호자에게 준 동의로 열리면 학생이 고른 상대가 아닌 사람에게 자료가 나간다.
+    expect(consentWhere).toContain('"parent_id"');
+    // 자기주도는 다른 축이라 이 하나로 함께 열리면 안 된다.
+    expect(consentWhere).toContain('"type"');
+    // 철회·만료가 술어 안에 있다 — 읽어 놓고 거르는 게 아니다.
+    expect(consentWhere).toContain('"revoked_at" is null');
+    expect(consentWhere).toContain('now()');
   });
 
   it('보호자가 아니면 403, 미인증은 401', async () => {
