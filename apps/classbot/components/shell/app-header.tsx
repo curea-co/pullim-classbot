@@ -26,17 +26,19 @@ import { NotificationBell } from './notification-bell';
 const roleHomeHref: Record<Role, string> = {
   student: '/',
   teacher: '/teacher',
+  parent: '/parent',
 };
 
 /** 프로필 메뉴에 적는 역할 이름. */
 const roleLabels: Record<Role, string> = {
   student: '학생',
   teacher: '교사',
+  parent: '학부모',
 };
 
 /**
  * 프로필 메뉴의 '내 정보' 착지점.
- * 학생만 전용 화면(`/classbot/me`)이 있고, 교사는 아직 없어 교사 홈으로 보낸다.
+ * 학생만 전용 화면(`/classbot/me`)이 있고, 교사·학부모는 아직 없어 각자 홈으로 보낸다.
  *
  * 표 셋 다 `Record<Role, …>` 이다 — 역할이 늘면 세 자리가 **함께** 컴파일에 걸린다.
  * 그래서 새 역할이 홈·라벨·내 정보를 답하지 않고 들어올 수 없다.
@@ -44,6 +46,8 @@ const roleLabels: Record<Role, string> = {
 const roleProfileHref: Record<Role, string> = {
   student: '/classbot/me',
   teacher: '/teacher',
+  // 학부모도 전용 「내 정보」가 없다 — 자녀를 보는 창구라 홈으로 보낸다(계약 §6).
+  parent: '/parent',
 };
 
 /** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */

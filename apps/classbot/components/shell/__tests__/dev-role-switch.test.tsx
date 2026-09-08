@@ -14,15 +14,25 @@ function clearAllCookies() {
 beforeEach(clearAllCookies);
 
 // jsdom 기본 호스트는 localhost → prod 호스트가 아니므로 노출된다.
-// 착지점이 있는 역할만 편다 — 학부모는 `/parent` 화면이 도착하는 PR 에서 셋이 된다.
-it('착지점이 있는 두 역할만 노출하고 현재 role 을 눌린 상태로 표시한다', () => {
+// 착지점이 있는 역할만 편다 — `/parent` 화면이 도착해 이제 셋이다.
+it('착지점이 있는 세 역할을 노출하고 현재 role 을 눌린 상태로 표시한다', () => {
   render(<DevRoleSwitch role="student" />);
   const group = screen.getByRole('group', { name: '개발용 역할 전환' });
   const links = Array.from(group.querySelectorAll('a'));
-  expect(links.map((a) => a.getAttribute('href'))).toEqual(['/classbot', '/teacher']);
-  expect(links.map((a) => a.textContent)).toEqual(['학생', '교사']);
+  expect(links.map((a) => a.getAttribute('href'))).toEqual(['/classbot', '/teacher', '/parent']);
+  expect(links.map((a) => a.textContent)).toEqual(['학생', '교사', '학부모']);
   expect(links[0].getAttribute('aria-current')).toBe('true');
   expect(links[1].getAttribute('aria-current')).toBeNull();
+  expect(links[2].getAttribute('aria-current')).toBeNull();
+});
+
+it('학부모 화면에서는 학부모 쪽이 눌린 상태다', () => {
+  render(<DevRoleSwitch role="parent" />);
+  const links = Array.from(
+    screen.getByRole('group', { name: '개발용 역할 전환' }).querySelectorAll('a'),
+  );
+  expect(links[2].textContent).toBe('학부모');
+  expect(links[2].getAttribute('aria-current')).toBe('true');
 });
 
 it('교사 화면에서는 교사 쪽이 눌린 상태다', () => {
@@ -123,13 +133,13 @@ it('드롭다운을 열면 착지점 있는 역할의 계정 전원이 보인다
   const links = Array.from(menu.querySelectorAll('a'));
   // allowlist 중 **착지점이 있는** 역할의 계정만 — 각자 자기 역할의 홈으로 간다.
   expect(links.map((a) => a.getAttribute('href'))).toEqual([
-    '/classbot', '/classbot', '/teacher', '/teacher',
+    '/classbot', '/classbot', '/teacher', '/teacher', '/parent',
   ]);
-  for (const label of ['학생 · 서연', '학생 · 민준', '교사 · 김수학', '교사 · 박영어']) {
+  for (const label of [
+    '학생 · 서연', '학생 · 민준', '교사 · 김수학', '교사 · 박영어', '학부모 · 어머니',
+  ]) {
     expect(within(menu).getByText(label)).toBeInTheDocument();
   }
-  // 학부모 계정은 서버 allowlist 에는 있지만 화면이 없어 아직 펴지 않는다.
-  expect(within(menu).queryByText('학부모 · 어머니')).not.toBeInTheDocument();
 });
 
 it('드롭다운 항목도 이동 전에 신원 쿠키를 쓴다 — 대표가 아닌 계정도', () => {

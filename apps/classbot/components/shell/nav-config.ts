@@ -42,23 +42,22 @@ export type NavGroup = {
 /**
  * **셸이 가진 역할** — `AppShell role=…` 로 실제 들어오는 값만 적는다.
  *
- * 지금 `role` 을 넘기는 곳은 `app/(student)/layout.tsx` 와 `app/(teacher)/layout.tsx`
- * 두 리터럴뿐이라 둘이다. 학부모는 여기 없다 — `app/(parent)` 트리가 아직 없고
- * (`proc/spec/03 § 2.3` — `[예정]`), 셸이 받을 수 없는 값을 미리 세워 두면 `navForRole` ·
- * breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는 답**을 지금
- * 적어 두게 된다. 그 답은 화면을 만드는 PR 이 해야 맞다.
+ * `role` 을 넘기는 곳은 `app/(student)` · `app/(teacher)` · `app/(parent)` 세 레이아웃이라 셋이다.
+ * 종전에는 둘이었다 — `app/(parent)` 트리가 없어서, 셸이 받을 수 없는 값을 미리 세워 두면
+ * `navForRole` · breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는
+ * 답**을 적어 두게 되기 때문이다.
  *
- * 그러니 학부모 화면 PR 이 이 union 을 넓히면서 시작한다. 넓히는 순간 아래 `switch` 와
- * 헤더 표 셋이 **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 ·
- * 라벨은 무엇인가」를 그 PR 이 한 자리씩 답하게 된다.
+ * **그 화면이 이 PR 에서 도착했다.** union 을 넓히는 순간 아래 `switch` 와 헤더 표 셋이
+ * **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 · 라벨은 무엇인가」를
+ * 한 자리씩 답하게 됐다.
  *
  * **신원 층은 이것과 다르다.** 서버는 이미 학부모를 말한다 — 개발용 신원 allowlist 에
  * `parent_001` 이 있고(`lib/dev-identity.ts` 의 `DevIdentityRole`), 해석기가
  * `role: 'parent'` 를 돌려준다(`lib/current-user.ts` 의 `AppUserRole`). 그래서
  * `/api/*` 가 학생 표면에서 학부모를 403 으로 막는다(`app/api/_lib/guards.ts`).
- * **명의는 이미 셋, 셸은 아직 둘** — 그 어긋남이 이 PR 이 여는 것과 열지 않는 것의 경계다.
+ * **명의가 셋, 셸도 이제 셋** — 1/6 이 남겨 둔 그 어긋남을 이 PR 이 지운다.
  */
-export type Role = 'student' | 'teacher';
+export type Role = 'student' | 'teacher' | 'parent';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
@@ -134,13 +133,29 @@ export const teacherNav: NavGroup[] = [
   },
 ];
 
-// 학부모 레일(`parentNav`)은 여기 없다 — `/parent/*` 화면과 같은 PR 에서 `Role` 확장과
-// 함께 들어온다. 학부모는 자기 학습 화면이 없어 자녀를 보는 창구로 고정이다(계약 §6).
+/**
+ * 학부모 레일 — 자녀 요약 + 자녀 과제 둘뿐.
+ *
+ * 1/6 은 `Role` 을 `student | teacher` 로 두고 이 레일을 비워 뒀다 — 화면이 없는 역할의
+ * 메뉴를 먼저 열면 누르는 즉시 404 라서다. `/parent` · `/parent/assignments` 가 이 PR 에서
+ * 도착하므로 **여기서 `Role` 확장과 함께 레일이 열린다.**
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 둘로 고정이다(계약 §6).
+ */
+export const parentNav: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
+      { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
+    ],
+  },
+];
 
 export function navForRole(role: Role): NavGroup[] {
   switch (role) {
     case 'student': return studentNav;
     case 'teacher': return teacherNav;
+    case 'parent': return parentNav;
   }
 }
 
@@ -189,11 +204,15 @@ export function findActiveNav(pathname: string, role: Role): NavItem | undefined
 
 export function buildBreadcrumb(pathname: string, role: Role): { label: string; href?: string }[] {
   const nav = navForRole(role);
-  // 역할마다 뿌리가 다르다. 역할이 늘면 여기 한 줄이 함께 늘어야 한다 —
-  // 이분법으로 둔 채 union 만 넓히면 새 역할이 조용히 교사 뿌리를 물려받는다.
-  const root =
-    role === 'student' ? { label: '풀림 클래스봇', href: '/' }
-    : { label: '풀림 교사', href: '/teacher' };
+  // 역할마다 뿌리가 다르다. **표로 둔다** — 이분법(삼항)으로 두면 새 역할이 조용히 교사 뿌리를
+  // 물려받는다. 실제로 학부모를 union 에 넣은 첫 판에서 `/parent` 가 「풀림 교사 › 홈」을
+  // 달고 떴다. `Record<Role, …>` 는 역할이 늘면 **컴파일에 걸려** 이 자리를 답하게 한다.
+  const roots: Record<Role, { label: string; href: string }> = {
+    student: { label: '풀림 클래스봇', href: '/' },
+    teacher: { label: '풀림 교사', href: '/teacher' },
+    parent: { label: '풀림 학부모', href: '/parent' },
+  };
+  const root = roots[role];
   const trail: { label: string; href?: string }[] = [root];
 
   if (pathname === root.href) return trail;
