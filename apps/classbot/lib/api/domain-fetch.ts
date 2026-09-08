@@ -27,8 +27,9 @@ import {
   peekDomainIdentitySnapshot,
   subscribeDomainIdentity,
 } from '@/lib/api/identity-snapshot';
-import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
+import { API_BASE } from '@/lib/auth/os-sso';
 import { USE_REAL_CORE_BE } from '@/lib/features';
+import { fetchWithOsCsrfRecovery } from '@/lib/api/csrf-fetch';
 
 // 스냅샷 publish/타입은 leaf(identity-snapshot)가 소유 — 호출부 편의로 재수출한다.
 // (auth-context 는 순환 방지를 위해 leaf 를 직접 import 한다.)
@@ -57,6 +58,7 @@ interface DomainFetchOptions {
 
 /** 도메인 라우트 에러 봉투 — pullim-api 는 NestJS 기본형({statusCode,message,error}). spec 봉투도 방어. */
 interface DomainErrorBody {
+  code?: string;
   error?: { code?: string; message?: string };
   /** NestJS 기본형. */
   message?: string | string[];
@@ -73,21 +75,18 @@ interface DomainErrorBody {
 export async function domainFetch<T>(path: string, options: DomainFetchOptions = {}): Promise<T> {
   const { method = 'GET', body } = options;
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  // 쓰기(CsrfGuard): GET /auth/csrf 로 받은 토큰을 X-CSRF-Token 으로 재전송(double-submit). read 는 불필요.
-  if (CSRF_METHODS.has(method)) {
-    const csrf = await fetchOsCsrfToken();
-    if (csrf) headers['X-CSRF-Token'] = csrf;
-  }
-
-  const res = await fetch(`${CLASSBOT_API_BASE}${path}`, {
+  const init: RequestInit = {
     method,
     // OS access 쿠키(Domain=.pullim.ai, HttpOnly)를 cross-origin 자동 첨부 — 서버가 sub 를 파생.
     credentials: 'include',
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: 'no-store',
-  });
+  };
+  const url = `${CLASSBOT_API_BASE}${path}`;
+  const res = CSRF_METHODS.has(method)
+    ? await fetchWithOsCsrfRecovery(url, init)
+    : await fetch(url, init);
 
   // 본문이 비었거나 JSON 이 아닐 수 있으므로 방어적으로 파싱.
   let json: unknown = null;
@@ -106,7 +105,7 @@ export async function domainFetch<T>(path: string, options: DomainFetchOptions =
       err.error?.message ??
       (Array.isArray(err.message) ? err.message.join(', ') : err.message) ??
       `HTTP ${res.status}`;
-    throw new ApiError(message, res.status, err.error?.code);
+    throw new ApiError(message, res.status, err.code ?? err.error?.code);
   }
 
   return json as T;
