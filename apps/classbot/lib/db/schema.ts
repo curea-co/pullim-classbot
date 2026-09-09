@@ -58,15 +58,49 @@ export const parentChildLinks = pgTable(
   }),
 );
 
+/**
+ * 학생 → 학부모 공유 동의 — **감사 기록**이다.
+ *
+ * ## 철회는 행 삭제도 `expires_at = now()` 도 아니다
+ * 감사 기록이라 「누가 언제 무엇을 줬는가」가 남아야 한다. 지우면 그 사실이 사라지고,
+ * 만료 시각을 지금으로 당겨 때우면 **「기간이 지났다」와 「학생이 거뒀다」가 구분되지 않는다.**
+ * 그래서 `revoked_at` 이 따로 있다 — 살아 있는 동의의 조건은
+ * `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())` 이고,
+ * 그 술어는 **조회 조건 안**에 들어간다(읽어 놓고 거르지 않는다 — 05 § 11.4 규칙 1·3).
+ *
+ * ## `type` 에 DB 제약이 없는 것은 의도가 아니라 **현재 상태**다
+ * 실제 DB 의 `type` 은 CHECK 도 PG enum 도 없는 `text` 다(`drizzle/0000_stiff_ulik.sql`).
+ * 그래서 값을 늘려도 DDL 이 필요 없고, 아래 배열과 `lib/mock/family.ts` 의 `ConsentType` ·
+ * `consentTypeMeta` 가 **유일한 테두리**다. 한쪽만 고치면 타입은 통과하는데 화면이 라벨을
+ * 못 찾는다 — 항상 같이 고친다.
+ *
+ * ⛔ **동의는 타입별로 쪼갠다.** 반·과제 현황 하나를 줬다고 감정·웰빙이 딸려 나가면 안 된다.
+ * 새 공유 축이 생기면 이 union 에 값을 더하지, 기존 값의 뜻을 넓히지 않는다.
+ */
 export const consentLogs = pgTable('consent_logs', {
   id: text('id').primaryKey(),
   parentId: text('parent_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: text('type', {
-    enum: ['weekly_report', 'monthly_report', 'weak_nodes', 'emotion_share', 'realtime_alert'],
+    enum: [
+      'weekly_report',
+      'monthly_report',
+      'weak_nodes',
+      'emotion_share',
+      'realtime_alert',
+      /** 자기주도 요약(스스로 담은 봇 · 공부한 날) — 대화 원문·요약은 포함하지 않는다. */
+      'self_study_summary',
+      /**
+       * 반·과제 현황(참여한 수업방 · 받은 과제의 상태) — 문항·답안·점수는 포함하지 않는다.
+       * `GET /api/parent/children` 이 이 축 하나만 본다(`app/api/_lib/consent.ts`).
+       */
+      'class_assignment_summary',
+    ],
   }).notNull(),
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
+  /** 학생이 거둔 시각. `null` 이면 아직 살아 있다 — 만료(`expires_at`)와 뜻이 다르다. */
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
   scopeLabel: text('scope_label').notNull(),
 });
 
