@@ -88,6 +88,8 @@ export const consentLogs = pgTable('consent_logs', {
       'weak_nodes',
       'emotion_share',
       'realtime_alert',
+      /** 자기주도 요약(스스로 담은 봇 · 공부한 날) — 대화 원문·요약은 포함하지 않는다. */
+      'self_study_summary',
       /**
        * 반·과제 현황(참여한 수업방 · 받은 과제의 상태) — 문항·답안·점수는 포함하지 않는다.
        * `GET /api/parent/children` 이 이 축 하나만 본다(`app/api/_lib/consent.ts`).
