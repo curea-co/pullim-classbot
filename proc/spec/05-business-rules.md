@@ -355,7 +355,7 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 >
 > **마이그레이션 번호는 이 문서가 예약하지 않는다** — 번호는 설계 결정이 아니라 저널의
 > 자리이고, `dev` 에 먼저 도착한 PR 이 가져간다. 규칙과 실측 근거는
-> [`2026-05-18_be-api-design.md` § 6.3](2026-05-18_be-api-design.md).
+> [`2026-09-09_migration-numbering.md`](2026-09-09_migration-numbering.md).
 
 **학생 동의가 최종 관문이라는 것은 바뀌지 않는다.** `consent_logs.type` 의 **일곱 값 전부**
 학생 본인의 동의(살아 있는 행) 없이는 학부모에게 나가지 않는다
@@ -421,7 +421,7 @@ or 가 아니다.
    「이어진 자녀가 없다」와 구분이 사라진다.
 3. **철회는 행 삭제도 `expires_at = now()` 도 아니다** — `revoked_at` 을 따로 둔다(감사 기록).
    그 칼럼은 **`[예정]`** 이다(**#280** 이 인도한다) — `dev` 의 `consent_logs` 에는 없다.
-   **몇 번 마이그레이션이 될지는 여기서 정하지 않는다**([be-api-design § 6.3](2026-05-18_be-api-design.md)).
+   **몇 번 마이그레이션이 될지는 여기서 정하지 않는다**([마이그레이션 번호 규칙](2026-09-09_migration-numbering.md)).
    살아 있는 동의 = `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
    **철회해도 이미 본 것은 되돌릴 수 없다** — 학생 화면이 그 사실을 그대로 말한다.
 4. **부모의 열람은 학생에게 되돌아가지 않는다** — 부모가 언제·몇 번 봤는지 **학생 화면에

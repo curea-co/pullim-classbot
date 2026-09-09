@@ -30,7 +30,7 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > 번호는 설계 결정이 아니라 저널의 자리이고, **`dev` 에 먼저 도착한 PR 이 가져간다.**
 > 스택의 base 가 squash 머지로 사라져 순서가 갈린 지금, 예약표를 권위 삼으면 리베이스가
 > 번호를 뒤로 미는 순간 **drizzle 이 앞 번호를 조용히 건너뛴다**(판정이 `when` 이라
-> 그렇다 — 규칙과 실측은 [`be-api-design § 6.3`](2026-05-18_be-api-design.md)).
+> 그렇다 — 규칙과 실측은 [`2026-09-09_migration-numbering.md`](2026-09-09_migration-numbering.md)).
 > 그래서 아래 표는 **어떤 DDL 이 오는지**만 적고 번호는 적지 않는다.
 >
 > | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
