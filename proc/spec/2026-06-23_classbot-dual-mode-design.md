@@ -22,15 +22,23 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > (스토어 구조·`setMode` 계약은 그대로라 재개는 그 두 자리를 되돌리는 일이다).
 > **그래서 「self 화면이 있다」와 「자기주도가 열려 있다」는 같은 말이 아니고, 진입 복구는
 > 이 스택이 서버와 함께 져야 할 몫이다** — 서버만 열면 끝나는 것으로 읽지 마라.
-> 서버 쪽은 마이그레이션이 `0000`~`0003` 까지이고 아래 라우트도 없다. 이 표의 「인도」 칸은
+> 서버 쪽 라우트는 아직 없다. 이 표의 「인도」 칸은
 > **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
+>
+> **`[2026-09-09 정정]` 이 표는 종전에 마이그레이션 번호까지 적어 두었다** — `self_enrollments`
+> 를 `0005`, `self_study_days` 를 `0006`, `revoked_at` 을 `0007` 로. **그 예약을 걷는다.**
+> 번호는 설계 결정이 아니라 저널의 자리이고, **`dev` 에 먼저 도착한 PR 이 가져간다.**
+> 스택의 base 가 squash 머지로 사라져 순서가 갈린 지금, 예약표를 권위 삼으면 리베이스가
+> 번호를 뒤로 미는 순간 **drizzle 이 앞 번호를 조용히 건너뛴다**(판정이 `when` 이라
+> 그렇다 — 규칙과 실측은 [`2026-09-09_migration-numbering.md`](2026-09-09_migration-numbering.md)).
+> 그래서 아래 표는 **어떤 DDL 이 오는지**만 적고 번호는 적지 않는다.
 >
 > | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
 > |---|---|---|
-> | BE persistence (자기주도) | **`[예정]`** | **#270** — `self_enrollments`(`0005`) · `self_study_days`(`0006`) · `/api/me/self-bots` · `/api/me/study-days`(+백필) |
+> | BE persistence (자기주도) | **`[예정]`** | **#270** — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). 스택 PR 이라 리베이스에서 재번호된다 |
 > | real auth-scoped self-enrollment | **`[예정]`** | **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
-> | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published`(`0004`) · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면) |
-> | 학부모 × 자기주도 | **`[예정]`** | **#271** — 자녀 동의 게이트([05 § 11.4](05-business-rules.md) · `consent_logs.self_study_summary` · `revoked_at` `0007`) |
+> | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published` · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면). 서버 쪽은 `dev` 에 들어왔다(`0004`) |
+> | 학부모 × 자기주도 | **`[예정]`** | 자녀 동의 게이트([05 § 11.4](05-business-rules.md)) — 서버(`consent_logs` 축 둘 · `revoked_at`)는 **#280** 이, 학부모 화면은 **#271** 이 진다 |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
 > | 목표·단원 진행(§3 의 goal/path) | **FE 는 mock-first 로 돈다 · 실제 봇으로 잇는 경로가 없다** | 이 시리즈가 손대지 않는다. `officialTutors`(`lib/mock/classbot-official.ts`)에 커리큘럼이 있고, `lib/store/self-learning.ts` 가 goal·unitProgress·streak 를 들고, `/classbot/learn/[tutorId]` 가 단원 카드를 그린다 — **거기까지가 mock 위에서 돈다.** `bot_curriculum_units` 도 비어 있지 않다 — `scripts/seed.ts` 가 `botCurriculum` 을 넣는다. 없는 것은 **경로**다: 교사가 만든 봇에 커리큘럼을 붙이는 publish 쪽도, 그 표를 읽어 학습 화면에 대는 read 쪽도 없어 FE 가 여전히 mock 을 읽는다. 그래서 P5 가 뒤로 밀렸다 |
 >
