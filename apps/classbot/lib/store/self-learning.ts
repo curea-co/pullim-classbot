@@ -84,8 +84,9 @@ function previousDayKey(key: string): string {
  *
  * 형식만 보면 부족하다. `Date.parse('2026-02-30')` 은 NaN 이 아니라 **3월 2일로 정규화**되므로
  * 달력에 없는 날이 그대로 통과한다. 그 값은 이 저장소에 남았다가 연속일수 계산과 백필의
- * 입력이 되는데, 서버는 같은 값을 round-trip 으로 거른다 — 환경마다 날짜 규칙이 갈린다.
- * 그래서 서버(`app/api/_lib/study-date.ts` 의 `isDayKey`)와 **같은 방식**으로 판정한다.
+ * 입력이 되는데, 그 값을 그대로 서버에 올리면 `date` 컬럼이 거절하거나 다른 날로 앉는다.
+ * 그래서 **UTC round-trip** 으로 판정한다 — 넣은 연·월·일이 그대로 돌아오는 값만 날짜다.
+ * P4 에서 서버가 같은 판정을 받을 때 이 함수가 그 규칙의 정본이 된다.
  */
 function isDayKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -143,6 +144,15 @@ interface SelfLearningStore {
   /** 공부한 날 기록 — 같은 날 여러 번 불러도 한 칸이다(멱등). */
   recordStudyDay: (userId: string, date?: string) => void;
 
+  /**
+   * v1 이 번역할 수 없었던 v0 원본 — **읽지 않지만 지우지도 않는다.**
+   *
+   * 화면은 이 칸을 보지 않는다. 여기 있는 이유는 하나다: 마이그레이션이 사용자 데이터를
+   * **되돌릴 수 없게 덮어쓰지 않도록** 원본 바이트를 그대로 들고 있기 위해서다.
+   * 옮길 대응표가 생기거나 복구 요청이 오면 이 칸이 그 입력이다(`migrate` 주석 참조).
+   */
+  legacyV0?: LegacyStateV0;
+
   /* P5 슬라이스 — 위 머리주석 참조. 사용자별로 나누지 않는다. */
   goals: LearningGoal[];
   unitProgress: UnitProgress[];
@@ -152,7 +162,10 @@ interface SelfLearningStore {
 }
 
 /** persist 에 실제로 내려앉는 필드만. */
-type PersistedState = Pick<SelfLearningStore, 'byUser' | 'goals' | 'unitProgress'>;
+type PersistedState = Pick<
+  SelfLearningStore,
+  'byUser' | 'goals' | 'unitProgress' | 'legacyV0'
+>;
 
 /** 네임스페이스 이전(v0) 모양 — `migrate` 가 읽기만 하고 옮기지는 않는다. */
 interface LegacyStateV0 {
@@ -160,6 +173,14 @@ interface LegacyStateV0 {
   streak?: { count: number; lastStudyDate: string | null };
   goals?: LearningGoal[];
   unitProgress?: UnitProgress[];
+}
+
+/** v0 원본에 남길 것이 있나 — 빈 통까지 들고 다니지 않는다. */
+function keptLegacy(old: LegacyStateV0): LegacyStateV0 | undefined {
+  const enrollments = old.enrollments ?? [];
+  const streak = old.streak;
+  if (enrollments.length === 0 && !streak) return undefined;
+  return { ...(enrollments.length > 0 && { enrollments }), ...(streak && { streak }) };
 }
 
 const PERSIST_VERSION = 1;
@@ -264,12 +285,15 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
         byUser: s.byUser,
         goals: s.goals,
         unitProgress: s.unitProgress,
+        // 원본을 계속 실어 보낸다 — 안 실으면 다음 쓰기에서 v0 바이트가 덮여 사라진다.
+        ...(s.legacyV0 && { legacyV0: s.legacyV0 }),
       }),
       /**
-       * v0 → v1: **네임스페이스 이전의 담기·연속학습 기록은 버린다.**
+       * v0 → v1: **네임스페이스 이전의 담기·연속학습 기록은 v1 목록으로 옮기지 않는다.
+       * 다만 지우지도 않는다** — 원본은 `legacyV0` 에 그대로 남는다.
        *
-       * 사용자 데이터를 말없이 지우는 일이라 근거를 셋 다 적어 둔다. 셋 모두
-       * 「옮길 수 있는데 안 옮긴다」가 아니라 **옮길 정보가 없다**는 뜻이다:
+       * 옮기지 않는 근거 셋. 셋 모두 「옮길 수 있는데 안 옮긴다」가 아니라
+       * **옮길 정보가 없다**는 뜻이다:
        *
        *  ① `enrollments[].tutorId` 는 은퇴하는 mock 카탈로그 id(`ot_*`)다. v1 이 요구하는
        *     `class_bots.id` 로 번역할 대응표가 없고, `chat_messages.bot_id` 가 `class_bots` 를
@@ -282,16 +306,44 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
        *
        * `goals`·`unitProgress` 는 그대로 가져온다. `ot_*` 를 가리키는 건 같지만 그 카탈로그가
        * 아직 `/classbot/learn/*` 에서 살아 있어 지금도 해석되고, P5 에서 카탈로그와 함께 정리된다.
+       *
+       * ⚠ **실제 v0 블롭은 여기로 오지 않는다.** zustand 5 는 저장값에 `version` 이 **숫자로
+       * 있을 때만** `migrate` 를 부른다(`middleware.mjs`: `typeof …version === "number"`).
+       * v0 는 그 필드 자체가 없어 곧장 `merge` 로 간다 — 그래서 v0 를 실제로 받는 자리는
+       * 아래 `merge` 이고, 이 함수는 숫자 `version: 0` 이 찍힌 블롭만을 위한 자리다.
+       * 두 경로가 **같은 답**을 내도록 둘 다 `keptLegacy()` 하나를 쓴다.
        */
       migrate: (persisted, version): PersistedState => {
         if (version >= PERSIST_VERSION) {
           return persisted as PersistedState;
         }
         const old = (persisted ?? {}) as LegacyStateV0;
+        const legacyV0 = keptLegacy(old);
         return {
           byUser: {},
           goals: old.goals ?? [],
           unitProgress: old.unitProgress ?? [],
+          ...(legacyV0 && { legacyV0 }),
+        };
+      },
+      /**
+       * 저장값을 현재 상태 위에 얹는 자리 — **v0 를 실제로 받는 곳이 여기다**(위 참조).
+       *
+       * 기본 merge 는 얕은 spread 라 v0 의 `enrollments`·`streak` 가 상태에 그대로 얹히고,
+       * 그다음 저장에서 `partialize` 가 그 두 칸을 빼면 **원본이 되돌릴 수 없게 덮인다.**
+       * 옮길 수 없다는 것과 없애도 된다는 것은 다른 말이라, 여기서 두 칸을 `legacyV0` 로
+       * 접어 넣고 `partialize` 가 그것을 계속 실어 보낸다. 화면은 이 칸을 보지 않는다 —
+       * 대응표가 생기거나 복구 요청이 올 때의 입력이다.
+       */
+      merge: (persisted, current): SelfLearningStore => {
+        const raw = (persisted ?? {}) as Partial<PersistedState> & LegacyStateV0;
+        const legacyV0 = raw.legacyV0 ?? keptLegacy(raw);
+        return {
+          ...current,
+          byUser: raw.byUser ?? current.byUser,
+          goals: raw.goals ?? current.goals,
+          unitProgress: raw.unitProgress ?? current.unitProgress,
+          ...(legacyV0 && { legacyV0 }),
         };
       },
     },

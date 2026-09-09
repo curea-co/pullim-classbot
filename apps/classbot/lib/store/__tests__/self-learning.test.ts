@@ -162,7 +162,7 @@ describe('persist 마이그레이션 v0 → v1', () => {
     window.localStorage.removeItem(KEY);
   });
 
-  it('네임스페이스 이전(평평한) 담기·연속학습 기록은 버린다', async () => {
+  it('네임스페이스 이전(평평한) 담기·연속학습 기록은 목록에서 빠지되 원본은 남는다', async () => {
     // v0 는 `version` 필드 자체가 없다 — 전역 한 통에 ot_* 등록과 카운터만 있었다.
     window.localStorage.setItem(
       KEY,
@@ -182,12 +182,42 @@ describe('persist 마이그레이션 v0 → v1', () => {
       await useSelfLearningStore.persist.rehydrate();
     });
 
-    // 담기·연속학습은 사라진다 (근거는 self-learning.ts 의 migrate 주석).
+    // 담기·연속학습은 v1 목록으로 옮기지 않는다 (근거는 self-learning.ts 의 migrate 주석).
     expect(store().byUser).toEqual({});
     expect(JSON.stringify(store().byUser)).not.toContain('ot_');
     // P5 슬라이스는 살아남는다 — ot_* 카탈로그가 아직 /classbot/learn/* 에서 해석된다.
     expect(store().goals).toHaveLength(1);
     expect(store().unitProgress).toHaveLength(1);
+
+    // 옮기지 못한 값도 **지우지는 않는다** — 원본이 그대로 남아 복구 입력이 된다.
+    expect(store().legacyV0).toEqual({
+      enrollments: [{ tutorId: 'ot_001', enrolledAt: '2026-06-01T00:00:00.000Z' }],
+      streak: { count: 7, lastStudyDate: '2026-06-23' },
+    });
+  });
+
+  it('되쓰기 뒤에도 v0 원본이 localStorage 에 남는다', async () => {
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        state: {
+          enrollments: [{ tutorId: 'ot_001', enrolledAt: '2026-06-01T00:00:00.000Z' }],
+          streak: { count: 7, lastStudyDate: '2026-06-23' },
+        },
+      }),
+    );
+
+    await act(async () => {
+      await useSelfLearningStore.persist.rehydrate();
+    });
+    // 마이그레이션 뒤 첫 쓰기 — 여기서 원본이 덮이면 복구할 길이 없어진다.
+    await act(async () => {
+      useSelfLearningStore.getState().addSelfBot(SEOYEON, BOT_A);
+    });
+
+    const raw = window.localStorage.getItem(KEY) ?? '';
+    expect(raw).toContain('ot_001');
+    expect(raw).toContain('legacyV0');
   });
 
   it('v1 데이터는 그대로 살아난다', async () => {
