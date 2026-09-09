@@ -10,7 +10,7 @@
  * 여기 파일은 URL 을 만들지 않는다.
  */
 
-import { and, gt, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, or, sql, type SQL } from 'drizzle-orm';
 
 import { consentLogs } from '@/lib/db/schema';
 
@@ -42,4 +42,41 @@ export function livingConsent() {
     isNull(consentLogs.revokedAt),
     or(isNull(consentLogs.expiresAt), gt(consentLogs.expiresAt, sql`now()`)),
   );
+}
+
+/**
+ * 「이 보호자에게 · 이 학생이 · 이 축으로 준 살아 있는 동의가 있는가」 — **EXISTS 한 조각**.
+ *
+ * 보호 대상(반·과제)을 읽는 질의의 `where` 에 `and` 로 그대로 붙으라고 만든 것이다.
+ *
+ * ## 왜 술어를 「따로 조회해 Set 으로 들고 다니기」와 나눠 놓으면 안 되는가
+ *
+ * 동의를 먼저 한 번 조회해 `Set` 으로 만들고, 그 뒤에 반·과제를 **조건 없이** 읽으면
+ * 두 질의 사이에 틈이 생긴다. 그 틈에서 학생이 공유를 거두면(`revoked_at` 이 찍히면),
+ * 이미 통과한 `Set` 이 두 번째 질의를 그대로 열어 준다 — **철회 뒤의 자료가 나간다.**
+ * 학생 입장에서 「거뒀다」는 즉시 닫힌다는 뜻이어야 하므로, 이 틈은 크기 문제가 아니라
+ * 규칙 위반이다(05 § 11.4 규칙 1: 조회 조건 **안**에 동의가 있어야 한다).
+ *
+ * 술어를 데이터 질의 안에 넣으면 동의와 자료를 **같은 스냅샷에서** 본다. 틈 자체가 없다.
+ *
+ * 살아 있음의 정의(`livingConsent`)를 여기서 다시 쓰지 않고 불러 쓰는 것도 같은 이유다 —
+ * 두 벌이 되는 순간 한쪽만 만료를 보게 된다.
+ *
+ * @param parentId - 이 자료를 읽는 보호자 id
+ * @param studentId - 동의를 준 학생 id
+ * @param type - 동의 축(`class_assignment_summary` 등) — 축을 섞으면 학생이 켜지 않은
+ *   스위치가 함께 열린다
+ * @returns `where` 에 그대로 넣는 EXISTS 술어
+ */
+export function livingConsentExists(
+  parentId: string,
+  studentId: string,
+  type: ConsentTypeValue,
+): SQL {
+  return sql`exists (select 1 from ${consentLogs} where ${and(
+    eq(consentLogs.parentId, parentId),
+    eq(consentLogs.studentId, studentId),
+    eq(consentLogs.type, type),
+    livingConsent(),
+  )})`;
 }

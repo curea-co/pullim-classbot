@@ -10,9 +10,14 @@
  * ## 링크만으로는 열리지 않는다 — 학생의 **살아 있는 동의**가 있어야 한다
  *
  * [05 § 11.4](../../../../../proc/spec/05-business-rules.md) 는 학부모의 「반·과제 현황」을
- * 학생의 `class_assignment_summary` 동의 뒤에 뒀다. 그 술어(`livingConsent`)는 **조회
- * 조건 안**에 들어간다 — 규칙 1: 미동의 자녀의 데이터는 **애초에 읽지 않는다.** 읽어 놓고
- * 안 보내는 것과 다르다.
+ * 학생의 `class_assignment_summary` 동의 뒤에 뒀다. 규칙 1 은 미동의 자녀의 데이터를
+ * **애초에 읽지 않는 것** — 읽어 놓고 안 보내는 것과 다르다.
+ *
+ * 그래서 이 라우트는 동의를 **먼저 조회해 두지 않는다.** 동의를 한 번 읽어 「열린 자녀」
+ * 명단을 만들고 그 뒤에 반·과제를 조건 없이 읽으면, 두 걸음 사이에 학생이 공유를 거뒀을 때
+ * 이미 통과한 명단이 두 번째 질의를 그대로 열어 준다 — 철회 뒤의 자료가 나간다. 동의 술어는
+ * 반·과제 질의의 `where` 안에 함께 서고(`app/api/_lib/parent-views.ts` → `consent.ts`),
+ * 그래서 동의와 자료는 **같은 스냅샷**에서 판정된다.
  *
  * 동의는 **이 보호자에게 준 것**으로 좁힌다. 다른 보호자에게 준 동의로 이 화면이 열리면
  * 학생이 고른 상대가 아닌 사람에게 자료가 나간다.
@@ -27,17 +32,16 @@
  */
 
 import { NextResponse } from 'next/server';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
-import { consentLogs, parentChildLinks, users } from '@/lib/db/schema';
+import { parentChildLinks, users } from '@/lib/db/schema';
 import { forbidden, resolveActor, unauthorized } from '@/app/api/_lib/guards';
-import { CLASS_ASSIGNMENT_CONSENT, livingConsent } from '@/app/api/_lib/consent';
-import { toParentAssignment } from '@/app/api/_lib/parent-views';
 import {
-  listStudentClassrooms,
-  listVisibleAssignments,
-} from '@/app/api/_lib/student-views';
+  listConsentedChildAssignments,
+  listConsentedChildClassrooms,
+  toParentAssignment,
+} from '@/app/api/_lib/parent-views';
 import type { ParentChildItem } from '@/app/api/_lib/contract-types';
 
 export const runtime = 'nodejs';
@@ -63,34 +67,21 @@ export async function GET(req: Request): Promise<NextResponse> {
     .where(eq(parentChildLinks.parentId, actor.id))
     .orderBy(asc(users.name));
 
-  // 링크가 없으면 동의를 물을 자녀도 없다 — `inArray` 에 빈 배열을 넣지 않으려고 먼저 가른다.
-  const consented = links.length
-    ? await getDb()
-        .select({ studentId: consentLogs.studentId })
-        .from(consentLogs)
-        .where(
-          and(
-            eq(consentLogs.parentId, actor.id),
-            inArray(
-              consentLogs.studentId,
-              links.map((link) => link.id),
-            ),
-            eq(consentLogs.type, CLASS_ASSIGNMENT_CONSENT),
-            livingConsent(),
-          ),
-        )
-    : [];
-  const sharedBy = new Set(consented.map((row) => row.studentId));
-
   const children: ParentChildItem[] = await Promise.all(
     links.map(async (child) => {
-      // 동의가 없으면 **읽지 않는다.** 빈 배열은 「참여한 반이 없음」과 같은 모습이다.
-      const [classrooms, assignmentRows] = sharedBy.has(child.id)
-        ? await Promise.all([
-            listStudentClassrooms(child.id),
-            listVisibleAssignments(child.id, 'class-summary'),
-          ])
-        : [[], []];
+      /*
+        동의는 **이 두 질의의 `where` 안**에 있다(`parent-views.ts`). 그래서 여기서 「열렸나」를
+        미리 묻지 않는다 — 미동의 자녀의 질의는 0행으로 돌아오고, 응답은 「참여한 반이 없는
+        자녀」와 **같은 모양**이 된다(규칙 2: 미동의와 무활동을 구별할 수 없게).
+
+        미동의여도 질의를 보내는 것이 낭비처럼 보일 수 있으나, 그 「보내지 않기」를 위한
+        사전 조회가 바로 철회의 틈을 만든다. 게다가 이 EXISTS 는 바깥 행을 참조하지 않는
+        **상수 술어**라, 닫힌 자녀 쪽은 플래너가 한 번 판정하고 본 테이블을 훑지도 않는다.
+      */
+      const [classrooms, assignmentRows] = await Promise.all([
+        listConsentedChildClassrooms(actor.id, child.id),
+        listConsentedChildAssignments(actor.id, child.id),
+      ]);
       return {
         id: child.id,
         name: child.name,
