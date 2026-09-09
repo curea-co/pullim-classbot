@@ -15,8 +15,9 @@
 | 학생 라우트 | `app/(student)/classbot/{,chat,discover,replay,replay/[id],onboarding}` | 5 페이지 + 동적 1 |
 | 학생 루트 | `app/(student)/page.tsx` | `/classbot`로 즉시 redirect — 6 도메인 홈은 사라짐 |
 | 교사 라우트 | `app/(teacher)/teacher/{,classbot,builder}` | 홈/내 클래스봇/봇 빌더 3 페이지 |
+| 학부모 라우트 | `app/(parent)/parent/{,assignments,self-study}` | **`[예정]`** — `dev` 에는 아직 이 트리가 없다. `/parent`·`/parent/assignments` 는 #268, `/parent/self-study` 는 #271 이 인도한다(`proc/spec/03 § 2.3`). **금지 영역이 아니라는 것이 2026-09-07 의 변경**이고, 내용은 자녀 동의 뒤에만 보인다(`05 § 11.4`) |
 | 도메인 컴포넌트 | `components/classbot/*`, `components/builder/*` | 13 파일 |
-| 공유 셸 | `components/shell/*` | Role = `student | teacher` (parent 분기 제거, CoachFab 제거) |
+| 공유 셸 | `components/shell/*` | Role = `student | teacher` — **`[예정]`** `parent` 확장. **범위 승인은 2026-09-07 에 났지만 셸은 아직 두 갈래다**: `dev` 의 `navForRole` 과 헤더 `Record<Role,…>` 표 셋에 parent 가 없다. union 을 넓히는 것은 **화면이 도착하는 PR** 이고(레일·역할 전환 항목도 그때 함께 열린다), 미리 넓히면 없는 `/parent` 를 가리키는 답을 지금 적게 된다. CoachFab 제거 |
 | 공유 UI (shadcn) | `components/ui/*`, `components/brand/*` | shadcn 프리미티브 |
 | 도메인 mock | `lib/mock/{persona,family,tutor,classbot,chat}.ts` | 잔존 — Phase β 이후 DB 로 점진 대체 |
 | Drizzle 스키마 | `lib/db/schema.ts` | classbot 도메인 테이블 |
@@ -28,7 +29,6 @@
 다음은 **이 앱에 존재하지 않습니다.** 클래스봇 안에서 다른 도메인을 참조하는 코드를 새로 쓰지 말 것:
 
 - 플래너 / Q(무한풀기·코치·분석·복습) / 라이브러리 / 스튜디오 / 스토어 페이지·컴포넌트
-- 보호자 영역(`(parent)/parent/*`), `currentParent` UI 분기 (mock의 `family.ts`는 type만 살려둠)
 - `lib/mock/{features,domains,planner,coach,tutor 본체,conqueror,infinity,memory,irt,xray,visual,phase1(채팅 외),subscriptions,billing,parent-notifications}`
 - `components/{planner,planner-builder,planner-manage,infinity,coach,tutor,conqueror,memory,study-index,xray,visual,parent,study}` — 학생 홈 카드 위젯(`study/*`)도 함께 제거됨
 - 공유 셸 중 `coach-fab.tsx` — `/q/talk` 의존 → 삭제
@@ -711,6 +711,8 @@ bun --filter @pullim-classbot/classbot build
 
 **해도 되는 것**
 - `app/(student)/classbot/*`, `app/(teacher)/teacher/{classbot,builder}/*` 페이지·컴포넌트·mock 수정·신규
+- `app/(parent)/parent/*` 페이지·컴포넌트 수정·신규 (2026-09-07 부터 — 아직 `dev` 에 트리가 없고 #268·#271 이 인도한다.
+  내용은 자녀 동의 뒤에만 보인다는 조건이 붙는다: `proc/spec/05 § 11.4`)
 - `components/{classbot,builder}/*` 도메인 컴포넌트 수정·신규
 - `lib/db/*`, `lib/mock/*`, `lib/tokens/*` 수정
 - 클래스봇 import 경로 갱신, 클래스봇 onboarding 페이지/UX 작업
@@ -719,6 +721,10 @@ bun --filter @pullim-classbot/classbot build
 
 **확인 후에만 (사용자 명시 동의 필요)**
 - 공유 셸 / UI / nav-config 수정 — 클래스봇 한 도메인만 쓰는 상황이라 보통 안전하지만, role/nav 변경은 보고 후 진행
+  - **이미 승인된 것(2026-09-07)**: 셸 `Role` 을 `student | teacher | parent` 로 넓히고 학부모 레일·역할 전환 항목을
+    여는 것. 화면이 도착하는 PR 이 union 을 넓히고, 그 순간 `navForRole` 의 exhaustive switch 와
+    헤더의 `Record<Role,…>` 표 셋이 컴파일로 「홈은 어디인가 · 라벨은 무엇인가」를 묻는다.
+    **화면 없는 역할을 미리 열지 않는다**는 원칙은 그대로다 — 없는 라우트를 nav 에 실으면 누르는 즉시 404 다.
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
