@@ -7,8 +7,8 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  studentBottomTabs, studentNav, teacherNav,
-  type NavGroup,
+  buildBreadcrumb, parentNav, studentBottomTabs, studentNav, teacherNav,
+  type NavGroup, type Role,
 } from './nav-config';
 
 const APP_DIR = join(__dirname, '..', '..', 'app');
@@ -52,11 +52,12 @@ describe('nav-config 라우트 인벤토리', () => {
   const matchers = collectRoutes(APP_DIR).map(routeMatcher);
   const exists = (href: string) => matchers.some((re) => re.test(href === '' ? '/' : href));
 
-  // 역할이 느는 날(학부모) 그 레일도 이 표에 한 줄로 들어온다 — 화면 없이 항목만
-  // 채워지는 순간 여기서 걸리게.
+  // 학부모 레일이 그 「역할이 느는 날」로 들어온 줄이다 — 화면 없이 항목만 채워지는 순간
+  // 여기서 걸린다.
   it.each([
     ['학생 레일', hrefsOf(studentNav)],
     ['교사 레일', hrefsOf(teacherNav)],
+    ['학부모 레일', hrefsOf(parentNav)],
     ['학생 하단탭', studentBottomTabs.map((t) => t.href)],
   ])('%s 의 모든 항목은 app 트리에 대응 page 가 있다', (_label, hrefs) => {
     expect(hrefs.filter((href) => !exists(href))).toEqual([]);
@@ -69,5 +70,26 @@ describe('nav-config 라우트 인벤토리', () => {
   it('봇 마켓은 화면이 바뀌기 전까지 nav 에 오르지 않는다', () => {
     expect(hrefsOf(studentNav)).not.toContain('/classbot/discover');
     expect(studentBottomTabs.map((t) => t.href)).not.toContain('/classbot/discover');
+  });
+});
+
+/*
+  빵부스러기 뿌리는 **역할마다 다르다.** 예전에는 삼항(학생이면 클래스봇, 아니면 교사)이라,
+  union 만 넓힌 첫 판에서 `/parent` 가 「풀림 교사 › 홈」을 달고 떴다 — 학부모가 교사 뿌리를
+  조용히 물려받은 것이다. 표로 바꾼 뒤 그 자리를 여기서 못박는다.
+*/
+describe('buildBreadcrumb — 뿌리는 역할을 따라간다', () => {
+  it.each<[Role, string, string]>([
+    ['student', '/classbot', '풀림 클래스봇'],
+    ['teacher', '/teacher/students', '풀림 교사'],
+    ['parent', '/parent/assignments', '풀림 학부모'],
+  ])('%s 의 뿌리는 %s 에서 「%s」', (role, pathname, rootLabel) => {
+    expect(buildBreadcrumb(pathname, role)[0].label).toBe(rootLabel);
+  });
+
+  it('역할 홈에서는 뿌리 한 칸뿐이다', () => {
+    expect(buildBreadcrumb('/parent', 'parent')).toEqual([
+      { label: '풀림 학부모', href: '/parent' },
+    ]);
   });
 });

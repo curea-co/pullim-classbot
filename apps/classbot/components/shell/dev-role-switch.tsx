@@ -3,8 +3,8 @@
 /* ══════════════════════════════════════════════════════════════════════════
  * ⚠️ 개발 전용 · 정식 오픈 전 제거 ⚠️
  *
- * 화면 상단 헤더의 역할 전환 버튼. 개발 단계에서 학생 화면(/classbot)과
- * 교사 화면(/teacher)을 클릭 한 번으로 오가려고 둔 임시 장치다.
+ * 화면 상단 헤더의 역할 전환 버튼. 개발 단계에서 학생 화면(/classbot) · 교사 화면(/teacher) ·
+ * 학부모 화면(/parent)을 클릭 한 번으로 오가려고 둔 임시 장치다.
  * 기획 근거: 요구사항 FR-C-36 · 화면 SCR-C-35.
  *
  * 이 버튼은 **풀림 통합 계정의 역할 배정을 대신하지 않는다.**
@@ -25,7 +25,7 @@
  * ═════════════════════════════════════════════════════════════════════════ */
 
 import { useSyncExternalStore } from 'react';
-import { Check, GraduationCap, School, Wrench, type LucideIcon } from 'lucide-react';
+import { Check, GraduationCap, School, Users, Wrench, type LucideIcon } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -49,14 +49,15 @@ function identityFor(id: string): DevIdentity {
 /**
  * 전환 UI 가 여는 역할 — **착지점이 있는 역할만** 편다.
  *
- * allowlist(`DEV_IDENTITIES`)에는 학부모 데모 계정도 있지만 `/parent` 화면은 뒤 PR 에서
- * 온다. 없는 라우트를 여기 실으면 누르는 즉시 404 이므로, 화면이 도착하는 PR 에서 이 표에
- * 한 줄이 늘고 세그먼트·드롭다운이 함께 열린다(아래 SWITCHABLE 이 이 표를 따른다).
- * 서버 allowlist 는 그대로다 — 학부모 **명의**는 이미 서 있고, 없는 것은 갈 **화면**뿐이다.
+ * 1/6 은 학부모 줄을 뺐다 — allowlist(`DEV_IDENTITIES`)에 **명의**는 이미 서 있었지만 갈
+ * `/parent` **화면**이 없어, 실으면 누르는 즉시 404 였기 때문이다. 그 화면이 이 PR 에서
+ * 도착했으므로 한 줄이 늘어 셋이 된다. 세그먼트와 드롭다운(아래 `SWITCHABLE`)이 이 표
+ * 하나를 함께 따르므로, 학부모 데모 계정도 그 순간 드롭다운에 다시 나타난다.
  */
 const DEV_ROLES: DevRoleTarget[] = [
   { role: 'student', label: '학생', href: '/classbot', icon: GraduationCap, identity: identityFor('student_001') },
   { role: 'teacher', label: '교사', href: '/teacher', icon: School, identity: identityFor('teacher_001') },
+  { role: 'parent', label: '학부모', href: '/parent', icon: Users, identity: identityFor('parent_001') },
 ];
 
 /**
@@ -98,7 +99,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
 
   return (
     <>
-      {/* md+ — 역할 세그먼트(지금은 학생·교사 둘).
+      {/* md+ — 역할 세그먼트(학생·교사·학부모 셋).
           sm 이 아니라 md 에서 켜는 이유: 옆에 계정 드롭다운이 하나 더 붙어
           sm 폭에서는 검색·알림·프로필과 자리를 다툰다. 그 구간은 그 드롭다운이 받는다. */}
       <div
