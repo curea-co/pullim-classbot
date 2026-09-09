@@ -46,6 +46,52 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에
 > 들어오면 이 박스의 `[예정]` 표기를 지우고 §6 의 Out 목록에서 세 줄을 실제로 뺀다.
 
+> **[2026-09-09 개정] 자기주도는 「모드」가 아니라 「장소」다 — Locked decision 2·4 를 갈아 끼운다.**
+>
+> **아래 Locked decisions 목록보다 이 박스가 우선한다.** 목록은 2026-06-23 브레인스토밍
+> 시점의 결정이고, 그 결정 위에 세운 구현이 `dev` 에서 **「부품은 있고 문은 닫힌」 상태로 굳었다**
+> — 헤더 토글이 비노출이고 `useStudentMode()` 의 default 가 `class` 로 고정돼, 저장값이 없는
+> 학생은 self 를 볼 수 없다(2026-09-04 박스가 그 사실을 적어 뒀다). 그 문을 **여는 방법**을
+> 다시 보다가 두 결정을 바꾸기로 했다.
+>
+> **① Locked 2 「명시적 모드 토글 · 모드마다 제 홈·봇 목록」 → 폐기.**
+> 되살릴 것은 토글이 아니라 **갈 곳**이다. 자기주도가 전역 토글이면 화면마다 뜻이 바뀌고
+> (같은 `/classbot/chat` 이 모드에 따라 다른 목록을 그린다), 그 토글을 못 찾은 학생에게는
+> 마켓에서 담은 봇이 **어느 화면에서도 열리지 않는 진열장**이 된다. 대신:
+>
+> | 종전 (Locked 2) | 이제 |
+> |---|---|
+> | 전역 `StudentMode = 'class' \| 'self'` 토글 | **없다.** 모드 상태를 읽어 화면을 가르지 않는다 |
+> | 모드마다 다른 홈 | **홈은 하나다.** 참여한 반이 0곳일 때의 빈 홈은 그대로 참여 코드 히어로다 |
+> | 모드마다 다른 봇 목록 | `/classbot/chat` 은 **반 봇 + 담은 봇을 한 목록**으로 그린다. 같은 봇이 양쪽이면 한 번만 싣고 **반 관계가 이긴다**(과제·교사 관제가 거기 붙으므로) |
+> | self 전용 홈 | **`/classbot/my-bots`(내가 담은 봇)** 라는 **장소**. 레일에 상시 자리를 갖는다 |
+>
+> 「담기」는 **반 참여가 아니다** — `enrollments` 행도, 교사의 학생 수도, 관제소 노출도
+> 따라오지 않는다. 그래서 홈의 「참여 중인 클래스」 수와 담은 봇 수는 서로 다른 것을 센다.
+>
+> **② Locked 4 「자기주도 봇 = 플랫폼 공식 커리큘럼 튜터만」 → 교사가 마켓에 공유한 봇으로.**
+> 공식 튜터(`lib/mock/classbot-official.ts` 의 `ot_*`)는 **mock 이고 서버에 대응 행이 없다** —
+> `chat_messages.bot_id` 가 `class_bots` 를 FK 로 물어 **그 봇과의 대화는 애초에 저장될 수
+> 없었다.** 반면 #267 이 `class_bots.is_published` 와 `/api/marketplace/bots` 를 이미
+> `dev` 에 들였다. 그래서 마켓의 정본을 **교사가 공유한 봇**으로 옮긴다 —
+> 담은 봇 id 는 `class_bots.id` 이고, 그 봇과의 대화는 그대로 저장된다.
+> **student-created/custom 튜터는 여전히 deferred 다**(Locked 4 의 그 절반은 살아 있다).
+>
+> **③ 무엇이 그대로인가.** Locked 1(한 서비스)·3(teacher-less 학생도 혼자 선다)·5(목표/경로
+> 학습 모델)는 유효하다. 특히 **3 이 이 개정의 이유 중 하나다** — 선생님이 없는 학생에게
+> 참여 코드가 유일한 입구이면 그건 막다른 길이라, 마켓이 그 학생의 입구가 된다.
+> `/classbot/learn/[tutorId]{,/[unitId]}`(§3 의 goal/path)는 **mock `ot_*` 위에서 그대로
+> 돈다** — P5 에서 카탈로그와 함께 정리될 때까지 건드리지 않는다.
+>
+> **④ 옛 저장값.** `lib/store/self-learning.ts` 의 v0 는 `ot_*` 등록과 연속학습 **카운터**를
+> 전역 한 통에 담았다. v1 은 `class_bots.id` 기반 「담은 봇」과 **날짜 배열**을 사용자별로
+> 담는다. 셋 다 번역 대응이 없어(id 대응표 없음 · 카운터는 날짜로 못 펼침 · 누구 것인지 모름)
+> **v1 목록으로 옮기지 않는다.** 다만 **지우지도 않는다** — 원본은 `legacyV0` 로 남는다.
+>
+> **인도**: `/classbot/{classroom,my-bots,discover,discover/[botId]}` 화면과 위 ①②④ 는
+> **#283**(#268 을 `dev` 위로 리베이스한 판)이 진다. 서버는 이미 `dev` 에 있다(#267·#280) —
+> 그 PR 에 `app/api/**` 변경은 없다.
+
 ## Goal
 
 Make **classbot one service with two student modes** — **교사 주도형** (current: bots assigned by a teacher) and **학생 자기주도형** (new: student self-enrolls in official curriculum tutors and learns goal-by-goal) — reusing the existing student layer (3-col chat, quiz/study-guide rail, wellbeing, replay, primitives, DS) and adding only the mode toggle, a dual home, the official-tutor library + market, a goal/path/progress layer, and self-enrollment.
