@@ -348,14 +348,19 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 > `dev` 시점에 있는 것: `consent_logs` 표 자체(`type` 값 **다섯** · `granted_at` · `expires_at` ·
 > `scope_label`)와 `parent_child_links`(둘 다 마이그레이션 `0000`~`0003`).
 > **`[예정]`** 로 표시한 것은 **`dev` 에 없고** 뒤따르는 PR 이 인도한다 — `type` 값 **둘**과
-> `revoked_at` 은 **#271**(`0007`), 열람 라우트는 **#267**(`/api/parent/children`) ·
-> **#271**(`/api/parent/children/self-study` · `/api/me/consents/*`).
+> `revoked_at` 은 **#280**(학부모 동의 게이트 · 서버), 열람 라우트는
+> **#267**(`/api/parent/children`) · **#271**(`/api/parent/children/self-study` ·
+> `/api/me/consents/*`).
 > 이 절은 **그 PR 들이 통과해야 할 기준**이지, 현재 동작 설명이 아니다.
+>
+> **마이그레이션 번호는 이 문서가 예약하지 않는다** — 번호는 설계 결정이 아니라 저널의
+> 자리이고, `dev` 에 먼저 도착한 PR 이 가져간다. 규칙과 실측 근거는
+> [`2026-05-18_be-api-design.md` § 6.3](2026-05-18_be-api-design.md).
 
 **학생 동의가 최종 관문이라는 것은 바뀌지 않는다.** `consent_logs.type` 의 **일곱 값 전부**
 학생 본인의 동의(살아 있는 행) 없이는 학부모에게 나가지 않는다
 *(값 일곱 · 표는 여섯 줄 — 주간·월간 리포트가 규칙이 같아 한 줄에 묶여 있다.
-`dev` 에 다섯, #271 이 둘을 더한다. **enum 에 더할 값은 하나가 아니라 둘이다.**)* — § 11.3 「자녀 승인 후
+`dev` 에 다섯, #280 이 둘을 더한다. **더할 값은 하나가 아니라 둘이다.**)* — § 11.3 「자녀 승인 후
 read 만」 · [04 UC-T1 7단계](04-ux-flow.md) 「학생 승인 후」 · [13 § 4.6](13-reports-and-emotion-checkin.md)
 「자녀 (승인 후)」 가 이미 못 박은 그대로이고, **이 절은 그 계약을 개정하지 않는다.**
 
@@ -375,7 +380,13 @@ or 가 아니다.
 | **`[예정]`** `self_study_summary` | 스스로 담은 봇 · 공부한 날 · 연속일수 | **필수** | **없다** — 자기주도에는 승인할 교사가 구조적으로 없다 |
 | **`[예정]`** `class_assignment_summary` | 참여한 반 · 받은 과제 현황 (답안·점수 제외) | **필수** | **없다** — 같은 이유 |
 
-앞 네 줄에 담긴 **값 다섯**(`weekly_report` · `monthly_report` · `weak_nodes` · `emotion_share` · `realtime_alert`)은 `dev` 의 `consent_logs.type` 에 이미 있고, **`[예정]`** **값 둘**(`self_study_summary` · `class_assignment_summary`)을 **#271** 이 enum 에 넣는다 — 합쳐 일곱.
+앞 네 줄에 담긴 **값 다섯**(`weekly_report` · `monthly_report` · `weak_nodes` · `emotion_share` · `realtime_alert`)은 `dev` 의 `consent_logs.type` 에 이미 있고, **`[예정]`** **값 둘**(`self_study_summary` · `class_assignment_summary`)을 **#280** 이 더한다 — 합쳐 일곱.
+
+**그 둘을 더하는 데 마이그레이션은 없다.** 실제 DB 의 `type` 은 CHECK 도 PG enum 도 없는
+`text` 라(`drizzle/0000_stiff_ulik.sql`) 값을 늘려도 DDL 이 필요 없다. 테두리는 코드 쪽
+셋뿐이다 — `lib/db/schema.ts` 의 union · `lib/mock/family.ts` 의 `ConsentType` ·
+`consentTypeMeta`. **셋을 항상 같이 고친다**(한쪽만 고치면 타입은 통과하는데 화면이 라벨을
+못 찾는다). 「enum 에 값을 넣는 마이그레이션」으로 읽지 마라 — 그런 파일은 없다.
 
 **2026-09-04 결정은 「반·과제도 `consent_logs` 뒤로」다** — 승인 주체를 학생에서 교사로도,
 교사에서 학생으로도 옮기지 않았다. `dev` 에는 학부모 화면도 `app/api/parent/*` 도 아직 없으니
@@ -409,7 +420,8 @@ or 가 아니다.
    단 **자녀 목록(이름·관계) 자체는 가리지 않는다** — 링크가 이미 말하는 사실이고, 가리면
    「이어진 자녀가 없다」와 구분이 사라진다.
 3. **철회는 행 삭제도 `expires_at = now()` 도 아니다** — `revoked_at` 을 따로 둔다(감사 기록).
-   그 칼럼은 **`[예정]`** 이다(#271 `0007`) — `dev` 의 `consent_logs` 에는 없다.
+   그 칼럼은 **`[예정]`** 이다(**#280** 이 인도한다) — `dev` 의 `consent_logs` 에는 없다.
+   **몇 번 마이그레이션이 될지는 여기서 정하지 않는다**([be-api-design § 6.3](2026-05-18_be-api-design.md)).
    살아 있는 동의 = `revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`.
    **철회해도 이미 본 것은 되돌릴 수 없다** — 학생 화면이 그 사실을 그대로 말한다.
 4. **부모의 열람은 학생에게 되돌아가지 않는다** — 부모가 언제·몇 번 봤는지 **학생 화면에
