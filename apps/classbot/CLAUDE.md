@@ -17,7 +17,7 @@
 | 교사 라우트 | `app/(teacher)/teacher/{,classbot,builder}` | 홈/내 클래스봇/봇 빌더 3 페이지 |
 | 학부모 라우트 | `app/(parent)/parent/{,assignments,self-study}` | **`[예정]`** — `dev` 에는 아직 이 트리가 없다. `/parent`·`/parent/assignments` 는 #268, `/parent/self-study` 는 #271 이 인도한다(`proc/spec/03 § 2.3`). **금지 영역이 아니라는 것이 2026-09-07 의 변경**이고, 내용은 자녀 동의 뒤에만 보인다(`05 § 11.4`) |
 | 도메인 컴포넌트 | `components/classbot/*`, `components/builder/*` | 13 파일 |
-| 공유 셸 | `components/shell/*` | Role = `student | teacher | parent` (**2026-09-07 승인** — 학부모 화면이 들어오며 union 확장. CoachFab 제거) |
+| 공유 셸 | `components/shell/*` | Role = `student | teacher` — **`[예정]`** `parent` 확장. **범위 승인은 2026-09-07 에 났지만 셸은 아직 두 갈래다**: `dev` 의 `navForRole` 과 헤더 `Record<Role,…>` 표 셋에 parent 가 없다. union 을 넓히는 것은 **화면이 도착하는 PR** 이고(레일·역할 전환 항목도 그때 함께 열린다), 미리 넓히면 없는 `/parent` 를 가리키는 답을 지금 적게 된다. CoachFab 제거 |
 | 공유 UI (shadcn) | `components/ui/*`, `components/brand/*` | shadcn 프리미티브 |
 | 도메인 mock | `lib/mock/{persona,family,tutor,classbot,chat}.ts` | 잔존 — Phase β 이후 DB 로 점진 대체 |
 | Drizzle 스키마 | `lib/db/schema.ts` | classbot 도메인 테이블 |
