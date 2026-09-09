@@ -33,7 +33,7 @@ export function WelcomeHero({ name, hasTutors }: { name?: string; hasTutors: boo
         className="bg-white text-pullim-blue-700 hover:bg-pullim-blue-50 mt-4 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors"
       >
         <Compass className="h-4 w-4" />
-        {hasTutors ? '튜터 더 찾기' : '튜터 찾기'}
+        {hasTutors ? '봇 더 찾기' : '봇 찾기'}
       </Link>
     </section>
   );

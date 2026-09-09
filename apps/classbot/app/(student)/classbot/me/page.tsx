@@ -9,7 +9,8 @@ import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
-import { useClassEnrollmentStore, useMyClassBots } from '@/lib/store/class-enrollment';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { Skeleton } from '@/components/ui/skeleton';
 import { botSignature } from '@/lib/tokens/bot-signature';
@@ -31,8 +32,9 @@ const roleLabel: Record<string, string> = {
 export default function MyProfilePage() {
   const me = useRosterMe();
   const user = useCurrentUser();
-  const myBots = useMyClassBots();
-  const hydrated = useStoresHydrated(useClassEnrollmentStore);
+  // 서버 참여 + 데모 스토어를 합쳐 본다 — 스토어만 보면 실제로 참여한 반이 안 보인다.
+  const { rooms: myBots, isLoading: roomsLoading } = useMyRooms();
+  const hydrated = useStoresHydrated(useClassEnrollmentStore) && !roomsLoading;
 
   // 학년은 소속 수업(봇)에서 온다 — 학생 행에는 학년 칸이 없다.
   const grade = myBots[0]?.bot.grade;
@@ -104,18 +106,15 @@ export default function MyProfilePage() {
               icon={GraduationCap}
               title="아직 참여한 수업이 없어요"
               description="선생님께 받은 참여 코드를 넣으면 여기에 반이 생겨요."
-              action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 넣으러 가기' }}
+              action={{ href: '/classbot/classroom', label: '참여 코드', ariaLabel: '참여 코드 넣으러 가기' }}
             />
           ) : (
             <ul className="space-y-1.5">
               {myBots.map(({ bot, enrollment }) => {
                 const hex = botSignature(bot).hex;
                 return (
-                  <li
-                    key={bot.id}
-                    className="bg-card flex items-center gap-3 rounded-2xl border border-l-[3px] p-3"
-                    style={{ borderLeftColor: hex }}
-                  >
+                  // 여기서 세는 것은 봇이 아니라 소속 반이다 — 같은 봇의 두 반이 한 줄로 접히면 안 된다.
+                  <li key={enrollment.classroomId} className="bg-card flex items-center gap-3 rounded-2xl border p-3">
                     <span
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
                       style={{ backgroundColor: hex }}

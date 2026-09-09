@@ -3,7 +3,11 @@ import { test, expect } from '@playwright/test';
 /**
  * 출시 IA — 신규 사용자 빈 상태 → 참여 코드 등록 플로우 + 교사 핵심 path.
  * (2026-06-24 재작성: 데모 시드 제거로 학생 라이브/스코프 테스트를 등록 플로우로 교체)
- * (2026-08-20 재작성: 자기주도 모드 보류로 학생 홈이 교사 수업 모드 고정 → 참여 코드 플로우로 교체)
+ *
+ * **홈은 하나다** — 학습 모드로 홈을 가르던 분기는 걷었다(`app/(student)/classbot/page.tsx`).
+ * 그래서 아래 「빈 홈」은 「self 모드가 아니라서 보이는 홈」이 아니라 **참여한 방이 없을 때의 홈**이다.
+ * 봇 마켓에서 담은 봇은 홈이 아니라 챗·「내가 담은 봇」에서 보인다 — 담기는 반 참여가 아니라서
+ * 「참여 중인 클래스」에 오르지 않는다(계약 §1).
  */
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
@@ -23,19 +27,55 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
     await page.getByLabel('참여 코드 입력').fill('MATH-2024');
     await page.getByRole('button', { name: '참여' }).click();
 
-    // 홈에 반영 — 빈 상태 사라지고 참여 중인 클래스 노출 (성공 토스트에도 반 이름이 있어 main 으로 스코프)
+    // 홈에 반영 — 빈 상태 사라지고 참여한 반이 노출 (성공 토스트에도 반 이름이 있어 main 으로 스코프)
+    //
+    // 반 **이름**(「중2 수학 A반」)으로 잡지 않는다. 홈의 이 자리는 반을 하나씩 늘어놓던 목록에서
+    // **한 줄 요약 카드**(`components/classbot/home/joined-classes.tsx`)로 바뀌었고, 반 이름은
+    // 이제 그 카드가 데려가는 `/classbot/classroom` 에 있다.
+    //
+    // 카드가 **말하는 문구**로도 잡지 않는다(「참여 중인 클래스 N곳」). 그건 카드의 표현이라
+    // 다듬으면 바뀌는데, 이 스펙은 prod-verify 가 **production 에 대고** 돌리는 것이라
+    // 문구 손질 한 번에 main 이 빨개진다. 대신 두 데이터 값으로 잡는다 —
+    //  · `김보람 선생님` = `joined-classes.tsx` 의 `lead`. **반이 하나일 때만** 이름이 그대로 찍히고
+    //    둘 이상이면 「선생님 N명」이 된다 → 이 한 줄이 「방금 들어간 반 하나」까지 함께 못 박는다.
+    //    (그래서 여러 반 테스트에는 이 단언을 재사용하지 마라.)
+    //  · `대치프리미엄 수학학원` = `joined-classes-data.ts` 의 `orgOf()` — `enrollment.via` 우선,
+    //    없으면 `bot.organization`. MATH-2024 는 둘 다 같은 값이라 가장 덜 흔들린다.
+    //
+    // 첫 단언에 넉넉한 timeout 을 주는 이유: 익명으로 열면 `/api/me/classrooms` 가 401 이라
+    // 홈이 한 RTT 동안 스켈레톤을 그린다(`page.tsx` 의 `roomsLoading` 가드).
     const main = page.getByRole('main');
-    await expect(main.getByText('참여 중인 클래스')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('중2 수학 A반 · 김보람 선생님')).toBeVisible();
+    await expect(main.getByText('김보람 선생님')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('대치프리미엄 수학학원')).toBeVisible();
   });
 
-  // 봇 마켓은 기획 보류로 nav 진입점만 내렸다 — 라우트·등록 동작 자체는 살아 있어야 한다.
-  test('봇 마켓 — 진입점 비노출이어도 URL 직접 진입 시 등록 동작 유지', async ({ page }) => {
+  /**
+   * 봇 마켓 — mock 공식 튜터 3종을 걷어내고 교사가 실제로 공유한 봇 목록으로 갈았다.
+   *
+   * ⚠ 「마켓에서 봇을 얻는 길이 없다 / 봇을 얻는 길은 참여 코드뿐」이라고 적혀 있던 자리다.
+   * **더는 사실이 아니다** — 학생은 마켓에서 봇을 **담을** 수 있고, 담은 봇은 반 봇과 한 목록에서
+   * 대화한다(계약 §5). 여기서 담기 버튼을 단언하지 않는 이유는 길이 없어서가 아니라,
+   * 이 스펙이 **로그인 없이** 돌아 마켓이 목록 대신 로그인 안내를 그리기 때문이다.
+   *
+   * 마켓 목록은 **신원이 있어야** 열린다(마켓 계약 §2). 이 스펙은 로그인 없이 도는지라
+   * prod 에서는 로그인 안내가 정답이고, 로컬에서 개발용 신원 쿠키를 꽂고 돌리면 목록이나
+   * 빈 상태가 나온다. **셋 다 정상**이므로 셋 중 하나면 통과로 둔다 —
+   * 여기서 검증하는 것은 「라우트가 서고 마켓 화면이 제 상태 중 하나를 그린다」다.
+   *
+   * 제목은 `exact` 로 잡는다. 기본 부분일치로 두면 오류 카드 제목
+   * 「봇 마켓을 불러오지 못했어요」까지 걸려 strict mode 위반이 난다.
+   */
+  test('봇 마켓 — 마켓 화면이 제 상태 중 하나를 그린다', async ({ page }) => {
     await page.goto(BASE + '/classbot/discover', { waitUntil: 'networkidle' });
-    await expect(page.getByText('공식 튜터 마켓')).toBeVisible();
 
-    await page.getByRole('button', { name: '등록', exact: true }).first().click();
-    await expect(page.getByRole('button', { name: '등록됨' }).first()).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { name: '봇 마켓', exact: true })).toBeVisible();
+    await expect(
+      main
+        .getByTestId('marketplace-list')
+        .or(main.getByTestId('marketplace-empty'))
+        .or(main.getByTestId('marketplace-signin')),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
