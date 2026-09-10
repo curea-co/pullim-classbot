@@ -35,8 +35,9 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 >
 > | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
 > |---|---|---|
-> | BE persistence (자기주도) | **`[예정]`** | **#270** — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). 스택 PR 이라 리베이스에서 재번호된다 |
-> | real auth-scoped self-enrollment | **`[예정]`** | **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
+> | BE persistence (자기주도) | **`dev` 에 있다** *(`[2026-09-10 정정]` 종전 **`[예정]`**)* | **#270** 이 인도 완료 — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). **표와 라우트까지다** — 그것을 부르는 훅·스토어는 `dev` 에 없다(아래 「자기주도 데이터 출처」 줄) |
+> | real auth-scoped self-enrollment | **`[예정]`** | 서버 쪽은 `dev` 에 있다 — **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인). *(`[2026-09-10 정정]`)* 그 갈림을 **FE 에서 실제로 가르는 것은 아래 줄(`[예정]` #273)** 이다 — 이 줄만 읽고 화면 PR 에 서버 소비를 걸지 마라 |
+> | **자기주도 데이터 출처(훅·스토어)** — 위 두 줄의 소비 쪽 *(`[2026-09-10 정정]` 신설)* | **`[예정]`** | **#273**(「담은 봇·공부한 날의 출처를 서버로 갈아탄다 — 훅·스토어 (5b/7)」) — **식별된 사용자 = 서버 정본 / 비로그인·401 = localStorage 폴백**, 그리고 기존 로컬 기록 백필. 변경 파일은 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` · `lib/store/self-learning.ts` 이고 **화면 파일(`app/`·`components/`)은 0개**다. 그래서 **#283**(학생 화면)은 **로컬 폴백 상태로 온다** |
 > | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published` · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면). 서버 쪽은 `dev` 에 들어왔다(`0004`) |
 > | 학부모 × 자기주도 | **`[예정]`** | 자녀 동의 게이트([05 § 11.4](05-business-rules.md)) — 서버(`consent_logs` 축 둘 · `revoked_at`)는 **#280** 이, 학부모 화면은 **#271** 이 진다 |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
@@ -45,6 +46,25 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
 > (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에
 > 들어오면 이 박스의 `[예정]` 표기를 지우고 §6 의 Out 목록에서 세 줄을 실제로 뺀다.
+>
+> **`[2026-09-10 정정]` 「서버화」는 화면 PR 의 몫이 아니다 — 이음매를 여기 적는다.**
+> 위 표는 종전에 **규칙만 적고 인도를 적지 않았다** — `self_enrollments`·`/api/me/self-bots` 를
+> 실명 범위 정본으로 두고 비로그인에만 localStorage 폴백을 허용한다는 규칙은 있는데,
+> **그 전환을 어느 층이 지느냐**가 빠져 있었다. 그래서 그 파일을 스치는 PR 마다 규칙이 걸렸다.
+> 배정은 이렇다:
+>
+> - **서버**(`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`
+>   +백필) — **#270** 으로 `dev` 에 **이미 있다**.
+> - **훅·스토어의 「식별된 사용자 = 서버 정본 / 401 = localStorage 폴백」 전환** —
+>   **`[예정]` #273** 이 인도한다. 그 PR 의 변경 파일에 `hooks/api/self-bots.ts` 와
+>   `lib/store/self-learning.ts` 가 들어 있다.
+> - **학생 화면**(`/classbot/{classroom,my-bots,discover,discover/[botId]}`) — **#283**.
+>   **그래서 #283 은 로컬 폴백 상태로 온다.** 화면 단위 PR 이 그 전환을 함께 하면 층이 섞이고
+>   (리포 `CLAUDE.md` 최상위 MUST — 「한 PR = 한 계층」) **#273 의 몫이 통째로 사라진다.**
+>
+> `[예정]` 의 뜻은 이 리포 관례 그대로다 — **`dev` 에 없는 것**이고, **그 PR 이 통과해야 할
+> 기준**이다([`00-index.md`](00-index.md) 2026-09-04 항목의 「읽는 법」). 그러니 **`[예정]` #273
+> 의 기준을 #283 의 기준으로 읽지 않는다.**
 
 > **[2026-09-09 개정] 자기주도는 「모드」가 아니라 「장소」다 — Locked decision 2·4 를 갈아 끼운다.**
 >
@@ -110,8 +130,18 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > | **§8 Phasing** | **PR-1「Mode foundation」 전체** · PR-2 의 「unlock 봇 찾기 + `SelfEnrollment`」 중 공식 튜터 전제 · PR-3「Self home」 | PR-4「Learning loop」 · PR-5「Polish + onboarding」 의 취지 — 다만 실제 인도는 아래 「인도」 줄과 2026-09-04 박스의 표를 따른다(스택 PR #266~#271·#280~#284) |
 >
 > **인도**: `/classbot/{classroom,my-bots,discover,discover/[botId]}` 화면과 위 ①②④ 는
-> **#283**(#268 을 `dev` 위로 리베이스한 판)이 진다. 서버는 이미 `dev` 에 있다(#267·#280) —
+> **#283**(#268 을 `dev` 위로 리베이스한 판)이 진다. 서버는 이미 `dev` 에 있다(#267·#280·**#270**) —
 > 그 PR 에 `app/api/**` 변경은 없다.
+>
+> **`[2026-09-10 정정]` 그 화면의 데이터 출처는 아직 localStorage 다.** 자기주도 서버
+> (`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`)는
+> **#270** 으로 `dev` 에 있지만, **그것을 부르는 훅·스토어는 `[예정]` #273** 이 인도한다
+> (「식별된 사용자 = 서버 정본 / 401 = localStorage 폴백」 + 기존 로컬 기록 백필 · 변경 파일은
+> `hooks/api/self-bots.ts` · `lib/store/self-learning.ts` 이고 화면 파일 0개). **④ 의 v1
+> 저장값도 그 전환 전까지는 로컬에 산다** — #283 이 세우는 것은 v1 의 **모양**(사용자별
+> `byUser` · `class_bots.id` 기반 담은 봇 · 날짜 배열)이고, **출처를 서버로 옮기는 것은
+> #273 이다.** 그래서 **#283 에 서버 소비를 요구하면 층이 섞인다**(리포 `CLAUDE.md` 최상위
+> MUST) — 자세한 배정은 위 2026-09-04 박스의 `[2026-09-10 정정]` 항목.
 
 ## Goal
 

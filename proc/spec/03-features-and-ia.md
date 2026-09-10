@@ -147,6 +147,8 @@
 
 **메모 (자기주도 진입 — `[예정]` 열리는 방식이 바뀌었다)**: `dev` 는 지금도 **부품은 있고 문이 닫힌** 상태다 — 「기획 보류」로 헤더의 학습 모드 토글(`StudentModeToggle`)이 `app-header.tsx` 에서 비노출이고 `useStudentMode()` 의 default 가 `class` 로 고정돼 있어, 저장값이 없는 학생은 self 를 볼 수 없다. **그런데 그 문을 여는 방법이 「토글 되살리기」가 아닌 것으로 정해졌다**(2026-09-09 · [`2026-06-23_classbot-dual-mode-design.md`](2026-06-23_classbot-dual-mode-design.md) 개정 박스 — Locked decision 2·4 를 갈아 끼운다). **자기주도는 모드가 아니라 장소다**: 전역 토글 대신 `/classbot/my-bots` 라는 레일 항목이 생기고, `/classbot/chat` 은 반 봇과 담은 봇을 **한 목록**으로 그린다. 그래서 `[예정] #283` 이 여는 것은 토글이 아니라 **갈 곳**이고, `StudentModeToggle` 과 모드 분기는 되살리지 않는다. `/classbot/learn/*` 는 그 개정과 무관하게 mock `ot_*` 위에서 계속 돈다 — P5 에서 카탈로그와 함께 정리된다.
 
+**메모 (담은 봇·공부한 날의 출처 — `[예정] #283` 의 범위가 어디서 끝나나)** *(`[2026-09-10 정정]` 신설)*: 위 세 줄(`/classbot/my-bots` · `/classbot/discover{,/[botId]}`)에 붙은 **`[예정] #283` 은 화면까지다.** 자기주도 서버(`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`)는 **#270** 으로 **`dev` 에 이미 있지만**, 그 라우트를 부르는 **훅·스토어의 「식별된 사용자 = 서버 정본 / 401 = localStorage 폴백」 전환은 `[예정] #273`**(훅·스토어 · 변경 파일에 `hooks/api/self-bots.ts` · `lib/store/self-learning.ts`)이 인도한다. **그래서 #283 의 화면은 로컬 폴백 상태로 온다** — 그 PR 에 서버 소비를 함께 요구하면 층이 섞이고(리포 `CLAUDE.md` 최상위 MUST 「한 PR = 한 계층」) #273 의 몫이 사라진다. 규칙 본문과 배정은 [`2026-06-23_classbot-dual-mode-design.md`](2026-06-23_classbot-dual-mode-design.md) 2026-09-04 박스의 `[2026-09-10 정정]` 항목이 권위다.
+
 ### 2.2 교사 영역 `(teacher)`
 
 ```
