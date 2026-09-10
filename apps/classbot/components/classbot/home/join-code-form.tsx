@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { useJoinByCode } from '@/hooks/api/classroom';
 import { ApiClientError } from '@/lib/api/client-fetch';
-import { joinClass } from '@/lib/store/class-enrollment';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { cn } from '@/lib/utils';
 
 /**
@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils';
  * 코드는 DB(`join_codes`)에만 있으므로 예전 mock 표(`CODE_MAP`)로는 영영 안 풀린다.
  *
  * 다만 서버가 **모르는 코드(404)**·**신원이 없어 막은 경우(401)** 에는 예전 경로
- * (`joinClass` → mock `resolveClassCode` → localStorage)로 한 번 더 시도한다.
+ * (스토어의 `join()` → mock `resolveClassCode` → localStorage)로 한 번 더 시도한다.
+ * 스토어를 **직접** 부른다 — `joinClass()` 는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로
+ * 가고 그쪽 4xx 를 실패로 전파하므로, 그 경로를 타면 데모 코드가 통째로 막힌다.
  * 데모 코드 `MATH-2024`·`ENG-2024`·`SCI-2024` 가 그 자리다 — prod 회귀 자동화
  * (`tests/e2e/helpers.ts` 의 `joinDemoClass`)가 로그인 없이 그 코드로 들어가고,
  * 그 경로가 사라지면 prod-verify 가 통째로 깨진다.
@@ -85,7 +87,13 @@ export function JoinCodeForm({ tone = 'light', onJoined }: Props) {
       // 서버가 모르는 코드(404)이거나 신원이 없어 막힌 경우(401)만 예전 데모 경로로 한 번 더.
       // 403·409·5xx 는 서버가 뜻을 갖고 거절한 것이라 mock 성공으로 가장하지 않는다.
       if (apiError && (apiError.status === 401 || apiError.status === 404)) {
-        const legacy = await joinClass(raw);
+        // **스토어의 mock 참여를 직접 부른다** — `joinClass()` 를 쓰지 않는다.
+        // 그 함수는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로 가고 그쪽 4xx 를 실패로
+        // 전파한다(mock 폴백은 5xx·네트워크 실패에만 준다). 여기 도착한 요청은 방금
+        // 같은 오리진 라우트가 401·404 로 거절한 것이라, 또 다른 BE 에 물어봐도 답이 같다 —
+        // 그리고 그 경로를 타면 플래그가 켜진 환경에서 `MATH-2024` 같은 데모 코드가
+        // 통째로 막혀 prod-verify 가 깨진다. 이 자리가 원하는 것은 **mock 해석** 하나다.
+        const legacy = useClassEnrollmentStore.getState().join(raw);
         if (legacy.ok) {
           succeed(legacy.enrollment.classroomLabel, legacy.enrollment.assignedBy, false);
           return;
