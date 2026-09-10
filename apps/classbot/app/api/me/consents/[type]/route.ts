@@ -8,8 +8,10 @@
  * 메서드가 `DELETE` 인 것은 부르는 쪽의 의도(「이건 공유되지 않아야 한다」)를 말하지,
  * 저장소에서 무슨 일이 일어나는지를 말하지 않는다.
  *
- * 게이트는 목록 라우트와 같다(로그인만, 역할 무관). 고치는 술어에 **내 명의**가 함께
- * 들어가므로 경로에 남의 타입·값을 넣어도 남의 동의에는 닿지 않는다.
+ * 게이트는 목록·부여 라우트와 **같다 — 학생 전용**이다. 켜는 문과 끄는 문이 같은 테두리를
+ * 쓰지 않으면, 한쪽에서만 통과하는 명의가 생겨 계약이 반쪽만 지켜진다.
+ * 그 위에 명의 잠금이 겹쳐 있다 — 고치는 술어에 **내 id** 가 함께 들어가므로 경로에 남의
+ * 타입·값을 넣어도 남의 동의에는 닿지 않는다(둘은 다른 자물쇠다 — 부여 라우트 머리주석).
  *
  * ⚠️ **철회는 되돌리는 게 아니다.** 이미 보여드린 것은 학부모의 기억·스크린샷·캐시에
  * 남아 어느 설계로도 못 막는다. 그래서 화면이 그 사실을 숨기지 않고 적는다(계약 §3) —
@@ -21,8 +23,7 @@ import { sql } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { consentLogs } from '@/lib/db/schema';
-import { getCurrentUserIdFromRequest } from '@/lib/current-user';
-import { invalidInput, unauthorized } from '@/app/api/_lib/guards';
+import { denyUnlessStudent, invalidInput, resolveActor } from '@/app/api/_lib/guards';
 import { isStudentGrantableType, livingConsentOf } from '@/app/api/_lib/consent';
 import type { RevokeConsentResponse } from '@/app/api/_lib/contract-types';
 
@@ -53,14 +54,16 @@ export const runtime = 'nodejs';
  * DELETE 한 번 → 살아 있는 0행, 학부모 조회 `{"children":[]}`, 두 행 모두 보존.
  * @param req - 신원(쿠키 또는 Bearer)
  * @param ctx - 동적 세그먼트 `{ type }`
- * @returns 200 { revoked: boolean } | 400 | 401
+ * @returns 200 { revoked: boolean } | 400 | 401 | 403
  */
 export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ type: string }> },
 ): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  const denied = denyUnlessStudent(actor);
+  if (denied) return denied;
+  const studentId = actor.id;
 
   const { type } = await ctx.params;
   // 세그먼트는 인코딩되어 올 수 있고, 망가진 escape(`%E0%A4%A`)는 디코드가 **던진다** —

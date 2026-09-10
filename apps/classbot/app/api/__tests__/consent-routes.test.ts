@@ -167,6 +167,15 @@ function req(
   });
 }
 
+/**
+ * `resolveActor` 가 맨 앞에서 읽는 도메인 `users.role` 한 줄.
+ *
+ * 학생 라우트 셋(`GET`·`POST /api/me/consents` · `DELETE .../[type]`)이 전부 이 조회로
+ * 시작하므로, 그 라우트를 부르는 큐는 **이걸 맨 앞에 둔다.** 빠뜨리면 뒤의 행이 한 칸씩
+ * 당겨져 링크 조회가 role 로 읽힌다.
+ */
+const STUDENT = [{ role: 'student' }];
+
 /** 신원이 전혀 없는 요청 — 데모 폴백이라 `isIdentified:false` 다. */
 function anonReq(init: RequestInit = {}): Request {
   return new Request('http://localhost/api/me/consents', init);
@@ -240,6 +249,73 @@ describe('학부모 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', () =>
     expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
     // 역할에서 막혔으므로 자녀 조인은 조립되지도 않는다.
     expect(joinSpy).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 학생 동의 라우트 셋의 역할 게이트.
+ *
+ * ## 왜 명의 잠금만으로 부족한가 — 이 블록의 존재 이유
+ *
+ * 「행이 언제나 호출자 명의로만 생기니 역할은 안 봐도 된다」는 논증은 **`parent_child_links`
+ * 가 없어서 400 에서 멈춘다**에 기댄다. 그런데 스키마는 그 링크의 `student_id` 쪽을
+ * `role='student'` 로 강제하지 않는다 — 교사·학부모 명의로도 링크가 있으면 두 동의 축이
+ * 그 사람 이름으로 **생긴다.** 05 § 11.4 는 일곱 축 전부를 「학생 본인의 승인」 뒤에 뒀으므로
+ * 그 순간 계약이 깨진다.
+ *
+ * 그래서 이 셋은 이웃 라우트(`/api/me/self-bots` · `/api/me/study-days`)와 **같은 게이트**를
+ * 쓴다. **켜는 문과 끄는 문이 같은 테두리를 써야** 한쪽에서만 통과하는 명의가 안 생긴다.
+ */
+describe('학생 동의 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', () => {
+  it.each([
+    ['교사', 'teacher'],
+    ['학부모', 'parent'],
+  ] as const)('%s 명의로는 동의를 읽지 못한다', async (_label, role) => {
+    mockSelectQueue = [[{ role }]];
+    const res = await getConsents(req('u1', 'teacher'));
+
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
+    /*
+      질의는 **딱 하나** — `resolveActor` 의 `users.role` 조회다. 그 뒤의 링크·동의 조회는
+      조립조차 되지 않는다(읽고 나서 거르는 게 아니라 애초에 안 읽는다).
+      `not.toHaveBeenCalled()` 로 쓸 수 없는 이유가 여기 있다 — 역할을 알아내는 일 자체가
+      질의 하나다. 그래서 「0 번」이 아니라 **「1 번, 그리고 그게 role 조회」**를 본다.
+    */
+    expect(whereSpy).toHaveBeenCalledTimes(1);
+    expect(render(whereSpy.mock.calls[0][0]).text).toContain('"users"."id"');
+  });
+
+  it.each([
+    ['교사', 'teacher'],
+    ['학부모', 'parent'],
+  ] as const)('%s 명의로는 동의가 생기지 않는다 — 링크가 있어도', async (_label, role) => {
+    // 링크를 **일부러 채워 둔다.** 「링크가 없어서 400」이라는 우연에 기대지 않는다는 것을
+    // 보이려는 것이다 — 게이트가 없으면 이 큐로 201 이 나간다.
+    mockSelectQueue = [[{ role }], [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+
+    const res = await grantConsent(
+      grantReq('u1', { type: 'self_study_summary', scopeLabel: '계속' }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+    expect(updateSetSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['교사', 'teacher'],
+    ['학부모', 'parent'],
+  ] as const)('%s 명의로는 철회도 하지 못한다 — 켜는 문과 같은 테두리', async (_label, role) => {
+    mockSelectQueue = [[{ role }]];
+
+    const res = await revokeConsent(
+      req('u1', 'teacher', { method: 'DELETE' }),
+      ctx('self_study_summary'),
+    );
+
+    expect(res.status).toBe(403);
+    expect(updateSetSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -469,7 +545,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('parent_id 는 링크에서 읽는다 — 명의는 토큰 주인이다', async () => {
-    mockSelectQueue = [[{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
     mockInsertQueue = [
       [
         {
@@ -498,7 +574,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('링크가 없으면 줄 상대가 없다 — 400, 삽입 없음', async () => {
-    mockSelectQueue = [[]]; // parent_child_links 0행
+    mockSelectQueue = [STUDENT, []]; // parent_child_links 0행
 
     const res = await grantConsent(
       grantReq('s2', { type: 'self_study_summary', scopeLabel: '계속' }),
@@ -509,7 +585,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('살아 있는 동의가 있으면 갱신이다 — 200, 새 행 없음', async () => {
-    mockSelectQueue = [[{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
     mockUpdateQueue = [
       [
         {
@@ -534,7 +610,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('갱신은 옛 보호자에게 매달린 행을 지금 보호자에게 옮겨 붙인다', async () => {
-    mockSelectQueue = [[{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
     mockUpdateQueue = [
       [
         {
@@ -591,7 +667,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     expect(render(set.revokedAt).text).toBe('now()');
 
     // 술어에 내 명의와 살아 있음이 함께 들어간다(남의 동의·이미 거둔 행에 닿지 않는다).
-    const where = render(whereSpy.mock.calls[0][0]);
+    const where = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]);
     expect(where.text).toContain('"revoked_at" is null');
     expect(where.params).toEqual(
       expect.arrayContaining(['student_001', 'self_study_summary']),
@@ -621,7 +697,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ revoked: true });
 
-    const where = render(whereSpy.mock.calls[0][0]);
+    const where = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]);
     // 술어는 (명의 · 타입 · 살아 있음)뿐이다. **특정 행을 짚지 않는다** —
     // 「최신 것 하나만 골라 id 로 업데이트」 같은 최적화가 들어오면 여기서 깨진다.
     expect(where.text).not.toContain('"id" =');
@@ -658,7 +734,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
       req('student_001', 'student', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
-    const revokeWhere = render(whereSpy.mock.calls[0][0]).text;
+    const revokeWhere = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]).text;
 
     whereSpy.mockClear();
     joinSpy.mockClear();
@@ -710,7 +786,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
   const LINK = [{ id: 'parent_001', name: '어머니', relation: 'mother' }];
 
   it('조회 술어에 철회·만료 판정이 들어 있다', async () => {
-    mockSelectQueue = [LINK, []];
+    mockSelectQueue = [STUDENT, LINK, []];
     const res = await getConsents(req('student_001', 'student'));
 
     expect(res.status).toBe(200);
@@ -723,6 +799,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
 
   it('동의 행에 받는 사람의 id 는 없다 — 본문으로 받지 않는 값이다', async () => {
     mockSelectQueue = [
+      STUDENT,
       LINK,
       [
         {
@@ -750,7 +827,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
   });
 
   it('보호자는 이름·관계만 싣는다 — id 는 떼고 나간다', async () => {
-    mockSelectQueue = [LINK, []];
+    mockSelectQueue = [STUDENT, LINK, []];
 
     const res = await getConsents(req('student_001', 'student'));
     const body = (await res.json()) as { parent: Record<string, unknown> | null };
@@ -761,7 +838,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
   });
 
   it('⛔ 받는 사람으로 좁히지 않는다 — 학생이 못 끄는 살아 있는 권한을 만들지 않기 위해', async () => {
-    mockSelectQueue = [LINK, []];
+    mockSelectQueue = [STUDENT, LINK, []];
     await getConsents(req('student_001', 'student'));
 
     /*
@@ -778,6 +855,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
 
   it('행마다 지금 보호자에게 가는지 싣는다 — 옛 보호자 대상 동의도 함께 나온다', async () => {
     mockSelectQueue = [
+      STUDENT,
       LINK,
       [
         {
@@ -821,6 +899,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
   it('링크가 없으면 parent 는 null — 그래도 살아 있는 동의는 돌려준다', async () => {
     // 링크 0행. 그래도 동의는 읽는다 — 링크가 끊겨도 행은 남고, 되살아나면 열람도 되살아난다.
     mockSelectQueue = [
+      STUDENT,
       [],
       [
         {

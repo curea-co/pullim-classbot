@@ -12,9 +12,17 @@
  * 아니라 400 으로 거절**한다 — 조용히 무시하면 보낸 쪽은 자기가 정한 기한이 걸린 줄 알고,
  * 「이번 주만」이라는 약속이 라벨로만 남는다.
  *
- * 담은 봇·공부한 날 라우트와 마찬가지로 **역할 게이트가 없다.** 행이 언제나 호출자
- * 명의(`student_id`)로만 생기고 호출자 명의로만 읽히므로, 남의 동의에 닿는 경로가 없다.
- * 학생이 아닌 사람이 쳐도 링크가 없어 400 에서 멈춘다.
+ * **3. 게이트는 학생 전용이다.** 담은 봇·공부한 날 라우트와 **같은 규약**이다
+ * (`app/api/me/self-bots/route.ts` 머리주석) — `resolveActor` 가 도메인 `users.role` 을
+ * 권위로 보고, 학생이 아니면 403 이다.
+ *
+ * ⛔ **「명의가 잠겨 있으니 역할 게이트는 없어도 된다」로 접지 마라 — 한 번 그렇게 썼다.**
+ * 그 논증은 「학생이 아닌 사람은 `parent_child_links` 가 없어 400 에서 멈춘다」에 기대는데,
+ * **링크가 없다는 것은 권한 검증이 아니다.** 스키마가 그 링크의 `student_id` 쪽을
+ * `role='student'` 로 강제하지 않으므로, 교사·학부모 명의로도 링크가 있으면 두 동의 축이
+ * 그 사람 이름으로 **생긴다.** 그러면 05 § 11.4 가 「학생 본인의 승인」을 최종 관문으로
+ * 둔 계약이 깨진다. 명의 잠금은 「남의 것에 닿지 못하게」이고, 역할 게이트는 「학생 아닌
+ * 사람의 동의가 아예 생기지 못하게」다 — **둘은 다른 자물쇠이고 서로를 대신하지 않는다.**
  */
 
 import { randomUUID } from 'node:crypto';
@@ -24,12 +32,12 @@ import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { consentLogs } from '@/lib/db/schema';
-import { getCurrentUserIdFromRequest } from '@/lib/current-user';
 import {
+  denyUnlessStudent,
   invalidInput,
   readJsonBody,
   readTrimmed,
-  unauthorized,
+  resolveActor,
 } from '@/app/api/_lib/guards';
 import {
   expiryFor,
@@ -84,12 +92,14 @@ export const runtime = 'nodejs';
  *
  * 받는 사람이 **없어도** 조회한다 — 링크가 끊긴 뒤에도 행은 남는다. 그때야말로 학생이
  * 그 줄을 봐야 끌 수 있다(링크가 되살아나면 열람도 되살아난다).
- * @param req - 신원(쿠키 또는 Bearer). 역할은 보지 않는다
- * @returns 200 { parent, consents } | 401
+ * @param req - 신원(쿠키 또는 Bearer)
+ * @returns 200 { parent, consents } | 401 | 403
  */
 export async function GET(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  const denied = denyUnlessStudent(actor);
+  if (denied) return denied;
+  const studentId = actor.id;
 
   // 부여 라우트와 **같은 함수**다 — 화면이 적은 이름과 실제로 grant 가 갈 보호자가
   // 같다는 보장이 여기서 나온다.
@@ -132,11 +142,13 @@ export async function GET(req: Request): Promise<NextResponse> {
  * ⛔ 지난 동의를 되살리지 않는다 — 철회·만료된 행은 감사 기록으로 그대로 두고 **새 행**을
  * 만든다. 거둔 기록을 나중에 덮어쓰면 「거둔 적 있다」가 사라진다.
  * @param req - body `{ type, scopeLabel }`. 명의도 받는 사람도 본문에서 오지 않는다
- * @returns 201 { consent } | 200 { consent }(갱신) | 400 | 401
+ * @returns 201 { consent } | 200 { consent }(갱신) | 400 | 401 | 403
  */
 export async function POST(req: Request): Promise<NextResponse> {
-  const { id: studentId, isIdentified } = getCurrentUserIdFromRequest(req);
-  if (!isIdentified) return unauthorized();
+  const actor = await resolveActor(req);
+  const denied = denyUnlessStudent(actor);
+  if (denied) return denied;
+  const studentId = actor.id;
 
   const body = await readJsonBody(req);
   if (!body) return invalidInput('요청 본문을 읽지 못했어요.');
