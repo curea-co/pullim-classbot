@@ -144,8 +144,6 @@ export function useStudentBots(): StudentBotsResult {
     [market.data],
   );
 
-  // 반 목록은 스토어에서 매 렌더 새 배열로 온다(`bridge()`) — id 문자열로 눌러 memo 를 안정시킨다.
-  const classKey = classRooms.map((c) => c.bot.id).join('|');
   // 「아직 안 왔다」와 「와 봤더니 없더라」를 가르는 값. 앞은 기다리고, 뒤는 fallback 이다.
   const marketPending = market.isPending;
 
@@ -177,9 +175,11 @@ export function useStudentBots(): StudentBotsResult {
       out.push({ bot: item ? toClassBot(item) : fallbackBot(row.botId), source: 'self' });
     }
     return out;
-    // classRooms 는 매 렌더 새 배열이라 deps 에 두면 memo 가 무의미해진다 — 내용 키(classKey)로 대신한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classKey, selfBots.data, marketById, marketPending]);
+    // `classRooms` 를 그대로 deps 에 둔다. 종전엔 봇 id 만 이은 문자열 키를 썼는데(브리지가
+    // 매 렌더 새 배열을 주던 탓), 그러면 **id 는 같은데 이름·아바타·과목만 바뀐 갱신을
+    // 놓친다** — 교사가 봇 이름을 고치거나 로컬 반이 서버 반으로 갈릴 때 챗·홈에 옛
+    // 메타데이터가 남았다. 이제 `useMyClassBots` 가 결과를 memo 로 눌러 참조가 안정적이다.
+  }, [classRooms, selfBots.data, marketById, marketPending]);
 
   return {
     slots,

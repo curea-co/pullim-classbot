@@ -109,6 +109,22 @@ it('둘 다 있으면 둘 다 — 반 봇이 먼저 실린다', async () => {
   ]);
 });
 
+// 교사가 봇 이름·아바타를 고치면 그 갱신이 챗·홈까지 와야 한다.
+// 종전 memo 키는 **봇 id 만** 이은 문자열이라, id 가 같으면 이름이 바뀐 응답을 흘려보냈다.
+it('봇 id 가 같아도 이름·아바타가 바뀌면 목록이 따라온다', () => {
+  classRooms = [classRoom('cb_001', '수학봇')];
+  const { result, rerender } = render();
+  expect(result.current.slots[0].bot.name).toBe('수학봇');
+
+  const renamed = classRoom('cb_001', '미적분봇');
+  renamed.bot = { ...renamed.bot, avatarEmoji: '📐' } as typeof renamed.bot;
+  classRooms = [renamed];
+  rerender();
+
+  expect(result.current.slots[0].bot.name).toBe('미적분봇');
+  expect(result.current.slots[0].bot.avatarEmoji).toBe('📐');
+});
+
 // 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
 // `useMyRooms()` 는 그 두 반을 일부러 다 남긴다(목록 단위가 반이라 그게 맞다). 그러나 챗의
 // 단위는 봇이라, 그대로 옮기면 같은 봇 버튼이 두 개 뜨고 `bot.id` React key 까지 겹친다.
