@@ -193,15 +193,15 @@ describe('useMyClassBots — 읽기 동기화 (GET /classbot/bots?role=student)'
         {
           botId: 'cb_002',
           classroomId: 'cb_002',
-          classroomLabel: '수능 영어 독해반',
-          assignedBy: '박영어 선생님',
+          classroomLabel: '중3 영어 읽기반',
+          assignedBy: '박서윤 선생님',
           assignedAt: '2026-06-24 09:00',
           via: '대치프리미엄 영어학원',
         },
       ],
     });
     qRes(200, [
-      { id: 'cb_001', name: '수학이 형', description: null, isActive: true, role: 'student' },
+      { id: 'cb_001', name: '수학봇', description: null, isActive: true, role: 'student' },
     ]);
 
     const { result } = renderHook(() => useMyClassBots());

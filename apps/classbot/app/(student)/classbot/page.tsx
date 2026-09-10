@@ -3,15 +3,16 @@
 import { useRosterMe } from '@/lib/current-user';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useLiveStore } from '@/lib/store/live';
-import { useMyClassBots, useClassEnrollmentStore } from '@/lib/store/class-enrollment';
-import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
 import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { todayKey } from '@/lib/store/today-key';
-import { useStudentMode } from '@/lib/store/student-mode';
-import { SelfHomePlaceholder } from '@/components/classbot/self-home-placeholder';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useStudentBots } from '@/lib/store/mode-bots';
+import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
+import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import {
   LearningHero,
   TutorShowcase,
@@ -20,52 +21,110 @@ import {
   WellnessNudge,
   LightDayNudge,
   LightDayExitStrip,
+  JoinedClasses,
+  useMyRooms,
 } from '@/components/classbot/home';
 
 /**
  * 학생 홈 — 튜터+모멘텀 하이브리드 (feat/classbot-home-redesign).
  *
- * 구성:
+ * 구성(아래 JSX 의 번호 주석과 같은 순서):
+ *   0. LightDayNudge — 저조 신호 & 아직 opt-in 전일 때만 (optional)
  *   1. LearningHero  — 인사 + 스트릭 + 이어서 하기 CTA + 주간 진행
  *   2. TutorShowcase — 내 튜터 personality 카드 그리드
  *   3. 2-col: TodoPanel(좌) + GrowthPanel(우)
  *   4. WellnessNudge  — 웰빙 봇 코멘트 (optional)
+ *   5. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
+ *
+ * 4 번은 **반 봇 기준**이다(`myBots`). 담은 봇을 여기 섞지 않는 이유: 웰빙 한 마디는
+ * 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고, 그 반의 교사가 학습을 보고 있다는
+ * 전제 위에 선다(계약 §1 — 담은 봇에는 그 관계가 없다).
+ *
+ * **홈은 하나다.** 예전에는 학습 모드(`lib/store/student-mode.ts`)를 보고 `self` 면 다른 홈
+ * (`SelfHomePlaceholder`)을 그렸다. 그 분기는 걷었다 — 봇 마켓에서 담은 봇도 반 봇과 같은
+ * 챗·기록으로 들어가므로 홈이 갈릴 이유가 없다(계약 §5). 스토어 자체는 남아 있고
+ * (`components/classbot/replay-detail.tsx` 가 아직 읽는다) 여기서 읽지 않을 뿐이다.
+ *
+ * ## 참여 안내 홈으로 갈리는 기준 — **참여한 반이 0곳일 때**다
+ *
+ * 개정 박스 ① 의 표가 그렇게 적는다 — 「홈은 하나다. **참여한 반이 0곳일 때의 빈 홈은 그대로
+ * 참여 코드 히어로다**」. 담기는 반 참여가 아니라서(계약 §1) 마켓에서 봇만 담은 학생도 이
+ * 화면을 본다.
+ *
+ * **그래서 이 화면을 막다른 길로 두지 않는 것이 짝이다.** 잠긴 결정 3(「standalone-capable」)은
+ * 개정 뒤에도 유효하고(§⑤ 대체표), 선생님이 없는 학생에게 참여 코드가 유일한 출구면 그건
+ * 막다른 길이다. 그래서 `TeacherClassHome` 이 ① hero 에 **봇 마켓** 출구를 나란히 두고
+ * ② 담은 봇이 있으면 그 봇들을 여기서도 보여 준다. 「반 0곳이면 참여 코드 hero」와 「혼자
+ * 쓸 수 있다」가 그렇게 함께 선다.
+ *
+ * 참여 코드 입구가 사라지지도 않는다 — 상시 입구는 내비의 「내 수업방」(`/classbot/classroom`)이고,
+ * 반이 생기면 `JoinedClasses` 가 홈에도 그 링크를 띄운다(반이 0 이면 스스로 숨는다).
  */
 export default function StudentClassbotPage() {
   // ── hooks (ALL unconditional — Rules of Hooks) ──────────────────────────────
-  const { mode, hydrated } = useStudentMode();            // hook 1 — must be first
+  // hook 1 — 참여(persist) 하이드레이션. 예전엔 학습 모드 스토어가 이 신호를 겸했는데
+  // 홈이 더는 모드로 갈리지 않으므로(위 머리주석) 참여 스토어를 직접 본다.
+  const hydrated = useStoresHydrated(useClassEnrollmentStore);
   const me = useRosterMe();                               // hook 2
   const activeLive = useLiveStore(s => s.active);         // hook 3
   const allAssignments = useMergedAssignments(me.id);     // hook 4
   const submissions = useAssignmentStore(s => s.submissions); // hook 5
-  const myBots = useMyClassBots();                        // hook 6 — 참여 코드로 join된 교사 클래스 (reactive)
-  const leaveClass = useClassEnrollmentStore(s => s.leave); // hook 7
+  // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
+  // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
+  // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
+  const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
+  // hook 6-b — 반 봇 + 담은 봇을 합친 목록. 홈이 갈리는 기준이자 「내 봇」 칸의 원본이다.
+  // (안쪽에서 `useMyRooms()` 를 다시 부르지만 같은 캐시·같은 스토어라 값이 갈리지 않는다.)
+  const { slots: allBots, isLoading: botsLoading } = useStudentBots();
+  // hook 6-c — 연속 학습일. **저장하지 않고 「공부한 날」 배열에서 계산한다**
+  // (`hooks/api/self-bots.ts`). 히어로의 스트릭 칩과 「나의 성장」이 이 한 값을 함께 쓴다 —
+  // 한쪽만 데모 페르소나를 읽으면 같은 화면의 두 숫자가 어긋나고, 개발용 신원을 바꿔도
+  // 남의 기록이 그대로 인증된다.
+  const streak = useSelfStreak();
   // 가벼운 모드(Light Day) — 저조 신호·상태·hydration (spec §6 홈 배선). todayKey 는 같은 날 안정적.
-  const lowToday = useLowConditionToday(me.id);           // hook 8
-  const lightOn = useLightDayOn(todayKey());              // hook 9
-  const { enable: enableLight, disable: disableLight } = useLightDayActions(); // hook 10
-  const lightHydrated = useStoresHydrated(useLightDayStore); // hook 11
+  const lowToday = useLowConditionToday(me.id);           // hook 7
+  const lightOn = useLightDayOn(todayKey());              // hook 8
+  const { enable: enableLight, disable: disableLight } = useLightDayActions(); // hook 9
+  const lightHydrated = useStoresHydrated(useLightDayStore); // hook 10
 
-  // persist(mode·enrollment) hydration 전에는 모드/봇이 빈 상태로 평가됨 → 분기를 신뢰할 수 없다.
-  // hydration 완료 전까지 스켈레톤을 그려 SSR·첫 페인트 불일치와 모드 전환 플래시를 막는다.
+  // persist(참여) hydration 전에는 봇이 빈 상태로 평가됨 → 분기를 신뢰할 수 없다.
+  // hydration 완료 전까지 스켈레톤을 그려 SSR·첫 페인트 불일치와 빈 홈 플래시를 막는다.
   if (!hydrated) return <HomeSkeleton />;
 
-  // 모드별 분기 — hooks 전부 실행 후 render만 분기 (Rules of Hooks 준수)
-  // 클래스 0개 홈도 spec §6 데이터 흐름 그대로 — 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
+  // 반 목록·담은 봇이 아직 안 왔는데 「반이 0곳」으로 단정하면, 반이 있는 학생에게도 참여
+  // hero 가 한 번 번쩍인다 — 도착할 때까지는 스켈레톤으로 자리를 지킨다.
+  if (myBots.length === 0 && (roomsLoading || botsLoading)) return <HomeSkeleton />;
+
+  // 반 목록을 **못 읽었으면** 「반이 0곳」으로 확정하지 않는다 — 실제로 반이 있는 학생에게
+  // 참여 코드 hero 를 내밀면 「내 반이 사라졌다」로 읽힌다. 다시 시도를 준다.
+  if (myBots.length === 0 && roomsError) {
+    return (
+      <div className="space-y-5">
+        <ReadErrorState onRetry={retryRooms} />
+      </div>
+    );
+  }
+
+  // 참여한 반이 0곳인 홈 — spec §6 데이터 흐름 그대로. 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
   // on 이면 해제 안전망 스트립(TodoPanel 이 없어 같은 날 원복 계약 §3/§8 을 스트립이 보장, R3).
-  if (mode === 'class' && myBots.length === 0) {
+  // 담은 봇은 여기서도 보인다 — 위 머리주석의 「갈리는 기준」 참조.
+  if (myBots.length === 0) {
     return (
       <div className="space-y-5">
         {lightHydrated && lowToday && !lightOn && (
           <LightDayNudge onEnable={() => enableLight(todayKey())} />
         )}
         {lightHydrated && lightOn && <LightDayExitStrip onExit={disableLight} />}
-        <TeacherClassHome />
+        <TeacherClassHome
+          selfBots={allBots.filter((s) => s.source === 'self')}
+          activeLive={activeLive}
+        />
       </div>
     );
   }
-  if (mode === 'self') return <SelfHomePlaceholder />;
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
+  // 웰빙 한 마디 — **반 봇**이 건네는 말이라 `myBots` 로만 잰다(위 머리주석 4번).
+  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
 
   // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
   // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
@@ -80,13 +139,10 @@ export default function StudentClassbotPage() {
       return order(a.dDay) - order(b.dDay);
     });
 
-  // 웰빙 코멘트도 홈과 같은 데이터 소스(useMyClassBots)를 쓰도록 봇 주입 — join 반영 일관성
-  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
-
   // suppress unused var lint — submissions hook is retained for hook ordering
   void submissions;
 
-  // ── class mode JSX ─────────────────────────────────────────────────────────
+  // ── 참여한 방이 있는 홈 ─────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       {/* 0. LightDayNudge — 저조 신호 & 아직 opt-in 전이면 홈 상단에 (hydration 후에만, spec §8) */}
@@ -95,10 +151,11 @@ export default function StudentClassbotPage() {
       )}
 
       {/* 1. LearningHero — navy band */}
-      <LearningHero incompleteAssignments={incompleteAssignments} />
+      <LearningHero incompleteAssignments={incompleteAssignments} name={me.name} streakDays={streak.count} />
 
       {/* 2. TutorShowcase — personality cards */}
-      <TutorShowcase bots={myBots} activeLive={activeLive} />
+      {/* 반 봇 + 담은 봇을 한 칸에 — 학생에게 둘은 「내 봇」 한 종류다(계약 §5) */}
+      <TutorShowcase bots={allBots} activeLive={activeLive} />
 
       {/* 3. Two-column panel — 오늘 할 일 + 나의 성장 (라이트 데이면 핵심 1개로 축소 렌더) */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -108,41 +165,20 @@ export default function StudentClassbotPage() {
           light={lightHydrated && lightOn}
           onExitLight={disableLight}
         />
-        <GrowthPanel />
+        <GrowthPanel streakDays={streak.count} />
       </div>
 
       {/* 4. WellnessNudge — optional */}
       {wellnessComment && <WellnessNudge comment={wellnessComment} />}
 
-      {/* 5. 참여 중인 클래스 — 반 단위 나가기 (전체 일괄 삭제 금지) */}
-      <div className="space-y-1.5 pt-2">
-        <p className="px-1 text-xs font-semibold text-pullim-slate-400">참여 중인 클래스</p>
-        <ul className="space-y-1.5">
-          {myBots.map(({ bot, enrollment }) => (
-            <li
-              key={bot.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-pullim-slate-200 bg-white px-3 py-2"
-            >
-              <span className="min-w-0 truncate text-sm text-pullim-slate-700">
-                {enrollment.classroomLabel} · {enrollment.assignedBy}
-              </span>
-              <button
-                type="button"
-                onClick={() => leaveClass(bot.id)}
-                aria-label={`${enrollment.classroomLabel} 나가기`}
-                className="min-h-11 shrink-0 rounded-lg px-3 text-xs font-medium text-pullim-slate-400 underline-offset-2 hover:text-pullim-slate-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50"
-              >
-                나가기
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* 5. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
+          반별 나가기는 여기 없다 — 그 버튼은 `/classbot/classroom` 의 반 카드에 있다. */}
+      <JoinedClasses rooms={myBots} />
     </div>
   );
 }
 
-/** persist hydration 전 플레이스홀더 — 모드 분기 확정 전 레이아웃 유지(플래시 방지). */
+/** persist hydration 전 플레이스홀더 — 참여 목록 확정 전 레이아웃 유지(플래시 방지). */
 function HomeSkeleton() {
   return (
     <div className="space-y-5" aria-hidden="true">

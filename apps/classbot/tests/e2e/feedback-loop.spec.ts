@@ -28,8 +28,8 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
               {
                 botId: 'cb_001',
                 classroomId: 'cr_math_a',
-                classroomLabel: '고2 미적분 A반',
-                assignedBy: '김수학 선생님',
+                classroomLabel: '중2 수학 A반',
+                assignedBy: '김보람 선생님',
                 assignedAt: '2026-06-24 09:00',
                 via: '대치프리미엄 수학학원',
               },

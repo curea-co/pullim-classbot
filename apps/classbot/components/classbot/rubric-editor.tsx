@@ -14,13 +14,20 @@ type RubricItem = GradingItem['rubric'][number];
 export function RubricEditor({
   initialRubric,
   onChange,
+  readOnly = false,
 }: {
   initialRubric: RubricItem[];
   onChange?: (next: RubricItem[], total: number) => void;
+  /**
+   * 확정된 채점은 잠근다. 이게 없으면 승인 뒤에도 슬라이더가 움직여
+   * 내부 state 의 「최종」과 바깥 최종 점수가 한 화면에서 서로 다른 값을 보인다.
+   */
+  readOnly?: boolean;
 }) {
   const [rubric, setRubric] = useState<RubricItem[]>(initialRubric);
 
   function updateScore(idx: number, value: number) {
+    if (readOnly) return;
     const next = rubric.map((r, i) => i === idx ? { ...r, score: value } : r);
     setRubric(next);
     const total = next.reduce((s, r) => s + r.score, 0);
@@ -36,11 +43,13 @@ export function RubricEditor({
         <div>
           <h3 className="text-pullim-slate-900 text-sm font-bold">루브릭 검수</h3>
           <p className="text-pullim-slate-500 text-2xs">
-            항목별 점수를 보고 필요하면 조정해주세요. (가중치 합 {weightSum}%)
+            {readOnly
+              ? `확정한 채점이라 더 고칠 수 없어요. (가중치 합 ${weightSum}%)`
+              : `항목별 점수를 보고 필요하면 조정해주세요. (가중치 합 ${weightSum}%)`}
           </p>
         </div>
         <div className="text-right">
-          <div className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">최종</div>
+          <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">최종</div>
           <ScoreDisplay score={totalPct} max={100} size="lg" tone="fixed-accent" />
         </div>
       </header>
@@ -53,7 +62,7 @@ export function RubricEditor({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-pullim-slate-900 text-xs font-bold">{r.criterion}</span>
-                    <span className="text-pullim-slate-400 font-mono text-micro">가중 {r.weight}%</span>
+                    <span className="text-pullim-slate-500 font-mono text-2xs">가중 {r.weight}%</span>
                   </div>
                   <p className="text-pullim-slate-500 mt-0.5 text-2xs">
                     <span className="text-pullim-slate-400 font-bold">AI 사유:</span> {r.reason}
@@ -63,12 +72,17 @@ export function RubricEditor({
                   <ScoreDisplay score={r.score} max={r.weight} size="md" tone="threshold" />
                 </div>
               </div>
+              {/* 예전에는 여기 루트에 `readOnly && 'opacity-60'` 을 손으로 붙였다.
+                  Slider thumb 의 흐림이 `disabled:` 접두사라 매치되지 않아서 낸
+                  우회였다. 계약은 JS 조건부 opacity 를 금지한다 — 후퇴는
+                  접두사 variant 로만 한다. thumb 이 이제 스스로 흐려지므로 지웠다. */}
               <Slider
                 min={0}
                 max={r.weight}
                 step={1}
                 value={r.score}
                 onValueChange={(v) => updateScore(i, Array.isArray(v) ? v[0] : v)}
+                disabled={readOnly}
                 aria-label={`${r.criterion} 점수`}
                 className="mt-2"
               />

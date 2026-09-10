@@ -5,9 +5,9 @@
  */
 
 import {
-  Home, MessageCircle, GraduationCap, History, Compass, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, Heart,
-  ClipboardCheck, BarChart3,
+  Home, MessageCircle, GraduationCap, BookOpen,
+  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School,
+  ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -27,6 +27,8 @@ export type NavSubItem = {
   label: string;
   icon?: LucideIcon;
   badge?: number | string;
+  /** 이 항목 소속이지만 href 아래에 있지 않은 경로 (NavItem 과 같은 뜻) */
+  matchPrefix?: string[];
   description?: string;
   locked?: boolean;
 };
@@ -37,17 +39,50 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-export type Role = 'student' | 'teacher';
+/**
+ * **셸이 가진 역할** — `AppShell role=…` 로 실제 들어오는 값만 적는다.
+ *
+ * `role` 을 넘기는 곳은 `app/(student)` · `app/(teacher)` · `app/(parent)` 세 레이아웃이라 셋이다.
+ * 종전에는 둘이었다 — `app/(parent)` 트리가 없어서, 셸이 받을 수 없는 값을 미리 세워 두면
+ * `navForRole` · breadcrumb · 헤더의 `Record<Role, …>` 표들이 **없는 `/parent` 를 가리키는
+ * 답**을 적어 두게 되기 때문이다.
+ *
+ * **그 화면이 이 PR 에서 도착했다.** union 을 넓히는 순간 아래 `switch` 와 헤더 표 셋이
+ * **빠짐없음(exhaustiveness)** 으로 컴파일에 걸려, 「홈은 어디인가 · 라벨은 무엇인가」를
+ * 한 자리씩 답하게 됐다.
+ *
+ * **신원 층은 이것과 다르다.** 서버는 이미 학부모를 말한다 — 개발용 신원 allowlist 에
+ * `parent_001` 이 있고(`lib/dev-identity.ts` 의 `DevIdentityRole`), 해석기가
+ * `role: 'parent'` 를 돌려준다(`lib/current-user.ts` 의 `AppUserRole`). 그래서
+ * `/api/*` 가 학생 표면에서 학부모를 403 으로 막는다(`app/api/_lib/guards.ts`).
+ * **명의가 셋, 셸도 이제 셋** — 1/6 이 남겨 둔 그 어긋남을 이 PR 이 지운다.
+ */
+export type Role = 'student' | 'teacher' | 'parent';
 
 /** 풀림 클래스봇(학생) 섹션 */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
+  // 참여 코드 입력이 여기 산다. 예전엔 참여한 반이 0개일 때만 뜨는 홈 히어로가 유일한
+  // 입구라, 한 반에 들어간 뒤엔 다른 선생님 반에 들어갈 길이 화면에서 사라졌다.
+  { href: '/classbot/classroom',  label: '내 수업방',   icon: GraduationCap, description: '참여한 반 · 코드로 참여하기' },
+  // 마켓에서 담은 봇이 사는 자리. 「내 수업방」 바로 뒤에 두는 이유는 봇이 사는 곳 둘이
+  // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
+  // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
+  { href: '/classbot/my-bots',    label: '담은 봇',     icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
+  // 담은 봇이 오는 곳이라 바로 뒤에 둔다. 레일에 세우는 이유: 이미 반과 담은 봇이 있는 학생은
+  // 빈 상태 안내를 두 번 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 **새 봇을 찾을 길이
+  // 사라진다.** 종전에 닫아 뒀던 것은 화면이 mock 「공식 튜터 마켓」이라 레일 라벨과 도착지가
+  // 어긋났기 때문이고, 이 PR 이 그 화면을 교사 공유 봇으로 갈아끼우므로 함께 연다
+  // (`proc/spec/03 § 2.1`).
+  { href: '/classbot/discover',   label: '봇 마켓',     icon: Compass,       description: '교사가 공유한 봇 둘러보기 · 담기' },
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
-  { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능' },
-  { href: '/classbot/wellness',   label: '내 웰빙',     icon: Heart,         description: '오늘 기분 체크인 + 본인 리포트' },
-  { href: '/classbot/replay',     label: '리플레이',    icon: History,       description: '지난 수업 다시 보기 — 봇별 필터' },
-  { href: '/classbot/discover',   label: '봇 찾기',     icon: Compass,       description: '공식 봇 마켓 — 자발 등록' },
-  { href: '/classbot/onboarding', label: '소개하기',    icon: BookOpen,      description: '4분 사용법 가이드' },
+  // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
+  // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
+  { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
+  { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
+  // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
+  // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
+  { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
 
 /** 사이드바 최상단 — 홈은 클래스봇과 동일 진입점 */
@@ -77,16 +112,51 @@ export const teacherNav: NavGroup[] = [
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
-      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
+      // 반을 열고 참여 코드를 내는 곳. 학생을 들이는 유일한 입구라 홈 바로 다음에 둔다.
+      { href: '/teacher/classroom', label: '내 수업방',  icon: School,          description: '반 만들기 · 참여 코드 · 참여 학생' },
+      // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
+      // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
+      // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
+      // 나중에 형제 경로가 생기면 소속을 새로 정하게 두려는 것이다(조용히 물려받지 않게).
+      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링', matchPrefix: ['/teacher/assignment/new'] },
+      // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
+      //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
       { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
+      // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
+      // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
+      // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).
+      { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
+      // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
+      { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
+      // 내 봇을 밖에 게시하고, 다른 선생님이 게시한 봇을 둘러보는 곳.
+      // 게시 버튼 자체는 「내 수업방」 카드에 있다 — 실제 DB 봇이 거기 있어서다.
+      { href: '/teacher/marketplace', label: '봇 마켓', icon: Compass,       description: '공유된 봇 둘러보기 · 내 봇 공유' },
     ],
   },
   {
     label: '평가',
     items: [
-      { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: 'AI 초안 검수 큐' },
+      { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: '학생 전체 · AI 초안 검수' },
       { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
-      { href: '/teacher/replay',   label: '수업 리플레이', icon: History,        description: 'AI 가공본 검수·발송' },
+      // 기획 보류 — 수업 리플레이(/teacher/replay) 진입점 비노출. 재개 시 되살린다
+    ],
+  },
+];
+
+/**
+ * 학부모 레일 — 자녀 요약 + 자녀 과제 둘뿐.
+ *
+ * 1/6 은 `Role` 을 `student | teacher` 로 두고 이 레일을 비워 뒀다 — 화면이 없는 역할의
+ * 메뉴를 먼저 열면 누르는 즉시 404 라서다. `/parent` · `/parent/assignments` 가 이 PR 에서
+ * 도착하므로 **여기서 `Role` 확장과 함께 레일이 열린다.**
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 둘로 고정이다(계약 §6).
+ */
+export const parentNav: NavGroup[] = [
+  {
+    label: '',
+    items: [
+      { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
+      { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
     ],
   },
 ];
@@ -95,16 +165,18 @@ export function navForRole(role: Role): NavGroup[] {
   switch (role) {
     case 'student': return studentNav;
     case 'teacher': return teacherNav;
+    case 'parent': return parentNav;
   }
 }
 
-/** 모바일 하단 탭 — 학생 클래스봇 sub-route 5개 */
+/** 모바일 하단 탭 — 학생 클래스봇 sub-route 3개 (웰빙·리플레이는 기획 보류로 비노출) */
 export const studentBottomTabs = [
   { href: '/classbot',            label: '홈',       icon: Home,          matchPrefix: ['/classbot'] as string[] },
   { href: '/classbot/assignment', label: '과제',     icon: Target,        matchPrefix: ['/classbot/assignment'] as string[] },
-  { href: '/classbot/chat',       label: '대화',     icon: MessageCircle, matchPrefix: ['/classbot/chat'] as string[] },
-  { href: '/classbot/wellness',   label: '웰빙',     icon: Heart,         matchPrefix: ['/classbot/wellness', '/classbot/me'] as string[] },
-  { href: '/classbot/replay',     label: '리플레이', icon: History,       matchPrefix: ['/classbot/replay'] as string[] },
+  // 커리큘럼(`/classbot/learn/*`)은 레일의 「봇 대화」와 같은 소속이다 — 같은 화면인데
+  // 레일만 켜지고 탭은 꺼져 있으면 모바일에서 「내가 어디 있는지」를 잃는다.
+  // `/classbot/chat` 은 여기 적지 않는다 — 정확 일치와 경계 접두사가 이미 잡는다.
+  { href: '/classbot/chat',       label: '대화',     icon: MessageCircle, matchPrefix: ['/classbot/learn'] as string[] },
 ] as const;
 
 export function findActiveSection(pathname: string, role: Role): NavItem | undefined {
@@ -142,9 +214,15 @@ export function findActiveNav(pathname: string, role: Role): NavItem | undefined
 
 export function buildBreadcrumb(pathname: string, role: Role): { label: string; href?: string }[] {
   const nav = navForRole(role);
-  const root =
-    role === 'student' ? { label: '풀림 클래스봇', href: '/' }
-    : { label: '풀림 교사', href: '/teacher' };
+  // 역할마다 뿌리가 다르다. **표로 둔다** — 이분법(삼항)으로 두면 새 역할이 조용히 교사 뿌리를
+  // 물려받는다. 실제로 학부모를 union 에 넣은 첫 판에서 `/parent` 가 「풀림 교사 › 홈」을
+  // 달고 떴다. `Record<Role, …>` 는 역할이 늘면 **컴파일에 걸려** 이 자리를 답하게 한다.
+  const roots: Record<Role, { label: string; href: string }> = {
+    student: { label: '풀림 클래스봇', href: '/' },
+    teacher: { label: '풀림 교사', href: '/teacher' },
+    parent: { label: '풀림 학부모', href: '/parent' },
+  };
+  const root = roots[role];
   const trail: { label: string; href?: string }[] = [root];
 
   if (pathname === root.href) return trail;

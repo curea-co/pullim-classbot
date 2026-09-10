@@ -77,7 +77,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-full font-sans">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+        {/* 명암 축은 PUDS 의 `data-scheme` 이다 — `data-theme` 슬롯은 성격(pullim-os)이
+            점유했고, `.dark` 클래스로는 PUDS 토큰 파일의 다크 블록이 매치되지 않는다.
+            (app/globals.css 상단 `@custom-variant dark` 도 같은 축을 본다.) */}
+        <ThemeProvider attribute="data-scheme" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <QueryProvider>
             <AuthProvider>
               <TooltipProvider delay={120}>{children}</TooltipProvider>

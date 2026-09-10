@@ -15,7 +15,7 @@ it('math demo: wrong-quiz weak point @1100 links to a seeded 〈보기〉 exam q
   expect(getReplayQuiz('rp_demo_math', 1100)?.boxed).toBeDefined();
 });
 
-it('math demo: low-focus weak point @1920 is owned (변곡점) and has no re-attempt quiz', () => {
+it('math demo: low-focus weak point @1920 is owned (그래프 그리기) and has no re-attempt quiz', () => {
   const lowFocus = getReplayWeakPoints(byId('rp_demo_math')).find(p => p.reason === 'low-focus');
   expect(lowFocus?.atSec).toBe(1920);
   expect(getReplayQuiz('rp_demo_math', 1920)).toBeNull();

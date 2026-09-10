@@ -102,7 +102,7 @@ export function ReplayRecap({
 
         {open.length === 0 ? (
           <p className="rounded-xl bg-pullim-slate-50 px-3 py-4 text-center text-sm text-pullim-slate-500">
-            막힌 곳을 모두 정리했어요 🎉
+            막힌 곳을 모두 정리했어요
           </p>
         ) : (
           <ul className="space-y-2">

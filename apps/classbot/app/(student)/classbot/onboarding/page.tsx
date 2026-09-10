@@ -23,18 +23,18 @@ export default function ClassbotOnboardingPage() {
       Icon={GraduationCap}
       identity="내 봇은 우리 선생님이 직접 만든 AI 친구예요. 언제 어디서든 수업 그대로 물어볼 수 있어요."
       estimatedMin={4}
-      finalHeading="이제 '수학이 형'한테 인사해 볼까요?"
+      finalHeading="이제 '수학봇'한테 인사해 볼까요?"
       finalBody="이제 직접 사용해 보세요. 막히면 언제든 이 페이지로 돌아올 수 있어요."
       steps={[
         {
           Icon: UserCircle,
           title: '내가 받은 봇은 진짜 우리 선생님이 만든 거예요',
           description:
-            "‘수학이 형’은 김수학 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요. 다른 반 봇이랑 달라요.",
+            "‘수학봇’은 김보람 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요. 다른 반 봇이랑 달라요.",
           bullets: [
             '선생님이 직접 말투(친근·정중·엄격)도 미리 정해 둬요',
             '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 뒀어요',
-            '네가 풀수록 봇도 점점 똑똑해져요',
+            '내가 어디서 막혔는지 선생님이 보고 다음 수업을 고쳐요',
           ],
           screenshot: (
             <MockBrowser dark label="봇 정체성">
@@ -82,7 +82,7 @@ export default function ClassbotOnboardingPage() {
                           {isCurrent && <Check aria-hidden className="h-2.5 w-2.5" />}
                           L{l}
                         </span>
-                        <span className={isCurrent ? 'text-pullim-blue-700 text-micro' : 'text-micro'}>
+                        <span className={isCurrent ? 'text-pullim-blue-700 text-2xs' : 'text-2xs'}>
                           {label}
                         </span>
                       </li>
@@ -99,7 +99,7 @@ export default function ClassbotOnboardingPage() {
         },
         {
           Icon: MessageCircle,
-          title: '직접 봇에게 인사해 봐요 — 첫 손맛!',
+          title: '직접 봇에게 인사해 봐요',
           description:
             '아래 입력창에 뭐든 써봐요. 실제로 대화하는 게 가장 빠른 설명이에요.',
           demoSlot: <DemoChat onDone={scrollToNextStep} />,
@@ -111,16 +111,15 @@ export default function ClassbotOnboardingPage() {
             '내가 봇에게 한 질문, 답변, 정답률까지 선생님 화면에 그대로 보여요. 덕분에 선생님이 내가 어디서 막히는지 바로 알 수 있어요.',
           bullets: [
             '내가 봇과 한 모든 활동은 기록돼요',
-            '이름을 가린 채 봇이 더 똑똑해지는 데 쓰여요',
-            '틀린 문제는 풀림 복습에 자동으로 모여요',
+            '자주 틀린 문제는 선생님이 다음 과제에 다시 넣어 줘요',
           ],
-          cta: { label: '지금 봇에게 물어보기', href: '/classbot/chat' },
+          cta: { label: '물어보기', ariaLabel: '지금 봇에게 물어보기', href: '/classbot/chat' },
           screenshot: (
             <MockBrowser dark label="teacher/classbot — 실시간 피드">
               <ul className="space-y-1.5">
                 {[
-                  { name: '서연', q: '극값과 극점이 다른 거예요?', shared: false, ago: '방금' },
-                  { name: '하윤', q: 'f\'(x)=0이면 무조건 극값?', shared: true, ago: '1분 전' },
+                  { name: '서연', q: '기울기랑 y절편이 뭐가 달라요?', shared: false, ago: '방금' },
+                  { name: '하윤', q: 'y = 3x 면 y절편은 없어요?', shared: true, ago: '1분 전' },
                   { name: '도현', q: '이거 너무 어려워요...', shared: false, ago: '3분 전' },
                 ].map((q, i) => (
                   <li
@@ -128,7 +127,7 @@ export default function ClassbotOnboardingPage() {
                     className={
                       'rounded-md border p-1.5 text-white ' +
                       (q.shared
-                        ? 'bg-pullim-lemon/15 border-pullim-lemon-ink/20'
+                        ? 'bg-pullim-blue-900 border-pullim-blue-400'
                         : 'bg-pullim-slate-900 border-pullim-slate-800')
                     }
                   >
@@ -140,7 +139,7 @@ export default function ClassbotOnboardingPage() {
                       <span className="text-pullim-slate-400">·</span>
                       <span className="text-pullim-slate-400 font-mono">{q.ago}</span>
                       {q.shared && (
-                        <span className="bg-pullim-lemon-ink text-pullim-lemon ml-auto rounded-full px-1 py-0.5 text-2xs font-bold">
+                        <span className="text-pullim-blue-900 ml-auto rounded-full bg-white px-1 py-0.5 text-2xs font-bold">
                           공유됨
                         </span>
                       )}
@@ -153,7 +152,7 @@ export default function ClassbotOnboardingPage() {
           ),
         },
       ]}
-      finalCta={{ label: '수학이 형과 대화 시작하기', href: '/classbot/chat' }}
+      finalCta={{ label: '대화 시작', ariaLabel: '수학봇과 대화 시작하기', href: '/classbot/chat' }}
     />
   );
 }

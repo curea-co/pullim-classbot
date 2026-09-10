@@ -9,7 +9,7 @@ import BackLink from '@/components/classbot/back-link';
 import { Textarea } from '@/components/ui/textarea';
 import { type EmotionMood } from '@/lib/mock';
 import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
-import { useModeBots } from '@/lib/store/mode-bots';
+import { useClassBots } from '@/lib/store/mode-bots';
 import { useRosterMe } from '@/lib/current-user';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
@@ -20,7 +20,8 @@ import { botSignature } from '@/lib/tokens/bot-signature';
 export function CheckInForm() {
   const router = useRouter();
   const me = useRosterMe();
-  const modeBots = useModeBots();   // 모드별 봇 구독 — 체크인 봇 반응에 주입
+  // 체크인 봇 반응은 **반 봇**만 낸다 — 담은 봇에는 교사 관계가 없다(계약 §1).
+  const enrolledBots = useClassBots();
   const [mood, setMood] = useState<EmotionMood | null>(null);
   const [intensityRange, setIntensityRange] = useState<[number, number]>([2, 4]);
   const [freeText, setFreeText] = useState('');
@@ -43,7 +44,7 @@ export function CheckInForm() {
 
   if (done) {
     // [13 § 3.3.4] 체크인 사후 봇 반응 — 가장 낮은 영역 담당 봇이 한 줄 + actionable CTA
-    const reaction = getCheckInReaction(me.id, mood, modeBots);
+    const reaction = getCheckInReaction(me.id, mood, enrolledBots);
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="bg-pullim-blue-50 pullim-anim-message-mount flex h-20 w-20 items-center justify-center rounded-full">
@@ -56,10 +57,7 @@ export function CheckInForm() {
         {reaction && (() => {
           const sig = botSignature(reaction.bot);
           return (
-            <section
-              className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border border-l-[4px] p-3 text-left"
-              style={{ borderLeftColor: sig.hex }}
-            >
+            <section className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border p-3 text-left">
               <div className="flex items-center gap-2">
                 <span
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
@@ -76,7 +74,8 @@ export function CheckInForm() {
               <p className="text-pullim-slate-700 mt-2 text-sm leading-relaxed">&ldquo;{reaction.text}&rdquo;</p>
               <Link
                 href={reaction.ctaHref}
-                className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
+                className="hover:bg-pullim-slate-50 mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors"
+                // [13 § 456] 봇 시그니처 ghost CTA
                 style={{ borderColor: sig.inkLight, color: sig.inkLight }}
               >
                 {reaction.ctaLabel}
@@ -91,14 +90,15 @@ export function CheckInForm() {
             href="/classbot/me/report"
             className="bg-pullim-slate-100 hover:bg-pullim-slate-200 text-pullim-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold"
           >
-            내 리포트 보기
+            내 리포트
           </Link>
           <button
             type="button"
             onClick={() => router.push('/classbot')}
+            aria-label="클래스봇 홈으로 가기"
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white"
           >
-            홈으로
+            홈
           </button>
         </div>
       </div>
@@ -115,7 +115,6 @@ export function CheckInForm() {
           30초 체크인
         </div>
         <h1 className="text-pullim-slate-900 mt-1 text-2xl font-bold tracking-tight">오늘 어땠어요?</h1>
-        <p className="text-pullim-slate-500 mt-1 text-xs">짚고 가요. 부담 갖지 않아도 돼요.</p>
       </header>
 
       <section className="bg-card rounded-2xl border p-5">

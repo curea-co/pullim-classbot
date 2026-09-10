@@ -2,10 +2,10 @@ import { parseInline, parseBlocks } from '../rich-text';
 
 describe('parseInline', () => {
   it('굵게/코드/평문을 노드로 분해한다', () => {
-    expect(parseInline('극값 = **부호 변화** 점이야')).toEqual([
-      { type: 'text', value: '극값 = ' },
-      { type: 'bold', value: '부호 변화' },
-      { type: 'text', value: ' 점이야' },
+    expect(parseInline('기울기 = **변화량의 비** 야')).toEqual([
+      { type: 'text', value: '기울기 = ' },
+      { type: 'bold', value: '변화량의 비' },
+      { type: 'text', value: ' 야' },
     ]);
   });
 
@@ -43,7 +43,7 @@ describe('parseBlocks', () => {
   });
 
   it('번호(① / 1)) 줄을 ol 블록으로 묶고 marker 를 보존한다', () => {
-    const blocks = parseBlocks('① 도함수\n② 임계점');
+    const blocks = parseBlocks('① 기울기\n② y절편');
     expect(blocks[0].type).toBe('ol');
     if (blocks[0].type === 'ol') {
       expect(blocks[0].items[0].marker).toBe('①');

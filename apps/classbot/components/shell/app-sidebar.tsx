@@ -142,7 +142,7 @@ function FullNav({
         return (
           <div key={group.label}>
             {showLabel && (
-              <div className="text-pullim-slate-400 px-2 py-1 text-micro font-bold tracking-wider uppercase">
+              <div className="text-pullim-slate-500 px-2 py-1 text-2xs font-bold tracking-wider uppercase">
                 {group.label}
               </div>
             )}

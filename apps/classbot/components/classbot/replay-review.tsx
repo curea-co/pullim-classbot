@@ -11,7 +11,6 @@ import {
   type Replay, formatReplayTime,
 } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,7 +22,7 @@ const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; c
   'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
   'quiz':      { label: '퀴즈',     color: 'bg-pullim-blue-600',  icon: Target },
   'student-q': { label: '학생 질문', color: 'bg-pullim-blue-700',  icon: MessageCircle },
-  'sharing':   { label: '전체공유', color: 'bg-pullim-lemon',     icon: Eye },
+  'sharing':   { label: '전체공유', color: 'bg-pullim-blue-200',  icon: Eye },
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: AlertTriangle },
 };
 
@@ -92,10 +91,6 @@ export function ReplayReview({ replay }: { replay: Replay }) {
           <FocusHeatmapPreview bins={replay.focusBins} />
         </>
       )}
-
-      <FlywheelNote>
-        검토하면서 가린 라인 + 다시 강조한 핵심 메시지는 다음 수업 때 봇 페르소나·교안 RAG에 자동 반영돼요.
-      </FlywheelNote>
     </div>
   );
 }
@@ -131,9 +126,9 @@ function ProcessingPane() {
   return (
     <section className="from-pullim-slate-900 to-pullim-blue-900 rounded-2xl bg-gradient-to-br p-6 text-white shadow-xl">
       <div className="flex items-center gap-3">
-        <Loader2 className="text-pullim-lemon h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin text-white" />
         <div>
-          <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+          <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
             AI 처리 중
           </div>
           <h2 className="mt-0.5 text-base font-bold">트랜스크립트 + 핵심 메시지 + 집중도 추출</h2>
@@ -160,12 +155,14 @@ function ProcessStep({ label, done, active }: { label: string; done?: boolean; a
       <span className={cn(
         'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
         done ? 'bg-pullim-blue-400/30 text-pullim-blue-100' :
-        active ? 'bg-pullim-lemon text-pullim-lemon-ink' :
+        active ? 'text-pullim-slate-900 bg-white' :
         'bg-white/10 text-white/40',
       )}>
         {done ? <CheckCircle2 className="h-3 w-3" /> : active ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
       </span>
-      <span className={cn('text-white/80', done && 'line-through opacity-60', active && 'text-white font-bold')}>
+      {/* done 은 line-through 가 이미 말한다 — opacity 로 한 번 더 죽이지 않는다(계약 §4.1).
+          slate-900 배경 대비 4.94 → 11.69. */}
+      <span className={cn('text-white/80', done && 'line-through', active && 'text-white font-bold')}>
         {label}
       </span>
     </li>
@@ -249,7 +246,7 @@ function TranscriptVisibility({
             기본 모두 노출. 가리고 싶은 라인을 눌러서 비공개로.
           </p>
         </div>
-        <span className="text-pullim-slate-400 text-micro font-mono">
+        <span className="text-pullim-slate-500 text-2xs font-mono">
           {replay.transcript.length - hiddenLines.size}/{replay.transcript.length} 노출
         </span>
       </header>
@@ -268,7 +265,7 @@ function TranscriptVisibility({
                   hidden ? 'bg-pullim-slate-50/60 hover:bg-pullim-slate-100' : 'hover:bg-pullim-blue-50/30',
                 )}
               >
-                <div className="flex items-center gap-1.5 text-micro">
+                <div className="flex items-center gap-1.5 text-2xs">
                   <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                   <span className={cn(
                     'rounded-full px-1.5 py-0.5 font-bold',
@@ -279,7 +276,7 @@ function TranscriptVisibility({
                     {line.speaker}
                   </span>
                   {line.shared && (
-                    <span className="bg-pullim-lemon/20 text-pullim-lemon-ink rounded-full px-1.5 py-0.5 font-bold">
+                    <span className="text-pullim-slate-700 ring-pullim-slate-300 rounded-full px-1.5 py-0.5 font-bold ring-1 ring-inset">
                       전체 공유
                     </span>
                   )}
@@ -323,7 +320,7 @@ function TranscriptReadOnly({
       <ul className="divide-pullim-slate-100 max-h-[400px] divide-y overflow-y-auto">
         {visible.map((line, i) => (
           <li key={i} className="px-4 py-2.5">
-            <div className="flex items-center gap-1.5 text-micro">
+            <div className="flex items-center gap-1.5 text-2xs">
               <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 font-bold',
@@ -361,7 +358,7 @@ function SegmentsPreview({ replay }: { replay: Replay }) {
               </span>
               <span className="text-pullim-slate-500 font-mono font-bold">{seg.at}</span>
               <span className="text-pullim-slate-700 flex-1 truncate">{seg.label}</span>
-              <span className={cn('rounded-full px-2 py-0.5 text-micro font-bold', meta.color, 'text-white')}>
+              <span className={cn('rounded-full px-2 py-0.5 text-2xs font-bold', meta.color, 'text-white')}>
                 {meta.label}
               </span>
             </li>
@@ -431,7 +428,7 @@ function Stat({
 }) {
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3 py-2">
-      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-micro font-semibold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 inline-flex items-center gap-1 text-2xs font-semibold tracking-wider uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </div>
@@ -454,13 +451,13 @@ function ApproveBar({
   return (
     <div className="bg-pullim-slate-900 sticky bottom-3 z-10 rounded-2xl p-4 text-white shadow-xl lg:flex lg:items-center lg:gap-4">
       <div className="flex-1">
-        <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+        <div className="text-2xs font-bold tracking-wider text-white/70 uppercase">
           학생 발송 준비
         </div>
         <p className="text-sm">
-          핵심 메시지 <strong className="text-pullim-lemon font-mono">{takeawayCount}/3</strong>
+          핵심 메시지 <strong className="font-mono text-white">{takeawayCount}/3</strong>
           {' · '}
-          노출 라인 <strong className="text-pullim-lemon font-mono">{totalLines - hiddenCount}/{totalLines}</strong>
+          노출 라인 <strong className="font-mono text-white">{totalLines - hiddenCount}/{totalLines}</strong>
           {' · '}
           타임라인 마커·집중도 자동 포함
         </p>

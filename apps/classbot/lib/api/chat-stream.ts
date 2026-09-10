@@ -21,9 +21,10 @@
  * ⚠️ 이 모듈은 `USE_REAL_CORE_BE` 플래그를 보지 않는다 — 순수 transport. 플래그 게이트는 호출부
  *   (chat/page.tsx send)의 책임이다.
  */
-import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
+import { API_BASE } from '@/lib/auth/os-sso';
 
 import { domainFetch } from './domain-fetch';
+import { fetchWithOsCsrfRecovery } from './csrf-fetch';
 
 /** classbot 정본 표면 base — OS API 호스트의 서비스 경계 프리픽스(`/classbot/*`). */
 const CLASSBOT_API_BASE = `${API_BASE}/classbot`;
@@ -267,14 +268,11 @@ export async function streamChat(
   let res: Response;
   try {
     // write 표면 — CsrfGuard double-submit 토큰 첨부(domain-fetch write 와 동일 규약).
-    const csrf = await fetchOsCsrfToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     };
-    if (csrf) headers['X-CSRF-Token'] = csrf;
-
-    res = await fetch(`${CLASSBOT_API_BASE}/classes/${classId}/chat`, {
+    res = await fetchWithOsCsrfRecovery(`${CLASSBOT_API_BASE}/classes/${classId}/chat`, {
       method: 'POST',
       // OS access 쿠키(Domain=.pullim.ai, HttpOnly)를 cross-origin 자동 첨부.
       credentials: 'include',

@@ -45,7 +45,7 @@ export function ServiceSwitcher({ current, services, linkComponent = "a", classN
         aria-expanded={open}
         aria-label={`서비스 전환: ${active?.name ?? current}`}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-1.5 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-sunken)]"
+        className="inline-flex items-center gap-[var(--gap-md)] rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--pad-md)] py-[var(--pad-xs)] text-[length:var(--text-base)] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-sunken)]"
       >
         {active?.icon}
         <span>{active?.name ?? current}</span>
@@ -54,7 +54,7 @@ export function ServiceSwitcher({ current, services, linkComponent = "a", classN
       {open && (
         <div
           role="menu"
-          className="absolute left-0 z-50 mt-1 min-w-[200px] overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-1 shadow-[var(--shadow-lg)]"
+          className="absolute left-0 z-[var(--z-dropdown)] mt-[var(--gap-xs)] min-w-[200px] overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--pad-2xs)] shadow-[var(--shadow-lg)]"
         >
           {services.map((s) => (
             <Link
@@ -62,7 +62,7 @@ export function ServiceSwitcher({ current, services, linkComponent = "a", classN
               href={s.href}
               role="menuitem"
               aria-current={s.active ? "page" : undefined}
-              className="flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-sm text-[var(--text-primary)] no-underline transition-colors hover:bg-[var(--surface-sunken)]"
+              className="flex min-h-[var(--row-h-compact)] items-center gap-[var(--gap-md)] rounded-[var(--radius-sm)] px-[var(--pad-md)] py-[var(--pad-sm)] text-[length:var(--text-base)] text-[var(--text-primary)] no-underline transition-colors hover:bg-[var(--surface-sunken)]"
             >
               {s.icon}
               {s.name}

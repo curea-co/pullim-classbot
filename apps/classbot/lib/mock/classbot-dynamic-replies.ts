@@ -19,7 +19,7 @@ export type QuickReplyChipKind = 'guide' | 'ask';
 
 /**
  * 칩 응답키 → 시각 종류. 수업 흐름키(LESSON_FLOW_KEYS)면 guide, 그 외(today_summary/exam_prep/
- * reassurance/extremum 등)는 ask.
+ * reassurance/slope 등)는 ask.
  */
 export function quickReplyChipKind(key: QuickReplyKey): QuickReplyChipKind {
   return (LESSON_FLOW_KEYS as readonly string[]).includes(key) ? 'guide' : 'ask';
@@ -61,15 +61,15 @@ const FOLLOWUPS_BY_REPLY: Partial<Record<QuickReplyKey, ClassbotQuickPrompt[]>> 
     { text: '예제 풀어줘', expectedReplyKey: 'lesson_example' },
     { text: '퀴즈 내줘',   expectedReplyKey: 'lesson_quiz' },
   ],
-  extremum: [
-    { text: '극값 예제 더 보여줘', expectedReplyKey: 'today_summary' },
-    { text: '부호 변화 표 그리기', expectedReplyKey: 'extremum' },
-    { text: '오늘 수업 요약',     expectedReplyKey: 'today_summary' },
+  slope: [
+    { text: '기울기 예제 더 보여줘', expectedReplyKey: 'today_summary' },
+    { text: 'y절편도 알려줘',        expectedReplyKey: 'slope' },
+    { text: '오늘 수업 요약',       expectedReplyKey: 'today_summary' },
   ],
-  blank_inference: [
-    { text: '논리 접속사 예시',   expectedReplyKey: 'blank_inference' },
-    { text: '5~7번 유형 차이',    expectedReplyKey: 'blank_inference' },
-    { text: '오늘 수업 요약',     expectedReplyKey: 'today_summary' },
+  sentence_flow: [
+    { text: '연결어 예시 더 보기',   expectedReplyKey: 'sentence_flow' },
+    { text: '역접·인과 차이',        expectedReplyKey: 'sentence_flow' },
+    { text: '오늘 수업 요약',       expectedReplyKey: 'today_summary' },
   ],
   circuit: [
     { text: '직렬·병렬 헷갈려',   expectedReplyKey: 'circuit' },

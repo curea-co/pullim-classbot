@@ -1,16 +1,17 @@
 /**
- * 고등학생 페르소나 — 1차 타겟 (SKILL.md 1장).
+ * 학생 페르소나 — 1차 타겟은 초등 5학년 ~ 고등 1학년 (02_PRD 2.1).
+ * 학년 구간을 나눠 제품을 가르지 않으므로 grade 는 그 범위를 그대로 담는다.
  * 데모 화면은 이 한 명의 학생 시점에서 일관되게 표현.
  */
 
 export type Persona = {
   id: string;
   name: string;
-  grade: '고1' | '고2' | '고3' | '재수';
-  track: '문과' | '이과' | '예체능';
+  grade: '초5' | '초6' | '중1' | '중2' | '중3' | '고1';
+  track: '공통' | '문과' | '이과' | '예체능';
   school: string;
-  examDate: string;       // ISO date (수능 또는 다음 시험)
-  examLabel: string;      // "2026 수능", "2학기 중간고사" 등
+  examDate: string;       // ISO date (다음 시험)
+  examLabel: string;      // "2학기 중간고사", "단원평가" 등
   focusSubjects: SubjectKey[];
   weeklyHours: number;    // 평균 주간 학습 시간
   preferredStudyTime: '아침' | '오후' | '저녁' | '심야';
@@ -34,11 +35,11 @@ export const subjectLabels: Record<SubjectKey, string> = {
 export const currentPersona: Persona = {
   id: 'student_001',
   name: '서연',
-  grade: '고2',
-  track: '이과',
-  school: '풀림고등학교',
-  examDate: '2026-06-04',         // 6월 모의평가
-  examLabel: '6월 모의평가',
+  grade: '중3',
+  track: '공통',
+  school: '풀림중학교',
+  examDate: '2026-10-08',         // 2학기 중간고사
+  examLabel: '2학기 중간고사',
   focusSubjects: ['math', 'english', 'science'],
   weeklyHours: 28,
   preferredStudyTime: '저녁',

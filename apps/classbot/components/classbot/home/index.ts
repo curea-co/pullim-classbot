@@ -5,3 +5,6 @@ export { GrowthPanel } from './growth-panel';
 export { WellnessNudge } from './wellness-nudge';
 export { LightDayNudge } from './light-day-nudge';
 export { LightDayExitStrip } from './light-day-exit-strip';
+export { JoinCodeForm } from './join-code-form';
+export { JoinedClasses } from './joined-classes';
+export { useMyRooms, type RoomSlot } from './my-rooms';

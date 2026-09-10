@@ -3,11 +3,16 @@ import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { BotNote } from '@/components/classbot/bot-note';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { cn } from '@/lib/utils';
+import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 
-const modeMeta = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target,       tone: '한 번 해보자' },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',     icon: AlertCircle,  tone: '집중하는 시간' },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',   icon: Sparkles,     tone: '이번엔 잡아내자' },
+/**
+ * 배지 색은 `assignmentModeBadge` 가 진실원이다 — 목록과 상세가 갈리지 않게.
+ * 여기서 더하는 것은 `tone`(이 화면에서만 쓰는 한마디)뿐이다.
+ */
+export const modeMeta = {
+  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target,      tone: '한 번 해보자' },
+  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle, tone: '집중하는 시간' },
+  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles,    tone: '이번엔 잡아내자' },
 } as const;
 
 const sourceMeta = {
@@ -29,7 +34,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
     <section className="bg-card overflow-hidden rounded-2xl border">
       <div className={cn('h-1 w-full', m.color)} aria-hidden />
       <div className="p-4">
-        <div className="flex items-center gap-2 text-micro">
+        <div className="flex items-center gap-2 text-2xs">
           <span className="text-pullim-slate-500 font-bold">
             <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
             {a.assignedBy} · {a.assignedAtLabel} 발사
@@ -51,7 +56,7 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
           <KpiStat label="D-day" value={a.dDay} tone={isUrgent ? 'alert' : 'default'} />
         </KpiStatBar>
 
-        <p className="text-pullim-slate-400 mt-3 text-micro">
+        <p className="text-pullim-slate-500 mt-3 text-2xs">
           {m.tone} · 마감 {a.dueLabel}
         </p>
 

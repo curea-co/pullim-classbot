@@ -11,20 +11,20 @@ function makeReplay(p: Partial<Replay>): Replay {
 it('extracts wrong quiz segments (myAnswer ≠ correctAnswer) as weak points', () => {
   const r = makeReplay({
     segments: [
-      seg({ type: 'quiz', atSec: 1100, label: 'Q3 극대·극소', myAnswer: '극소', correctAnswer: '극대' }),
+      seg({ type: 'quiz', atSec: 1100, label: 'Q3 기울기 구하기', myAnswer: '1/2', correctAnswer: '2' }),
       seg({ type: 'quiz', atSec: 200, label: 'Q1', myAnswer: 'A', correctAnswer: 'A' }), // 정답 → 제외
     ],
     focusBins: [],
   });
   const wp = getReplayWeakPoints(r);
   expect(wp).toHaveLength(1);
-  expect(wp[0]).toMatchObject({ reason: 'wrong', atSec: 1100, key: 'q:1100', label: 'Q3 극대·극소' });
+  expect(wp[0]).toMatchObject({ reason: 'wrong', atSec: 1100, key: 'q:1100', label: 'Q3 기울기 구하기' });
 });
 
 it('maps low-focus minutes to the nearest re-accessible (ownedByMe) segment', () => {
   const focusBins = Array.from({ length: 40 }, (_, i) => (i === 32 ? FOCUS_THRESHOLD - 10 : 80));
   const r = makeReplay({
-    segments: [seg({ type: 'concept', atSec: 1920, label: '변곡점', ownedByMe: true })], // 32분 = 1920s
+    segments: [seg({ type: 'concept', atSec: 1920, label: '그래프 그리기', ownedByMe: true })], // 32분 = 1920s
     focusBins,
   });
   const wp = getReplayWeakPoints(r);
@@ -34,7 +34,7 @@ it('maps low-focus minutes to the nearest re-accessible (ownedByMe) segment', ()
 it('does NOT surface low-focus weak points anchored to non-owned segments (07 §4.6)', () => {
   const focusBins = Array.from({ length: 40 }, (_, i) => (i === 32 ? FOCUS_THRESHOLD - 10 : 80));
   const r = makeReplay({
-    segments: [seg({ type: 'concept', atSec: 1920, label: '변곡점' })], // ownedByMe 없음 → 재접근 불가
+    segments: [seg({ type: 'concept', atSec: 1920, label: '그래프 그리기' })], // ownedByMe 없음 → 재접근 불가
     focusBins,
   });
   expect(getReplayWeakPoints(r).some(p => p.reason === 'low-focus')).toBe(false);

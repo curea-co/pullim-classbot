@@ -66,24 +66,25 @@ describe('ContextRail', () => {
     expect(aside.className).toContain('lg:top-20');
   });
 
-  it('applies railGap to aside space-y class', () => {
-    render(
-      <ContextRail rail={<p>rail</p>} railGap={2}>
-        <p>main</p>
-      </ContextRail>
-    );
-    const aside = screen.getByRole('complementary');
-    expect(aside.className).toContain('space-y-2');
-  });
-
-  it('applies default railGap (4) when not specified', () => {
+  // railGap prop 은 걷어냈다 — 아무도 안 넘겼고 `space-y-${railGap}` 은 조립한 이름이라
+  // Tailwind v4 가 소스에서 못 찾아 클래스가 생성되지 않았다.
+  it('gives the rail a fixed 24px stack (space-y-6)', () => {
     render(
       <ContextRail rail={<p>rail</p>}>
         <p>main</p>
       </ContextRail>
     );
     const aside = screen.getByRole('complementary');
-    expect(aside.className).toContain('space-y-4');
+    expect(aside.className).toContain('space-y-6');
+  });
+
+  it('separates the two columns by 24px (gap-6)', () => {
+    const { container } = render(
+      <ContextRail rail={<p>rail</p>}>
+        <p>main</p>
+      </ContextRail>
+    );
+    expect((container.firstChild as HTMLElement).className).toContain('gap-6');
   });
 
   it('passes className to the outer wrapper', () => {
@@ -96,7 +97,7 @@ describe('ContextRail', () => {
     expect(wrapper.className).toContain('custom-class');
   });
 
-  it('primary column always has min-w-0 and space-y-4', () => {
+  it('primary column always has min-w-0 and the 28px section rhythm', () => {
     const { container } = render(
       <ContextRail rail={<p>rail</p>}>
         <p>main</p>
@@ -106,6 +107,6 @@ describe('ContextRail', () => {
     const wrapper = container.firstChild as HTMLElement;
     const primaryCol = wrapper.firstElementChild as HTMLElement;
     expect(primaryCol.className).toContain('min-w-0');
-    expect(primaryCol.className).toContain('space-y-4');
+    expect(primaryCol.className).toContain('space-y-7');
   });
 });

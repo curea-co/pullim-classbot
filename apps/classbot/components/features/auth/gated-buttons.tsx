@@ -14,12 +14,12 @@ export function GatedSocialButtons() {
         <span className="h-px flex-1 bg-border" />
       </div>
       {/* GATED: 카카오 OAuth 미연동 (BE social/* 501). */}
-      <Button type="button" variant="outline" size="touch" disabled className="w-full">
-        카카오로 계속하기 (준비 중)
+      <Button type="button" variant="outline" size="touch" disabled aria-label="카카오로 계속하기 (준비 중)" className="w-full">
+        카카오 (준비 중)
       </Button>
       {/* GATED: 네이버 OAuth 미연동 (BE social/* 501). */}
-      <Button type="button" variant="outline" size="touch" disabled className="w-full">
-        네이버로 계속하기 (준비 중)
+      <Button type="button" variant="outline" size="touch" disabled aria-label="네이버로 계속하기 (준비 중)" className="w-full">
+        네이버 (준비 중)
       </Button>
     </div>
   );

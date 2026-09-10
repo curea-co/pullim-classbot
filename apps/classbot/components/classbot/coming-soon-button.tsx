@@ -28,7 +28,10 @@ export function ComingSoonButton({
   ...props
 }: ComingSoonButtonProps) {
   const title = note ? `준비 중 (v2 — ${note})` : '준비 중 (v2)';
-  const mergedClassName = cn('opacity-60 cursor-not-allowed', className);
+  // 두 분기 모두 항상 `disabled` 다 → 접두사 variant 로 쓴다(계약 §4.1: JS 조건·무접두사 금지).
+  // asButton 분기에서는 ui/button 의 기본 `disabled:opacity-50` 과 같은 그룹이라
+  // tailwind-merge 가 병합해 60 이 이긴다(종전 실효값 50 → 60, 약간 밝아진다).
+  const mergedClassName = cn('disabled:opacity-60 cursor-not-allowed', className);
 
   const content = (
     <>

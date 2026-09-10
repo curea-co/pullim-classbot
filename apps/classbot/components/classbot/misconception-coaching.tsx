@@ -96,9 +96,10 @@ export function MisconceptionCoaching({
         <button
           type="button"
           onClick={handleAck}
+          aria-label="오개념 안내 확인했어요"
           className="bg-pullim-slate-100 text-pullim-slate-700 hover:bg-pullim-slate-200 focus-visible:ring-pullim-blue-400 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2"
         >
-          확인했어요
+          확인
         </button>
       </div>
     </div>

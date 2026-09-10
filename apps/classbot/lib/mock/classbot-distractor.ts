@@ -14,9 +14,9 @@
  */
 export type DistractorTag =
   | 'correct'
-  | 'confuse-max-min'         // 극대/극소(최댓/최솟) 혼동
-  | 'plug-x-not-fx'           // x를 답으로 쓰고 f(x)를 안 구함
-  | 'sign-no-change'          // 부호 변화 안 보고 임계점만으로 판단
+  | 'swap-slope-intercept'    // 기울기와 y절편을 바꿔 읽음
+  | 'swap-dx-dy'              // 변화량을 나누는 순서를 뒤집음
+  | 'ignore-slope-sign'       // 기울기의 부호(방향)를 놓침
   | 'same-direction'          // 역접인데 같은 방향으로 봄
   | 'example-vs-contrast'     // 예시/역접 신호어 혼동
   | 'ignore-connective'       // 연결어 단서를 무시
@@ -43,22 +43,22 @@ export interface DistractorMeta {
  * literal-word-match / over-detail / one-side-only = "지엽적 오답에 잘 걸려요" 계열.
  */
 export const DISTRACTOR_META: Record<Exclude<DistractorTag, 'correct'>, DistractorMeta> = {
-  'confuse-max-min': {
-    tag: 'confuse-max-min',
-    label: '극대·극소 혼동',
-    coaching: '극대(최댓)와 극소(최솟)를 바꿔 고르는 패턴이 보여. 부호가 +→−면 극대, −→+면 극소 — 어느 쪽을 묻는지 먼저 확인해보자.',
+  'swap-slope-intercept': {
+    tag: 'swap-slope-intercept',
+    label: '기울기·y절편 혼동',
+    coaching: '기울기와 y절편을 바꿔 고르는 패턴이 보여. x 앞의 수가 기울기, 뒤에 더해진 수가 y절편 — 어느 쪽을 묻는지 먼저 확인해보자.',
     relatedConceptId: 'c2',
   },
-  'plug-x-not-fx': {
-    tag: 'plug-x-not-fx',
-    label: 'x와 f(x) 혼동',
-    coaching: "f'(x)=0 의 해(x)를 그대로 답으로 쓰는 패턴이야. 극값은 그 x를 f에 다시 넣은 f(x) 값이라는 걸 한 번 더 떠올려보자.",
+  'swap-dx-dy': {
+    tag: 'swap-dx-dy',
+    label: '변화량 순서 뒤집기',
+    coaching: 'x의 변화량을 y의 변화량으로 나누는 패턴이야. 기울기는 (y의 변화량) ÷ (x의 변화량) — y가 위로 간다는 걸 한 번 더 떠올려보자.',
     relatedConceptId: 'c2',
   },
-  'sign-no-change': {
-    tag: 'sign-no-change',
-    label: '부호 변화 미확인',
-    coaching: "임계점만 찾고 부호 변화를 빼먹는 패턴이 반복돼. f'(x)=0 다음엔 항상 좌우 부호 변화까지 확인하는 습관을 들이자.",
+  'ignore-slope-sign': {
+    tag: 'ignore-slope-sign',
+    label: '기울기 부호 놓침',
+    coaching: '숫자만 보고 부호를 흘려보내는 패턴이 반복돼. 기울기는 부호가 방향을, 절댓값이 가파르기를 정한다는 걸 같이 확인하는 습관을 들이자.',
     relatedConceptId: 'c2',
   },
   'same-direction': {

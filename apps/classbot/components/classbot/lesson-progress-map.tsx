@@ -61,7 +61,7 @@ export function LessonProgressMap({
                 <span
                   aria-hidden
                   className={cn(
-                    'mx-1 h-px w-3 shrink-0 sm:w-5',
+                    'mx-1 h-px w-3 min-w-1.5 sm:w-5',
                     prevVisited && isVisited ? 'bg-pullim-blue-300' : 'bg-pullim-slate-200',
                   )}
                 />
@@ -89,7 +89,7 @@ export function LessonProgressMap({
                 </span>
                 <span
                   className={cn(
-                    'truncate text-xs',
+                    'shrink-0 text-xs',
                     state === 'current'
                       ? 'text-pullim-blue-700 font-bold'
                       : state === 'done'

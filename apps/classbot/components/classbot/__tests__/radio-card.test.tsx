@@ -42,6 +42,16 @@ describe('RadioCardGroup', () => {
     expect(group).toHaveClass('grid', 'gap-2', 'grid-cols-2', 'sm:grid-cols-3');
   });
 
+  it('applies grid layout with sm breakpoint for cols 5', () => {
+    const { container } = render(
+      <RadioCardGroup ariaLabel="Test Group" layout="grid" cols={5}>
+        <div>Content</div>
+      </RadioCardGroup>,
+    );
+    const group = container.querySelector('[role="radiogroup"]');
+    expect(group).toHaveClass('grid', 'gap-2', 'grid-cols-3', 'sm:grid-cols-5');
+  });
+
   it('applies list layout with space-y-1.5', () => {
     const { container } = render(
       <RadioCardGroup ariaLabel="Test Group" layout="list">
@@ -233,6 +243,24 @@ describe('RadioCard', () => {
     const radio = container.querySelector('[role="radio"]');
     expect(radio).toHaveClass('p-2.5');
     expect(radio).not.toHaveClass('p-3');
+  });
+
+  it('aligns text left by default', () => {
+    const { container } = render(
+      <RadioCard active={false} onSelect={() => {}} title="Test" />,
+    );
+    const radio = container.querySelector('[role="radio"]');
+    expect(radio).toHaveClass('text-left');
+    expect(radio).not.toHaveClass('text-center');
+  });
+
+  it('centers text when align="center"', () => {
+    const { container } = render(
+      <RadioCard active={false} onSelect={() => {}} title="Test" align="center" />,
+    );
+    const radio = container.querySelector('[role="radio"]');
+    expect(radio).toHaveClass('text-center');
+    expect(radio).not.toHaveClass('text-left');
   });
 
   it('renders title with correct typography', () => {

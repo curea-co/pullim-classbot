@@ -23,7 +23,7 @@ export function ReadLoginGate({ label = '내 정보' }: { label?: string }) {
       icon={Lock}
       title="로그인이 필요해요"
       description={`${label}를 보려면 먼저 로그인해 주세요.`}
-      action={{ href: loginHref, label: '로그인하기' }}
+      action={{ href: loginHref, label: '로그인' }}
     />
   );
 }

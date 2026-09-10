@@ -39,7 +39,7 @@ export function ReportRow({ report }: { report: ReportSummary }) {
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-micro">
+          <div className="flex items-center gap-2 text-2xs">
             <span className={cn('rounded-full px-1.5 py-0.5 font-bold', s.color)}>{s.label}</span>
             <span className="text-pullim-slate-400 font-bold">{k.label}</span>
             {hasAlerts && (

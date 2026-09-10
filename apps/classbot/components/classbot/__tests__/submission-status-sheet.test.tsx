@@ -8,9 +8,9 @@ import type { Assignment } from '@/lib/mock';
 
 // practice 모드 새 과제는 as_today 시드 문항으로 fallback — 오답률 파생이 결정적.
 const A = {
-  id: 'as_x', botId: 'cb_001', title: '도함수 마무리', mode: 'practice', questionCount: 2,
-  subject: '수학Ⅱ', grade: '고2', scope: '도함수', chapterFrom: '', chapterTo: '',
-  achievementCodes: [], difficulty: 3, source: 'teacher-assigned', assignedBy: '수학이 형',
+  id: 'as_x', botId: 'cb_001', title: '기울기 마무리', mode: 'practice', questionCount: 2,
+  subject: '수학', grade: '중2', scope: '일차함수', chapterFrom: '', chapterTo: '',
+  achievementCodes: [], difficulty: 3, source: 'teacher-assigned', assignedBy: '수학봇',
   assignedAt: '방금 발사', dueLabel: '오늘 23:59', dDay: '오늘', completedCount: 0, state: 'todo',
 } as unknown as Assignment & { targetStudentIds?: string[] };
 
@@ -69,7 +69,7 @@ it('오답률 높은 문항 재발사 — 복습 과제 dispatch + 오답자에�
 
   const dispatched = useAssignmentStore.getState().dispatched;
   expect(dispatched).toHaveLength(1);
-  expect(dispatched[0].title).toBe('복습: 도함수 마무리');
+  expect(dispatched[0].title).toBe('복습: 기울기 마무리');
   expect(dispatched[0].mode).toBe('wrong-conquest');
   expect(dispatched[0].targetStudentIds).toEqual(['s1']); // 오답자만
 

@@ -24,7 +24,7 @@ export function ExamCountdown({ totalSeconds = 60 * 60, onTimeout }: { totalSeco
   const isLow = remain < 5 * 60;
 
   return (
-    <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-bold ${isLow ? 'bg-pullim-danger text-white' : 'bg-pullim-slate-900 text-pullim-lemon'}`}>
+    <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-bold ${isLow ? 'bg-pullim-danger text-white' : 'bg-pullim-slate-900 text-white'}`}>
       {isLow ? <AlertCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
       {String(min).padStart(2, '0')}:{String(sec).padStart(2, '0')}
     </div>

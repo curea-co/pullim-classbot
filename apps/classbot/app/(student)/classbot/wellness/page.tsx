@@ -1,8 +1,7 @@
 import Link from 'next/link';
-import { ArrowRight, Heart, MessageCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Heart, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
@@ -29,7 +28,7 @@ export default function WellnessPage() {
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}
       {me.wellbeing < 60 && (
         <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
-          <h3 className="text-pullim-lemon inline-flex items-center gap-1 text-sm font-bold">
+          <h3 className="inline-flex items-center gap-1 text-sm font-bold text-white">
             <Heart className="h-3.5 w-3.5" />
             선생님이 곁에 있어요
           </h3>
@@ -55,7 +54,7 @@ export default function WellnessPage() {
       >
         <div>
           <div className="text-pullim-slate-900 text-sm font-bold">이번 주의 나</div>
-          <div className="text-pullim-slate-500 text-2xs">내 주간 리포트 보기</div>
+          <div className="text-pullim-slate-500 text-2xs">주간 리포트</div>
         </div>
         <ArrowRight className="text-pullim-slate-500 h-4 w-4" />
       </Link>
@@ -81,11 +80,12 @@ export default function WellnessPage() {
             'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl',
             checkedToday ? 'bg-pullim-blue-100' : 'bg-white/15',
           )}>
-            {checkedToday ? '✅' : '💭'}
+            {/* 완료 표시는 초록 ✅ 대신 브랜드 블루 체크로 — 이모지도 hue 를 하나 더 들여온다 */}
+            {checkedToday ? <CheckCircle2 className="text-pullim-blue-700 h-7 w-7" aria-hidden /> : '💭'}
           </span>
           <div className="min-w-0 flex-1">
             <div className={cn('text-sm font-bold', checkedToday ? 'text-pullim-blue-700' : 'text-white')}>
-              {checkedToday ? '오늘 체크인 완료' : '30초 체크인 시작'}
+              {checkedToday ? '오늘 체크인 완료' : '30초 체크인'}
             </div>
             <div className={cn('text-2xs', checkedToday ? 'text-pullim-slate-600' : 'text-pullim-blue-100')}>
               {checkedToday ? '다시 작성하고 싶으면 들어와도 돼요' : '하나만 고르면 끝이에요'}
@@ -99,7 +99,7 @@ export default function WellnessPage() {
 
       {/* 주간 감정 그래프 */}
       <section className="bg-card rounded-2xl border p-4">
-        <SectionHeading title="주간 기분 기록" description="이번 주의 나" />
+        <SectionHeading title="주간 기분 기록" />
         {checkIns.length === 0 ? (
           <EmptyState tone="plain" title="아직 기록이 없어요" size="sm" />
         ) : (
@@ -120,7 +120,7 @@ export default function WellnessPage() {
                     )}
                   </div>
                   {c.intensity && (
-                    <span className="text-pullim-slate-400 font-mono text-micro">
+                    <span className="text-pullim-slate-500 font-mono text-2xs">
                       강도 {c.intensity}/5
                     </span>
                   )}
@@ -140,16 +140,11 @@ export default function WellnessPage() {
       <PageHeader
         eyebrow={{ icon: Heart, text: '내 웰빙' }}
         title="오늘 어땠어요?"
-        description={checkedToday ? '오늘 체크인 완료 — 내일 또 와주세요.' : '아직 체크인 전이에요.'}
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {main}
       </ContextRail>
-
-      <FlywheelNote>
-        매일 30초 체크인이 쌓이면 봇이 더 정확하게 도와줄 수 있어요. 부담 없이 편하게.
-      </FlywheelNote>
     </div>
   );
 }

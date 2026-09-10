@@ -20,8 +20,21 @@
   /* --- lemon accent -------------------------------------------------- */
   --color-secondary-500: oklch(0.967 0.197 116);
 
-  /* --- semantic actions (brighter stop vs os) ------------------------ */
-  --color-action-primary:       var(--color-primary-500);
+  /* 레몬을 의미 이름으로도 노출 — 컴포넌트는 이쪽만 소비한다 */
+  --color-highlight: var(--color-secondary-500);
+  --on-highlight:    var(--color-gray-950);
+
+  /* --- semantic actions (brighter stop vs os) ------------------------
+   * primary-500(oklch 0.640) 위의 흰 글자는 3.42:1 로 AA 미달이었다.
+   * 대비는 색으로만 고친다(계약 §1) — 글자를 키우거나 굵게 하지 않는다.
+   * -600 으로 내리면 os 와 같은 값이 되어 "jr 은 액션이 더 밝다"는 성격이
+   * 사라지므로, 500 과 600 사이에서 흰 글자 4.77:1 이 나오는 지점을 쓴다.
+   * (hue·chroma 는 램프와 같은 258 / 0.19 대. hover 는 -600 이라 누르면
+   *  대비가 5.57:1 로 더 좋아지는 방향이다.)
+   * L 0.565 를 넘으면 4.5:1 아래로 떨어진다 — 더 밝게 하려면 흰 글자를
+   * 포기하고 gray-950 라벨로 가야 한다(그 경우 hover 도 밝은 쪽으로 뒤집어야
+   * 한다). 그 선택은 디자인 결정이라 여기서는 하지 않았다. */
+  --color-action-primary:       oklch(0.560 0.193 258);
   --color-action-primary-hover: var(--color-primary-600);
   --color-action-primary-fg:    #ffffff;
   --color-action-secondary:     var(--color-primary-100);
@@ -67,4 +80,127 @@
   --font-display:    var(--font-sans-kr);
   --duration-normal: 360ms;
   --ease-emphasized: cubic-bezier(.34,1.56,.64,1); /* overshoot/bounce */
+}
+
+/* --- dark scheme ------------------------------------------------------
+ * [data-theme] 슬롯은 성격(os/jr)이 차지한다. 명암은 별도 축 [data-scheme].
+ * 이중 속성 선택자(0,2,0)라 위의 테마 블록(0,1,0)을 확실히 이긴다.
+ * 사용: <html data-theme="{T}" data-scheme="dark">  ("auto"는 OS 설정 추종)
+ * ===================================================================== */
+[data-theme="pullim-jr"][data-scheme="dark"] {
+  --surface-canvas:  var(--color-gray-950);
+  --surface-raised:  var(--color-gray-900);
+  --surface-sunken:  oklch(0.105 0.008 286);
+  --surface-overlay: rgba(0, 0, 0, 0.72);
+
+  --text-primary:    var(--color-gray-50);
+  --text-secondary:  var(--color-gray-300);
+  --text-tertiary:   var(--color-gray-400);
+  --text-inverse:    var(--color-gray-950);
+
+  --border-subtle:   var(--color-gray-800);
+  --border-default:  var(--color-gray-700);
+  --border-strong:   var(--color-gray-600);
+
+  /* 어두운 바탕에서 4.5:1을 확보하려고 액션 정지점을 한 칸 밝게 */
+  --color-action-primary:       var(--color-primary-400);
+  --color-action-primary-hover: var(--color-primary-300);
+  --color-action-primary-fg:    var(--color-gray-950);
+  --color-action-secondary:     color-mix(in oklch, var(--color-primary-500) 18%, transparent);
+  --color-action-secondary-fg:  var(--color-primary-200);
+
+  --focus-ring-color: var(--color-primary-400);
+  --text-brand:       var(--color-primary-300);
+
+  /* 밴드는 다크에서도 진한 바탕 + 밝은 글자를 유지한다 (한 단계만 더 깊게) */
+  --surface-band:     var(--color-primary-800);
+  --surface-band-alt: var(--color-primary-950);
+  --on-surface-band:  var(--color-gray-50);
+
+  /* 컨테이너는 표면이라 액션과 반대 방향으로 간다 — 밝히지 않고 깊게.
+   * 라이트 값(-50/-100 바탕 + -900 글자)을 그대로 두면 다크에서 형광
+   * 파스텔 블록이 된다. 대비 검증: node scripts/check-contrast.mjs */
+  --container-primary:    var(--color-primary-900);
+  --on-container-primary: var(--color-primary-100);
+  --container-secondary:    var(--color-secondary-900);
+  --on-container-secondary: var(--color-secondary-100);
+  --container-tertiary:    var(--color-tertiary-900);
+  --on-container-tertiary: var(--color-tertiary-100);
+  --container-success:    var(--color-success-900);
+  --on-container-success: var(--color-success-50);
+  --container-warning:    var(--color-warning-900);
+  --on-container-warning: var(--color-warning-50);
+  --container-danger:     var(--color-danger-900);
+  --on-container-danger:  var(--color-danger-50);
+  --container-info:       var(--color-info-900);
+  --on-container-info:    var(--color-info-50);
+
+  /* 어두운 바탕에선 그림자가 안 보인다 — 경계선으로 고도를 표현 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, .50);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, .58);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, .64);
+}
+
+@media (prefers-color-scheme: dark) {
+
+/* --- dark scheme ------------------------------------------------------
+   * [data-theme] 슬롯은 성격(os/jr)이 차지한다. 명암은 별도 축 [data-scheme].
+   * 이중 속성 선택자(0,2,0)라 위의 테마 블록(0,1,0)을 확실히 이긴다.
+   * 사용: <html data-theme="{T}" data-scheme="dark">  ("auto"는 OS 설정 추종)
+   * ===================================================================== */
+[data-theme="pullim-jr"][data-scheme="auto"] {
+  --surface-canvas:  var(--color-gray-950);
+  --surface-raised:  var(--color-gray-900);
+  --surface-sunken:  oklch(0.105 0.008 286);
+  --surface-overlay: rgba(0, 0, 0, 0.72);
+
+  --text-primary:    var(--color-gray-50);
+  --text-secondary:  var(--color-gray-300);
+  --text-tertiary:   var(--color-gray-400);
+  --text-inverse:    var(--color-gray-950);
+
+  --border-subtle:   var(--color-gray-800);
+  --border-default:  var(--color-gray-700);
+  --border-strong:   var(--color-gray-600);
+
+  /* 어두운 바탕에서 4.5:1을 확보하려고 액션 정지점을 한 칸 밝게 */
+  --color-action-primary:       var(--color-primary-400);
+  --color-action-primary-hover: var(--color-primary-300);
+  --color-action-primary-fg:    var(--color-gray-950);
+  --color-action-secondary:     color-mix(in oklch, var(--color-primary-500) 18%, transparent);
+  --color-action-secondary-fg:  var(--color-primary-200);
+
+  --focus-ring-color: var(--color-primary-400);
+  --text-brand:       var(--color-primary-300);
+
+  /* 밴드는 다크에서도 진한 바탕 + 밝은 글자를 유지한다 (한 단계만 더 깊게) */
+  --surface-band:     var(--color-primary-800);
+  --surface-band-alt: var(--color-primary-950);
+  --on-surface-band:  var(--color-gray-50);
+
+  /* 컨테이너는 표면이라 액션과 반대 방향으로 간다 — 밝히지 않고 깊게.
+   * 라이트 값(-50/-100 바탕 + -900 글자)을 그대로 두면 다크에서 형광
+   * 파스텔 블록이 된다. 대비 검증: node scripts/check-contrast.mjs */
+  --container-primary:    var(--color-primary-900);
+  --on-container-primary: var(--color-primary-100);
+  --container-secondary:    var(--color-secondary-900);
+  --on-container-secondary: var(--color-secondary-100);
+  --container-tertiary:    var(--color-tertiary-900);
+  --on-container-tertiary: var(--color-tertiary-100);
+  --container-success:    var(--color-success-900);
+  --on-container-success: var(--color-success-50);
+  --container-warning:    var(--color-warning-900);
+  --on-container-warning: var(--color-warning-50);
+  --container-danger:     var(--color-danger-900);
+  --on-container-danger:  var(--color-danger-50);
+  --container-info:       var(--color-info-900);
+  --on-container-info:    var(--color-info-50);
+
+  /* 어두운 바탕에선 그림자가 안 보인다 — 경계선으로 고도를 표현 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, .50);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, .58);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, .64);
+}
 }

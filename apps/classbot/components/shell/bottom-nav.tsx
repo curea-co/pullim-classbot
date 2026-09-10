@@ -17,7 +17,7 @@ export function BottomNav() {
       aria-label="학생 메인 네비게이션"
       className="bg-background/95 sticky bottom-0 z-30 border-t backdrop-blur-md md:hidden pb-[env(safe-area-inset-bottom)]"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-3">
         {studentBottomTabs.map(item => {
           const Icon = item.icon;
           const active = (() => {

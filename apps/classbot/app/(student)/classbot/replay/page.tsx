@@ -11,7 +11,6 @@ import {
 } from '@/lib/mock';
 import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { ReplayReviewNudge } from '@/components/classbot/replay-review-nudge';
@@ -67,14 +66,14 @@ export default function ClassbotReplayListPage() {
           <ul className="space-y-2">
             {createdSent.map(r => (
               <li key={r.id} className="bg-pullim-blue-50 border-pullim-blue-200 rounded-2xl border p-3">
-                <div className="text-pullim-blue-700 text-micro font-bold uppercase tracking-wider">{r.botName}</div>
+                <div className="text-pullim-blue-700 text-2xs font-bold uppercase tracking-wider">{r.botName}</div>
                 <div className="text-pullim-slate-900 text-sm font-bold">{r.title}</div>
                 <div className="text-pullim-slate-500 mt-0.5 text-2xs">
                   {r.chapter} · {r.startedAt}~{r.endedAt} · {r.durationMin}분 · {r.participantCount}명 참여
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5 text-2xs font-bold text-pullim-blue-600">
                   📩 선생님이 방금 발송했어요
-                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-micro font-bold">준비 중</span>
+                  <span className="bg-pullim-blue-100 text-pullim-blue-700 rounded-full px-1.5 py-0.5 text-2xs font-bold">준비 중</span>
                 </div>
               </li>
             ))}
@@ -133,10 +132,6 @@ export default function ClassbotReplayListPage() {
         <Eye className="-mt-0.5 mr-1 inline h-3 w-3" />
         교사·봇 발언과 내 활동·전체 공유 순간만 들을 수 있어요. 다른 친구의 비공개 발언은 프라이버시 보호.
       </aside>
-
-      <FlywheelNote>
-        다시 본 구간은 <strong>풀림 복습</strong>의 망각 곡선 큐에 자동 추가되고, 틀린 퀴즈는 <strong>오답정복</strong>으로 흘러가요.
-      </FlywheelNote>
     </div>
   );
 }
@@ -152,13 +147,18 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
       href={`/classbot/replay/${r.id}`}
       className="from-pullim-slate-900 to-pullim-blue-900 group relative block overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl transition-transform active:scale-[0.99]"
     >
+      {/*
+        [04 § 9.10.2] 1순위 카드 = 「navy + lime progress + 큰 CTA」 + **hover 시 lime glow**.
+        glow 를 상시로 켜 두면 이 화면 레몬이 3곳이 되어 [08 § 1.6] 한도를 넘는다 —
+        명세 표기대로 hover 에서만 띄운다. 상시는 progress·CTA 두 곳.
+      */}
       <div
         aria-hidden
-        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-25 blur-3xl"
+        className="absolute -top-16 -right-16 h-48 w-48 rounded-full opacity-0 blur-3xl transition-opacity duration-200 group-hover:opacity-25 motion-reduce:transition-none"
         style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
       />
       <div className="relative">
-        <div className="text-pullim-lemon flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+        <div className="flex items-center gap-1 text-2xs font-bold tracking-wider text-white/70 uppercase">
           <RotateCw className="h-3 w-3" />
           이어 보기 · {r.botName}
         </div>
@@ -194,7 +194,7 @@ function ContinueWatching({ replay: r }: { replay: Replay }) {
 function LatestHero({ replay: r }: { replay: Replay }) {
   return (
     <section className="from-pullim-blue-700 to-pullim-blue-500 relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-xl">
-      <div className="text-pullim-lemon text-micro font-bold tracking-wider uppercase">
+      <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">
         방금 끝난 수업 · {r.botName}
       </div>
       <h2 className="mt-1 text-lg font-bold tracking-tight">{r.title}</h2>
@@ -210,7 +210,7 @@ function LatestHero({ replay: r }: { replay: Replay }) {
 
       <Link
         href={`/classbot/replay/${r.id}`}
-        className="bg-pullim-lemon text-pullim-lemon-ink mt-4 inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-sm font-bold"
+        className="text-pullim-blue-700 mt-4 inline-flex items-center gap-1 rounded-lg bg-white px-3.5 py-2 text-sm font-bold"
       >
         <Play className="h-3.5 w-3.5 fill-current" />
         처음부터 재생
@@ -236,7 +236,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
         className="bg-card hover:border-pullim-blue-300 flex flex-col gap-2.5 rounded-xl border p-4 transition-colors lg:flex-row lg:items-center"
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-micro">
+          <div className="flex items-center gap-1.5 text-2xs">
             {bot && <span className="text-base leading-none">{bot.avatarEmoji}</span>}
             <span className="text-pullim-slate-500 font-mono font-bold">{r.date} · {r.startedAt}</span>
             {isCompleted && (
@@ -294,7 +294,7 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white/10 rounded-lg p-2 backdrop-blur">
-      <div className="text-pullim-blue-100 text-micro font-bold tracking-wider uppercase">{label}</div>
+      <div className="text-pullim-blue-100 text-2xs font-bold tracking-wider uppercase">{label}</div>
       <div className="mt-0.5 font-mono text-base font-bold">{value}</div>
     </div>
   );
@@ -305,7 +305,7 @@ function Mini({
 }: { Icon: LucideIcon; value: string; label: string }) {
   return (
     <div className="text-center">
-      <div className="text-pullim-slate-500 inline-flex items-center gap-0.5 text-micro font-semibold tracking-wider uppercase">
+      <div className="text-pullim-slate-500 inline-flex items-center gap-0.5 text-2xs font-semibold tracking-wider uppercase">
         <Icon className="h-3 w-3" />
         {label}
       </div>

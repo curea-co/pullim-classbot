@@ -65,7 +65,7 @@ export function SolveWorkspace({
         <EmptyState
           title="문항을 준비 중이에요"
           description="선생님이 아직 문항을 추가하지 않았어요. 잠시 후 다시 확인해 주세요."
-          action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제로 돌아가기' }}
+          action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제', ariaLabel: '과제로 돌아가기' }}
         />
       </div>
     );
@@ -109,7 +109,7 @@ export function SolveWorkspace({
   return (
     <div className="max-w-2xl space-y-3">
       {/* 컨텍스트 바 */}
-      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-micro text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
+      <div className="bg-pullim-slate-900 -mx-4 -mt-4 flex items-center gap-2 px-4 py-2.5 text-2xs text-white sm:rounded-2xl sm:-mx-0 sm:-mt-0">
         <Link
           href={`/classbot/assignment/${assignment.id}`}
           className="text-pullim-slate-300 hover:text-white inline-flex items-center gap-1"
@@ -120,7 +120,7 @@ export function SolveWorkspace({
         <span className="text-pullim-slate-500">·</span>
         <span className="text-pullim-slate-300 font-bold">{assignment.title}</span>
         <span className="text-pullim-slate-500">·</span>
-        <span className="text-pullim-lemon font-mono font-bold">{safeStep}/{questions.length}</span>
+        <span className="font-mono font-bold text-white">{safeStep}/{questions.length}</span>
         <div className="ml-auto flex items-center gap-2">
           {savedAt && (
             <span className="text-pullim-slate-400 inline-flex items-center gap-0.5 font-mono">
@@ -168,7 +168,7 @@ export function SolveWorkspace({
 
       {/* 답안 입력 */}
       <section className="bg-card rounded-2xl border p-4">
-        <h3 className="text-pullim-slate-400 text-micro font-bold tracking-wider uppercase">내 답안</h3>
+        <h3 className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 답안</h3>
         {q.type === 'mc' && q.options ? (
           <ul role="radiogroup" aria-label="객관식 선택지" className="mt-2 grid grid-cols-1 gap-2">
             {q.options.map((opt, i) => {
@@ -219,6 +219,19 @@ export function SolveWorkspace({
           <MessageCircle />
           {botName}에게 힌트 받기
         </Button>
+      )}
+
+      {/* 과제 대화 진입 — 힌트로 안 풀리면 이 과제에 매인 대화로.
+          시험 모드는 봇이 잠기므로 내보내지 않는다. */}
+      {!isExam && (
+        <Link
+          href={`/classbot/assignment/${assignment.id}/chat`}
+          aria-label={`${botName}과 이 과제 대화하기`}
+          className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-1 text-xs font-bold"
+        >
+          <MessageCircle className="h-3 w-3" />
+          대화
+        </Link>
       )}
 
       {/* 하단 액션 */}

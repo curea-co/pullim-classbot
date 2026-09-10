@@ -1,8 +1,7 @@
-import { Heart, MessageCircle, Sparkles, Target, ArrowRight } from 'lucide-react';
+import { ClipboardList, Heart, MessageCircle, Sparkles, Target, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
@@ -37,8 +36,10 @@ export default function MyReportPage() {
         <p className="text-pullim-slate-200 mt-2 text-sm leading-relaxed">
           서연 학생, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어요. 다음 주도 천천히 같이 가요.
         </p>
-        <div className="text-pullim-slate-400 mt-3 text-micro font-mono">
-          — 수학이 형 · 오늘 18:00
+        {/* 선생님이 적은 면담 메모를 그대로 보여 주는 자리다 — 서명도 선생님이어야 한다.
+            봇 이름으로 서명하면 머리말(「선생님이 한 마디」)과 어긋나 봇이 지어낸 말로 읽힌다. */}
+        <div className="text-pullim-slate-400 mt-3 text-2xs font-mono">
+          — 김보람 선생님 · 오늘 18:00
         </div>
       </section>
 
@@ -47,8 +48,8 @@ export default function MyReportPage() {
         href="/classbot/assignment"
         className="bg-pullim-blue-600 hover:bg-pullim-blue-700 flex items-center gap-3 rounded-2xl p-4 text-white transition-colors"
       >
-        <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg">
-          🎯
+        <span className="bg-white/15 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
+          <ClipboardList className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold">다음 주 도전</div>
@@ -66,7 +67,6 @@ export default function MyReportPage() {
       <PageHeader
         eyebrow={{ icon: Sparkles, text: '주간 리포트' }}
         title="이번 주의 나"
-        description="봇이 본 나의 한 주 — 1인칭 톤"
       />
 
       {/* [13 § 3.3.5·9.2] 본인 리포트 — 봇 인사이트 텍스트 유지 + CTA만 "다음 주 도전"(`/classbot/assignment`)으로 분기 */}
@@ -77,7 +77,7 @@ export default function MyReportPage() {
         {/* 잘한 점 / 신경 쓸 점 — 색상 유지: blue-50/blue-700, slate-50/slate-700 */}
         <section className="space-y-2">
           <div className="bg-pullim-blue-50 rounded-2xl p-4">
-            <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-blue-700 inline-flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
               <Heart className="h-3 w-3" />
               오늘 잘한 점
             </div>
@@ -87,7 +87,7 @@ export default function MyReportPage() {
           </div>
 
           <div className="bg-pullim-slate-50 rounded-2xl p-4">
-            <div className="text-pullim-slate-700 inline-flex items-center gap-1 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-slate-700 inline-flex items-center gap-1 text-2xs font-bold tracking-wider uppercase">
               <Target className="h-3 w-3" />
               다음에 신경 쓸 점
             </div>
@@ -97,10 +97,6 @@ export default function MyReportPage() {
           </div>
         </section>
       </ContextRail>
-
-      <FlywheelNote>
-        매일의 작은 기록이 다음 주 봇 처방의 정확도를 만들어요.
-      </FlywheelNote>
     </div>
   );
 }

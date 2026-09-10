@@ -6,6 +6,12 @@
  * 사용 — CSS 변수 또는 hex 직접:
  *   <div style={{ borderLeftColor: botSignature(bot).hex }} />
  *   <div style={{ borderLeftColor: `var(${botSignature(bot).cssVar})` }} />
+ *
+ * ⚠️ 쓰는 자리를 좁게 잡는다 — **「어느 봇인지 알아보는 표시」로만.**
+ *   써도 되는 곳: 작은 점 · 얇은 왼쪽 라이너(3~4px) · 아바타 원/사각 · 활성 봇 탭
+ *   쓰면 안 되는 곳: 넓은 배경 채우기 · 본문 글자색 · 진척 막대 같은 **데이터 표현**
+ *   이유: 5색이 넓게 깔리면 화면 hue 가 [08 § 14.1] 한도(≤ 3종)를 넘어 「다채로움」이 된다.
+ *   한 카드 안에서도 라이너+아바타면 충분하다 — 같은 색을 세 번 찍지 않는다.
  */
 import { palette } from './palette';
 
@@ -29,8 +35,7 @@ const sig = (kind: BotSignature['kind']): Omit<BotSignature, 'cssVar'> & { cssVa
 
 const BY_SUBJECT: Record<string, BotSignature> = {
   '수학':       sig('math'),
-  '수학Ⅱ':      sig('math'),
-  '미적분':     sig('math'),
+  '공통수학':   sig('math'),
   '영어':       sig('english'),
   '과학':       sig('science'),
   '통합과학':   sig('science'),
@@ -43,7 +48,7 @@ const BY_SUBJECT: Record<string, BotSignature> = {
 };
 
 const BY_ID: Record<string, BotSignature> = {
-  cb_001: BY_SUBJECT['수학Ⅱ'],
+  cb_001: BY_SUBJECT['수학'],
   cb_002: BY_SUBJECT['영어'],
   cb_003: BY_SUBJECT['통합과학'],
   cb_004: BY_SUBJECT['국어'],

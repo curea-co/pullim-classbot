@@ -8,7 +8,7 @@ import {
 import { DISTRACTOR_META, type DistractorTag } from '@/lib/mock/classbot-distractor';
 
 const U = 'student_001';
-const TAG: DistractorTag = 'confuse-max-min';
+const TAG: DistractorTag = 'swap-slope-intercept';
 
 beforeEach(() => useMisconceptionStore.setState({ counts: {}, coached: {} }));
 
@@ -45,11 +45,11 @@ it('markCoached suppresses the tag (null after coaching)', () => {
 it('useMisconceptionCounts reflects the store and isolates per user', () => {
   const s = () => useMisconceptionStore.getState();
   s().record(U, TAG);
-  s().record('student_002', 'plug-x-not-fx');
+  s().record('student_002', 'swap-dx-dy');
   const { result } = renderHook(() => useMisconceptionCounts(U));
   expect(result.current).toEqual({ [TAG]: 1 });
   // 다른 유저는 격리
-  expect(s().counts['student_002']).toEqual({ 'plug-x-not-fx': 1 });
+  expect(s().counts['student_002']).toEqual({ 'swap-dx-dy': 1 });
 });
 
 it('reset clears only the target user', () => {
@@ -69,7 +69,7 @@ it('persist name is pullim-misconception', () => {
 
 it('every DistractorTag except correct is in DISTRACTOR_META', () => {
   const tags: DistractorTag[] = [
-    'confuse-max-min', 'plug-x-not-fx', 'sign-no-change', 'same-direction',
+    'swap-slope-intercept', 'swap-dx-dy', 'ignore-slope-sign', 'same-direction',
     'example-vs-contrast', 'ignore-connective', 'wrong-formula-parallel', 'add-vs-multiply',
     'average-not-sum', 'jump-to-conclusion', 'one-side-only', 'literal-word-match', 'over-detail',
   ];

@@ -14,7 +14,7 @@ beforeEach(() => useInterventionStore.setState({ events: [] }));
 it('send — id/createdAt 자동 부여, readAt=null 로 쌓인다', () => {
   act(() => {
     useInterventionStore.getState().send({
-      ...base, type: 'remind', assignmentId: 'as_1', message: "'도함수' 과제가 아직 제출 전이에요",
+      ...base, type: 'remind', assignmentId: 'as_1', message: "'기울기' 과제가 아직 제출 전이에요",
     });
   });
   const [e] = useInterventionStore.getState().events;

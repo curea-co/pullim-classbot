@@ -204,7 +204,7 @@ describe('streamChat — v2 리치 카드 프레임(ADR-065)', () => {
     fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(
       sseRes([
         'event: token\ndata: {"delta":"먼저 "}\n\n',
-        'event: card\ndata: {"cardType":"concept","payload":{"id":"c1","title":"도함수"}}\n\n',
+        'event: card\ndata: {"cardType":"concept","payload":{"id":"c1","title":"기울기"}}\n\n',
         'event: token\ndata: {"delta":"이제 퀴즈"}\n\n',
         'event: card\ndata: {"cardType":"quiz","payload":{"question":"Q"}}\n\n',
         'event: done\ndata: {"blocks":[{"messageId":"m1","kind":"text"},{"messageId":"m2","kind":"card","cardType":"concept"}],"usage":{"model":"claude-sonnet-4-6"}}\n\n',
@@ -216,7 +216,7 @@ describe('streamChat — v2 리치 카드 프레임(ADR-065)', () => {
 
     expect(cb.tokens).toEqual(['먼저 ', '이제 퀴즈']);
     expect(cb.cards).toEqual([
-      { cardType: 'concept', payload: { id: 'c1', title: '도함수' } },
+      { cardType: 'concept', payload: { id: 'c1', title: '기울기' } },
       { cardType: 'quiz', payload: { question: 'Q' } },
     ]);
     // 카드는 종료 프레임 아님 — done 까지 스트림 계속.

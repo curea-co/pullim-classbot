@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
-import { useModeBots } from '@/lib/store/mode-bots';
-import { useStudentMode } from '@/lib/store/student-mode';
+import { useClassBots } from '@/lib/store/mode-bots';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useSelfLearningStore } from '@/lib/store/self-learning';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -17,17 +19,17 @@ import { botSignature } from '@/lib/tokens/bot-signature';
  */
 export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
   // hydration 전에는 모드/봇이 빈 상태 → 잘못된/누락 코멘트 대신 미렌더(자연스러운 등장).
-  const { hydrated } = useStudentMode();
-  const modeBots = useModeBots();
-  const botComment = hydrated ? getWellnessBotComment(studentId, modeBots) : null;
+  // 하이드레이션만 본다 — 종전엔 `useStudentMode().hydrated` 를 썼는데, 그 훅은 폐기된 학습
+  // 모드 스토어를 함께 기다린다(2026-09-09 개정 박스 §⑤ — §4 의 `student-mode` 스토어 폐기).
+  // 여기 필요한 것은 **`useClassBots()` 가 읽는 두 스토어**의 복원 여부다.
+  const hydrated = useStoresHydrated(useClassEnrollmentStore, useSelfLearningStore);
+  const enrolledBots = useClassBots();
+  const botComment = hydrated ? getWellnessBotComment(studentId, enrolledBots) : null;
   if (!botComment) return null;
 
   const sig = botSignature(botComment.bot);
   return (
-    <section
-      className="bg-card rounded-2xl border border-l-[4px] p-4"
-      style={{ borderLeftColor: sig.hex }}
-    >
+    <section className="bg-card rounded-2xl border p-4">
       <header className="mb-2 flex items-center gap-2">
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
@@ -51,7 +53,8 @@ export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
       </p>
       <Link
         href={botComment.ctaHref}
-        className="mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors hover:bg-pullim-slate-50"
+        className="hover:bg-pullim-slate-50 mt-3 inline-flex items-center gap-1 rounded-full border-[1.5px] bg-transparent px-3 py-1.5 text-2xs font-bold transition-colors"
+        // [13 § 456] 봇 코멘트 카드 CTA 는 봇 시그니처 ghost — 어느 봇이 말을 건 것인지가 행동까지 이어진다
         style={{ borderColor: sig.inkLight, color: sig.inkLight }}
       >
         {botComment.ctaLabel}
