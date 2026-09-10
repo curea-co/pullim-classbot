@@ -54,7 +54,9 @@ export default function ClassbotDiscoverPage() {
             className="bg-card hover:bg-pullim-slate-50/50 text-pullim-slate-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
           >
             <Bookmark className="h-3.5 w-3.5" aria-hidden />
-            내가 담은 봇
+            {/* 보이는 글자는 두 어절(07 § 6.6). 「내 봇」으로 더 줄이지 않는다 —
+                반 봇까지 포함하는 말로 읽혀 「선생님 반의 봇」과 갈리지 않는다(§ 6.6.2(1)(2)). */}
+            담은 봇
           </Link>
         }
       />

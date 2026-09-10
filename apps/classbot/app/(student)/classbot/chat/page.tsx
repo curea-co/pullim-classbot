@@ -251,7 +251,8 @@ function ClassbotChatPageInner() {
               aria-label="참여 코드 입력하러 가기"
               className="text-pullim-blue-700 font-bold underline underline-offset-2"
             >
-              코드로 반에 들어가기
+              {/* 보이는 글자는 명사 두 어절(07 § 6.6) — 잃은 뜻은 위 aria-label 이 든다. */}
+              참여 코드
             </Link>
           </p>
         </div>

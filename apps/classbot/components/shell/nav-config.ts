@@ -68,7 +68,7 @@ export const classbotStudentSection: NavSubItem[] = [
   // 마켓에서 담은 봇이 사는 자리. 「내 수업방」 바로 뒤에 두는 이유는 봇이 사는 곳 둘이
   // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
   // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
-  { href: '/classbot/my-bots',    label: '내가 담은 봇', icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
+  { href: '/classbot/my-bots',    label: '담은 봇',     icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
   // 담은 봇이 오는 곳이라 바로 뒤에 둔다. 레일에 세우는 이유: 이미 반과 담은 봇이 있는 학생은
   // 빈 상태 안내를 두 번 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 **새 봇을 찾을 길이
   // 사라진다.** 종전에 닫아 뒀던 것은 화면이 mock 「공식 튜터 마켓」이라 레일 라벨과 도착지가

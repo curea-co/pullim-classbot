@@ -107,7 +107,7 @@ export default function MyBotsPage() {
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <PageHeader
-        eyebrow={{ icon: Bookmark, text: '내가 담은 봇' }}
+        eyebrow={{ icon: Bookmark, text: '담은 봇' }}
         title={
           isLoading || mine.isError ? (
             '담은 봇'
