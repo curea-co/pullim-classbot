@@ -11,8 +11,6 @@ import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMyClassrooms } from '@/hooks/api/classroom';
-import { ApiClientError } from '@/lib/api/client-fetch';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 
@@ -27,13 +25,10 @@ import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
  * 그 뒤에 붙는다(`useMyRooms`).
  */
 export default function StudentClassroomPage() {
-  const { rooms, isLoading } = useMyRooms();
-  const { error, refetch } = useMyClassrooms();
+  // 실패 판정은 훅 하나가 소유한다 — 화면마다 401 을 따로 가르면 규칙이 갈린다.
+  // `isError` 에 401 은 들지 않는다(신원이 없는 데모이고, 그때의 정답은 `rooms` 가 담는다).
+  const { rooms, isLoading, isError, retry } = useMyRooms();
   const leaveClass = useClassEnrollmentStore((s) => s.leave);
-
-  // 401 은 「로그인도 개발용 신원도 없는 데모」다 — 그 경우 로컬 방만 보여주면 되고
-  // 화면을 에러로 덮지 않는다. 그 밖의 실패만 다시 시도 카드를 띄운다.
-  const isError = error instanceof ApiClientError && error.status !== 401;
 
   return (
     <div className="space-y-4">
@@ -77,7 +72,7 @@ export default function StudentClassroomPage() {
       <SectionHeading title="참여 중인 수업방" />
 
       {isError ? (
-        <ReadErrorState onRetry={() => void refetch()} />
+        <ReadErrorState onRetry={retry} />
       ) : isLoading && rooms.length === 0 ? (
         <RoomListSkeleton />
       ) : rooms.length === 0 ? (

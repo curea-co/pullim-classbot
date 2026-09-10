@@ -38,6 +38,14 @@ export interface StudentBotsResult {
    * 학생에게 「아무것도 없어요」가 한 번 번쩍인다.
    */
   isLoading: boolean;
+  /**
+   * 반 목록을 **못 읽었다**(`useMyRooms().isError` — 5xx·네트워크). `slots` 가 비어 있어도
+   * 「봇이 없다」가 아니라 「모른다」다. 마켓 실패는 여기 들지 않는다 — 담은 봇은 마켓이 막혀도
+   * 이름만 잃고 목록에는 남는다(`fallbackBot`).
+   */
+  isError: boolean;
+  /** 반 목록을 다시 읽기. */
+  retry: () => void;
 }
 
 /** 봇 성격 기본값 — 마켓 행이 알려주지 않는 칸. `components/classbot/home/my-rooms.ts` 와 같은 규약. */
@@ -135,7 +143,7 @@ export function useStudentBots(): StudentBotsResult {
     그 결과 **홈은 「참여 중인 클래스 5곳」인데 대화는 「아직 대화할 봇이 없어요」** 가 됐다 —
     같은 학생, 같은 순간에. 코드로 들어간 반의 봇과 말을 못 하면 들어간 의미가 없다.
   */
-  const { rooms: classRooms, isLoading: roomsLoading } = useMyRooms();
+  const { rooms: classRooms, isLoading: roomsLoading, isError: roomsError, retry } = useMyRooms();
   const selfBots = useMySelfBots();
   const market = useMarketplaceBots();
 
@@ -192,6 +200,8 @@ export function useStudentBots(): StudentBotsResult {
       roomsLoading ||
       selfBots.isLoading ||
       ((selfBots.data?.length ?? 0) > 0 && market.isPending),
+    isError: roomsError,
+    retry,
   };
 }
 

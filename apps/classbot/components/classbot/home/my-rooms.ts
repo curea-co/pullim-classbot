@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 
 import { useMyClassrooms } from '@/hooks/api/classroom';
+import { ApiClientError } from '@/lib/api/client-fetch';
 import type { StudentClassroomItem } from '@/hooks/api/types';
 import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
 import { useClassEnrollmentStore, useMyClassBots } from '@/lib/store/class-enrollment';
@@ -94,7 +95,7 @@ function toSlot(item: StudentClassroomItem): RoomSlot {
   };
 }
 
-/** `useMyRooms()` 결과 — 목록과 「아직 모른다」를 함께 준다. */
+/** `useMyRooms()` 결과 — 목록과 「아직 모른다」·「못 읽었다」를 함께 준다. */
 export interface MyRoomsResult {
   rooms: RoomSlot[];
   /**
@@ -105,35 +106,53 @@ export interface MyRoomsResult {
    * **저장된 데모 반이 있는 학생에게 빈 상태가 한 번 번쩍이고** 뒤늦게 카드가 나타난다.
    */
   isLoading: boolean;
+  /**
+   * 서버 목록을 **못 읽었다**(5xx·네트워크). 이때 `rooms` 는 비어 있지만 그건 「방이 없다」가
+   * 아니라 「모른다」다 — 소비부는 빈 상태를 확정하지 말고 다시 시도를 띄운다.
+   *
+   * **401 은 여기 들지 않는다.** 그건 고장이 아니라 신원이 없는 데모이고, 그 경우의 정답은
+   * 아래 `rooms` 가 이미 담고 있다(로컬 방).
+   */
+  isError: boolean;
+  /** 실패했을 때 다시 읽기. */
+  retry: () => void;
 }
 
 /**
- * 내가 참여 중인 수업방 — 서버 목록 + 데모 스토어를 합쳐 돌려준다.
+ * 내가 참여 중인 수업방.
  *
- * 같은 봇이 양쪽에 있으면 **서버 행이 이긴다**(참여 시각·반 이름이 최신이다).
- * 서버가 401 을 주면(로그인도 개발용 신원 쿠키도 없는 데모) 스토어만 남는다 —
- * 지금까지의 데모 동작 그대로다.
- * @returns 참여 중인 방과 로딩 여부
+ * **소스는 상황에 따라 하나다 — 섞지 않는다.**
+ *  - **신원이 있으면**(서버가 200) 서버 행만 쓴다. 로컬 스토어(`pullim-class-enrollment`)는
+ *    **사용자별 저장소가 아니라 전역 배열**이라, 같은 브라우저에서 익명 데모나 다른 학생이
+ *    전에 참여한 mock 방이 지금 로그인한 학생의 목록에 섞여 든다. 그건 남의 방이다.
+ *  - **신원이 없으면**(서버가 401) 로컬 방만 쓴다 — prod 는 공개·비로그인이라 이 경로가
+ *    데모의 정본이고, prod 회귀 자동화(`tests/e2e`)도 이 길로 반에 들어간다.
+ *  - **못 읽었으면**(5xx·네트워크) 빈 목록 + `isError` 다. 로컬로 대신 채우지 않는다 —
+ *    식별된 사용자에게 남의 데모 방을 보여 주는 셈이 된다.
+ * @returns 참여 중인 방 · 로딩 · 실패 · 재시도
  */
 export function useMyRooms(): MyRoomsResult {
   const local = useMyClassBots();
   // 스토어 하이드레이션도 기다린다 — 위 `isLoading` 주석의 그 틈을 막는다.
   const localHydrated = useStoresHydrated(useClassEnrollmentStore);
-  const { data, isPending } = useMyClassrooms();
+  const { data, isPending, error, refetch } = useMyClassrooms();
 
-  const rooms = useMemo(() => {
-    const apiRooms = (data?.classrooms ?? []).map(toSlot);
-    // 합치는 기준이 **봇 id** 인 이유: 두 소스의 반 id 는 서로 다른 공간이다.
-    // 스토어 쪽은 `classroomId === botId`(mock 카탈로그 id)이고 서버 쪽은 진짜 반 id 라,
-    // 반 id 로 맞추면 같은 봇의 데모 방과 실제 방이 **둘 다** 그려진다.
-    // 서버가 같은 봇으로 여러 반을 주는 경우는 이 집합이 가리지 않는다 — apiRooms 는 전부 남는다.
-    // (화면의 목록 key 는 그래서 봇이 아니라 `enrollment.classroomId` 를 쓴다.)
-    const seen = new Set(apiRooms.map((r) => r.bot.id));
-    const localRooms: RoomSlot[] = local
-      .filter((slot) => !seen.has(slot.bot.id))
-      .map((slot) => ({ ...slot, source: 'local' }));
-    return [...apiRooms, ...localRooms];
-  }, [data, local]);
+  // 신원이 없다 = 데모다. 고장이 아니다.
+  const unidentified = error instanceof ApiClientError && error.status === 401;
+  const isError = Boolean(error) && !unidentified;
 
-  return { rooms, isLoading: isPending || !localHydrated };
+  const rooms = useMemo<RoomSlot[]>(() => {
+    // 화면의 목록 key 는 봇이 아니라 `enrollment.classroomId` 다 — 서버가 같은 봇으로 여러
+    // 반을 주는 경우가 있어서(그 반들은 전부 남는다).
+    if (unidentified) return local.map((slot) => ({ ...slot, source: 'local' }));
+    return (data?.classrooms ?? []).map(toSlot);
+  }, [data, local, unidentified]);
+
+  return {
+    rooms,
+    // 로컬을 쓰는 경로에서만 하이드레이션을 기다린다 — 신원이 있으면 로컬을 안 읽는다.
+    isLoading: isPending || (unidentified && !localHydrated),
+    isError,
+    retry: () => void refetch(),
+  };
 }

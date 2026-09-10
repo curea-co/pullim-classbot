@@ -12,6 +12,7 @@ import { useStudentBots } from '@/lib/store/mode-bots';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import {
   LearningHero,
   TutorShowcase,
@@ -71,7 +72,7 @@ export default function StudentClassbotPage() {
   // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
   // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
   // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
-  const { rooms: myBots, isLoading: roomsLoading } = useMyRooms();
+  const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
   // hook 6-b — 반 봇 + 담은 봇을 합친 목록. 홈이 갈리는 기준이자 「내 봇」 칸의 원본이다.
   // (안쪽에서 `useMyRooms()` 를 다시 부르지만 같은 캐시·같은 스토어라 값이 갈리지 않는다.)
   const { slots: allBots, isLoading: botsLoading } = useStudentBots();
@@ -93,6 +94,16 @@ export default function StudentClassbotPage() {
   // 반 목록·담은 봇이 아직 안 왔는데 「반이 0곳」으로 단정하면, 반이 있는 학생에게도 참여
   // hero 가 한 번 번쩍인다 — 도착할 때까지는 스켈레톤으로 자리를 지킨다.
   if (myBots.length === 0 && (roomsLoading || botsLoading)) return <HomeSkeleton />;
+
+  // 반 목록을 **못 읽었으면** 「반이 0곳」으로 확정하지 않는다 — 실제로 반이 있는 학생에게
+  // 참여 코드 hero 를 내밀면 「내 반이 사라졌다」로 읽힌다. 다시 시도를 준다.
+  if (myBots.length === 0 && roomsError) {
+    return (
+      <div className="space-y-5">
+        <ReadErrorState onRetry={retryRooms} />
+      </div>
+    );
+  }
 
   // 참여한 반이 0곳인 홈 — spec §6 데이터 흐름 그대로. 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
   // on 이면 해제 안전망 스트립(TodoPanel 이 없어 같은 날 원복 계약 §3/§8 을 스트립이 보장, R3).

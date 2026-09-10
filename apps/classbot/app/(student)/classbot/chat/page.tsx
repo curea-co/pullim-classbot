@@ -52,6 +52,7 @@ import {
   chatBubbleClass,
 } from '@/components/classbot/chat-transcript';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
 import { todayKey } from '@/lib/store/today-key';
@@ -187,7 +188,7 @@ function ClassbotChatPageInner() {
   const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
   // 반 봇과 담은 봇을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
   // 걷었다 — 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
-  const { slots, isLoading: botsLoading } = useStudentBots();
+  const { slots, isLoading: botsLoading, isError: botsError, retry: retryBots } = useStudentBots();
   // 반 참여는 localStorage persist 라 하이드레이션 전에는 빈 목록으로 평가된다.
   // (담은 봇 쪽 대기 구간은 `useStudentBots().isLoading` 이 이미 들고 있다.)
   const classHydrated = useStoresHydrated(useClassEnrollmentStore);
@@ -238,6 +239,16 @@ function ClassbotChatPageInner() {
   // 참여 코드를 쓸 수 없는 학생이 각각 생겼고, 선생님이 없는 학생에게는 이 화면이
   // 「참여 코드를 받아 오세요」 하나뿐인 막다른 길이었다 — 이번에 고치는 게 그 자리다.
   // 마켓을 앞에 두는 이유: 담기는 학생이 **혼자서 지금 할 수 있는** 유일한 길이다.
+  // 반 목록을 **못 읽었으면** 「봇이 없다」로 확정하지 않는다 — 실제로 반 봇이 있는 학생에게
+  // 참여·마켓 안내를 내밀면 「내 봇이 사라졌다」로 읽힌다. 다시 시도를 준다.
+  if (!current && botsError) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <ReadErrorState onRetry={retryBots} />
+      </div>
+    );
+  }
+
   if (!current) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
