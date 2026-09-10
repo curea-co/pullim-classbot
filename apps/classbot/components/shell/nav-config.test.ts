@@ -63,12 +63,14 @@ describe('nav-config 라우트 인벤토리', () => {
     expect(hrefs.filter((href) => !exists(href))).toEqual([]);
   });
 
-  // 봇 마켓(`/classbot/discover`)은 **화면은 있지만** 아직 「공식 튜터 마켓」(mock 공식
-  // 튜터 + 「곧 만날 봇」)이다. 그래서 위의 「page 가 있다」만으로는 못 막는다 —
-  // 교사가 공유한 봇으로 화면을 갈아끼우는 PR 이 nav 도 함께 되살리기로 한 자리라
-  // (`proc/spec/03 § 2.1`), 그때까지 비노출인 것을 따로 못박는다.
-  it('봇 마켓은 화면이 바뀌기 전까지 nav 에 오르지 않는다', () => {
-    expect(hrefsOf(studentNav)).not.toContain('/classbot/discover');
+  // 봇 마켓(`/classbot/discover`)은 화면이 「공식 튜터 마켓」(mock)이던 동안 nav 에서
+  // 내려 있었다 — 레일 라벨과 도착지가 어긋나서다. 교사가 공유한 봇으로 갈아끼우는 PR 이
+  // nav 도 함께 되살리기로 한 자리이고(`proc/spec/03 § 2.1`), **이 PR 이 그 PR 이다.**
+  // 레일에 있어야 하는 이유는 따로 있다: 이미 반과 담은 봇이 있는 학생은 빈 상태 안내를
+  // 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 새 봇을 찾을 길이 사라진다.
+  it('봇 마켓은 학생 레일에 있다 — 하단탭은 셋 그대로', () => {
+    expect(hrefsOf(studentNav)).toContain('/classbot/discover');
+    // 하단탭은 기획 보류로 셋만 남긴 자리다(아래 tabItems 테스트) — 여기 늘리지 않는다.
     expect(studentBottomTabs.map((t) => t.href)).not.toContain('/classbot/discover');
   });
 });

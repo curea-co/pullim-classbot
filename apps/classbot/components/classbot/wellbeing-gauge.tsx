@@ -6,8 +6,10 @@ import { Heart, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
-import { useModeBots } from '@/lib/store/mode-bots';
-import { useStudentMode } from '@/lib/store/student-mode';
+import { useClassBots } from '@/lib/store/mode-bots';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useSelfLearningStore } from '@/lib/store/self-learning';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { cn } from '@/lib/utils';
 import { Sparkbar } from '@/components/classbot/sparkbar';
 
@@ -42,17 +44,16 @@ export function WellbeingGauge({
   audience?: 'student-chat' | 'student-self';
 }) {
   const trend = getWellbeingTrend(studentId);
-  // 봇 인사이트는 enrollment 권위(class-enrollment 스토어)를 구독해 주입 — join/나가기에 reactive.
-  // 학생 화면에는 봇 인사이트 합성 — § 9.2 필수 요소. compact mode(교사 mini chart)는 inline early return 분기로 자동 미노출.
-  // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
-  const { hydrated } = useStudentMode();
-  const modeBots = useModeBots();
-  // hydration 전에는 모드/봇이 빈 상태 → 잘못된 인사이트 플래시 방지(차트는 그대로 표시).
-  const rawInsight = hydrated ? getWellnessBotComment(studentId, modeBots) : null;
-  const botInsight = rawInsight && audience === 'student-self'
-    ? { ...rawInsight, ctaHref: '/classbot/assignment', ctaLabel: '다음 주 도전' }
-    : rawInsight;
   const [open, setOpen] = useState(false);
+  /*
+    ⚠ 봇 인사이트를 여기서 만들지 않는다 — **`ComponentBreakdown` 안에서** 만든다.
+    이 컴포넌트는 교사 리포트(`/teacher/reports/[id]`)에서도 `compact` 로 쓰이는데, 인사이트
+    합성이 `useClassBots()` 를 부르고 그 훅이 `useMyRooms()` → `GET /api/me/classrooms` 를
+    친다. 그 라우트는 **학생 전용**이라 교사에게 403 이다(`app/api/_lib/guards.ts` 의
+    `denyUnlessStudent`). 훅은 조건부로 부를 수 없으니(Rules of Hooks) `compact` 분기가
+    아래에 있어도 요청은 이미 나간다 — 교사가 리포트를 열 때마다 403 과 마켓 조회가 함께
+    떴다. 그래서 그 훅들을 **비-compact 경로에서만 마운트되는 자식**으로 내렸다.
+  */
 
   if (trend.length === 0) {
     return (
@@ -149,7 +150,7 @@ export function WellbeingGauge({
         inert={!open}
       >
         <div className="overflow-hidden">
-          <ComponentBreakdown snapshot={today} botInsight={botInsight} audience={audience} />
+          <ComponentBreakdown snapshot={today} studentId={studentId} audience={audience} />
         </div>
       </div>
 
@@ -222,17 +223,35 @@ function scoreTone(score: number) {
   };
 }
 
-/** 5지표 분해 ([13 § 9.2]) — 수면·집중·감정·사회·학업 + 봇 인사이트 1줄 + actionable CTA */
+/**
+ * 5지표 분해 ([13 § 9.2]) — 수면·집중·감정·사회·학업 + 봇 인사이트 1줄 + actionable CTA
+ *
+ * **봇 인사이트를 여기서 만든다.** 이 컴포넌트는 학생 화면(비-compact)에서만 마운트되므로,
+ * `useClassBots()` 의 학생 전용 조회(`GET /api/me/classrooms`)가 교사 리포트에서 돌지 않는다
+ * (부모 머리주석 참조).
+ */
 function ComponentBreakdown({
   snapshot,
-  botInsight,
+  studentId,
   audience,
 }: {
   snapshot: WellbeingSnapshot;
-  botInsight: ReturnType<typeof getWellnessBotComment>;
+  studentId: string;
   /** 화면별 fallback 카피 분기 — [WellbeingGauge audience prop 참고] */
   audience: 'student-chat' | 'student-self';
 }) {
+  // 봇 인사이트는 enrollment 권위(class-enrollment 스토어)를 구독해 주입 — join/나가기에 reactive.
+  // 하이드레이션만 본다 — 종전엔 `useStudentMode().hydrated` 를 썼는데, 그 훅은 폐기된 학습
+  // 모드 스토어를 함께 기다린다(2026-09-09 개정 박스 §⑤ — §4 의 `student-mode` 스토어 폐기).
+  // 여기 필요한 것은 **`useClassBots()` 가 읽는 두 스토어**의 복원 여부다.
+  const hydrated = useStoresHydrated(useClassEnrollmentStore, useSelfLearningStore);
+  const enrolledBots = useClassBots();
+  // hydration 전에는 봇이 빈 상태 → 잘못된 인사이트 플래시 방지.
+  const rawInsight = hydrated ? getWellnessBotComment(studentId, enrolledBots) : null;
+  // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
+  const botInsight = rawInsight && audience === 'student-self'
+    ? { ...rawInsight, ctaHref: '/classbot/assignment', ctaLabel: '다음 주 도전' }
+    : rawInsight;
   const insightSig = botInsight ? botSignature(botInsight.bot) : null;
   const c = snapshot.components;
   if (!c) {

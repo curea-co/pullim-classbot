@@ -8,11 +8,13 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { Sparkbar } from '@/components/classbot/sparkbar';
-import { useMyClassBots, useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import {
@@ -46,14 +48,24 @@ export default function MyProgressPage() {
   const snapshot = getProgressSnapshot(period);
 
   // 참여한 클래스가 있어야 학습 기록이 쌓인다 — 홈·봇 대화와 같은 게이트를 쓴다.
-  const myBots = useMyClassBots();
-  const hydrated = useStoresHydrated(useClassEnrollmentStore);
+  // `isError` 도 같이 받는다 — 조회 실패를 「기록이 없어요」로 확정하면 안 된다.
+  const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
+  const hydrated = useStoresHydrated(useClassEnrollmentStore) && !roomsLoading;
 
   // persist hydration 전에는 참여 여부를 신뢰할 수 없다 → 빈 상태 플래시 방지.
   if (!hydrated) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
+      </div>
+    );
+  }
+
+  // 못 읽은 것과 없는 것을 가른다 — 실패를 빈 상태로 적으면 「내 기록이 사라졌다」로 읽힌다.
+  if (roomsError) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <ReadErrorState onRetry={retryRooms} />
       </div>
     );
   }
@@ -65,7 +77,7 @@ export default function MyProgressPage() {
           icon={GraduationCap}
           title="아직 쌓인 학습 기록이 없어요"
           description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
-          action={{ href: '/classbot', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
+          action={{ href: '/classbot/classroom', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
         />
       </div>
     );
@@ -154,9 +166,9 @@ function StandardsSection({ standards }: { standards: AchievementStandard[] }) {
 
 function StandardRow({ standard: s }: { standard: AchievementStandard }) {
   const face = progressBotFace(s.botId);
-  const hex = botSignature({ id: s.botId, subject: face.subject }).hex;
+  // 어느 봇 기준인지는 아래 `{face.name}` 줄이 말한다 — 라이너까지 칠하면 목록 전체가 무지개가 된다 [08 § 14.1]
   return (
-    <li className="bg-card rounded-2xl border border-l-[3px] p-4" style={{ borderLeftColor: hex }}>
+    <li className="bg-card rounded-2xl border p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-pullim-slate-900 text-sm font-bold">{s.statement}</p>

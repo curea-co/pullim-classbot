@@ -30,6 +30,10 @@ export default function UnitPage({
 
   // ── Store hooks (unconditional) ──────────────────────────────────────────
   const progress = useUnitProgress(tutorId, unitId);
+  // 단원 진행은 mock 슬라이스(`unitProgress`)에 그대로 쌓인다 — P5 까지 이 루프는 mock 위에서
+  // 돈다(개정 박스 §⑤ 의 §3). **새 「공부한 날」에는 잇지 않는다** — 그 배열은
+  // `class_bots.id` 기반 자기주도 기록이고 #273 이 서버로 백필하므로, mock `ot_*` 활동에서
+  // 나온 날짜를 그 자리에 넣으면 안 된다. 이음매는 P5 가 카탈로그 전환과 함께 만든다.
   const completeStep = useSelfLearningStore((s) => s.completeStep);
 
   // ── Derived data (unconditional) ─────────────────────────────────────────

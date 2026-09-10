@@ -183,7 +183,7 @@ export const classBots: ClassBot[] = [
 /**
  * 학생 enrollment — 출시(shipping) 기준 **신규 사용자는 빈 상태**.
  * 교사 배정(교사수업 모드)은 BE 연동 후 실제 배정으로 채워진다. 데모 시드는 제거됨.
- * 빈 배열이면 useStudentMode 가 자동으로 'self'(자기주도) 모드로 해석 → 환영/온보딩 홈.
+ * 빈 배열이면 홈이 참여 안내(참여 코드 hero)로 간다 — 학습 모드 분기는 폐기됐다.
  */
 export const studentEnrollments: StudentEnrollment[] = [];
 
