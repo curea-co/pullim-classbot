@@ -17,7 +17,7 @@
 | 교사 라우트 | `app/(teacher)/teacher/{,classbot,builder}` | 홈/내 클래스봇/봇 빌더 3 페이지 |
 | 학부모 라우트 | `app/(parent)/parent/{,assignments,self-study}` | **`[예정]`** — `dev` 에는 아직 이 트리가 없다. `/parent`·`/parent/assignments` 는 #268, `/parent/self-study` 는 #271 이 인도한다(`proc/spec/03 § 2.3`). **금지 영역이 아니라는 것이 2026-09-07 의 변경**이고, 내용은 자녀 동의 뒤에만 보인다(`05 § 11.4`) |
 | 도메인 컴포넌트 | `components/classbot/*`, `components/builder/*` | 13 파일 |
-| 공유 셸 | `components/shell/*` | Role = `student | teacher` — **`[예정]`** `parent` 확장. **범위 승인은 2026-09-07 에 났지만 셸은 아직 두 갈래다**: `dev` 의 `navForRole` 과 헤더 `Record<Role,…>` 표 셋에 parent 가 없다. union 을 넓히는 것은 **화면이 도착하는 PR** 이고(레일·역할 전환 항목도 그때 함께 열린다), 미리 넓히면 없는 `/parent` 를 가리키는 답을 지금 적게 된다. CoachFab 제거 |
+| 공유 셸 | `components/shell/*` | Role = `student | teacher | parent` — **셋이다**(#281 이 `dev` 에 넣었다: `navForRole` 의 학부모 레일 · 헤더 `Record<Role,…>` 표 셋 · 역할 전환 항목). **화면 없는 역할을 미리 열지 않는다**는 원칙은 그대로 — 그래서 union 을 넓힌 것이 화면이 도착하는 PR 이었다. 학생 레일 3항목 추가는 **`[예정]` #283**(승인 2026-09-10 — [§ 5](#5-작업-컨벤션--클래스봇-단일-도메인-락인)). CoachFab 제거 |
 | 공유 UI (shadcn) | `components/ui/*`, `components/brand/*` | shadcn 프리미티브 |
 | 도메인 mock | `lib/mock/{persona,family,tutor,classbot,chat}.ts` | 잔존 — Phase β 이후 DB 로 점진 대체 |
 | Drizzle 스키마 | `lib/db/schema.ts` | classbot 도메인 테이블 |
@@ -725,6 +725,16 @@ bun --filter @pullim-classbot/classbot build
     여는 것. 화면이 도착하는 PR 이 union 을 넓히고, 그 순간 `navForRole` 의 exhaustive switch 와
     헤더의 `Record<Role,…>` 표 셋이 컴파일로 「홈은 어디인가 · 라벨은 무엇인가」를 묻는다.
     **화면 없는 역할을 미리 열지 않는다**는 원칙은 그대로다 — 없는 라우트를 nav 에 실으면 누르는 즉시 404 다.
+    → **인도됨**: #281(학부모 화면)이 `dev` 에 넣었다. `Role` 은 이제 셋이다.
+  - **이미 승인된 것(2026-09-10)**: **학생 레일에 항목 셋을 더하는 것** —
+    `/classbot/classroom`(「내 수업방」) · `/classbot/my-bots`(「담은 봇」) · `/classbot/discover`(「봇 마켓」).
+    **추가만**이고 기존 항목의 순서·라벨·경로·아이콘, `Role` union, 헤더 표 셋, `studentBottomTabs`(셋 그대로),
+    교사·학부모 레일, breadcrumb 은 **건드리지 않는다.**
+    근거는 `proc/spec/03-features-and-ia.md` § 2.1 라우트 인벤토리다 — 세 라우트를 그 PR 의 몫으로 등재해 두었고
+    `/classbot/discover` 줄은 「nav 를 되살린다」로 명시한다. 그리고 `nav-config.test.ts` 가
+    「레일의 모든 항목에 대응 page 가 있어야 한다」를 테스트로 강제하므로, **화면과 nav 는 같은 PR 에 있어야 한다** —
+    nav 만 먼저 떼면 없는 page 를 가리켜 빨개지고, 나중에 떼면 그 사이 `dev` 가 「페이지는 있고 갈 길은 없는」 상태가 된다.
+    → **인도**: `[예정]` #283(학생 화면).
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
