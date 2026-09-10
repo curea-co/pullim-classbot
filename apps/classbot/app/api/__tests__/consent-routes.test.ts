@@ -31,6 +31,10 @@ const whereSpy = jest.fn();
 const joinSpy = jest.fn();
 const insertValuesSpy = jest.fn();
 const updateSetSpy = jest.fn();
+/** `SELECT … FOR UPDATE` — 부여의 직렬화 잠금이 걸렸는지 본다. */
+const forSpy = jest.fn();
+/** `db.transaction(…)` 호출 수 — 잠금과 쓰기가 **같은 트랜잭션**에 있는지 본다. */
+const transactionSpy = jest.fn();
 
 let mockSelectQueue: unknown[][] = [];
 let mockInsertQueue: unknown[][] = [];
@@ -52,6 +56,10 @@ jest.mock('@/lib/db', () => {
     };
     chain.where = (...args: unknown[]) => {
       whereSpy(...args);
+      return chain;
+    };
+    chain.for = (...args: unknown[]) => {
+      forSpy(...args);
       return chain;
     };
     chain.then = (resolve: (v: unknown[]) => unknown) =>
@@ -94,6 +102,11 @@ jest.mock('@/lib/db', () => {
     },
     insert: () => insertChain(),
     update: () => updateChain(),
+    // 이웃 라우트 테스트와 같은 모양 — 콜백을 그대로 실행해 tx 를 같은 가짜 db 로 준다.
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => {
+      transactionSpy();
+      return fn(makeDb());
+    },
   });
 
   return { getDb: () => makeDb() };
@@ -126,6 +139,8 @@ beforeEach(() => {
   joinSpy.mockClear();
   insertValuesSpy.mockClear();
   updateSetSpy.mockClear();
+  forSpy.mockClear();
+  transactionSpy.mockClear();
   mockSelectQueue = [];
   mockInsertQueue = [];
   mockUpdateQueue = [];
@@ -175,6 +190,14 @@ function req(
  * 당겨져 링크 조회가 role 로 읽힌다.
  */
 const STUDENT = [{ role: 'student' }];
+
+/**
+ * 부여가 트랜잭션 안에서 잠그는 `SELECT users … FOR UPDATE` 한 줄.
+ *
+ * 결과는 쓰이지 않지만 **큐를 한 칸 먹는다.** 부여를 부르는 큐는 링크 조회 뒤에 이걸 둔다 —
+ * 빠뜨리면 뒤 행이 당겨진다.
+ */
+const LOCK = [{ id: 'student_001' }];
 
 /** 신원이 전혀 없는 요청 — 데모 폴백이라 `isIdentified:false` 다. */
 function anonReq(init: RequestInit = {}): Request {
@@ -591,8 +614,48 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
     expect(updateSetSpy).not.toHaveBeenCalled();
   });
 
+  /**
+   * 멱등이 **동시 요청에서도** 성립하는지 — 응답으로는 볼 수 없는 자리다.
+   *
+   * 「갱신할 행을 찾아보고 없으면 넣는다」만으로는, 요청 둘이 동시에 오면 **둘 다 갱신할
+   * 행을 못 찾고 각자 새 행을 넣어** 살아 있는 동의가 둘이 된다. 그러면 학부모 쪽 조인이
+   * 자녀를 두 번 돌려주고 「지금 어떤 범위로 공유 중인가」에 답이 둘이 된다.
+   *
+   * 한 요청만 보내는 단위 테스트로 경합을 재현할 수는 없으므로, **막는 장치가 제자리에
+   * 있는지**를 본다 — 잠금과 쓰기가 **같은 트랜잭션**에 있고, 잠금이 `FOR UPDATE` 이고,
+   * 잠그는 것이 **학생 행**이라는 것. 참여 코드 재발급이 반 행을 잠그는 것과 같은 구조다.
+   */
+  it('부여는 트랜잭션 안에서 학생 행을 FOR UPDATE 로 잠근다 — 동시 부여의 직렬화', async () => {
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }], LOCK];
+    mockInsertQueue = [
+      [
+        {
+          type: 'self_study_summary',
+          scopeLabel: '계속',
+          grantedAt: new Date('2026-09-03T00:00:00Z'),
+          expiresAt: null,
+        },
+      ],
+    ];
+
+    const res = await grantConsent(
+      grantReq('student_001', { type: 'self_study_summary', scopeLabel: '계속' }),
+    );
+
+    expect(res.status).toBe(201);
+    // 트랜잭션이 하나 열렸다 — 잠금과 쓰기가 그 안에 함께 있다.
+    expect(transactionSpy).toHaveBeenCalledTimes(1);
+    // 잠금은 `FOR UPDATE` 다(공유 잠금이면 둘 다 통과해 경합이 남는다).
+    expect(forSpy).toHaveBeenCalledTimes(1);
+    expect(forSpy).toHaveBeenCalledWith('update');
+    // 잠그는 것은 **학생 행**이다 — 같은 학생의 부여가 모두 이 한 행에 줄을 선다.
+    const lockWhere = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 2][0]);
+    expect(lockWhere.text).toContain('"users"."id"');
+    expect(lockWhere.params).toContain('student_001');
+  });
+
   it('parent_id 는 링크에서 읽는다 — 명의는 토큰 주인이다', async () => {
-    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }], LOCK];
     mockInsertQueue = [
       [
         {
@@ -632,7 +695,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('살아 있는 동의가 있으면 갱신이다 — 200, 새 행 없음', async () => {
-    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }], LOCK];
     mockUpdateQueue = [
       [
         {
@@ -657,7 +720,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
   });
 
   it('갱신은 옛 보호자에게 매달린 행을 지금 보호자에게 옮겨 붙인다', async () => {
-    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
+    mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }], LOCK];
     mockUpdateQueue = [
       [
         {

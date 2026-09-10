@@ -31,7 +31,7 @@ import { NextResponse } from 'next/server';
 import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
-import { consentLogs } from '@/lib/db/schema';
+import { consentLogs, users } from '@/lib/db/schema';
 import {
   denyUnlessStudent,
   invalidInput,
@@ -136,6 +136,10 @@ export async function GET(req: Request): Promise<NextResponse> {
  * 그래서 범위를 바꾸는 것은 **같은 행을 고쳐 쓰는 일**이다 — 새 행이 생겼을 때만 201 이고
  * 갱신이면 200 인데, **몸통은 둘 다 같다.**
  *
+ * **그 멱등은 동시 요청에서도 성립한다** — 「찾아보고 없으면 넣는다」를 트랜잭션 안에 두고
+ * 학생 행을 `FOR UPDATE` 로 잠근다. 잠금 없이 두면 동시 요청 둘이 각자 새 행을 넣어
+ * 살아 있는 동의가 둘이 됐다. 까닭과 왜 DB 제약으로 못 막는지는 아래 잠금 옆 주석에 있다.
+ *
  * ⚠️ 갱신에서 `granted_at` 도 함께 새로 쓴다. 범위를 바꾸면 기한의 기준점이 그 순간이라
  * (「오늘부터 이번 주만」), 준 시각만 옛날에 두면 화면의 「언제부터」와 기한이 어긋난다.
  *
@@ -177,46 +181,78 @@ export async function POST(req: Request): Promise<NextResponse> {
   const now = new Date();
   const expiresAt = expiryFor(scopeLabel, now);
 
-  const updated = await db
-    .update(consentLogs)
-    .set({ scopeLabel, expiresAt, grantedAt: now, parentId: recipient.id })
-    .where(livingConsentOf(studentId, type))
-    .returning({
-      type: consentLogs.type,
-      scopeLabel: consentLogs.scopeLabel,
-      grantedAt: consentLogs.grantedAt,
-      expiresAt: consentLogs.expiresAt,
-    });
-
-  if (updated.length > 0) {
-    // 갱신은 `parentId: recipient.id` 도 함께 쓴다 — 옛 보호자에게 매달려 있던 행이
-    // 여기서 **지금 보호자에게 옮겨 붙는다.** 그래서 언제나 지금 보호자 것이다.
-    const consent: GrantConsentResponse = { consent: toRow(updated[0], true) };
-    return NextResponse.json(consent);
-  }
+  const returning = {
+    type: consentLogs.type,
+    scopeLabel: consentLogs.scopeLabel,
+    grantedAt: consentLogs.grantedAt,
+    expiresAt: consentLogs.expiresAt,
+  };
 
   try {
-    const [inserted] = await db
-      .insert(consentLogs)
-      .values({
-        id: randomUUID(),
-        parentId: recipient.id,
-        studentId,
-        type,
-        grantedAt: now,
-        expiresAt,
-        scopeLabel,
-      })
-      .returning({
-        type: consentLogs.type,
-        scopeLabel: consentLogs.scopeLabel,
-        grantedAt: consentLogs.grantedAt,
-        expiresAt: consentLogs.expiresAt,
-      });
+    const outcome = await db.transaction(async (tx) => {
+      /*
+        학생 행을 먼저 잠근다 — **이 잠금이 「살아 있는 동의는 타입당 하나」를 지킨다.**
 
-    // 방금 `recipient.id` 로 넣은 행이다 — 지금 보호자 것임이 자명하다.
-    const consent: GrantConsentResponse = { consent: toRow(inserted, true) };
-    return NextResponse.json(consent, { status: 201 });
+        「갱신할 행을 찾아보고, 없으면 넣는다」는 순서만으로는 안 된다. 부여 요청 둘이
+        동시에 오면(학생이 스위치를 두 번 톡 치면) **둘 다 갱신할 행을 못 찾고 각자 새 행을
+        넣어** 살아 있는 동의가 둘이 된다. 그러면 멱등이라는 이 라우트의 계약이 깨지고,
+        「지금 어떤 범위로 공유 중인가」에 답이 둘이 된다.
+
+        같은 학생의 부여는 모두 이 한 행을 놓고 줄을 서므로, 뒤 요청은 앞 요청이 커밋한
+        뒤에야 UPDATE 를 시작한다 — 그 시점에는 갱신할 행이 있어서 INSERT 로 내려가지 않는다.
+        `users.id` 를 고른 것은 그 행이 **언제나 있기 때문**이다: `consent_logs.student_id` 와
+        `parent_child_links.student_id` 가 둘 다 그 표를 FK 로 물고, 위에서 링크를 이미
+        확인했으므로 여기 도달한 학생의 행은 존재한다.
+
+        ⚠ 잠금 범위는 **학생 하나**다(타입별이 아니다). 한 학생이 두 타입을 동시에 켜면
+        직렬화되지만, 사람이 스위치를 누르는 빈도에서 그 대기는 보이지 않는다 — 대신
+        타입별 키를 만들려고 잠금 대상을 쪼개면 그 키를 담을 행이 따로 필요해진다.
+
+        ⚠ 이 잠금은 **모든 부여 경로가 여기를 지난다는 전제** 위에 있다(참여 코드 재발급이
+        반 행을 잠그는 것과 같은 구조 — `teacher/classrooms/[id]/join-codes/route.ts`).
+        더 튼튼한 자리는 `consent_logs` 에 부분 유니크 인덱스를 두는 것인데 **그건 불가능하다**:
+        「살아 있다」에 `expires_at > now()` 가 들어 있고 부분 인덱스의 술어는 IMMUTABLE
+        이어야 한다. `WHERE revoked_at IS NULL` 만으로 걸면 **정상 흐름을 막는다** —
+        기간이 자연히 만료된 뒤 학생이 다시 켜는 길이 닫힌다(그 사정은
+        `app/api/parent/children/self-study/route.ts` 의 `dedupeByChild` 주석).
+      */
+      await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, studentId))
+        .for('update');
+
+      const updated = await tx
+        .update(consentLogs)
+        .set({ scopeLabel, expiresAt, grantedAt: now, parentId: recipient.id })
+        .where(livingConsentOf(studentId, type))
+        .returning(returning);
+
+      if (updated.length > 0) {
+        // 갱신은 `parentId: recipient.id` 도 함께 쓴다 — 옛 보호자에게 매달려 있던 행이
+        // 여기서 **지금 보호자에게 옮겨 붙는다.** 그래서 언제나 지금 보호자 것이다.
+        return { row: updated[0], created: false };
+      }
+
+      const [inserted] = await tx
+        .insert(consentLogs)
+        .values({
+          id: randomUUID(),
+          parentId: recipient.id,
+          studentId,
+          type,
+          grantedAt: now,
+          expiresAt,
+          scopeLabel,
+        })
+        .returning(returning);
+
+      return { row: inserted, created: true };
+    });
+
+    // 갱신이든 삽입이든 방금 `recipient.id` 로 쓴 행이다 — 지금 보호자 것임이 자명하다.
+    const consent: GrantConsentResponse = { consent: toRow(outcome.row, true) };
+    return NextResponse.json(consent, outcome.created ? { status: 201 } : undefined);
   } catch {
     // FK 위반(도메인 `users` 에 없는 신원) 등 쓰기 실패 — 이웃 라우트와 같게 400 으로 답한다.
     return invalidInput('공유 설정을 저장하지 못했어요.');
