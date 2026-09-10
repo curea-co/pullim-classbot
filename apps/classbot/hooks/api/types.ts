@@ -7,7 +7,11 @@
  */
 
 export type {
+  AddSelfBotInput,
+  AddSelfBotResponse,
   AssignmentRow,
+  BackfillStudyDaysInput,
+  BackfillStudyDaysResponse,
   ClassBotRow,
   ClassroomRow,
   ClassroomStudentItem,
@@ -24,11 +28,16 @@ export type {
   MarketplaceBotResponse,
   MarketplaceBotsResponse,
   MyClassroomsResponse,
+  MySelfBotsResponse,
+  MyStudyDaysResponse,
   ParentAssignmentItem,
   ParentChildItem,
   ParentChildrenResponse,
   PublishBotInput,
   PublishBotResponse,
+  RecordStudyDayInput,
+  RecordStudyDayResponse,
+  RemoveSelfBotResponse,
   StudentClassroomItem,
   TeacherAssignmentsResponse,
   TeacherClassroomItem,

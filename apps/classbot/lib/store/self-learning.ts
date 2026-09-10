@@ -1,17 +1,75 @@
+'use client';
+
 /**
- * 자기주도 학습 저장소 — 학생이 마켓에서 «담은 봇»과 «공부한 날».
+ * 자기주도 학습 저장소 — 서버가 정본이 된 뒤 **로컬에 남는 절반**.
  *
- * 담기는 **반 참여가 아니다.** 이 저장소에 행이 생겨도 `enrollments` 는 건드리지 않고,
- * 교사의 학생 수·학급 관제소·과제에는 아무 영향이 없다(자기주도 계약 §1).
+ * ## P4 이후 이 파일이 무엇인가
+ *
+ * 두 슬라이스의 **정본은 이제 둘 다 서버**다 — 담은 봇은 `self_enrollments`(P3),
+ * 공부한 날은 `self_study_days`(P4). 그래도 이 파일이 죽은 건 아니고, **신원에 따라**
+ * 남은 칸의 뜻이 갈린다. 화면이 읽는 입구는 어느 쪽이든 `hooks/api/self-bots.ts` 하나다:
+ *
+ * | 지금 누구인가 | 담은 봇·공부한 날을 어디서 읽고 쓰나 |
+ * |---|---|
+ * | 로그인 세션(JWT) · 개발용 신원 쿠키 | **서버.** 이 파일은 아래 표의 뜻으로만 남는다 |
+ * | 그 둘 다 없음(= 공개 데모) | **이 파일.** 서버에 아예 요청하지 않는다 |
+ *
+ * 아래 칸이 데모에서 살아 있어야 하는 이유는 `hooks/api/self-bots.ts` 머리주석에 있다.
+ * 요지만 옮기면: prod(`classbot.pullim.ai`)는 로그인 없이 열리는 공개 데모이고 서버 라우트는
+ * 미인증에 401 이라, 거기서 서버를 부르면 **담기 버튼이 전부 오류가 된다.**
+ *
+ * 담기는 **반 참여가 아니다.** 서버로 옮긴 뒤에도 같다 — `self_enrollments` 에 행이 생겨도
+ * `enrollments` 는 건드리지 않고, 교사의 학생 수·학급 관제소·과제에 아무 영향이 없다(계약 §1).
  *
  * ## 화면은 이 파일을 직접 읽지 않는다
- * 소비 입구는 `hooks/api/self-bots.ts` 하나다. **#273** 에서 이 자리가 localStorage 에서
- * 서버로 바뀔 때 훅 내부만 갈아 끼우면 되도록, 컴포넌트에 zustand 를 노출하지 않는다.
- * 그 전환은 **화면 PR 의 몫이 아니다** — 그 훅의 머리주석이 근거를 든다.
+ * 소비 입구는 `hooks/api/self-bots.ts` 하나다. 담은 봇의 출처가 localStorage 에서 서버로
+ * 바뀔 때 훅 내부만 갈아 끼우면 됐던 게 그 덕이다 — 화면 파일은 한 줄도 안 바뀌었다.
+ * 데모/서버로 갈리는 것도 그 안에서 끝나서, 화면은 그런 갈래가 있는지도 모른다.
+ *
+ * ## ⛔ 무엇이 찌꺼기고 무엇이 살아 있는 데이터인가 — 통째로 지우지 마라
+ *
+ * P3 는 로컬 `bots` 를 이관의 안전망으로 남기고 정리를 P4 에 넘겼다(계약 §5).
+ * **P4 가 그 절반을 걷었다.** 지금 두 칸의 뜻은 이렇다:
+ *
+ * | 칸 | 신원이 있는 사람 | 공개 데모(비로그인) |
+ * |---|---|---|
+ * | `bots` | **서버가 아직 모르는 행만 남는다.** `botsMigratedUserIds` 에 있는 통에 한해, 서버 목록에 돌아온 행을 걷었다(아래 `dropUploadedBots`) | **유일한 사본.** 여기서만 읽고 쓴다 — 지우면 사라진다 |
+ * | `studyDays` | 백필의 **소스이자 안전망**으로 그대로 남는다(P5 가 걷는다) | **유일한 사본.** 담은 봇과 같다 |
+ *
+ * **P4 의 결정: `studyDays` 는 이번에 한 줄도 지우지 않는다.** 신원이 있는 사람 것도
+ * 남긴다. 이유는 P3 가 `bots` 에 썼던 비대칭 그대로다 — **올리기를 들여온 바로 그 단계에서
+ * 그 소스를 지우지 않는다.** 백필이 미묘하게 틀렸으면 날짜는 되살릴 방법이 없다(카운터가
+ * 아니라 날짜를 쌓아 둔 이유가 그것이다). `bots` 는 그 한 단계를 이미 기다렸고 `studyDays` 는
+ * 이제 막 시작했다.
+ *
+ * 그래서 **데모의 `studyDays` 를 어떻게 할지는 이번에 정할 게 없다** — 아무도 안 지우므로
+ * 담은 봇에서 났던 `student_001` 충돌이 여기서는 아직 문제가 되지 않는다. P5 가 걷을 때
+ * **그 충돌이 똑같이 살아난다**: 익명 방문자의 공부한 날도 `student_001` 통에 쌓인다.
+ * 그때 지워도 되는 유일한 근거는 `studyDaysBackfilledUserIds` 다 — `bots` 와 같은 규칙이고,
+ * `dropUploadedBots` 와 그 호출부가 그 규칙을 코드로 적어 둔 본보기다.
+ *
+ * **두 칸 다 「사람에 따라 뜻이 다르다」는 성질은 그대로다.** 데이터만 봐서는 구별되지
+ * 않고, 가르는 것은 완료 표시다 — `bots` 는 `botsMigratedUserIds`, `studyDays` 는
+ * `studyDaysBackfilledUserIds`. 그 목록에 id 가 **있으면** 그 통은 서버를 만났고,
+ * **없으면** 서버에 간 적이 없다.
+ *
+ * 왜 눈으로 구별이 안 되는가: 공개 데모 방문자는 신원이 없어 데모 폴백 `student_001` 이
+ * 된다(`lib/current-user.ts`). 그래서 `byUser['student_001']` 이 **개발 쿠키로 로그인해
+ * 이관을 마친 서연의 통**일 수도, **prod 에서 담고 공부한 익명 방문자의 유일한 사본**일
+ * 수도 있다. id 로는 못 가른다 — 완료 표시로만 가른다.
+ *
+ * `byUser` 를 한 번에 비우면 **prod 공개 데모의 기록이 전부 사라진다.** id 로 골라 지우는
+ * 것도 안 된다 — `student_001` 이 바로 그 충돌하는 id 다. **지워도 되는 유일한 근거는 완료
+ * 표시**이고, 그래서 그 두 목록은 스크래치 플래그가 아니라 **데이터**다. 로그아웃에서 비우지
+ * 말고, 다른 용도로 겸해 쓰지 말고, 이름을 바꾸면 이 표도 같은 편집에서 고쳐라.
  *
  * ## 지금 모양이 곧 나중 API 행 모양이다
- *  - `SelfBotRow` = `GET /api/me/self-bots` 한 행(그 라우트는 #270 으로 `dev` 에 있다).
- *    #273 이 필드를 다시 매핑하지 않는다.
+ *  - `SelfBotRow` = `GET /api/me/self-bots` 한 행. P3 가 필드를 다시 매핑하지 않았다.
+ *    (타입이 아직 여기 있는 이유: 훅이 이 스토어를 import 하므로 반대 방향은 순환이다.
+ *    같은 이유로 이 파일이 서버를 읽을 때도 `hooks/api/self-bots.ts` 가 아니라 스토어를
+ *    모르는 얇은 층 `hooks/api/self-server.ts` 를 읽는다 — 아래 `useStreak` 참조.
+ *    서버는 `app/api/_lib/contract-types.ts` 에 같은 두 칸을 따로 적어 둔다 — 라우트가
+ *    `'use client'` zustand 모듈을 import 할 수는 없어서다.)
  *  - `studyDays` 의 한 칸 = 미래 `self_study_days` 한 행. **카운터가 아니라 날짜 배열**이라
  *    나중에 서버로 백필할 수 있다(카운터는 과거 달력을 복원할 수 없다).
  *  - 봇 id 는 마켓이 주는 **`class_bots.id`** 다. 은퇴하는 mock 카탈로그 id(`ot_*`)는
@@ -23,14 +81,26 @@
  * 청사진에서 `self_goals` · `self_unit_progress` 테이블과 함께 **P5** 로 잡혀 있다.
  * 그때 mock 카탈로그와 같이 사라질 데이터라 지금 네임스페이스를 입히지 않는다.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { apiPost } from '@/lib/api/client-fetch';
 import { useCurrentUserId } from '@/lib/current-user';
+import {
+  isRetriableUploadError,
+  selfStudyDayKeys,
+  useServerStudyDays,
+} from '@/hooks/api/self-server';
+import type {
+  BackfillStudyDaysInput,
+  BackfillStudyDaysResponse,
+} from '@/hooks/api/types';
 import { todayKey } from './today-key';
+import { useStoresHydrated } from './use-hydrated';
 
-/** 서버 API 행 모양 그대로 — #273 이 필드를 다시 매핑하지 않게. */
+/** `GET /api/me/self-bots` 의 한 행 — P1 이 굳혀 P3 가 그대로 쓴 모양. */
 export interface SelfBotRow {
   /** 마켓(`GET /api/marketplace/bots`)이 주는 **`class_bots.id`**. `ot_*` 아님. */
   botId: string;
@@ -44,11 +114,28 @@ export type Streak = {
   lastStudyDate: string | null;
 };
 
-/** 사용자 한 명의 자기주도 기록. #273 에서 이 통 하나가 서버 응답으로 대체된다. */
+/** 사용자 한 명의 자기주도 기록. */
 export interface SelfUserRecord {
-  /** 담은 봇 — 담은 순서(오래된 것 먼저). */
+  /**
+   * 담은 봇 — 담은 순서(오래된 것 먼저).
+   *
+   * P3 이후 읽고 쓰는 곳이 **비로그인 데모 하나뿐**이다. 신원이 있는 사람의 정본은
+   * 서버(`self_enrollments`)라 이 칸을 읽지 않는다.
+   *
+   * P4 가 **서버가 돌려준 행을 여기서 걷었다**(`dropUploadedBots`). 그래서 신원이 있는
+   * 사람에게 남는 행의 뜻은 하나다 — **아직 서버가 모르는 행**(못 올라간 것).
+   *
+   * ⛔ 그래도 **통째로 비우지 마라** — 비로그인 데모의 통은 유일한 사본이다.
+   * 무엇이 어느 쪽인지는 위 머리주석 표가 `botsMigratedUserIds` 로 가른다.
+   */
   bots: SelfBotRow[];
-  /** 공부한 날 `'YYYY-MM-DD'` — 오름차순·중복 없음. P4 `self_study_days` 한 행 = 한 칸. */
+  /**
+   * 공부한 날 `'YYYY-MM-DD'` — 오름차순·중복 없음. `self_study_days` 한 행 = 한 칸.
+   *
+   * P4 이후 신원이 있는 사람의 정본은 서버다. 이 칸은 **백필(계약 §4)의 소스이자
+   * 안전망**으로 그대로 남는다 — 걷는 것은 P5 몫이다(위 머리주석의 비대칭).
+   * 비로그인 데모에게는 여전히 **유일한 사본**이라 계속 여기 쓴다.
+   */
   studyDays: string[];
 }
 
@@ -139,12 +226,54 @@ interface SelfLearningStore {
    * 개발용 신원 전환만으로 서연의 기록이 민준의 화면에 그대로 뜬다.
    */
   byUser: Record<string, SelfUserRecord>;
-  /** 봇 담기 — 이미 담았으면 아무 일도 하지 않는다(멱등). */
+  /**
+   * 봇 담기 — 이미 담았으면 아무 일도 하지 않는다(멱등).
+   *
+   * ⚠️ **비로그인 데모에서만 부른다.** 신원이 있는 사람의 담기는 서버로 가고(`POST
+   * /api/me/self-bots`) 이 함수를 거치지 않는다. 부르는 곳은 `hooks/api/self-bots.ts`
+   * 하나이고, 그 안에서 갈래를 정한다 — 화면이 직접 부르면 로그인한 사람의 담기가
+   * 서버에 안 남는다.
+   */
   addSelfBot: (userId: string, botId: string) => void;
-  /** 담은 봇 빼기. */
+  /** 담은 봇 빼기 — 위와 같이 **비로그인 데모 전용**이다. */
   removeSelfBot: (userId: string, botId: string) => void;
+  /**
+   * 담은 봇을 서버로 올리는 이관(계약 §4)을 마친 사용자 id.
+   *
+   * 「한 번만」의 그 한 번을 세는 자리다. 사용자별인 이유는 `byUser` 와 같다 —
+   * 개발용 신원 전환으로 계정을 오가면 사람마다 따로 한 번씩 올라가야 한다.
+   * localStorage 를 비우면 이 표시도 함께 사라지지만, 그때는 올릴 로컬 행도 같이
+   * 사라진 뒤라 다시 훑어도 올릴 게 없다.
+   */
+  botsMigratedUserIds: string[];
+  /** 이관 완료 표시 — 두 번 불러도 한 칸이다(멱등). */
+  markBotsMigrated: (userId: string) => void;
+  /**
+   * 서버가 이미 아는 행을 이 사용자의 로컬 통에서 걷는다 (계약 §5 · P3 가 미룬 정리).
+   *
+   * ⛔ **이 함수는 판별을 하지 않는다 — 부르는 쪽이 한다.** 부르는 곳은
+   * `hooks/api/self-bots.ts` 의 이관 훅 하나뿐이고, 거기서 **두 조건**을 다 확인한 뒤에만
+   * 부른다:
+   *  ① `botsMigratedUserIds` 에 이 id 가 있다 — 위 머리주석 표의 판별자. 없으면 그 통은
+   *     **서버를 만난 적 없는 공개 데모의 유일한 사본**이라 한 줄도 지우면 안 된다.
+   *  ② 그 행이 방금 받은 **서버 목록에 들어 있다** — 그래서 인자가 `serverBotIds` 다.
+   *     「우리 요청이 201 을 받았다」로 지우지 마라. 서버가 자기 목록에 실어 주는 쪽이
+   *     한 단계 강한 증거이고, 못 올라간 행(없는 봇 404 등)은 그대로 남아야 한다.
+   *
+   * 새 호출자를 만들지 마라. 만들어야 한다면 위 두 조건을 그쪽에서도 세운 뒤에 부른다.
+   */
+  dropUploadedBots: (userId: string, serverBotIds: string[]) => void;
   /** 공부한 날 기록 — 같은 날 여러 번 불러도 한 칸이다(멱등). */
   recordStudyDay: (userId: string, date?: string) => void;
+  /**
+   * 공부한 날 백필(계약 §4)을 마친 사용자 id — `botsMigratedUserIds` 와 같은 뜻·같은 규칙.
+   *
+   * 담은 봇과 따로 세는 이유: 두 이관은 서로 다른 단계에서 서로 다른 라우트로 나갔고,
+   * 한쪽이 실패해도 다른 쪽은 끝났을 수 있다. 한 칸으로 합치면 그 상태를 적을 수 없다.
+   */
+  studyDaysBackfilledUserIds: string[];
+  /** 백필 완료 표시 — 두 번 불러도 한 칸이다(멱등). */
+  markStudyDaysBackfilled: (userId: string) => void;
 
   /**
    * v1 이 번역할 수 없었던 v0 원본 — **읽지 않지만 지우지도 않는다.**
@@ -166,7 +295,12 @@ interface SelfLearningStore {
 /** persist 에 실제로 내려앉는 필드만. */
 type PersistedState = Pick<
   SelfLearningStore,
-  'byUser' | 'goals' | 'unitProgress' | 'legacyV0'
+  | 'byUser'
+  | 'botsMigratedUserIds'
+  | 'studyDaysBackfilledUserIds'
+  | 'goals'
+  | 'unitProgress'
+  | 'legacyV0'
 >;
 
 /** 네임스페이스 이전(v0) 모양 — `migrate` 가 읽기만 하고 옮기지는 않는다. */
@@ -203,6 +337,8 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
   persist(
     (set, get) => ({
       byUser: {},
+      botsMigratedUserIds: [],
+      studyDaysBackfilledUserIds: [],
 
       addSelfBot: (userId, botId) => {
         if (!userId || !botId) return;
@@ -223,6 +359,38 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
               : r,
           ),
         }));
+      },
+
+      markBotsMigrated: (userId) => {
+        if (!userId) return;
+        set((s) =>
+          s.botsMigratedUserIds.includes(userId)
+            ? s
+            : { botsMigratedUserIds: [...s.botsMigratedUserIds, userId] },
+        );
+      },
+
+      dropUploadedBots: (userId, serverBotIds) => {
+        if (!userId || serverBotIds.length === 0) return;
+        const known = new Set(serverBotIds);
+        const { byUser } = get();
+        const next = updateUser(byUser, userId, (r) => {
+          const bots = r.bots.filter((b) => !known.has(b.botId));
+          return bots.length === r.bots.length ? r : { ...r, bots };
+        });
+        // 걷을 게 없으면 `set` 자체를 하지 않는다 — 서버 목록이 올 때마다 도는 자리라
+        // 같은 값으로 스토어를 흔들면 persist 쓰기가 헛돈다.
+        if (next === byUser) return;
+        set({ byUser: next });
+      },
+
+      markStudyDaysBackfilled: (userId) => {
+        if (!userId) return;
+        set((s) =>
+          s.studyDaysBackfilledUserIds.includes(userId)
+            ? s
+            : { studyDaysBackfilledUserIds: [...s.studyDaysBackfilledUserIds, userId] },
+        );
       },
 
       recordStudyDay: (userId, date) => {
@@ -287,6 +455,8 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
       version: PERSIST_VERSION,
       partialize: (s): PersistedState => ({
         byUser: s.byUser,
+        botsMigratedUserIds: s.botsMigratedUserIds,
+        studyDaysBackfilledUserIds: s.studyDaysBackfilledUserIds,
         goals: s.goals,
         unitProgress: s.unitProgress,
         // 원본을 계속 실어 보낸다 — 안 실으면 다음 쓰기에서 v0 바이트가 덮여 사라진다.
@@ -316,6 +486,11 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
        * v0 는 그 필드 자체가 없어 곧장 `merge` 로 간다 — 그래서 v0 를 실제로 받는 자리는
        * 아래 `merge` 이고, 이 함수는 숫자 `version: 0` 이 찍힌 블롭만을 위한 자리다.
        * 두 경로가 **같은 답**을 내도록 둘 다 `keptLegacy()` 하나를 쓴다.
+       *
+       * **P4 는 버전을 올리지 않았다.** 새로 생긴 `studyDaysBackfilledUserIds` 는 없던 칸이라
+       * persist 의 기본 병합(`{...초기값, ...저장값}`)이 초기값 `[]` 를 그대로 남긴다 —
+       * 「아직 한 번도 백필 안 함」이라는 **맞는 뜻**이다. 담은 봇 정리도 마이그레이션이
+       * 아니라 **서버 목록을 보고** 하므로(`dropUploadedBots`) 여기서 할 일이 없다.
        */
       migrate: (persisted, version): PersistedState => {
         if (version >= PERSIST_VERSION) {
@@ -325,6 +500,8 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
         const legacyV0 = keptLegacy(old);
         return {
           byUser: {},
+          botsMigratedUserIds: [],
+          studyDaysBackfilledUserIds: [],
           goals: old.goals ?? [],
           unitProgress: old.unitProgress ?? [],
           ...(legacyV0 && { legacyV0 }),
@@ -338,6 +515,21 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
        * 옮길 수 없다는 것과 없애도 된다는 것은 다른 말이라, 여기서 두 칸을 `legacyV0` 로
        * 접어 넣고 `partialize` 가 그것을 계속 실어 보낸다. 화면은 이 칸을 보지 않는다 —
        * 대응표가 생기거나 복구 요청이 올 때의 입력이다.
+       *
+       * ## ⛔ `partialize` 가 내려보내는 칸을 여기서 **빠뜨리지 마라**
+       * 이 함수는 기본 얕은 merge 를 **대체**하므로, 여기 안 적힌 칸은 저장돼 있어도
+       * 복원되지 않는다 — 쓰기(`partialize`)와 읽기(여기)가 갈리면 그 칸은 **매 로드마다
+       * 초기값으로 되돌아간다.** 두 완료 표시가 그 자리다:
+       *
+       *  - `studyDaysBackfilledUserIds` 를 빠뜨리면 **백필이 매 로드마다 다시 돈다.**
+       *    서버가 멱등이라 데이터는 안 망가지지만(`onConflictDoNothing`), 「백필은 한 번만」
+       *    이라는 계약(§4)이 사라지고 사람마다 로드마다 한 왕복이 영구히 늘어난다.
+       *  - `botsMigratedUserIds` 를 빠뜨리면 **로컬 `bots` 정리가 영구히 안 된다.**
+       *    `dropUploadedBots` 는 이 목록을 근거로만 걷는데(머리주석의 표), 그 근거가 매
+       *    로드마다 비워지므로 이관이 끝난 행이 계속 남아 다시 올라간다.
+       *
+       * 두 목록은 스크래치 플래그가 아니라 **데이터**다(머리주석). 그러니 `partialize` 의
+       * 칸과 이 함수의 칸은 **언제나 같이 움직인다** — 한쪽에 칸을 더하면 다른 쪽도 더한다.
        */
       merge: (persisted, current): SelfLearningStore => {
         const raw = (persisted ?? {}) as Partial<PersistedState> & LegacyStateV0;
@@ -345,6 +537,10 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
         return {
           ...current,
           byUser: raw.byUser ?? current.byUser,
+          botsMigratedUserIds:
+            raw.botsMigratedUserIds ?? current.botsMigratedUserIds,
+          studyDaysBackfilledUserIds:
+            raw.studyDaysBackfilledUserIds ?? current.studyDaysBackfilledUserIds,
           goals: raw.goals ?? current.goals,
           unitProgress: raw.unitProgress ?? current.unitProgress,
           ...(legacyV0 && { legacyV0 }),
@@ -353,6 +549,160 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
     },
   ),
 );
+
+/* ── 공부한 날 백필 (계약 §4) ───────────────────────────────────────────────
+ * P1 부터 이 브라우저에 쌓인 날짜를 서버로 **한 번** 올린다. 담은 봇 이관과 같은 규율이고,
+ * 다른 점은 **어느 파일에 있는가** 하나다.
+ *
+ * 담은 봇 이관은 `hooks/api/self-bots.ts` 에 있는데 이건 왜 스토어에 있나 — 부르는 곳이
+ * **둘**이고 그중 하나가 이 파일이기 때문이다:
+ *  - `hooks/api/self-bots.ts` 의 `useSelfStudyDays()` — 화면이 읽는 입구.
+ *  - 이 파일의 `useStreak()` — 셸 헤더 뱃지(`components/shell/app-header.tsx`)가 부르는
+ *    이름이라 여기 남아 있고, **학생 화면 전부에 떠 있는 유일한 연속일수 소비자**다.
+ *    백필이 그쪽에서 안 돌면 「학습 화면에 들어가기 전까지 연속일수가 0 으로 보이는」
+ *    구간이 생긴다 — 백필이 막으려던 바로 그 증상이다.
+ *
+ * 스토어가 `self-bots.ts` 를 import 하면 순환이라(머리주석) 그쪽에 두고 여기서 부를 수 없다.
+ * 그래서 **로컬 데이터와 완료 표시를 소유한 이 파일**에 두고 양쪽이 부른다.
+ * ------------------------------------------------------------------------ */
+
+/** 한 번에 보내는 날짜 상한 — 계약 §2(넘으면 서버가 400). 잘라 버리지 않고 나눠 보낸다. */
+const BACKFILL_CHUNK = 400;
+
+/**
+ * 지금 백필 중인 사용자 — 모듈 전역이다.
+ *
+ * 한 화면에서 이 훅이 여러 번 마운트된다(셸 뱃지 + 화면). 완료 표시는 왕복이 끝나야
+ * 남으므로, 그 사이를 막는 자물쇠가 따로 있어야 같은 날짜를 여러 번 올리지 않는다.
+ */
+const backfilling = new Set<string>();
+
+/**
+ * 로컬에만 있는 공부한 날을 서버로 **한 번** 올린다 — 실패해도 화면은 죽지 않는다.
+ *
+ * 언제 도는가(계약 §4 의 세 조건):
+ *  - **스토어 rehydrate 가 끝난 뒤.** 안 그러면 `byUser` 가 비어 보여서 「올릴 게 없다」로
+ *    완료 표시를 남기고, 로컬 기록이 영영 안 올라간다.
+ *  - **서버 목록이 온 뒤**(`serverDays`). 무엇이 이미 있는지 알아야 그것만 빼고 올린다.
+ *  - 사용자당 **한 번** — 완료 표시(`studyDaysBackfilledUserIds`). 올릴 게 하나도 없던
+ *    사람도 곧바로 표시를 남긴다.
+ *
+ * ## 지금 신원의 통 **하나만** 본다 — `byUser` 를 훑지 마라
+ * 클라이언트는 한 번에 **한 신원**으로만 인증된다. 다른 통을 올리면 서연의 공부한 날이
+ * **민준 명의로** 서버에 박힌다 — 사용자별 네임스페이스가 막으려던 그 버그다.
+ * 다른 통은 **그 신원이 다음에 활성일 때** 자기 손으로 올라간다.
+ *
+ * 통을 고르는 것만으로는 부족하다 — **왕복 사이에 사람이 바뀔 수 있다.** 그래서 청크를
+ * 내보낼 때마다 명의를 다시 확인하고, 갈렸으면 멈춘다(아래 `activeUserId`).
+ * 남는 창은 하나다: **이미 날아간 요청**은 되돌릴 수 없어 그 한 청크는 바뀐 명의로 처리될
+ * 수 있다. 그래서 서버가 `student_id` 를 본문에서 받지 않는 것이 마지막 방어다 — 잘못
+ * 붙는 최대치가 「그 순간 로그인한 사람의 한 청크」이고, 남의 통을 훑는 일은 없다.
+ *
+ * ## 형식이 틀린 날짜·미래 날짜를 여기서 거르지 않는다
+ * 거르는 자리는 **서버 하나**다(계약 §2: 형식 위반·미래·2년 이전은 skip). 클라이언트가
+ * 먼저 한 번 더 거르면 규칙이 두 곳에 생겨 서로 어긋날 때 어느 쪽이 맞는지 알 수 없다.
+ * 손으로 고친 localStorage 가 무엇을 넣었든 **그대로 보내고 서버가 세어 돌려준다.**
+ *
+ * ## 올린 뒤에도 로컬 날짜를 지우지 않는다
+ * 담은 봇이 P3 에서 한 단계 기다린 것과 같은 이유다(머리주석의 비대칭). 정리는 P5 몫이다.
+ *
+ * ## ⛔ 서버 쪽 주석이 이 함수를 **이름으로** 걸고 있다
+ * `app/api/me/study-days/backfill/route.ts` 머리주석이 「지금 클라이언트는 서버 목록을 먼저
+ * 빼고 보내므로 평상시 트래픽에서는 중복 충돌(`onConflictDoNothing`)이 걸리지 않는다」를
+ * 적어 두고, 그 근거로 **이 함수 이름과 아래 `pending` 필터**를 지목한다. 그 주석이 있어야
+ * 다음 사람이 「충돌 방어가 한 번도 안 걸리니 지워도 되겠다」로 넘어가지 않는다 —
+ * 실제로는 경합(탭 둘, GET 과 백필 POST 사이에 끼어든 기록)에서 걸리는 **백스톱**이다.
+ *
+ * 그러니 **이 함수를 이름을 바꾸거나 아래 빼기를 없애면 저쪽 주석이 거짓이 된다.**
+ * 그때는 같은 편집에서 그 라우트 주석도 고쳐라. (빼기는 요청 수를 줄이는 최적화일 뿐이고
+ * 서버의 충돌 방어를 **대신하지 않는다** — 없애도 서버는 여전히 옳게 동작한다.)
+ * @param serverDays - 서버가 아는 날짜. `undefined` 면 아직 안 왔거나 데모라 아무것도 안 한다
+ */
+export function useStudyDayBackfill(serverDays: string[] | undefined): void {
+  const userId = useCurrentUserId();
+  const hydrated = useStoresHydrated(useSelfLearningStore);
+  const queryClient = useQueryClient();
+
+  /*
+    ⛔ **지금 활성 신원** — 청크 사이에서 명의가 바뀌었는지 보는 유일한 근거다.
+
+    effect 의 `userId` 는 **시작할 때** 의 신원이라, 왕복 사이에 사람이 바뀌면 낡은 값이
+    된다. 이 ref 는 렌더마다 갱신되므로 `await` 가 풀린 뒤에도 최신값이다.
+    (`backfilling` 자물쇠로는 못 막는다 — 그건 같은 신원의 중복 실행을 막는 것이고,
+    여기서 막아야 하는 것은 **다른 신원으로 갈린 뒤 남은 청크**다.)
+  */
+  const activeUserId = useRef(userId);
+  // 렌더 중에 ref 를 쓰지 않는다(React Compiler 규칙). **이 effect 가 아래 백필 effect 보다
+  // 먼저 선언돼 있어야** 신원이 갈린 렌더에서 ref 가 먼저 갱신된다 — 순서를 바꾸지 마라.
+  useEffect(() => {
+    activeUserId.current = userId;
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !hydrated || !serverDays) return;
+    if (backfilling.has(userId)) return;
+    const state = useSelfLearningStore.getState();
+    if (state.studyDaysBackfilledUserIds.includes(userId)) return;
+
+    const onServer = new Set(serverDays);
+    const pending = (state.byUser[userId]?.studyDays ?? []).filter((d) => !onServer.has(d));
+    if (pending.length === 0) {
+      state.markStudyDaysBackfilled(userId);
+      return;
+    }
+
+    backfilling.add(userId);
+    void (async () => {
+      let sent = false;
+      let retriable = false;
+      // 명의가 갈려서 중간에 멈췄는가 — 완료 표시를 남기지 않을 근거다(아래).
+      let switched = false;
+      try {
+        for (let i = 0; i < pending.length; i += BACKFILL_CHUNK) {
+          /*
+            ⛔ **청크를 내보내기 전에 매번 명의를 확인한다.**
+
+            서버는 `student_id` 를 본문이 아니라 **신원**에서 가져온다. 그래서 첫 청크를
+            보낸 뒤 사람이 바뀌면(개발 신원 쿠키 교체 · 로그인 · 로그아웃) 남은 청크가
+            **바뀐 사람 명의로** 박힌다 — 서연의 공부한 날이 민준의 기록이 되는, 위
+            머리주석 「지금 신원의 통 하나만 본다」가 막으려던 바로 그 사고다.
+            2년치(최대 730일)면 청크가 둘이라 실제로 닿는 창이 있다.
+
+            멈추기만 하고 **완료 표시를 남기지 않는다.** 그러면 원래 신원이 다시 활성일 때
+            남은 날짜를 자기 손으로 올린다(이미 올라간 날은 서버 목록에서 빠져 다시 안 간다).
+          */
+          if (activeUserId.current !== userId) {
+            switched = true;
+            break;
+          }
+          await apiPost<BackfillStudyDaysResponse>('/api/me/study-days/backfill', {
+            days: pending.slice(i, i + BACKFILL_CHUNK),
+          } satisfies BackfillStudyDaysInput);
+          sent = true;
+        }
+      } catch (error) {
+        // 다시 해 볼 만한 실패(네트워크·5xx·401)면 완료 표시를 남기지 않는다 — 다음 로드에서
+        // 또 해 본다. 그 밖(400 등)은 다시 보내도 같은 답이라 표시를 남기고 넘어간다.
+        retriable = isRetriableUploadError(error);
+      } finally {
+        backfilling.delete(userId);
+      }
+      /*
+        마지막 청크가 나간 뒤에도 한 번 더 본다. 여기까지 왔다면 요청은 전부 원래 명의로
+        나갔지만, 그 사이 사람이 바뀌었다면 **이 완료 표시를 남길 자격이 없다** — 남기면
+        원래 신원이 「이미 다 올렸다」로 오해하고 못 올라간 날짜가 영영 남는다.
+      */
+      if (activeUserId.current !== userId) switched = true;
+      if (!retriable && !switched) {
+        useSelfLearningStore.getState().markStudyDaysBackfilled(userId);
+      }
+      // 한 덩이라도 올라갔으면 서버 목록을 다시 읽는다 — 무엇이 실제로 들어갔는지는
+      // 서버가 안다(형식·미래·2년 이전은 서버가 skip 한다).
+      if (sent) void queryClient.invalidateQueries({ queryKey: selfStudyDayKeys.mine });
+    })();
+    // 백필 실패로 화면이 죽으면 안 된다 — 위 async 의 throw 는 전부 catch 가 받는다.
+  }, [userId, hydrated, serverDays, queryClient]);
+}
 
 /* ── 파생 조회 (P5 슬라이스 전용) ───────────────────────────────────────────
  * 담은 봇·공부한 날의 소비 입구는 여기가 아니라 `hooks/api/self-bots.ts` 다.
@@ -399,14 +749,37 @@ export function useIsUnitDone(tutorId: string, unitId: string): boolean {
 /**
  * 현재 사용자의 연속 학습 — 셸 헤더 뱃지(`components/shell/app-header.tsx`)가 읽는다.
  *
- * 새 화면은 `useSelfStreak()`(`hooks/api/self-bots.ts`)를 쓴다. 이 이름은 셸이 이미
- * 부르고 있어 남겨 둔 것이고, 값은 같은 곳(`studyDays`)에서 같은 방식으로 계산한다.
+ * **P4 에서 출처가 서버로 옮겨 갔다.** `useSelfStreak()`(`hooks/api/self-bots.ts`)와 같은
+ * 값을 같은 방식으로 계산한다 — 신원이 있으면 `GET /api/me/study-days`, 없으면 로컬.
+ * 그래서 `localStorage.clear()` 를 해도 뱃지가 그대로다(그게 P4 의 요점이다).
+ *
+ * 이름이 둘로 남은 이유: 셸이 이 이름을 이미 부르고 있고 화면 파일은 이번에도 건드리지
+ * 않았다. 두 이름을 하나로 합치려면 셸이 `useSelfStreak()` 를 부르게 바꾸면 되고, 그건
+ * 화면 변경이라 별건이다. **여기서 `self-bots.ts` 를 import 하지는 마라** — 그쪽이 이
+ * 파일을 import 해서 순환이 된다. 그래서 스토어를 모르는 얇은 층
+ * (`hooks/api/self-server.ts`)만 읽는다.
+ *
+ * 서버 응답 전에는 0 이다(이 시그니처에는 로딩 칸이 없다). 뱃지는 0 이면 아예 숨으므로
+ * 「잘못된 숫자가 잠깐 보이는」 일은 없고, 한 페인트 늦게 나타난다.
  * @returns 연속일수와 마지막 학습일
  */
 export function useStreak(): Streak {
   const userId = useCurrentUserId();
-  const studyDays = useSelfLearningStore(
+  const { days: serverDays, identity } = useServerStudyDays();
+  const localDays = useSelfLearningStore(
     (s) => s.byUser[userId]?.studyDays ?? EMPTY_RECORD.studyDays,
   );
+  // 학생 화면 전부에 떠 있는 유일한 소비자다 — 백필이 여기서 돌아야 로컬 기록이 올라간다.
+  useStudyDayBackfill(serverDays);
+  // ⛔ 판정 대기에는 로컬을 읽지 않는다. 이 뱃지는 **학생 화면 전부에 떠 있어서**, 여기서
+  // 로컬로 떨어지면 세션 복원 전의 로그인 사용자가 데모 통(`student_001`)의 연속일수를
+  // 어느 화면에서든 잠깐 본다. 빈 배열이면 0 이고 0 이면 뱃지가 숨으므로, 틀린 수가
+  // 보이는 대신 한 박자 늦게 나타난다(이 시그니처에는 로딩 칸이 없다 — 위 주석).
+  const studyDays =
+    identity === 'server'
+      ? (serverDays ?? EMPTY_RECORD.studyDays)
+      : identity === 'demo'
+        ? localDays
+        : EMPTY_RECORD.studyDays;
   return useMemo(() => deriveStreak(studyDays), [studyDays]);
 }
