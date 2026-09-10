@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useMarketplaceBots } from '@/hooks/api/marketplace';
-import { useMySelfBots } from '@/hooks/api/self-bots';
+import { selfBotKeys, useMySelfBots } from '@/hooks/api/self-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import { classBots as botCatalog, type ClassBot } from '@/lib/mock/classbot';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
@@ -39,12 +40,22 @@ export interface StudentBotsResult {
    */
   isLoading: boolean;
   /**
-   * 반 목록을 **못 읽었다**(`useMyRooms().isError` — 5xx·네트워크). `slots` 가 비어 있어도
-   * 「봇이 없다」가 아니라 「모른다」다. 마켓 실패는 여기 들지 않는다 — 담은 봇은 마켓이 막혀도
-   * 이름만 잃고 목록에는 남는다(`fallbackBot`).
+   * 두 목록 중 **하나라도 못 읽었다**(5xx·네트워크). `slots` 가 비어 있어도
+   * 「봇이 없다」가 아니라 「모른다」다.
+   *
+   *  - 반 목록 — `useMyRooms().isError`.
+   *  - **담은 봇 — `useMySelfBots().isError`.** 자기주도 출처가 서버로 갈린 뒤 생긴 값이다.
+   *    localStorage 시절에는 실패할 데가 없어 항상 `false` 였고 그래서 여기 안 실려 있었는데,
+   *    그대로 두면 담아 둔 봇이 있는 학생이 5xx 한 번에 **「아직 대화할 봇이 없어요」**
+   *    를 본다 — 없어진 게 아니라 못 읽은 것이라 데이터 유실처럼 보인다.
+   *    비로그인 데모·신원 판정 대기에서는 그 훅이 `false` 를 주므로(서버를 아예 부르지
+   *    않는다) 공개 데모가 이 값으로 빨개지지 않는다.
+   *
+   * 마켓 실패는 여기 들지 않는다 — 담은 봇은 마켓이 막혀도 이름만 잃고 목록에는
+   * 남는다(`fallbackBot`).
    */
   isError: boolean;
-  /** 반 목록을 다시 읽기. */
+  /** 못 읽은 목록을 다시 읽기 — 반 목록과 담은 봇 **둘 다**. */
   retry: () => void;
 }
 
@@ -143,9 +154,25 @@ export function useStudentBots(): StudentBotsResult {
     그 결과 **홈은 「참여 중인 클래스 5곳」인데 대화는 「아직 대화할 봇이 없어요」** 가 됐다 —
     같은 학생, 같은 순간에. 코드로 들어간 반의 봇과 말을 못 하면 들어간 의미가 없다.
   */
-  const { rooms: classRooms, isLoading: roomsLoading, isError: roomsError, retry } = useMyRooms();
+  const {
+    rooms: classRooms,
+    isLoading: roomsLoading,
+    isError: roomsError,
+    retry: retryRooms,
+  } = useMyRooms();
   const selfBots = useMySelfBots();
   const market = useMarketplaceBots();
+
+  /*
+    담은 봇은 훅이 결과 세 칸(`data`·`isLoading`·`isError`)만 돌려주고 `refetch` 는 주지
+    않는다 — 그 시그니처는 **동결**이라(`hooks/api/self-bots.ts` 머리주석) 넓히지 않고,
+    그 파일이 바로 이 용도로 내보내는 `selfBotKeys` 로 무효화한다.
+  */
+  const queryClient = useQueryClient();
+  const retry = useCallback(() => {
+    retryRooms();
+    void queryClient.invalidateQueries({ queryKey: selfBotKeys.mine });
+  }, [retryRooms, queryClient]);
 
   const marketById = useMemo(
     () => new Map((market.data?.bots ?? []).map((b) => [b.botId, b])),
@@ -200,7 +227,8 @@ export function useStudentBots(): StudentBotsResult {
       roomsLoading ||
       selfBots.isLoading ||
       ((selfBots.data?.length ?? 0) > 0 && market.isPending),
-    isError: roomsError,
+    // 담은 봇 실패도 함께 싣는다 — 근거는 `StudentBotsResult.isError` 주석.
+    isError: roomsError || selfBots.isError,
     retry,
   };
 }

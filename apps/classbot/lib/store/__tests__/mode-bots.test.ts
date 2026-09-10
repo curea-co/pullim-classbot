@@ -5,6 +5,8 @@
  * 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
  * 지금 지켜야 할 규칙은 셋이다: **둘 다 실린다 · 겹치면 한 번만 · 겹치면 반이 이긴다.**
  */
+import { createElement, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { useClassBots, useStudentBots } from '../mode-bots';
@@ -21,8 +23,15 @@ import type { ClassBot } from '@/lib/mock';
 */
 let classRooms: { bot: ClassBot; source: 'api' | 'local' }[] = [];
 let roomsLoading = false;
+let roomsError = false;
+const retryRooms = jest.fn();
 jest.mock('@/components/classbot/home/my-rooms', () => ({
-  useMyRooms: () => ({ rooms: classRooms, isLoading: roomsLoading }),
+  useMyRooms: () => ({
+    rooms: classRooms,
+    isLoading: roomsLoading,
+    isError: roomsError,
+    retry: retryRooms,
+  }),
 }));
 
 /** 반 봇 한 칸 — 화면이 읽는 필드만 채운다. */
@@ -39,8 +48,15 @@ const classRoom = (botId: string, name: string) => ({
 // 담은 봇 소스는 훅 계약(계약 §3)만 알면 된다 — 저장소 내부는 이 테스트의 관심사가 아니다.
 let selfRows: SelfBotRow[] = [];
 let selfLoading = false;
+let selfError = false;
 jest.mock('@/hooks/api/self-bots', () => ({
-  useMySelfBots: () => ({ data: selfLoading ? undefined : selfRows, isLoading: selfLoading, isError: false }),
+  // 무효화 키는 실제 모듈과 **같은 값**이어야 한다 — `retry` 가 이 키로 다시 읽는다.
+  selfBotKeys: { mine: ['self-bots'] as const },
+  useMySelfBots: () => ({
+    data: selfLoading || selfError ? undefined : selfRows,
+    isLoading: selfLoading,
+    isError: selfError,
+  }),
 }));
 
 // 마켓 조회도 훅 경계에서 세운다 — 여기서 검증할 것은 react-query 배선이 아니라 **합치는 규칙**이다.
@@ -69,16 +85,33 @@ const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
   enrolledCount: 3,
 });
 
+/**
+ * 테스트 하나가 쓰는 QueryClient.
+ *
+ * `useStudentBots()` 는 `useQueryClient()` 로 담은 봇 쿼리를 다시 읽으므로 provider 가
+ * 있어야 한다(종전엔 세 소스를 다 mock 해서 없이도 돌았다).
+ */
+let queryClient: QueryClient;
+function Wrapper({ children }: { children: ReactNode }) {
+  return createElement(QueryClientProvider, { client: queryClient }, children);
+}
+
 beforeEach(() => {
   selfRows = [];
   selfLoading = false;
+  selfError = false;
   marketBots = [];
   marketPending = false;
   classRooms = [];
   roomsLoading = false;
+  roomsError = false;
+  retryRooms.mockClear();
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
 });
 
-const render = () => renderHook(() => useStudentBots());
+const render = () => renderHook(() => useStudentBots(), { wrapper: Wrapper });
 
 it('반 봇만 있으면 반 봇만 — 담은 봇 소스가 비어도 목록이 선다', async () => {
   classRooms = [classRoom('cb_001', '수학봇')];
@@ -121,10 +154,10 @@ it('useClassBots 는 담은 봇을 섞지 않는다 — 웰빙은 반 봇만 읽
   selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
   classRooms = [classRoom('cb_001', '수학봇')];
 
-  const both = renderHook(() => useStudentBots());
+  const both = renderHook(() => useStudentBots(), { wrapper: Wrapper });
   expect(both.result.current.slots.map((s) => s.bot.id)).toEqual(['cb_001', 'cb_009']);
 
-  const classOnly = renderHook(() => useClassBots());
+  const classOnly = renderHook(() => useClassBots(), { wrapper: Wrapper });
   expect(classOnly.result.current.map((b) => b.id)).toEqual(['cb_001']);
 });
 
@@ -133,7 +166,7 @@ it('반이 없고 담은 봇만 있으면 useClassBots 는 빈 목록이다', ()
   selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
   classRooms = [];
 
-  const { result } = renderHook(() => useClassBots());
+  const { result } = renderHook(() => useClassBots(), { wrapper: Wrapper });
   expect(result.current).toEqual([]);
 });
 
@@ -253,4 +286,57 @@ it('마켓이 아직 안 온 구간에는 자리표시자를 만들지 않는다
   const { result } = render();
   expect(result.current.isLoading).toBe(true);
   expect(result.current.slots).toHaveLength(0);
+});
+
+/* ── 못 읽은 것을 「없다」로 그리지 않는다 ──────────────────────────────────
+ * 담은 봇의 출처가 서버로 갈리면서 `useMySelfBots().isError` 에 처음으로 진짜 값이
+ * 들어왔다. localStorage 시절엔 실패할 데가 없어 항상 false 였고, 그래서 이 훅이 그 값을
+ * 안 보고 있었다 — 그대로 두면 5xx 한 번에 담아 둔 봇이 통째로 사라진 것처럼 보인다.
+ * ------------------------------------------------------------------------ */
+
+it('담은 봇을 못 읽으면 「봇이 없다」가 아니라 isError 다 — 반 봇이 멀쩡해도', async () => {
+  classRooms = [classRoom('cb_001', '수학봇')];
+  selfError = true;
+  const { result } = render();
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+  // 반 봇은 그대로 실린다 — 못 읽은 것은 담은 봇 쪽이다.
+  expect(result.current.slots.map((s) => s.bot.id)).toEqual(['cb_001']);
+  // 그리고 화면이 「이게 전부」라고 단정하지 않도록 오류를 싣는다.
+  expect(result.current.isError).toBe(true);
+});
+
+it('반도 담은 봇도 못 읽으면 빈 목록 + isError — 데이터 유실처럼 보이지 않게', async () => {
+  roomsError = true;
+  selfError = true;
+  const { result } = render();
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+  expect(result.current.slots).toHaveLength(0);
+  expect(result.current.isError).toBe(true);
+});
+
+it('retry 는 반 목록과 담은 봇을 **둘 다** 다시 읽는다', async () => {
+  roomsError = true;
+  selfError = true;
+  const invalidate = jest.spyOn(
+    // 같은 client 인스턴스를 봐야 호출이 잡힌다.
+    queryClient,
+    'invalidateQueries',
+  );
+  const { result } = render();
+  await waitFor(() => expect(result.current.isError).toBe(true));
+
+  result.current.retry();
+
+  expect(retryRooms).toHaveBeenCalledTimes(1);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['self-bots'] });
+});
+
+it('비로그인 데모는 이 값으로 빨개지지 않는다 — 서버를 아예 부르지 않아 isError 가 false 다', async () => {
+  // 훅이 데모에서 주는 모양: 로컬 목록 + isError false.
+  marketBots = [marketBot('cb_009', '마켓 수학봇')];
+  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
+  selfError = false;
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.isError).toBe(false);
 });
