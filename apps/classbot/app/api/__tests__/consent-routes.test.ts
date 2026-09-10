@@ -350,6 +350,53 @@ describe('동의는 조회 조건 안에 있다 — 읽고 나서 거르지 않�
     expect(selectFieldsSpy).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * 조인이 통과시킨 뒤의 두 질의에도 동의 술어가 있어야 한다 — **경합 때문이다.**
+   *
+   * 조인과 데이터 질의는 서로 다른 왕복이라 그 사이에 틈이 있다. 그 틈에서 학생이 공유를
+   * 거두면 이미 통과한 목록이 두 질의를 그대로 열어 주고 **철회 뒤의 자료가 나간다.**
+   * 응답만 보면 정상과 구별되지 않으므로(정상 경로에서도 행이 나온다) 이 테스트는
+   * 응답이 아니라 **조립된 술어**를 본다 — `_lib/consent.ts` 의 `livingConsentExists`
+   * 머리주석이 반·과제 축에 대해 적은 것과 같은 규칙이다.
+   */
+  it('봇·공부한 날 질의에도 동의 술어가 선다 — 조인 통과 뒤의 철회를 막는다', async () => {
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [
+        {
+          id: 'student_001',
+          name: '서연',
+          relation: 'mother',
+          scopeLabel: '계속',
+          expiresAt: null,
+        },
+      ],
+      [], // 담은 봇
+      [], // 공부한 날
+    ];
+
+    await getSelfStudy(req('parent_001', 'student'));
+
+    // where 는 셋: resolveActor 의 users.id + 자녀 링크 + 데이터 질의 둘.
+    // 데이터 질의 둘이 마지막 둘이다.
+    const dataWheres = whereSpy.mock.calls.slice(-2).map((c) => render(c[0]));
+    expect(dataWheres).toHaveLength(2);
+
+    for (const where of dataWheres) {
+      // 게이트가 하위 질의로 들어가 있다 — 읽고 나서 거르는 모양이 아니다.
+      expect(where.text).toContain('exists');
+      expect(where.text).toContain('"revoked_at" is null');
+      // 만료는 DB 시계로 — 앱 서버가 만든 Date 를 넘기지 않는다.
+      expect(where.text).toContain('now()');
+      // 받는 사람·학생·축 셋이 술어에 함께 있다.
+      expect(where.params).toContain('parent_001');
+      expect(where.params).toContain('student_001');
+      expect(where.params).toContain('self_study_summary');
+      // 반·과제 축으로는 열리지 않는다.
+      expect(where.params).not.toContain('class_assignment_summary');
+    }
+  });
+
   it('동의한 자녀는 범위와 만료를 함께 싣는다 — 범위를 숨기지 않는다', async () => {
     const expiresAt = new Date('2026-03-08T00:00:00Z');
     mockSelectQueue = [

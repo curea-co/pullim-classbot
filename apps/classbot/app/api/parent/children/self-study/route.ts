@@ -7,9 +7,18 @@
  * 규칙으로 더할지 알 수 없어, 언젠가 동의 게이트 뒤에 있어야 할 값이 무조건 나가는
  * 블록에 붙는다. 그래서 경로를 나눴다.
  *
- * ## 동의는 조회 **조건 안**에 있다 — 읽고 나서 거르지 않는다
- * `INNER JOIN consent_logs` 라 **미동의 자녀는 결과 집합에서 통째로 빠진다.** 필드가
- * null 로 오지 않는다. 이게 스타일 취향이 아닌 이유:
+ * ## 동의는 조회 **조건 안**에 있다 — 세 질의 **모두**
+ *
+ * 자녀 목록을 고르는 조인이 `INNER JOIN consent_logs` 라 **미동의 자녀는 결과 집합에서
+ * 통째로 빠진다.** 필드가 null 로 오지 않는다.
+ *
+ * **그리고 그것만으로는 부족하다.** 목록을 고른 뒤 자녀별로 봇·공부한 날을 읽는데, 그 두
+ * 질의에 동의 술어가 없으면 **첫 질의와 그 사이에 틈**이 생긴다 — 그 틈에서 학생이 공유를
+ * 거두면 이미 통과한 목록이 두 질의를 그대로 열어 주고 **철회 뒤의 자료가 나간다.**
+ * 그래서 두 질의도 `livingConsentExists` 를 자기 `where` 에 진다(#280 이 반·과제 축에
+ * 세운 것과 같은 조각이다). 「위에서 확인했으니 중복」으로 읽고 걷지 마라.
+ *
+ * 조인이 스타일 취향이 아닌 이유:
  *
  *   화면의 규칙은 「학부모가 **미동의**와 **무활동**을 구분할 수 없어야 한다」이다(§3).
  *   구분되면 그 차이 자체가 정보가 되어, 부모가 동의 없이 아이의 활동 유무를 추론한다.
@@ -57,7 +66,11 @@ import {
   users,
 } from '@/lib/db/schema';
 import { forbidden, resolveActor, unauthorized } from '@/app/api/_lib/guards';
-import { SELF_STUDY_CONSENT, livingConsent } from '@/app/api/_lib/consent';
+import {
+  SELF_STUDY_CONSENT,
+  livingConsent,
+  livingConsentExists,
+} from '@/app/api/_lib/consent';
 import { deriveStreakFromDays } from '@/app/api/_lib/self-study-summary';
 import type {
   ParentSelfStudyBot,
@@ -114,8 +127,10 @@ export async function GET(req: Request): Promise<NextResponse> {
   const children: ParentSelfStudyChild[] = await Promise.all(
     dedupeByChild(consented).map(async (child) => {
       const [bots, days] = await Promise.all([
-        listSelfBots(child.id),
-        listStudyDays(child.id),
+        // 보호자 id 를 함께 넘긴다 — 두 질의가 **자기 안에서** 동의를 다시 본다
+        // (조인에서 통과한 것으로 끝내면 그 사이의 철회가 새 나간다 · 각 함수 주석).
+        listSelfBots(actor.id, child.id),
+        listStudyDays(actor.id, child.id),
       ]);
       return {
         id: child.id,
@@ -185,10 +200,24 @@ function dedupeByChild(rows: ConsentedChildRow[]): ConsentedChildRow[] {
  * 「무엇을 스스로 골랐나」다. 이모지가 그 셋에 드는 이유는 **아이가 보는 얼굴과 부모가
  * 보는 얼굴이 같아야** 둘이 같은 봇을 이야기할 수 있기 때문이다(새 정보가 아니라 같은 봇의
  * 정직한 표현). 인사말·톤은 여전히 안 나간다 — 그건 아이와 봇 사이의 것이다.
- * @param studentId - 동의가 확인된 자녀
- * @returns 봇 목록
+ * ## 동의 술어가 **이 질의 안에도** 선다 — 위 조인에서 통과한 것으로 끝내지 않는다
+ *
+ * 자녀 목록을 고르는 조인이 이미 동의를 봤는데 왜 또 보나: **두 질의 사이에 틈이 있다.**
+ * 그 틈에서 학생이 공유를 거두면(`revoked_at` 이 찍히면) 이미 통과한 목록이 이 질의를
+ * 그대로 열어 주고, **철회 뒤의 자료가 나간다.** 학생 입장에서 「거뒀다」는 즉시 닫힌다는
+ * 뜻이어야 하므로 이 틈은 크기 문제가 아니라 규칙 위반이다
+ * (05 § 11.4 규칙 1 · `_lib/consent.ts` 의 `livingConsentExists` 머리주석이 같은 것을 적는다).
+ *
+ * ⛔ **그러니 이 술어를 「위에서 이미 확인했으니 중복」이라고 걷지 마라.** 걷는 순간
+ * 경합이 되살아나고, 그 고장은 응답 모양으로 드러나지 않는다.
+ * @param parentId - 이 자료를 읽는 보호자
+ * @param studentId - 자녀
+ * @returns 봇 목록(동의가 그 사이 끊겼으면 0행)
  */
-async function listSelfBots(studentId: string): Promise<ParentSelfStudyBot[]> {
+async function listSelfBots(
+  parentId: string,
+  studentId: string,
+): Promise<ParentSelfStudyBot[]> {
   const rows = await getDb()
     .select({
       botId: selfEnrollments.botId,
@@ -199,7 +228,12 @@ async function listSelfBots(studentId: string): Promise<ParentSelfStudyBot[]> {
     })
     .from(selfEnrollments)
     .innerJoin(classBots, eq(selfEnrollments.botId, classBots.id))
-    .where(eq(selfEnrollments.studentId, studentId))
+    .where(
+      and(
+        eq(selfEnrollments.studentId, studentId),
+        livingConsentExists(parentId, studentId, SELF_STUDY_CONSENT),
+      ),
+    )
     // 같은 초에 둘을 담아도 순서가 흔들리지 않게 bot_id 를 동점 처리 축으로 둔다
     // (`GET /api/me/self-bots` 와 같은 정렬 — 두 화면이 다른 순서를 보이지 않게).
     .orderBy(asc(selfEnrollments.addedAt), asc(selfEnrollments.botId));
@@ -223,14 +257,23 @@ async function listSelfBots(studentId: string): Promise<ParentSelfStudyBot[]> {
  *
  * 이 배열은 **응답에 싣지 않는다.** 요약(연속일수 · 이번 주 날 수)만 내보낸다 —
  * 「어느 날 공부했는지」의 목록은 계약이 준 요약보다 촘촘한 정보다.
- * @param studentId - 동의가 확인된 자녀
- * @returns 날짜 배열
+ *
+ * 동의 술어가 여기에도 서는 이유는 `listSelfBots` 와 같다 — 두 질의 사이의 틈에서
+ * 철회가 일어나면 이미 통과한 목록이 이 질의를 열어 준다. **걷지 마라.**
+ * @param parentId - 이 자료를 읽는 보호자
+ * @param studentId - 자녀
+ * @returns 날짜 배열(동의가 그 사이 끊겼으면 빈 배열)
  */
-async function listStudyDays(studentId: string): Promise<string[]> {
+async function listStudyDays(parentId: string, studentId: string): Promise<string[]> {
   const rows = await getDb()
     .select({ day: sql<string>`to_char(${selfStudyDays.studyDate}, 'YYYY-MM-DD')` })
     .from(selfStudyDays)
-    .where(eq(selfStudyDays.studentId, studentId))
+    .where(
+      and(
+        eq(selfStudyDays.studentId, studentId),
+        livingConsentExists(parentId, studentId, SELF_STUDY_CONSENT),
+      ),
+    )
     .orderBy(asc(selfStudyDays.studyDate));
 
   return rows.map((r) => r.day);
