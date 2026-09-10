@@ -15,10 +15,14 @@ describe("nav-adapter", () => {
     const ws = secs.find((s) => s.head === "워크스페이스");
     expect(ws?.items.map((i) => i.href)).toEqual([
       "/teacher",
+      // 반을 열고 참여 코드를 내는 화면 — 학생을 들이는 입구라 홈 바로 뒤에 온다
+      "/teacher/classroom",
       "/teacher/classbot",
       "/teacher/builder",
       "/teacher/monitor",
       "/teacher/bots",
+      // 게시된 봇이 모이는 곳 — 봇 관리 다음
+      "/teacher/marketplace",
     ]);
     expect(ws?.items.find((i) => i.href === "/teacher/monitor")?.active).toBe(true);
   });
