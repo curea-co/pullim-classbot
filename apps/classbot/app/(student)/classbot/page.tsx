@@ -9,6 +9,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { todayKey } from '@/lib/store/today-key';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStudentBots } from '@/lib/store/mode-bots';
+import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
 import {
   LearningHero,
@@ -67,6 +68,11 @@ export default function StudentClassbotPage() {
   // hook 6-b — 반 봇 + 담은 봇을 합친 목록. 홈이 갈리는 기준이자 「내 봇」 칸의 원본이다.
   // (안쪽에서 `useMyRooms()` 를 다시 부르지만 같은 캐시·같은 스토어라 값이 갈리지 않는다.)
   const { slots: allBots, isLoading: botsLoading } = useStudentBots();
+  // hook 6-c — 연속 학습일. **저장하지 않고 「공부한 날」 배열에서 계산한다**
+  // (`hooks/api/self-bots.ts`). 히어로의 스트릭 칩과 「나의 성장」이 이 한 값을 함께 쓴다 —
+  // 한쪽만 데모 페르소나를 읽으면 같은 화면의 두 숫자가 어긋나고, 개발용 신원을 바꿔도
+  // 남의 기록이 그대로 인증된다.
+  const streak = useSelfStreak();
   // 가벼운 모드(Light Day) — 저조 신호·상태·hydration (spec §6 홈 배선). todayKey 는 같은 날 안정적.
   const lowToday = useLowConditionToday(me.id);           // hook 7
   const lightOn = useLightDayOn(todayKey());              // hook 8
@@ -122,7 +128,7 @@ export default function StudentClassbotPage() {
       )}
 
       {/* 1. LearningHero — navy band */}
-      <LearningHero incompleteAssignments={incompleteAssignments} name={me.name} />
+      <LearningHero incompleteAssignments={incompleteAssignments} name={me.name} streakDays={streak.count} />
 
       {/* 2. TutorShowcase — personality cards */}
       {/* 반 봇 + 담은 봇을 한 칸에 — 학생에게 둘은 「내 봇」 한 종류다(계약 §5) */}
@@ -136,7 +142,7 @@ export default function StudentClassbotPage() {
           light={lightHydrated && lightOn}
           onExitLight={disableLight}
         />
-        <GrowthPanel />
+        <GrowthPanel streakDays={streak.count} />
       </div>
 
       {/* 5. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.

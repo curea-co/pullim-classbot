@@ -14,8 +14,14 @@ const HEAT_CLASS: Record<number, string> = {
   3: 'bg-pullim-blue-700',
 };
 
-export function GrowthPanel() {
-  const { streakDays, weeklyActivity, weeklyHours } = currentPersona;
+/**
+ * 나의 성장 — 연속 학습 + 주간 히트맵.
+ * @param streakDays - 연속 학습일. **밖에서 받는다** — 히어로의 스트릭 칩과 **같은 화면**에
+ *   있어서, 한쪽만 실제 기록을 읽으면 두 숫자가 서로 어긋난다.
+ *   주간 활동·시간은 아직 실제 소스가 없어 데모 페르소나 그대로다.
+ */
+export function GrowthPanel({ streakDays }: { streakDays: number }) {
+  const { weeklyActivity, weeklyHours } = currentPersona;
   const activeDays = weeklyActivity.filter(v => v > 0).length;
 
   return (

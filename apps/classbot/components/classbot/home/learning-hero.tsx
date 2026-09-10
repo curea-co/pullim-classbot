@@ -22,15 +22,20 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
  * @param incompleteAssignments - 아직 안 끝낸 과제(가장 급한 것이 앞)
  * @param name - 부르는 이름. 안 주면 데모 페르소나(서연)로 떨어진다 —
  *   개발용 신원으로 다른 학생을 보고 있는데 「서연님」이라고 부르면 안 된다.
+ * @param streakDays - 연속 학습일. **밖에서 받는다** — 이름은 신원을 따라가는데 스트릭만
+ *   데모 페르소나에 고정돼 있으면, 다른 학생을 보면서 남의 기록을 인증하는 화면이 된다.
+ *   0 이면 칩을 그리지 않는다 — 스트릭 칩은 [08 § 1.6] 이 레몬을 허락한 「인증」 자리라
+ *   인증할 것이 없을 때 띄우면 뜻이 빈다.
  */
 export function LearningHero({
   incompleteAssignments,
   name = currentPersona.name,
+  streakDays,
 }: {
   incompleteAssignments: Assignment[];
   name?: string;
+  streakDays: number;
 }) {
-  const { streakDays } = currentPersona;
   const nextAction = pickNextAction(incompleteAssignments);
 
   return (
@@ -54,10 +59,12 @@ export function LearningHero({
             [08 § 1.6] 이 레몬에 허락한 두 쓰임(키 CTA · 스트릭 인증) 중 스트릭 자리다.
             D-day 칩·glow 에서 뺀 레몬이 여기로 모여서, 홈에서 가장 눈에 띄는 것이 「며칠째 이어왔나」가 된다.
           */}
-          <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
-            <Flame className="h-3 w-3" aria-hidden />
-            {streakDays}일째
-          </Chip>
+          {streakDays > 0 && (
+            <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
+              <Flame className="h-3 w-3" aria-hidden />
+              {streakDays}일째
+            </Chip>
+          )}
         </div>
 
         {/* 이어서 하기 CTA */}
