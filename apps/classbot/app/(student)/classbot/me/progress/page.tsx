@@ -8,6 +8,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
@@ -47,7 +48,8 @@ export default function MyProgressPage() {
   const snapshot = getProgressSnapshot(period);
 
   // 참여한 클래스가 있어야 학습 기록이 쌓인다 — 홈·봇 대화와 같은 게이트를 쓴다.
-  const { rooms: myBots, isLoading: roomsLoading } = useMyRooms();
+  // `isError` 도 같이 받는다 — 조회 실패를 「기록이 없어요」로 확정하면 안 된다.
+  const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
   const hydrated = useStoresHydrated(useClassEnrollmentStore) && !roomsLoading;
 
   // persist hydration 전에는 참여 여부를 신뢰할 수 없다 → 빈 상태 플래시 방지.
@@ -55,6 +57,15 @@ export default function MyProgressPage() {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
+      </div>
+    );
+  }
+
+  // 못 읽은 것과 없는 것을 가른다 — 실패를 빈 상태로 적으면 「내 기록이 사라졌다」로 읽힌다.
+  if (roomsError) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center">
+        <ReadErrorState onRetry={retryRooms} />
       </div>
     );
   }

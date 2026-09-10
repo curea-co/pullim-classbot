@@ -7,6 +7,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useCurrentUser, useRosterMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
@@ -32,8 +33,9 @@ const roleLabel: Record<string, string> = {
 export default function MyProfilePage() {
   const me = useRosterMe();
   const user = useCurrentUser();
-  // 서버 참여 + 데모 스토어를 합쳐 본다 — 스토어만 보면 실제로 참여한 반이 안 보인다.
-  const { rooms: myBots, isLoading: roomsLoading } = useMyRooms();
+  // 참여한 반 — 신원이 있으면 서버, 없으면 데모 스토어다(`useMyRooms` 머리주석).
+  // `isError` 를 버리면 조회 실패가 「참여한 수업이 없어요」로 확정된다 — 아래에서 가른다.
+  const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
   const hydrated = useStoresHydrated(useClassEnrollmentStore) && !roomsLoading;
 
   // 학년은 소속 수업(봇)에서 온다 — 학생 행에는 학년 칸이 없다.
@@ -101,6 +103,9 @@ export default function MyProfilePage() {
               <Skeleton className="h-16 w-full rounded-2xl" />
               <Skeleton className="h-16 w-full rounded-2xl" />
             </div>
+          ) : roomsError ? (
+            /* 못 읽은 것과 없는 것을 가른다 — 실패를 빈 상태로 적으면 「내 반이 사라졌다」로 읽힌다. */
+            <ReadErrorState onRetry={retryRooms} />
           ) : myBots.length === 0 ? (
             <EmptyState
               icon={GraduationCap}
