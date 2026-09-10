@@ -342,66 +342,60 @@ describe('학생 동의 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', (
   });
 });
 
-describe('동의는 조회 조건 안에 있다 — 읽고 나서 거르지 않는다', () => {
-  /** 학부모로 자기주도 라우트를 한 번 친다. */
-  async function callAsParent(consented: unknown[]): Promise<Response> {
-    mockSelectQueue = [[{ role: 'parent' }], consented];
+/**
+ * 자기주도 응답의 **모양** — 05 § 11.4 규칙 2.
+ *
+ * ## 여기서 「동의 조회」를 찾지 마라 — 이 라우트에는 없다
+ *
+ * 자녀 목록은 링크 조회뿐이고 **연결 자녀 전원**을 싣는다. 동의는 봇·공부한 날 조회의
+ * `where` 안에만 있어서, 미동의 자녀는 그 조회가 0행으로 돌아와 내용이 빈다. 그래서
+ * **미동의와 무활동이 응답에서 완전히 같아진다.**
+ *
+ * 종전 판은 `INNER JOIN consent_logs` 로 미동의 자녀를 통째로 떨어뜨렸다. 그게 막는 것은
+ * `null` 오라클인데(동의 정보를 함께 실을 때만 생긴다), **그 방식이 대조 오라클을 연다** —
+ * 학부모가 연결 자녀 전원을 주는 다른 라우트와 이 응답을 대조하면 빠진 자녀가 곧 미동의
+ * 자녀다. 그래서 되돌렸고, 아래 테스트들이 되돌아가지 못하게 붙잡는다.
+ */
+describe('자기주도 응답 모양 — 자녀는 전원, 게이트는 내용에', () => {
+  /** 자녀 하나가 링크된 학부모. */
+  const LINKED = [{ id: 'student_001', name: '서연', relation: 'mother' }];
+
+  /**
+   * 큐 순서 = 라우트가 읽는 순서.
+   *  1) resolveActor 의 users.role  2) 자녀 링크(전원)  3) 담은 봇  4) 공부한 날
+   *
+   * 3)·4) 는 **동의 여부와 무관하게 나간다.** 게이트가 그 질의 안에 있으므로 미동의는
+   * 「질의를 안 보냄」이 아니라 「0행으로 돌아옴」으로 나타난다.
+   */
+  async function callAsParent(views: unknown[][] = [[], []]): Promise<Response> {
+    mockSelectQueue = [[{ role: 'parent' }], LINKED, ...views];
     return getSelfStudy(req('parent_001', 'student'));
   }
 
-  it('조인의 ON 술어에 타입·철회·만료가 전부 들어 있다', async () => {
-    await callAsParent([]);
+  it('자녀 목록 조회에 동의가 **없다** — 전원을 싣는다', async () => {
+    await callAsParent();
 
-    // 첫 innerJoin 이 consent_logs — 계약 §2 의 조인 그대로.
-    const on = render(joinSpy.mock.calls[0][0]);
-    expect(on.text).toContain('"consent_logs"."student_id"');
-    // 받는 사람까지 맞춘다 — 남에게 준 동의가 이 학부모의 조회를 열지 않는다.
-    expect(on.text).toContain('"consent_logs"."parent_id"');
-    expect(on.text).toContain('"revoked_at" is null');
-    // 만료 비교는 DB 시계로 — 앱 서버가 만든 Date 를 파라미터로 넘기지 않는다.
-    expect(on.text).toContain('now()');
-    expect(on.params).toContain('self_study_summary');
-  });
-
-  it('미동의 자녀는 통째로 빠진다 — 봇도 공부한 날도 **읽지 않는다**', async () => {
-    const res = await callAsParent([]);
-
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ children: [] });
-    // select 는 둘뿐이다: resolveActor 의 role 조회 + 자녀 조인.
-    // 셋 이상이면 미동의 자녀의 데이터를 읽고 나서 버렸다는 뜻이다.
-    expect(selectFieldsSpy).toHaveBeenCalledTimes(2);
+    // 1) role · 2) 링크 · 3)4) 데이터. 링크 조회가 두 번째다.
+    const linkWhere = render(whereSpy.mock.calls[1][0]);
+    expect(linkWhere.params).toContain('parent_001');
+    // 동의 흔적이 없어야 한다 — 있으면 미동의 자녀가 목록에서 빠지고 대조 오라클이 열린다.
+    expect(linkWhere.text).not.toContain('consent_logs');
+    expect(linkWhere.text).not.toContain('exists');
+    expect(linkWhere.params).not.toContain('self_study_summary');
+    // 동의 조인도 없다.
+    for (const call of joinSpy.mock.calls) {
+      expect(render(call[0]).text).not.toContain('consent_logs');
+    }
   });
 
   /**
-   * 조인이 통과시킨 뒤의 두 질의에도 동의 술어가 있어야 한다 — **경합 때문이다.**
+   * 조인이 아니라 **데이터 조회**가 게이트를 진다 — 그리고 그것이 유일한 게이트다.
    *
-   * 조인과 데이터 질의는 서로 다른 왕복이라 그 사이에 틈이 있다. 그 틈에서 학생이 공유를
-   * 거두면 이미 통과한 목록이 두 질의를 그대로 열어 주고 **철회 뒤의 자료가 나간다.**
-   * 응답만 보면 정상과 구별되지 않으므로(정상 경로에서도 행이 나온다) 이 테스트는
-   * 응답이 아니라 **조립된 술어**를 본다 — `_lib/consent.ts` 의 `livingConsentExists`
-   * 머리주석이 반·과제 축에 대해 적은 것과 같은 규칙이다.
+   * 응답만 보면 고장을 볼 수 없으므로(정상 경로에서도 행이 나온다) **조립된 술어**를 본다.
    */
-  it('봇·공부한 날 질의에도 동의 술어가 선다 — 조인 통과 뒤의 철회를 막는다', async () => {
-    mockSelectQueue = [
-      [{ role: 'parent' }],
-      [
-        {
-          id: 'student_001',
-          name: '서연',
-          relation: 'mother',
-          scopeLabel: '계속',
-          expiresAt: null,
-        },
-      ],
-      [], // 담은 봇
-      [], // 공부한 날
-    ];
+  it('봇·공부한 날 질의가 동의 술어를 진다 — 이게 유일한 게이트다', async () => {
+    await callAsParent();
 
-    await getSelfStudy(req('parent_001', 'student'));
-
-    // where 는 셋: resolveActor 의 users.id + 자녀 링크 + 데이터 질의 둘.
-    // 데이터 질의 둘이 마지막 둘이다.
     const dataWheres = whereSpy.mock.calls.slice(-2).map((c) => render(c[0]));
     expect(dataWheres).toHaveLength(2);
 
@@ -415,49 +409,73 @@ describe('동의는 조회 조건 안에 있다 — 읽고 나서 거르지 않�
       expect(where.params).toContain('parent_001');
       expect(where.params).toContain('student_001');
       expect(where.params).toContain('self_study_summary');
-      // 반·과제 축으로는 열리지 않는다.
+      // 반·과제 축으로는 열리지 않는다(축 둘은 서로를 열지 않는다).
       expect(where.params).not.toContain('class_assignment_summary');
     }
   });
 
-  it('동의한 자녀는 범위와 만료를 함께 싣는다 — 범위를 숨기지 않는다', async () => {
-    const expiresAt = new Date('2026-03-08T00:00:00Z');
+  /**
+   * **이 테스트가 이 변경의 핵심 보장이다.**
+   *
+   * 미동의 자녀와 「동의했지만 활동 0」 자녀는 응답에서 **이름·관계 말고 전부 같아야** 한다.
+   * 두 경우 모두 데이터 조회가 0행을 돌려주므로(하나는 게이트 때문, 하나는 활동이 없어서)
+   * 라우트가 그 둘을 **구별할 방법 자체를 갖지 않는다** — 그래서 같은 값이 나온다.
+   *
+   * ⛔ 이 테스트가 깨지면 **응답에 동의 정보가 다시 들어왔다는 뜻**이다. 값을 맞추지 말고
+   * 그 필드를 걷어라.
+   */
+  it('미동의 자녀와 「활동 0」 자녀의 값이 같다 — 이름·관계만 다르다', async () => {
+    // 두 자녀 모두 링크돼 있고 데이터 조회는 둘 다 0행으로 돌아온다.
+    // 서연 = 동의했지만 활동 0 · 민준 = 미동의(게이트가 0행으로 만든다).
     mockSelectQueue = [
       [{ role: 'parent' }],
       [
-        {
-          id: 'student_001',
-          name: '서연',
-          relation: 'mother',
-          scopeLabel: '이번 주만',
-          expiresAt,
-        },
+        { id: 'student_001', name: '서연', relation: 'mother' },
+        { id: 's2', name: '민준', relation: 'mother' },
       ],
-      [], // 담은 봇
-      [], // 공부한 날
+      [],
+      [], // 서연: 봇 0 · 날 0
+      [],
+      [], // 민준: 봇 0 · 날 0
     ];
 
     const res = await getSelfStudy(req('parent_001', 'student'));
-    const body = (await res.json()) as {
-      children: Array<Record<string, unknown>>;
-    };
+    const body = (await res.json()) as { children: Array<Record<string, unknown>> };
 
     expect(res.status).toBe(200);
-    expect(body.children[0]).toMatchObject({
-      id: 'student_001',
-      name: '서연',
-      scopeLabel: '이번 주만',
-      expiresAt: expiresAt.toISOString(),
+    // 둘 다 목록에 있다 — 미동의 자녀가 빠지지 않는다.
+    expect(body.children).toHaveLength(2);
+
+    // 이름·관계를 뺀 나머지가 **완전히 같다.**
+    const contentOf = (c: Record<string, unknown>) => {
+      const rest = { ...c };
+      delete rest.id;
+      delete rest.name;
+      delete rest.relation;
+      return rest;
+    };
+    expect(contentOf(body.children[1])).toEqual(contentOf(body.children[0]));
+    expect(contentOf(body.children[0])).toEqual({
       bots: [],
+      streak: { count: 0, lastStudyDate: null, thisWeekDays: 0 },
     });
-    // 계약이 안 준 것이 응답에 없다 — 대화·감정·단원 진행.
+  });
+
+  it('응답에 동의 정보가 없다 — 범위 라벨도 만료도', async () => {
+    const res = await callAsParent();
+    const body = (await res.json()) as { children: Array<Record<string, unknown>> };
+
+    expect(res.status).toBe(200);
+    /*
+      칸을 **못박는다.** `scopeLabel`·`expiresAt` 이 다시 들어오면 미동의 자녀는 그 둘이
+      null 이 되어 `null` 오라클이 살아난다(라우트 머리주석 ①). 대화·감정·단원 진행이
+      없는 것도 같은 자리에서 함께 붙잡는다.
+    */
     expect(Object.keys(body.children[0]).sort()).toEqual([
       'bots',
-      'expiresAt',
       'id',
       'name',
       'relation',
-      'scopeLabel',
       'streak',
     ]);
   });
@@ -539,14 +557,22 @@ describe('반·과제 축은 자녀 동의 뒤에 있다 — 이름은 주고 �
   });
 
   it('자기주도 라우트는 반·과제 축으로 열리지 않는다 — 축 둘은 서로를 열지 않는다', async () => {
-    // 자기주도 조회의 동의 조건은 `ON` 에 있다(INNER JOIN). 그 술어에 반·과제 축이
-    // 섞이면 학생이 켜지 않은 스위치가 딸려 열린다(05 § 11.4 의 표는 축을 갈라 뒀다).
-    mockSelectQueue = [[{ role: 'parent' }], []];
+    // 자기주도의 동의 조건은 **데이터 조회의 `where`** 에 있다(조인이 아니다 — 그 라우트는
+    // 자녀 전원을 싣는다). 그 술어에 반·과제 축이 섞이면 학생이 켜지 않은 스위치가 딸려
+    // 열린다(05 § 11.4 의 표는 축을 갈라 뒀다).
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'student_001', name: '서연', relation: 'mother' }],
+      [],
+      [],
+    ];
     await getSelfStudy(req('parent_001', 'student'));
 
-    const on = render(joinSpy.mock.calls[0][0]);
-    expect(on.params).toContain('self_study_summary');
-    expect(on.params).not.toContain('class_assignment_summary');
+    for (const call of whereSpy.mock.calls.slice(-2)) {
+      const where = render(call[0]);
+      expect(where.params).toContain('self_study_summary');
+      expect(where.params).not.toContain('class_assignment_summary');
+    }
   });
 });
 
@@ -848,13 +874,19 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
 
     whereSpy.mockClear();
     joinSpy.mockClear();
-    mockSelectQueue = [[{ role: 'parent' }], []];
+    mockSelectQueue = [
+      [{ role: 'parent' }],
+      [{ id: 'student_001', name: '서연', relation: 'mother' }],
+      [],
+      [],
+    ];
     await getSelfStudy(req('parent_001', 'student'));
-    const parentJoin = render(joinSpy.mock.calls[0][0]).text;
+    // 학부모 쪽 게이트는 **데이터 조회의 where** 다(조인이 아니다).
+    const parentGate = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]).text;
 
     const living = '"revoked_at" is null';
     const notExpired = '"expires_at" is null or';
-    for (const text of [revokeWhere, parentJoin]) {
+    for (const text of [revokeWhere, parentGate]) {
       expect(text).toContain(living);
       expect(text).toContain(notExpired);
       expect(text).toContain('now()');
