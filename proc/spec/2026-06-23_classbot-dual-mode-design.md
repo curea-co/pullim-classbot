@@ -37,7 +37,7 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > |---|---|---|
 > | BE persistence (자기주도) | **`dev` 에 있다** *(`[2026-09-10 정정]` 종전 **`[예정]`**)* | **#270** 이 인도 완료 — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). **표와 라우트까지다** — 그것을 부르는 훅·스토어는 `dev` 에 없다(아래 「자기주도 데이터 출처」 줄) |
 > | real auth-scoped self-enrollment | **`[예정]`** | 서버 쪽은 `dev` 에 있다 — **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인). *(`[2026-09-10 정정]`)* 그 갈림을 **FE 에서 실제로 가르는 것은 아래 줄(`[예정]` #273)** 이다 — 이 줄만 읽고 화면 PR 에 서버 소비를 걸지 마라 |
-> | **자기주도 데이터 출처(훅·스토어)** — 위 두 줄의 소비 쪽 *(`[2026-09-10 정정]` 신설)* | **`[예정]`** | **#273**(「담은 봇·공부한 날의 출처를 서버로 갈아탄다 — 훅·스토어 (5b/7)」) — **식별된 사용자 = 서버 정본 / 비로그인·401 = localStorage 폴백**, 그리고 기존 로컬 기록 백필. 변경 파일은 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` · `lib/store/self-learning.ts` 이고 **화면 파일(`app/`·`components/`)은 0개**다. 그래서 **#283**(학생 화면)은 **로컬 폴백 상태로 온다** |
+> | **자기주도 데이터 출처(훅·스토어)** — 위 두 줄의 소비 쪽 *(`[2026-09-10 정정]` 신설)* | **`[예정]`** | **#273**(「담은 봇·공부한 날의 출처를 서버로 갈아탄다 — 훅·스토어 (5b/7)」) — **식별된 사용자 = 서버 정본 / 비로그인 = localStorage**(위 줄의 규칙 그대로 **서버를 아예 부르지 않는다**), 그리고 기존 로컬 기록 백필. **`401` 은 폴백 조건이 아니다** — 세션 만료·무효 토큰은 재인증·오류로 다루지, 옛 로컬 기록을 정본 자리에 되돌리지 않는다. 변경 파일은 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` · `lib/store/self-learning.ts` 이고 **화면 파일(`app/`·`components/`)은 0개**다. 그래서 **#283**(학생 화면)은 **로컬 폴백 상태로 온다** |
 > | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published` · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면). 서버 쪽은 `dev` 에 들어왔다(`0004`) |
 > | 학부모 × 자기주도 | **`[예정]`** | 자녀 동의 게이트([05 § 11.4](05-business-rules.md)) — 서버(`consent_logs` 축 둘 · `revoked_at`)는 **#280** 이, 학부모 화면은 **#271** 이 진다 |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
@@ -55,9 +55,14 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 >
 > - **서버**(`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`
 >   +백필) — **#270** 으로 `dev` 에 **이미 있다**.
-> - **훅·스토어의 「식별된 사용자 = 서버 정본 / 401 = localStorage 폴백」 전환** —
+> - **훅·스토어의 「식별된 사용자 = 서버 정본 / 비로그인 = localStorage」 전환** —
 >   **`[예정]` #273** 이 인도한다. 그 PR 의 변경 파일에 `hooks/api/self-bots.ts` 와
 >   `lib/store/self-learning.ts` 가 들어 있다.
+>   **폴백 조건은 「비로그인」이지 「`401`」이 아니다** — 위 표 두 번째 줄이 정한 그대로
+>   **비로그인은 서버를 아예 부르지 않는다.** 서버 라우트는 미식별 요청에 `401` 을 주지만,
+>   그것을 폴백 조건으로 삼으면 **세션 만료·무효 토큰까지 옛 로컬 기록을 정본 자리에**
+>   되돌리게 되고, 그건 이 규칙이 지키려는 **계정 범위 분리**를 깨뜨린다. 인증 실패는
+>   재인증·오류로 다룬다. **이 정정은 규칙을 바꾸는 것이 아니라 규칙을 그대로 옮겨 적는 것이다.**
 > - **학생 화면**(`/classbot/{classroom,my-bots,discover,discover/[botId]}`) — **#283**.
 >   **그래서 #283 은 로컬 폴백 상태로 온다.** 화면 단위 PR 이 그 전환을 함께 하면 층이 섞이고
 >   (리포 `CLAUDE.md` 최상위 MUST — 「한 PR = 한 계층」) **#273 의 몫이 통째로 사라진다.**
@@ -140,8 +145,9 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > **`[2026-09-10 정정]` 그 화면의 데이터 출처는 아직 localStorage 다.** 자기주도 서버
 > (`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`)는
 > **#270** 으로 `dev` 에 있지만, **그것을 부르는 훅·스토어는 `[예정]` #273** 이 인도한다
-> (「식별된 사용자 = 서버 정본 / 401 = localStorage 폴백」 + 기존 로컬 기록 백필 · 변경 파일은
-> `hooks/api/self-bots.ts` · `lib/store/self-learning.ts` 이고 화면 파일 0개). **④ 의 v1
+> (「식별된 사용자 = 서버 정본 / **비로그인**은 서버를 부르지 않고 localStorage」 + 기존 로컬
+> 기록 백필 · 변경 파일은 `hooks/api/self-bots.ts` · `lib/store/self-learning.ts` 이고 화면
+> 파일 0개). **④ 의 v1
 > 저장값도 그 전환 전까지는 로컬에 산다** — #283 이 세우는 것은 v1 의 **모양**(사용자별
 > `byUser` · `class_bots.id` 기반 담은 봇 · 날짜 배열)이고, **출처를 서버로 옮기는 것은
 > #273 이다.** 그래서 **#283 에 서버 소비를 요구하면 층이 섞인다**(리포 `CLAUDE.md` 최상위
