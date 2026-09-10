@@ -12,7 +12,7 @@ import {
   type ClassBot,
   LESSON_FLOW_KEYS,
 } from '@/lib/mock';
-import { useStudentBots, type StudentBotSource } from '@/lib/store/mode-bots';
+import { useStudentBots, type StudentBotSlot, type StudentBotSource } from '@/lib/store/mode-bots';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { Chip } from '@/components/ui/chip';
@@ -193,8 +193,12 @@ function ClassbotChatPageInner() {
   const classHydrated = useStoresHydrated(useClassEnrollmentStore);
   const initialBotId = botParam && slots.some(s => s.bot.id === botParam) ? botParam : (slots[0]?.bot.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
-  const current = slots.find(s => s.bot.id === selectedBotId) ?? slots[0];
-  const bot = current?.bot;
+  // `slots[0]` 은 목록이 비면 런타임에 undefined 다 — `noUncheckedIndexedAccess` 를 켜지
+  // 않아 타입에는 안 나타나므로 여기서 **명시적으로** 옵셔널로 적는다. 아래 가드도 `bot` 이
+  // 아니라 `current` 를 본다 — 별칭을 좁혀도 원본은 좁혀지지 않아 `current.source` 를 읽는
+  // 자리가 가드 밖에 놓인 것처럼 남는다.
+  const current: StudentBotSlot | undefined =
+    slots.find(s => s.bot.id === selectedBotId) ?? slots[0];
   const activeLive = useLiveStore(s => s.active);
 
   // selectedBotId / ?bot= 정규화
@@ -234,7 +238,7 @@ function ClassbotChatPageInner() {
   // 참여 코드를 쓸 수 없는 학생이 각각 생겼고, 선생님이 없는 학생에게는 이 화면이
   // 「참여 코드를 받아 오세요」 하나뿐인 막다른 길이었다 — 이번에 고치는 게 그 자리다.
   // 마켓을 앞에 두는 이유: 담기는 학생이 **혼자서 지금 할 수 있는** 유일한 길이다.
-  if (!bot) {
+  if (!current) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="flex flex-col items-center gap-2">
@@ -259,6 +263,9 @@ function ClassbotChatPageInner() {
       </div>
     );
   }
+
+  // 가드를 지난 뒤라 확정이다 — 아래는 이 둘만 읽는다.
+  const bot = current.bot;
 
   return (
     // lg+: 페이지에 확정 높이를 줘 flex 체인을 복구 → 챗 섹션이 남은 높이를 정확히 채우고
