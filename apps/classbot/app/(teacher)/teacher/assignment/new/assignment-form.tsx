@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Send, Save, Eye, Sparkles,
-  CheckCircle2, Users, Calendar, BookOpen, Shield, Plus, Scale, Split, School,
+  CheckCircle2, Users, Calendar, BookOpen, Shield, Plus, Scale, Split, School, Info,
 } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { BotNote } from '@/components/classbot/bot-note';
@@ -334,6 +334,17 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
         botId: room.botId,
         title: title.trim(),
         dueLabel: formatDueLabel(dueIso),
+        /*
+          진짜 마감 시각 — `dueLabel` 은 「10월 2일 (목) 18:00」 같은 표시용 문자열이라
+          서버가 「마감은 미래」(14 §5.1)를 검증할 수 없다. 서버는 이 값을 받으면 검증하고
+          `dDay` 도 라벨 파싱 대신 여기서 센다(`app/api/teacher/assignments/route.ts`
+          의 `readDueAt`). 그 주석이 「보내는 쪽(#269)이 실으면 필수로 좁힌다」고 적어 둔
+          자리가 여기다 — 안 실으면 폼을 우회한 요청의 과거 마감을 서버가 못 막는다.
+
+          폼은 이미 미래만 통과시킨다(`dueValid` 가 발사 버튼을 잠근다). 그래서 이 값을
+          실어도 정상 경로에서 새로 막히는 것은 없고, 막히는 것은 우회 경로뿐이다.
+        */
+        dueAt: new Date(dueIso).toISOString(),
         questionCount: questions.length,
         difficulty,
         mode,
@@ -570,6 +581,25 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 RAG 인덱스에서 자동 추출돼요. 일부만 쓰면 쓴 발문이 버려지니 발사를 막아요.
                 {' '}지금 직접 쓴 발문 {authoredCount(questions)}/{questions.length}개.
               </BotNote>
+              {/*
+                직접 쓴 발문이 있을 때만 띄운다 — 지금 문항 **본문**은 서버에 저장되는 자리가
+                없다(`assignment_questions` 는 스키마에만 있고 읽기·쓰기 경로가 없다. 문항
+                콘텐츠의 DB 영속은 M3(QGen) 소관 — `lib/store/assignments.ts` 412행).
+                그래서 발문은 낸 이 브라우저에만 남고, 다른 기기로 접속한 학생에게는 자동
+                추출 문항이 간다. 경계 자체는 `solve/__tests__/page.test.tsx` 의
+                `[M2 한계]` 테스트가 못박고 있다.
+
+                선생님이 「내가 쓴 문제가 그대로 나갔다」고 믿는 것이 이 구간의 실제 피해라,
+                고칠 수 없는 동안에는 **말해 주는 것**이 맞다. 발사를 막는 것으로는 학생 쪽이
+                달라지지 않는다(같은 테스트가 그것도 못박고 있다) — 교사 기능만 사라진다.
+              */}
+              {authoredCount(questions) > 0 && (
+                <BotNote icon={Info} className="mt-1">
+                  직접 쓴 발문은 <b>지금 이 브라우저에만 저장돼요.</b> 다른 기기로 들어온 학생은
+                  선생님이 쓴 발문 대신 <b>단원에서 자동 추출된 문항</b>을 받아요 — 문항을 서버에
+                  담는 자리가 아직 없어서예요. 같은 브라우저에서 열면 쓴 발문 그대로 보여요.
+                </BotNote>
+              )}
             </Field>
 
             <PointsTally questions={questions} />

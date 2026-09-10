@@ -136,6 +136,24 @@ it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대�
   });
 });
 
+/*
+  문항 **본문**은 아직 서버에 저장되는 자리가 없어서(M2 경계 — `solve/__tests__/page.test.tsx`
+  의 `[M2 한계]`), 직접 쓴 발문은 낸 브라우저에만 남는다. 발사를 막는 것으로는 학생 쪽이
+  달라지지 않으므로(같은 테스트가 못박는다) 남는 수단은 **말해 주는 것**이다.
+*/
+it('직접 쓴 발문이 있으면 「이 브라우저에만 저장된다」고 알려 준다 — 고칠 수 없으면 말은 해야 한다', () => {
+  render(<AssignmentForm />);
+  expect(screen.queryByText(/이 브라우저에만 저장돼요/)).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByTestId('question-prompt-0'), {
+    target: { value: '얼음이 녹는 동안 온도는?' },
+  });
+
+  expect(screen.getByText(/이 브라우저에만 저장돼요/)).toBeInTheDocument();
+  // 다른 기기 학생이 무엇을 받는지까지 말한다 — 「저장 안 된다」만으로는 결과를 모른다.
+  expect(screen.getByText(/자동 추출된 문항/)).toBeInTheDocument();
+});
+
 it('발문을 다 썼는데 자동 채점 문항 정답이 비면 발사를 막고 문항 번호를 알려 준다', () => {
   render(<AssignmentForm />);
   fillTitle();
@@ -410,4 +428,28 @@ it('시험이 아니면 제한 시간을 보내지 않는다 — 서버도 그�
 
   const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
   expect(payload.examTimeLimitMin).toBeUndefined();
+});
+
+/*
+  마감 시각은 표시용 라벨과 **따로** 실린다. 라벨(「10월 2일 (목) 18:00」)만 보내면 서버가
+  「마감은 미래」(14 §5.1)를 검증할 방법이 없다 — 서버 `readDueAt` 주석이 「보내는 쪽(#269)이
+  실으면 필수로 좁힌다」고 적어 둔 자리를 여기서 채운다. 라벨도 계속 보낸다(서버 행의 표시
+  칸이라 지금은 둘 다 필요하다).
+*/
+it('발사 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만으로는 서버가 미래인지 못 본다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
+  const dueAt = payload.dueAt as string;
+  expect(typeof dueAt).toBe('string');
+  // 파싱되는 ISO 8601 이어야 한다 — 서버가 `new Date()` 로 읽고 NaN 이면 400 이다.
+  const parsed = new Date(dueAt);
+  expect(Number.isNaN(parsed.getTime())).toBe(false);
+  // 반드시 미래 — 폼이 이미 잠그는 조건이고, 서버도 과거면 거절한다.
+  expect(parsed.getTime()).toBeGreaterThan(Date.now());
+  // 표시용 라벨은 그대로 함께 간다 — 하나가 다른 하나를 대신하지 않는다.
+  expect(typeof payload.dueLabel).toBe('string');
+  expect(payload.dueLabel).not.toBe('');
 });
