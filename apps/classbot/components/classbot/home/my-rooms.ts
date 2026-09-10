@@ -5,7 +5,8 @@ import { useMemo } from 'react';
 import { useMyClassrooms } from '@/hooks/api/classroom';
 import type { StudentClassroomItem } from '@/hooks/api/types';
 import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
-import { useMyClassBots } from '@/lib/store/class-enrollment';
+import { useClassEnrollmentStore, useMyClassBots } from '@/lib/store/class-enrollment';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 
 /**
  * 학생이 참여 중인 수업방 한 칸 — 홈·내 정보·학습 기록이 같은 모양으로 읽는다.
@@ -89,7 +90,13 @@ function toSlot(item: StudentClassroomItem): RoomSlot {
 /** `useMyRooms()` 결과 — 목록과 「아직 모른다」를 함께 준다. */
 export interface MyRoomsResult {
   rooms: RoomSlot[];
-  /** 서버 목록이 아직 안 왔다 — 「참여한 방이 없다」로 단정하면 안 되는 구간. */
+  /**
+   * 아직 「참여한 방이 없다」로 단정하면 안 되는 구간 — **소스 둘 다** 기준이다.
+   *
+   * 서버 조회만 보면 안 된다. 비로그인 데모는 서버가 **401 로 먼저 끝나는데**
+   * localStorage 하이드레이션은 그보다 늦다 — 그 틈에 `rooms=[]` · `isLoading=false` 가 되어
+   * **저장된 데모 반이 있는 학생에게 빈 상태가 한 번 번쩍이고** 뒤늦게 카드가 나타난다.
+   */
   isLoading: boolean;
 }
 
@@ -103,6 +110,8 @@ export interface MyRoomsResult {
  */
 export function useMyRooms(): MyRoomsResult {
   const local = useMyClassBots();
+  // 스토어 하이드레이션도 기다린다 — 위 `isLoading` 주석의 그 틈을 막는다.
+  const localHydrated = useStoresHydrated(useClassEnrollmentStore);
   const { data, isPending } = useMyClassrooms();
 
   const rooms = useMemo(() => {
@@ -119,5 +128,5 @@ export function useMyRooms(): MyRoomsResult {
     return [...apiRooms, ...localRooms];
   }, [data, local]);
 
-  return { rooms, isLoading: isPending };
+  return { rooms, isLoading: isPending || !localHydrated };
 }
