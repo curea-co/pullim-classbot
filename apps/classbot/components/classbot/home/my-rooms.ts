@@ -45,11 +45,15 @@ function withHonorific(teacherName: string): string {
 /**
  * 서버가 준 수업방 한 칸을 화면이 쓰는 슬롯으로 옮긴다.
  *
- * 시드 봇(`cb_001`…)은 카탈로그 쪽이 성격·인삿말·말투까지 갖고 있어 그쪽을 쓴다.
- * 다만 **과목·학년·선생님·소속은 카탈로그가 아니라 서버 값이 이긴다** — 그건 봇의 성격이 아니라
- * 이 학생이 들어간 **그 반의 사실**이라서다. 카탈로그를 통째로 쓰던 동안
- * 「고2 미적분 A반」이 카탈로그의 `수학 · 중2` 로 찍혔다(서버는 `수학Ⅱ · 고2`) —
- * 반 이름은 고2 인데 배지는 중2 인, 화면 안에서 서로 어긋나는 상태였다.
+ * 시드 봇(`cb_001`…)은 카탈로그 쪽이 성격·인삿말·말투까지 갖고 있어 **그것만** 쓴다.
+ * 나머지, 곧 **서버가 명시적으로 주는 칸은 전부 서버 값이 이긴다** — 이름·아바타·과목·학년·
+ * 선생님·소속. 그건 봇의 성격이 아니라 이 학생이 들어간 **그 반의 사실**이라서다.
+ * 카탈로그를 통째로 쓰던 동안 「고2 미적분 A반」이 카탈로그의 `수학 · 중2` 로 찍혔고
+ * (서버는 `수학Ⅱ · 고2`), 교사가 시드 봇의 **이름·아바타를 바꿔도** 홈·수업방·챗에 옛 mock
+ * 이름이 계속 떴다 — 화면 안에서 서로 어긋나는 상태였다.
+ *
+ * 카탈로그에서 가져오는 것은 **대화용 보조 필드**뿐이다(`quickPrompts`·`scope`·`isLive`·
+ * `currentLesson`·`greeting`·`tone`). 서버에 그 칸이 없어서 그렇다.
  * @param item - `GET /api/me/classrooms` 한 칸
  * @returns 홈·목록이 그대로 그릴 수 있는 슬롯
  */
@@ -58,6 +62,9 @@ function toSlot(item: StudentClassroomItem): RoomSlot {
   const bot: ClassBot = seeded
     ? {
         ...seeded,
+        // 서버가 주는 표시 필드는 서버가 이긴다 — 교사가 이름·아바타를 고칠 수 있다.
+        name: item.botName,
+        avatarEmoji: item.botAvatarEmoji,
         subject: item.subject,
         grade: item.grade,
         teacherName: item.teacherName,
