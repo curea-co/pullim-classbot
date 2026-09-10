@@ -147,6 +147,15 @@ export function useSelfStudyDays(): { data: string[] } {
 
 /**
  * 오늘 공부했다고 기록 — 하루에 여러 번 불러도 한 칸이다(멱등).
+ *
+ * ⚠ **이 PR 에는 부르는 화면이 없다** — 자리만 세워 둔다.
+ * 종전에는 `/classbot/learn/*`(mock 공식 튜터 `ot_*`)이 진입·점검 통과 때 불렀는데, 그 경로를
+ * 걷었다: ① 목록을 열어 본 것은 공부가 아니고 ② 그 화면들은 **P5 까지 mock 위에서 그대로
+ * 도는** 자리라(개정 박스 §⑤ 의 §3) 새 기록에 이으면 안 된다. 이 배열은 `class_bots.id`
+ * 기반 자기주도 기록이고 **#273 이 서버(`self_study_days`)로 백필**하므로, mock 활동에서 나온
+ * 날짜를 넣으면 그것이 실제 기록으로 서버에 올라간다.
+ * 그래서 **쓰는 쪽은 #273 이 서버 소스와 함께 들인다** — 그때까지 `useSelfStreak()` 은 0 이고,
+ * 홈의 스트릭 칩은 스스로 숨는다(인증할 것이 없을 때 띄우지 않는다).
  * @returns `mutate(date?)` — 날짜를 안 주면 오늘(`lib/store/today-key.ts`)
  */
 export function useRecordSelfStudyDay(): SelfOptionalMutationResult<string> {

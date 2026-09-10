@@ -6,7 +6,6 @@ import { Check } from 'lucide-react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
 import { getUnitContent } from '@/lib/mock/classbot-learning-content';
 import { useUnitProgress, useSelfLearningStore } from '@/lib/store/self-learning';
-import { useRecordSelfStudyDay } from '@/hooks/api/self-bots';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import BackLink from '@/components/classbot/back-link';
 import { PageHeader } from '@/components/shell/page-header';
@@ -31,10 +30,11 @@ export default function UnitPage({
 
   // ── Store hooks (unconditional) ──────────────────────────────────────────
   const progress = useUnitProgress(tutorId, unitId);
+  // 단원 진행은 mock 슬라이스(`unitProgress`)에 그대로 쌓인다 — P5 까지 이 루프는 mock 위에서
+  // 돈다(개정 박스 §⑤ 의 §3). **새 「공부한 날」에는 잇지 않는다** — 그 배열은
+  // `class_bots.id` 기반 자기주도 기록이고 #273 이 서버로 백필하므로, mock `ot_*` 활동에서
+  // 나온 날짜를 그 자리에 넣으면 안 된다. 이음매는 P5 가 카탈로그 전환과 함께 만든다.
   const completeStep = useSelfLearningStore((s) => s.completeStep);
-  // 종전에는 completeStep 이 몰래 연속일수를 올렸다. 이제 공부한 날은 사용자 명의가
-  // 필요해(스토어가 사용자별로 갈렸다) 이 화면이 직접 기록한다.
-  const { mutate: recordStudyDay } = useRecordSelfStudyDay();
 
   // ── Derived data (unconditional) ─────────────────────────────────────────
   const tutor = getOfficialTutor(tutorId);
@@ -143,7 +143,6 @@ export default function UnitPage({
         onComplete={(passed) => {
           if (passed) {
             completeStep(tutorId, unitId, 'check');
-            recordStudyDay();
             // isDone will flip on next render from store
           } else {
             setCheckRetry((n) => n + 1);

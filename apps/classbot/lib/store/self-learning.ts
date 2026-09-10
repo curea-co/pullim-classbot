@@ -261,8 +261,10 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
         }));
       },
 
-      // 종전에는 'check' 완료가 여기서 몰래 연속일수를 올렸다. 이제 공부한 날 기록은
-      // 사용자 명의가 필요해(위 `byUser`) 화면이 `useRecordSelfStudyDay()` 로 직접 부른다.
+      // 종전에는 'check' 완료가 여기서 몰래 연속일수를 올렸다. 이제 올리지 않는다 —
+      // 이 슬라이스는 mock `ot_*` 커리큘럼 전용이고 P5 까지 그대로 도는데(개정 박스 §⑤ 의 §3),
+      // 새 「공부한 날」은 `class_bots.id` 기반이라 #273 이 서버로 백필한다. 두 기록을 여기서
+      // 이으면 mock 활동이 실제 자기주도 기록으로 올라간다. 단원 진행만 남긴다.
       completeStep: (tutorId, unitId, step) => {
         set((s) => {
           const existing = s.unitProgress.find(
