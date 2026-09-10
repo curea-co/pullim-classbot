@@ -7,7 +7,7 @@
  */
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useStudentBots } from '../mode-bots';
+import { useClassBots, useStudentBots } from '../mode-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import type { SelfBotRow } from '@/hooks/api/self-bots';
 import type { ClassBot } from '@/lib/mock';
@@ -107,6 +107,34 @@ it('둘 다 있으면 둘 다 — 반 봇이 먼저 실린다', async () => {
     ['cb_001', 'class'],
     ['cb_009', 'self'],
   ]);
+});
+
+/*
+  웰빙 3면(체크인 반응 · 게이지의 봇 한 마디 · 웰빙 카드)은 **반 봇만** 읽어야 한다.
+  웰빙 코멘트는 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고 그 반의 교사가 학습을
+  본다는 전제 위에 선다 — 담기는 반 참여가 아니어서 그 관계가 없다(계약 §1).
+  종전 `useModeBots()` 가 둘을 합쳐 돌려주면서, 반 없이 봇만 담은 학생에게도 그 봇의 웰빙
+  코멘트가 떴다.
+*/
+it('useClassBots 는 담은 봇을 섞지 않는다 — 웰빙은 반 봇만 읽는다', () => {
+  marketBots = [marketBot('cb_009', '마켓 영어봇')];
+  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
+  classRooms = [classRoom('cb_001', '수학봇')];
+
+  const both = renderHook(() => useStudentBots());
+  expect(both.result.current.slots.map((s) => s.bot.id)).toEqual(['cb_001', 'cb_009']);
+
+  const classOnly = renderHook(() => useClassBots());
+  expect(classOnly.result.current.map((b) => b.id)).toEqual(['cb_001']);
+});
+
+it('반이 없고 담은 봇만 있으면 useClassBots 는 빈 목록이다', () => {
+  marketBots = [marketBot('cb_009', '마켓 영어봇')];
+  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
+  classRooms = [];
+
+  const { result } = renderHook(() => useClassBots());
+  expect(result.current).toEqual([]);
 });
 
 // 교사가 봇 이름·아바타를 고치면 그 갱신이 챗·홈까지 와야 한다.

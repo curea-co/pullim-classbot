@@ -196,10 +196,19 @@ export function useStudentBots(): StudentBotsResult {
 }
 
 /**
- * 봇 목록만 필요한 화면용 얇은 래퍼(웰빙 체크인·게이지·봇 한 마디).
- * 종류 구분이 필요하면 `useStudentBots()` 를 쓴다.
- * @returns 반 봇 + 담은 봇을 합친 목록
+ * **반 봇만** — 웰빙 3면(체크인 반응 · 게이지의 봇 한 마디 · 웰빙 카드)이 쓴다.
+ *
+ * 담은 봇을 여기 섞지 않는다. 웰빙 코멘트는 「**선생님 반의 봇**이 학생의 컨디션에 건네는
+ * 말」이고, 그 반의 교사가 학생의 학습을 보고 있다는 전제 위에 선다. 담기는 반 참여가
+ * 아니어서 `enrollments` 행도 교사 관제도 따라오지 않는다(자기주도 계약 §1) — 그 봇이
+ * 학생의 컨디션에 말을 건네는 자리에 설 근거가 없다.
+ *
+ * 종전 이름은 `useModeBots()` 였고 학습 모드별 목록을 뜻했다. 모드가 폐기되고 이 훅이
+ * **반 봇 + 담은 봇**을 합쳐 돌려주게 되자, 반에 참여하지 않고 봇만 담은 학생에게도 그 봇의
+ * 웰빙 코멘트가 떴다 — 그래서 이름과 범위를 함께 좁혔다.
+ * 두 종류가 다 필요하면 `useStudentBots()` 를 쓴다(챗·홈이 그쪽이다).
+ * @returns 참여한 반의 봇 목록
  */
-export function useModeBots(): ClassBot[] {
-  return useStudentBots().slots.map((s) => s.bot);
+export function useClassBots(): ClassBot[] {
+  return useStudentBots().slots.filter((s) => s.source === 'class').map((s) => s.bot);
 }
