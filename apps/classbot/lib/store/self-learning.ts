@@ -5,11 +5,13 @@
  * 교사의 학생 수·학급 관제소·과제에는 아무 영향이 없다(자기주도 계약 §1).
  *
  * ## 화면은 이 파일을 직접 읽지 않는다
- * 소비 입구는 `hooks/api/self-bots.ts` 하나다. P3 에서 이 자리가 localStorage 에서
+ * 소비 입구는 `hooks/api/self-bots.ts` 하나다. **#273** 에서 이 자리가 localStorage 에서
  * 서버로 바뀔 때 훅 내부만 갈아 끼우면 되도록, 컴포넌트에 zustand 를 노출하지 않는다.
+ * 그 전환은 **화면 PR 의 몫이 아니다** — 그 훅의 머리주석이 근거를 든다.
  *
  * ## 지금 모양이 곧 나중 API 행 모양이다
- *  - `SelfBotRow` = 미래 `GET /api/self/bots` 한 행. P3 가 필드를 다시 매핑하지 않는다.
+ *  - `SelfBotRow` = `GET /api/me/self-bots` 한 행(그 라우트는 #270 으로 `dev` 에 있다).
+ *    #273 이 필드를 다시 매핑하지 않는다.
  *  - `studyDays` 의 한 칸 = 미래 `self_study_days` 한 행. **카운터가 아니라 날짜 배열**이라
  *    나중에 서버로 백필할 수 있다(카운터는 과거 달력을 복원할 수 없다).
  *  - 봇 id 는 마켓이 주는 **`class_bots.id`** 다. 은퇴하는 mock 카탈로그 id(`ot_*`)는
@@ -28,7 +30,7 @@ import { persist } from 'zustand/middleware';
 import { useCurrentUserId } from '@/lib/current-user';
 import { todayKey } from './today-key';
 
-/** 미래 API 행 모양 그대로 — P3 가 필드를 다시 매핑하지 않게. */
+/** 서버 API 행 모양 그대로 — #273 이 필드를 다시 매핑하지 않게. */
 export interface SelfBotRow {
   /** 마켓(`GET /api/marketplace/bots`)이 주는 **`class_bots.id`**. `ot_*` 아님. */
   botId: string;
@@ -42,7 +44,7 @@ export type Streak = {
   lastStudyDate: string | null;
 };
 
-/** 사용자 한 명의 자기주도 기록. P3 에서 이 통 하나가 서버 응답으로 대체된다. */
+/** 사용자 한 명의 자기주도 기록. #273 에서 이 통 하나가 서버 응답으로 대체된다. */
 export interface SelfUserRecord {
   /** 담은 봇 — 담은 순서(오래된 것 먼저). */
   bots: SelfBotRow[];
