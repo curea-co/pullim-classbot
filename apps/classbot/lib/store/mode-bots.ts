@@ -167,6 +167,18 @@ export function useStudentBots(): StudentBotsResult {
     담은 봇은 훅이 결과 세 칸(`data`·`isLoading`·`isError`)만 돌려주고 `refetch` 는 주지
     않는다 — 그 시그니처는 **동결**이라(`hooks/api/self-bots.ts` 머리주석) 넓히지 않고,
     그 파일이 바로 이 용도로 내보내는 `selfBotKeys` 로 무효화한다.
+
+    ## 왜 이 파일이 출처 전환 PR 에 같이 들어 있나
+
+    이 소비 쪽 보정은 **출처 전환과 떼어 낼 수 없다.** 두 방향 다 막혀 있다:
+     - **앞서 낼 수 없다** — `selfBotKeys` 도 「실패할 수 있는 `isError`」도 그 전환이
+       들여오는 것이라, 먼저 낸 PR 은 컴파일되지 않거나 아무 뜻이 없다.
+     - **나중에 낼 수 없다** — 그 사이에 머지된 `dev` 는 담아 둔 봇을 5xx 한 번에
+       「아직 대화할 봇이 없어요」로 그린다. 없어진 게 아니라 못 읽은 것이라, 그 창에서
+       학생 눈에는 데이터 유실이다.
+
+    계층은 그대로 하나다 — `lib/store/*` 로, 전환이 건드리는 `lib/store/self-learning.ts`
+    와 **같은 층**이고 화면 파일(`app/`·`components/`)은 여전히 0개다.
   */
   const queryClient = useQueryClient();
   const retry = useCallback(() => {
