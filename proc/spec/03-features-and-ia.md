@@ -121,7 +121,8 @@
 │  ├─ /classbot/learn/[tutorId] ← 자기주도 학습 — 단원 카드 · 목표 (mock-first, 이미 있다)
 │  ├─ /classbot/learn/[tutorId]/[unitId] ← 단원 학습 (mock-first, 이미 있다)
 │  │                             ※ 둘 다 mock 공식 튜터(ot_*) 위에서 돈다 — P5 까지 그대로 (아래 메모)
-│  ├─ /classbot/me/share       ← 공유 — 무엇을 보호자에게 보여줄지 켜고 끈다 ([예정] #271)
+│  ├─ /classbot/me/share       ← 공유 — 무엇을 보호자에게 보여줄지 켜고 끈다
+│  │                             ([예정] — 서버 `app/api/me/consents/*` 는 #288, 이 화면은 뒤따르는 별건 PR)
 │  ├─ /classbot/chat           ← 봇 채팅 — **반 봇 + 담은 봇을 한 목록**으로 (`useModeBots()`).
 │  │                             [예정] #283 이 모드 분기를 걷고 마켓에서 담은 봇을 이 목록에 얹는다.
 │  │                             같은 봇이 양쪽이면 한 번만 싣고 **반 관계가 이긴다**
@@ -189,10 +190,13 @@
 
 - 학생 — `app/(student)/*` (`AppShell role="student"`, `max-w-screen-md`, BottomNav 5탭)
 - 교사 — `app/(teacher)/*` (`AppShell role="teacher"`, `w-full` 와이드, 데스크탑 우선)
-- 학부모 — **`[예정]`** `app/(parent)/parent/*` (**개발·데모 한정**)
-  - **`dev` 에는 `app/(parent)` 트리가 없다.** `/parent`(홈 — 자녀 요약) · `/parent/assignments`
-    (자녀 과제)는 **#268**, `/parent/self-study`(자녀 자기주도 학습)는 **#271** 이 인도한다.
-    세 화면이 다 들어오기 전까지 이 줄은 계획이고, 현재 상태 설명이 아니다.
+- 학부모 — `app/(parent)/parent/*` (**개발·데모 한정**)
+  - **`[2026-09-10 인도 현황]`** `app/(parent)` 트리는 **#281** 이 넣어 `dev` 에 있다 —
+    `/parent`(홈 — 자녀 요약) · `/parent/assignments`(자녀 과제). 종전 「`dev` 에는 트리가
+    없다」는 서술은 그 PR 이 머지되며 낡았다.
+  - 남은 하나가 `/parent/self-study`(자녀 자기주도 학습) — **`[예정]`** 이다. 서버
+    (`GET /api/parent/children/self-study`)는 **#288**, 화면은 뒤따르는 별건 PR 이 진다.
+    **#271 이 그 둘을 함께 지고 있었으나 닫혔다**(FE/BE 분리 — 리포 최상위 규칙).
   - **홈 경로 정정** — [04 UC-P1](04-ux-flow.md) 이 학부모 진입점을 `/parent/dashboard` 로
     적고 있었으나, 인도되는 것은 **`/parent`** 다(`app/(parent)/parent/page.tsx`). 문서마다
     첫 진입 경로가 갈리지 않게 **04 쪽을 `/parent` 로 맞췄다.** 이건 URL 이 겹쳐서가 아니라
