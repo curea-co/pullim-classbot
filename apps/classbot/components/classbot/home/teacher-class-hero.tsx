@@ -36,14 +36,29 @@ export function TeacherClassHero({ name }: { name?: string }) {
         <JoinCodeForm tone="dark" />
       </div>
 
-      <Link
-        href="/classbot/classroom"
-        aria-label="내 수업방 — 참여한 반 보기"
-        className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-pullim-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-      >
-        내 수업방
-        <ArrowRight className="h-3 w-3" />
-      </Link>
+      {/*
+        나가는 길이 **둘**이어야 한다. 참여 코드 하나뿐이면 선생님이 없는 학생에게 이 화면은
+        막다른 길이다 — 잠긴 결정 3(「standalone-capable」)이 그 학생도 혼자 쓸 수 있어야
+        한다고 못 박은 자리다. 그래서 봇 마켓을 나란히 둔다.
+      */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4">
+        <Link
+          href="/classbot/discover"
+          aria-label="봇 마켓 둘러보기 — 선생님 없이 혼자 시작하기"
+          className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-white underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+        >
+          봇 마켓
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+        <Link
+          href="/classbot/classroom"
+          aria-label="내 수업방 — 참여한 반 보기"
+          className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-pullim-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+        >
+          내 수업방
+          <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
     </section>
   );
 }

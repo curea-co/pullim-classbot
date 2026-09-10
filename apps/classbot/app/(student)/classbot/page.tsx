@@ -9,6 +9,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { todayKey } from '@/lib/store/today-key';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStudentBots } from '@/lib/store/mode-bots';
+import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
 import {
@@ -16,6 +17,7 @@ import {
   TutorShowcase,
   TodoPanel,
   GrowthPanel,
+  WellnessNudge,
   LightDayNudge,
   LightDayExitStrip,
   JoinedClasses,
@@ -30,26 +32,31 @@ import {
  *   1. LearningHero  — 인사 + 스트릭 + 이어서 하기 CTA + 주간 진행
  *   2. TutorShowcase — 내 튜터 personality 카드 그리드
  *   3. 2-col: TodoPanel(좌) + GrowthPanel(우)
+ *   4. WellnessNudge  — 웰빙 봇 코멘트 (optional)
  *   5. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
  *
- * 4 번은 비어 있다 — 「웰빙 한 마디」(WellnessNudge)를 걷어낸 자리다. 없어진 섹션이지
- * 빠뜨린 섹션이 아니다.
+ * 4 번은 **반 봇 기준**이다(`myBots`). 담은 봇을 여기 섞지 않는 이유: 웰빙 한 마디는
+ * 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고, 그 반의 교사가 학습을 보고 있다는
+ * 전제 위에 선다(계약 §1 — 담은 봇에는 그 관계가 없다).
  *
  * **홈은 하나다.** 예전에는 학습 모드(`lib/store/student-mode.ts`)를 보고 `self` 면 다른 홈
  * (`SelfHomePlaceholder`)을 그렸다. 그 분기는 걷었다 — 봇 마켓에서 담은 봇도 반 봇과 같은
  * 챗·기록으로 들어가므로 홈이 갈릴 이유가 없다(계약 §5). 스토어 자체는 남아 있고
  * (`components/classbot/replay-detail.tsx` 가 아직 읽는다) 여기서 읽지 않을 뿐이다.
  *
- * ## 참여 안내 홈으로 갈리는 기준 — **봇이 하나도 없을 때**다
+ * ## 참여 안내 홈으로 갈리는 기준 — **참여한 반이 0곳일 때**다
  *
- * 「반에 안 들어갔다」가 기준이 아니다. 그렇게 재면 **선생님은 없지만 마켓에서 봇을 담은
- * 학생**이 참여 코드 안내(`TeacherClassHome`)로 떨어지고, 자기가 담은 봇이 홈 어디에도
- * 안 보인다 — 코드를 받을 선생님이 없으니 그 화면은 막다른 길이다.
- * `2026-06-23_classbot-dual-mode-design.md` 의 잠긴 결정 3(「standalone-capable」)이
- * 선생님 없는 학생도 자기주도를 **혼자서** 쓸 수 있어야 한다고 못 박은 자리가 이것이다.
- * 그래서 **반 봇 + 담은 봇을 합쳐**(`useStudentBots()`) 재고, 참여 안내는 그 합이 0 일 때만 뜬다.
+ * 개정 박스 ① 의 표가 그렇게 적는다 — 「홈은 하나다. **참여한 반이 0곳일 때의 빈 홈은 그대로
+ * 참여 코드 히어로다**」. 담기는 반 참여가 아니라서(계약 §1) 마켓에서 봇만 담은 학생도 이
+ * 화면을 본다.
  *
- * 참여 코드 입구가 사라지지는 않는다 — 상시 입구는 내비의 「내 수업방」(`/classbot/classroom`)이고,
+ * **그래서 이 화면을 막다른 길로 두지 않는 것이 짝이다.** 잠긴 결정 3(「standalone-capable」)은
+ * 개정 뒤에도 유효하고(§⑤ 대체표), 선생님이 없는 학생에게 참여 코드가 유일한 출구면 그건
+ * 막다른 길이다. 그래서 `TeacherClassHome` 이 ① hero 에 **봇 마켓** 출구를 나란히 두고
+ * ② 담은 봇이 있으면 그 봇들을 여기서도 보여 준다. 「반 0곳이면 참여 코드 hero」와 「혼자
+ * 쓸 수 있다」가 그렇게 함께 선다.
+ *
+ * 참여 코드 입구가 사라지지도 않는다 — 상시 입구는 내비의 「내 수업방」(`/classbot/classroom`)이고,
  * 반이 생기면 `JoinedClasses` 가 홈에도 그 링크를 띄운다(반이 0 이면 스스로 숨는다).
  */
 export default function StudentClassbotPage() {
@@ -64,7 +71,7 @@ export default function StudentClassbotPage() {
   // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
   // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
   // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
-  const { rooms: myBots } = useMyRooms();
+  const { rooms: myBots, isLoading: roomsLoading } = useMyRooms();
   // hook 6-b — 반 봇 + 담은 봇을 합친 목록. 홈이 갈리는 기준이자 「내 봇」 칸의 원본이다.
   // (안쪽에서 `useMyRooms()` 를 다시 부르지만 같은 캐시·같은 스토어라 값이 갈리지 않는다.)
   const { slots: allBots, isLoading: botsLoading } = useStudentBots();
@@ -83,25 +90,30 @@ export default function StudentClassbotPage() {
   // hydration 완료 전까지 스켈레톤을 그려 SSR·첫 페인트 불일치와 빈 홈 플래시를 막는다.
   if (!hydrated) return <HomeSkeleton />;
 
-  // 서버 목록(반)과 담은 봇이 아직 안 왔는데 「봇이 없다」로 단정하면, 봇이 있는 학생에게도
-  // 참여 hero 가 한 번 번쩍인다 — 도착할 때까지는 스켈레톤으로 자리를 지킨다.
-  if (allBots.length === 0 && botsLoading) return <HomeSkeleton />;
+  // 반 목록·담은 봇이 아직 안 왔는데 「반이 0곳」으로 단정하면, 반이 있는 학생에게도 참여
+  // hero 가 한 번 번쩍인다 — 도착할 때까지는 스켈레톤으로 자리를 지킨다.
+  if (myBots.length === 0 && (roomsLoading || botsLoading)) return <HomeSkeleton />;
 
-  // 봇이 하나도 없는 홈 — spec §6 데이터 흐름 그대로. 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
+  // 참여한 반이 0곳인 홈 — spec §6 데이터 흐름 그대로. 저조&!on 이면 넛지(진입로 유지, Codex #182 R5),
   // on 이면 해제 안전망 스트립(TodoPanel 이 없어 같은 날 원복 계약 §3/§8 을 스트립이 보장, R3).
-  // 담은 봇이 하나라도 있으면 여기로 오지 않는다 — 위 머리주석의 「갈리는 기준」 참조.
-  if (allBots.length === 0) {
+  // 담은 봇은 여기서도 보인다 — 위 머리주석의 「갈리는 기준」 참조.
+  if (myBots.length === 0) {
     return (
       <div className="space-y-5">
         {lightHydrated && lowToday && !lightOn && (
           <LightDayNudge onEnable={() => enableLight(todayKey())} />
         )}
         {lightHydrated && lightOn && <LightDayExitStrip onExit={disableLight} />}
-        <TeacherClassHome />
+        <TeacherClassHome
+          selfBots={allBots.filter((s) => s.source === 'self')}
+          activeLive={activeLive}
+        />
       </div>
     );
   }
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
+  // 웰빙 한 마디 — **반 봇**이 건네는 말이라 `myBots` 로만 잰다(위 머리주석 4번).
+  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
 
   // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
   // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
@@ -144,6 +156,9 @@ export default function StudentClassbotPage() {
         />
         <GrowthPanel streakDays={streak.count} />
       </div>
+
+      {/* 4. WellnessNudge — optional */}
+      {wellnessComment && <WellnessNudge comment={wellnessComment} />}
 
       {/* 5. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
           반별 나가기는 여기 없다 — 그 버튼은 `/classbot/classroom` 의 반 카드에 있다. */}
