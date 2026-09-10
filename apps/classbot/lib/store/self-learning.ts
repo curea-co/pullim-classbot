@@ -81,7 +81,7 @@
  * 청사진에서 `self_goals` · `self_unit_progress` 테이블과 함께 **P5** 로 잡혀 있다.
  * 그때 mock 카탈로그와 같이 사라질 데이터라 지금 네임스페이스를 입히지 않는다.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -592,6 +592,12 @@ const backfilling = new Set<string>();
  * **민준 명의로** 서버에 박힌다 — 사용자별 네임스페이스가 막으려던 그 버그다.
  * 다른 통은 **그 신원이 다음에 활성일 때** 자기 손으로 올라간다.
  *
+ * 통을 고르는 것만으로는 부족하다 — **왕복 사이에 사람이 바뀔 수 있다.** 그래서 청크를
+ * 내보낼 때마다 명의를 다시 확인하고, 갈렸으면 멈춘다(아래 `activeUserId`).
+ * 남는 창은 하나다: **이미 날아간 요청**은 되돌릴 수 없어 그 한 청크는 바뀐 명의로 처리될
+ * 수 있다. 그래서 서버가 `student_id` 를 본문에서 받지 않는 것이 마지막 방어다 — 잘못
+ * 붙는 최대치가 「그 순간 로그인한 사람의 한 청크」이고, 남의 통을 훑는 일은 없다.
+ *
  * ## 형식이 틀린 날짜·미래 날짜를 여기서 거르지 않는다
  * 거르는 자리는 **서버 하나**다(계약 §2: 형식 위반·미래·2년 이전은 skip). 클라이언트가
  * 먼저 한 번 더 거르면 규칙이 두 곳에 생겨 서로 어긋날 때 어느 쪽이 맞는지 알 수 없다.
@@ -617,6 +623,21 @@ export function useStudyDayBackfill(serverDays: string[] | undefined): void {
   const hydrated = useStoresHydrated(useSelfLearningStore);
   const queryClient = useQueryClient();
 
+  /*
+    ⛔ **지금 활성 신원** — 청크 사이에서 명의가 바뀌었는지 보는 유일한 근거다.
+
+    effect 의 `userId` 는 **시작할 때** 의 신원이라, 왕복 사이에 사람이 바뀌면 낡은 값이
+    된다. 이 ref 는 렌더마다 갱신되므로 `await` 가 풀린 뒤에도 최신값이다.
+    (`backfilling` 자물쇠로는 못 막는다 — 그건 같은 신원의 중복 실행을 막는 것이고,
+    여기서 막아야 하는 것은 **다른 신원으로 갈린 뒤 남은 청크**다.)
+  */
+  const activeUserId = useRef(userId);
+  // 렌더 중에 ref 를 쓰지 않는다(React Compiler 규칙). **이 effect 가 아래 백필 effect 보다
+  // 먼저 선언돼 있어야** 신원이 갈린 렌더에서 ref 가 먼저 갱신된다 — 순서를 바꾸지 마라.
+  useEffect(() => {
+    activeUserId.current = userId;
+  }, [userId]);
+
   useEffect(() => {
     if (!userId || !hydrated || !serverDays) return;
     if (backfilling.has(userId)) return;
@@ -634,8 +655,26 @@ export function useStudyDayBackfill(serverDays: string[] | undefined): void {
     void (async () => {
       let sent = false;
       let retriable = false;
+      // 명의가 갈려서 중간에 멈췄는가 — 완료 표시를 남기지 않을 근거다(아래).
+      let switched = false;
       try {
         for (let i = 0; i < pending.length; i += BACKFILL_CHUNK) {
+          /*
+            ⛔ **청크를 내보내기 전에 매번 명의를 확인한다.**
+
+            서버는 `student_id` 를 본문이 아니라 **신원**에서 가져온다. 그래서 첫 청크를
+            보낸 뒤 사람이 바뀌면(개발 신원 쿠키 교체 · 로그인 · 로그아웃) 남은 청크가
+            **바뀐 사람 명의로** 박힌다 — 서연의 공부한 날이 민준의 기록이 되는, 위
+            머리주석 「지금 신원의 통 하나만 본다」가 막으려던 바로 그 사고다.
+            2년치(최대 730일)면 청크가 둘이라 실제로 닿는 창이 있다.
+
+            멈추기만 하고 **완료 표시를 남기지 않는다.** 그러면 원래 신원이 다시 활성일 때
+            남은 날짜를 자기 손으로 올린다(이미 올라간 날은 서버 목록에서 빠져 다시 안 간다).
+          */
+          if (activeUserId.current !== userId) {
+            switched = true;
+            break;
+          }
           await apiPost<BackfillStudyDaysResponse>('/api/me/study-days/backfill', {
             days: pending.slice(i, i + BACKFILL_CHUNK),
           } satisfies BackfillStudyDaysInput);
@@ -648,7 +687,15 @@ export function useStudyDayBackfill(serverDays: string[] | undefined): void {
       } finally {
         backfilling.delete(userId);
       }
-      if (!retriable) useSelfLearningStore.getState().markStudyDaysBackfilled(userId);
+      /*
+        마지막 청크가 나간 뒤에도 한 번 더 본다. 여기까지 왔다면 요청은 전부 원래 명의로
+        나갔지만, 그 사이 사람이 바뀌었다면 **이 완료 표시를 남길 자격이 없다** — 남기면
+        원래 신원이 「이미 다 올렸다」로 오해하고 못 올라간 날짜가 영영 남는다.
+      */
+      if (activeUserId.current !== userId) switched = true;
+      if (!retriable && !switched) {
+        useSelfLearningStore.getState().markStudyDaysBackfilled(userId);
+      }
       // 한 덩이라도 올라갔으면 서버 목록을 다시 읽는다 — 무엇이 실제로 들어갔는지는
       // 서버가 안다(형식·미래·2년 이전은 서버가 skip 한다).
       if (sent) void queryClient.invalidateQueries({ queryKey: selfStudyDayKeys.mine });

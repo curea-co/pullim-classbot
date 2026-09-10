@@ -99,6 +99,12 @@ let addFailures: Record<string, number>;
 let backfillFailure: number;
 /** 0 이 아니면 공부한 날 조회가 그 코드로 답한다. */
 let daysListFailure: number;
+/**
+ * **첫 백필 응답만** 붙잡아 두는 문 — 청크 사이에서 신원을 갈아 끼우려고 쓴다.
+ *
+ * 이게 없으면 두 청크가 한 틱에 붙어 나가서 「그 사이에 사람이 바뀐다」를 재현할 수 없다.
+ */
+let holdFirstBackfill: Promise<void> | null;
 
 /**
  * 서버가 아는 「오늘」 — KST. 진짜 시계를 읽지 않는다.
@@ -187,6 +193,12 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       if (!isAcceptableDay(day) || days.includes(day)) continue;
       days.push(day);
       inserted += 1;
+    }
+    if (holdFirstBackfill) {
+      const gate = holdFirstBackfill;
+      holdFirstBackfill = null; // 다음 청크는 붙잡지 않는다 — 나간다면 그게 회귀다.
+      const held = { inserted, skipped: sent.length - inserted };
+      return gate.then(() => jsonResponse(200, held));
     }
     days.sort();
     return Promise.resolve(
@@ -294,6 +306,7 @@ beforeEach(() => {
   addFailures = {};
   backfillFailure = 0;
   daysListFailure = 0;
+  holdFirstBackfill = null;
   useSelfLearningStore.setState({
     byUser: {},
     botsMigratedUserIds: [],
@@ -1063,6 +1076,82 @@ describe('공개 데모 — 공부한 날도 서버에 가지 않는다', () => 
     currentUserId = MINJUN;
     rerender();
     expect(result.current.days.data).toEqual([]);
+  });
+});
+
+/** `end` 에서 거꾸로 `count` 일치 — 전부 달력에 있고 2년 안이다. */
+function consecutiveDays(end: string, count: number): string[] {
+  const [y, m, d] = end.split('-').map(Number);
+  const base = Date.UTC(y, m - 1, d);
+  const out: string[] = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const at = new Date(base - i * 86_400_000);
+    const mm = String(at.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(at.getUTCDate()).padStart(2, '0');
+    out.push(`${at.getUTCFullYear()}-${mm}-${dd}`);
+  }
+  return out;
+}
+
+describe('⛔ 청크 사이에 사람이 바뀌면 남은 청크를 보내지 않는다', () => {
+  /**
+   * 서버는 `student_id` 를 본문이 아니라 **신원**에서 가져온다. 그래서 첫 청크를 보낸 뒤
+   * 사람이 바뀌면(개발 신원 쿠키 교체·로그인·로그아웃) 남은 청크가 **바뀐 사람 명의로**
+   * 박힌다 — 서연의 공부한 날이 민준의 기록이 되는 사고다.
+   *
+   * 400 개가 한 청크라 2년치(최대 730일)면 청크가 둘이고, 그 사이가 왕복이라 실제로 닿는
+   * 창이 있다. 여기서는 첫 응답을 문으로 붙잡아 그 창을 재현한다.
+   */
+  it('남은 날짜가 바뀐 사람 명의로 올라가지 않는다', async () => {
+    const many = consecutiveDays('2026-09-02', 500); // 청크 둘(400 + 100)
+    seedLocalDays(SEOYEON, many);
+    serverDays[SEOYEON] = [];
+    serverDays[MINJUN] = [];
+
+    let release!: () => void;
+    holdFirstBackfill = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const { rerender } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+
+    // 첫 청크가 나갔고 응답은 문에 걸려 있다.
+    await waitFor(() => expect(backfillCalls()).toHaveLength(1));
+    expect(backfillCalls()[0].body?.days).toHaveLength(400);
+
+    // 그 사이에 사람이 바뀐다.
+    currentUserId = MINJUN;
+    devIdentityId = MINJUN;
+    rerender();
+
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+
+    // 남은 100일은 **나가지 않았다.**
+    await waitFor(() =>
+      expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(MINJUN),
+    );
+    expect(backfillCalls()).toHaveLength(1);
+    // 민준의 서버 기록에 서연의 날짜가 한 칸도 없다.
+    expect(serverDays[MINJUN]).toEqual([]);
+    // 서연은 완료 표시를 받지 않았다 — 다음에 자기 손으로 나머지를 올린다.
+    expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).not.toContain(SEOYEON);
+  });
+
+  it('사람이 그대로면 청크 둘이 다 나간다 — 위 방어가 정상 경로를 막지 않는다', async () => {
+    const many = consecutiveDays('2026-09-02', 500);
+    seedLocalDays(SEOYEON, many);
+    serverDays[SEOYEON] = [];
+
+    const { result } = renderHook(() => useSelfStudyDays(), { wrapper: Wrapper });
+
+    await waitFor(() => expect(backfillCalls()).toHaveLength(2));
+    expect(backfillCalls()[0].body?.days).toHaveLength(400);
+    expect(backfillCalls()[1].body?.days).toHaveLength(100);
+    await waitFor(() => expect(result.current.data).toHaveLength(500));
+    expect(useSelfLearningStore.getState().studyDaysBackfilledUserIds).toContain(SEOYEON);
   });
 });
 
