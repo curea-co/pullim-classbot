@@ -40,11 +40,17 @@ beforeEach(() => {
 
 // ─── existing tests (flag OFF) ───────────────────────────────────────────────
 
-it('shows a class-mode gate (no recap) when in self mode', () => {
+/*
+  이 자리에 「self 모드면 교사 수업 게이트를 띄운다」가 있었다. **뒤집혔다** —
+  자기주도는 이제 모드가 아니라 장소(`/classbot/my-bots`)이고 모드 상태로 화면을 가르지
+  않는다(2026-09-09 개정 박스 ①). 헤더 토글이 비노출인 채 게이트만 남으면, 예전에 `self` 를
+  저장해 둔 학생은 리플레이를 열 때마다 **없는 개념의 안내**를 먼저 보게 된다.
+*/
+it('예전에 저장해 둔 self 모드값이 리플레이를 막지 않는다', () => {
   useStudentModeStore.setState({ mode: 'self' });
   render(<ReplayDetail replay={mathReplay} />);
-  expect(screen.getByRole('button', { name: '교사 수업 모드로 보기' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: /다시 풀기/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: '교사 수업 모드로 보기' })).toBeNull();
+  expect(screen.getByRole('button', { name: /다시 풀기/ })).toBeTruthy();
 });
 
 it('opens the exam sheet on 다시 풀기 and resolves the weak point on a correct submit', () => {

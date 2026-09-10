@@ -7,7 +7,9 @@ import { getWellbeingTrend, type WellbeingSnapshot } from '@/lib/mock';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useModeBots } from '@/lib/store/mode-bots';
-import { useStudentMode } from '@/lib/store/student-mode';
+import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { useSelfLearningStore } from '@/lib/store/self-learning';
+import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { cn } from '@/lib/utils';
 import { Sparkbar } from '@/components/classbot/sparkbar';
 
@@ -45,7 +47,10 @@ export function WellbeingGauge({
   // 봇 인사이트는 enrollment 권위(class-enrollment 스토어)를 구독해 주입 — join/나가기에 reactive.
   // 학생 화면에는 봇 인사이트 합성 — § 9.2 필수 요소. compact mode(교사 mini chart)는 inline early return 분기로 자동 미노출.
   // student-self에서는 CTA만 me/report 맥락(다음 주 도전 → /classbot/assignment)으로 override.
-  const { hydrated } = useStudentMode();
+  // 하이드레이션만 본다 — 종전엔 `useStudentMode().hydrated` 를 썼는데, 그 훅은 폐기된 학습
+  // 모드 스토어를 함께 기다린다(2026-09-09 개정 박스 §⑤ — §4 의 `student-mode` 스토어 폐기).
+  // 여기 필요한 것은 **`useModeBots()` 가 읽는 두 스토어**의 복원 여부다.
+  const hydrated = useStoresHydrated(useClassEnrollmentStore, useSelfLearningStore);
   const modeBots = useModeBots();
   // hydration 전에는 모드/봇이 빈 상태 → 잘못된 인사이트 플래시 방지(차트는 그대로 표시).
   const rawInsight = hydrated ? getWellnessBotComment(studentId, modeBots) : null;
