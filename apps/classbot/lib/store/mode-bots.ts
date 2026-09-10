@@ -150,8 +150,19 @@ export function useStudentBots(): StudentBotsResult {
   const marketPending = market.isPending;
 
   const slots = useMemo<StudentBotSlot[]>(() => {
-    const out: StudentBotSlot[] = classRooms.map((c) => ({ bot: c.bot, source: 'class' }));
-    const seen = new Set(out.map((s) => s.bot.id));
+    const out: StudentBotSlot[] = [];
+    const seen = new Set<string>();
+
+    // **반이 여럿이어도 대화 상대는 하나다.** `useMyRooms()` 는 같은 봇으로 열린 서로 다른
+    // 반을 일부러 다 남긴다(목록의 단위가 반이라 그게 맞고, 그 화면은 key 로
+    // `enrollment.classroomId` 를 쓴다). 그러나 여기 단위는 **봇**이다 — 그대로 옮기면 챗
+    // 선택기와 홈 카드에 같은 봇 버튼이 두 개 뜨고, 그 자리들이 `bot.id` 를 React key 로
+    // 쓰므로 key 까지 겹친다. 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸면 바로 난다.
+    for (const room of classRooms) {
+      if (seen.has(room.bot.id)) continue;
+      seen.add(room.bot.id);
+      out.push({ bot: room.bot, source: 'class' });
+    }
 
     // 담은 순서대로 — 담을 때마다 기존 칸이 자리를 바꾸지 않게.
     const added = [...(selfBots.data ?? [])].sort((a, b) => a.addedAt.localeCompare(b.addedAt));

@@ -109,6 +109,22 @@ it('둘 다 있으면 둘 다 — 반 봇이 먼저 실린다', async () => {
   ]);
 });
 
+// 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
+// `useMyRooms()` 는 그 두 반을 일부러 다 남긴다(목록 단위가 반이라 그게 맞다). 그러나 챗의
+// 단위는 봇이라, 그대로 옮기면 같은 봇 버튼이 두 개 뜨고 `bot.id` React key 까지 겹친다.
+it('같은 봇으로 반이 둘이어도 대화 상대는 하나다', () => {
+  marketBots = [];
+  selfRows = [];
+  classRooms = [classRoom('cb_001', '수학봇'), classRoom('cb_001', '수학봇')];
+  const { result } = render();
+  expect(result.current.slots).toHaveLength(1);
+  expect(result.current.slots[0].bot.id).toBe('cb_001');
+  expect(result.current.classCount).toBe(1);
+  // key 로 쓰이는 값이 유일해야 한다 — 중복이면 React 가 같은 자리를 두 번 그린다.
+  const ids = result.current.slots.map((s) => s.bot.id);
+  expect(new Set(ids).size).toBe(ids.length);
+});
+
 // 먼저 담아 두고 나중에 선생님 코드로 들어간 학생 — 한 봇이 양쪽에 다 있다.
 it('겹치면 한 번만 싣고 반 관계가 이긴다', async () => {
   marketBots = [marketBot('cb_001', '마켓에 걸린 수학봇')];
