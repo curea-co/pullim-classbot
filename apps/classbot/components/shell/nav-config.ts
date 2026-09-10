@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, BookMarked,
+  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -69,16 +69,18 @@ export const classbotStudentSection: NavSubItem[] = [
   // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
   // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
   { href: '/classbot/my-bots',    label: '내가 담은 봇', icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
+  // 담은 봇이 오는 곳이라 바로 뒤에 둔다. 레일에 세우는 이유: 이미 반과 담은 봇이 있는 학생은
+  // 빈 상태 안내를 두 번 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 **새 봇을 찾을 길이
+  // 사라진다.** 종전에 닫아 뒀던 것은 화면이 mock 「공식 튜터 마켓」이라 레일 라벨과 도착지가
+  // 어긋났기 때문이고, 이 PR 이 그 화면을 교사 공유 봇으로 갈아끼우므로 함께 연다
+  // (`proc/spec/03 § 2.1`).
+  { href: '/classbot/discover',   label: '봇 마켓',     icon: Compass,       description: '교사가 공유한 봇 둘러보기 · 담기' },
   { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
   // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
   // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
   { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
   // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
-  // 봇 마켓(/classbot/discover) 도 아직 비노출이다. 화면은 있지만 지금 거기 있는 건
-  // 「공식 튜터 마켓」(mock 공식 튜터 + 「곧 만날 봇」)이라, nav 만 먼저 열면 레일 라벨과
-  // 도착지가 어긋난다. 교사가 공유한 봇으로 **화면을 갈아끼우는 PR** 이 nav 도 함께 되살린다
-  // (`proc/spec/03 § 2.1`).
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
   { href: '/classbot/onboarding', label: '소개',    icon: BookOpen,      description: '4분 사용법 가이드' },
 ];
