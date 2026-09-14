@@ -307,7 +307,7 @@ Answer {
 |---|---|
 | `Assignment` 레코드 3건 | **없다.** `studentAssignments: Assignment[] = []` |
 | 문항 풀 `q_today_*` · `q_pres_*` · `q_exam_*` | **남아 있다** (`lib/mock/classbot.ts`) |
-| 그 문항 풀의 쓰임 | 교사가 **발사한** 과제에 문항이 없을 때의 fallback — 모드별로 고른다(`lib/store/assignments.ts` 의 `practice: 'as_today'` 표) |
+| 그 문항 풀의 쓰임 | 교사가 **낸** 과제에 문항이 없을 때의 fallback — 모드별로 고른다(`lib/store/assignments.ts` 의 `practice: 'as_today'` 표) |
 
 그래서 **`/classbot/assignment/as_today` 는 서는 주소가 아니다** — 「과제를 찾을 수 없어요」를
 그린다(실서비스 실측 2026-09-14). 과제를 얻는 길은 **교사가 내는 것 하나**다.
@@ -377,7 +377,7 @@ Answer {
 
 | Phase | 범위 | 검증 기준 |
 |---|---|---|
-| **P0** (이번) | M1~M5 + Flow A1 / A2 / A3 + 임시저장 + 새 라우트 4개 | `[지금]` **교사가 낸 과제**를 받아 풀고 제출 → 결과 페이지 도달. (초안의 「3개 시드 과제 모두」는 § 7.1 대로 시드가 걷혀 성립하지 않는다 — 종단 회귀는 `assignment-dispatch.spec.ts` · `feedback-loop.spec.ts` 가 **발사분**으로 지킨다) |
+| **P0** (이번) | M1~M5 + Flow A1 / A2 / A3 + 임시저장 + 새 라우트 4개 | `[지금]` **교사가 낸 과제**를 받아 풀고 제출 → 결과 페이지 도달. (초안의 「3개 시드 과제 모두」는 § 7.1 대로 시드가 걷혀 성립하지 않는다 — 종단 회귀는 `assignment-dispatch.spec.ts` · `feedback-loop.spec.ts` 가 **교사가 낸 과제**로 지킨다) |
 | **P1** | S1~S4 + 결과 페이지 폴링 자동 갱신 + 봇 힌트 5단계 시드 | 서술형 검수 후 결과 갱신, 시험 모드 외부 탭 감지 |
 | **P2** | OCR 이미지 답안 · 음성 답안 (`/classbot/chat` 통합) | 손글씨 풀이 1건 종단 |
 | **P3** | 협동 풀이 / 스터디룸 연계 (v3+) | — |
