@@ -31,7 +31,9 @@ import { useAssignmentStore, nextAssignmentId, type UserAssignment } from '@/lib
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, authoredCount, gradingTally, toAssignmentQuestions,
-  missingAnswerNumbers, isPartiallyAuthored, maxQuestionsFor,
+  missingAnswerNumbers,
+  missingRubricNumbers,
+  rubricWeightMismatchNumbers, isPartiallyAuthored, maxQuestionsFor,
   MIN_QUESTIONS, TOTAL_POINTS, type DraftQuestion,
 } from './question-editor';
 import { formatDueLabel, computeDDay } from '@/lib/assignment-due';
@@ -63,11 +65,48 @@ const modeOptions: Record<AssignmentMode, ModeMeta> = {
 
 const difficultyOptions = ['하', '중', '상'] as const;
 
+/**
+ * 모드별 Scope override (spec 05 § 5.2 · 12 § 5.1) — **서버와 같은 표여야 한다.**
+ *
+ * 서버는 `app/api/teacher/assignments/route.ts` 의 `SCOPE_OVERRIDE_BY_MODE` 가 쥐고 있고,
+ * 거기 주석이 *"예전에는 `mode === 'exam' ? 1 : null` 이라 오답정복이 봇 기본 Scope 로
+ * 떨어졌다"* 고 적어 두었다. **그 수정이 이 로컬 사본에는 안 왔었다** — 같은 규칙이 두 벌인데
+ * 한 벌만 고쳐진 상태였다. 갈라지면 세 자리가 틀린다: 미리보기 모달 · 비로그인 데모(서버를
+ * 안 거치므로 이 값이 곧 과제다) · 서버 성공 뒤 로컬 동기화(DB 는 5, 로컬은 `undefined`).
+ *
+ * `null` 은 「봇 기본 Scope 를 쓴다」는 뜻이고 연습만 그렇다.
+ */
+const SCOPE_OVERRIDE_BY_MODE: Record<AssignmentMode, ScopeLevel | null> = {
+  practice: null,
+  exam: 1,
+  'wrong-conquest': 5,
+};
+
+/**
+ * `datetime-local` 의 기본값 — **내일 22:00, 로컬 시각**(spec 14 § 3.3.1 · `lib/assignment-due.ts`).
+ *
+ * `toISOString()` 을 쓰면 안 된다. 그건 **UTC 로 바꾼 뒤** 문자열을 주는데 `datetime-local` 은
+ * 받은 문자열을 **로컬로 읽는다** — KST 에서 22:00 을 넣으면 화면에 `13:00` 이 뜬다(9시간 증발).
+ * 교사가 마감을 안 건드리면 그대로 나가므로, 화면을 열자마자 틀린 값이 기본값이 된다.
+ * 그래서 로컬 필드를 직접 조립한다.
+ */
 function defaultDueLabel(): string {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(22, 0, 0, 0);
-  return tomorrow.toISOString().slice(0, 16);
+  return toLocalDatetimeInput(tomorrow);
+}
+
+/**
+ * `Date` → `datetime-local` 이 로컬로 읽는 `YYYY-MM-DDTHH:mm`. UTC 로 새지 않는다.
+ *
+ * **로컬 게터만 쓴다** — `toISOString()` 을 타면 안 된다. 테스트가 그것을 가르려고
+ * 이 함수를 직접 부른다(호스트 TZ 가 UTC 면 두 구현의 출력이 같아져 구별이 안 된다).
+ */
+export function toLocalDatetimeInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // formatDueLabel/computeDDay 는 재발사(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
@@ -225,6 +264,8 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   // 정답을 안 정한 자동 채점 문항이 있으면 발사를 막는다 — 그대로 나가면 그 문항이 채점에서
   // 통째로 빠지거나(단답·수치), 선생님이 고르지 않은 보기가 정답으로 굳는다(객관식).
   const missingAnswers = missingAnswerNumbers(questions);
+  const missingRubric = missingRubricNumbers(questions);
+  const rubricMismatch = rubricWeightMismatchNumbers(questions);
   const answersValid = missingAnswers.length === 0;
 
   /**
@@ -241,6 +282,12 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       return `발문은 전부 쓰거나 전부 비워야 해요 — 지금 ${authoredCount(questions)}/${questions.length}개`;
     }
     if (!answersValid) return `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`;
+    /*
+      서술형 채점 기준 — 위 정답 검사가 서술형을 안 본다(`hasGradableAnswer` 가 언제나 true).
+      비면 루브릭이 통째로 안 실리고, 합이 어긋나면 화면에만 빨간 글씨가 뜨고 그대로 나갔다.
+    */
+    if (missingRubric.length > 0) return `서술형 ${missingRubric.join('·')}번 채점 기준을 적어야 발사할 수 있어요`;
+    if (rubricMismatch.length > 0) return `${rubricMismatch.join('·')}번 기준 배점 합이 문항 배점과 달라요`;
     return null;
   }
   const blockedReason = questionBlockedReason();
@@ -291,7 +338,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       questionCount: questions.length,
       difficulty,
       mode,
-      scopeOverride: mode === 'exam' ? 1 : undefined,
+      scopeOverride: SCOPE_OVERRIDE_BY_MODE[mode] ?? undefined,
       source: 'teacher-assigned',
       assignedBy: room?.botName ?? '',
       assignedAt: '방금 발사',

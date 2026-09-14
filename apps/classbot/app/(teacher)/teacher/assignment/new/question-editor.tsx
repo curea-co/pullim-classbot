@@ -85,6 +85,14 @@ function nextQuestionKey(): string {
   return `dq_${questionSeq}`;
 }
 
+/*
+  기본 채점 기준 — **배점은 문항 배점에서 파생한다**(spec 14 § 3.1 [M2] · § 3.3.1).
+  교사가 배점을 따로 입력하지 않아도 바로 쓸 수 있어야 하므로 이 파생은 유지한다.
+
+  그러면 글자가 비었는데도 합이 맞아 「기준 배점 20 / 문항 배점 20점」이 정상 색으로 뜨는데,
+  **그 자리는 `missingRubricNumbers` 가 막는다** — 빈 기준으로는 낼 수 없다. 표시가 아니라
+  검증으로 푸는 이유는 파생 기본값을 지키기 위해서다.
+*/
 function defaultRubric(points: number): DraftQuestion['rubric'] {
   const half = Math.floor(points / 2);
   return [
@@ -158,6 +166,38 @@ export function hasGradableAnswer(q: DraftQuestion): boolean {
   }
   if (q.type === 'short' || q.type === 'numeric') return q.answerKey.trim().length > 0;
   return true;
+}
+
+/**
+ * 채점 기준이 빈 서술형 문항 번호(1-based).
+ *
+ * 서술형은 `gradingModeOf` 가 `teacher` 라 `hasGradableAnswer` 가 언제나 true 다 — 즉
+ * **기존 정답 검사가 서술형을 전혀 안 본다.** 기준을 한 글자도 안 쓴 채로 나가면
+ * `toAssignmentQuestions` 가 빈 기준을 걸러 루브릭 없이 나간다. 여기서 막는다.
+ * 정답 검사와 같은 전제를 쓴다 — 발문을 전부 쓴 과제에만 따진다.
+ */
+export function missingRubricNumbers(questions: DraftQuestion[]): number[] {
+  if (questions.length === 0 || authoredCount(questions) < questions.length) return [];
+  return questions.flatMap((q, i) =>
+    q.type === 'essay' && q.rubric.every((c) => c.criterion.trim().length === 0) ? [i + 1] : [],
+  );
+}
+
+/**
+ * 기준 배점 합이 문항 배점과 다른 서술형 문항 번호(1-based).
+ *
+ * 이 불일치는 **이미 화면에 빨간 글씨로 떠 있었다**(「기준 배점 30 / 문항 배점 20점」).
+ * 그런데 차단 사유에는 이 항이 없어 **그대로 나갔다** — 빨간 경고에 아무 결과가 없었다.
+ * 빈 기준은 위 `missingRubricNumbers` 가 따로 말하므로 여기서는 중복해 세지 않는다.
+ */
+export function rubricWeightMismatchNumbers(questions: DraftQuestion[]): number[] {
+  if (questions.length === 0 || authoredCount(questions) < questions.length) return [];
+  return questions.flatMap((q, i) => {
+    if (q.type !== 'essay') return [];
+    const written = q.rubric.filter((c) => c.criterion.trim().length > 0);
+    if (written.length === 0) return [];
+    return written.reduce((n, c) => n + c.weight, 0) === q.points ? [] : [i + 1];
+  });
 }
 
 /**
@@ -419,9 +459,18 @@ function McOptions({
             disabled={question.options.length <= MIN_OPTIONS}
             onClick={() => {
               const options = question.options.filter((_, k) => k !== j);
-              const answerIndex = question.answerIndex > j
-                ? question.answerIndex - 1
-                : Math.min(question.answerIndex, options.length - 1);
+              /*
+                지우는 보기가 **현재 정답이면 정답을 푼다**(-1). 종전에는 `Math.min` 으로 잘라
+                옆 보기가 조용히 정답이 됐다 — [가,나,다,라] 에서 정답 「나」를 지우면 「다」가
+                정답이 되고, 새 보기에 글자가 있으니 `hasGradableAnswer` 도 통과해 **틀린
+                정답으로 채점이 나갔다.** 아래로 밀리는 경우(`> j`)만 인덱스를 당긴다.
+                -1 은 `missingAnswerNumbers` 가 받아 「정답을 정해야…」로 막아 준다.
+              */
+              const answerIndex = question.answerIndex === j
+                ? -1
+                : question.answerIndex > j
+                  ? question.answerIndex - 1
+                  : question.answerIndex;
               onChange({ options, answerIndex });
             }}
             className="text-pullim-slate-400 hover:text-pullim-danger"
