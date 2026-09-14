@@ -10,8 +10,15 @@ import {
 } from '../self-study-visibility';
 
 /**
- * 여기서 지키는 것은 표시 규칙이 아니라 **계약 §3 의 한 줄**이다 —
+ * 여기서 지키는 것은 표시 규칙이 아니라 **05 § 11.4 규칙 2 의 한 줄**이다 —
  * 부모가 「동의 안 함」과 「동의했지만 활동 없음」을 구별할 수 있으면 안 된다.
+ *
+ * ## 전제 — 서버는 **연결 자녀를 전원** 준다(빈 내용 마스킹)
+ *
+ * 미동의 자녀도 배열에 온다. 다만 `bots: []` 이고 `streak` 이 전부 0 이라,
+ * 「동의했지만 활동 0」 자녀와 **값이 완전히 같다**(범위 라벨·만료도 응답에 없다).
+ * 그러니 아래 함수들은 둘을 가르지 **않는** 게 아니라 **가를 수가 없다** —
+ * 같은 입력이 들어오므로 같은 답이 나간다.
  *
  * 그래서 아래 첫 블록은 편의 함수의 단위 테스트가 아니라 **회귀 잠금**이다.
  * 「동의는 했으니 이름이라도 보여주자」는 변경이 들어오면 여기서 빨개진다.
@@ -43,12 +50,39 @@ const bot = {
 };
 
 describe('미동의와 무활동은 같은 자리로 접힌다', () => {
-  it('동의했지만 봇도 공부한 날도 없는 자녀는 화면에서 빠진다 — 응답에 없는 자녀와 같아진다', () => {
+  it('내용이 빈 자녀는 카드를 받지 않는다 — 미동의든 무활동이든', () => {
     expect(hasSomethingToShow(child())).toBe(false);
-    // 미동의 자녀는 애초에 배열에 없다(서버 INNER JOIN). 무활동 자녀도 여기서 걸러져
-    // 두 경우 모두 `visibleChildren` 의 결과가 빈 배열이 된다 — 그게 요점이다.
+    // 서버는 미동의 자녀도 **배열에 담아** 보내되 내용만 비운다. 그 자녀와 「동의했지만
+    // 활동 0」 자녀는 값이 같으므로 여기서 함께 걸러진다 — 그게 요점이다.
     expect(visibleChildren([child()])).toEqual([]);
     expect(visibleChildren([])).toEqual([]);
+  });
+
+  /**
+   * **전제가 어긋나면 깨지는 테스트.**
+   *
+   * 미동의 자녀와 「동의했지만 활동 0」 자녀는 서버에서 **값이 같게** 온다. 그러니 판정
+   * 함수는 둘에게 반드시 같은 답을 내야 한다 — 지금은 입력이 같아 저절로 그렇다.
+   *
+   * ⛔ 이 테스트가 깨지는 경우는 하나뿐이다: 응답에 **둘을 가르는 칸이 새로 생겼을 때**
+   * (범위 라벨·만료를 되살리거나, 미동의 자녀를 결과에서 빼고 그 자리를 다른 값으로
+   * 채우거나). 그때 고칠 것은 이 테스트가 아니라 **응답 계약**이다.
+   */
+  it('미동의 자녀와 「활동 0」 자녀에 같은 답을 낸다 — 가를 칸이 없기 때문이다', () => {
+    // 이름·관계만 다르고 내용은 동일 — 서버가 주는 그대로다.
+    const notConsented = child({ id: 's_no', name: '민준' });
+    const consentedIdle = child({ id: 's_idle', name: '서연' });
+
+    // 내용 칸이 실제로 같은지 먼저 못박는다(픽스처가 어긋나면 아래 비교가 무의미해진다).
+    expect(notConsented.bots).toEqual(consentedIdle.bots);
+    expect(notConsented.streak).toEqual(consentedIdle.streak);
+
+    // 판정이 같다.
+    expect(hasSomethingToShow(notConsented)).toBe(hasSomethingToShow(consentedIdle));
+    // 문구도 같다 — 둘 다 같은 빈 자리로 접힌다.
+    expect(homeTeaserLine(notConsented)).toBe(homeTeaserLine(consentedIdle));
+    // 목록에서도 함께 사라진다.
+    expect(visibleChildren([notConsented, consentedIdle])).toEqual([]);
   });
 
   it('셋 중 하나라도 있으면 보여준다', () => {

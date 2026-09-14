@@ -47,14 +47,21 @@ export function useParentChildren(): UseQueryResult<
 /* ── 자기주도 요약 ─────────────────────────────────────── */
 
 /**
- * `GET /api/parent/children/self-study` — **자녀가 보여주기로 한** 자기주도 요약.
+ * `GET /api/parent/children/self-study` — 자녀의 자기주도 요약.
  *
- * `useParentChildren` 과 **일부러 다른 입구**다. 한쪽은 교사에게서 파생된 권한(무조건)이고
- * 이쪽은 자녀 본인의 동의(게이트)라, 한 응답에 섞으면 다음 사람이 새 필드를 어느 규칙으로
- * 더할지 알 수 없다(계약 §2). 화면 두 곳에서 나란히 부르는 것은 괜찮다 — 섞이는 건 응답이지
- * 화면이 아니다.
+ * `useParentChildren` 과 **일부러 다른 입구**다. 동의 축이 다르기 때문이다(반·과제 /
+ * 자기주도). 한 응답에 축이 둘이 되면 다음 사람이 새 필드를 어느 축 뒤에 두어야 할지 알 수
+ * 없다. 화면 두 곳에서 나란히 부르는 것은 괜찮다 — 섞이는 건 응답이지 화면이 아니다.
  *
- * @returns react-query 결과(`data.children` — 동의한 자녀만)
+ * ⚠️ **「동의한 자녀만」 오는 것이 아니다.** 응답에는 **연결 자녀가 전원** 실리고, 미동의
+ * 자녀는 내용만 빈다(`bots: []` · `streak` 0). 그래서 「동의했지만 활동 0」 자녀와 **값이
+ * 같고**, 부모가 둘을 가를 수 없다(05 § 11.4 규칙 2 · 빈 내용 마스킹).
+ *
+ * 자녀를 결과에서 빼는 판으로 되돌리지 마라 — 학부모는 `useParentChildren` 에서 연결 자녀
+ * 전원을 이미 받으므로, 두 응답을 **대조하면 빠진 자녀가 곧 미동의 자녀**가 된다.
+ *
+ * @returns react-query 결과(`data.children` — **연결 자녀 전원**. 보여줄 내용이 있는
+ *   자녀만 고르는 일은 `self-study-visibility.ts` 의 `visibleChildren` 이 한다)
  */
 export function useParentSelfStudy(): UseQueryResult<
   ParentSelfStudyResponse,
