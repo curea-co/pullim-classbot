@@ -1,12 +1,12 @@
 /**
- * 교사 과제 — 출제(발사) + 내가 낸 과제 목록 (계약 §4 「교사」).
+ * 교사 과제 — 과제 내기 + 내가 낸 과제 목록 (계약 §4 「교사」).
  *
- * 발사는 학생 수만큼 행을 만들지 않는다. **행 하나**에 `student_id = NULL` 과
+ * 과제를 내도 학생 수만큼 행을 만들지 않는다. **행 하나**에 `student_id = NULL` 과
  * `target_student_ids` 로 대상을 적고, 학생 쪽 조회 술어가 그걸 펼쳐 읽는다
  * (`app/api/_lib/assignment-visibility.ts`). `target_student_ids = []` 는 반 전체다.
  *
- * `dispatched_at` 은 스키마 주석(lib/db/schema.ts:421)이 "실제 발사 전이에서만 기록" 하라고
- * 못박은 컬럼이다 — 이 라우트가 바로 그 전이라서 여기서 지금 시각을 적는다.
+ * `dispatched_at` 은 스키마 주석(lib/db/schema.ts:538)이 "교사가 실제로 과제를 내는 전이(sent)
+ * 시점에만 기록" 하라고 못박은 컬럼이다 — 이 라우트가 바로 그 전이라서 여기서 지금 시각을 적는다.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -117,7 +117,7 @@ function deriveDDay(dueLabel: string): string {
  *
  * spec 14 § 5.1 은 마감이 **미래**여야 한다고 정한다. 그런데 이 라우트는 오래도록
  * `dueLabel`(「내일 22:00」 같은 표시 문자열)만 받아서, 비어 있는지 말고는 아무것도 검증할 수
- * 없었다 — 폼을 우회하면 임의 문자열도 이미 지난 날짜도 그대로 발사됐다.
+ * 없었다 — 폼을 우회하면 임의 문자열도 이미 지난 날짜도 그대로 나갔다.
  *
  * 그래서 ISO 시각을 함께 받는다. 교사 폼은 이미 그 값을 들고 있다
  * (`assignment-form.tsx` 의 `dueIso` — 라벨과 D-day 둘 다 거기서 파생한다).
@@ -140,7 +140,7 @@ function readDueAt(
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return { ok: false };
-  // 미래여야 한다 — 이미 지난 마감으로 발사하면 학생 화면에 태어나자마자 지각으로 뜬다.
+  // 미래여야 한다 — 이미 지난 마감으로 내면 학생 화면에 태어나자마자 지각으로 뜬다.
   if (parsed.getTime() <= now.getTime()) return { ok: false };
 
   return { ok: true, value: parsed };
@@ -236,14 +236,14 @@ export async function GET(req: Request): Promise<NextResponse> {
     .select()
     .from(assignments)
     .where(eq(assignments.createdBy, actor.id))
-    // id 는 uuid 라 시간순이 아니다 — 발사 시각으로 정렬한다.
+    // id 는 uuid 라 시간순이 아니다 — 교사가 낸 시각으로 정렬한다.
     .orderBy(desc(assignments.dispatchedAt), desc(assignments.id));
 
   return NextResponse.json({ assignments: rows });
 }
 
 /**
- * 과제를 발사한다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
+ * 과제를 낸다 — 반 전체(`targetStudentIds` 생략) 또는 지정 학생.
  * @param req - body `{ botId, title, dueLabel, questionCount, difficulty, mode, scope?,
  *   chapterFrom?, chapterTo?, achievementCodes?, reasonHint?, examTimeLimitMin?,
  *   dueAt?, targetStudentIds? }`
@@ -297,7 +297,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     예전엔 여기서 '단원 미정'·''·'' 을 박아 넣었다. 그래서 교사 화면의 로컬 사본에는 고른
     단원이 남는데 **서버에서 읽는 학생·학부모 화면은 그 단원을 영영 잃었다**(계약 14 §1·§3.3.1·§5.4
-    는 발사 payload 에 단원이 따라가야 한다고 정한다).
+    는 내기 payload 에 단원이 따라가야 한다고 정한다).
 
     길이 상한은 표시용 문자열 기준으로 넉넉히 둔다 — 없으면 본문 한 덩어리가 그대로 컬럼에 들어간다.
     비워 보내면 예전 기본값으로 떨어진다(단원을 안 고르고 낸 경로가 실제로 있다).
@@ -360,7 +360,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     .limit(1);
   if (!bot) return notFound('수업방을 찾을 수 없어요.');
 
-  // 지정 발사면 그 학생들이 정말 이 방에 있는지 본다 — 밖의 학생에게 새는 걸 막는다.
+  // 지정해서 내면 그 학생들이 정말 이 방에 있는지 본다 — 밖의 학생에게 새는 걸 막는다.
   if (targetStudentIds.length > 0) {
     const enrolled = await db
       .select({ studentId: enrollments.studentId })
@@ -384,7 +384,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       .values({
         id,
         botId,
-        // 반 단위 발사 — 학생별 행을 만들지 않는다.
+        // 반 단위로 내기 — 학생별 행을 만들지 않는다.
         studentId: null,
         title,
         scope: scope || '단원 미정',
@@ -401,7 +401,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         examTimeLimitMin: timeLimit.value,
         source: 'teacher-assigned',
         assignedBy: bot.name,
-        assignedAtLabel: '방금 발사',
+        assignedAtLabel: '방금 냈어요',
         dueLabel,
         // 진짜 시각이 왔으면 그걸로 센다 — 라벨 파싱보다 정확하다.
         dDay: dueAt.value ? dDayFromDate(dueAt.value, now) : deriveDDay(dueLabel),
@@ -413,7 +413,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         targetStudentIds,
         dispatchStatus: 'sent',
         createdBy: actor.id,
-        // 지금이 실제 발사 전이다 — 그래서 여기서만 적는다.
+        // 지금이 실제로 과제가 나가는 전이다 — 그래서 여기서만 적는다.
         dispatchedAt: new Date(),
       })
       .returning();
