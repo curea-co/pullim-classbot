@@ -80,7 +80,7 @@ BE `POST /api/assignments` 는 현재 다음과 같이 처리한다:
 | `targetStudentIds: []`(전체) | `student_id = NULL` 로 표현 — 목록 필터가 enrolled 스코프로 재현 | (현행 유지 가능) |
 | `targetStudentIds: [1명]` | `student_id = 그 학생` | (현행 유지 가능) |
 | `targetStudentIds: [2명+]` | **400 거부** — 표현 불가 | `target_student_ids jsonb` 추가 시 단일 행 다중 대상 지원 |
-| `dispatchedAt` | 미저장(`assigned_at_label='방금 냈어요'` 고정 라벨) | `dispatched_at timestamptz DEFAULT now()` — 목록 정렬 키로도 필요(현재 id DESC) |
+| `dispatchedAt` | 미저장(`assigned_at_label='방금 발사'` 고정 라벨 — **코드 실값이다.** 후속 FE PR 에서 `'방금 냈어요'` 로 바뀐다) | `dispatched_at timestamptz DEFAULT now()` — 목록 정렬 키로도 필요(현재 id DESC) |
 | `examTimeLimitMin` | 타입 검증만, 미저장 | `exam_time_limit_min integer` |
 | `requizQuestionIds` | 타입 검증만, 미저장(문항 콘텐츠는 M3) | `requiz_question_ids jsonb` — M3 문항 레이어와 함께 |
 | `dispatchStatus` | 미저장(내는 즉시 `sent` 의미로 insert) | draft/scheduled/withdrawn 지원 시 `dispatch_status` |
