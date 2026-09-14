@@ -4,7 +4,7 @@
 > 마이그레이션 0002)로 인도됐다 — submissions 테이블 + assignments 에
 > `target_student_ids` jsonb · `dispatched_at` timestamptz(+idx) ·
 > `exam_time_limit_min` int · `requiz_question_ids` jsonb. BE assignment
-> 모듈은 이에 맞춰 다중 대상 발사 / dispatched_at 정렬 / 옵션 필드 영속을
+> 모듈은 이에 맞춰 다중 대상 내기 / dispatched_at 정렬 / 옵션 필드 영속을
 > 배선 완료했다(§3 표의 "현재 BE 처리" 열은 0002 이전 상태의 기록).
 
 > **원본**: `proc/spec/2026-05-18_be-api-design.md` (읽기 권위) · `proc/spec/2026-07-03_be-api-m2-amendment.md`
@@ -70,7 +70,7 @@ export const submissions = pgTable(
 );
 ```
 
-## 3. assignments 스키마 gap — 발사(dispatch) 필드
+## 3. assignments 스키마 gap — 내기(dispatch) 필드
 
 FE `UserAssignment` 확장 필드 중 assignments 테이블에 컬럼이 없는 것들.
 BE `POST /api/assignments` 는 현재 다음과 같이 처리한다:
@@ -80,11 +80,11 @@ BE `POST /api/assignments` 는 현재 다음과 같이 처리한다:
 | `targetStudentIds: []`(전체) | `student_id = NULL` 로 표현 — 목록 필터가 enrolled 스코프로 재현 | (현행 유지 가능) |
 | `targetStudentIds: [1명]` | `student_id = 그 학생` | (현행 유지 가능) |
 | `targetStudentIds: [2명+]` | **400 거부** — 표현 불가 | `target_student_ids jsonb` 추가 시 단일 행 다중 대상 지원 |
-| `dispatchedAt` | 미저장(`assigned_at_label='방금 발사'` 고정 라벨) | `dispatched_at timestamptz DEFAULT now()` — 목록 정렬 키로도 필요(현재 id DESC) |
+| `dispatchedAt` | 미저장(`assigned_at_label='방금 발사'` 고정 라벨 — **코드 실값이다.** 후속 FE PR 에서 `'방금 냈어요'` 로 바뀐다) | `dispatched_at timestamptz DEFAULT now()` — 목록 정렬 키로도 필요(현재 id DESC) |
 | `examTimeLimitMin` | 타입 검증만, 미저장 | `exam_time_limit_min integer` |
 | `requizQuestionIds` | 타입 검증만, 미저장(문항 콘텐츠는 M3) | `requiz_question_ids jsonb` — M3 문항 레이어와 함께 |
-| `dispatchStatus` | 미저장(발사 즉시 `sent` 의미로 insert) | draft/scheduled/withdrawn 지원 시 `dispatch_status` |
+| `dispatchStatus` | 미저장(내는 즉시 `sent` 의미로 insert) | draft/scheduled/withdrawn 지원 시 `dispatch_status` |
 
-> 이 gap 들은 M2 core 플로우(전체/단일 발사 → 학생 목록 노출 → 제출 → 교사
+> 이 gap 들은 M2 core 플로우(전체/단일 내기 → 학생 목록 노출 → 제출 → 교사
 > 제출 현황)에는 영향이 없다. FE 스키마 PR 에서 컬럼이 추가되면 BE 는
 > parse 단계의 400 제거 + insert 컬럼 확장만으로 수용한다.
