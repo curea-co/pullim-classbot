@@ -500,7 +500,7 @@ ClassBot (1) ── (N) RubricLearningProposal
 
 - `gradingQueue` · `gradingHistory` · `overriddenSample` 의 학생을 `m01`~`m20` 으로 바꾼다
 - 과목·학년·단원도 그 학생들의 것으로 맞춘다 — 중1 과학 학생이면 제출물도 **중1 과학 · 물질의 상태 변화**
-- **`classRoster`(`sN`)는 지우지 않는다.** 학생 채팅·과제 발사·리마인드 등 다른 화면이 쓴다. 채점 쪽만 옮긴다
+- **`classRoster`(`sN`)는 지우지 않는다.** 학생 채팅·과제 내기·리마인드 등 다른 화면이 쓴다. 채점 쪽만 옮긴다
 
 정렬 뒤에는 `GradingItem.studentId` 가 곧 학생 명단의 id 가 된다. 이름도 한 벌이고,
 채점 항목에서 학생 상세로 건너가도 **같은 학생·같은 수업**이다.
@@ -540,7 +540,7 @@ ClassBot (1) ── (N) RubricLearningProposal
 **옮기는 것은 채점 3종뿐이다**: `gradingQueue` · `gradingHistory` · `overriddenSample`.
 
 `classRoster`(`sN`) 세계는 그대로 둔다 — 학생 채팅(`chatThreads`)·실시간 피드(`liveFeed`)·
-과제 발사 대상·리마인드·감정 체크인(`emotionCheckIns`)·웰빙 스냅샷이 그 id 로 키잉돼 있고,
+과제 낼 대상·리마인드·감정 체크인(`emotionCheckIns`)·웰빙 스냅샷이 그 id 로 키잉돼 있고,
 그 화면들은 이 변경의 범위가 아니다.
 
 #### 끊기는 연결이 있는가 — 소스로 확인했다
