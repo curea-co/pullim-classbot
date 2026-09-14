@@ -5,8 +5,8 @@
  * `target_student_ids` 로 대상을 적고, 학생 쪽 조회 술어가 그걸 펼쳐 읽는다
  * (`app/api/_lib/assignment-visibility.ts`). `target_student_ids = []` 는 반 전체다.
  *
- * `dispatched_at` 은 스키마 주석(lib/db/schema.ts:421)이 "실제 발사 전이에서만 기록" 하라고
- * 못박은 컬럼이다 — 이 라우트가 바로 그 전이라서 여기서 지금 시각을 적는다.
+ * `dispatched_at` 은 스키마 주석(lib/db/schema.ts:538)이 "교사가 실제로 과제를 내는 전이(sent)
+ * 시점에만 기록" 하라고 못박은 컬럼이다 — 이 라우트가 바로 그 전이라서 여기서 지금 시각을 적는다.
  */
 
 import { randomUUID } from 'node:crypto';
