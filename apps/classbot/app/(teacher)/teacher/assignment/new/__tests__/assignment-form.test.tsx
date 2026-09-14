@@ -453,3 +453,60 @@ it('발사 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만�
   expect(typeof payload.dueLabel).toBe('string');
   expect(payload.dueLabel).not.toBe('');
 });
+
+/*
+  마감 기본값 — `toISOString()` 은 **UTC 로 바꾼 뒤** 문자열을 주는데 `datetime-local` 은 받은
+  문자열을 **로컬로 읽는다.** KST 에서 로컬 22:00 을 그렇게 넣으면 화면에 `13:00` 이 떴다.
+  교사가 마감을 안 건드리면 그 값이 그대로 나가므로, 화면을 여는 순간이 이미 틀린 자리였다.
+*/
+it('마감 기본값이 내일 22:00 이다 — UTC 로 새어 9시간이 사라지지 않는다', () => {
+  render(<AssignmentForm />);
+  const due = (screen.getByTestId('due-input') as HTMLInputElement).value;
+
+  const expected = new Date();
+  expected.setDate(expected.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  expect(due).toBe(
+    `${expected.getFullYear()}-${pad(expected.getMonth() + 1)}-${pad(expected.getDate())}T22:00`,
+  );
+
+  // 그 문자열을 로컬로 읽었을 때도 22시여야 한다 — 표기만 맞고 뜻이 틀리면 소용없다.
+  expect(new Date(due).getHours()).toBe(22);
+});
+
+/*
+  모드별 Scope 는 spec 05 § 5.2 가 정하고 서버 `SCOPE_OVERRIDE_BY_MODE` 가 그대로 쥐고 있다.
+  FE 로컬 사본만 `mode === 'exam' ? 1 : undefined` 라 **오답정복이 봇 기본 Scope 로 떨어졌다** —
+  서버에서 한 번 고친 버그가 이쪽에는 안 왔다. 두 벌이 갈라지면 미리보기·비로그인 데모·
+  서버 성공 뒤 로컬 동기화 세 자리가 서버와 다른 값을 쥔다.
+*/
+it('오답정복 로컬 사본의 scopeOverride 가 5 다 — 서버 표와 갈라지지 않는다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  fireEvent.click(screen.getByTestId('mode-wrong-conquest'));
+  await clickDispatch();
+
+  // 서버는 `mode` 에서 직접 파생하므로 payload 에 없다 — 갈라진 것은 **로컬 사본**이다.
+  const [dispatched] = useAssignmentStore.getState().dispatched;
+  expect(dispatched.scopeOverride).toBe(5);
+});
+
+it('연습은 scopeOverride 를 보내지 않는다 — 봇 기본 Scope 를 쓴다는 뜻이다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  await clickDispatch();
+
+  const [dispatched] = useAssignmentStore.getState().dispatched;
+  expect(dispatched.scopeOverride).toBeUndefined();
+});
+
+it('시험은 scopeOverride 가 1 이다 — 종전 동작을 그대로 지킨다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  fireEvent.click(screen.getByTestId('mode-exam'));
+  await clickDispatch();
+
+  // 서버는 `mode` 에서 직접 파생하므로 payload 에 없다 — 갈라진 것은 **로컬 사본**이다.
+  const [dispatched] = useAssignmentStore.getState().dispatched;
+  expect(dispatched.scopeOverride).toBe(1);
+});

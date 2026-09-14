@@ -8,7 +8,8 @@ import { useState } from 'react';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
   evenlySplitPoints, sumPoints, gradingTally, toAssignmentQuestions, withPoints,
-  missingAnswerNumbers, isPartiallyAuthored, maxQuestionsFor,
+  missingAnswerNumbers, missingRubricNumbers, rubricWeightMismatchNumbers,
+  hasGradableAnswer, isPartiallyAuthored, maxQuestionsFor,
   MAX_QUESTIONS_EXAM, MAX_QUESTIONS_DEFAULT, TOTAL_POINTS, type DraftQuestion,
 } from '../question-editor';
 
@@ -92,6 +93,49 @@ describe('QuestionListEditor', () => {
     fireEvent.click(screen.getByTestId('question-option-correct-0-1'));
     fireEvent.click(screen.getByRole('button', { name: '1번 문항 1번 보기 지우기' }));
     expect((screen.getByTestId('question-option-correct-0-0') as HTMLInputElement).checked).toBe(true);
+  });
+
+  /*
+    위 테스트는 **정답 아래 보기를 지우는** 경우(인덱스가 당겨지는 쪽)만 덮었다. 정답 자체를
+    지우는 경우가 빈 채로 남아, 옆 보기가 조용히 정답이 되는 동작이 「통과」로 고정돼 있었다.
+  */
+  it('정답인 보기를 지우면 정답이 옆으로 옮겨가지 않고 풀린다', () => {
+    render(<Harness initial={[makeQuestion('mc', 100)]} />);
+    // 2번 보기를 정답으로 고른 뒤 **그 2번**을 지운다
+    fireEvent.click(screen.getByTestId('question-option-correct-0-1'));
+    fireEvent.click(screen.getByRole('button', { name: '1번 문항 2번 보기 지우기' }));
+    // 어느 보기도 정답이 아니어야 한다 — 종전에는 3번이던 보기가 정답이 됐다
+    for (const el of screen.queryAllByTestId(/^question-option-correct-0-/)) {
+      expect((el as HTMLInputElement).checked).toBe(false);
+    }
+  });
+});
+
+describe('서술형 채점 기준 — 빈 채로 나가지 못한다', () => {
+  it('기본 기준은 배점 0 이다 — 글자가 비었는데 합계만 맞아 초록으로 보이면 안 된다', () => {
+    const q = makeQuestion('essay', 20);
+    expect(q.rubric.every((c) => c.criterion === '')).toBe(true);
+    expect(q.rubric.reduce((n, c) => n + c.weight, 0)).toBe(0);
+  });
+
+  it('기준을 한 글자도 안 쓰면 문항 번호를 돌려준다 — 정답 검사는 서술형을 보지 않는다', () => {
+    const qs = [{ ...makeQuestion('essay', 100), prompt: '설명하시오' }];
+    expect(hasGradableAnswer(qs[0])).toBe(true);      // 정답 검사는 통과시킨다
+    expect(missingAnswerNumbers(qs)).toEqual([]);      // 그래서 여기선 안 걸린다
+    expect(missingRubricNumbers(qs)).toEqual([1]);     // 이쪽이 잡는다
+  });
+
+  it('기준 배점 합이 문항 배점과 다르면 잡는다 — 빨간 글씨에 결과가 있어야 한다', () => {
+    const base = makeQuestion('essay', 100);
+    const qs = [{ ...base, prompt: '설명하시오', rubric: [{ criterion: '근거', weight: 30 }] }];
+    expect(rubricWeightMismatchNumbers(qs)).toEqual([1]);
+    const ok = [{ ...base, prompt: '설명하시오', rubric: [{ criterion: '근거', weight: 100 }] }];
+    expect(rubricWeightMismatchNumbers(ok)).toEqual([]);
+  });
+
+  it('빈 기준은 합 불일치로 중복해 세지 않는다 — 이유 하나에 문구 하나다', () => {
+    const qs = [{ ...makeQuestion('essay', 100), prompt: '설명하시오' }];
+    expect(rubricWeightMismatchNumbers(qs)).toEqual([]);
   });
 });
 
