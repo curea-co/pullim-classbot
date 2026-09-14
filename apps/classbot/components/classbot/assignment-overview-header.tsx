@@ -37,7 +37,14 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
         <div className="flex items-center gap-2 text-2xs">
           <span className="text-pullim-slate-500 font-bold">
             <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
-            {a.assignedBy} · {a.assignedAtLabel} 발사
+            {/*
+              라벨 뒤에 동사를 붙이지 않는다. `assignedAtLabel` 은 이 화면 말고 학생 목록
+              (`assignment/page.tsx:277`)·교사 목록(`teacher/classbot/page.tsx:446`)에서
+              **그대로** 찍히므로, 문장을 완성하는 쪽은 라벨이지 여기가 아니다.
+              종전엔 여기만 ` 발사` 를 덧붙여, 라벨이 「방금 냈어요」인 새 과제에서
+              「방금 냈어요 발사」로 겹쳤다. 주체는 바로 앞 `assignedBy` 가 말한다(14 § 8.1.2).
+            */}
+            {a.assignedBy} · {a.assignedAtLabel}
           </span>
           <span className="text-pullim-slate-300">·</span>
           <span className="text-pullim-slate-500">{sourceMeta[a.source]}</span>
