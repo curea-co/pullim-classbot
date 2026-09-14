@@ -222,9 +222,16 @@ Make **classbot one service with two student modes** — **교사 주도형** (c
 - **Progress model** (`LearningGoal`, `UnitProgress`): per tutor/unit completion state + a daily **streak** + the "오늘의 한 가지" selection. Light, mock-persisted (localStorage), standalone (no teacher).
 - **Scope in self-mode:** self-set or a sensible full-help default (no exam lockdown, since no teacher policy). Reuse the existing Scope system, defaulting open.
 
-## 4. Data model (mock-first; BE is a separate later track)
+## 4. Data model (~~mock-first; BE is a separate later track~~ → **서버가 정본이다**)
 
 > ⚠ **[2026-09-09 개정] `student-mode` 스토어와 `SelfEnrollment`·연속학습 카운터는 폐기됐다.** — 위 개정 박스 §⑤ 대체표를 먼저 읽는다. 두 서술이 갈리면 박스가 이긴다.
+>
+> ⚠ **[`2026-09-14` 정정] 절 제목의 「mock-first · BE 는 나중 트랙」은 끝난 전제다.**
+> 담은 봇·공부한 날의 정본은 **서버**(`self_enrollments` · `self_study_days` — **#270**)이고,
+> 화면이 그것을 읽는 길도 **#273** 으로 `dev` 에 있다. 아래 「New mock + stores (FE-only this
+> track)」 목록은 **2026-06-23 시점의 설계 기록**이지 현재 저장소 구조가 아니다 — 특히
+> `lib/store/student-mode.ts` 는 폐기됐고(위 개정), `self-learning.ts` 는 남았지만 **비로그인
+> 폴백 자리**로 좁혀졌다. 현재 배정은 머리의 2026-09-04 박스가 권위다.
 
 
 New mock + stores (FE-only this track):
@@ -259,6 +266,12 @@ New mock + stores (FE-only this track):
 ## 7. Constraints & e2e
 
 > ⚠ **[2026-09-09 개정] 「mode 는 student 하위 맥락」 전제 아래 쓰인 문장들만 갈렸다 — 보존 원칙과 prod-verify e2e 목록은 유효하다.** 위 개정 박스 §⑤ 대체표를 먼저 읽는다. 두 서술이 갈리면 박스가 이긴다.
+>
+> ⚠ **[`2026-09-14` 정정] 이 절에서 두 줄이 더 갈렸다 — 아래 취소선 둘을 보라.**
+> **`Role`**(셋이 됐다 · #281)과 **「FE-only, mock-first」**(BE 트랙이 도착했다 · #270·#273)다.
+> 마지막 줄의 「Each FE-only + small」도 그 갈림에 딸린다 — **층으로 쪼갠다**는 뜻은 그대로
+> 살아 있고(서버 / 훅·스토어 / 화면), **「FE 만 낸다」는 뜻은 끝났다.** 살아 있는 것은
+> **보존 원칙 · prod-verify e2e 목록 · 「FE/BE 를 한 PR 에 섞지 않는다」** 셋이다.
 
 
 - **Preserve everything current:** the teacher experience and the current student **class-mode** flows are unchanged; the mode toggle + self surfaces are **additive**. All prod-verify e2e stay green — color-palette (8 routes; self-home `/classbot` and any scanned self routes must stay green/amber-free), chat (data-slots, greeting/quick-prompts), wellness-intensity-range, mobile-and-focus (수업 종료, assignment-form testids, solve a11y), slider-variants. New self surfaces follow the same guards (no green/amber on student routes; 44px touch; focus rings; DS type scale).
@@ -270,7 +283,17 @@ New mock + stores (FE-only this track):
   > 화면**이 도착했기 때문이고, `findActiveSection`/nav 는 깨지지 않았다 — `navForRole` 과
   > `buildBreadcrumb` 의 `Record<Role, …>` 표가 빠짐없음으로 컴파일에 걸려 새 역할의 홈·라벨을
   > 한 자리씩 답하게 한다(2026-09-09 개정 박스 §⑤ **§1** 줄이 이미 같은 말을 적는다).
-- **FE-only, mock-first.** BE write/persistence + real auth-scoped self-enrollment is a **separate BE PR track** (repo rule: FE/BE never mixed). The mock/localStorage layer makes the whole loop demoable + e2e-able without a BE (consistent with the existing demo-fallback approach).
+- ~~**FE-only, mock-first.** BE write/persistence + real auth-scoped self-enrollment is a **separate BE PR track**~~ (repo rule: FE/BE never mixed). The mock/localStorage layer makes the whole loop demoable + e2e-able without a BE (consistent with the existing demo-fallback approach).
+  > **`[2026-09-14 정정]` 이 줄의 「mock-first」 전제는 끝났다 — `dev` 는 서버 정본이다.**
+  > BE persistence 는 **#270**(`self_enrollments` · `self_study_days` · `/api/me/self-bots` ·
+  > `/api/me/study-days`), 그것을 부르는 훅·스토어는 **#273** 으로 `dev` 에 있다. 그러니
+  > 「담은 봇·공부한 날은 mock/localStorage 가 정본」으로 읽지 마라 — **식별된 사용자는 서버가
+  > 정본**이고, localStorage 는 **비로그인**에만 남는다(그때는 서버를 아예 부르지 않는다).
+  > 머리의 2026-09-04 박스가 권위이고, 이 줄은 그 박스가 무엇을 풀었는지 보이려고 남긴다.
+  >
+  > **살아 있는 것은 괄호 안의 리포 규칙이다** — FE/BE 를 한 PR 에 담지 않는다. 실제로
+  > 그렇게 층으로 갈라 인도했다(서버 #270 / 훅·스토어 #273 / 화면 #283). 「BE 는 별도 트랙」을
+  > **「아직 BE 가 없다」로 읽지 마라** — 그 트랙은 이미 도착했다.
 - **Phased stacked PRs** off `dev` → PR to `dev` (team flow `dev → main`). Each FE-only + small.
 
 ## 8. Phasing (for the plan)
