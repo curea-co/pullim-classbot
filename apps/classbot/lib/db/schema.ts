@@ -523,23 +523,23 @@ export const assignments = pgTable(
     state: text('state', { enum: ['todo', 'in-progress', 'submitted', 'overdue'] }).notNull(),
     reasonHint: text('reason_hint'),
     solveHref: text('solve_href').notNull(),
-    /* ── M2 과제 내기(dispatch) 필드 (spec 개정 2026-07-03_be-assignment-submissions-ddl.md §3) ── */
+    /* ── M2 발사(dispatch) 필드 (spec 개정 2026-07-03_be-assignment-submissions-ddl.md §3) ── */
     /** 다중 지정 대상 — FE 규약 단일화: **빈 배열 = 전체 enrolled**, [id,…]=지정 (null 이중표현 금지) */
     targetStudentIds: jsonb('target_student_ids').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
-    /** 내기 상태 — FE UserAssignment.dispatchStatus 계약(M2 는 내는 즉시 sent; draft/scheduled round-trip 은 후속) */
+    /** 발사 상태 — FE UserAssignment.dispatchStatus 계약(M2 는 발사 즉시 sent; draft/scheduled round-trip 은 후속) */
     dispatchStatus: text('dispatch_status', { enum: ['draft', 'sent', 'scheduled', 'withdrawn'] })
       .notNull()
       .default('sent'),
-    /** 과제를 낸 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록).
+    /** 발사 교사 — 제출 현황 접근 검증의 권위(봇 소유 역산 대신 직접 기록).
      *  nullable 은 교사 user 삭제 SET NULL 정책(classrooms/class_bots.teacher_id 와 동일) —
-     *  과제를 내는 경로(BE POST /api/assignments)는 항상 기록한다(join_codes.teacher_id 와 같은 계약). */
+     *  발사 경로(BE POST /api/assignments)는 항상 기록한다(join_codes.teacher_id 와 같은 계약). */
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
-    /** 교사가 낸 시각 — 목록 정렬 키(id 는 uuid 라 비시간순). DEFAULT 없음: draft/scheduled 행이
-     *  이미 나간 것처럼 보이지 않도록 **교사가 실제로 과제를 내는 전이(sent) 시점에만** BE 가 명시 기록한다(Codex #192 R2). */
+    /** 발사 시각 — 목록 정렬 키(id 는 uuid 라 비시간순). DEFAULT 없음: draft/scheduled 행이
+     *  발사된 것처럼 보이지 않도록 **실제 발사(sent 전이) 시점에만** BE 가 명시 기록한다(Codex #192 R2). */
     dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
     /** 시험 모드 제한 시간(분) — FE UserAssignment.examTimeLimitMin */
     examTimeLimitMin: integer('exam_time_limit_min'),
-    /** 오답 다시 내기 문항 id 집합 — 문항 콘텐츠 영속은 M3, 키만 보존 */
+    /** 오답 재발사 문항 id 집합 — 문항 콘텐츠 영속은 M3, 키만 보존 */
     requizQuestionIds: jsonb('requiz_question_ids').$type<string[] | null>(),
   },
   (t) => ({
@@ -585,7 +585,7 @@ export const submissions = pgTable(
 /**
  * 교사 개입 이벤트 — FE `pullim-interventions` 스토어(InterventionEvent)의 실전판.
  * (spec: proc/spec/2026-07-02_classbot-teacher-intervention-design.md §3, 실출시 M2 BE 3/3)
- * 교사 표면(리마인드·코멘트·다시 내기·응원)이 쓰고, 학생 벨 인박스·결과 코멘트가 읽는다.
+ * 교사 표면(리마인드·코멘트·재발사·응원)이 쓰고, 학생 벨 인박스·결과 코멘트가 읽는다.
  */
 export const interventions = pgTable(
   'interventions',
@@ -599,7 +599,7 @@ export const interventions = pgTable(
     /** 발신 교사 — assignments.created_by 와 동일 계약(nullable = 교사 삭제 SET NULL, 발신 경로는 항상 기록) */
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     /** 인박스에 그대로 표시할 문구 — 발신 시점에 완성해 저장. FE 타입은 message? 지만
-     *  4개 쓰기 표면(리마인드·코멘트·다시 내기·응원) 전부 항상 완성문을 보내며, BE POST 는
+     *  4개 쓰기 표면(리마인드·코멘트·재발사·응원) 전부 항상 완성문을 보내며, BE POST 는
      *  빈 message 를 400 으로 검증 — NOT NULL 이 인박스 렌더 무결성을 보장한다. */
     message: text('message').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
