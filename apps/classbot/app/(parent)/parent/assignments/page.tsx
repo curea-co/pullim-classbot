@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { useParentChildren } from '@/hooks/api/parent';
 import type { ParentChildItem } from '@/hooks/api/types';
-import { countChildAssignments } from '../assignment-status';
+import { countChildAssignments, hasSchoolWorkToShow } from '../assignment-status';
 import { NoChildrenState, ParentErrorState, ParentLoading } from '../parent-state';
 import { ChildAssignmentTable } from './child-assignment-table';
 
@@ -56,11 +56,27 @@ export default function ParentAssignmentsPage() {
  */
 function ChildAssignmentsCard({ child }: { child: ParentChildItem }) {
   const counts = countChildAssignments(child.assignments);
+  /*
+    숫자를 적어도 되는 자녀인가 — 홈 카드의 KPI 와 **같은 판정**이다
+    (`../assignment-status.ts` 의 `hasSchoolWorkToShow`).
+
+    아무것도 안 온 자녀에게 `과제 0개` 라고 적으면 숨긴 것을 없는 것으로 바꿔 말하게 된다
+    (05 § 11.4 규칙 2). 그래서 셀 수 있을 때만 세고, 아니면 이름만 적는다.
+    반이 왔는데 과제가 0인 자녀는 동의가 확실하므로 그 `0개` 는 참이라 그대로 적는다.
+
+    ⛔ 이 판정으로 **문구까지** 가르지 마라 — 아래 빈 자리 글은 미동의와 활동 없음이
+    함께 쓰는 하나뿐인 문장이다. 문구가 갈리면 그 차이가 곧 동의 여부가 된다(같은 규칙).
+  */
+  const knowsAssignments = hasSchoolWorkToShow(child);
 
   return (
     <section className="bg-card rounded-2xl border p-5">
       <SectionHeading
-        title={`${child.name} · 과제 ${child.assignments.length}개`}
+        title={
+          knowsAssignments
+            ? `${child.name} · 과제 ${child.assignments.length}개`
+            : child.name
+        }
         description={
           child.assignments.length === 0
             ? undefined

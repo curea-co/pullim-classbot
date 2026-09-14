@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School,
+  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School, Sprout,
   ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -144,12 +144,14 @@ export const teacherNav: NavGroup[] = [
 ];
 
 /**
- * 학부모 레일 — 자녀 요약 + 자녀 과제 둘뿐.
+ * 학부모 레일 — 자녀 요약 · 자녀 과제 · 스스로 공부 셋.
  *
  * 1/6 은 `Role` 을 `student | teacher` 로 두고 이 레일을 비워 뒀다 — 화면이 없는 역할의
- * 메뉴를 먼저 열면 누르는 즉시 404 라서다. `/parent` · `/parent/assignments` 가 이 PR 에서
- * 도착하므로 **여기서 `Role` 확장과 함께 레일이 열린다.**
- * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 둘로 고정이다(계약 §6).
+ * 메뉴를 먼저 열면 누르는 즉시 404 라서다. `/parent` · `/parent/assignments` 가 그 PR 에서
+ * 도착하며 **`Role` 확장과 함께 레일이 열렸고**, `/parent/self-study` 가 이 PR 에서
+ * 합류한다.
+ *
+ * 학부모는 자기 학습 화면이 없다 — 자녀를 보는 창구라 항목이 이 셋으로 고정이다(계약 §6).
  */
 export const parentNav: NavGroup[] = [
   {
@@ -157,6 +159,11 @@ export const parentNav: NavGroup[] = [
     items: [
       { href: '/parent',             label: '홈',        icon: Home,   description: '자녀 요약' },
       { href: '/parent/assignments', label: '자녀 과제', icon: Target, description: '자녀가 받은 과제 현황' },
+      // 자녀가 스스로 고른 봇으로 한 공부. 위 둘과 **인가 모델이 다르다** — 교사 파생인
+      // 반·과제와 달리 여기만 자녀 본인의 동의가 있어야 보인다(승인할 교사가 구조적으로
+      // 없는 학습이라서). 레일 항목을 나눠 둔 것도 그래서다: 한 화면에 섞으면 부모가
+      // 「왜 이 칸만 비나」를 묻게 되고, 그 물음의 답이 곧 동의 여부다.
+      { href: '/parent/self-study',  label: '스스로 공부', icon: Sprout, description: '자녀가 스스로 고른 봇 · 공부한 날' },
     ],
   },
 ];
