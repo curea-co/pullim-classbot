@@ -251,9 +251,22 @@ describe("getCurrentUserIdFromRequest — 개발용 신원 쿠키 폴백", () =>
     expect(result.id).toBe(DEMO_FALLBACK_USER_ID);
   });
 
-  it("dev preview 호스트에서는 인정한다 (NODE_ENV 가 아니라 호스트로 가른다)", () => {
+  /*
+    종전에는 dev preview 호스트(`dev-classbot.pullim.ai`)에서도 이 쿠키를 신원으로 인정했다.
+    지금은 **로컬에서만** 인정한다 — 배포에는 DB 가 없어 신원을 세우면 라우트가 500 만 낸다
+    (`lib/dev-identity.ts` 머리주석의 실측). 배포는 익명 mock 경로로 돈다.
+  */
+  it("배포 호스트에서는 인정하지 않는다 — 신원을 세워도 DB 가 없다", () => {
     const result = getCurrentUserIdFromRequest(
       requestWith({ devIdentity: "s2", host: "dev-classbot.pullim.ai" }),
+    );
+    expect(result.isIdentified).toBe(false);
+    expect(result.id).toBe(DEMO_FALLBACK_USER_ID);
+  });
+
+  it("로컬 호스트에서는 인정한다 — 이 도구가 사는 곳이다", () => {
+    const result = getCurrentUserIdFromRequest(
+      requestWith({ devIdentity: "s2", host: "localhost:3032" }),
     );
     expect(result).toEqual({
       id: "s2",

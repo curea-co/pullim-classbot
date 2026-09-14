@@ -7,7 +7,22 @@
  *
  * 왜 두는가: classbot 로컬에는 `JWT_SECRET` 이 없고 로그인은 실행되지 않는
  * NestJS(:4032)로 간다 → 로컬에서 모든 `/api/*` 가 401 이라 데모가 아예 안 돈다.
- * 그래서 **아는 개발 호스트에서만** 이 쿠키를 신원으로 인정한다.
+ * 그래서 **로컬에서만** 이 쿠키를 신원으로 인정한다.
+ *
+ * ## 배포 호스트는 열지 않는다 — 열면 500 밖에 못 낸다
+ *
+ * 종전에는 `dev-classbot.pullim.ai` 와 preview `*.vercel.app` 도 열어 두었다. 그런데
+ * **배포에는 DB 가 없다**(Vercel 프로젝트에 `DATABASE_URL` 이 설정돼 있지 않다). 신원을
+ * 세우면 라우트가 `users` 를 조회하러 가고, 거기서 죽는다 — 실측(2026-09-14): 프리뷰에서
+ * 역할 전환 버튼으로 학부모를 누르면 `/api/parent/children` 이 **500** 을 여섯 번 내고
+ * 화면이 「자녀 정보를 불러오지 못했어요 (HTTP 500)」로 끝난다.
+ *
+ * **익명일 때는 그 사슬이 시작도 안 한다** — 쿠키가 없으니 서버가 401 을 주고, 화면이
+ * mock·localStorage 로 돌아간다. 배포된 클래스봇이 도는 방식이 그것이다. 그러니 배포에서
+ * 신원은 **없는 편이 맞다.** 버튼이 보이는 것 자체가 「눌러도 되는 길」이라는 약속인데
+ * 그 길 끝이 오류 카드라서다.
+ *
+ * 배포에 DB 가 붙는 날(BE 배선) 이 판단을 다시 본다. 그때 여는 것은 이 목록 한 줄이다.
  *
  * 안전 장치 셋:
  *  1. **호스트 허용 목록 + fail-closed** — 로컬·preview 같이 **아는 이름에서만** 인정하고,
@@ -72,18 +87,7 @@ const DEV_IDENTITY_HOSTNAMES: readonly string[] = [
   'localhost',
   '127.0.0.1',
   '::1',
-  /** dev preview 고정 도메인 — 외부 차단된 미리보기다. */
-  'dev-classbot.pullim.ai',
 ];
-
-/**
- * PR 별 Vercel preview 도메인 접미사.
- *
- * **이 접미사만으로는 안전하지 않다** — production 배포도 같은 접미사를 받는다. 그래서
- * 아래 판정은 이 접미사를 「배포 환경이 preview 라고 확인됐을 때만」 연다. 접미사를 여는
- * 이유는 PR 미리보기에서 역할 전환이 죽으면 개발 흐름이 상하기 때문이다.
- */
-const PREVIEW_HOSTNAME_SUFFIX = '.vercel.app';
 
 /**
  * `Host` 헤더에서 호스트명만 뗀다.
@@ -142,13 +146,7 @@ export function isDevIdentityHost(host: string | null | undefined): boolean {
   if (!host) return false;
   const hostname = hostnameOf(host);
   if (!hostname) return false;
-  // `*.vercel.app` 은 **preview 라고 확인됐을 때만** 연다.
-  //
-  // 이 접미사는 production 배포도 받는다 — 그래서 「이름을 열어 두고 production 검사로
-  // 거른다」는 순서면 환경변수가 없을 때 production 기본 URL 이 그대로 통과한다.
-  // 순서를 뒤집어 **positive 확인**으로 둔다: 모르면(undefined) 닫힌다.
-  // `.` 까지 포함해 비교하므로 `notvercel.app` · `vercel.app.attacker.com` 은 안 걸린다.
-  if (hostname.endsWith(PREVIEW_HOSTNAME_SUFFIX)) return env === 'preview';
+  // 배포 호스트는 이름이 무엇이든 여기서 걸린다 — 목록에 로컬 셋뿐이다(위 머리주석).
   return DEV_IDENTITY_HOSTNAMES.includes(hostname);
 }
 

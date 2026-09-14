@@ -69,7 +69,8 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
     ['localhost:3032', true],
     ['127.0.0.1:3032', true],
     ['[::1]:3032', true],
-    ['dev-classbot.pullim.ai', true],
+    // 배포 호스트는 열지 않는다 — 배포에 DB 가 없어 신원을 세우면 500 만 난다(모듈 머리주석)
+    ['dev-classbot.pullim.ai', false],
     // prod 이름
     ['classbot.pullim.ai', false],
     ['CLASSBOT.PULLIM.AI', false],
@@ -92,18 +93,20 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
     expect(isDevIdentityHost('   ')).toBe(false);
   });
 
-  // **이 파일에서 가장 중요한 자리.** `*.vercel.app` 은 production 배포도 받는 접미사다.
-  // 「이름을 열어 두고 production 검사로 거른다」는 순서였다면, 환경변수가 없을 때
-  // production 기본 URL 이 그대로 통과한다. positive 확인이라 모르면 닫힌다.
-  it('배포 환경을 모르면 *.vercel.app 은 막힌다 — 열어 두고 거르지 않는다', () => {
-    expect(isDevIdentityHost('pullim-classbot-abc123-curea.vercel.app')).toBe(false);
+  // **이 파일에서 가장 중요한 자리.** 배포된 호스트는 환경이 무엇이든 열리지 않는다.
+  // 종전에는 preview 라고 확인되면 `*.vercel.app` 과 `dev-classbot.pullim.ai` 를 열었는데,
+  // 배포에는 DB 가 없어 신원을 세우면 라우트가 500 만 낸다(모듈 머리주석의 실측).
+  // 그래서 이 도구는 **로컬 전용**이다.
+  it('preview 배포여도 배포 호스트는 막힌다 — 신원을 세워도 DB 가 없다', () => {
+    setEnv('VERCEL_ENV', 'preview');
+    expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(false);
+    expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(false);
+    // 로컬은 환경변수와 무관하게 열린다 — 이 도구가 사는 곳이다.
+    expect(isDevIdentityHost('localhost:3032')).toBe(true);
   });
 
-  it('preview 배포의 *.vercel.app 은 열린다 — 여기서 죽으면 개발 흐름이 상한다', () => {
-    setEnv('VERCEL_ENV', 'preview');
-    expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(true);
-    expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(true);
-    expect(isDevIdentityHost('localhost:3032')).toBe(true);
+  it('배포 환경을 몰라도 *.vercel.app 은 막힌다', () => {
+    expect(isDevIdentityHost('pullim-classbot-abc123-curea.vercel.app')).toBe(false);
   });
 
   // 이름에 기대지 않는 방어선 — Host 를 위조해도 막힌다.
@@ -117,17 +120,23 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
     expect(isDevIdentityHost(host)).toBe(false);
   });
 
+  /*
+    아래 둘은 **`localhost` 로** 검증한다. 배포 호스트는 이제 환경과 무관하게 false 라,
+    그것으로 우선순위를 재면 **통과해도 아무것도 증명하지 못한다**(호스트에서 이미 걸린다).
+    `localhost` 는 환경 판정이 실제로 결과를 가르는 유일한 자리다 — production 이면 닫힌다.
+  */
+
   // 서버 전용 값이 권한 판정의 근거다 — 공개 변수가 반대로 말해도 서버 값이 이긴다.
   it('서버 VERCEL_ENV 가 공개 변수보다 우선한다', () => {
     setEnv('VERCEL_ENV', 'production');
     setEnv('NEXT_PUBLIC_VERCEL_ENV', 'preview');
-    expect(isDevIdentityHost('pullim-classbot-abc123-curea.vercel.app')).toBe(false);
+    expect(isDevIdentityHost('localhost:3032')).toBe(false);
   });
 
-  // 클라이언트에는 서버 전용 값이 없다 — 공개 변수만 있을 때도 preview 는 열려야 한다.
+  // 클라이언트에는 서버 전용 값이 없다 — 공개 변수만 있을 때도 그것으로 판정한다.
   it('서버 값이 없으면 공개 변수로 판정한다 — 클라이언트 경로', () => {
-    setEnv('NEXT_PUBLIC_VERCEL_ENV', 'preview');
-    expect(isDevIdentityHost('pullim-classbot-git-feat-x-curea.vercel.app')).toBe(true);
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', 'production');
+    expect(isDevIdentityHost('localhost:3032')).toBe(false);
   });
 });
 
