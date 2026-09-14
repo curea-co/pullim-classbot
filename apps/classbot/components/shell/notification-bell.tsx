@@ -70,7 +70,7 @@ export function NotificationInbox({ studentId }: { studentId: string }) {
               <span className="min-w-0 flex-1">
                 <span
                   className={cn(
-                    'block text-micro font-bold uppercase tracking-wider',
+                    'block text-2xs font-bold uppercase tracking-wider',
                     unread ? 'text-pullim-blue-600' : 'text-pullim-slate-400',
                   )}
                 >

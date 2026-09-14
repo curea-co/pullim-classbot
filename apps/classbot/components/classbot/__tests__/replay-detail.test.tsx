@@ -18,8 +18,9 @@ jest.mock('@/lib/features', () => ({
 }));
 
 const mockMutate = jest.fn();
+let _isPending = false;
 jest.mock('@/hooks/api/replay/use-requiz', () => ({
-  useRequiz: () => ({ mutate: mockMutate }),
+  useRequiz: () => ({ mutate: mockMutate, isPending: _isPending }),
 }));
 
 // ReplayRecap(자식) 이 B1B2 '질문' 약점 합류에 useCurrentUser/router 를 쓴다 →
@@ -33,16 +34,23 @@ beforeEach(() => {
   useReplayStore.setState({ resolvedWeakPoints: {} });
   useStudentModeStore.setState({ mode: 'class' }); // 리플레이는 class 모드 콘텐츠
   _useRealRequizBE = false;
+  _isPending = false;
   mockMutate.mockReset();
 });
 
 // ─── existing tests (flag OFF) ───────────────────────────────────────────────
 
-it('shows a class-mode gate (no recap) when in self mode', () => {
+/*
+  이 자리에 「self 모드면 교사 수업 게이트를 띄운다」가 있었다. **뒤집혔다** —
+  자기주도는 이제 모드가 아니라 장소(`/classbot/my-bots`)이고 모드 상태로 화면을 가르지
+  않는다(2026-09-09 개정 박스 ①). 헤더 토글이 비노출인 채 게이트만 남으면, 예전에 `self` 를
+  저장해 둔 학생은 리플레이를 열 때마다 **없는 개념의 안내**를 먼저 보게 된다.
+*/
+it('예전에 저장해 둔 self 모드값이 리플레이를 막지 않는다', () => {
   useStudentModeStore.setState({ mode: 'self' });
   render(<ReplayDetail replay={mathReplay} />);
-  expect(screen.getByRole('button', { name: '교사 수업 모드로 보기' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: /다시 풀기/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: '교사 수업 모드로 보기' })).toBeNull();
+  expect(screen.getByRole('button', { name: /다시 풀기/ })).toBeTruthy();
 });
 
 it('opens the exam sheet on 다시 풀기 and resolves the weak point on a correct submit', () => {
@@ -52,8 +60,8 @@ it('opens the exam sheet on 다시 풀기 and resolves the weak point on a corre
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
   expect(screen.getByRole('button', { name: '제출' })).toBeTruthy();
 
-  // 정답(answerIndex 2 = 'x = 1에서 극댓값을 갖는다') 선택 후 제출
-  fireEvent.click(screen.getByText('x = 1에서 극댓값을 갖는다'));
+  // 정답(answerIndex 2 = 'a = 2 이다') 선택 후 제출
+  fireEvent.click(screen.getByText('a = 2 이다'));
   fireEvent.click(screen.getByRole('button', { name: '제출' }));
 
   expect(useReplayStore.getState().resolvedWeakPoints['rp_demo_math']).toContain('q:1100');
@@ -62,7 +70,7 @@ it('opens the exam sheet on 다시 풀기 and resolves the weak point on a corre
 it('does not resolve on a wrong submit', () => {
   render(<ReplayDetail replay={mathReplay} />);
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
-  fireEvent.click(screen.getByText('x = 1에서 극솟값을 갖는다')); // 오답
+  fireEvent.click(screen.getByText('a = 1/2 이다')); // 오답
   fireEvent.click(screen.getByRole('button', { name: '제출' }));
   expect(useReplayStore.getState().resolvedWeakPoints['rp_demo_math'] ?? []).not.toContain('q:1100');
 });
@@ -71,8 +79,8 @@ it('does not resolve on a wrong submit', () => {
 it('flag OFF: uses mock getReplayQuiz, does not call mutate', () => {
   render(<ReplayDetail replay={mathReplay} />);
   fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
-  // mock question subjectLabel is '수학 · 도함수의 활용'
-  expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+  // mock question subjectLabel is '수학 · 일차함수의 그래프'
+  expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
   expect(mockMutate).not.toHaveBeenCalled();
 });
 
@@ -111,7 +119,7 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     // BE question rendered
     expect(screen.getByText(beSubjectLabel)).toBeTruthy();
     // mock question subjectLabel NOT rendered
-    expect(screen.queryByText('수학 · 도함수의 활용')).toBeNull();
+    expect(screen.queryByText('수학 · 일차함수의 그래프')).toBeNull();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 
@@ -130,7 +138,7 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     });
 
     // Fallback mock question rendered
-    expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+    expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 
@@ -149,7 +157,50 @@ describe('flag ON (USE_REAL_REQUIZ_BE = true)', () => {
     });
 
     // Fallback mock question rendered
-    expect(screen.getByText('수학 · 도함수의 활용')).toBeTruthy();
+    expect(screen.getByText('수학 · 일차함수의 그래프')).toBeTruthy();
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
+
+  // flag ON + degraded:true → 경량 배지 노출(BE mock 폴백 구분)
+  it('flag ON + onSuccess degraded → shows "연습용 예시 문제" badge', async () => {
+    mockMutate.mockImplementation(
+      (_vars: void, opts: { onSuccess?: (res: unknown) => void; onError?: () => void }) => {
+        opts.onSuccess?.({
+          degraded: true,
+          questions: [
+            {
+              subjectLabel: 'BE 폴백 · 예시 문항',
+              stem: '예시 발문',
+              options: ['보기1', '보기2', '보기3', '보기4', '보기5'],
+              answerIndex: 0,
+              explanation: '예시 해설',
+            },
+          ],
+        });
+      }
+    );
+
+    render(<ReplayDetail replay={mathReplay} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /다시 풀기/ }));
+    });
+
+    expect(screen.getByText('연습용 예시 문제')).toBeTruthy();
+    expect(screen.getByText('BE 폴백 · 예시 문항')).toBeTruthy();
+  });
+
+  // isPending 동안 로딩 인디케이터 노출(ADR-066 ⑥) — LLM 생성 대기 UX
+  it('shows a loading indicator while requiz is pending', () => {
+    _isPending = true;
+    render(<ReplayDetail replay={mathReplay} />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.getByText(/문제를 만들고 있어요|만들고 있어요/)).toBeTruthy();
+  });
+});
+
+// flag OFF: 로딩 인디케이터는 뜨지 않는다(pending 아님) — mock 즉시 경로
+it('flag OFF: no loading indicator (mock is synchronous)', () => {
+  render(<ReplayDetail replay={mathReplay} />);
+  expect(screen.queryByRole('status')).toBeNull();
 });

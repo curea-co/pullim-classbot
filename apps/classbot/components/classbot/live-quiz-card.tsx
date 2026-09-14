@@ -38,7 +38,7 @@ export function LiveQuizCard() {
           <Zap className="h-3.5 w-3.5" />
         </span>
         <div className="flex-1">
-          <div className="text-pullim-blue-700 text-micro font-bold tracking-wider uppercase">
+          <div className="text-pullim-blue-700 text-2xs font-bold tracking-wider uppercase">
             지금 즉석 퀴즈
           </div>
           <div className="text-pullim-slate-900 text-xs font-bold">
@@ -106,11 +106,11 @@ export function LiveQuizCard() {
           onClick={() => setSubmitted(true)}
           className="bg-pullim-blue-600 hover:bg-pullim-blue-700 mt-3 w-full rounded-xl text-white"
         >
-          제출하기
+          제출
         </Button>
       ) : (
         <p className="text-pullim-slate-600 mt-3 text-center text-xs">
-          {selected === q.answerIndex ? '🎉 정답이에요!' : '아쉽지만 다시 도전해봐요'}
+          {selected === q.answerIndex ? '정답이에요!' : '아쉽지만 다시 도전해봐요'}
           <span className="text-pullim-slate-400"> · 결과가 선생님께 자동 전송됨</span>
         </p>
       )}

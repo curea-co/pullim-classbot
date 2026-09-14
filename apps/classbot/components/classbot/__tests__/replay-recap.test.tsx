@@ -16,9 +16,9 @@ beforeEach(() => useReplayStore.setState({ resolvedWeakPoints: {} }));
 
 it('renders core takeaways and both weak points', () => {
   render(<ReplayRecap replay={mathReplay} onSeek={() => {}} onReattempt={() => {}} />);
-  expect(screen.getByText('Q3 극대·극소 판정')).toBeTruthy(); // 오답
-  expect(screen.getByText('변곡점')).toBeTruthy();             // 집중 저하
-  expect(screen.getByText(/극값은 도함수/)).toBeTruthy();       // takeaway
+  expect(screen.getByText('Q3 기울기 구하기')).toBeTruthy();   // 오답
+  expect(screen.getByText('그래프 그리기')).toBeTruthy();       // 집중 저하
+  expect(screen.getByText(/기울기는 \(y의 변화량\)/)).toBeTruthy(); // takeaway
 });
 
 it('calls onReattempt for the wrong quiz and onSeek for 다시 보기', () => {
@@ -35,6 +35,6 @@ it('hides resolved weak points and shows the resolved count', () => {
   act(() => useReplayStore.getState().resolveWeakPoint('rp_demo_math', 'q:1100'));
   render(<ReplayRecap replay={mathReplay} onSeek={() => {}} onReattempt={() => {}} />);
   expect(screen.queryByRole('button', { name: /다시 풀기/ })).toBeNull(); // 오답 해결됨
-  expect(screen.getByText('변곡점')).toBeTruthy();                          // 집중저하는 남음
+  expect(screen.getByText('그래프 그리기')).toBeTruthy();                   // 집중저하는 남음
   expect(screen.getByText(/해결한 약점 1개/)).toBeTruthy();
 });

@@ -126,19 +126,19 @@ function mapStudentId(raw: string): string {
 
 /** 봇별 teacher id 매핑 — mock에 teacher id가 없어 추론으로 부여 */
 const BOT_TO_TEACHER: Record<string, string> = {
-  cb_001: 'teacher_001', // 김수학
-  cb_002: 'teacher_002', // 박영어
-  cb_003: 'teacher_003', // 정과학
-  cb_004: 'teacher_004', // 최국어
-  cb_005: 'teacher_005', // 강사회
+  cb_001: 'teacher_001', // 김보람
+  cb_002: 'teacher_002', // 박서윤
+  cb_003: 'teacher_003', // 정민호
+  cb_004: 'teacher_004', // 최다인
+  cb_005: 'teacher_005', // 강윤호
 };
 
 const TEACHER_NAMES: Record<string, string> = {
-  teacher_001: '김수학',
-  teacher_002: '박영어',
-  teacher_003: '정과학',
-  teacher_004: '최국어',
-  teacher_005: '강사회',
+  teacher_001: '김보람',
+  teacher_002: '박서윤',
+  teacher_003: '정민호',
+  teacher_004: '최다인',
+  teacher_005: '강윤호',
 };
 
 /** lessonId 라벨을 봇 id에 묶기 */
@@ -424,7 +424,7 @@ async function main() {
       responded: currentQuiz.responded,
       total: currentQuiz.total,
       correctRate: 0,
-      scope: '미적분 III · 극값',
+      scope: '일차함수 · 기울기',
       tier: 'T2',
       status: 'live',
       startLabel: '진행 중',
@@ -762,8 +762,8 @@ async function main() {
       authorOrganization: currentTeacher.organization,
       isOfficial: false,
       pricing: 'free' as const,
-      subject: '수학Ⅱ',
-      grade: '고2',
+      subject: '수학',
+      grade: '중2',
       downloads: m.downloads,
       rating: 0,
       ratingCount: 0,

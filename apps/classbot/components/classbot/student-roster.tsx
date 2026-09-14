@@ -18,8 +18,9 @@ const statusMeta = {
   away:     { label: '미참여', dot: 'bg-pullim-slate-200' },
 } as const;
 
+/** 세 경보 모두 **아이콘 모양 + 글자**가 뜻을 말한다. 색은 셋 다 중립으로 둔다. */
 const alertMeta = {
-  burnout:    { label: '번아웃 위험', icon: AlertTriangle, color: 'text-pullim-danger' },
+  burnout:    { label: '번아웃 위험', icon: AlertTriangle, color: 'text-pullim-slate-700' },
   emotion:    { label: '감정 주의',   icon: Heart,         color: 'text-pullim-slate-500' },
   attendance: { label: '결석',       icon: AlertTriangle, color: 'text-pullim-slate-500' },
 } as const;
@@ -43,7 +44,7 @@ export function StudentRoster() {
           disabled
           aria-disabled="true"
           title="준비 중 (v2)"
-          className="text-pullim-blue-600 text-xs font-semibold opacity-60 cursor-not-allowed"
+          className="text-pullim-blue-600 text-xs font-semibold disabled:opacity-60 cursor-not-allowed"
         >
           전체 메시지
         </button>
@@ -88,7 +89,7 @@ function RosterRow({ student: s }: { student: ClassroomStudent }) {
             </span>
           )}
         </div>
-        <div className="text-pullim-slate-400 flex items-center gap-1.5 text-micro">
+        <div className="text-pullim-slate-500 flex items-center gap-1.5 text-2xs">
           <MessageCircle className="h-2.5 w-2.5" />
           <span>{s.botQuestions}질문</span>
           <span>·</span>

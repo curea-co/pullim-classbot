@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
-import { gradingQueue, overriddenSample, gradingHistory } from '@/lib/mock';
+import { gradingHistory } from '@/lib/mock';
+import { allGradingItems } from '@/lib/mock/classbot-grading-roster';
 import { GradingDetail } from './grading-detail';
 
 type Params = Promise<{ id: string }>;
 
 export default async function GradingDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const allItems = [...gradingQueue, overriddenSample];
+  const allItems = allGradingItems;
   const item = allItems.find(i => i.id === id);
   if (!item) notFound();
   const history = gradingHistory.filter(h => h.studentId === item.studentId);

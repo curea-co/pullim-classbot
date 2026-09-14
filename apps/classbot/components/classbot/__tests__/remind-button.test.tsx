@@ -4,7 +4,7 @@ import { useInterventionStore } from '@/lib/store/interventions';
 import { useAssignmentStore, type Submission } from '@/lib/store/assignments';
 import { classRoster } from '@/lib/mock';
 
-const A = { assignmentId: 'as_1', botId: 'cb_001', title: '도함수 마무리' };
+const A = { assignmentId: 'as_1', botId: 'cb_001', title: '기울기 마무리' };
 
 const sub = (studentId: string): Submission => ({
   id: `sub_${studentId}`, assignmentId: 'as_1', studentId,
@@ -31,7 +31,7 @@ it('클릭 → 미제출 학생별 remind 이벤트(제목 포함 문구) + 버�
   const events = useInterventionStore.getState().events;
   expect(events).toHaveLength(classRoster.length - 1);
   expect(events.every((e) => e.type === 'remind' && e.assignmentId === 'as_1')).toBe(true);
-  expect(events[0].message).toContain('도함수 마무리');
+  expect(events[0].message).toContain('기울기 마무리');
   expect(events.some((e) => e.studentId === 's1')).toBe(false); // 제출자 제외
 
   const btn = screen.getByRole('button', { name: /리마인드 보냄/ });

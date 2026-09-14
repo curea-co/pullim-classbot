@@ -56,7 +56,15 @@ pullim-classbot/
 요지:
 - **편집 자유**: 페이지(`app/(student)/classbot/*`, `app/(teacher)/teacher/{classbot,builder}/*`), `components/{classbot,builder}/*`, `lib/{db,mock,tokens,hooks,store}/*`
 - **read-only**: 공유 셸·UI 프리미티브는 클래스봇 단일 도메인이라 사실상 안전하지만 role/nav 변경은 보고
-- **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어/보호자) 코드 추가, DS 패키지 import, i18n / Sentry 도입
+- **금지**: 다른 도메인(플래너/Q/라이브러리/스튜디오/스토어) 코드 추가, npm DS **패키지** dependency 추가, i18n / Sentry 도입
+- **학부모(`app/(parent)/parent/*`)는 2026-09-07 부터 이 리포의 범위다** — 금지 목록에서 뺐다.
+  **금지가 풀린 것이지 화면이 이미 있는 것은 아니다** — `dev` 에는 아직 그 트리가 없고 #268·#271 이 인도한다.
+  자녀의 반·과제·자기주도를 **자녀 동의 뒤에** 보여주는 창구이고, 인도 배정과 조건은
+  [`proc/spec/03 § 2.3`](proc/spec/03-features-and-ia.md) · [`05 § 11.2·§ 11.4`](proc/spec/05-business-rules.md) 가 권위다.
+  ⚠ 실제 로그인 학부모는 아직 못 들어온다(공유 claim union 에 `parent` 없음 · OS SSO 가 student 로 내림) —
+  지금은 **개발용 신원·비로그인 데모 전용**이고, 여는 것은 `packages/types` + SSO 매핑을 넓히는 별건 PR 이다.
+- **UI 3레인**: PUDS 원격 벤더링(수정 금지) / 로컬 base-ui 프리미티브(교체 금지) / 서비스 고유
+  — [apps/classbot/CLAUDE.md § 3.1](apps/classbot/CLAUDE.md#31-puds-디자인-시스템--3레인-판별표)
 - **alias**: `@/*` → `apps/classbot/*` (모노레포 root 아님)
 
 ### apps/backend — NestJS skeleton

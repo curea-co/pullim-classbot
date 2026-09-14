@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, Sparkles, Target, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Sparkles, Target, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
@@ -10,24 +10,39 @@ import { Skeleton } from '@/components/ui/skeleton';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
-import { useMyAssignments, useMyBots } from '@/hooks/api/read/use-student-reads';
-import type { AssignmentReadRow, BotReadRow } from '@/hooks/api/read/types';
+import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
+import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import { useVisibleAssignments } from './use-assignment-reads';
 import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { useRosterMe } from '@/lib/current-user';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
+import { getAssignmentVisual, assignmentModeBadge, type AssignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 
 type AssignmentMode = AssignmentReadRow['mode'];
 
-const modeMeta: Record<AssignmentMode, { label: string; color: string; icon: typeof Target }> = {
-  'practice':       { label: '연습',     color: 'bg-pullim-blue-400',   icon: Target },
-  'exam':           { label: '시험',     color: 'bg-pullim-danger',      icon: AlertCircle },
-  'wrong-conquest': { label: '오답정복', color: 'bg-pullim-blue-700',    icon: Sparkles },
+/**
+ * 모드 배지 3종 — [08 § 15.6] 「뱃지 3종(연습/오답정복/시험)이 모두 파랑 계열로 보이던 회귀를 해결」.
+ * 그래서 **셋은 서로 다른 면**이어야 한다. 같은 표가 정한 값 그대로:
+ *   연습     → brand 계열 옅은 면
+ *   오답정복 → `accent.lime`   (레몬이 여기 쓰이는 근거. [§ 1.6] 남용 금지의 예외다)
+ *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
+ * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
+ */
+export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: string; icon: typeof Target }> = {
+  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
+  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
+  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
 };
+
+/**
+ * D-day 칩 앞 아이콘 — 색이 아니라 **모양**으로 상태를 한 번 더 말한다 ([08 § 14.1] 색만으로 의미 전달 금지).
+ * 지연은 경고 삼각형, 완료는 체크, 나머지는 시계.
+ */
+const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
 /** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
 const FALLBACK_BOT_EMOJI = '🧑‍🏫';
@@ -43,19 +58,25 @@ interface GroupBot {
 }
 
 /**
- * 학생 받은 과제 목록 — Phase 7 Stage 2: `GET /api/assignments`(실DB·인증) 배선.
+ * 학생 받은 과제 목록 — `GET /api/assignments`(실DB·신원 스코프) 배선.
  *
- * mock(`useMergedAssignments`/`getMyBots`) 제거. **전부 세션(JWT sub) 명의 실API** 만
- * 쓰는 단일 신원 surface 다(봇 메타도 같은 sub-scoped `/api/bots` 조인 — 데모/mock 혼합
- * 없음). 미로그인은 로그인 게이트(D1 로그인월), 로딩/빈/에러 상태를 각각 처리한다.
- * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 `/api/bots` 행을
- * `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학이 형 · N개]` 패턴 유지).
+ * **개인 배정과 반 단위 발사를 함께 본다.** 선생님이 반 전체에 쏜 과제는 학생 1인 행을
+ * 만들지 않고 `student_id IS NULL` + `target_student_ids = []` 로 한 행만 남는다 —
+ * 서버의 술어(`app/api/_lib/assignment-visibility.ts`)가 그것을 펼쳐 주고, 여기서는
+ * 개인 과제와 똑같이 그린다(카드가 `student_id` 를 읽는 자리는 없다).
+ *
+ * 읽기는 `useVisibleAssignments()` 로 간다 — JWT 세션으로 잠그지 않고 **서버가 준 401**
+ * 로 데모 폴백을 세우는 훅이다. 개발용 신원 쿠키로 보는 동안에도 실제로 요청이 나간다.
+ * 미로그인(401)이면 로컬 스토어(교사 발사분 포함)를 보여 준다 — 데모/e2e 의 발사→수령
+ * 흐름이 그대로 동작한다.
+ * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 참여 중인
+ * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
  */
 export default function StudentAssignmentListPage() {
   const me = useRosterMe();
-  const { data, isLoading, isUnauthenticated, isError, refetch } = useMyAssignments();
-  // 그룹 헤더 페르소나 조인용 — 같은 sub-scoped 소스. 봇 메타 미도착이어도 과제는 렌더.
-  const { data: botsData } = useMyBots();
+  const { data, isLoading, isUnauthenticated, isError, refetch } = useVisibleAssignments();
+  // 그룹 헤더 페르소나 조인용 — 참여 중인 수업방(서버 + 데모 스토어). 미도착이어도 과제는 렌더.
+  const { rooms } = useMyRooms();
 
   // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)를 보여준다.
   // 인증 사용자는 Phase7 실API 경로 그대로 유지. 데모/e2e 의 발사→수령 흐름이 동작.
@@ -75,7 +96,7 @@ export default function StudentAssignmentListPage() {
 
       <AssignmentListBody
         data={isUnauthenticated ? demoData : data}
-        bots={botsData?.bots ?? []}
+        rooms={rooms}
         isLoading={isUnauthenticated ? !demoHydrated : isLoading}
         isUnauthenticated={false}
         isError={isUnauthenticated ? false : isError}
@@ -86,10 +107,10 @@ export default function StudentAssignmentListPage() {
 }
 
 function AssignmentListBody({
-  data, bots, isLoading, isUnauthenticated, isError, onRetry,
+  data, rooms, isLoading, isUnauthenticated, isError, onRetry,
 }: {
   data: { assignments: AssignmentReadRow[] } | undefined;
-  bots: BotReadRow[];
+  rooms: RoomSlot[];
   isLoading: boolean;
   isUnauthenticated: boolean;
   isError: boolean;
@@ -105,8 +126,8 @@ function AssignmentListBody({
   const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
   const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
 
-  // botId → 봇 행(페르소나 메타) 조인 맵.
-  const botById = new Map(bots.map(b => [b.id, b]));
+  // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 수업방에서 온다.
+  const botById = new Map(rooms.map(r => [r.bot.id, r.bot]));
 
   // 봇별 그룹핑 — 과제 행에 등장하는 botId 순서를 유지.
   const groups = new Map<string, { bot: GroupBot; items: AssignmentReadRow[] }>();
@@ -132,26 +153,28 @@ function AssignmentListBody({
   return (
     <>
       <PageHeader
-        eyebrow={{ icon: Target, text: '받은 과제' }}
         title={<>받은 과제 <span className="text-pullim-blue-600">{assignments.length}</span>건</>}
       />
 
-      <KpiStatBar cols={3}>
-        <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
-        <KpiStat label="대기" value={`${todo}건`} tone="default" />
-        <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
-      </KpiStatBar>
-
-      <SectionHeading title="모든 과제" description="봇별로 묶어 정렬됐어요. 새로 받은 과제가 위에 와요." />
-
       {assignments.length === 0 ? (
-        <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 발사하면 여기에 표시돼요." />
+        <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 내면 여기에 표시돼요." />
       ) : (
-        <div className="space-y-4">
-          {grouped.map(({ bot, items }) => (
-            <BotGroupSection key={bot.id} bot={bot} items={items} />
-          ))}
-        </div>
+        <>
+          <KpiStatBar cols={3}>
+            <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
+            <KpiStat label="대기" value={`${todo}건`} tone="default" />
+            <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
+          </KpiStatBar>
+
+          {/* 묶음은 봇 머리줄이 보여준다 — 화면에 없는 것은 정렬 기준뿐이라 그것만 남긴다 ([07 § 6.7]) */}
+          <SectionHeading title="모든 과제" description="새로 받은 과제가 위에 있어요." />
+
+          <div className="space-y-4">
+            {grouped.map(({ bot, items }) => (
+              <BotGroupSection key={bot.id} bot={bot} items={items} />
+            ))}
+          </div>
+        </>
       )}
     </>
   );
@@ -177,11 +200,9 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
+  // 묶음 표시는 머리줄(아바타·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
   return (
-    <section
-      className="space-y-2 border-l-[3px] pl-3"
-      style={{ borderLeftColor: groupHex }}
-    >
+    <section className="space-y-2">
       <header className="flex items-center gap-2">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
@@ -191,6 +212,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
+            {/* [08 § 15.6] 그룹 헤더가 요구하는 시그니처 점 — 명단을 훑을 때의 보조 단서다 */}
             <span
               aria-hidden
               className="h-2 w-2 shrink-0 rounded-full"
@@ -200,22 +222,23 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
               {bot.label}
             </h3>
             {bot.subject && (
-              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-micro font-semibold">
+              <span className="bg-pullim-slate-100 text-pullim-slate-600 inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-2xs font-semibold">
                 {bot.subject}
               </span>
             )}
-            <span className="text-pullim-slate-500 ml-auto shrink-0 text-micro font-semibold">
+            <span className="text-pullim-slate-500 ml-auto shrink-0 text-2xs font-semibold">
               {items.length}개
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
+            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 그룹 왼쪽 라이너와 아바타가 한다 */}
             <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
               <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${progress}%`, backgroundColor: groupHex }}
+                className="bg-pullim-blue-600 h-full rounded-full transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-pullim-slate-500 font-mono text-micro font-bold">
+            <span className="text-pullim-slate-500 font-mono text-2xs font-bold">
               {completedQ}/{totalQ}문항
             </span>
           </div>
@@ -234,6 +257,7 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
   const Icon = m.icon;
   // getAssignmentVisual 은 mode/dDay/state 만 읽는다 — read row 와 호환.
   const visual = getAssignmentVisual({ ...a, assignedAt: a.assignedAtLabel } as never);
+  const DDayIcon = dDayIcon[visual.state as keyof typeof dDayIcon] ?? Clock;
   const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
 
   return (
@@ -243,20 +267,22 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
         className="bg-card hover:bg-pullim-slate-50/50 group block h-full rounded-2xl border p-4 transition-colors"
       >
         <div className="flex items-start gap-3">
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white', m.color)}>
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', m.color, m.fg)}>
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-micro">
+            <div className="flex items-center gap-2 text-2xs">
               <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
               <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
-                <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
+                <DDayIcon className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {visual.dDayLabel}
               </span>
               {a.source === 'bot-prescribed' && (
-                <span className="text-pullim-lemon-ink font-bold">✨</span>
+                <span className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-1.5 py-0.5 font-bold">
+                  봇 처방
+                </span>
               )}
             </div>
 
@@ -276,13 +302,13 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
               <span className="text-pullim-slate-500 font-mono text-micro font-bold">
                 {a.completedCount}/{a.questionCount}
               </span>
-              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-micro font-bold">
+              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold">
                 {visual.semanticLabel}
               </span>
             </div>
 
             {a.reasonHint && (
-              <p className="text-pullim-blue-700 mt-2 text-2xs leading-relaxed">
+              <p className="text-pullim-blue-700 mt-2 text-xs leading-relaxed">
                 <Sparkles className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
                 {a.reasonHint}
               </p>

@@ -36,7 +36,7 @@ export function QuizLauncher() {
         <header className="mb-3 flex items-center gap-2">
           <Zap className="text-pullim-blue-600 h-4 w-4" />
           <h2 className="text-pullim-slate-900 text-sm font-bold flex-1">즉석 퀴즈</h2>
-          <span className="text-pullim-slate-400 text-micro font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
+          <span className="text-pullim-slate-500 text-2xs font-mono">{q.responded}/{q.total} 응답 ({respondedPct}%)</span>
         </header>
 
         <p className="text-pullim-slate-700 text-xs leading-snug font-medium">{q.question}</p>
@@ -64,7 +64,7 @@ export function QuizLauncher() {
           })}
         </ul>
 
-        <div className="mt-3 grid grid-cols-3 gap-1.5 text-micro">
+        <div className="mt-3 grid grid-cols-3 gap-1.5 text-2xs">
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -78,7 +78,7 @@ export function QuizLauncher() {
             disabled
             aria-disabled="true"
             title="준비 중 (v2)"
-            className="bg-pullim-blue-50 text-pullim-blue-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+            className="bg-pullim-blue-50 text-pullim-blue-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold disabled:opacity-60 cursor-not-allowed"
           >
             <RadioTower className="h-3.5 w-3.5" aria-hidden />
             폴 생성
@@ -88,7 +88,7 @@ export function QuizLauncher() {
             disabled
             aria-disabled="true"
             title="준비 중 (v2)"
-            className="bg-pullim-slate-100 text-pullim-slate-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold opacity-60 cursor-not-allowed"
+            className="bg-pullim-slate-100 text-pullim-slate-700 flex flex-col items-center gap-0.5 rounded-lg py-2 font-bold disabled:opacity-60 cursor-not-allowed"
           >
             <BarChart3 className="h-3.5 w-3.5" aria-hidden />
             상세 분포
@@ -152,7 +152,7 @@ function QuizLaunchModal({
               value={question}
               onChange={e => setQuestion(e.target.value.slice(0, 200))}
               rows={2}
-              placeholder="예: f'(x) = 0이면 무조건 극값인가?"
+              placeholder="예: 기울기가 음수면 그래프는 어느 쪽으로 갈까?"
               className="border-pullim-slate-200 focus:border-pullim-blue-500 w-full rounded-lg border p-2 text-xs outline-none"
             />
           </div>

@@ -10,7 +10,7 @@
  * `GET /classbot/bots?role=student` 를 스토어로 동기화한다 — "BE 가 진실, 스토어는 캐시" 최소 배선.
  * 플래그 OFF/BE 실패(5xx·네트워크) 시 기존 mock 경로 그대로.
  */
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ApiError } from '@pullim-classbot/api-client';
@@ -231,9 +231,14 @@ function bridge(
 /**
  * enrollment → classBots 카탈로그 브릿지 (reactive).
  * 정적 `getMyBots()`의 store 기반 대체 — join/leave 시 소비 컴포넌트가 re-render된다.
+ *
+ * `bridge()` 결과를 `useMemo` 로 눌러 둔다 — 매 렌더 새 배열을 돌려주면 이 값을 deps 에
+ * 두는 아래 훅들(`useMyRooms` → `useStudentBots`)의 memo 가 전부 무의미해지고, 그걸
+ * 피하려고 id 문자열 같은 대체 키를 쓰면 **id 는 같은데 이름·아바타만 바뀐 갱신을 놓친다.**
+ * `enrollments` 는 스토어 셀렉터가 주는 안정 참조라 여기서 누르는 것이 맞다.
  */
 export function useMyClassBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
   useBackendEnrollmentSync(); // Ph7 — 플래그 OFF 면 no-op
   const enrollments = useClassEnrollmentStore((s) => s.enrollments);
-  return bridge(enrollments);
+  return useMemo(() => bridge(enrollments), [enrollments]);
 }

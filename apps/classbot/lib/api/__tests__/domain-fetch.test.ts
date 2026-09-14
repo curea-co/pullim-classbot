@@ -143,6 +143,17 @@ describe('domainFetch — 에러 봉투', () => {
     expect(err).toMatchObject({ status: 403, message: 'Forbidden' });
   });
 
+  it('preserves a top-level error code from pullim-api', async () => {
+    fetchMock.mockResolvedValueOnce(
+      domainRes(403, { statusCode: 403, code: 'CSRF_ORIGIN_REJECTED', message: 'Forbidden' }),
+    );
+
+    await expect(domainFetch('/bots')).rejects.toMatchObject({
+      status: 403,
+      code: 'CSRF_ORIGIN_REJECTED',
+    });
+  });
+
   it('falls back to HTTP status when the body is not JSON', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,

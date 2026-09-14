@@ -90,7 +90,6 @@ export function SignupForm() {
   return (
     <AuthCard
       title="풀림 클래스봇 회원가입"
-      description="역할을 선택하고 계정을 만드세요."
       footer={
         <>
           이미 계정이 있으신가요?{' '}

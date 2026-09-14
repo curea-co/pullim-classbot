@@ -2,6 +2,7 @@
 
 import { use, useState } from 'react';
 import Link from 'next/link';
+import { Check } from 'lucide-react';
 import { getOfficialTutor } from '@/lib/mock/classbot-official';
 import { getUnitContent } from '@/lib/mock/classbot-learning-content';
 import { useUnitProgress, useSelfLearningStore } from '@/lib/store/self-learning';
@@ -29,6 +30,10 @@ export default function UnitPage({
 
   // ── Store hooks (unconditional) ──────────────────────────────────────────
   const progress = useUnitProgress(tutorId, unitId);
+  // 단원 진행은 mock 슬라이스(`unitProgress`)에 그대로 쌓인다 — P5 까지 이 루프는 mock 위에서
+  // 돈다(개정 박스 §⑤ 의 §3). **새 「공부한 날」에는 잇지 않는다** — 그 배열은
+  // `class_bots.id` 기반 자기주도 기록이고 #273 이 서버로 백필하므로, mock `ot_*` 활동에서
+  // 나온 날짜를 그 자리에 넣으면 안 된다. 이음매는 P5 가 카탈로그 전환과 함께 만든다.
   const completeStep = useSelfLearningStore((s) => s.completeStep);
 
   // ── Derived data (unconditional) ─────────────────────────────────────────
@@ -50,13 +55,15 @@ export default function UnitPage({
   // ── Early returns (after all hooks) ─────────────────────────────────────
   if (!tutor || !unit || !content) {
     const backHref = tutor ? `/classbot/learn/${tutorId}` : '/classbot';
-    const backLabel = tutor ? '커리큘럼으로' : '홈으로';
+    const backLabel = tutor ? '커리큘럼' : '홈';
+    // 줄인 글자로 잃은 뜻은 낭독기 이름에 남긴다 ([07 § 6.6.2(3)])
+    const backAria = tutor ? '커리큘럼으로 가기' : '클래스봇 홈으로 가기';
     return (
       <div className="px-4 py-10">
         <EmptyState
           title="단원을 찾을 수 없어요"
           description="삭제되었거나 잘못된 경로일 수 있어요."
-          action={{ href: backHref, label: backLabel }}
+          action={{ href: backHref, label: backLabel, ariaLabel: backAria }}
         />
       </div>
     );
@@ -111,7 +118,7 @@ export default function UnitPage({
   function renderCheckStep() {
     if (isDone) {
       return (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-pullim-success/30 bg-pullim-success-bg px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-pullim-blue-200 bg-pullim-blue-50 px-6 py-10 text-center">
           <span className="text-4xl" aria-hidden>🎉</span>
           <p className="text-pullim-slate-900 text-base font-bold">단원 완료!</p>
           <p className="text-pullim-slate-500 text-sm">
@@ -119,9 +126,10 @@ export default function UnitPage({
           </p>
           <Link
             href={`/classbot/learn/${tutorId}`}
+            aria-label="커리큘럼으로 가기"
             className="mt-1 inline-flex min-h-[44px] items-center rounded-xl bg-pullim-blue-600 px-6 py-2.5 text-sm font-bold text-white transition-all hover:bg-pullim-blue-700 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
           >
-            커리큘럼으로
+            커리큘럼
           </Link>
         </div>
       );
@@ -191,7 +199,7 @@ export default function UnitPage({
               )}
             >
               {isDoneStep && !isActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-pullim-success" aria-hidden />
+                <Check className="h-3 w-3 text-pullim-blue-600" aria-hidden strokeWidth={3} />
               )}
               {label}
             </button>

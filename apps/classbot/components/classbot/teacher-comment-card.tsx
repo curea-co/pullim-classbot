@@ -28,7 +28,7 @@ export function TeacherCommentCard({
           <MessageCircle className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-pullim-blue-600 text-micro font-bold tracking-wider uppercase">
+          <p className="text-pullim-blue-600 text-2xs font-bold tracking-wider uppercase">
             선생님 한마디
           </p>
           <p className="text-pullim-slate-900 mt-0.5 text-sm leading-relaxed">{comment.message}</p>

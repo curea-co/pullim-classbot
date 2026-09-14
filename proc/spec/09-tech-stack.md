@@ -144,13 +144,18 @@ web/
 │   │   └── teacher/
 │   │       ├── page.tsx              # 교사 홈
 │   │       ├── classbot/page.tsx     # 클래스봇 운영 메인
-│   │       ├── builder/page.tsx      # 봇 빌더 8단계
+│   │       ├── builder/page.tsx      # 봇 빌더 — 한 길 · 세 마당
 │   │       ├── live/page.tsx         # 라이브 모니터링
 │   │       ├── quiz/page.tsx         # 퀴즈 운영
 │   │       ├── reports/page.tsx      # 리포트 6종
 │   │       ├── grading/page.tsx      # 하이브리드 채점
 │   │       ├── templates/page.tsx    # 템플릿 마켓
-│   │       ├── settings/page.tsx     # 8탭 봇 설정
+│   │       ├── bots/                 # 봇 관리 (03 § 4.4, #243)
+│   │       │   ├── page.tsx          #   내가 만든 봇 목록
+│   │       │   └── [botId]/page.tsx  #   봇별 설정 — 안전 등급 시간대 스케줄 · 이탈 대응 강도
+│   │       ├── settings/page.tsx     # 옛 경로 — /teacher/bots 로 넘겨보내는 자리
+│   │       │                         #   앱 안의 링크 여섯은 모두 새 경로로 옮겼다. 이 자리가
+│   │       │                         #   남는 까닭은 앱 밖에서 오는 옛 주소다 — 07 § 3 · 03 § 4.4.6
 │   │       └── replay/
 │   │           ├── page.tsx
 │   │           └── [id]/page.tsx

@@ -51,7 +51,7 @@ describe('TeacherPageShell', () => {
     expect(screen.getByText('Test child content')).toBeInTheDocument();
   });
 
-  it('applies default spacing class space-y-4', () => {
+  it('applies the default section rhythm (space-y-7, no own vertical padding)', () => {
     const { container } = render(
       <TeacherPageShell
         backHref="/teacher"
@@ -62,24 +62,27 @@ describe('TeacherPageShell', () => {
       </TeacherPageShell>
     );
 
+    // 섹션 간격 28px — 카드 패딩(20px)보다 넓어야 카드 경계가 읽힌다.
+    // 세로 패딩은 주지 않는다 — DashboardShell(24px) + Breadcrumb(24px)이 이미 준다.
     const wrapper = container.firstChild;
-    expect(wrapper).toHaveClass('space-y-4', 'py-4', 'lg:py-6');
+    expect(wrapper).toHaveClass('space-y-7');
+    expect(wrapper).not.toHaveClass('py-4', 'lg:py-6');
   });
 
-  it('applies custom spacing when provided', () => {
+  it('groups the back-link with the header instead of giving it its own section gap', () => {
     const { container } = render(
       <TeacherPageShell
         backHref="/teacher"
         backLabel="교사 홈"
         header={{ title: 'Test Page' }}
-        spacing="space-y-5"
       >
         Test content
       </TeacherPageShell>
     );
 
-    const wrapper = container.firstChild;
-    expect(wrapper).toHaveClass('space-y-5', 'py-4', 'lg:py-6');
+    const headerGroup = container.querySelector('a')?.parentElement;
+    expect(headerGroup).toHaveClass('space-y-2');
+    expect(headerGroup?.querySelector('header')).not.toBeNull();
   });
 
   it('renders back-link before page header', () => {

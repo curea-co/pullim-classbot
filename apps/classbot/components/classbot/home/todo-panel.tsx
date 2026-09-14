@@ -60,7 +60,7 @@ export function TodoPanel({
       )}
       {isEmpty ? (
         <div className="border-pullim-slate-100 rounded-xl border border-dashed bg-pullim-slate-50 px-4 py-6 text-center">
-          <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요 🎉</p>
+          <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요</p>
           <p className="text-pullim-slate-400 mt-1 text-xs">봇과 자유롭게 대화하며 한 발 더 나가볼까요?</p>
         </div>
       ) : (
@@ -93,8 +93,9 @@ export function TodoPanel({
                 href={a.solveHref ?? '/classbot/assignment'}
                 className={cn(
                   'group focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors bg-card',
+                  // 오늘 마감은 급한 것이지 잘못된 것이 아니다 — 빨강 대신 **진한 블루 테두리**로 앞세운다
                   a.dDay === '오늘'
-                    ? 'border-pullim-danger/30 hover:border-pullim-danger/50 hover:bg-pullim-danger/5'
+                    ? 'border-pullim-blue-500 hover:border-pullim-blue-600 hover:bg-pullim-blue-50/50'
                     : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/30',
                 )}
               >

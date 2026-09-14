@@ -14,10 +14,10 @@ export type BotHomePreview = {
 };
 
 const PREVIEWS: Record<string, BotHomePreview> = {
-  cb_001: { lastMessage: '오늘 진도 잘 따라왔어. 내일 변곡점 같이 보자.', lastAt: '오늘 19:55' },
-  cb_002: { lastMessage: '빈칸 5번 다시 살펴봐요. 접속사가 핵심이에요.', lastAt: '오늘 20:48' },
+  cb_001: { lastMessage: '오늘 진도 잘 따라왔어. 내일 두 직선 같이 보자.', lastAt: '오늘 19:55' },
+  cb_002: { lastMessage: '5번 문장 다시 살펴봐요. 연결어가 핵심이에요.', lastAt: '오늘 20:48' },
   cb_003: { lastMessage: '전기회로 1차 정리 끝. 직렬·병렬 헷갈리지 마라.', lastAt: '어제 18:32' },
-  cb_004: { lastMessage: '비문학 주제 1줄 요약 잘했어요. 다음은 근거 분류.', lastAt: '3일 전' },
+  cb_004: { lastMessage: '글의 주제 1줄 요약 잘했어요. 다음은 근거 분류.', lastAt: '3일 전' },
   cb_005: { lastMessage: '시사 분석 한 칸씩 가보자! 다음엔 입장 매트릭스.', lastAt: '오늘 21:10' },
 };
 

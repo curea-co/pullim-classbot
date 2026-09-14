@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Play, AlertCircle, Inbox } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, Play, AlertCircle, Inbox } from 'lucide-react';
 import { AssignmentOverviewHeader } from '@/components/classbot/assignment-overview-header';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -11,7 +11,7 @@ import { ContextRail } from '@/components/shell/context-rail';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getQuestionsByAssignment } from '@/lib/mock';
-import { useMyAssignment } from '@/hooks/api/read/use-student-reads';
+import { useVisibleAssignment } from '../use-assignment-reads';
 import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const api = useMyAssignment(id);
+  const api = useVisibleAssignment(id);
   // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)에서 lookup.
   // 인증 사용자는 Phase7 실API 경로 그대로. 목록의 데모 폴백과 짝을 이룬다.
   const localA = useAssignmentLookup(id);
@@ -58,7 +58,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
           icon={Inbox}
           title="과제를 찾을 수 없어요"
           description="받은 과제 목록에서 다시 확인해 주세요."
-          action={{ href: '/classbot/assignment', label: '받은 과제로' }}
+          action={{ href: '/classbot/assignment', label: '받은 과제', ariaLabel: '받은 과제로 가기' }}
         />
       </div>
     );
@@ -83,14 +83,20 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     isSubmitted ? `/classbot/assignment/${a.id}/result`
     : `/classbot/assignment/${a.id}/solve?step=${isInProgress ? a.completedCount + 1 : 1}`;
   const ctaLabel =
-    isSubmitted ? '결과 보기'
+    isSubmitted ? '결과'
     : isInProgress ? `이어서 풀기 (${a.completedCount + 1}/${a.questionCount})`
+    : '시작';
+  // 보이는 글자는 단어, 잃은 뜻은 낭독기 이름에 ([07 § 6.6.2(3)])
+  const ctaAria =
+    isSubmitted ? '채점 결과 보기'
+    : isInProgress ? `이어서 풀기 — ${a.completedCount + 1}번째 문항부터`
     : '지금 시작하기';
 
   const rail = (
     <div className="max-lg:sticky max-lg:bottom-2 max-lg:z-10 space-y-3">
       <Link
         href={ctaHref}
+        aria-label={ctaAria}
         data-testid="assignment-start-cta"
         className={cn(
           'inline-flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-colors',
@@ -103,6 +109,26 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
         {ctaLabel}
         <ArrowRight className="h-4 w-4" />
       </Link>
+
+      {/* 과제 대화 진입 — 혼자 풀다 막히면 이 과제에 매인 대화로 간다.
+          시험 모드는 봇 응답 자체가 막히므로 진입점을 내보내지 않는다(풀이 화면과 같은 기준).
+          라우트 쪽에서도 한 번 더 막는다 — 딥링크로 들어올 수 있기 때문이다. */}
+      {!isExam && (
+      <Link
+        href={`/classbot/assignment/${a.id}/chat`}
+        aria-label="봇과 같이 풀며 이 과제 대화하기"
+        data-testid="assignment-chat-cta"
+        className="bg-card hover:bg-pullim-slate-50/50 flex w-full items-center gap-3 rounded-2xl border p-3 transition-colors"
+      >
+        <span className="bg-pullim-blue-50 text-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+          <MessageCircle className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-pullim-slate-900 text-sm font-bold">대화</div>
+        </div>
+        <ArrowRight className="text-pullim-slate-300 h-4 w-4" />
+      </Link>
+      )}
 
       <FlywheelNote>
         쓰는 동안 자동으로 저장돼요. 마음 편히 풀어요. 제출하면 선생님 채점 큐로 흘러가요.

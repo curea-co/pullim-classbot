@@ -20,12 +20,34 @@ import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
 import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
+import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
-import { StudentModeToggle } from './student-mode-toggle';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
   teacher: '/teacher',
+  parent: '/parent',
+};
+
+/** 프로필 메뉴에 적는 역할 이름. */
+const roleLabels: Record<Role, string> = {
+  student: '학생',
+  teacher: '교사',
+  parent: '학부모',
+};
+
+/**
+ * 프로필 메뉴의 '내 정보' 착지점.
+ * 학생만 전용 화면(`/classbot/me`)이 있고, 교사·학부모는 아직 없어 각자 홈으로 보낸다.
+ *
+ * 표 셋 다 `Record<Role, …>` 이다 — 역할이 늘면 세 자리가 **함께** 컴파일에 걸린다.
+ * 그래서 새 역할이 홈·라벨·내 정보를 답하지 않고 들어올 수 없다.
+ */
+const roleProfileHref: Record<Role, string> = {
+  student: '/classbot/me',
+  teacher: '/teacher',
+  // 학부모도 전용 「내 정보」가 없다 — 자녀를 보는 창구라 홈으로 보낸다(계약 §6).
+  parent: '/parent',
 };
 
 /** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */
@@ -42,43 +64,52 @@ export function AppBrand({ role }: { role: Role }) {
       <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
         풀림
       </span>
-      {/* 서비스명 — `.mast .sub`: mono 11px / .04em / 좌측 divider(pl 9px·ml 2px) */}
-      <span className="text-pullim-slate-400 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-[11px] leading-none tracking-[0.04em]">
+      {/* 서비스명 — 상류 스펙 `.mast .sub` 는 mono **11px** 이지만 여기 텍스트는
+          한국어(「클래스봇」)라 계약 §1(한국어 12px 미만 금지)에 걸린다.
+          대괄호 임의 크기 자체도 금지라 토큰 클래스 text-2xs(12px)로 올린다.
+          divider 간격(pl 9px·ml 2px)은 스펙대로 둔다. */}
+      <span className="text-pullim-slate-500 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
         클래스봇
       </span>
     </Link>
   );
 }
 
-/** 헤더 액션 영역 — 학습 모드 토글(학생) + 스트릭 + 검색 + 알림 + 프로필. */
+/** 헤더 액션 영역 — 스트릭 + 검색 + 알림 + 프로필. */
 export function AppHeaderActions({ role }: { role: Role }) {
   return (
     <>
-      {/* CENTER — 학습 모드 토글 */}
-      {role === 'student' && (
-        <div className="flex shrink-0 items-center justify-center">
-          <StudentModeToggle />
-        </div>
-      )}
+      {/* 기획 보류 — 자기주도 모드 보류로 학습 모드 토글(StudentModeToggle) 비노출. 재개 시 되살린다 */}
 
       {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
       <div className="flex flex-1 items-center justify-end gap-1">
+        {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
+        <DevRoleSwitch role={role} />
+        {/* 스트릭은 학생 것뿐이다 — 교사에는 표시할 스트릭이 없어 자리째 빠진다. */}
         {role === 'student' && <StudentStreakBadge />}
         <button
           aria-label="검색"
           aria-disabled="true"
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          /* 네이티브 disabled 가 없어 `disabled:` 는 매치되지 않는다.
+             계약 §4.1 은 비활성 후퇴를 접두사 variant 로만 허용하므로
+             data-disabled 를 실제로 달고 그것을 겨냥한다. */
+          data-disabled=""
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
           title="준비 중"
         >
           <Search className="h-[22px] w-[22px]" />
         </button>
-        {/* 알림 — 학생은 개입 인박스(교사 개입 수신함), 교사 수신함은 후속(준비 중 유지) */}
+        {/* 알림 — 학생은 개입 인박스(교사 개입 수신함). 교사 수신함은 후속이라
+            '준비 중' 버튼으로 떨어진다. */}
         {role === 'student' ? (
           <NotificationBell />
         ) : (
           <button
             aria-label="알림 — 준비 중"
-            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+            aria-disabled="true"
+            /* 위 검색 버튼과 같은 이유로 data-disabled 를 단다 */
+            data-disabled=""
+            className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
             title="준비 중"
           >
             <Bell className="h-[22px] w-[22px]" />
@@ -93,7 +124,11 @@ export function AppHeaderActions({ role }: { role: Role }) {
 /**
  * 통합 상단 헤더 — 모든 화면 공유.
  * 좌: 햄버거(모바일) + 로고
- * 우: 스트릭 + 검색 + 알림 + 프로필(역할 전환 포함)
+ * 우: 스트릭 + 검색 + 알림 + 프로필
+ *
+ * 프로필 메뉴에 역할 전환은 없다. 역할은 풀림 통합 계정이 가입 때 정하고 사용자가 바꾸지
+ * 않는다(내 정보에서도 읽기 전용) — 헤더에서 스스로 역할을 바꾸는 진입점은 두지 않는다.
+ * 개발 중 두 화면을 오가려고 둔 장치는 DevRoleSwitch 뿐이고, 운영 호스트에서는 숨는다.
  *
  * 도메인 네비게이션은 사이드바 단일 진실원 (Layer 1 §14.1: nav 이중화 금지).
  */
@@ -136,11 +171,12 @@ function ProfileMenu({ role }: { role: Role }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   // 로그인 세션 사용자 메타만 노출한다(데모 페르소나·역할전환 제거). 비로그인 시 페르소나 미표시.
-  const roleLabel = role === 'teacher' ? '교사' : '학생';
+  // 표를 따라 적는다 — 삼항으로 두면 역할이 느는 날 새 역할이 조용히 '학생'으로 적힌다.
   const profile = {
     name: role === 'teacher' ? `${me.name} 선생님` : me.name,
-    sub: roleLabel,
-    profileHref: role === 'teacher' ? '/teacher' : '/classbot',
+    sub: roleLabels[role],
+    // 학생 '내 정보'는 /classbot/me 로 (nav 에는 올리지 않고 프로필 메뉴가 유일 진입점).
+    profileHref: roleProfileHref[role],
   };
 
   // 로그아웃은 로그인 세션에서만 노출되는 항목(비로그인은 '로그인' 항목). 데모 로그아웃 토스트 제거.

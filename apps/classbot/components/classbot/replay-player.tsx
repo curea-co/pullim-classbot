@@ -12,7 +12,6 @@ import {
   formatReplayTime,
 } from '@/lib/mock';
 import { PageHeader } from '@/components/shell/page-header';
-import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Chip } from '@/components/ui/chip';
@@ -27,7 +26,7 @@ const segmentMeta: Record<Replay['segments'][number]['type'], { label: string; c
   'concept':   { label: '개념',     color: 'bg-pullim-blue-400',  icon: Lightbulb },
   'quiz':      { label: '퀴즈',     color: 'bg-pullim-blue-600',  icon: Target },
   'student-q': { label: '내 질문',  color: 'bg-pullim-blue-700',  icon: MessageCircle },
-  'sharing':   { label: '전체공유', color: 'bg-pullim-lemon',     icon: Eye },
+  'sharing':   { label: '전체공유', color: 'bg-pullim-blue-200',  icon: Eye },
   'attention': { label: '집중도',   color: 'bg-pullim-danger',    icon: Eye },
 };
 
@@ -168,10 +167,6 @@ export function ReplayPlayer({
 
       {/* 프라이버시 안내 */}
       <PrivacyNote replay={replay} />
-
-      <FlywheelNote>
-        다시 본 구간 + 내가 틀린 퀴즈는 <strong>풀림 복습</strong>의 Leitner 박스에 자동 등록되고, 보낸 질문은 다음 수업 도입에 반영돼요.
-      </FlywheelNote>
     </div>
   );
 }
@@ -211,18 +206,18 @@ function PlayerSurface({
       <div
         aria-hidden
         className="absolute -top-24 -right-24 h-56 w-56 rounded-full opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, var(--color-pullim-lemon), transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, var(--color-pullim-blue-400), transparent 70%)' }}
       />
 
       <div className="relative">
         {/* 시간 디스플레이 */}
         <div className="flex items-end justify-between">
           <div className="font-mono">
-            <div className="text-pullim-blue-200 text-micro font-bold tracking-wider uppercase">
+            <div className="text-pullim-blue-200 text-2xs font-bold tracking-wider uppercase">
               현재
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-pullim-lemon text-4xl font-bold leading-none lg:text-5xl">
+              <span className="text-4xl font-bold leading-none text-white lg:text-5xl">
                 {formatReplayTime(now)}
               </span>
               <span className="text-white/40 text-base">/</span>
@@ -230,7 +225,7 @@ function PlayerSurface({
             </div>
           </div>
           {playing && (
-            <span className="bg-pullim-danger inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold tracking-wider text-white uppercase">
+            <span className="bg-pullim-danger inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold tracking-wider text-white uppercase">
               <span className="bg-white inline-block h-1 w-1 animate-pulse rounded-full" />
               재생 중
             </span>
@@ -248,12 +243,12 @@ function PlayerSurface({
             aria-valuemax={totalSec}
             aria-valuenow={Math.floor(now)}
             aria-valuetext={formatReplayTime(now)}
-            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15 outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50"
+            className="relative h-2 w-full cursor-pointer rounded-full bg-white/15 outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/60"
             onClick={onTrackClick}
             onKeyDown={onTrackKey}
           >
             <div
-              className="bg-pullim-lemon absolute inset-y-0 left-0 rounded-full"
+              className="bg-pullim-blue-400 absolute inset-y-0 left-0 rounded-full"
               style={{ width: `${progressPct}%` }}
             />
             {/* 세그먼트 마커 */}
@@ -283,13 +278,13 @@ function PlayerSurface({
             {/* Thumb */}
             <div
               aria-hidden
-              className="bg-white absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-pullim-lemon shadow-lg pointer-events-none"
+              className="bg-white ring-pullim-blue-900 absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-lg ring-2 pointer-events-none"
               style={{ left: `${progressPct}%` }}
             />
           </div>
 
           {/* 마커 범례 (마커 아래) */}
-          <ul className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-micro">
+          <ul className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs">
             {(['concept', 'quiz', 'student-q', 'sharing', 'attention'] as const).map(t => {
               const m = segmentMeta[t];
               return (
@@ -299,8 +294,8 @@ function PlayerSurface({
                 </li>
               );
             })}
-            <li className="text-pullim-lemon ml-auto inline-flex items-center gap-1 font-semibold">
-              <span className="bg-pullim-lemon ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
+            <li className="ml-auto inline-flex items-center gap-1 font-semibold text-white">
+              <span className="bg-white ring-pullim-slate-900 inline-block h-2.5 w-2.5 rounded-full ring-1" />
               내 활동
             </li>
           </ul>
@@ -350,9 +345,9 @@ function PlayerSurface({
                 aria-checked={s === speed}
                 onClick={() => onSpeed(s)}
                 className={cn(
-                  'rounded-full px-2 py-0.5 font-mono text-2xs font-bold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-pullim-lemon/50',
+                  'rounded-full px-2 py-0.5 font-mono text-2xs font-bold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-white/60',
                   s === speed
-                    ? 'bg-pullim-lemon text-pullim-lemon-ink'
+                    ? 'text-pullim-slate-900 bg-white'
                     : 'text-white/70 hover:text-white',
                 )}
               >
@@ -366,11 +361,11 @@ function PlayerSurface({
         {/* 자막 — 현재 라인 */}
         {currentLine ? (
           <div className="bg-white/10 backdrop-blur mt-4 rounded-xl p-3.5">
-            <div className="text-pullim-lemon mb-1 flex items-center gap-1.5 text-micro font-bold tracking-wider uppercase">
-              <span className="bg-pullim-lemon h-1 w-1 rounded-full" />
+            <div className="mb-1 flex items-center gap-1.5 text-2xs font-bold tracking-wider text-white uppercase">
+              <span className="h-1 w-1 rounded-full bg-white" />
               {currentLine.speaker} 발언 중
               {currentLine.shared && (
-                <Chip tone="lemon" className="ml-1">
+                <Chip tone="invert" className="ml-1">
                   전체 공유
                 </Chip>
               )}
@@ -393,11 +388,11 @@ function KeyTakeaways({ takeaways }: { takeaways: string[] }) {
   return (
     <aside className="bg-card rounded-xl border p-4">
       <header className="mb-2 flex items-center gap-1.5">
-        <Lightbulb className="text-pullim-lemon-ink h-3.5 w-3.5" />
+        <Lightbulb className="text-pullim-blue-600 h-3.5 w-3.5" />
         <strong className="text-pullim-slate-900 text-xs font-bold tracking-wider uppercase">
           이 수업 핵심 3개
         </strong>
-        <span className="text-pullim-slate-400 ml-auto text-micro">AI 자동 추출</span>
+        <span className="text-pullim-slate-500 ml-auto text-2xs">AI 자동 추출</span>
       </header>
       <ol className="space-y-1.5 text-sm">
         {takeaways.map((t, i) => (
@@ -437,7 +432,7 @@ function TranscriptStream({
           <h2 className="text-pullim-slate-900 text-sm font-bold">트랜스크립트</h2>
           <p className="text-pullim-slate-500 text-2xs">현재 위치 자동 스크롤 · 라인 클릭 시 그 시점으로</p>
         </div>
-        <span className="text-pullim-slate-400 text-micro font-mono">
+        <span className="text-pullim-slate-500 text-2xs font-mono">
           {replay.transcript.length}개 라인
         </span>
       </header>
@@ -459,23 +454,26 @@ function TranscriptStream({
               className={cn(
                 'block w-full rounded-lg p-3 text-left transition-all outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50',
                 isCurrent
-                  ? 'bg-pullim-lemon/15 ring-2 ring-pullim-lemon shadow-sm'
+                  ? 'bg-pullim-blue-50 ring-pullim-blue-400 ring-2 shadow-sm'
                   : isPast
                     ? 'bg-pullim-slate-50/40 hover:bg-pullim-slate-50'
-                    : 'opacity-65 hover:opacity-100 hover:bg-pullim-slate-50',
+                    // 미래 발화 줄. `opacity-65` 를 걷었다 — 읽어야 하는 본문이라
+                    // 알파 후퇴는 계약 §4.1 위반이고, 대비가 4.90 → 15.45 로 올라간다.
+                    // 현재/과거/미래 구분은 ring 과 bg 가 낸다.
+                    : 'hover:bg-pullim-slate-50',
               )}
             >
-              <div className="flex items-center gap-1.5 text-micro">
+              <div className="flex items-center gap-1.5 text-2xs">
                 <span className="text-pullim-slate-400 font-mono font-bold">{line.at}</span>
                 <SpeakerBadge speaker={line.speaker} ownedByMe={line.ownedByMe} />
                 {line.shared && (
-                  <Chip tone="lemon">
+                  <Chip tone="info">
                     전체 공유
                   </Chip>
                 )}
                 {isCurrent && (
-                  <span className="text-pullim-lemon-ink ml-auto inline-flex items-center gap-0.5 font-bold">
-                    <span className="bg-pullim-lemon h-1.5 w-1.5 animate-pulse rounded-full" />
+                  <span className="text-pullim-blue-700 ml-auto inline-flex items-center gap-0.5 font-bold">
+                    <span className="bg-pullim-blue-600 h-1.5 w-1.5 animate-pulse rounded-full" />
                     지금
                   </span>
                 )}
@@ -495,7 +493,7 @@ function SpeakerBadge({
   const cls =
     speaker === '교사' ? 'bg-pullim-blue-100 text-pullim-blue-700' :
     speaker === '봇'   ? 'bg-pullim-slate-100 text-pullim-slate-700' :
-    speaker === '나' || ownedByMe ? 'bg-pullim-lemon-soft text-pullim-lemon-ink' :
+    speaker === '나' || ownedByMe ? 'bg-pullim-slate-900 text-white' :
     'bg-pullim-blue-50 text-pullim-blue-600';
   return (
     <span className={cn('rounded-full px-1.5 py-0.5 font-bold', cls)}>
@@ -585,7 +583,7 @@ function BookmarksPanel({
               >
                 <span className="text-pullim-blue-600 font-mono font-bold">{formatReplayTime(b.atSec)}</span>
                 <span className="text-pullim-slate-700 flex-1 truncate">{b.label}</span>
-                <span className="text-pullim-slate-400 text-micro">{b.createdAt}</span>
+                <span className="text-pullim-slate-500 text-2xs">{b.createdAt}</span>
               </button>
             </li>
           ))}

@@ -62,7 +62,7 @@ it('reset→재제출 시 새 시도로 카운트(이중 오염 없음)·정답 
 
 it('addReplayWeakness upsert(idempotent key) + clearWeakness', () => {
   const s = () => useProficiencyStore.getState();
-  const input = { botId: B, replayId: 'rp1', atSec: 120, conceptId: C, label: '극값 판정' };
+  const input = { botId: B, replayId: 'rp1', atSec: 120, conceptId: C, label: '일차함수의 그래프' };
   s().addReplayWeakness(U, input);
   s().addReplayWeakness(U, input); // same key → upsert, no dup
   const w = s().byUser[U].weaknesses;
@@ -77,7 +77,7 @@ it('review 정답: replay 약점(r: key)은 recordQuizResult 만으로는 안 �
   // Codex#164 finding#2 — review-card 가 약점 key 를 스레딩 → InlineQuiz 가 정답 시 clearWeakness(key) 호출.
   // recordQuizResult 는 q:botId:conceptId 만(streak≥2) 지우므로 replay 약점은 stat 기록만으로 절대 해소되지 않는다.
   const s = () => useProficiencyStore.getState();
-  s().addReplayWeakness(U, { botId: B, replayId: 'rp9', atSec: 42, conceptId: C, label: '극값 판정' });
+  s().addReplayWeakness(U, { botId: B, replayId: 'rp9', atSec: 42, conceptId: C, label: '일차함수의 그래프' });
   const rKey = 'r:rp9:42';
   expect(s().byUser[U].weaknesses.map(w => w.key)).toEqual([rKey]);
 

@@ -6,8 +6,6 @@ import { currentPersona } from '@/lib/mock';
 import type { Assignment } from '@/lib/mock';
 import { Chip } from '@/components/ui/chip';
 
-const DAYS_KO = ['월', '화', '수', '목', '금', '토', '일'] as const;
-
 function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string; href: string } | null {
   if (incomplete.length === 0) return null;
   // Priority: '오늘' > 'D-1' > first
@@ -19,19 +17,35 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
   return { title: first.title, dDay: first.dDay, href: first.solveHref ?? '/classbot/assignment' };
 }
 
-export function LearningHero({ incompleteAssignments }: { incompleteAssignments: Assignment[] }) {
-  const { name, streakDays, weeklyActivity } = currentPersona;
-  const activeDays = weeklyActivity.filter(v => v > 0).length;
+/**
+ * 학생 홈 상단 인사 띠.
+ * @param incompleteAssignments - 아직 안 끝낸 과제(가장 급한 것이 앞)
+ * @param name - 부르는 이름. 안 주면 데모 페르소나(서연)로 떨어진다 —
+ *   개발용 신원으로 다른 학생을 보고 있는데 「서연님」이라고 부르면 안 된다.
+ * @param streakDays - 연속 학습일. **밖에서 받는다** — 이름은 신원을 따라가는데 스트릭만
+ *   데모 페르소나에 고정돼 있으면, 다른 학생을 보면서 남의 기록을 인증하는 화면이 된다.
+ *   0 이면 칩을 그리지 않는다 — 스트릭 칩은 [08 § 1.6] 이 레몬을 허락한 「인증」 자리라
+ *   인증할 것이 없을 때 띄우면 뜻이 빈다.
+ */
+export function LearningHero({
+  incompleteAssignments,
+  name = currentPersona.name,
+  streakDays,
+}: {
+  incompleteAssignments: Assignment[];
+  name?: string;
+  streakDays: number;
+}) {
   const nextAction = pickNextAction(incompleteAssignments);
 
   return (
     <section
       className="bg-pullim-blue-700 text-white relative overflow-hidden rounded-2xl p-5 shadow-pullim-sm"
     >
-      {/* lemon glow depth treatment — matches existing KpiHeader */}
+      {/* 깊이감용 glow — 레몬은 장식에 쓰지 않는다([08 § 1.6] 키 CTA 한정). 같은 블루의 밝은 단계로 */}
       <div
         aria-hidden
-        className="glow-lemon absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
+        className="bg-pullim-blue-400 absolute -top-12 -right-12 h-40 w-40 rounded-full opacity-30 blur-3xl"
       />
 
       <div className="relative space-y-4">
@@ -40,11 +54,17 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
           <h1 className="text-2xl font-bold leading-tight text-white">
             {name}님, 오늘도 화이팅
           </h1>
-          {/* Streak pill — lemon on navy */}
-          <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
-            <Flame className="h-3 w-3" aria-hidden />
-            {streakDays}일째
-          </Chip>
+          {/*
+            이 화면에서 레몬을 쓰는 **단 한 곳**.
+            [08 § 1.6] 이 레몬에 허락한 두 쓰임(키 CTA · 스트릭 인증) 중 스트릭 자리다.
+            D-day 칩·glow 에서 뺀 레몬이 여기로 모여서, 홈에서 가장 눈에 띄는 것이 「며칠째 이어왔나」가 된다.
+          */}
+          {streakDays > 0 && (
+            <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
+              <Flame className="h-3 w-3" aria-hidden />
+              {streakDays}일째
+            </Chip>
+          )}
         </div>
 
         {/* 이어서 하기 CTA */}
@@ -62,7 +82,7 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Chip tone="lemon" className="bg-pullim-lemon text-pullim-lemon-ink">
+              <Chip tone="invert">
                 {nextAction.dDay}
               </Chip>
               <ArrowRight className="h-4 w-4 text-white/60" aria-hidden />
@@ -71,41 +91,18 @@ export function LearningHero({ incompleteAssignments }: { incompleteAssignments:
         ) : (
           <Link
             href="/classbot/chat"
+            aria-label="봇과 대화하기"
             className="bg-white/10 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center justify-between gap-3 rounded-xl px-4 py-3 transition-colors"
           >
             <div>
               <div className="text-pullim-blue-100 mb-0.5 text-xs font-semibold uppercase tracking-wider">
                 이어서 하기
               </div>
-              <div className="text-sm font-bold text-white">봇과 대화하기</div>
+              <div className="text-sm font-bold text-white">대화</div>
             </div>
             <ArrowRight className="h-4 w-4 text-white/60 shrink-0" aria-hidden />
           </Link>
         )}
-
-        {/* 주간 진행 mini-row */}
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1">
-            {weeklyActivity.map((intensity, i) => (
-              <div key={i} className="flex flex-col items-center gap-0.5">
-                <div
-                  className={[
-                    'h-5 w-4 rounded-sm',
-                    intensity === 0 ? 'bg-white/15' :
-                    intensity === 1 ? 'bg-pullim-blue-300/60' :
-                    intensity === 2 ? 'bg-pullim-lemon/50' :
-                    'bg-pullim-lemon',
-                  ].join(' ')}
-                  title={`${DAYS_KO[i]}: 강도 ${intensity}`}
-                />
-                <span className="text-micro text-white/50">{DAYS_KO[i]}</span>
-              </div>
-            ))}
-          </div>
-          <span className="text-pullim-blue-100 text-xs font-semibold">
-            이번 주 {activeDays}/7일 학습
-          </span>
-        </div>
       </div>
     </section>
   );

@@ -71,7 +71,7 @@ export function ScopeControl() {
         {' '}{scopeMeta[scope].allow}
       </p>
 
-      <div className="bg-pullim-blue-50 text-pullim-blue-700 mt-2.5 flex items-start gap-1.5 rounded-lg p-2 text-micro leading-snug">
+      <div className="bg-pullim-blue-50 text-pullim-blue-700 mt-2.5 flex items-start gap-1.5 rounded-lg p-2 text-2xs leading-snug">
         <AlarmClock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
         <span><strong>자동 스위치</strong>: 18:00–19:00 자동 L4(단계 힌트), 19:00–22:00 L3(개념), 22:00 이후 L5(답)</span>
       </div>

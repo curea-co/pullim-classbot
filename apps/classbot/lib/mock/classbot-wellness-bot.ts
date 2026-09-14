@@ -40,11 +40,11 @@ const AREA_TO_BOT_KIND: Record<string, 'math' | 'english' | 'science' | 'korean'
  * 즉 본 mock은 봇 발화 카드 안 메시지이므로 [07 § 4.6.2] 봇별 어조 시그니처(반말/존대)를 그대로 따른다.
  *
  * 봇별 어조 (spec 07 § 4.6.2):
- *   math    수학이 형  단정·반말
- *   english 영어 누나  상냥·존대
- *   science 과학 쌤    호기심·반말
- *   korean  국어 누나  차분·존대
- *   social  사회 코치  격려·반말
+ *   math    수학봇  단정·반말
+ *   english 영어봇  상냥·존대
+ *   science 과학봇    호기심·반말
+ *   korean  국어봇  차분·존대
+ *   social  사회봇  격려·반말
  */
 const TEXT_BY_KIND: Record<string, { text: string; cta: string }> = {
   math:    { text: '오늘 그럭저럭이었구나. 6일째 출석! 내일 1문항만 같이 풀어볼까?', cta: '좋아 → 1문항' },
@@ -128,7 +128,7 @@ export function getCheckInReaction(studentId: string, mood: EmotionMood | null, 
   const base = getWellnessBotComment(studentId, bots);
   if (!base) return null;
 
-  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어/국어 누나는 존대, 나머지 반말)
+  // mood가 낮을수록(3·4 = "그저그래"·"힘들었어") 더 부드럽게 — [07 § 4.6.2] 봇별 어조 시그니처 분기 (영어봇·국어봇은 존대, 나머지 반말)
   if (mood !== null && mood >= 3) {
     const kind = AREA_TO_BOT_KIND[base.weakArea] ?? 'math';
     const lowSeed = LOW_MOOD_TEXT_BY_KIND[kind] ?? LOW_MOOD_TEXT_BY_KIND.math;

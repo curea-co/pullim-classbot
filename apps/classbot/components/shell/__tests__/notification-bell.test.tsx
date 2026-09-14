@@ -14,7 +14,7 @@ jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }))
 const send = (over: Partial<Parameters<ReturnType<typeof useInterventionStore.getState>['send']>[0]> = {}) =>
   useInterventionStore.getState().send({
     type: 'remind', botId: 'cb_001', studentId: 's1',
-    assignmentId: 'as_1', message: "'도함수' 과제가 아직 제출 전이에요", ...over,
+    assignmentId: 'as_1', message: "'기울기' 과제가 아직 제출 전이에요", ...over,
   });
 
 beforeEach(() => {

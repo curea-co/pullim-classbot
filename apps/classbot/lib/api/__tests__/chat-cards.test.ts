@@ -26,7 +26,7 @@ describe('adaptCardToTurn — 정상 payload 적응', () => {
   it('concept → { concept: LessonConcept } 로 wrap(mock 렌더 계약)', () => {
     const payload = {
       id: 'c1',
-      title: '도함수',
+      title: '기울기',
       summary: '순간 변화율',
       detail: '자세히',
       tips: ['팁1'],

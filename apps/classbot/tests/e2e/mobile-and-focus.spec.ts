@@ -12,12 +12,14 @@ import { test, expect, devices } from '@playwright/test';
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 test.describe('모바일 viewport 검증', () => {
-  test('iPhone SE (375px) — 교사 라이브 시작 CTA 노출', async ({ browser }) => {
+  test('iPhone SE (375px) — 교사 운영 메인 봇 목록·과제 CTA 노출', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     await page.goto(BASE + '/teacher/classbot');
-    // 신규(라이브 비활성) 교사 — "라이브 시작" CTA 가 모바일에서 보여야 함
-    await expect(page.getByText('라이브 시작', { exact: true })).toBeVisible();
+    // 기획 보류 — 라이브 시작 CTA(SCR-C-19). 재개 시 되살린다.
+    // 운영 메인의 본체(봇 목록)와 핵심 CTA(새 과제)가 모바일에서 보여야 함
+    await expect(page.getByTestId('bot-ops-list')).toBeVisible();
+    await expect(page.getByTestId('new-assignment-cta')).toBeVisible();
     await context.close();
   });
 
@@ -25,11 +27,12 @@ test.describe('모바일 viewport 검증', () => {
     const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
     const page = await context.newPage();
     await page.goto(BASE + '/classbot');
-    // 내 튜터 헤더 보임 (홈 재구성: 내 클래스봇 → 내 튜터)
-    await expect(page.getByText('내 튜터')).toBeVisible();
-    // 신규 빈 상태 홈 — 봇 마켓(튜터 찾기) 핵심 CTA (discover 링크 prefix 매칭)
-    const main = page.getByRole('main');
-    await expect(main.locator('a[href^="/classbot/discover"]').last()).toBeVisible();
+    // 홈은 하나다(학습 모드 분기 없음) — 참여한 방이 0 개인 신규 사용자 홈은 참여 코드 입력 hero.
+    // 담은 봇이 있어도 이 hero 는 그대로다: 담기는 반 참여가 아니라서 「참여 중인 클래스」가 아니다.
+    await expect(page.getByText('교사 수업', { exact: true })).toBeVisible();
+    // 신규 빈 상태 홈 — 참여 코드 핵심 CTA
+    await expect(page.getByLabel('참여 코드 입력')).toBeVisible();
+    await expect(page.getByRole('button', { name: '참여' })).toBeVisible();
     await context.close();
   });
 
@@ -76,7 +79,20 @@ test.describe('키보드 Tab 포커스 가시성', () => {
   test('학생 풀이 — 객관식 선택지 role=radio + aria-checked 전환', async ({ page }) => {
     // 먼저 발사
     await page.goto(BASE + '/teacher/assignment/new');
-    await page.getByTestId('title-input').fill('포커스 검증 과제');
+    // 하이드레이션 경합 — `fill` 이 React 가 붙기 전에 닿으면 그 값이 **지워진다.**
+    // 제어 컴포넌트라 하이드레이션 직후 `value=''` 로 다시 그려지기 때문이다. 그러면
+    // `titleValid` 가 거짓이라 발사 버튼이 계속 disabled 이고, 아래 클릭이 30초를 기다리다 죽는다.
+    // prod-verify 가 3주째 성공·실패를 오간 원인이 이것이다(실측: `domcontentloaded` 직후
+    // fill → 값이 빈 문자열 · 버튼 disabled / `load` 이후 → 정상). 러너가 느린 날 진다.
+    // `goto` 의 `load` 를 기다리는 것으로는 부족하다 — 하이드레이션은 그 뒤에 온다.
+    // 그래서 **값이 실제로 남을 때까지** 다시 넣는다.
+    await expect(async () => {
+      await page.getByTestId('title-input').fill('포커스 검증 과제');
+      await expect(page.getByTestId('title-input')).toHaveValue('포커스 검증 과제');
+    }).toPass({ timeout: 15_000 });
+    // 클릭 전에 활성 상태를 따로 못박는다 — 이게 없으면 실패가 「클릭 타임아웃」으로만 보여
+    // 어느 검증이 막았는지(`titleValid`·`targetValid`·`dueValid`·문항 수) 로그에 남지 않는다.
+    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
@@ -91,8 +107,8 @@ test.describe('키보드 Tab 포커스 가시성', () => {
               {
                 botId: 'cb_001',
                 classroomId: 'cr_math_a',
-                classroomLabel: '고2 미적분 A반',
-                assignedBy: '김수학 선생님',
+                classroomLabel: '중2 수학 A반',
+                assignedBy: '김보람 선생님',
                 assignedAt: '2026-06-24 09:00',
                 via: '대치프리미엄 수학학원',
               },

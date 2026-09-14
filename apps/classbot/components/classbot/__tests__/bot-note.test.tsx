@@ -29,8 +29,8 @@ describe('BotNote', () => {
       'text-pullim-blue-700',
       'bg-pullim-blue-50/60',
       'rounded-lg',
-      'px-3',
-      'py-2',
+      'px-3.5',
+      'py-2.5',
       'text-2xs',
       'leading-relaxed'
     );

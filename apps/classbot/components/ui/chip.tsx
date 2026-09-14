@@ -12,6 +12,7 @@ const chipVariants = cva(
         neutral: "bg-pullim-slate-100 text-pullim-slate-600",
         outline: "border border-pullim-slate-200 text-pullim-slate-600",
         danger: "bg-pullim-danger/10 text-pullim-danger",
+        // [08 § 1.6] 레몬은 키 CTA·스트릭 인증 한정. 한 화면에 1~2 곳까지만 — 일반 강조에 쓰지 말 것
         lemon: "bg-pullim-lemon-soft text-pullim-lemon-ink",
         invert: "bg-white/15 text-white",
       },

@@ -26,9 +26,10 @@ export function LearningPath({ tutorId, unit }: { tutorId: string; unit: TutorUn
         const isLast = idx === STEPS.length - 1;
         const done: boolean = progress[step.progressKey];
 
+        // 끝난 단계는 **체크 모양**으로, 지금 단계는 **테두리 원**으로 갈린다 — 초록 없이도 구분된다
         const badge = done ? (
           <span
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-success"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pullim-blue-600"
             aria-hidden="true"
           >
             <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
@@ -38,7 +39,7 @@ export function LearningPath({ tutorId, unit }: { tutorId: string; unit: TutorUn
             className={cn(
               'flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-2xs font-bold',
               idx === 0
-                ? 'bg-pullim-blue-600 text-white'
+                ? 'text-pullim-blue-700 ring-pullim-blue-500 bg-white ring-2 ring-inset'
                 : 'bg-pullim-slate-100 text-pullim-slate-400',
             )}
             aria-hidden="true"
@@ -52,9 +53,10 @@ export function LearningPath({ tutorId, unit }: { tutorId: string; unit: TutorUn
             className={cn(
               'text-xs font-semibold leading-tight',
               done
-                ? 'text-pullim-success'
+                // 끝난 단계는 물러난다 — 지금 할 단계만 굵게 남는다
+                ? 'text-pullim-slate-600'
                 : idx === 0
-                  ? 'text-pullim-blue-700'
+                  ? 'text-pullim-blue-700 font-bold'
                   : 'text-pullim-slate-400',
             )}
           >
@@ -77,7 +79,7 @@ export function LearningPath({ tutorId, unit }: { tutorId: string; unit: TutorUn
                 className={cn(
                   'flex min-h-11 items-center gap-2 rounded-xl px-3',
                   done
-                    ? 'bg-pullim-success-bg hover:bg-pullim-success/10'
+                    ? 'bg-pullim-slate-50 hover:bg-pullim-slate-100'
                     : idx === 0
                       ? 'bg-pullim-blue-50 hover:bg-pullim-blue-100'
                       : 'bg-pullim-slate-50 hover:bg-pullim-slate-100',

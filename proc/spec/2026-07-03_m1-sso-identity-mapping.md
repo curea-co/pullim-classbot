@@ -32,10 +32,18 @@ classbot 자체 JWT(Bearer)만 인증 경로로 인식해, **SSO 세션 사용�
 - body `{ name, role }` + 신원(`x-user-id` = OS sub — Ph7 과도기 규약 그대로).
 - 도메인 `users` 에 `(id=sub, name, role, profile:{})` **upsert** (auth 모듈 `provisionDomainUser` 의
   `ON CONFLICT DO NOTHING` 패턴 + name 갱신). role 은 재호출 시 **최초 값 유지**(역할 승격 방지).
-- role 은 `student|teacher` 만(400). **parent 거부 근거**: 이 추출본은 보호자 표면이 제거된
-  클래스봇 단일 도메인(CLAUDE.md — `(parent)/parent/*` 부재)이라 parent 의 SSO 진입 유스케이스가
-  없다. 도메인 `users.role` enum 에 parent 가 있는 것은 시드(가족 링크)용 — SSO 프로비저닝
-  경로와는 별개. 보호자 표면 도입 시 이 목록을 확장한다.
+- role 은 `student|teacher` 만(400). **parent 거부 근거**(2026-09-07 갱신 · **`[2026-09-14 정정]`**):
+  원래 근거는 「보호자 표면이 제거된 단일 도메인이라 금지」였는데, **그 금지가 풀렸다**(가이드 갱신).
+  그다음 근거였던 「화면 자체가 아직 `dev` 에 없다」도 **이제 사실이 아니다** — `app/(parent)` 트리는
+  **세 화면이 다 `dev` 에 있다**(`/parent` · `/parent/assignments` 는 **#281**,
+  `/parent/self-study` 는 **#291**. 서버는 **#280**·**#288**). *(종전 이 자리는
+  「`/parent/self-study` 만 `[예정]` 이고 서버는 **#288**」로 적혀 있었다 — 그 둘이 머지되며
+  낡았다.)* **그러니 화면 유무는 더 이상 거부 근거가 아니다.**
+  남은 근거는 처음부터 이것이었고 그대로다: 공유 인증 claim 의 role union(`packages/types` 의 `UserRole`)에
+  `parent` 가 없어 SSO 세션이 학부모를 표현하지 못하고, OS SSO 도 학부모를 `student` 로 내린다.
+  그래서 학부모 화면은 **개발용 신원·비로그인 데모 전용**이다(`05 § 11.2`).
+  도메인 `users.role` enum 의 parent 는 시드(가족 링크)용 — 프로비저닝 경로와 별개다.
+  **이 목록을 넓히는 것 = claim union + SSO 매핑 확장**이고, `packages/*` 변경이라 별건 승인 사항이다.
 - FE 가 SSO 세션 확립 직후(auth-context 의 getSession 성공 시) 호출 — 실패해도 UX 비차단.
   **dedup 은 성공 시에만 마킹**(실패는 다음 트리거에서 재시도) — sync 실패 후 첫 도메인 쓰기가
   FK 로 실패하는 창을 최소화. 쓰기 시점 FK 에러는 최후 방어선.
@@ -77,7 +85,7 @@ SSO 사용자가 도메인 행을 갖게 하는 것(§2.1). 브리지 자체는 
 
 - BE 단위: sync upsert 멱등·role 검증·무신원 401.
 - FE 단위: SSO 스냅샷 → x-user-id=sub / 데모 브리지 미적용 / sync 1회 호출.
-- 로컬 SSO 리허설(런북 §5) + flag ON: OS 로그인 → me/sync → 코드 참여 → 발사 수신 → 제출 → 개입 인박스.
+- 로컬 SSO 리허설(런북 §5) + flag ON: OS 로그인 → me/sync → 코드 참여 → 교사가 낸 과제 수신 → 제출 → 개입 인박스.
 - Dev 검증(런북 §4-3): B-1~3 완료 후 `SSO_E2E_*` e2e.
 
 ## 범위 외 (M1-후속)

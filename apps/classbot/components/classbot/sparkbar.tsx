@@ -56,8 +56,8 @@ export function Sparkbar({
 
         // Fill props depending on mode
         const fillProps = fillMode === 'class'
-          ? { className: cn('flex-1', barRadiusClassName, fillValue, activeIndex === i && 'ring-2 ring-pullim-lemon ring-offset-1') }
-          : { className: cn('flex-1', barRadiusClassName, activeIndex === i && 'ring-2 ring-pullim-lemon ring-offset-1'), style: { backgroundColor: fillValue } };
+          ? { className: cn('flex-1', barRadiusClassName, fillValue, activeIndex === i && 'ring-pullim-blue-600 ring-2 ring-offset-1') }
+          : { className: cn('flex-1', barRadiusClassName, activeIndex === i && 'ring-pullim-blue-600 ring-2 ring-offset-1'), style: { backgroundColor: fillValue } };
 
         const title = datum.title ?? (barAriaLabel ? barAriaLabel(value, i) : undefined);
 

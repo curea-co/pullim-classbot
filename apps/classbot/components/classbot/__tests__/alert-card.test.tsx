@@ -39,14 +39,14 @@ describe('AlertCard', () => {
     expect(svg).toHaveClass('text-pullim-danger');
   });
 
-  it('applies warn tone color to icon', () => {
+  it('applies notice tone color to icon', () => {
     const { container } = render(
-      <AlertCard tone="warn" icon={AlertCircle}>
+      <AlertCard tone="notice" icon={AlertCircle}>
         Content
       </AlertCard>
     );
     const svg = container.querySelector('svg');
-    expect(svg).toHaveClass('text-pullim-warn');
+    expect(svg).toHaveClass('text-pullim-slate-700');
   });
 
   it('applies info tone color to icon', () => {
@@ -67,12 +67,12 @@ describe('AlertCard', () => {
     expect(section).toHaveClass('border-pullim-danger/30', 'bg-pullim-danger-bg');
   });
 
-  it('applies warn tone styles', () => {
+  it('applies notice tone styles', () => {
     const { container } = render(
-      <AlertCard tone="warn">Content</AlertCard>
+      <AlertCard tone="notice">Content</AlertCard>
     );
     const section = container.querySelector('section');
-    expect(section).toHaveClass('border-pullim-warn/30', 'bg-pullim-warn-bg');
+    expect(section).toHaveClass('border-pullim-slate-400', 'bg-transparent');
   });
 
   it('applies info tone styles', () => {

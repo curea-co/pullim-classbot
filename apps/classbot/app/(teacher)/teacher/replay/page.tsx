@@ -14,7 +14,8 @@ type StatusFilter = 'all' | ReplayStatus;
 
 const STATUS_META: Record<ReplayStatus, { label: string; tone: string; icon: typeof Clock }> = {
   processing: { label: '처리 중', tone: 'bg-pullim-slate-100 text-pullim-slate-700', icon: Sparkles },
-  review:     { label: '검수 대기', tone: 'bg-pullim-lemon text-pullim-lemon-ink', icon: Clock },
+  // 목록에 여러 줄이 깔리는 자리라 레몬을 쓰지 않는다 — 채우기 대신 외곽선 + 시계 아이콘 + 글자
+  review:     { label: '검수 대기', tone: 'text-pullim-slate-800 ring-1 ring-inset ring-pullim-slate-400 font-bold', icon: Clock },
   sent:       { label: '발송 완료', tone: 'bg-pullim-blue-100 text-pullim-blue-700', icon: CheckCircle2 },
 };
 
@@ -46,15 +47,17 @@ export default function TeacherReplayListPage() {
   }), [all]);
 
   return (
-    <div className="space-y-4">
-      <BackLink href="/teacher">교사 홈</BackLink>
-      <PageHeader
-        eyebrow={{ icon: History, text: '풀림 교사' }}
-        title="수업 리플레이"
-        description={`${all.length}개 수업 · 검수 대기 ${counts.review}건`}
-      />
+    <div className="space-y-7">
+      <div className="space-y-2">
+        <BackLink href="/teacher">교사 홈</BackLink>
+        <PageHeader
+          eyebrow={{ icon: History, text: '풀림 교사' }}
+          title="수업 리플레이"
+          description={`${all.length}개 수업 · 검수 대기 ${counts.review}건`}
+        />
+      </div>
 
-      <section className="bg-card rounded-xl border p-2">
+      <section className="bg-card rounded-2xl border p-4">
         <ul className="flex gap-1.5 overflow-x-auto">
           {(['all', 'review', 'processing', 'sent'] as const).map(s => (
             <li key={s} className="shrink-0">
@@ -81,7 +84,7 @@ export default function TeacherReplayListPage() {
         </ul>
       </section>
 
-      <ul className="space-y-2">
+      <ul className="space-y-4">
         {filtered.map(r => <TeacherReplayCard key={r.id} replay={r} />)}
         {filtered.length === 0 && (
           <li><EmptyState icon={History} title="이 상태의 리플레이가 없어요." size="md" /></li>
@@ -100,7 +103,7 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
     <li>
       <Link
         href={`/teacher/replay/${replay.id}`}
-        className="bg-card hover:border-pullim-blue-400 group block rounded-2xl border p-4 transition-colors"
+        className="bg-card hover:border-pullim-blue-400 group block rounded-2xl border p-5 transition-colors"
       >
         <div className="flex items-start gap-3">
           <div className="bg-pullim-blue-50 text-pullim-blue-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg">
@@ -109,7 +112,7 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-pullim-slate-500 truncate text-xs">{replay.botName} · {replay.classroom}</span>
-              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-micro font-bold', meta.tone)}>
+              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold', meta.tone)}>
                 <Icon className="h-3 w-3" />
                 {meta.label}
               </span>

@@ -61,7 +61,7 @@ export function ReplayReviewActions({ replay }: { replay: Replay }) {
 
   function handleApprove() {
     approve(replay.id);
-    toast.success('🚀 학생에게 발송 완료', {
+    toast.success('학생에게 발송 완료', {
       description: `${replay.title} — 학생 리플레이 탭에 즉시 노출`,
       duration: 4000,
     });

@@ -1,0 +1,97 @@
+// apps/classbot/components/shell/nav-config.test.ts
+//
+// nav 는 **라우트 인벤토리**다 — 여기 오른 항목은 곧 「이 앱에 이 화면이 있다」는 약속이다.
+// 화면보다 먼저 열면 레일에서 누르는 즉시 404 이므로, 그 약속을 손이 아니라 파일 트리에
+// 대 본다. 이 파일이 있는 한 nav 항목은 페이지를 앞지를 수 없다.
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+import {
+  buildBreadcrumb, parentNav, studentBottomTabs, studentNav, teacherNav,
+  type NavGroup, type Role,
+} from './nav-config';
+
+const APP_DIR = join(__dirname, '..', '..', 'app');
+
+/** `app` 트리를 훑어 실제로 렌더되는 경로를 모은다. */
+function collectRoutes(dir: string, segments: string[] = []): string[] {
+  const routes: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'page.tsx') {
+      routes.push('/' + segments.join('/'));
+      continue;
+    }
+    if (!entry.isDirectory()) continue;
+    // 라우트 그룹 `(student)` 은 URL 세그먼트가 아니다 — 경로에서 빠진다.
+    // 사설 폴더 `_lib` · 병렬 라우트 `@slot` 도 경로를 만들지 않는다.
+    if (entry.name.startsWith('_') || entry.name.startsWith('@')) continue;
+    const next = entry.name.startsWith('(') && entry.name.endsWith(')')
+      ? segments
+      : [...segments, entry.name];
+    routes.push(...collectRoutes(join(dir, entry.name), next));
+  }
+  return routes;
+}
+
+/** `/classbot/assignment/[id]` 같은 동적 세그먼트도 맞도록 정규식으로 바꾼다. */
+function routeMatcher(route: string): RegExp {
+  const body = route
+    .split('/')
+    .map((seg) => (seg.startsWith('[') ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    .join('/');
+  return new RegExp(`^${body}$`);
+}
+
+function hrefsOf(groups: NavGroup[]): string[] {
+  return groups.flatMap((group) =>
+    group.items.flatMap((item) => [item.href, ...(item.children ?? []).map((c) => c.href)]),
+  );
+}
+
+describe('nav-config 라우트 인벤토리', () => {
+  const matchers = collectRoutes(APP_DIR).map(routeMatcher);
+  const exists = (href: string) => matchers.some((re) => re.test(href === '' ? '/' : href));
+
+  // 학부모 레일이 그 「역할이 느는 날」로 들어온 줄이다 — 화면 없이 항목만 채워지는 순간
+  // 여기서 걸린다.
+  it.each([
+    ['학생 레일', hrefsOf(studentNav)],
+    ['교사 레일', hrefsOf(teacherNav)],
+    ['학부모 레일', hrefsOf(parentNav)],
+    ['학생 하단탭', studentBottomTabs.map((t) => t.href)],
+  ])('%s 의 모든 항목은 app 트리에 대응 page 가 있다', (_label, hrefs) => {
+    expect(hrefs.filter((href) => !exists(href))).toEqual([]);
+  });
+
+  // 봇 마켓(`/classbot/discover`)은 화면이 「공식 튜터 마켓」(mock)이던 동안 nav 에서
+  // 내려 있었다 — 레일 라벨과 도착지가 어긋나서다. 교사가 공유한 봇으로 갈아끼우는 PR 이
+  // nav 도 함께 되살리기로 한 자리이고(`proc/spec/03 § 2.1`), **이 PR 이 그 PR 이다.**
+  // 레일에 있어야 하는 이유는 따로 있다: 이미 반과 담은 봇이 있는 학생은 빈 상태 안내를
+  // 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 새 봇을 찾을 길이 사라진다.
+  it('봇 마켓은 학생 레일에 있다 — 하단탭은 셋 그대로', () => {
+    expect(hrefsOf(studentNav)).toContain('/classbot/discover');
+    // 하단탭은 기획 보류로 셋만 남긴 자리다(아래 tabItems 테스트) — 여기 늘리지 않는다.
+    expect(studentBottomTabs.map((t) => t.href)).not.toContain('/classbot/discover');
+  });
+});
+
+/*
+  빵부스러기 뿌리는 **역할마다 다르다.** 예전에는 삼항(학생이면 클래스봇, 아니면 교사)이라,
+  union 만 넓힌 첫 판에서 `/parent` 가 「풀림 교사 › 홈」을 달고 떴다 — 학부모가 교사 뿌리를
+  조용히 물려받은 것이다. 표로 바꾼 뒤 그 자리를 여기서 못박는다.
+*/
+describe('buildBreadcrumb — 뿌리는 역할을 따라간다', () => {
+  it.each<[Role, string, string]>([
+    ['student', '/classbot', '풀림 클래스봇'],
+    ['teacher', '/teacher/students', '풀림 교사'],
+    ['parent', '/parent/assignments', '풀림 학부모'],
+  ])('%s 의 뿌리는 %s 에서 「%s」', (role, pathname, rootLabel) => {
+    expect(buildBreadcrumb(pathname, role)[0].label).toBe(rootLabel);
+  });
+
+  it('역할 홈에서는 뿌리 한 칸뿐이다', () => {
+    expect(buildBreadcrumb('/parent', 'parent')).toEqual([
+      { label: '풀림 학부모', href: '/parent' },
+    ]);
+  });
+});

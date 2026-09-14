@@ -3,7 +3,7 @@ import { palette } from '../palette';
 
 describe('botSignature', () => {
   it('maps math subject to the palette math signature (no inline hex)', () => {
-    const sig = botSignature({ subject: '미적분' });
+    const sig = botSignature({ subject: '수학' });
     expect(sig.kind).toBe('math');
     expect(sig.hex).toBe(palette.botSig.math.hex);
     expect(sig.inkLight).toBe(palette.botSig.math.inkLight);
