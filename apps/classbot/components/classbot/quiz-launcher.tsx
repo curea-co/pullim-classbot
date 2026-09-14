@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * 교사 — 즉석 퀴즈/폴 생성 액션 + 진행 중 퀴즈 결과.
- * 핸드오프 4.5. v1 — 객관식 퀴즈 생성·발사 활성.
+ * 핸드오프 4.5. v1 — 객관식 퀴즈 생성·내기 활성.
  */
 export function QuizLauncher() {
   const q = useQuizStore(s => s.active);
@@ -24,7 +24,7 @@ export function QuizLauncher() {
       remainingSec: payload.seconds,
     });
     setOpen(false);
-    toast.success('⚡ 퀴즈 발사 완료', {
+    toast.success('⚡ 퀴즈 내기 완료', {
       description: '학생 라이브 화면에 즉시 등장 — 응답 분포 실시간 갱신.',
       duration: 3000,
     });
@@ -217,7 +217,7 @@ function QuizLaunchModal({
             )}
           >
             <Plus className="h-3 w-3" />
-            발사
+            퀴즈 내기
           </button>
         </footer>
       </div>

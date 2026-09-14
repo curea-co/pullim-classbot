@@ -13,10 +13,10 @@ import {
 } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
-/** 과제 한 개의 배점 합 — 이 값과 어긋나면 발사를 막는다. */
+/** 과제 한 개의 배점 합 — 이 값과 어긋나면 내기를 막는다. */
 export const TOTAL_POINTS = 100;
 
-/** 문항 수 하한 — 문항이 하나도 없는 과제는 발사할 수 없다. */
+/** 문항 수 하한 — 문항이 하나도 없는 과제는 낼 수 없다. */
 export const MIN_QUESTIONS = 1;
 /** 문항 수 상한 — 시험은 60, 연습·오답정복은 50 (spec 14 §5.1). */
 export const MAX_QUESTIONS_EXAM = 60;
@@ -24,7 +24,7 @@ export const MAX_QUESTIONS_DEFAULT = 50;
 
 /**
  * 모드별 문항 수 상한. 종전 `문항 수` 슬라이더의 `max` 를 문항 목록 편집기가 물려받는다 —
- * 슬라이더를 걷어내면서 상한이 따라오지 않아 51문항·61문항이 그대로 발사되던 결함의 진실원.
+ * 슬라이더를 걷어내면서 상한이 따라오지 않아 51문항·61문항이 그대로 나가던 결함의 진실원.
  */
 export function maxQuestionsFor(mode: AssignmentMode): number {
   return mode === 'exam' ? MAX_QUESTIONS_EXAM : MAX_QUESTIONS_DEFAULT;
@@ -35,9 +35,9 @@ const MAX_OPTIONS = 5;
 const MIN_CRITERIA = 2;
 const MAX_CRITERIA = 3;
 
-/** 출제 화면에서 편집 중인 문항 — 발사 시 AssignmentQuestion 으로 굳는다. */
+/** 출제 화면에서 편집 중인 문항 — 낼 때 AssignmentQuestion 으로 굳는다. */
 export type DraftQuestion = {
-  /** React key 전용 — 문항 id 는 발사 시점에 과제 id 로부터 만든다 */
+  /** React key 전용 — 문항 id 는 내는 시점에 과제 id 로부터 만든다 */
   key: string;
   type: QuestionType;
   prompt: string;
@@ -62,17 +62,22 @@ const typeOptions: { value: QuestionType; label: string }[] = [
 /**
  * 채점 방식 배지 — 라벨·색은 gradingModeOf 결과에만 달려 있다(유형과 어긋날 수 없음).
  * 「선생님이 채점」은 경고가 아니라 방식이라 앰버를 쓰지 않는다 — 아이콘(연필)과 글자로 갈린다.
+ *
+ * **밑에 붙던 설명 한 줄은 두 쪽 다 뺐다**(spec 14 § 8.2.2). 「봇이 답을 바로 맞혀 봐요」는
+ * *즉시 채점한다*는 뜻이었는데 *봇이 답을 알아맞힌다*로도 읽히고, 하필 옆 축(오답정복)에
+ * 진짜로 정답을 즉시 공개하는 동작이 있어 오독이 실재하는 기능에 가서 붙었다. 짝인
+ * 「낸 뒤에 선생님이 직접 봐요」도 함께 뺐다 — 한쪽만 지우면 배지가 안 맞고, 둘 다 ② 섹션
+ * 안내문("객관식 · 단답 · 수치는 봇이 자동으로 채점하고…")과 중복이며, 배지 설명은
+ * **문항마다 반복**돼 5문항이면 같은 줄을 다섯 번 읽었다.
  */
-const gradingMeta: Record<GradingMode, { label: string; note: string; icon: LucideIcon; className: string }> = {
+const gradingMeta: Record<GradingMode, { label: string; icon: LucideIcon; className: string }> = {
   auto: {
     label: '자동 채점',
-    note: '봇이 답을 바로 맞혀 봐요',
     icon: Sparkles,
     className: 'bg-pullim-blue-50 text-pullim-blue-700',
   },
   teacher: {
     label: '선생님이 채점',
-    note: '낸 뒤에 선생님이 직접 봐요',
     icon: Pencil,
     className: 'bg-pullim-slate-100 text-pullim-slate-700',
   },
@@ -114,7 +119,7 @@ export function makeQuestion(type: QuestionType, points: number): DraftQuestion 
   };
 }
 
-/** 첫 진입 기본 문항 — 합 100점. 발문은 비어 있고, 비운 채 발사하면 단원 RAG 자동 추출 규약이다. */
+/** 첫 진입 기본 문항 — 합 100점. 발문은 비어 있고, 비운 채 내면 단원 RAG 자동 추출 규약이다. */
 export function createDefaultQuestions(): DraftQuestion[] {
   return [
     makeQuestion('mc', 20),
@@ -147,7 +152,7 @@ export function authoredCount(questions: DraftQuestion[]): number {
 
 /**
  * 발문을 일부만 쓴 상태. 전부 채우거나(직접 출제) 전부 비우거나(단원 RAG 자동 추출) 둘 중 하나여야 한다 —
- * 중간 상태로 발사하면 `toAssignmentQuestions` 가 `null` 을 돌려 **선생님이 쓴 발문이 조용히 버려진다.**
+ * 중간 상태로 내면 `toAssignmentQuestions` 가 `null` 을 돌려 **선생님이 쓴 발문이 조용히 버려진다.**
  */
 export function isPartiallyAuthored(questions: DraftQuestion[]): boolean {
   const authored = authoredCount(questions);
@@ -201,7 +206,7 @@ export function rubricWeightMismatchNumbers(questions: DraftQuestion[]): number[
 }
 
 /**
- * 정답이 빠진 자동 채점 문항 번호(1-based) — 발사를 막는 근거.
+ * 정답이 빠진 자동 채점 문항 번호(1-based) — 내기를 막는 근거.
  * 발문을 전부 쓴 과제에만 따진다. 발문을 비워 두면 문항 자체를 싣지 않고 단원 RAG 로
  * 넘기는 기존 규약이라 정답도 따질 게 없다.
  */
@@ -254,7 +259,7 @@ export function toAssignmentQuestions(
       base.options = options;
       // 고른 보기가 비었거나 정리하다 사라졌으면 정답을 아예 싣지 않는다.
       // 0번으로 되돌리면 선생님이 고르지 않은 보기가 정답으로 굳어 자동 채점의 진실값이 뒤바뀐다.
-      // (발사 검증에서 먼저 막지만, 직렬화 단계에서도 엉뚱한 정답을 만들지 않는다.)
+      // (내기 검증에서 먼저 막지만, 직렬화 단계에서도 엉뚱한 정답을 만들지 않는다.)
       const answerIndex = answerText.length > 0 ? options.indexOf(answerText) : -1;
       if (answerIndex >= 0) base.answerIndex = answerIndex;
       return base;
@@ -367,8 +372,6 @@ export function QuestionListEditor({
                 </Button>
               </div>
             </div>
-
-            <p className="text-pullim-slate-500 mt-1 text-xs">{grading.note}</p>
 
             <label className="sr-only" htmlFor={`af-q${i}-prompt`}>{i + 1}번 문항 발문</label>
             <Textarea
@@ -601,8 +604,8 @@ export function PointsTally({ questions }: { questions: DraftQuestion[] }) {
         {ok
           ? '100점에 딱 맞아요.'
           : gap > 0
-            ? `${gap}점 모자라요 — 100점을 맞춰야 발사할 수 있어요.`
-            : `${-gap}점 넘었어요 — 100점을 맞춰야 발사할 수 있어요.`}
+            ? `${gap}점 모자라요 — 100점을 맞춰야 낼 수 있어요.`
+            : `${-gap}점 넘었어요 — 100점을 맞춰야 낼 수 있어요.`}
       </p>
     </div>
   );
