@@ -31,7 +31,8 @@ import {
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  DEV_IDENTITIES, isDevIdentityHost, writeDevIdentityCookie, type DevIdentity,
+  DEV_IDENTITIES, isDevIdentityHost, isRoleSwitchHost, writeDevIdentityCookie,
+  type DevIdentity,
 } from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
 import { cn } from '@/lib/utils';
@@ -74,6 +75,20 @@ const SWITCHABLE: readonly DevIdentity[] = DEV_IDENTITIES.filter(
   (identity) => targetOf(identity) !== undefined,
 );
 
+/**
+ * 이동 직전 신원 쿠키를 쓴다 — **로컬에서만.**
+ *
+ * 배포에는 DB 가 없어 명의를 세우면 라우트가 500 만 낸다(`lib/dev-identity.ts` 머리주석).
+ * 그래서 배포에서 이 버튼은 **화면만** 바꾼다 — 원래 하던 일 그대로다. 학생·교사 화면은
+ * mock·localStorage 로 돌아 그대로 보이고, 학부모 화면은 셸과 함께 「로그인이 필요해요」
+ * 안내를 보여준다(그게 익명 상태의 정직한 답이다).
+ * @param id - allowlist 안의 데모 사용자 id
+ */
+function writeIdentityIfLocal(id: string): void {
+  if (!isDevIdentityHost(window.location.host)) return;
+  writeDevIdentityCookie(id);
+}
+
 /** 호스트는 바뀌지 않는다 — 구독할 게 없어 unsubscribe 만 돌려준다. */
 const neverChanges = () => () => {};
 
@@ -82,13 +97,15 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
   // 호스트는 클라이언트에서만 알 수 있다 → 서버 스냅샷은 항상 false 로 두고
   // 하이드레이션 직후 클라이언트 스냅샷으로 갈린다(SSR 마크업 불일치 방지).
   //
-  // 판정은 **서버가 쓰는 그 함수**(`isDevIdentityHost`)를 그대로 부른다. 종전에는 여기서
+  // 노출은 `isRoleSwitchHost` 가 가른다 — **신원(`isDevIdentityHost`)과 다른 판정이다.**
+  // 화면 전환은 서버를 부르지 않으므로 배포(프리뷰·PR 미리보기)에서도 열고, 쿠키는 로컬에서만
+  // 쓴다(아래 `writeIdentityIfLocal`). 종전에는 여기서
   // `hostname !== PROD_HOST` 로 따로 비교했는데, 표가 둘이면 갈라진다 — 실제로 서버가
   // 허용 목록으로 좁혀진 뒤에도 이 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
   // `.host` 는 포트를 달고 오지만 그쪽이 떼어 준다.
   const visible = useSyncExternalStore(
     neverChanges,
-    () => isDevIdentityHost(window.location.host),
+    () => isRoleSwitchHost(window.location.host),
     () => false,
   );
   // 지금 어느 데모 계정인지 — 드롭다운 체크 표시에만 쓴다.
@@ -123,7 +140,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
             <a
               key={target.role}
               href={target.href}
-              onClick={() => writeDevIdentityCookie(target.identity.id)}
+              onClick={() => writeIdentityIfLocal(target.identity.id)}
               aria-current={active ? 'true' : undefined}
               title={target.identity.label}
               className={cn(
@@ -177,7 +194,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
                   {/* 세그먼트와 같은 이유로 순수 <a> — 쿠키를 쓰고 문서를 새로 받는다 */}
                   <a
                     href={target.href}
-                    onClick={() => writeDevIdentityCookie(identity.id)}
+                    onClick={() => writeIdentityIfLocal(identity.id)}
                     aria-current={active ? 'true' : undefined}
                     className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm"
                   >

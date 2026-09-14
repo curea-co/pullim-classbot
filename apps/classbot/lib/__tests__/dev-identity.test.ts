@@ -12,6 +12,7 @@ import {
   clearDevIdentityCookie,
   findDevIdentity,
   isDevIdentityHost,
+  isRoleSwitchHost,
   readDevIdentityCookie,
   resolveDevIdentity,
   writeDevIdentityCookie,
@@ -137,6 +138,59 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
   it('서버 값이 없으면 공개 변수로 판정한다 — 클라이언트 경로', () => {
     setEnv('NEXT_PUBLIC_VERCEL_ENV', 'production');
     expect(isDevIdentityHost('localhost:3032')).toBe(false);
+  });
+});
+
+describe('isRoleSwitchHost — 화면 전환은 신원과 다른 판정이다', () => {
+  const SAVED = { v: process.env.VERCEL_ENV, p: process.env.NEXT_PUBLIC_VERCEL_ENV };
+  const setEnv = (name: 'VERCEL_ENV' | 'NEXT_PUBLIC_VERCEL_ENV', value: string | undefined) => {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  };
+  beforeEach(() => {
+    setEnv('VERCEL_ENV', undefined);
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', undefined);
+  });
+  afterEach(() => {
+    setEnv('VERCEL_ENV', SAVED.v);
+    setEnv('NEXT_PUBLIC_VERCEL_ENV', SAVED.p);
+  });
+
+  /*
+    화면 전환은 서버를 부르지 않으므로 배포에서도 열린다. 신원(`isDevIdentityHost`)은
+    로컬만이다 — 배포에는 DB 가 없다. **두 판정이 같은 호스트에서 다른 답을 내는 것**이
+    이 분리의 요지다.
+  */
+  it('dev preview 는 전환은 열리고 신원은 닫힌다', () => {
+    expect(isRoleSwitchHost('dev-classbot.pullim.ai')).toBe(true);
+    expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(false);
+  });
+
+  it('로컬은 둘 다 열린다', () => {
+    expect(isRoleSwitchHost('localhost:3032')).toBe(true);
+    expect(isDevIdentityHost('localhost:3032')).toBe(true);
+  });
+
+  it('`*.vercel.app` 은 preview 라고 확인됐을 때만 전환이 열린다 — 모르면 닫는다', () => {
+    expect(isRoleSwitchHost('pullim-classbot-abc-curea.vercel.app')).toBe(false);
+    setEnv('VERCEL_ENV', 'preview');
+    expect(isRoleSwitchHost('pullim-classbot-abc-curea.vercel.app')).toBe(true);
+    // 그래도 신원은 닫혀 있다
+    expect(isDevIdentityHost('pullim-classbot-abc-curea.vercel.app')).toBe(false);
+  });
+
+  it.each(['classbot.pullim.ai', 'evil.example.com', '', '   '])(
+    'production 이름·목록 밖·빈 Host(%s)는 전환도 닫힌다',
+    (host) => {
+      expect(isRoleSwitchHost(host)).toBe(false);
+    },
+  );
+
+  it('production 배포면 어떤 호스트여도 전환이 닫힌다', () => {
+    setEnv('VERCEL_ENV', 'production');
+    for (const host of ['dev-classbot.pullim.ai', 'localhost:3032', 'x-curea.vercel.app']) {
+      expect(isRoleSwitchHost(host)).toBe(false);
+    }
   });
 });
 
