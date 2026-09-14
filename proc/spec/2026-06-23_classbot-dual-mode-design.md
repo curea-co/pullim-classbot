@@ -4,26 +4,32 @@
 **Status:** approved (brainstorming) → ready for writing-plans
 **Scope:** new product capability inside the existing single classbot app.
 **Scope 이력** — 이 문서를 쓸 때(2026-06-23)의 전제는 **FE-only, mock-first**(BE 는 나중 트랙)였고,
-아래 §3~§6 은 그 전제 위에서 쓰였다. **2026-09-04 그 전제를 푼다** — 스택 PR #266~#271 이
-BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇이 그대로인지는 바로 아래 개정
+아래 §3~§6 은 그 전제 위에서 쓰였다. **2026-09-04 그 전제를 풀기로 했고, `[2026-09-14]`
+그 인도가 끝났다** — BE persistence 와 publish 경로까지 `dev` 에 있다. *(종전 이 문장은
+「스택 PR **#266~#271** 이 인도한다」로 적었는데, 그 범위 안의 **#268·#271 은 닫혔고**
+내용이 #281·#283 과 #288·#291 로 갈려 들어왔다 — 인도 번호는 아래 박스가 정확히 적는다.)*
+무엇이 바뀌고 무엇이 그대로인지는 바로 아래 개정
 박스가 진다. 이 문서를 읽는 사람은 **머리의 옛 전제가 아니라 그 박스를 기준으로** 읽는다.
 
-> **[2026-09-04 개정] 「FE-only · mock-first」 보류를 푸는 것이 정해졌다 — 인도는 `[예정]` 이다.**
+> **[2026-09-04 개정 · `[2026-09-14 인도 완료]`] 「FE-only · mock-first」 보류가 풀렸다.**
 > 아래 §6 의 Out(deferred) 에 있던 **BE persistence + real auth-scoped self-enrollment** 와
-> **teacher-side publish to market** 은 스택 PR **#266~#271** 이 인도한다. 풀리는 것은
+> **teacher-side publish to market** 은 스택 PR 이 **전부 인도했고 `dev` 에 있다**. 풀린 것은
 > **「mock-first」 의 mock 쪽**이지 자기주도 기능 전체가 아니다.
 >
-> **`dev` 의 자기주도는 「부품은 있고 문은 닫힌」 상태다.** 있는 것: 모드 분기 코드
-> (`student-mode` · 학생 홈의 `mode === 'self'`), `useModeBots()` 의 self 분기,
-> `/classbot/discover`(공식 튜터 마켓) · `/classbot/learn/[tutorId]{,/[unitId]}`, goal·
-> unitProgress·streak 를 들고 있는 `lib/store/self-learning.ts`, `tutor-market-card` 의 등록·해제.
-> **닫힌 것: self 모드로 들어가는 길** — 「기획 보류」로 헤더 토글(`StudentModeToggle`)이
-> `app-header.tsx` 에서 비노출이고 `useStudentMode()` 의 default 가 `class` 로 고정돼 있다
-> (스토어 구조·`setMode` 계약은 그대로라 재개는 그 두 자리를 되돌리는 일이다).
-> **그래서 「self 화면이 있다」와 「자기주도가 열려 있다」는 같은 말이 아니고, 진입 복구는
-> 이 스택이 서버와 함께 져야 할 몫이다** — 서버만 열면 끝나는 것으로 읽지 마라.
-> 서버 쪽 라우트는 아직 없다. 이 표의 「인도」 칸은
-> **어느 PR 이 무엇을 지느냐**를 적은 것이지 현재 상태가 아니다.
+> **`dev` 의 자기주도는 이제 「문이 열린」 상태다.** *(`[2026-09-14 정정]` 종전 이 자리는
+> 「**부품은 있고 문은 닫힌**」 상태로 적고 「서버 쪽 라우트는 아직 없다 · 이 표의 「인도」 칸은
+> 어느 PR 이 무엇을 지느냐를 적은 것이지 현재 상태가 아니다」로 닫았다 — 그 일곱이 차례로
+> 머지되며 낡았다.)* 지금 있는 것: 학생 레일의 **「담은 봇」**(`/classbot/my-bots`)과
+> **「봇 마켓」**(`/classbot/discover` — 교사가 공유한 봇을 그린다) · `useStudentBots()` 가
+> 반 봇과 담은 봇을 **한 목록**으로 주는 `/classbot/chat` · 서버 표 둘(`self_enrollments` ·
+> `self_study_days`)과 라우트(`/api/me/{self-bots,study-days}`) · 그것을 정본으로 읽는
+> 훅·스토어 · `tutor-market-card` 의 등록·해제 · `/classbot/learn/[tutorId]{,/[unitId]}`.
+> **열린 방식이 「토글 되살리기」가 아니라는 것은 그대로다** — `StudentModeToggle` 은 지금도
+> `app-header.tsx` 에서 비노출이고 `useStudentMode()` 의 default 도 `class` 다. 자기주도는
+> 모드가 아니라 **장소**로 열렸다(아래 2026-09-09 박스). 그러니 **그 토글을 「재개」로 되살리는
+> 변경은 이 문서를 근거로 삼을 수 없다.**
+>
+> 아래 표의 「인도」 칸은 이제 **현재 상태**다 — 어느 PR 이 무엇을 냈는지 적는다.
 >
 > **`[2026-09-09 정정]` 이 표는 종전에 마이그레이션 번호까지 적어 두었다** — `self_enrollments`
 > 를 `0005`, `self_study_days` 를 `0006`, `revoked_at` 을 `0007` 로. **그 예약을 걷는다.**
@@ -33,19 +39,24 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > 그렇다 — 규칙과 실측은 [`2026-09-09_migration-numbering.md`](2026-09-09_migration-numbering.md)).
 > 그래서 아래 표는 **어떤 DDL 이 오는지**만 적고 번호는 적지 않는다.
 >
-> | 이 문서의 deferred 항목 | 상태 | 인도 (`dev` 머지 전) |
+> | 이 문서의 deferred 항목 | 상태 | 인도 |
 > |---|---|---|
-> | BE persistence (자기주도) | **`dev` 에 있다** *(`[2026-09-10 정정]` 종전 **`[예정]`**)* | **#270** 이 인도 완료 — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). **표와 라우트까지다** — 그것을 부르는 훅·스토어는 `dev` 에 없다(아래 「자기주도 데이터 출처」 줄) |
-> | real auth-scoped self-enrollment | **`[예정]`** | 서버 쪽은 `dev` 에 있다 — **#266**(신원) + **#270**(신원별 행). 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인). *(`[2026-09-10 정정]`)* 그 갈림을 **FE 에서 실제로 가르는 것은 아래 줄(`[예정]` #273)** 이다 — 이 줄만 읽고 화면 PR 에 서버 소비를 걸지 마라 |
-> | **자기주도 데이터 출처(훅·스토어)** — 위 두 줄의 소비 쪽 *(`[2026-09-10 정정]` 신설)* | **`[예정]`** | **#273**(「담은 봇·공부한 날의 출처를 서버로 갈아탄다 — 훅·스토어 (5b/7)」) — **식별된 사용자 = 서버 정본 / 비로그인 = localStorage**(위 줄의 규칙 그대로 **서버를 아예 부르지 않는다**), 그리고 기존 로컬 기록 백필. **`401` 은 폴백 조건이 아니다** — 세션 만료·무효 토큰은 재인증·오류로 다루지, 옛 로컬 기록을 정본 자리에 되돌리지 않는다. 변경 파일은 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` · `lib/store/self-learning.ts` 이고 **화면 파일(`app/`·`components/`)은 0개**다. 그래서 **#283**(학생 화면)은 **로컬 폴백 상태로 온다** |
-> | teacher-side publish to market | **`[예정]`** | **#267** — `class_bots.is_published` · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots` · **#269**(교사 화면). 서버 쪽은 `dev` 에 들어왔다(`0004`) |
-> | 학부모 × 자기주도 | **일부 인도됨** *(`[2026-09-10 정정]`)* | 자녀 동의 게이트([05 § 11.4](05-business-rules.md)). **`dev` 에 있는 것**: `consent_logs` 축 둘 · `revoked_at`(`0005`) · 반·과제 축의 게이트 — 전부 **#280**. **`[예정]`**: 자기주도 조회와 학생이 그 축을 켜는 문(`/api/parent/children/self-study` · `app/api/me/consents/*`)은 **#288**(서버), 화면(`/parent/self-study` · `/classbot/me/share`)은 뒤따르는 별건 PR. **#271 이 서버·화면을 함께 지고 있었으나 닫혔다** — FE/BE 를 한 PR 에 담지 않는 것이 리포 최상위 규칙이다 |
+> | BE persistence (자기주도) | **`dev` 에 있다** *(`[2026-09-10 정정]` 종전 **`[예정]`**)* | **#270** 이 인도 완료 — `self_enrollments` · `self_study_days` 두 표 · `/api/me/self-bots` · `/api/me/study-days`(+백필). **표와 라우트까지다** — 그것을 부르는 훅·스토어는 아래 「자기주도 데이터 출처」 줄이 진다 |
+> | real auth-scoped self-enrollment | **`dev` 에 있다** *(`[2026-09-14 정정]` 종전 **`[예정]`**)* | 서버 쪽은 **#266**(신원) + **#270**(신원별 행), 그 갈림을 **FE 에서 가르는 것은 아래 줄(#273)** 이다. 비로그인은 서버를 부르지 않고 localStorage 로 돈다(prod 는 공개·비로그인) |
+> | **자기주도 데이터 출처(훅·스토어)** — 위 두 줄의 소비 쪽 *(`[2026-09-10]` 신설)* | **`dev` 에 있다** *(`[2026-09-14 정정]` 종전 **`[예정]`**)* | **#273**(「담은 봇·공부한 날의 출처를 서버로 갈아탄다 — 훅·스토어 (5b/7)」) — **식별된 사용자 = 서버 정본 / 비로그인 = localStorage**(위 줄의 규칙 그대로 **서버를 아예 부르지 않는다**), 그리고 기존 로컬 기록 백필. **`401` 은 폴백 조건이 아니다** — 세션 만료·무효 토큰은 재인증·오류로 다루지, 옛 로컬 기록을 정본 자리에 되돌리지 않는다. 갈래는 **셋**이다(`pending`/`server`/`demo` — `useServerIdentityState()`): 세션 복원 전의 「아직 모른다」를 데모로 접으면 로그인 사용자가 남의 기록을 잠깐 본다. 그 자리는 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` · `lib/store/self-learning.ts` 이고 **화면 파일은 건드리지 않았다** |
+> | teacher-side publish to market | **`dev` 에 있다** *(`[2026-09-14 정정]` 종전 **`[예정]`**)* | **#267** — `class_bots.is_published` · `/api/teacher/bots/[botId]/publish` · `/api/marketplace/bots`(서버 · `0004`) · **#269**(교사 화면 — `/teacher/classroom` · `/teacher/marketplace{,/[botId]}` 와 교사 레일 2항목) |
+> | 학부모 × 자기주도 | **`dev` 에 있다** *(`[2026-09-14 정정]` 종전 **「일부 인도됨」**)* | 자녀 동의 게이트([05 § 11.4](05-business-rules.md)). **#280** — `consent_logs` 축 둘 · `revoked_at`(`0005`) · 반·과제 축의 게이트. **#288** — 자기주도 조회와 학생이 그 축을 켜는 문(`/api/parent/children/self-study` · `app/api/me/consents/*`). **#291** — 화면(`/parent/self-study` · `/classbot/me/share`). **#271 이 서버·화면을 함께 지고 있어 닫혔고 #288·#291 로 갈렸다** — FE/BE 를 한 PR 에 담지 않는 것이 리포 최상위 규칙이다 |
 > | student-created/custom tutors · adaptive(IRT) · cross-mode analytics | **여전히 deferred** | — |
 > | 목표·단원 진행(§3 의 goal/path) | **FE 는 mock-first 로 돈다 · 실제 봇으로 잇는 경로가 없다** | 이 시리즈가 손대지 않는다. `officialTutors`(`lib/mock/classbot-official.ts`)에 커리큘럼이 있고, `lib/store/self-learning.ts` 가 goal·unitProgress·streak 를 들고, `/classbot/learn/[tutorId]` 가 단원 카드를 그린다 — **거기까지가 mock 위에서 돈다.** `bot_curriculum_units` 도 비어 있지 않다 — `scripts/seed.ts` 가 `botCurriculum` 을 넣는다. 없는 것은 **경로**다: 교사가 만든 봇에 커리큘럼을 붙이는 publish 쪽도, 그 표를 읽어 학습 화면에 대는 read 쪽도 없어 FE 가 여전히 mock 을 읽는다. 그래서 P5 가 뒤로 밀렸다 |
 >
 > 「FE/BE 를 한 PR 에 섞지 않는다」는 리포 규칙은 그대로다 — 위 작업은 **층으로 쪼갠 스택 PR**
-> (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라간다. 여섯이 다 `dev` 에
-> 들어오면 이 박스의 `[예정]` 표기를 지우고 §6 의 Out 목록에서 세 줄을 실제로 뺀다.
+> (신원 / 서버 / 학생 화면 / 교사 화면 / 서버화 / 학부모)로 올라갔다. 그 층들이 다 `dev` 에
+> 들어오면 이 박스의 `[예정]` 표기를 지우고 §6 의 Out 목록에서 세 줄을 실제로 뺀다고
+> 적어 두었는데 — **`[2026-09-14]` 그대로 했다.** `[예정]` 은 이 박스에서 사라졌고,
+> §6 Out 의 세 줄(**BE persistence** · **real auth-scoped self-enrollment** ·
+> **teacher-side publish to market**)에는 「인도됨」 표시를 달았다. 실제 인도 번호는
+> **#266 · #267 · #269 · #270 · #273 · #280 · #281 · #283 · #288 · #291** 이다
+> (닫힌 **#268**·**#271** 은 각각 #281·#283 과 #288·#291 로 갈려 들어왔다).
 >
 > **`[2026-09-10 정정]` 「서버화」는 화면 PR 의 몫이 아니다 — 이음매를 여기 적는다.**
 > 위 표는 종전에 **규칙만 적고 인도를 적지 않았다** — `self_enrollments`·`/api/me/self-bots` 를
@@ -56,24 +67,29 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > - **서버**(`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`
 >   +백필) — **#270** 으로 `dev` 에 **이미 있다**.
 > - **훅·스토어의 「식별된 사용자 = 서버 정본 / 비로그인 = localStorage」 전환** —
->   **`[예정]` #273** 이 인도한다. 그 PR 의 변경 파일에 `hooks/api/self-bots.ts` 와
->   `lib/store/self-learning.ts` 가 들어 있다.
+>   **#273** 이 인도했고 `dev` 에 있다 *(`[2026-09-14 정정]` 종전 **`[예정]` #273**)*.
+>   그 자리는 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` ·
+>   `lib/store/self-learning.ts` 다.
 >   **폴백 조건은 「비로그인」이지 「`401`」이 아니다** — 위 표 두 번째 줄이 정한 그대로
 >   **비로그인은 서버를 아예 부르지 않는다.** 서버 라우트는 미식별 요청에 `401` 을 주지만,
 >   그것을 폴백 조건으로 삼으면 **세션 만료·무효 토큰까지 옛 로컬 기록을 정본 자리에**
 >   되돌리게 되고, 그건 이 규칙이 지키려는 **계정 범위 분리**를 깨뜨린다. 인증 실패는
 >   재인증·오류로 다룬다. **이 정정은 규칙을 바꾸는 것이 아니라 규칙을 그대로 옮겨 적는 것이다.**
-> - **학생 화면**(`/classbot/{classroom,my-bots,discover,discover/[botId]}`) — **#283**.
->   **그래서 #283 은 로컬 폴백 상태로 온다.** 화면 단위 PR 이 그 전환을 함께 하면 층이 섞이고
->   (리포 `CLAUDE.md` 최상위 MUST — 「한 PR = 한 계층」) **#273 의 몫이 통째로 사라진다.**
+> - **학생 화면**(`/classbot/{classroom,my-bots,discover,discover/[botId]}`) — **#283**,
+>   `dev` 에 있다. **#273 이 먼저 들어갔으므로 그 화면은 서버 정본 위에 서 있다**
+>   *(`[2026-09-14 정정]` 종전 「그래서 #283 은 로컬 폴백 상태로 온다」 — 머지 순서가
+>   #273 → #283 이라 그 과도기는 지나갔다)*. 층을 가른 근거는 그대로다: 화면 단위 PR 이
+>   그 전환을 함께 했으면 층이 섞이고(리포 `CLAUDE.md` 최상위 MUST — 「한 PR = 한 계층」)
+>   **#273 의 몫이 통째로 사라졌을 것이다.**
 >
 > **위 단락의 「여섯」도 이 갈림 전의 셈이다** — 그중 「서버화」 한 층이 **5a(#270, 표·라우트)**
 > 와 **5b(#273, 훅·스토어)** 로 갈려 스택은 일곱이다(#273 제목의 `5b/7`). 층이 늘어난 것이
 > 아니라 **한 층을 「한 PR = 한 계층」에 맞춰 쪼갠 것**이다.
 >
 > `[예정]` 의 뜻은 이 리포 관례 그대로다 — **`dev` 에 없는 것**이고, **그 PR 이 통과해야 할
-> 기준**이다([`00-index.md`](00-index.md) 2026-09-04 항목의 「읽는 법」). 그러니 **`[예정]` #273
-> 의 기준을 #283 의 기준으로 읽지 않는다.**
+> 기준**이다([`00-index.md`](00-index.md) 2026-09-04 항목의 「읽는 법」).
+> **`[2026-09-14]` 이 박스에는 그 표기가 더 이상 남아 있지 않다** — 위 표의 다섯 줄이 다
+> `dev` 이므로, 이 박스는 통째로 **현재 동작 설명**으로 읽는다.
 
 > **[2026-09-09 개정] 자기주도는 「모드」가 아니라 「장소」다 — Locked decision 2·4 를 갈아 끼운다.**
 >
@@ -139,19 +155,21 @@ BE persistence 와 publish 경로까지 인도한다. 무엇이 바뀌고 무엇
 > | **§8 Phasing** | **PR-1「Mode foundation」 전체** · PR-2 의 「unlock 봇 찾기 + `SelfEnrollment`」 중 공식 튜터 전제 · PR-3「Self home」 | PR-4「Learning loop」 · PR-5「Polish + onboarding」 의 취지 — 다만 실제 인도는 아래 「인도」 줄과 2026-09-04 박스의 표를 따른다(스택 PR #266~#271·#280~#284) |
 >
 > **인도**: `/classbot/{classroom,my-bots,discover,discover/[botId]}` 화면과 위 ①②④ 는
-> **#283**(#268 을 `dev` 위로 리베이스한 판)이 진다. 서버는 이미 `dev` 에 있다(#267·#280·**#270**) —
-> 그 PR 에 `app/api/**` 변경은 없다.
+> **#283**(닫힌 **#268** 을 `dev` 위로 리베이스한 판)이 졌고 **`dev` 에 있다**. 서버는 그보다
+> 먼저 들어갔다(#267·#280·**#270**) — 그 PR 에 `app/api/**` 변경은 없다.
 >
-> **`[2026-09-10 정정]` 그 화면의 데이터 출처는 아직 localStorage 다.** 자기주도 서버
+> **`[2026-09-14 정정]` 그 화면의 데이터 출처는 이제 서버다.** 자기주도 서버
 > (`self_enrollments` · `self_study_days` · `/api/me/self-bots` · `/api/me/study-days`)는
-> **#270** 으로 `dev` 에 있지만, **그것을 부르는 훅·스토어는 `[예정]` #273** 이 인도한다
+> **#270**, 그것을 부르는 **훅·스토어는 #273** 이 인도했고 둘 다 `dev` 에 있다
 > (「식별된 사용자 = 서버 정본 / **비로그인**은 서버를 부르지 않고 localStorage」 + 기존 로컬
-> 기록 백필 · 변경 파일은 `hooks/api/self-bots.ts` · `lib/store/self-learning.ts` 이고 화면
-> 파일 0개). **④ 의 v1
-> 저장값도 그 전환 전까지는 로컬에 산다** — #283 이 세우는 것은 v1 의 **모양**(사용자별
-> `byUser` · `class_bots.id` 기반 담은 봇 · 날짜 배열)이고, **출처를 서버로 옮기는 것은
-> #273 이다.** 그래서 **#283 에 서버 소비를 요구하면 층이 섞인다**(리포 `CLAUDE.md` 최상위
-> MUST) — 자세한 배정은 위 2026-09-04 박스의 `[2026-09-10 정정]` 항목.
+> 기록 백필 · 그 자리는 `hooks/api/self-bots.ts` · `hooks/api/self-server.ts` ·
+> `lib/store/self-learning.ts` 이고 화면 파일은 건드리지 않았다).
+> *(종전 이 자리는 「그 화면의 데이터 출처는 **아직 localStorage** 다 · 훅·스토어는
+> **`[예정]` #273**」로 적혀 있었다 — #273 이 #283 보다 먼저 머지되며 낡았다.)*
+> **④ 의 v1 저장값 모양**(사용자별 `byUser` · `class_bots.id` 기반 담은 봇 · 날짜 배열)을
+> #283 이 세웠고 **출처를 서버로 옮긴 것이 #273** 이라는 층 구분은 그대로 유효하다 —
+> 그래서 화면 PR 에 서버 소비를 요구하지 않았다(리포 `CLAUDE.md` 최상위 MUST).
+> 자세한 배정은 위 2026-09-04 박스.
 
 ## Goal
 
@@ -229,7 +247,14 @@ New mock + stores (FE-only this track):
 
 
 **In:** `StudentMode` toggle + mode-aware shell/home/nav · official tutors 2–3 + the 봇 마켓 self-enroll · self home (오늘의 한 가지 + goals + streak + 내 튜터) · one end-to-end goal/path loop (개념→연습 퀴즈→점검) for one subject, reusing chat + quiz rail · mock-persisted progress.
-**Out (deferred):** student-created/custom tutors; adaptive/diagnostic (IRT) recommendation; BE persistence + real auth-scoped self-enrollment; cross-mode analytics; the teacher-side "publish to market" authoring.
+**Out (deferred):** student-created/custom tutors; adaptive/diagnostic (IRT) recommendation; ~~BE persistence~~ **→ 인도됨 (#270)**; ~~real auth-scoped self-enrollment~~ **→ 인도됨 (#266 · #270 · #273)**; cross-mode analytics; ~~the teacher-side "publish to market" authoring~~ **→ 인도됨 (#267 · #269)**.
+
+> **`[2026-09-14]`** 위 Out 목록에서 **셋을 걷었다**(BE persistence · real auth-scoped
+> self-enrollment · teacher-side publish) — 2026-09-04 박스가 「층이 다 `dev` 에 들어오면
+> §6 의 Out 목록에서 세 줄을 실제로 뺀다」고 적어 둔 그대로다. 지우지 않고 **취소선**으로
+> 두는 것은 이 문서의 관례다(본문은 왜 그렇게 지었는지의 기록이라 남긴다 — 2026-09-09 박스).
+> **남아 있는 deferred 는 셋**이다 — student-created/custom tutors · adaptive(IRT) ·
+> cross-mode analytics.
 
 ## 7. Constraints & e2e
 
@@ -237,7 +262,14 @@ New mock + stores (FE-only this track):
 
 
 - **Preserve everything current:** the teacher experience and the current student **class-mode** flows are unchanged; the mode toggle + self surfaces are **additive**. All prod-verify e2e stay green — color-palette (8 routes; self-home `/classbot` and any scanned self routes must stay green/amber-free), chat (data-slots, greeting/quick-prompts), wellness-intensity-range, mobile-and-focus (수업 종료, assignment-form testids, solve a11y), slider-variants. New self surfaces follow the same guards (no green/amber on student routes; 44px touch; focus rings; DS type scale).
-- **Role stays `student | teacher`**; mode is a student sub-context (do NOT add a third Role or break `findActiveSection`/nav).
+- ~~**Role stays `student | teacher`**~~; mode is a student sub-context (do NOT add a third Role or break `findActiveSection`/nav).
+  > **`[2026-09-14 정정]` `Role` 은 `dev` 에서 셋이다** — `components/shell/nav-config.ts` 의
+  > `Role = 'student' | 'teacher' | 'parent'`(**#281**). **자기주도가 셋째 Role 을 만든 것이
+  > 아니다** — 이 제약이 막으려던 것은 「모드를 Role 로 올리는 것」이고 그건 지금도 유효하다
+  > (자기주도는 모드가 아니라 **장소**로 열렸다 · 2026-09-09 박스). 셋째가 된 것은 **학부모
+  > 화면**이 도착했기 때문이고, `findActiveSection`/nav 는 깨지지 않았다 — `navForRole` 과
+  > `buildBreadcrumb` 의 `Record<Role, …>` 표가 빠짐없음으로 컴파일에 걸려 새 역할의 홈·라벨을
+  > 한 자리씩 답하게 한다(2026-09-09 개정 박스 §⑤ **§1** 줄이 이미 같은 말을 적는다).
 - **FE-only, mock-first.** BE write/persistence + real auth-scoped self-enrollment is a **separate BE PR track** (repo rule: FE/BE never mixed). The mock/localStorage layer makes the whole loop demoable + e2e-able without a BE (consistent with the existing demo-fallback approach).
 - **Phased stacked PRs** off `dev` → PR to `dev` (team flow `dev → main`). Each FE-only + small.
 
