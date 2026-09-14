@@ -1,5 +1,5 @@
 /**
- * 교사가 발사한 과제 store — E2E mock 시연의 핵심 인프라.
+ * 교사가 낸 과제 store — E2E mock 시연의 핵심 인프라.
  * spec 14 § 5.5, § 10.2.
  *
  * 정책:
@@ -29,15 +29,15 @@ import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
 
 export type UserAssignment = Assignment & {
-  /** 발사 상태 — Assignment.state(학생 시점)와 별개 */
+  /** 내기 상태 — Assignment.state(학생 시점)와 별개 */
   dispatchStatus: DispatchStatus;
-  /** 대상 학생 id 배열 — 전체 발사면 빈 배열 (전체 enrolled 의미) */
+  /** 대상 학생 id 배열 — 전원에게 내면 빈 배열 (전체 enrolled 의미) */
   targetStudentIds: string[];
-  /** 발사 시각 (ISO8601) */
+  /** 교사가 낸 시각 (ISO8601) */
   dispatchedAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
-  /** 오답 재발사(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
+  /** 오답 다시 내기(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
   requizQuestionIds?: string[];
   /**
    * 교사가 출제 화면에서 직접 작성한 문항(유형·발문·배점·정답·루브릭).
@@ -60,7 +60,7 @@ export type Submission = {
 };
 
 type AssignmentStore = {
-  /** 발사된 과제 모음 (학생이 받음) */
+  /** 교사가 낸 과제 모음 (학생이 받음) */
   dispatched: UserAssignment[];
   /** 임시 저장 모음 (학생 미발송) */
   drafts: UserAssignment[];
@@ -70,7 +70,7 @@ type AssignmentStore = {
   dispatch: (a: UserAssignment) => void;
   saveDraft: (a: UserAssignment) => void;
   recordSubmission: (s: Omit<Submission, 'id' | 'submittedAt'>) => Submission;
-  /** 발사 직후 토스트 카피용 */
+  /** 과제를 낸 직후 토스트 카피용 */
   lastDispatched: { count: number; botName: string; assignmentTitle: string } | null;
   clearLastDispatched: () => void;
 };
@@ -233,7 +233,7 @@ function toUserAssignment(row: AssignmentSummaryResponse): UserAssignment {
 }
 
 /**
- * 교사 발사 → `POST /classbot/classes/:classId/assignments`(classId = bot==class 의 botId).
+ * 교사가 과제를 냄 → `POST /classbot/classes/:classId/assignments`(classId = bot==class 의 botId).
  * body 는 정본 `DispatchAssignmentDto` — 문항은 answerKey 를 동봉(서버 전용 채점 소스),
  * targetStudentIds 빈 배열 = 반 전체. 성공 시 낙관 항목을 서버 생성 행으로 재키잉한다. 실패 시 경고 + 로컬 유지.
  */
@@ -277,7 +277,7 @@ async function dispatchToBackend(a: UserAssignment): Promise<void> {
       ),
     }));
   } catch (e) {
-    console.warn('[assignments] BE 과제 발사 실패 — 로컬 유지:', e);
+    console.warn('[assignments] BE 과제 내기 실패 — 로컬 유지:', e);
   }
 }
 
@@ -370,8 +370,8 @@ export function nextAssignmentId(): string {
 }
 
 /**
- * 학생이 보는 전체 과제 — 시드 + 발사된 새 과제 합산.
- * 발사 시각 역순으로 정렬되어 새 과제가 위로 옴.
+ * 학생이 보는 전체 과제 — 시드 + 교사가 새로 낸 과제 합산.
+ * 교사가 낸 시각 역순으로 정렬되어 새 과제가 위로 옴.
  *
  * 학생 id 필터: targetStudentIds가 빈 배열이면 전체 enrolled,
  * 그렇지 않으면 해당 학생만 포함.
@@ -385,7 +385,7 @@ export function useMergedAssignments(studentId?: string): Assignment[] {
   return [...filteredDispatched, ...studentAssignments];
 }
 
-/** id로 과제 lookup — 시드 + 발사 모두 검색 */
+/** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
 export function useAssignmentLookup(id: string): Assignment | undefined {
   useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
   const dispatched = useAssignmentStore((s) => s.dispatched);
@@ -401,7 +401,7 @@ const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
 
 /**
  * 과제의 문항 풀 — 해석 우선순위:
- *   ① 오답 재발사 문항 → ② 교사가 출제 때 직접 작성한 문항 → ③ 같은 id 의 시드 문항 → ④ mode 시드 폴백.
+ *   ① 오답 다시 내기 문항 → ② 교사가 출제 때 직접 작성한 문항 → ③ 같은 id 의 시드 문항 → ④ mode 시드 폴백.
  *
  * ④ 는 남겨 둔다: (a) 교사가 발문을 비워 두면 "단원 RAG 자동 추출" 규약이고(출제 폼이
  * 전부 작성됐을 때만 ② 를 싣는다), (b) `USE_REAL_CORE_BE` ON 경로에서 서버 요약 응답에는
@@ -416,7 +416,7 @@ const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
 export function getQuestionsForAssignment(
   assignment: Assignment & { requizQuestionIds?: string[]; questions?: AssignmentQuestion[] },
 ): AssignmentQuestion[] {
-  // 오답 재발사 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
+  // 오답 다시 내기 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
   if (assignment.requizQuestionIds && assignment.requizQuestionIds.length > 0) {
     const requizQs = getQuestionsByIds(assignment.requizQuestionIds);
     if (requizQs.length > 0) return requizQs;

@@ -20,10 +20,10 @@ import type { AssignmentQuestion } from '@/lib/mock';
 /**
  * 제출 현황 시트 — 교사 개입 comment·requiz 쓰기 표면.
  * spec `proc/spec/2026-07-02_classbot-teacher-intervention-design.md` §4, plan PR-2.
- * 학생별 제출/미제출 + 제출자 코멘트 발신 + 오답률 높은 문항 복습 재발사.
+ * 학생별 제출/미제출 + 제출자 코멘트 발신 + 오답률 높은 문항 복습 다시 내기.
  */
 
-/** 이 비율 이상 오답인 문항이 복습 재발사 대상 */
+/** 이 비율 이상 오답인 문항이 복습 다시 내기 대상 */
 const REQUIZ_WRONG_THRESHOLD = 0.4;
 
 type AssignmentWithTargets = Assignment & { targetStudentIds?: string[] };
@@ -50,12 +50,12 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
   const eligible =
     targetIds.length === 0 ? classRoster : classRoster.filter((r) => targetIds.includes(r.id));
   const eligibleIds = new Set(eligible.map((r) => r.id));
-  // 비대상 학생 제출은 제외 — 발사 스코프 밖 제출이 섞이면 오답률·재발사 대상이 오염된다 (Codex #186 R2)
+  // 비대상 학생 제출은 제외 — 과제를 낸 범위 밖 제출이 섞이면 오답률·다시 내기 대상이 오염된다 (Codex #186 R2)
   const mine = submissions.filter(
     (s) => s.assignmentId === assignment.id && eligibleIds.has(s.studentId),
   );
   const byStudent = new Map<string, Submission>(mine.map((s) => [s.studentId, s]));
-  // 시험 과제는 결과 피드백 비공개 정책 — 코멘트(R2)도, 오답 정보를 노출하는 재발사(R5)도 열지 않는다.
+  // 시험 과제는 결과 피드백 비공개 정책 — 코멘트(R2)도, 오답 정보를 노출하는 다시 내기(R5)도 열지 않는다.
   const isExam = assignment.mode === 'exam';
   const canComment = !isExam;
 
@@ -92,7 +92,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       questionCount: wrongQuestions.length,
       completedCount: 0,
       state: 'todo',
-      assignedAt: '방금 발사',
+      assignedAt: '방금 냈어요',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
       scopeOverride: undefined,
@@ -115,7 +115,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       });
     }
     setRequizId(id);
-    toast.success(`복습 과제를 ${requizTargets.length}명에게 재발사했어요`);
+    toast.success(`복습 과제를 ${requizTargets.length}명에게 다시 냈어요`);
   };
 
   return (
@@ -176,7 +176,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
         })}
       </ul>
 
-      {/* 오답 문항 재발사 — 제출이 있고 임계 이상 오답 문항이 있을 때만. 시험은 비공개 정책상 차단(R5). */}
+      {/* 오답 문항 다시 내기 — 제출이 있고 임계 이상 오답 문항이 있을 때만. 시험은 비공개 정책상 차단(R5). */}
       {!isExam && mine.length > 0 && wrongQuestions.length > 0 && (
         <div className="border-pullim-slate-200 rounded-xl border border-dashed p-3">
           <p className="text-pullim-slate-700 text-xs font-bold">
@@ -192,7 +192,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
           {requizId ? (
             <p className="text-pullim-slate-500 mt-2 inline-flex items-center gap-1 text-2xs font-bold">
               <Check className="h-3.5 w-3.5" aria-hidden />
-              복습 과제 재발사 완료
+              복습 과제 다시 내기 완료
             </p>
           ) : (
             <button
@@ -201,7 +201,7 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
               className="text-pullim-blue-600 border-pullim-blue-200 hover:bg-pullim-blue-50 mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg border px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-              오답 문항 {wrongQuestions.length}개 재발사 ({requizTargets.length}명)
+              오답 문항 {wrongQuestions.length}개 다시 내기 ({requizTargets.length}명)
             </button>
           )}
         </div>

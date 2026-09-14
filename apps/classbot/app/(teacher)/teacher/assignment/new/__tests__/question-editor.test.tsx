@@ -28,7 +28,7 @@ describe('기본 문항', () => {
     expect(sumPoints(createDefaultQuestions())).toBe(TOTAL_POINTS);
   });
 
-  it('배점 고르게 나누기는 합을 정확히 100점으로 맞춘다', () => {
+  it('점수 자동 분배는 합을 정확히 100점으로 맞춘다', () => {
     const three = [makeQuestion('mc', 0), makeQuestion('short', 0), makeQuestion('essay', 0)];
     expect(sumPoints(evenlySplitPoints(three))).toBe(TOTAL_POINTS); // 34 + 33 + 33
     const seven = Array.from({ length: 7 }, () => makeQuestion('mc', 0));
@@ -238,7 +238,7 @@ describe('발문 부분 작성', () => {
   const authored = { ...makeQuestion('mc', 50), prompt: '쓴 발문' };
   const blank = makeQuestion('short', 50);
 
-  it('일부만 쓴 상태를 잡아낸다 — 이 상태로 발사하면 쓴 발문이 버려진다', () => {
+  it('일부만 쓴 상태를 잡아낸다 — 이 상태로 내면 쓴 발문이 버려진다', () => {
     expect(isPartiallyAuthored([authored, blank])).toBe(true);
     // 실제로 버려지는지도 함께 고정한다
     expect(toAssignmentQuestions('a1', [authored, blank])).toBeNull();

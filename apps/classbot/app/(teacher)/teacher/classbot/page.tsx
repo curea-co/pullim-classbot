@@ -391,7 +391,7 @@ function DispatchedAssignments({
             className="bg-pullim-blue-600 hover:bg-pullim-blue-700 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
           >
             <Plus className="h-3.5 w-3.5" />
-            새 과제
+            과제 내기
           </Link>
         }
       />

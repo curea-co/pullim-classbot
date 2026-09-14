@@ -45,19 +45,19 @@ type ModeMeta = { label: string; description: string; color: string; defaultScop
 const modeOptions: Record<AssignmentMode, ModeMeta> = {
   practice: {
     label: '연습',
-    description: '봇이 단계별 힌트로 도와주는 학습용 과제',
+    description: '힌트는 주고 정답은 안 알려 줘요',
     color: assignmentModeBadge.practice.outline,
     defaultScope: 4,
   },
   exam: {
     label: '시험',
-    description: '봇 잠금 + 시간 제한 — 평가 환경',
+    description: '봇이 잠기고 시간을 재요',
     color: assignmentModeBadge.exam.outline,
     defaultScope: 1,
   },
   'wrong-conquest': {
     label: '오답정복',
-    description: '봇이 정답·반례까지 즉시 노출 — 패턴 정복용',
+    description: '정답도 해설도 바로 보여 줘요',
     color: assignmentModeBadge['wrong-conquest'].outline,
     defaultScope: 5,
   },
@@ -109,7 +109,7 @@ export function toLocalDatetimeInput(d: Date): string {
     + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// formatDueLabel/computeDDay 는 재발사(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
+// formatDueLabel/computeDDay 는 다시 내기(제출 현황 시트)와 공유 — lib/assignment-due.ts 로 추출됨.
 
 /** 봇이 붙은 수업방 — 과제는 `bot_id` 로 방에 매이므로 봇 없는 반에는 낼 수 없다. */
 type DispatchableRoom = TeacherClassroomItem & { botId: string };
@@ -118,8 +118,8 @@ type DispatchableRoom = TeacherClassroomItem & { botId: string };
  * `initialBotId` — 운영 화면 봇 카드의 「과제 내기」가 어느 봇에서 눌렸는지 (`?bot=`).
  * 실어 오지 않거나 내 방이 아닌 봇이면 목록 첫 방으로 연다.
  *
- * 발사 봇 목록은 **DB 의 내 수업방**(`GET /api/teacher/classrooms`)에서 온다.
- * mock 카탈로그(`classBots`)를 쓰면 안 된다 — 발사는 `POST /api/teacher/assignments` 가
+ * 고를 수 있는 수업방 목록은 **DB 의 내 수업방**(`GET /api/teacher/classrooms`)에서 온다.
+ * mock 카탈로그(`classBots`)를 쓰면 안 된다 — 과제를 내면 `POST /api/teacher/assignments` 가
  * `class_bots.teacher_id = 나` 로 소유권을 검사하므로, 카탈로그에만 있는 봇 id 는
  * 그 자리에서 404 로 튕긴다. 대상 학생도 같은 이유로 **그 방의 실제 참여자**여야 한다
  * (서버가 `enrollments` 로 대조한다).
@@ -156,7 +156,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
     prod(classbot.pullim.ai)는 공개 화면이라 방문자에게 세션이 없고, prod-verify 도 쿠키 없이
     이 화면을 친다. 401 을 오류로 그리면 공개 데모에서 이 화면이 통째로 죽는다 —
     같은 판단을 학생 쪽 `app/(student)/classbot/classroom/page.tsx` 가 이미 하고 있다.
-    그래서 세션이 없을 때는 mock 카탈로그로 폼을 굴리고, 발사도 API 를 건드리지 않고
+    그래서 세션이 없을 때는 mock 카탈로그로 폼을 굴리고, 과제를 내도 API 를 건드리지 않고
     로컬 사본에만 쓴다(아래 handleDispatch). mock 봇 id 를 서버로 보내면 소유권 검사에서
     404 로 튕기므로, **두 경로를 섞지 않는 것**이 이 분기의 핵심이다.
   */
@@ -230,9 +230,9 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
 
     조회가 실패하면 `students` 가 빈 배열이라 예전 조건은 그대로 통과했고, 그때 나가는
     `targetPayload` 는 빈 배열 — 서버가 **반 전체**로 읽는 값이다. 즉 명단을 못 본 채로
-    전원 발사가 나갔다. 아직 안 온 상태(pending)도 같은 이유로 막는다(빈 명단과 구별이 안 된다).
+    전원에게 나갔다. 아직 안 온 상태(pending)도 같은 이유로 막는다(빈 명단과 구별이 안 된다).
 
-    비로그인 데모는 예외다 — 거기서는 명단 조회가 401 이고 발사도 서버로 가지 않는다.
+    비로그인 데모는 예외다 — 거기서는 명단 조회가 401 이고 과제도 서버로 가지 않는다.
   */
   const rosterUnknown =
     !signedOut && !!room && (studentsQuery.isPending || studentsQuery.isError);
@@ -244,7 +244,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
     「반을 먼저 열고 학생이 뒤에 들어오는」 상태가 정상이 됐고, 1명 이상을 요구하면 교사는
     반을 열어 놓고 학생이 들어올 때까지 아무것도 낼 수 없다. 그래서 그 항을 걷어냈다.
 
-    두 항은 한 쌍이라 따로 읽으면 안 된다 — 같은 절이 **「명단을 못 읽은 상태는 발사 불가」**
+    두 항은 한 쌍이라 따로 읽으면 안 된다 — 같은 절이 **「명단을 못 읽은 상태는 낼 수 없다」**
     를 함께 요구한다(위 `rosterUnknown`). 「학생이 0명인 반」과 「명단을 못 본 상태」는 둘 다
     빈 배열이라 모양이 같고, 뒤엣것까지 열어 주면 교사가 명단을 한 번도 못 본 채 전원에게
     나간다. 그래서 여는 것은 앞엣것 하나뿐이다.
@@ -259,9 +259,9 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   const maxQuestions = maxQuestionsFor(mode);
   const countValid = questions.length >= MIN_QUESTIONS && questions.length <= maxQuestions;
   const atMaxQuestions = questions.length >= maxQuestions;
-  // 발문을 일부만 쓴 채 발사하면 쓴 발문이 통째로 버려지고 단원 RAG 로 대체된다 — 그 전에 막는다.
+  // 발문을 일부만 쓴 채 내면 쓴 발문이 통째로 버려지고 단원 RAG 로 대체된다 — 그 전에 막는다.
   const partiallyAuthored = isPartiallyAuthored(questions);
-  // 정답을 안 정한 자동 채점 문항이 있으면 발사를 막는다 — 그대로 나가면 그 문항이 채점에서
+  // 정답을 안 정한 자동 채점 문항이 있으면 내기를 막는다 — 그대로 나가면 그 문항이 채점에서
   // 통째로 빠지거나(단답·수치), 선생님이 고르지 않은 보기가 정답으로 굳는다(객관식).
   const missingAnswers = missingAnswerNumbers(questions);
   const missingRubric = missingRubricNumbers(questions);
@@ -269,24 +269,24 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   const answersValid = missingAnswers.length === 0;
 
   /**
-   * ② 문항 섹션이 발사를 막는 이유 한 줄 — null 이면 걸린 게 없다.
+   * ② 문항 섹션이 내기를 막는 이유 한 줄 — null 이면 걸린 게 없다.
    * 먼저 걸리는 것부터 하나만 보여 준다(문항 수 → 배점 → 발문 → 정답).
    */
   function questionBlockedReason(): string | null {
-    if (questions.length < MIN_QUESTIONS) return '문항을 최소 1개는 넣어야 발사할 수 있어요';
+    if (questions.length < MIN_QUESTIONS) return '문항을 최소 1개는 넣어야 낼 수 있어요';
     if (questions.length > maxQuestions) {
       return `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요 — 지금 ${questions.length}문항`;
     }
-    if (pointsTotal !== TOTAL_POINTS) return `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 발사할 수 있어요`;
+    if (pointsTotal !== TOTAL_POINTS) return `배점 합계 ${pointsTotal}/${TOTAL_POINTS}점 — 맞춰야 낼 수 있어요`;
     if (partiallyAuthored) {
       return `발문은 전부 쓰거나 전부 비워야 해요 — 지금 ${authoredCount(questions)}/${questions.length}개`;
     }
-    if (!answersValid) return `${missingAnswers.join('·')}번 문항 정답을 정해야 발사할 수 있어요`;
+    if (!answersValid) return `${missingAnswers.join('·')}번 문항 정답을 정해야 낼 수 있어요`;
     /*
       서술형 채점 기준 — 위 정답 검사가 서술형을 안 본다(`hasGradableAnswer` 가 언제나 true).
       비면 루브릭이 통째로 안 실리고, 합이 어긋나면 화면에만 빨간 글씨가 뜨고 그대로 나갔다.
     */
-    if (missingRubric.length > 0) return `서술형 ${missingRubric.join('·')}번 채점 기준을 적어야 발사할 수 있어요`;
+    if (missingRubric.length > 0) return `서술형 ${missingRubric.join('·')}번 채점 기준을 적어야 낼 수 있어요`;
     if (rubricMismatch.length > 0) return `${rubricMismatch.join('·')}번 기준 배점 합이 문항 배점과 달라요`;
     return null;
   }
@@ -306,7 +306,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
     코드로 들어오는 학생이 그대로 이 과제를 받는다 — 낸 사람에게 「아무에게도 안 갔다」로
     읽히는 것이 사실과 정반대다.
 
-    명단을 아는 전원 발사는 인원수가 더 쓸모 있다 — 「18명 전체」가 「반 전체」보다 많이 말한다.
+    명단을 아는 전원에게 내기는 인원수가 더 쓸모 있다 — 「18명 전체」가 「반 전체」보다 많이 말한다.
   */
   const targetLabel =
     targetPayload.length > 0
@@ -341,7 +341,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       scopeOverride: SCOPE_OVERRIDE_BY_MODE[mode] ?? undefined,
       source: 'teacher-assigned',
       assignedBy: room?.botName ?? '',
-      assignedAt: '방금 발사',
+      assignedAt: '방금 냈어요',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
       completedCount: 0,
@@ -358,7 +358,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   }
 
   /**
-   * 발사 — **DB 가 먼저**다. 서버가 행을 만든 뒤에야 로컬 사본을 쓴다.
+   * 내기 — **DB 가 먼저**다. 서버가 행을 만든 뒤에야 로컬 사본을 쓴다.
    * 낙관적으로 먼저 로컬에 쓰면, 소유권(404)·대상(400)에서 튕겼을 때 화면에는 낸 것으로
    * 보이는데 학생에게는 아무것도 안 간 상태가 남는다.
    */
@@ -388,7 +388,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
           의 `readDueAt`). 그 주석이 「보내는 쪽(#269)이 실으면 필수로 좁힌다」고 적어 둔
           자리가 여기다 — 안 실으면 폼을 우회한 요청의 과거 마감을 서버가 못 막는다.
 
-          폼은 이미 미래만 통과시킨다(`dueValid` 가 발사 버튼을 잠근다). 그래서 이 값을
+          폼은 이미 미래만 통과시킨다(`dueValid` 가 내기 버튼을 잠근다). 그래서 이 값을
           실어도 정상 경로에서 새로 막히는 것은 없고, 막히는 것은 우회 경로뿐이다.
         */
         dueAt: new Date(dueIso).toISOString(),
@@ -459,7 +459,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
 
         <PageHeader
           eyebrow={{ icon: Send, text: '새 과제' }}
-          title="과제 발사하기"
+          title="과제 내기"
           description={
             room
               ? `${room.label} · ${room.botName ?? '봇'} · ${room.subject ?? ''} ${room.grade ?? ''}`.trim()
@@ -469,7 +469,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       </div>
 
       <div className="max-w-3xl space-y-6">
-        {/* 수업방을 못 읽으면 발사 봇 목록이 비어 폼 전체가 뜻을 잃는다 — 이유를 먼저 말한다.
+        {/* 수업방을 못 읽으면 고를 수 있는 방이 없어 폼 전체가 뜻을 잃는다 — 이유를 먼저 말한다.
             단 401 은 제외한다: 그건 고장이 아니라 로그인 안 한 데모 상태이고(위 signedOut),
             그때 폼은 mock 카탈로그로 정상 동작한다. 오류 카드를 함께 띄우면 분기 의미가 무너진다 —
             학생 쪽 `app/(student)/classbot/classroom/page.tsx` 가 같은 규약을 쓴다. */}
@@ -503,7 +503,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
           />
 
           <div className="space-y-3">
-            <Field label="발사 봇" htmlFor="af-bot">
+            <Field label="수업방" htmlFor="af-bot">
               <select
                 id="af-bot"
                 value={selectedBotId}
@@ -542,12 +542,14 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
               )}
             </Field>
 
-            <Field label="봇 개입 강도 (모드)">
-              <p className="text-pullim-slate-500 mb-1.5 text-2xs leading-relaxed">
-                모드는 <b>푸는 동안</b> 봇이 어디까지 도와줄지를 정해요. 점수를 누가 매기는지(채점 방식)는
-                아래 ② 문항의 <b>유형</b>이 정해요 — 서로 다른 축이에요.
-              </p>
-              <div role="radiogroup" aria-label="과제 모드" className="grid grid-cols-3 gap-2">
+            {/*
+              라벨이 「봇 개입 강도」였을 때는 밑에 해명 두 줄이 필요했다 — 이 스펙에서 「개입」은
+              **교사 개입**(리마인드·코멘트·다시 내기·응원)을 가리키는 말이라, 봇 쪽 축을 그렇게
+              부르면 용어가 충돌했기 때문이다(spec 14 § 8.2.1). 라벨을 제 이름으로 바꾸면서
+              그 해명을 지웠다. `aria-label` 은 보이는 라벨과 같은 값으로 맞춘다.
+            */}
+            <Field label="봇이 답해 주는 범위">
+              <div role="radiogroup" aria-label="봇이 답해 주는 범위" className="grid grid-cols-3 gap-2">
                 {(['practice', 'exam', 'wrong-conquest'] as AssignmentMode[]).map(m => {
                   const meta = modeOptions[m];
                   const active = mode === m;
@@ -625,7 +627,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
               </select>
               <BotNote icon={BookOpen} className="mt-1">
                 발문은 <b>전부 쓰거나 전부 비우거나</b> 둘 중 하나예요 — 전부 비우면 선택 단원의
-                RAG 인덱스에서 자동 추출돼요. 일부만 쓰면 쓴 발문이 버려지니 발사를 막아요.
+                RAG 인덱스에서 자동 추출돼요. 일부만 쓰면 쓴 발문이 버려지니 내기를 막아요.
                 {' '}지금 직접 쓴 발문 {authoredCount(questions)}/{questions.length}개.
               </BotNote>
               {/*
@@ -637,7 +639,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 `[M2 한계]` 테스트가 못박고 있다.
 
                 선생님이 「내가 쓴 문제가 그대로 나갔다」고 믿는 것이 이 구간의 실제 피해라,
-                고칠 수 없는 동안에는 **말해 주는 것**이 맞다. 발사를 막는 것으로는 학생 쪽이
+                고칠 수 없는 동안에는 **말해 주는 것**이 맞다. 내기를 막는 것으로는 학생 쪽이
                 달라지지 않는다(같은 테스트가 그것도 못박고 있다) — 교사 기능만 사라진다.
               */}
               {authoredCount(questions) > 0 && (
@@ -665,7 +667,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 size="sm"
                 onClick={() => setQuestions([...questions, makeQuestion('mc', 0)])}
                 data-testid="question-add"
-                // 상한에 닿으면 잠근다 — 51번째 문항을 만들어 두고 발사에서 막는 것보다 앞에서 막는다.
+                // 상한에 닿으면 잠근다 — 51번째 문항을 만들어 두고 낼 때 막는 것보다 앞에서 막는다.
                 disabled={atMaxQuestions}
                 title={atMaxQuestions ? `${modeOptions[mode].label} 과제는 ${maxQuestions}문항까지예요` : undefined}
               >
@@ -678,11 +680,11 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 size="sm"
                 onClick={() => setQuestions(evenlySplitPoints(questions))}
                 data-testid="question-even-split"
-                aria-label="배점 고르게 나누기"
+                aria-label="점수 자동 분배"
                 className="text-pullim-blue-600 hover:text-pullim-blue-700"
               >
                 <Split />
-                고르게 나누기
+                점수 자동 분배
               </Button>
               <span
                 className={cn('ml-auto font-mono text-2xs', countValid ? 'text-pullim-slate-500' : 'text-pullim-danger font-bold')}
@@ -734,7 +736,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
             </p>
           ) : students.length === 0 ? (
             /*
-              아직 아무도 안 들어온 방 — 발사를 막지 않는다. 반 전체(빈 배열)로 나가므로
+              아직 아무도 안 들어온 방 — 내기를 막지 않는다. 반 전체(빈 배열)로 나가므로
               나중에 참여 코드로 들어오는 학생이 그대로 이 과제를 받는다.
             */
             <BotNote icon={Users}>
@@ -824,7 +826,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
         {/* 시험 모드 추가 */}
         {mode === 'exam' && (
           <AlertCard tone="danger" icon={Shield} title="시험 모드 설정">
-            <p className="text-pullim-slate-500 mb-3 text-2xs">발사 후 봇이 자동 잠기고 시간이 측정돼요</p>
+            <p className="text-pullim-slate-500 mb-3 text-2xs">낸 뒤 봇이 자동 잠기고 시간이 측정돼요</p>
             <div className="space-y-3">
               <Field label="시간 제한 (분)" htmlFor="af-time">
                 <div className="flex items-center gap-3">
@@ -846,7 +848,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 </div>
               </Field>
 
-              <BotNote icon={Shield}>Scope L1 자동 — 발사 후엔 변경할 수 없어요.</BotNote>
+              <BotNote icon={Shield}>Scope L1 자동 — 낸 뒤엔 변경할 수 없어요.</BotNote>
             </div>
           </AlertCard>
         )}
@@ -894,7 +896,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
           className={cn(blockedReason || dispatchAssignment.isError ? 'ml-2' : 'ml-auto')}
         >
           <Send />
-          {dispatchAssignment.isPending ? '보내는 중…' : '발사 →'}
+          {dispatchAssignment.isPending ? '보내는 중…' : '과제 내기'}
         </Button>
       </div>
 

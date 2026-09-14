@@ -1,8 +1,8 @@
 /**
- * 출제 폼 — 배점 합계 100점 규칙이 발사를 막는지, 문항 편집이 과제에 실리는지.
+ * 출제 폼 — 배점 합계 100점 규칙이 내기를 막는지, 문항 편집이 과제에 실리는지.
  *
- * 폼은 이제 **DB 를 본다** — 발사 봇은 내 수업방(`useTeacherClassrooms`)이고, 대상 학생은
- * 그 방의 참여자(`useClassroomStudents`)이며, 발사는 `useDispatchAssignment` 로 나간다.
+ * 폼은 이제 **DB 를 본다** — 고르는 방은 내 수업방(`useTeacherClassrooms`)이고, 대상 학생은
+ * 그 방의 참여자(`useClassroomStudents`)이며, 내기는 `useDispatchAssignment` 로 나간다.
  * 여기서 확인하려는 것은 그 세 훅의 동작이 아니라 **폼의 규칙**이라, 훅은 mock 으로 세우고
  * 서버가 성공을 준 뒤의 자리(문항이 로컬 사본에 실리는지)를 본다.
  */
@@ -48,7 +48,7 @@ jest.mock('@/hooks/api/classroom', () => ({
   useClassroomStudents: () => queries.students,
 }));
 
-/** 발사 성공 토스트 — 대상 표기가 사실과 맞는지 여기서 읽는다. */
+/** 내기 성공 토스트 — 대상 표기가 사실과 맞는지 여기서 읽는다. */
 const toastSuccess = jest.fn();
 jest.mock('sonner', () => ({
   toast: { success: (...args: unknown[]) => toastSuccess(...args), error: jest.fn() },
@@ -72,7 +72,7 @@ beforeEach(() => {
   queries.students = { data: { students: mockStudents }, isPending: false, isError: false, error: null };
 });
 
-/** 발사 — 서버 응답을 기다린 뒤에야 로컬 사본이 쓰인다(낙관적 선반영을 하지 않는다). */
+/** 내기 — 서버 응답을 기다린 뒤에야 로컬 사본이 쓰인다(낙관적 선반영을 하지 않는다). */
 async function clickDispatch() {
   await act(async () => {
     fireEvent.click(screen.getByTestId('dispatch-btn'));
@@ -83,14 +83,14 @@ function fillTitle() {
   fireEvent.change(screen.getByTestId('title-input'), { target: { value: '배점 규칙 확인 과제' } });
 }
 
-it('기본 문항 배점 합은 100점이라 제목만 채우면 발사할 수 있다', () => {
+it('기본 문항 배점 합은 100점이라 제목만 채우면 낼 수 있다', () => {
   render(<AssignmentForm />);
   fillTitle();
   expect(screen.getByTestId('points-tally').textContent).toContain('100 / 100점');
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
 
-it('배점 합계가 100이 아니면 발사를 막고 이유를 보여 준다', () => {
+it('배점 합계가 100이 아니면 내기를 막고 이유를 보여 준다', () => {
   render(<AssignmentForm />);
   fillTitle();
   fireEvent.change(screen.getByTestId('question-points-0'), { target: { value: '10' } });
@@ -99,7 +99,7 @@ it('배점 합계가 100이 아니면 발사를 막고 이유를 보여 준다',
   expect(screen.getByTestId('dispatch-blocked').textContent).toContain('90/100점');
 });
 
-it('문항 더하기·배점 고르게 나누기로 다시 100점을 맞출 수 있다', () => {
+it('문항 더하기·점수 자동 분배로 다시 100점을 맞출 수 있다', () => {
   render(<AssignmentForm />);
   fireEvent.click(screen.getByTestId('question-add')); // 6문항 · 100점 → 배점 0 인 문항 추가
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
@@ -108,7 +108,7 @@ it('문항 더하기·배점 고르게 나누기로 다시 100점을 맞출 수 
   expect(screen.getByTestId('points-tally').textContent).toContain('100 / 100점');
 });
 
-it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대로 쓰인다', async () => {
+it('발문을 전부 채워 내면 그 문항이 학생 풀이에 그대로 쓰인다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   // 기본 5문항 중 1문항만 남기고 발문을 채운다
@@ -138,7 +138,7 @@ it('발문을 전부 채워 발사하면 그 문항이 학생 풀이에 그대�
 
 /*
   문항 **본문**은 아직 서버에 저장되는 자리가 없어서(M2 경계 — `solve/__tests__/page.test.tsx`
-  의 `[M2 한계]`), 직접 쓴 발문은 낸 브라우저에만 남는다. 발사를 막는 것으로는 학생 쪽이
+  의 `[M2 한계]`), 직접 쓴 발문은 낸 브라우저에만 남는다. 내기를 막는 것으로는 학생 쪽이
   달라지지 않으므로(같은 테스트가 못박는다) 남는 수단은 **말해 주는 것**이다.
 */
 it('직접 쓴 발문이 있으면 「이 브라우저에만 저장된다」고 알려 준다 — 고칠 수 없으면 말은 해야 한다', () => {
@@ -154,7 +154,7 @@ it('직접 쓴 발문이 있으면 「이 브라우저에만 저장된다」고 
   expect(screen.getByText(/자동 추출된 문항/)).toBeInTheDocument();
 });
 
-it('발문을 다 썼는데 자동 채점 문항 정답이 비면 발사를 막고 문항 번호를 알려 준다', () => {
+it('발문을 다 썼는데 자동 채점 문항 정답이 비면 내기를 막고 문항 번호를 알려 준다', () => {
   render(<AssignmentForm />);
   fillTitle();
   // 기본 5문항 중 단답 1문항만 남긴다 — 정답키를 비워 둔 상태
@@ -168,7 +168,7 @@ it('발문을 다 썼는데 자동 채점 문항 정답이 비면 발사를 막�
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
   expect(screen.getByTestId('dispatch-blocked').textContent).toContain('1번 문항 정답');
 
-  // 정답을 채우면 발사가 열린다
+  // 정답을 채우면 내기가 열린다
   fireEvent.change(screen.getByTestId('question-answer-0'), { target: { value: '그대로' } });
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
@@ -186,7 +186,7 @@ it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남�
 
 /**
  * 문항 수 상한 — 종전 `문항 수` 슬라이더가 걸던 `min 1 / max 연습 50 · 시험 60` 이
- * 문항 목록 편집기로 바뀌면서 사라져 51·61문항이 그대로 발사되던 결함에 대한 회귀.
+ * 문항 목록 편집기로 바뀌면서 사라져 51·61문항이 그대로 나가던 결함에 대한 회귀.
  */
 function addQuestions(times: number) {
   for (let i = 0; i < times; i++) fireEvent.click(screen.getByTestId('question-add'));
@@ -209,7 +209,7 @@ it('시험 과제는 60문항이 상한 — 모드마다 상한이 다르다', (
   expect(screen.getByTestId('question-add')).toBeDisabled();
 });
 
-it('시험에서 51문항을 만든 뒤 연습으로 되돌리면 상한 초과라 발사를 막는다', () => {
+it('시험에서 51문항을 만든 뒤 연습으로 되돌리면 상한 초과라 내기를 막는다', () => {
   render(<AssignmentForm />);
   fillTitle();
   fireEvent.click(screen.getByTestId('mode-exam'));
@@ -222,7 +222,7 @@ it('시험에서 51문항을 만든 뒤 연습으로 되돌리면 상한 초과�
   expect(screen.getByTestId('question-add')).toBeDisabled();
 });
 
-it('발문을 일부만 쓰면 발사를 막는다 — 쓴 발문이 조용히 버려지지 않게', () => {
+it('발문을 일부만 쓰면 내기를 막는다 — 쓴 발문이 조용히 버려지지 않게', () => {
   render(<AssignmentForm />);
   fillTitle();
   // 5문항 중 1번만 발문을 채운다 → toAssignmentQuestions 가 null 을 돌려 전부 버려지던 자리
@@ -231,14 +231,14 @@ it('발문을 일부만 쓰면 발사를 막는다 — 쓴 발문이 조용히 �
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
   expect(screen.getByTestId('dispatch-blocked').textContent).toContain('발문은 전부 쓰거나 전부 비워야 해요');
 
-  // 다시 비우면(=전부 비움) 단원 자동 추출 경로라 발사가 열린다
+  // 다시 비우면(=전부 비움) 단원 자동 추출 경로라 내기가 열린다
   fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '' } });
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
 
 /* ── 명단·데모 분기 ─────────────────────────────────────────────────────── */
 
-it('명단을 못 읽으면 발사를 막는다 — 조회 실패가 「전원 발사」로 바뀌지 않게', () => {
+it('명단을 못 읽으면 내기를 막는다 — 조회 실패가 「전원에게 내기」로 바뀌지 않게', () => {
   // 빈 배열은 「학생 0명인 반」과 모양이 같고, 그때 나가는 targetStudentIds=[] 는
   // 서버에서 **반 전체**로 읽힌다. 즉 막지 않으면 명단을 못 본 채 전원에게 나간다.
   queries.students = {
@@ -254,7 +254,7 @@ it('명단을 못 읽으면 발사를 막는다 — 조회 실패가 「전원 �
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
 });
 
-it('명단이 아직 안 왔을 때도 발사를 막는다 — 빈 명단과 구별되지 않는다', () => {
+it('명단이 아직 안 왔을 때도 내기를 막는다 — 빈 명단과 구별되지 않는다', () => {
   queries.students = { data: undefined, isPending: true, isError: false, error: null };
   render(<AssignmentForm />);
   fillTitle();
@@ -324,13 +324,13 @@ it('비로그인 데모(401)에서는 대상 명단도 오류로 그리지 않�
 
   expect(screen.queryByTestId('students-error')).not.toBeInTheDocument();
   expect(screen.queryByTestId('students-loading')).not.toBeInTheDocument();
-  // 명단을 못 읽은 게 아니라 「아직 아무도 안 들어온 방」이므로 발사도 막지 않는다.
+  // 명단을 못 읽은 게 아니라 「아직 아무도 안 들어온 방」이므로 내는 것도 막지 않는다.
   fillTitle();
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
 
 /*
-  빈 배열은 「0명」이 아니라 「반 전체」다(spec 14 §5.1). 인원수로 적으면 빈 방 발사가
+  빈 배열은 「0명」이 아니라 「반 전체」다(spec 14 §5.1). 인원수로 적으면 빈 방에 내기가
   「0명에게 보냈어요」가 되는데, 실제로는 뒤에 참여 코드로 들어온 학생이 그대로 받는다 —
   낸 사람에게 사실과 정반대로 읽힌다.
 */
@@ -345,7 +345,7 @@ it('빈 방에 내면 「0명」이 아니라 「반 전체」라고 말한다',
   expect(message).not.toContain('0명');
 });
 
-it('명단을 아는 전원 발사는 인원수로 말한다 — 「반 전체」보다 많이 말한다', async () => {
+it('명단을 아는 전원에게 내기는 인원수로 말한다 — 「반 전체」보다 많이 말한다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   await clickDispatch();
@@ -353,7 +353,7 @@ it('명단을 아는 전원 발사는 인원수로 말한다 — 「반 전체�
   expect(toastSuccess.mock.calls[0][0]).toContain(`${mockStudents.length}명 전체`);
 });
 
-it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
+it('내기 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
   render(<AssignmentForm />);
   fillTitle();
   await clickDispatch();
@@ -371,7 +371,7 @@ it('발사 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽
   브라우저뿐이고, 학생·학부모·리포트는 서버 행을 읽는다. 풀이 화면마저 접근 판정을 서버로
   옮겼기 때문에 「로컬에 있으니 괜찮다」가 더는 성립하지 않는다.
 */
-it('발사 payload 에 성취기준이 실린다 — 한 번 빈 배열로 저장되면 되살릴 수 없다', async () => {
+it('내기 payload 에 성취기준이 실린다 — 한 번 빈 배열로 저장되면 되살릴 수 없다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   await clickDispatch();
@@ -385,7 +385,7 @@ it('발사 payload 에 성취기준이 실린다 — 한 번 빈 배열로 저�
   );
 });
 
-it('발사 payload 에 봇 한 마디가 실린다 — 학생 개요가 읽는 값이다', async () => {
+it('내기 payload 에 봇 한 마디가 실린다 — 학생 개요가 읽는 값이다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   fireEvent.change(screen.getByLabelText(/봇 한 마디/), {
@@ -436,7 +436,7 @@ it('시험이 아니면 제한 시간을 보내지 않는다 — 서버도 그�
   실으면 필수로 좁힌다」고 적어 둔 자리를 여기서 채운다. 라벨도 계속 보낸다(서버 행의 표시
   칸이라 지금은 둘 다 필요하다).
 */
-it('발사 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만으로는 서버가 미래인지 못 본다', async () => {
+it('내기 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만으로는 서버가 미래인지 못 본다', async () => {
   render(<AssignmentForm />);
   fillTitle();
   await clickDispatch();
