@@ -8,7 +8,7 @@
  */
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { AssignmentForm } from '../assignment-form';
+import { AssignmentForm, toLocalDatetimeInput } from '../assignment-form';
 import { useAssignmentStore, getQuestionsForAssignment } from '@/lib/store/assignments';
 import { ApiClientError } from '@/lib/api/client-fetch';
 
@@ -458,8 +458,28 @@ it('발사 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만�
   마감 기본값 — `toISOString()` 은 **UTC 로 바꾼 뒤** 문자열을 주는데 `datetime-local` 은 받은
   문자열을 **로컬로 읽는다.** KST 에서 로컬 22:00 을 그렇게 넣으면 화면에 `13:00` 이 떴다.
   교사가 마감을 안 건드리면 그 값이 그대로 나가므로, 화면을 여는 순간이 이미 틀린 자리였다.
+
+  **이 회귀는 호스트 시간대가 UTC 면 드러나지 않는다** — 거기서는 UTC 판과 로컬 판의 출력이
+  같기 때문이다(실측: `TZ=UTC` 에서 `toISOString().slice(0,16)` 도 `…T22:00` 을 낸다). 그래서
+  아래 첫 테스트는 **호스트 TZ 를 타지 않는다** — 로컬 게터와 `toISOString()` 이 서로 다른 값을
+  내놓는 Date 를 만들어 넣고, 함수가 어느 쪽을 읽는지로 구현을 가른다.
 */
-it('마감 기본값이 내일 22:00 이다 — UTC 로 새어 9시간이 사라지지 않는다', () => {
+it('toLocalDatetimeInput 은 로컬 게터만 읽는다 — UTC 로 새면 여기서 갈린다', () => {
+  // 로컬 22:00 = UTC 13:00 인 Date 를 흉내 낸다. 어느 시간대에서 돌려도 값이 고정이다.
+  const localIs22ButUtcIs13 = {
+    getFullYear: () => 2026,
+    getMonth: () => 8,          // 0-based = 9월
+    getDate: () => 15,
+    getHours: () => 22,
+    getMinutes: () => 0,
+    toISOString: () => '2026-09-15T13:00:00.000Z',
+  } as unknown as Date;
+
+  // UTC 를 타는 종전 구현이면 '2026-09-15T13:00' 이 나온다.
+  expect(toLocalDatetimeInput(localIs22ButUtcIs13)).toBe('2026-09-15T22:00');
+});
+
+it('마감 기본값이 내일 22:00 으로 뜬다 — 교사가 안 건드려도 맞는 값이다', () => {
   render(<AssignmentForm />);
   const due = (screen.getByTestId('due-input') as HTMLInputElement).value;
 
@@ -469,7 +489,6 @@ it('마감 기본값이 내일 22:00 이다 — UTC 로 새어 9시간이 사라
   expect(due).toBe(
     `${expected.getFullYear()}-${pad(expected.getMonth() + 1)}-${pad(expected.getDate())}T22:00`,
   );
-
   // 그 문자열을 로컬로 읽었을 때도 22시여야 한다 — 표기만 맞고 뜻이 틀리면 소용없다.
   expect(new Date(due).getHours()).toBe(22);
 });

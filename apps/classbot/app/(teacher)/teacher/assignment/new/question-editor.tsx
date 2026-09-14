@@ -86,17 +86,18 @@ function nextQuestionKey(): string {
 }
 
 /*
-  기본 채점 기준 — **글자가 비었으면 배점도 0 이다.**
+  기본 채점 기준 — **배점은 문항 배점에서 파생한다**(spec 14 § 3.1 [M2] · § 3.3.1).
+  교사가 배점을 따로 입력하지 않아도 바로 쓸 수 있어야 하므로 이 파생은 유지한다.
 
-  종전에는 배점만 절반씩(`half` · `points - half`) 채워 두었다. 그러면 합이 문항 배점과 같아
-  「기준 배점 20 / 문항 배점 20점」이 **정상 색으로** 뜨는데, 글자는 한 자도 없다. 그대로 내면
-  `toAssignmentQuestions` 가 빈 기준을 전부 걸러(아래 필터) 루브릭이 **아예 안 실린다** —
-  화면은 다 갖춘 것처럼 보이고 나간 과제에는 채점 기준이 없었다.
+  그러면 글자가 비었는데도 합이 맞아 「기준 배점 20 / 문항 배점 20점」이 정상 색으로 뜨는데,
+  **그 자리는 `missingRubricNumbers` 가 막는다** — 빈 기준으로는 낼 수 없다. 표시가 아니라
+  검증으로 푸는 이유는 파생 기본값을 지키기 위해서다.
 */
-function defaultRubric(_points: number): DraftQuestion['rubric'] {
+function defaultRubric(points: number): DraftQuestion['rubric'] {
+  const half = Math.floor(points / 2);
   return [
-    { criterion: '', weight: 0 },
-    { criterion: '', weight: 0 },
+    { criterion: '', weight: half },
+    { criterion: '', weight: points - half },
   ];
 }
 

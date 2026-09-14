@@ -97,8 +97,13 @@ function defaultDueLabel(): string {
   return toLocalDatetimeInput(tomorrow);
 }
 
-/** `Date` → `datetime-local` 이 로컬로 읽는 `YYYY-MM-DDTHH:mm`. UTC 로 새지 않는다. */
-function toLocalDatetimeInput(d: Date): string {
+/**
+ * `Date` → `datetime-local` 이 로컬로 읽는 `YYYY-MM-DDTHH:mm`. UTC 로 새지 않는다.
+ *
+ * **로컬 게터만 쓴다** — `toISOString()` 을 타면 안 된다. 테스트가 그것을 가르려고
+ * 이 함수를 직접 부른다(호스트 TZ 가 UTC 면 두 구현의 출력이 같아져 구별이 안 된다).
+ */
+export function toLocalDatetimeInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
     + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;

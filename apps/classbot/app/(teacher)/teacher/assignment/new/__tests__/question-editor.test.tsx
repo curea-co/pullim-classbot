@@ -112,10 +112,14 @@ describe('QuestionListEditor', () => {
 });
 
 describe('서술형 채점 기준 — 빈 채로 나가지 못한다', () => {
-  it('기본 기준은 배점 0 이다 — 글자가 비었는데 합계만 맞아 초록으로 보이면 안 된다', () => {
+  /*
+    기본 배점은 **문항 배점에서 파생한다**(spec 14 § 3.1 [M2] · § 3.3.1) — 교사가 배점을 따로
+    넣지 않아도 바로 쓸 수 있어야 한다. 빈 기준으로 나가는 것은 표시가 아니라 **검증**이 막는다.
+  */
+  it('기본 기준 배점은 문항 배점에서 파생한다 — 추가 입력 없이 바로 쓸 수 있다', () => {
     const q = makeQuestion('essay', 20);
     expect(q.rubric.every((c) => c.criterion === '')).toBe(true);
-    expect(q.rubric.reduce((n, c) => n + c.weight, 0)).toBe(0);
+    expect(q.rubric.reduce((n, c) => n + c.weight, 0)).toBe(20);
   });
 
   it('기준을 한 글자도 안 쓰면 문항 번호를 돌려준다 — 정답 검사는 서술형을 보지 않는다', () => {
