@@ -109,24 +109,37 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   });
 
   /**
-   * ⛔ 보류 — **시드 과제가 없어졌다.**
+   * 학생이 **만들지 않은** 과제도 같은 스토어에 쌓이는가 — 시드 과제(`as_today`) 경로.
    *
-   * 이 검사가 지키던 것: 교사가 방금 발사한 과제가 아니라 **시드로 미리 놓여 있던 과제**
-   * (`as_today`)를 풀어도 같은 스토어에 진행률이 쌓인다. 그 시드는 2026-06-24 데모 시드
-   * 정리로 사라졌다 — 실서비스 실측: `/classbot/assignment/as_today` 는
-   * 「과제를 찾을 수 없어요」를 그린다(`assignment-start-cta` 가 없다).
+   * ⚠ 이 시드는 지금 **없다.** 2026-06-24 출시 빈 상태 정리(`0540828`)가
+   * `studentAssignments` 를 빈 배열로 만들었고(「출시: 데모 과제 시드 제거(신규 빈 상태)」),
+   * 그래서 `/classbot/assignment/as_today` 는 「과제를 찾을 수 없어요」를 그린다
+   * (실서비스 실측 2026-09-14 — `assignment-start-cta` 가 없다). 되살리면 출시 빈 상태 IA 가
+   * 깨진다 — `student-live-and-flows.spec.ts` 의 「빈 홈 … 과제 빈 상태」가 그것을 지킨다.
    *
-   * 그런데 본문 전체가 `if (await startCta.isVisible())` 로 감싸여 있었다. 그래서 시드가
-   * 사라진 뒤로 이 검사는 **아무것도 하지 않고 초록**이었다 — prod-verify 의 「통과」 한 건이
-   * 그것이었다. 없어진 것을 지키는 척하는 검사는 없는 것보다 나쁘므로 보류로 못 박는다.
+   * 그래도 **끄지 않는다.** 종전에는 본문 전체가 `if (await startCta.isVisible())` 로
+   * 감싸여 있어서, 시드가 사라진 뒤로 이 검사는 **0 assertion 으로 초록**이었다 — 없는 것을
+   * 지키는 척하는 검사다. 대신 시드가 없는 것을 **런타임에 못 박고 건너뛴다**
+   * (`sso-login-roundtrip.spec.ts` 와 같은 꼴 — 전제가 없으면 이유를 적고 skip).
    *
-   * 되살릴 조건: 학생이 만들지 않은 과제(시드 또는 배포에 DB 가 붙어 서버가 내려주는 과제)가
-   * 다시 생기는 날. 그때 `as_today` 자리에 그 id 를 넣고 `test.skip` 을 걷는다.
-   * 발사분 경로의 스토어 누적은 위 두 검사가 이미 못 박는다.
+   * 그래서 이 검사는 **스스로 되살아난다**: 학생이 만들지 않은 과제가 다시 생기는 날
+   * (시드가 돌아오거나, 배포에 DB 가 붙어 서버가 과제를 내려주는 날) 아래 가드가 풀리고
+   * 종단 검증이 그대로 돈다. 아무도 `skip` 을 걷는 것을 기억하지 않아도 된다.
+   *
+   * 발사분 경로의 같은 누적은 위 두 검사가 이미 못 박는다.
    */
-  test.skip('시드 과제 풀이 시에도 store 진행률 누적', async ({ page }) => {
-    await page.goto(BASE + '/classbot/assignment/as_today');
-    await page.getByTestId('assignment-start-cta').click();
+  test('시드 과제 풀이 시에도 store 진행률 누적', async ({ page }) => {
+    await page.goto(BASE + '/classbot/assignment/as_today', { waitUntil: 'networkidle' });
+
+    const startCta = page.getByTestId('assignment-start-cta');
+    const seeded = await startCta.isVisible().catch(() => false);
+    test.skip(
+      !seeded,
+      '시드 과제 as_today 가 없다 — 2026-06-24 출시 빈 상태 정리로 studentAssignments=[]. '
+      + '시드나 서버 과제가 생기면 이 검사는 스스로 다시 돈다.',
+    );
+
+    await startCta.click();
     await page.waitForURL(/\/solve/);
     await solveAllAndSubmit(page);
     await page.waitForURL(/\/result/, { timeout: 10000 });
