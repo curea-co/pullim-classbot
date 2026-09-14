@@ -3,7 +3,8 @@
 > **우선순위 #2** · 풀림 클래스봇 추출본 신규 명세
 > 권위 문서: `input/docs-archive/07_풀림_클래스봇_핸드오프.md` § 4.1 (빌더 산출물 소비), § 4.4 (라이브), § 4.5 (퀴즈), Flow B/C
 > 신규 라우트: `/classbot/assignment`, `/classbot/assignment/[id]`, `/classbot/assignment/[id]/solve`, `/classbot/assignment/[id]/result`
-> 의존 mock: `src/lib/mock/classbot.ts` — `Assignment`, `studentAssignments` (3건 기존), `studentAssignmentStats`
+> 의존 mock: `apps/classbot/lib/mock/classbot.ts` — `Assignment`, `studentAssignments`, `studentAssignmentStats`
+> `[지금]` `studentAssignments` 는 **빈 배열**이다 — 2026-06-24 출시 빈 상태 정리(`0540828`)로 데모 과제 3건이 걷혔다. § 7.1 참조.
 
 ---
 
@@ -113,7 +114,7 @@
 | 정렬 | D-day 임박 / 받은 시각 / 정답률 |
 | 과제 카드 | 모드 아이콘 · 제목 · 단원 · 진행 N/M · 정답률(있을 시) · 봇 발송자 |
 | 봇 처방 강조 | `source === 'bot-prescribed'` 카드는 우상단 ✨ 뱃지 + `reasonHint` 한 줄 |
-| 빈 상태 | "선생님이 보낸 과제가 없어요. 라이브 수업이 끝나면 자동으로 처방이 와요." |
+| 빈 상태 | `[지금]` **"아직 받은 과제가 없어요" / "선생님이 새 과제를 내면 여기에 표시돼요."** — 신규 사용자가 보는 기본 화면이다(데모 시드가 없다). 옛 문구("선생님이 보낸 과제가 없어요. 라이브 수업이 끝나면 자동으로 처방이 와요.")는 라이브 처방을 약속하는데 그 자동 처방은 아직 없어 `[예정]` 이다 |
 
 #### 3.3.2 과제 개요 (`/classbot/assignment/[id]`)
 | 구성 | 설명 |
@@ -160,7 +161,7 @@
 [홈에서 — 가장 빈번]
 1. 홈 히어로 「이어서 하기」 또는 「오늘 할 일」 줄에 "도함수 활용 마무리" (D-1)
    (learning-hero.tsx · todo-panel.tsx)
-2. 줄을 누름 → solveHref → /classbot/assignment/as_today/solve?step=1  ← 개요 건너뜀
+2. 줄을 누름 → solveHref → /classbot/assignment/<과제 id>/solve?step=1  ← 개요 건너뜀
 3. solve 진입 — 마지막 위치 복원
 4. 풀이 입력 도중 막힘 → 봇 패널 "1단계 힌트" 클릭
 5. 단계 1~3 진행 → 답안 작성 → [다음]
@@ -170,7 +171,7 @@
 
 [받은 과제 목록에서 — 개요를 지난다]
 1. /classbot/assignment 목록에서 과제 카드
-2. → /classbot/assignment/as_today (개요)
+2. → /classbot/assignment/<과제 id> (개요)
 3. 개요 CTA [이어서 풀기 (n/N)] → .../solve?step=N
 ```
 
@@ -293,8 +294,26 @@ Answer {
 
 ## 7. Seed Data
 
-### 7.1 기존 mock 그대로 활용
-3건 (`as_today`, `as_prescription`, `as_exam_prep`) — 3모드 모두 커버.
+### 7.1 `[지금]` 과제 시드는 없다 — 문항 풀만 남았다
+
+**2026-05-11 초안은 「기존 mock 3건(`as_today`·`as_prescription`·`as_exam_prep`) 그대로 활용」이라고 적었다. 더는 사실이 아니다.**
+
+2026-06-24 출시 빈 상태 정리(`0540828` — 「나머지 surface 빈 상태 + 셸 데모 잔여 정리」)가
+`studentAssignments` 를 **빈 배열로** 만들었다. 신규 사용자가 처음 열었을 때 남의 과제가
+놓여 있으면 안 된다는 판단이고, 그 결과 「아직 받은 과제가 없어요」가 이 화면의 **기본**이다
+(§ 3.3.1). 같은 정리가 라이브 시드(`live.ts`)와 리플레이 시드도 함께 걷었다.
+
+| 무엇 | `[지금]` |
+|---|---|
+| `Assignment` 레코드 3건 | **없다.** `studentAssignments: Assignment[] = []` |
+| 문항 풀 `q_today_*` · `q_pres_*` · `q_exam_*` | **남아 있다** (`lib/mock/classbot.ts`) |
+| 그 문항 풀의 쓰임 | 교사가 **발사한** 과제에 문항이 없을 때의 fallback — 모드별로 고른다(`lib/store/assignments.ts` 의 `practice: 'as_today'` 표) |
+
+그래서 **`/classbot/assignment/as_today` 는 서는 주소가 아니다** — 「과제를 찾을 수 없어요」를
+그린다(실서비스 실측 2026-09-14). 과제를 얻는 길은 **교사가 내는 것 하나**다.
+
+⚠ 이 절을 「시드를 되살려라」로 읽지 마라. 되살리면 출시 빈 상태 IA 가 깨지고, 그것을 지키는
+검사들(`student-live-and-flows.spec.ts` 의 「빈 홈 — … 과제 빈 상태」 등)이 함께 빨개진다.
 
 ### 7.2 추가 필요 시드
 - 각 Assignment에 `questions: Question[]` 배열 (현재 비어있음) — 모드별 3-5문항씩 시드
@@ -358,7 +377,7 @@ Answer {
 
 | Phase | 범위 | 검증 기준 |
 |---|---|---|
-| **P0** (이번) | M1~M5 + Flow A1 / A2 / A3 + 임시저장 + 새 라우트 4개 | 3개 시드 과제 모두 풀고 제출 → 결과 페이지 도달 |
+| **P0** (이번) | M1~M5 + Flow A1 / A2 / A3 + 임시저장 + 새 라우트 4개 | `[지금]` **교사가 낸 과제**를 받아 풀고 제출 → 결과 페이지 도달. (초안의 「3개 시드 과제 모두」는 § 7.1 대로 시드가 걷혀 성립하지 않는다 — 종단 회귀는 `assignment-dispatch.spec.ts` · `feedback-loop.spec.ts` 가 **발사분**으로 지킨다) |
 | **P1** | S1~S4 + 결과 페이지 폴링 자동 갱신 + 봇 힌트 5단계 시드 | 서술형 검수 후 결과 갱신, 시험 모드 외부 탭 감지 |
 | **P2** | OCR 이미지 답안 · 음성 답안 (`/classbot/chat` 통합) | 손글씨 풀이 1건 종단 |
 | **P3** | 협동 풀이 / 스터디룸 연계 (v3+) | — |
@@ -366,5 +385,7 @@ Answer {
 ---
 
 ## 12. 변경 이력
+
+- **2026-09-14**: § 7.1 · § 11 P0 검증 기준 · § 3.3.1 빈 상태 카피 · 머리 의존 mock 줄을 `[지금]` 으로 맞춤. 과제 시드 3건은 2026-06-24 출시 빈 상태 정리(`0540828`)로 이미 걷혀 있었는데 명세만 「3건 그대로 활용」에 남아 있었다 — 그 낡은 줄이 「시드 과제 종단 회귀를 살려 둬라」는 리뷰 지적의 근거로 인용됐다(#302). 시드를 되살리면 출시 빈 상태 IA 가 깨지므로, 명세를 코드에 맞춘다.
 
 - **2026-05-11**: 초안 생성 — 우선순위 #2. 추출본 정책상 `/q/infinity/solve` 의존 제거, 클래스봇 내부 자급 라우트로 마이그레이션 결정.
