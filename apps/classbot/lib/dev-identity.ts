@@ -138,11 +138,48 @@ function deploymentEnv(): string | undefined {
  * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
  * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
  */
+/**
+ * 배포가 `production` 인가 — 두 판정이 공유하는 방어선.
+ * @returns production 배포면 true
+ */
+function isProductionDeploy(): boolean {
+  return deploymentEnv() === 'production';
+}
+
+/**
+ * **역할 전환 버튼을 펴도 되는 호스트인가** — 신원과 **다른 판정이다.**
+ *
+ * 이 버튼이 원래 하던 일은 **화면 전환**이다(`components/shell/dev-role-switch.tsx` 머리주석
+ * — 「학생 화면과 교사 화면을 클릭 한 번으로 오가려고 둔 임시 장치」). DB 가 필요한 것은
+ * 나중에 얹힌 **쿠키**(명의) 쪽뿐이다. 그래서 둘을 가른다:
+ *
+ * | | 여는 호스트 | 왜 |
+ * |---|---|---|
+ * | 화면 전환(이 함수) | 로컬 + `dev-classbot.pullim.ai` + preview `*.vercel.app` | 서버를 부르지 않는다 — 데모에서 화면을 오가는 것뿐 |
+ * | 명의(`isDevIdentityHost`) | **로컬만** | 서버가 `users` 를 조회하고 배포에는 DB 가 없다 |
+ *
+ * 종전에는 버튼 노출이 `isDevIdentityHost` 를 그대로 썼다. 그래서 신원을 로컬로 좁히자
+ * **배포에서 버튼까지 사라졌다** — 화면 전환은 DB 와 무관한데 함께 닫힌 것이다.
+ *
+ * `*.vercel.app` 은 production 배포도 받는 접미사라 **preview 라고 확인됐을 때만** 연다
+ * (모르면 닫는다 — positive 확인). production 배포면 이름이 무엇이든 닫힌다.
+ * @param host - `Host` 헤더 또는 `location.host`
+ * @returns 버튼을 펴도 되는 호스트면 true
+ */
+export function isRoleSwitchHost(host: string | null | undefined): boolean {
+  if (isProductionDeploy()) return false;
+  if (!host) return false;
+  const hostname = hostnameOf(host);
+  if (!hostname) return false;
+  if (hostname === 'dev-classbot.pullim.ai') return true;
+  if (hostname.endsWith('.vercel.app')) return deploymentEnv() === 'preview';
+  return DEV_IDENTITY_HOSTNAMES.includes(hostname);
+}
+
 export function isDevIdentityHost(host: string | null | undefined): boolean {
-  const env = deploymentEnv();
   // 이름에 기대지 않는 방어선 — production 배포면 어떤 주소로 닿든, `Host` 를 무엇으로
   // 위조하든 무력이다.
-  if (env === 'production') return false;
+  if (isProductionDeploy()) return false;
   if (!host) return false;
   const hostname = hostnameOf(host);
   if (!hostname) return false;

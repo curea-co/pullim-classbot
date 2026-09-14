@@ -70,6 +70,28 @@ function renderAtHost(host: string) {
   return result;
 }
 
+/**
+ * host 를 **상호작용이 끝날 때까지** 유지한 채 실행한다.
+ *
+ * `renderAtHost` 는 렌더 직후 원복하므로 **클릭 시점에는 jsdom 기본 host(`localhost`)** 로
+ * 돌아가 있다. 쿠키 여부처럼 **클릭 핸들러가 host 를 읽는** 것을 재려면 그 원복이 곧
+ * 하네스를 재는 함정이 된다 — 실제로 이 파일에 그 함정으로 통과하는 테스트를 한 번 썼다.
+ * @param host - 유지할 host
+ * @param run - 그 host 에서 돌릴 것
+ */
+function atHost(host: string, run: () => void) {
+  const { location } = window;
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...location, hostname: host.split(':')[0], host },
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(window, 'location', { configurable: true, value: location });
+  }
+}
+
 /** 배포 환경 변수를 세우고 되돌린다. */
 function withEnv(value: string | undefined, run: () => void) {
   const saved = process.env.NEXT_PUBLIC_VERCEL_ENV;
@@ -91,22 +113,53 @@ it.each([
   // 허용 목록 밖 — 종전에는 여기서 버튼이 떴다
   ['evil.example.com', false],
   ['pullim-classbot-abc123.example.net', false],
+  // `*.vercel.app` 은 preview 라고 확인되기 전까지 닫혀 있다(production 도 받는 접미사라서)
   ['pullim-classbot-abc123-curea.vercel.app', false],
-  // 배포 호스트는 뜨지 않는다 — 배포에 DB 가 없어 누르면 500 만 난다(`lib/dev-identity.ts` 머리주석)
-  ['dev-classbot.pullim.ai', false],
-  // 로컬만 뜬다 — 이 도구가 사는 곳이다
+  // 로컬·dev preview 는 뜬다 — **화면 전환은 서버를 부르지 않는다**(`isRoleSwitchHost`)
   ['localhost:3032', true],
+  ['dev-classbot.pullim.ai', true],
 ])('%s → 렌더 %s', (host, shown) => {
   const { container } = renderAtHost(host);
   expect(container.innerHTML === '').toBe(!shown);
 });
 
-// 종전에는 preview 라고 확인되면 PR 미리보기에서 버튼이 떴다. 지금은 아니다 —
-// 버튼이 보이는 것은 「눌러도 되는 길」이라는 약속인데, 배포에는 그 길 끝에 DB 가 없다.
-it.each(['preview', 'production'])('%s 배포면 배포 도메인에서 숨는다', (env) => {
-  withEnv(env, () => {
-    expect(renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app').container).toBeEmptyDOMElement();
+it('preview 배포의 PR 미리보기에서는 뜬다 — 화면 전환은 DB 와 무관하다', () => {
+  withEnv('preview', () => {
+    expect(renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app').container)
+      .not.toBeEmptyDOMElement();
+  });
+});
+
+it('production 배포면 배포 도메인에서 숨는다', () => {
+  withEnv('production', () => {
+    expect(renderAtHost('pullim-classbot-abc123-curea.vercel.app').container).toBeEmptyDOMElement();
     expect(renderAtHost('dev-classbot.pullim.ai').container).toBeEmptyDOMElement();
+  });
+});
+
+/*
+  **쿠키는 로컬에서만 쓴다** — 이게 이 분리의 핵심이다. 배포에서 버튼을 눌러 명의를 세우면
+  라우트가 `users` 를 조회하고 배포에는 DB 가 없어 500 이 난다. 배포에서는 화면만 바꾼다.
+*/
+it('배포 호스트에서는 눌러도 신원 쿠키를 쓰지 않는다 — 화면만 바꾼다', () => {
+  withEnv('preview', () => {
+    atHost('dev-classbot.pullim.ai', () => {
+      const { container } = render(<DevRoleSwitch role="student" />);
+      const link = container.querySelector('a[href="/parent"]');
+      expect(link).not.toBeNull();
+      fireEvent.click(link!);
+      expect(document.cookie).not.toContain(DEV_IDENTITY_COOKIE);
+    });
+  });
+});
+
+// 짝이 되는 확인 — 로컬에서는 **쓴다.** 위 테스트가 「아무 데서도 안 쓴다」로 통과하면
+// 이 장치가 죽은 것을 못 잡는다.
+it('로컬에서는 눌러 신원 쿠키를 쓴다', () => {
+  atHost('localhost:3032', () => {
+    const { container } = render(<DevRoleSwitch role="student" />);
+    fireEvent.click(container.querySelector('a[href="/parent"]')!);
+    expect(document.cookie).toContain(`${DEV_IDENTITY_COOKIE}=parent_001`);
   });
 });
 
