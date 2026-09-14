@@ -91,27 +91,22 @@ it.each([
   // 허용 목록 밖 — 종전에는 여기서 버튼이 떴다
   ['evil.example.com', false],
   ['pullim-classbot-abc123.example.net', false],
-  // `*.vercel.app` 은 preview 라고 확인되기 전까지 닫혀 있다(production 도 받는 접미사라서)
   ['pullim-classbot-abc123-curea.vercel.app', false],
-  // 로컬·dev preview 는 계속 뜬다
+  // 배포 호스트는 뜨지 않는다 — 배포에 DB 가 없어 누르면 500 만 난다(`lib/dev-identity.ts` 머리주석)
+  ['dev-classbot.pullim.ai', false],
+  // 로컬만 뜬다 — 이 도구가 사는 곳이다
   ['localhost:3032', true],
-  ['dev-classbot.pullim.ai', true],
 ])('%s → 렌더 %s', (host, shown) => {
   const { container } = renderAtHost(host);
   expect(container.innerHTML === '').toBe(!shown);
 });
 
-it('preview 배포의 PR 미리보기에서는 뜬다', () => {
-  withEnv('preview', () => {
-    const { container } = renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app');
-    expect(container).not.toBeEmptyDOMElement();
-  });
-});
-
-it('production 배포면 preview 도메인에서도 숨는다', () => {
-  withEnv('production', () => {
-    const { container } = renderAtHost('pullim-classbot-abc123-curea.vercel.app');
-    expect(container).toBeEmptyDOMElement();
+// 종전에는 preview 라고 확인되면 PR 미리보기에서 버튼이 떴다. 지금은 아니다 —
+// 버튼이 보이는 것은 「눌러도 되는 길」이라는 약속인데, 배포에는 그 길 끝에 DB 가 없다.
+it.each(['preview', 'production'])('%s 배포면 배포 도메인에서 숨는다', (env) => {
+  withEnv(env, () => {
+    expect(renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app').container).toBeEmptyDOMElement();
+    expect(renderAtHost('dev-classbot.pullim.ai').container).toBeEmptyDOMElement();
   });
 });
 
