@@ -234,7 +234,7 @@ Make **classbot one service with two student modes** — **교사 주도형** (c
 > 폴백 자리**로 좁혀졌다. 현재 배정은 머리의 2026-09-04 박스가 권위다.
 
 
-New mock + stores (FE-only this track):
+~~New mock + stores (FE-only this track):~~ **← 2026-06-23 시점의 설계 기록. 현재 구조는 위 경고 박스.**
 - `lib/mock/classbot-official.ts` — `officialBots` + their curricula (단원).
 - `lib/store/student-mode.ts` — `StudentMode` (persist).
 - `lib/store/self-learning.ts` — `SelfEnrollment[]`, `LearningGoal`/`UnitProgress`, streak, "오늘의 한 가지" (persist). Standalone-capable (no teacher dependency); follows the demo-fallback philosophy already in the repo.
@@ -268,9 +268,10 @@ New mock + stores (FE-only this track):
 > ⚠ **[2026-09-09 개정] 「mode 는 student 하위 맥락」 전제 아래 쓰인 문장들만 갈렸다 — 보존 원칙과 prod-verify e2e 목록은 유효하다.** 위 개정 박스 §⑤ 대체표를 먼저 읽는다. 두 서술이 갈리면 박스가 이긴다.
 >
 > ⚠ **[`2026-09-14` 정정] 이 절에서 두 줄이 더 갈렸다 — 아래 취소선 둘을 보라.**
-> **`Role`**(셋이 됐다 · #281)과 **「FE-only, mock-first」**(BE 트랙이 도착했다 · #270·#273)다.
-> 마지막 줄의 「Each FE-only + small」도 그 갈림에 딸린다 — **층으로 쪼갠다**는 뜻은 그대로
-> 살아 있고(서버 / 훅·스토어 / 화면), **「FE 만 낸다」는 뜻은 끝났다.** 살아 있는 것은
+> **`Role`**(셋이 됐다 · #281)과 **「FE-only, mock-first」**(BE 트랙이 도착했다 · #270·#273),
+> 그리고 마지막 줄의 **「Each FE-only + small」**(→ **「Each one layer + small」**)이다.
+> **층으로 쪼갠다**는 뜻은 그대로 살아 있고(신원 / 서버 / 훅·스토어 / 화면),
+> **「FE 만 낸다」는 뜻은 끝났다.** 살아 있는 것은
 > **보존 원칙 · prod-verify e2e 목록 · 「FE/BE 를 한 PR 에 섞지 않는다」** 셋이다.
 
 
@@ -294,7 +295,13 @@ New mock + stores (FE-only this track):
   > **살아 있는 것은 괄호 안의 리포 규칙이다** — FE/BE 를 한 PR 에 담지 않는다. 실제로
   > 그렇게 층으로 갈라 인도했다(서버 #270 / 훅·스토어 #273 / 화면 #283). 「BE 는 별도 트랙」을
   > **「아직 BE 가 없다」로 읽지 마라** — 그 트랙은 이미 도착했다.
-- **Phased stacked PRs** off `dev` → PR to `dev` (team flow `dev → main`). Each FE-only + small.
+- **Phased stacked PRs** off `dev` → PR to `dev` (team flow `dev → main`). ~~Each FE-only + small.~~ → **Each one layer + small.**
+  > **`[2026-09-14 정정]` 「FE-only」 가 아니라 「한 계층」이다.** 이 줄이 살아 있는 규범
+  > 문장이라, 「FE 만 낸다」로 남겨 두면 **서버 PR 자체를 금지하는 규칙**으로 다시 읽힌다 —
+  > 실제로 #270·#288 이 그 층이었다. 살아 있는 뜻은 **리포 최상위 MUST 그대로**다:
+  > **한 PR = 한 계층**이고 **FE 와 BE 를 한 PR 에 섞지 않는다.** 이 시리즈가 그렇게 갈렸다 —
+  > 신원(#266) / 서버(#267·#270·#280·#288) / 화면(#269·#281·#283·#291) / 훅·스토어(#273).
+  > **「작게」는 그대로다** — 그것이 리뷰가 수렴하는 조건이다.
 
 ## 8. Phasing (for the plan)
 
@@ -312,6 +319,12 @@ Each PR: typecheck + lint+gates + jest + the relevant prod-verify e2e (esp. colo
 ---
 
 ## Self-review
+
+> ⚠ **[`2026-09-14`] 이 절은 2026-06-23 시점의 자기점검 기록이다 — 현재 상태 서술이 아니다.**
+> 여기 적힌 두 근거는 그 뒤 갈렸다: **「mode is a student sub-context (not a Role)」** — `Role` 은
+> `dev` 에서 셋이고(#281 · 학부모), 자기주도는 **모드가 아니라 장소**로 열렸다(2026-09-09 박스).
+> **「mock-first/demo-fallback data layer」** — 담은 봇·공부한 날의 정본은 **서버**다(#270·#273);
+> localStorage 는 **비로그인**에만 남는다. **구현 지시로 읽지 말고 이력으로 읽는다.**
 
 **Spec coverage:** the 5 locked decisions → §1 (toggle, entry) / §2 (official tutors, market) / §3 (goal-path learning) / §4 (data) ; MVP vertical → §6/§8. ✅
 **Placeholder scan:** concrete file/store names + the existing-code anchors (`nav-config.ts:49` 봇 찾기, `StudentEnrollment`, `lib/store/sidebar.ts` pattern). MVP/out-of-scope explicit. No TBD.
