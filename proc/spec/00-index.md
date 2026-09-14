@@ -51,7 +51,7 @@
   - **`2026-06-23_classbot-dual-mode-design.md`** — 2026-09-04 박스의 「부품은 있고 문은 닫힌」·「서버 쪽 라우트는 아직 없다」를 걷고 표 다섯 줄을 전부 `dev` 로. 그 박스가 스스로 적어 둔 대로 **§6 Out 목록에서 세 줄을 실제로 걷었다**(BE persistence · real auth-scoped self-enrollment · teacher-side publish — 취소선 + 인도 번호). 남은 deferred 는 셋(custom tutors · IRT · cross-mode analytics). **§7 의 「Role stays `student | teacher`」** 도 사실과 달라 정정 — `dev` 의 `Role` 은 셋이고(#281) **자기주도가 셋째를 만든 것이 아니다**(그 제약이 막으려던 「모드를 Role 로 올리는 것」은 그대로 유효하다).
   - **`14-teacher-assignment-workspace.md` § 5.1** — 「대상 학생 1명 이상을 걷는다」의 `[예정] (#269)` → **인도됨**. `dev` 의 `assignment-form.tsx` 가 `rosterUnknown` 을 세우고 `targetValid = !rosterUnknown && (students.length === 0 || selectedIds.length >= 1)` 로 두는 것까지 확인해 적었다.
   - **`2026-07-03_m1-sso-identity-mapping.md` § 2.1** — 「`/parent/self-study` 만 `[예정]`」 → 세 화면 다 `dev`. **parent 거부 근거는 그대로다** — 화면 유무가 아니라 claim union + SSO 매핑이다.
-  - **`2026-09-09_migration-numbering.md` § 4.1** — 그 절이 「순서가 바뀌면 고칠 것은 이 절이다」라고 적어 둔 대로. 「자기주도 축의 **남은 PR**(#288)」 → **머지됐고 정말로 마이그레이션 없이 들어왔다**. #291 도 `app/`·`components/` 만 만진다 — 그래서 `dev` 는 여전히 `0000`~`0007` 이고 다음 빈자리는 `0008` 이다.
+  - **`2026-09-09_migration-numbering.md` § 4.1** — 그 절이 「순서가 바뀌면 고칠 것은 이 절이다」라고 적어 둔 대로. 「자기주도 축의 **남은 PR**(#288)」 → **머지됐고 정말로 마이그레이션 없이 들어왔다**. #291 도 `drizzle/**` 은 0줄이다 — 그래서 `dev` 는 여전히 `0000`~`0007` 이고 다음 빈자리는 `0008` 이다.
   - **그대로 둔 것** — `03` § 2.2(교사 라우트)는 **이미 `dev` 사실로 적혀 있어** 손댈 것이 없었다. `03` 의 `/teacher/bots{,/[botId]}` 「미구현」 표기는 **이 여덟이 인도한 것이 아니라** 별건(#243 계열) 사안이라 손대지 않았다. `11-grading-hub.md` § 1.5 · `12` 의 CTA 문구 `[예정]` 도 이 여덟과 무관해 그대로 둔다.
   - **범위** — `proc/spec/**` 문서만. 코드·`drizzle/**`·작업 가이드(`CLAUDE.md` 둘 · `AGENTS.md`)는 건드리지 않는다(가이드 편집은 별건 승인 사항 — 루트 `CLAUDE.md` § 4).
 
