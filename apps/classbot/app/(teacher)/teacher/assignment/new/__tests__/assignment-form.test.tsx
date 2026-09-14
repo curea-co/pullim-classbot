@@ -529,3 +529,33 @@ it('시험은 scopeOverride 가 1 이다 — 종전 동작을 그대로 지킨�
   const [dispatched] = useAssignmentStore.getState().dispatched;
   expect(dispatched.scopeOverride).toBe(1);
 });
+
+/*
+  ⓑ 배치 — spec 14 § 3.3.1 · § 9.3 (2026-09-14 결정).
+*/
+it('진행도 숫자를 더 보여 주지 않는다 — 빈 폼이 이미 「4/5」라고 말하던 자리다', () => {
+  render(<AssignmentForm />);
+  expect(screen.queryByText(/진행도/)).toBeNull();
+});
+
+it('막힌 이유는 숫자 대신 문장으로 말한다', () => {
+  render(<AssignmentForm />);   // 제목이 비어 아직 못 낸다
+  fireEvent.change(screen.getByTestId('title-input'), { target: { value: '짧' } });
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('봇 한 마디가 ① 정체성에 있다 — 저장 컬럼이 reason_hint 라 일정이 아니다', () => {
+  render(<AssignmentForm />);
+  const message = screen.getByLabelText(/봇 한 마디/);
+  const due = screen.getByTestId('due-input');
+  // DOM 순서상 봇 한 마디가 마감(④)보다 앞이어야 ① 에 있는 것이다.
+  expect(message.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('③ 대상은 기본이 반 전체라 접혀 있고, 누르면 명단이 열린다', () => {
+  render(<AssignmentForm />);
+  // `hidden` 이라 접근성 트리에서도 빠진다 — 보조기기에 「고를 수 있다」고 알리지 않는다.
+  expect(screen.queryByRole('group', { name: '대상 학생' })).toBeNull();
+  fireEvent.click(screen.getByTestId('target-expand'));
+  expect(screen.getByRole('group', { name: '대상 학생' })).toBeVisible();
+});

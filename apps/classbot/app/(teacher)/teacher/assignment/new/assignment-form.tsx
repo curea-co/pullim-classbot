@@ -144,6 +144,9 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
   const [botMessage, setBotMessage] = useState('');
   const [examTimeLimit, setExamTimeLimit] = useState(60);
 
+  /** ③ 대상 명단을 펼쳤는가. 기본은 접힘 — 기본값이 이미 반 전체다. */
+  const [rosterOpen, setRosterOpen] = useState(false);
+
   const [preview, setPreview] = useState(false);
 
   /*
@@ -433,20 +436,21 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
     }
   }
 
-  // 진행도
-  const progress = [
-    !!room,
-    titleValid,
-    blockedReason === null,
-    targetValid,
-    dueValid,
-  ].filter(Boolean).length;
-
   return (
     <div className="space-y-7">
       <div className="space-y-2">
-        {/* 상단 컨텍스트 바 */}
-        <div className="flex items-center justify-between">
+        {/*
+          상단 컨텍스트 바 — **본문과 같은 폭 안**이다(`max-w-3xl`, spec 14 § 9.3).
+          종전엔 캡이 아래 카드 래퍼에만 걸려 이 줄이 셸 폭 전체로 늘어났다. 1440px 실측으로
+          카드단 `right 1069` vs 이 줄 `right 1396` — **327px 어긋남**이라, 제목은 왼쪽 끝에
+          있는데 오른쪽 항목만 저 멀리 떠 있었다.
+
+          「진행도 N/5」도 뺐다(spec 14 § 3.3.1). 분모 5 는 ⑤ 발사까지 세던 수인데 화면 번호는
+          ④ 에서 끊긴다. 게다가 **빈 폼이 이미 「4/5」**였다 — 수업방·배점·대상·마감이 전부
+          기본값으로 차 있어 비는 건 제목 하나뿐이라, 한 글자도 안 썼는데 「5분의 4를 했다」고
+          말했다. 막힌 이유는 숫자가 아니라 **문장**으로 말한다 — 아래 액션 바의 `blockedReason`.
+        */}
+        <div className="max-w-3xl">
           <Link
             href="/teacher/classbot"
             className="text-pullim-slate-500 hover:text-pullim-slate-700 inline-flex items-center gap-1 text-xs"
@@ -454,7 +458,6 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
             <ArrowLeft className="h-3 w-3" />
             취소
           </Link>
-          <span className="text-pullim-slate-500 font-mono text-2xs">진행도 {progress}/5</span>
         </div>
 
         <PageHeader
@@ -574,6 +577,23 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                   );
                 })}
               </div>
+            </Field>
+
+            {/*
+              봇 한 마디 — ④ 일정에 있던 것을 여기로 옮겼다(spec 14 § 3.3.1, 2026-09-14).
+              저장되는 컬럼이 `reason_hint` 이고 학생 화면에 `reasonHint` 로 내려가
+              **「왜 이 과제를 받았는지」**를 말한다(12 § 3.3.2). 일정이 아니라 이 과제가
+              무엇이고 왜 있는지에 속한다. **데이터는 그대로**다 — 그리는 자리만 바뀌었다.
+            */}
+            <Field label="봇 한 마디 (선택)" hint="200자" htmlFor="af-message">
+              <Textarea
+                id="af-message"
+                value={botMessage}
+                onChange={(e) => setBotMessage(e.target.value.slice(0, 200))}
+                rows={2}
+                placeholder="예: 어제 부호 변화에서 막혔던 사람들 다시 짚자"
+                className="text-sm"
+              />
             </Field>
 
             <Field label="난이도">
@@ -703,10 +723,12 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
             description={
               students.length === 0
                 ? '이 수업방 참여 학생'
-                : `${selectedIds.length}/${students.length}명 선택됨`
+                : rosterOpen
+                  ? `${selectedIds.length}/${students.length}명 선택됨`
+                  : undefined   /* 접혀 있으면 아래 한 줄이 이미 대상을 말한다 */
             }
             action={
-              students.length > 0 ? (
+              students.length > 0 && rosterOpen ? (
                 <Button
                   type="button"
                   variant="link"
@@ -744,7 +766,26 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
               나중에 참여 코드로 들어오는 학생도 이 과제를 받아요.
             </BotNote>
           ) : (
-            <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            <>
+            {/*
+              기본은 **반 전체**라 접어 둔다(spec 14 § 3.3.1). 교사가 거의 손대지 않는 것이
+              6열 이름 그리드로 화면에서 제일 넓은 자리를 차지하고 있었다 — ② 문항이 약
+              2100px 인데 이 카드가 148px 이라 스크롤하면 그냥 지나가 버리기도 했다.
+              누르면 펼친다. 로딩·오류·빈 방 안내는 위 분기가 그대로 맡는다.
+            */}
+            {!rosterOpen && (
+              <button
+                type="button"
+                onClick={() => setRosterOpen(true)}
+                data-testid="target-expand"
+                className="border-pullim-slate-200 hover:border-pullim-slate-400 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold outline-none focus-visible:ring-3 focus-visible:ring-pullim-blue-400/50"
+              >
+                <Users className="h-3.5 w-3.5" />
+                {targetLabel}
+                <span className="text-pullim-blue-600 ml-auto font-normal">바꾸기</span>
+              </button>
+            )}
+            <div role="group" aria-label="대상 학생" className="grid grid-cols-3 gap-2 sm:grid-cols-6" hidden={!rosterOpen}>
               {students.map(s => {
                 const active = selectedIds.includes(s.id);
                 return (
@@ -769,6 +810,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
                 );
               })}
             </div>
+            </>
           )}
           {/*
             이 문구는 **고를 수 있는데 안 고른** 경우만 말한다. `rosterUnknown` 으로 막힌
@@ -810,16 +852,6 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
               )}
             </Field>
 
-            <Field label="봇 한 마디 (선택)" hint="200자" htmlFor="af-message">
-              <Textarea
-                id="af-message"
-                value={botMessage}
-                onChange={(e) => setBotMessage(e.target.value.slice(0, 200))}
-                rows={2}
-                placeholder="예: 어제 부호 변화에서 막혔던 사람들 다시 짚자"
-                className="text-sm"
-              />
-            </Field>
           </div>
         </section>
 
@@ -855,7 +887,12 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       </div>
 
       {/* Sticky bottom 액션 바 */}
-      <div className="bg-card sticky bottom-2 flex items-center gap-2 rounded-2xl border p-4 shadow-pullim-md">
+      {/*
+        액션 바도 **본문과 같은 캡** 안이다(§ 9.3). 종전엔 이 바만 셸 폭으로 늘어나
+        주 버튼이 ④ 카드 오른쪽 끝보다 223px 바깥에 앉았다 — 폼을 끝까지 채우고 카드
+        오른쪽 선을 따라 눈이 내려오면 버튼이 시야 밖이었다.
+      */}
+      <div className="bg-card sticky bottom-2 flex max-w-3xl items-center gap-2 rounded-2xl border p-4 shadow-pullim-md">
         <Button
           type="button"
           variant="secondary"
