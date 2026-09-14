@@ -9,6 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { fillAssignmentTitle, solveAllAndSubmit } from './helpers';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
@@ -52,7 +53,8 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
 
     // [3] 폼 입력 — 봇 자동 채움(cb_001) + 제목 + 모드 + 단원·문항·대상·일정
     await expect(page.getByTestId('bot-select')).toHaveValue('cb_001');
-    await page.getByTestId('title-input').fill('E2E 테스트 과제 — 기울기 마무리');
+    // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석.
+    await fillAssignmentTitle(page, 'E2E 테스트 과제 — 기울기 마무리');
     await page.getByTestId('mode-practice').click();
 
     // [4] 발사 버튼 활성 확인 → 발사
@@ -86,19 +88,8 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await expect(page.getByText(/기울기|y절편|y = 2x/).first()).toBeVisible({ timeout: 10000 });
 
     // [11] 모든 문항을 차례로 통과해서 마지막 단계 도달 → 제출 → 결과 페이지
-    for (let i = 0; i < 10; i++) {
-      const submitBtn = page.getByRole('button', { name: /제출/ });
-      if (await submitBtn.isVisible().catch(() => false)) {
-        await submitBtn.click();
-        break;
-      }
-      const nextBtn = page.getByRole('button', { name: /다음/ });
-      if (await nextBtn.isVisible().catch(() => false)) {
-        await nextBtn.click();
-      } else {
-        break;
-      }
-    }
+    //      (매 바퀴 하단 액션 바의 정착을 기다린다 — 근거는 `solveAllAndSubmit` 머리주석)
+    await solveAllAndSubmit(page);
 
     // 결과 페이지 도달 확인 (Next.js route announcer와 구분 — heading role 사용)
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/result/, { timeout: 10000 });
@@ -108,7 +99,8 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
   test('localStorage 새로고침 영속성 — 발사 후 새 탭에서도 보임', async ({ page, context }) => {
     // 과제 발사
     await page.goto(BASE + '/teacher/assignment/new');
-    await page.getByTestId('title-input').fill('영속성 테스트 과제');
+    await fillAssignmentTitle(page, '영속성 테스트 과제');
+    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 

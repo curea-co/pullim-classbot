@@ -9,6 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { fillAssignmentTitle, solveAllAndSubmit } from './helpers';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
@@ -44,7 +45,11 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   test('학생 제출 → 교사 화면 진행률 +1 + 라이브 뱃지', async ({ page }) => {
     // [1] 교사: 과제 발사
     await page.goto(BASE + '/teacher/assignment/new');
-    await page.getByTestId('title-input').fill('피드백 루프 검증 과제');
+    // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석.
+    await fillAssignmentTitle(page, '피드백 루프 검증 과제');
+    // 클릭 전에 활성 상태를 따로 못박는다 — 없으면 실패가 「클릭 타임아웃」으로만 보여
+    // 어느 검증이 막았는지(`titleValid`·`targetValid`·`dueValid`·문항 수) 로그에 남지 않는다.
+    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
@@ -63,20 +68,8 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     await page.getByTestId('assignment-start-cta').click();
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/solve/);
 
-    // 모든 문항을 통과해서 제출
-    for (let i = 0; i < 15; i++) {
-      const submitBtn = page.getByRole('button', { name: /제출/ });
-      if (await submitBtn.isVisible().catch(() => false)) {
-        await submitBtn.click();
-        break;
-      }
-      const nextBtn = page.getByRole('button', { name: /다음/ });
-      if (await nextBtn.isVisible().catch(() => false)) {
-        await nextBtn.click();
-      } else {
-        break;
-      }
-    }
+    // 모든 문항을 통과해서 제출 (경합 근거는 `solveAllAndSubmit` 머리주석)
+    await solveAllAndSubmit(page);
 
     await page.waitForURL(/\/classbot\/assignment\/as_user_\d+\/result/, { timeout: 10000 });
     // 결과 페이지에 점수 표시 (mock)
@@ -95,7 +88,8 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   test('새로고침 영속성 — submission 도 localStorage 에 persist', async ({ page }) => {
     // 발사 + 제출
     await page.goto(BASE + '/teacher/assignment/new');
-    await page.getByTestId('title-input').fill('영속성 검증 과제');
+    await fillAssignmentTitle(page, '영속성 검증 과제');
+    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
 
     await page.goto(BASE + '/classbot/assignment');
@@ -103,16 +97,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     await link.click();
     await page.getByTestId('assignment-start-cta').click();
     await page.waitForURL(/\/solve/);
-    for (let i = 0; i < 15; i++) {
-      const submitBtn = page.getByRole('button', { name: /제출/ });
-      if (await submitBtn.isVisible().catch(() => false)) {
-        await submitBtn.click();
-        break;
-      }
-      const nextBtn = page.getByRole('button', { name: /다음/ });
-      if (await nextBtn.isVisible().catch(() => false)) await nextBtn.click();
-      else break;
-    }
+    await solveAllAndSubmit(page);
     await page.waitForURL(/\/result/);
 
     // 새로고침 후 store 의 submissions 가 있어야 함
@@ -123,28 +108,31 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     expect(stored).toMatch(/scorePercent/);
   });
 
-  test('시드 과제 풀이 시에도 store 진행률 누적', async ({ page }) => {
-    // 시드 과제 (as_today) 풀이 흐름
+  /**
+   * ⛔ 보류 — **시드 과제가 없어졌다.**
+   *
+   * 이 검사가 지키던 것: 교사가 방금 발사한 과제가 아니라 **시드로 미리 놓여 있던 과제**
+   * (`as_today`)를 풀어도 같은 스토어에 진행률이 쌓인다. 그 시드는 2026-06-24 데모 시드
+   * 정리로 사라졌다 — 실서비스 실측: `/classbot/assignment/as_today` 는
+   * 「과제를 찾을 수 없어요」를 그린다(`assignment-start-cta` 가 없다).
+   *
+   * 그런데 본문 전체가 `if (await startCta.isVisible())` 로 감싸여 있었다. 그래서 시드가
+   * 사라진 뒤로 이 검사는 **아무것도 하지 않고 초록**이었다 — prod-verify 의 「통과」 한 건이
+   * 그것이었다. 없어진 것을 지키는 척하는 검사는 없는 것보다 나쁘므로 보류로 못 박는다.
+   *
+   * 되살릴 조건: 학생이 만들지 않은 과제(시드 또는 배포에 DB 가 붙어 서버가 내려주는 과제)가
+   * 다시 생기는 날. 그때 `as_today` 자리에 그 id 를 넣고 `test.skip` 을 걷는다.
+   * 발사분 경로의 스토어 누적은 위 두 검사가 이미 못 박는다.
+   */
+  test.skip('시드 과제 풀이 시에도 store 진행률 누적', async ({ page }) => {
     await page.goto(BASE + '/classbot/assignment/as_today');
-    const startCta = page.getByTestId('assignment-start-cta');
-    if (await startCta.isVisible().catch(() => false)) {
-      await startCta.click();
-      await page.waitForURL(/\/solve/);
-      for (let i = 0; i < 15; i++) {
-        const submitBtn = page.getByRole('button', { name: /제출/ });
-        if (await submitBtn.isVisible().catch(() => false)) {
-          await submitBtn.click();
-          break;
-        }
-        const nextBtn = page.getByRole('button', { name: /다음/ });
-        if (await nextBtn.isVisible().catch(() => false)) await nextBtn.click();
-        else break;
-      }
-      await page.waitForURL(/\/result/, { timeout: 10000 });
+    await page.getByTestId('assignment-start-cta').click();
+    await page.waitForURL(/\/solve/);
+    await solveAllAndSubmit(page);
+    await page.waitForURL(/\/result/, { timeout: 10000 });
 
-      // store 에 as_today submission 기록되었는지
-      const stored = await page.evaluate(() => window.localStorage.getItem('pullim-assignments'));
-      expect(stored).toContain('as_today');
-    }
+    // store 에 as_today submission 기록되었는지
+    const stored = await page.evaluate(() => window.localStorage.getItem('pullim-assignments'));
+    expect(stored).toContain('as_today');
   });
 });
