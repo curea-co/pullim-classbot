@@ -273,7 +273,7 @@ export const joinCodes = pgTable(
     teacherId: text('teacher_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     /**
-     * 이 시각 뒤에는 안 통한다 (`proc/spec/03 § 4.3`).
+     * 이 시각 뒤에는 안 통한다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
      *
      * **NULL 은 「안 닫힘」이다.** 두 부류가 여기 있다:
      *   ① 이 컬럼이 생기기 전에 발급된 행,

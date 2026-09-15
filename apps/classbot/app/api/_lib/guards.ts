@@ -100,7 +100,7 @@ export function conflict(message: string): NextResponse {
  * 404 와 **가른다.** 뭉치면 학생이 아무 코드나 넣어 보며 「어떤 코드가 존재하는지」를
  * 알아낼 수 있다. 반대로 만료를 알려 주는 것은 안전하다 — 이미 그 코드를 받은 사람만
  * 만료를 보고, 그가 할 수 있는 일은 선생님께 새 코드를 받는 것뿐이다
- * (`proc/spec/03 § 4.3`).
+ * (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
  */
 export function gone(message: string): NextResponse {
   return NextResponse.json({ message, code: 'GONE' }, { status: 410 });

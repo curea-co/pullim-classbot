@@ -189,11 +189,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     /*
-      이미 들어와 있던 경우 — 위에서 **같은 트랜잭션 안에서** 읽어 둔 행을 그대로 돌려준다.
-      한 번 더 조회하지 않는다: 트랜잭션 안이라 값이 바뀔 수 없고, 같은 질문을 두 번 적으면
-      한쪽만 고쳐지는 날이 온다.
+      이미 들어와 있던 경우 — 위에서 읽어 둔 행을 그대로 쓴다.
+
+      **폴백을 남긴다.** 「위에서 읽을 때는 없었는데 INSERT 가 충돌」인 창이 READ COMMITTED 에
+      실제로 있다 — 한 봇에 살아 있는 코드가 둘이면 각 코드의 `FOR UPDATE` 가 서로를 막지 못한다.
+      그때 `already` 는 undefined 이고, 그대로 돌려주면 응답에서 `enrollment` 키가 빠져
+      `join-code-form.tsx` 가 `classroomLabel` 을 읽다 터진다 — **참여는 됐는데
+      「참여하지 못했어요」가 뜬다.** 타입은 이걸 못 잡는다(`enrollment` 가 optional 이 아니다).
     */
-    return { enrollment: already, alreadyJoined: true };
+    if (already) return { enrollment: already, alreadyJoined: true };
+
+    const [reread] = await tx
+      .select()
+      .from(enrollments)
+      .where(and(eq(enrollments.botId, bot.id), eq(enrollments.studentId, actor.id)))
+      .limit(1);
+    return { enrollment: reread, alreadyJoined: true };
   });
 
   // 트랜잭션 안에서 코드가 이미 죽어 있었다 — 없는 코드와 같은 답을 준다.

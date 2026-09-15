@@ -57,7 +57,7 @@ export interface TeacherClassroomItem {
   joinCode: string | null;
   /**
    * 코드가 닫히는 시각(ISO8601). 발급 전이거나 **만료가 생기기 전에 발급된 옛 코드**면 null —
-   * 그때는 「안 닫힘」이다 (`proc/spec/03 § 4.3`).
+   * 그때는 「안 닫힘」이다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
    */
   joinCodeExpiresAt: string | null;
   /**
