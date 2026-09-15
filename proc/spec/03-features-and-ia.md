@@ -184,7 +184,7 @@ nav 는 같은 PR 에 있어야 한다** — 학생 레일(§ 2.1)과 같은 이
 │                                **`[예정]` #319 가 교사 레일에서 이 항목을 내린다** — 라우트는 그대로 살아 있고
 │                                레일에서만 빠진다. 들어가는 자리는 여럿 남는다(§ 4.4.7 의 표).
 │                                경로 이동(`/teacher/bots/new`)은 **별건**이다 — § 4.4.7 의 ⚠
-│                                (사용자 승인 2026-09-15. 기록은 `apps/classbot/CLAUDE.md` § 5 — **`[예정]` #324**.
+│                                (사용자 승인 2026-09-15. 기록은 `apps/classbot/CLAUDE.md` § 5 — **(#324 · dev)**.
 │                                 위 메모의 「§ 2.2 등재 + § 5 기록」 한 쌍)
 │
 ├─ /teacher/assignment         ← 낸 과제 목록 **`[예정]`** — 낸 과제를 다시 보는 자리 ([14 § 3.3.3](14-teacher-assignment-workspace.md))
@@ -633,7 +633,7 @@ export const plannerSection: NavSubItem[] = [
 
 > **걷힌 자리 하나 — `(#320 · dev)`.** 이 표에는 「내 봇」 섹션 헤더의 CTA 「봇 만들기」(`BotOpsList()` → `SectionHeading` 의 `action`)가 한 행 더 있었다. **#320 이 걷었다** — 같은 화면 헤더의 「새 클래스봇」과 **같은 곳으로 가는 같은 버튼**이라 한 화면이 같은 말을 두 번 했다(`classbot/page.tsx:167` 의 주석이 그 까닭을 적는다). `dev` 에 **자리 자체가 없으므로** 표에서 뺀다 — 줄이 밀린 것이 아니라 없어진 것이라 심볼로도 못 찾는다.
 
-> **⚠ 라인 번호는 `dev` `33e3b3a`(2026-09-16) 시점이다.** 줄 번호는 이 리포에서 **한 PR 에 곧 낡는다 — 실제로 두 번 낡았다.** 이 절의 초안은 #318(참여 코드 만료)이 `join_codes` 에 넣은 주석 열넉 줄만큼 밀린 채 올라왔고, 그 다음 판본은 **#320 하나에 `classbot/page.tsx` 좌표 넷이 또 밀렸다**(`:84`→`:106` · `:162`→`:185` · `:194`→`:217` · `:299`→`:322`). **어긋나면 줄이 아니라 파일과 심볼 이름을 따라가라** — 그래서 위 표에 심볼 칸을 둔다.
+> **⚠ 라인 번호는 `dev` `4272154`(2026-09-16) 시점이다.** 줄 번호는 이 리포에서 **한 PR 에 곧 낡는다 — 실제로 두 번 낡았다.** 이 절의 초안은 #318(참여 코드 만료)이 `join_codes` 에 넣은 주석 열넉 줄만큼 밀린 채 올라왔고, 그 다음 판본은 **#320 하나에 `classbot/page.tsx` 좌표 넷이 또 밀렸다**(`:84`→`:106` · `:162`→`:185` · `:194`→`:217` · `:299`→`:322`). **어긋나면 줄이 아니라 파일과 심볼 이름을 따라가라** — 그래서 위 표에 심볼 칸을 둔다.
 
 > **총계를 적지 않기로 한 까닭이 바로 위 두 단서다.** 숫자를 박아 두었으면 **#320 한 PR 에 곧장 틀렸다** — 자리가 하나 줄었고, 세는 기준도 갈린다(`/teacher/builder/[botId]` 는 「새로 만드는 길」이 아니라 봇별 수정이라 빼고 셀 수 있다). `[예정]` **#319**(`refactor/nav-drop-builder` — 레일 내리기)의 `nav-config.ts` 주석도 같은 결론에 이르러 **「세지 않는다 — 자리가 늘고 줄 때마다 틀리는 숫자를 주석에 박아 두지 않는다」**로 적는다. **스펙과 코드 주석이 같은 자리에서 같은 규칙을 쓴다.**
 
@@ -653,7 +653,7 @@ export const plannerSection: NavSubItem[] = [
 | 위 § 2.2 교사 라우트 인벤토리의 `/teacher/builder` 줄(레일 표기) | **이 개정에서 했다** — 레일 등재와 § 5 승인 기록은 한 쌍이다(§ 2.2 의 2026-09-14 메모) |
 | `app/(teacher)/teacher/bots/page.tsx:56-60` 의 `TODO(봇 빌더 이식)` 주석 | **레일 내리기에서 함께 본다** — 그 주석의 「함께 고칠 곳 — `components/shell/nav-config.ts` 의 [봇 빌더] 항목」이 #319 가 걷는 바로 그 항목을 지목한다. 항목이 사라지면 그 줄이 곧장 낡는다 |
 | 봇 관리 목록 헤더 CTA 와 빈 상태의 링크(`bots/page.tsx:64`·`:79`) | 경로 이동 때 |
-| 운영 화면의 「새 클래스봇」(`classbot/page.tsx:84`) | 경로 이동 때 |
+| 운영 화면의 「새 클래스봇」(`classbot/page.tsx:106`, `TeacherClassbotPage()` → `PageHeader` 의 `action`) | 경로 이동 때 |
 | 위 § 4.3 의 라우트 표기 | 경로 이동 때 |
 | 핸드오프 § 3 IA 트리 | 경로 이동 때 |
 
@@ -679,7 +679,7 @@ export const plannerSection: NavSubItem[] = [
 | `interventions` | `:609` | `interventions.botId` |
 | `chat_messages` | `:654` | `chatMessages.botId` |
 
-> **⚠ 좌표는 `dev` `33e3b3a`(2026-09-16) 시점이다.**(#320 은 `schema.ts` 를 안 건드려 `0efefe7` 과 같다.) 이 표의 종전 판본은 `join_codes` 아래 아홉 줄이 **일제히 열넉 줄 밀려 있었다** — #318(참여 코드 만료)이 `joinCodes` 에 `expiresAt` 과 주석을 넣기 전 판본을 보고 적은 탓이다. `schema.ts` 는 이 리포에서 가장 자주 자라는 파일이다. **어긋나면 줄이 아니라 심볼 이름을 따라가라.**
+> **⚠ 좌표는 `dev` `4272154`(2026-09-16) 시점이다.**(#320·#324 둘 다 `schema.ts` 를 안 건드려 `0efefe7` 과 같다.) 이 표의 종전 판본은 `join_codes` 아래 아홉 줄이 **일제히 열넉 줄 밀려 있었다** — #318(참여 코드 만료)이 `joinCodes` 에 `expiresAt` 과 주석을 넣기 전 판본을 보고 적은 탓이다. `schema.ts` 는 이 리포에서 가장 자주 자라는 파일이다. **어긋나면 줄이 아니라 심볼 이름을 따라가라.**
 
 **2차 연쇄로 더 간다** — `assignments` 아래 `submissions`·`assignment_questions`, `replays` 아래 북마크·교사 질문·시청 진행, `live_sessions` 아래 `bot_questions`(`:410`, `onDelete: 'cascade'`).
 
@@ -727,7 +727,7 @@ export const plannerSection: NavSubItem[] = [
 
 BE 별건의 범위를 미리 못박아 둔다. `archived_at IS NULL` 을 **조회 조건 안**에 넣는다(읽어 온 뒤에 거르지 않는다 — `app/api/marketplace/bots/[botId]/route.ts:6` 이 게시 여부로 같은 규약을 적어 두었다).
 
-**전수 근거**: `git grep -l classBots -- 'apps/classbot/app/api'`(`dev` `33e3b3a`)가 내놓는 비테스트 파일 **열둘**을 하나씩 열어 갈랐다. 그중 `app/api/teacher/bots/route.ts` 는 `insert` 만 한다(새 봇을 만드는 자리라 archived 와 무관) — **그 하나를 뺀 열하나가 아래 셋으로 갈린다: (e-1) 여섯 · (e-2) 넷 · ⛔ 전용 하나.**
+**전수 근거**: `git grep -l classBots -- 'apps/classbot/app/api'`(`dev` `4272154`)가 내놓는 비테스트 파일 **열둘**을 하나씩 열어 갈랐다. 그중 `app/api/teacher/bots/route.ts` 는 `insert` 만 한다(새 봇을 만드는 자리라 archived 와 무관) — **그 하나를 뺀 열하나가 아래 셋으로 갈린다: (e-1) 여섯 · (e-2) 넷 · ⛔ 전용 하나.**
 
 **그 열하나 바깥에서 둘이 더 오간다. 세는 자리를 헷갈리지 마라.**
 
