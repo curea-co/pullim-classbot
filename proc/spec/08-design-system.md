@@ -524,8 +524,17 @@
 
 `lucide-react 단독` 룰의 예외는 다음 여섯 영역으로 한정한다. 이 외 영역은 룰을 그대로 따른다.
 
+> **2026-09-15 개정 — 예외 2 는 데이터 계약이지 렌더 허가가 아니다.**
+> 종전 예외 2 는 봇 아바타 emoji 를 통째로 예외에 넣고 근거를 「사용자 커스터마이징 가능 영역」이라 적었는데, **세 곳에서 사실과 어긋난다.**
+> ① **페르소나의 단일 진실원이 emoji 를 한 번도 말하지 않는다.** [`07 § 4.6.2`](07-branding.md) 「봇 5종 시그니처 (브랜드·페르소나 단일 진실원)」 표의 열은 `액센트 컬러 / 아바타 배경 / 모티프 / 어조 / 호칭` 다섯뿐이고 **emoji 열이 없다.** 그 표가 아바타에 넣으라고 지정한 것은 `√ x² ÷ 수식 도트` · `A B C 살짝 회전` · `분자/원자 도트` · `한글 자모 ㅎㄱㅁ` · `지도 라인` — **모티프 글리프**다. 두 문서가 어긋났고, **단일 진실원이라고 스스로 적은 쪽을 따른다.**
+> ② **커스터마이징이 실재하지 않는다.** `apps/classbot/components/builder/**` 에 emoji 를 고르는 UI 가 **없고**(전수 확인), `apps/classbot/lib/db/schema.ts:131` 의 `avatarEmoji` 는 `.notNull().default('🤖')` 라 **서버가 만드는 새 봇은 전부 `🤖` 하나**다. 고를 수 없는 것을 근거로 예외를 넓혀 둔 셈이다.
+> ③ **출처 결정문이 이 저장소에 없다.** 아래 「결정 출처」가 가리키는 `proc/archive/2026-05-07_inline-emoji-cleanup.md` 는 `proc/archive/` 에 존재하지 않고, 예외 2 가 적어 둔 위치도 추출 이전 구조(`src/lib/mock/…`)를 가리켰다. 이번에 **예외 2 안의 경로만** 이 저장소 기준으로 고쳤다.
+> 덧붙여 mock 이 쓰던 사람 emoji(`🧑‍🏫` · `👩‍🏫`)는 같은 화면의 AI 고지(`components/classbot/ai-disclosure-notice.tsx` 「봇 답변은 AI가 만들어요」)와 **반대 신호**를 낸다 — 사람이 아니라는 고지 옆에 사람 얼굴을 둔다.
+> 그래서 예외를 **없애지 않고 좁힌다** — **데이터는 보존하고, 렌더만 뺀다.** 예외 4(봇 발화 메시지 본문 안 emoji)는 그대로 유효하다.
+
 - **예외 1 — 감정·컨디션 셀프-리포트 픽커**: 학생이 자기 affect를 보고하는 픽커는 emoji가 표현력 우위(즉각적 감정 매핑) + 학생 친화. 적용 사례: `conditionMeta` (1~5단계 컨디션 슬라이더), `emotionIcons` (블록 완료 후 감정 체크인). 위치: `src/lib/mock/planner.ts`.
-- **예외 2 — 봇·교사 페르소나 식별**: 봇·교사 페르소나 아바타·식별 emoji는 사용자 커스터마이징 가능 영역(데이터 형태로 emoji 보존). 적용 사례: `ClassBot.avatarEmoji`, `LiveSessionRow.botEmoji`, `BotSettingsState.identity.avatarEmoji`, `TeacherVoice.emoji`. 위치: `src/lib/mock/classbot.ts`, `src/lib/mock/infinity.ts`.
+- **예외 2 — 봇·교사 페르소나 식별 (데이터 계약 한정)**: 봇·교사 페르소나의 식별 emoji는 **데이터 자리에서만** 예외다 — DB 컬럼(`class_bots.avatar_emoji`)·직렬화·API 응답·mock 픽스처가 emoji 문자열을 그대로 보존한다. 그 자리에서 emoji 를 지우는 것은 계약을 깨는 일이라 하지 않는다. 적용 사례: `ClassBot.avatarEmoji`, `LiveSessionRow.botEmoji`, `BotSettingsState.identity.avatarEmoji`. 위치: `apps/classbot/lib/db/schema.ts`, `apps/classbot/lib/mock/classbot.ts`.
+  **학생·교사 화면의 봇 아바타 렌더는 이 예외에 들지 않는다.** 아바타 면에는 emoji 를 그리지 않고 **과목 이니셜**(과목 이름 첫 글자, 과목이 없으면 봇 이름 첫 글자)로 그리며, 목표는 [`07 § 4.6.2`](07-branding.md) 가 봇마다 지정한 **모티프** 글리프다. 둘 다 없을 때의 폴백만 lucide `Bot` 이다. 렌더가 emoji 를 쓰지 않는다고 해서 위 데이터 계약을 함께 걷지 않는다 — **읽지 않을 뿐 지우지 않는다.**
 - **예외 3 — Transient feedback / 환영 emoji**: toast 메시지·환영 인삿말·empty state는 일시적이거나 감정·환영 톤이라 emoji가 표현력 우위. 적용 사례: `toast.success/info/warning` 안 emoji(예: 정답 피드백 `🎉 정답이에요!`, 빈 상태 `✨ 약점 없어요`), 학생 홈 `👋` 인삿말. 위치: `src/components/study/weak-spot-card.tsx`, 각 도메인 toast 호출부, 학생 홈 인삿말.
 - **예외 4 — 봇 페르소나 발화 메시지 텍스트**: 예외 2의 자연스러운 확장. 봇·교사 페르소나가 발화하는 카톡 스타일 챗 스트림 메시지 본문 안 emoji는 페르소나 voice 일부라 예외. 적용 사례: `lib/mock/coach.ts` agent message stream(📅/📚/📈/🎯/💡/🌅/🔥 등 12+건), `lib/mock/phase1.ts` 봇 인삿말 안 `🙌`. 위치: `src/lib/mock/coach.ts`, `src/lib/mock/phase1.ts`.
 - **예외 5 — 콘텐츠 썸네일 indicator emoji**: 콘텐츠 카드 썸네일 영역의 emoji는 이미지 placeholder 역할 + 콘텐츠 다양성 표현. 적용 사례: `lib/mock/visual.ts` `thumbEmoji` 필드(📈/🛗/🎧 등 3건). 위치: `src/lib/mock/visual.ts`.
