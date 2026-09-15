@@ -574,12 +574,155 @@ export const plannerSection: NavSubItem[] = [
 
 > `monitor-roster.tsx` · `build-yards.tsx` 두 파일은 앞선 FE PR(#243) 때 다른 작업이 물고 있어 손댈 수 없었다. **그 작업들이 끝나 둘 다 옮겼다.** 넘겨보내는 자리는 위 까닭으로 남는다.
 
-#### 4.4.7 나중에 — [봇 빌더]를 [봇 관리] 하위로
+#### 4.4.7 [봇 빌더]를 [봇 관리] 하위로 — 레일은 내렸고, 경로는 남았다
 
-[봇 빌더]는 `dev` 에서 `/teacher/builder` 에 있고 사이드바에도 제 항목으로 서 있다. **다음 작업에서 [봇 관리] 하위(`/teacher/bots/new`)로 옮기기로 한다. 이 개정도, 이 개정의 FE PR 도 옮기지 않는다** — 자리만 잡아 둔다.
+> **절반이 일어났다.** 종전 이 절은 「나중에」였다 — 「다음 작업에서 [봇 관리] 하위(`/teacher/bots/new`)로 옮기기로 한다. 이 개정도, 이 개정의 FE PR 도 옮기지 않는다 — 자리만 잡아 둔다」.
+> **2026-09-15 소유자 지시**(「사이드바에 위치한 봇 빌더 메뉴를 제거해 — 다른 진입점이 더 있으며, 더 자연스러워」)로 **레일에서 내리는 쪽만 먼저 한다.**
 
-- 옮기면 바뀌는 것: 사이드바에서 [봇 빌더] 항목이 빠지고, [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다.
-- 그때 같이 고칠 곳: `components/shell/nav-config.ts` · 봇 관리 목록 헤더 CTA 와 빈 상태의 링크 · 운영 화면의 「새 클래스봇」 · 위 § 4.3 의 라우트 표기 · 핸드오프 § 3 IA 트리.
+| 무엇 | 지금 | 인도 |
+|---|---|---|
+| 교사 레일에서 [봇 빌더] 항목을 **내린다** | **한다** | `[예정]` FE PR `refactor/nav-drop-builder` |
+| `/teacher/builder` → `/teacher/bots/new` **경로 이동** | **아직 안 한다** | 별건 — 아래 ⚠ |
+
+**페이지를 지우는 것이 아니다.** `/teacher/builder`(와 `/teacher/builder/[botId]`) 라우트는 그대로 살아 있다. 레일에서만 내린다 — 앱 안에서 그리로 가는 자리가 **열** 남는다.
+
+| 자리 | 파일 |
+|---|---|
+| 교사 홈 「새 클래스봇」 | `app/(teacher)/teacher/page.tsx:48` |
+| 운영 화면 헤더 CTA 「새 클래스봇」 | `app/(teacher)/teacher/classbot/page.tsx:75` |
+| 운영 화면 「내 봇」 섹션 CTA 「봇 만들기」 | 〃 `:130` |
+| 운영 화면 빈 상태 「봇 만들기」 | 〃 `:143` |
+| 운영 화면 봇 카드 메뉴 「수정하기」 — `/teacher/builder/[botId]` | 〃 `:175` |
+| 운영 화면 「학급에 붙이기」 빈 상태 | 〃 `:280` |
+| 봇 관리 헤더 CTA 「새 봇」 | `app/(teacher)/teacher/bots/page.tsx:64` |
+| 봇 관리 빈 상태 「봇 만들기」 | 〃 `:79` |
+| 학생 기록 「과제 문항 손보기」 | `app/(teacher)/teacher/students/[id]/page.tsx:108` |
+| 학급 관제소 「봇 설명」 | `components/classbot/reteach-concepts.tsx:29` |
+
+> 종전 이 절은 「옮기면 사이드바에서 [봇 빌더] 항목이 빠진다」를 **경로 이동의 결과**로 적었다. 실제로는 그 둘이 갈라졌다 — 항목이 먼저 빠지고, 경로는 남는다.
+
+**⚠ 경로 이동은 미뤄 둔 것이지 접은 것이 아니다 — 꼭 해소한다.**
+
+지금 상태는 **레일에서는 내렸는데 경로는 그대로**다. 그래서 빌더가 **어느 화면 소속인지가 IA 상 붕 떠 있다** — `/teacher/builder` 는 아무 화면의 하위도 아닌 채 위 열 자리에서 불려 다니고, 「봇을 만드는 일」이 [봇 관리] 안에서 벌어지는 일인지 그 바깥의 독립 화면인지를 IA 가 말하지 못한다. 항목만 내린 지금은 **감췄을 뿐 자리를 정한 것이 아니다.**
+
+**[봇 관리] 하위(`/teacher/bots/new`)로 들어가야** 이 절의 원래 결론 — 「[봇 관리] 안의 「새 봇」이 유일한 진입점이 된다」 — 이 완성된다. 소유자도 **「범위 밖으로 두되 꼭 해소해야 하는 부분」**으로 못박았다(2026-09-15). 「언젠가」가 아니다.
+
+**같이 고칠 곳 — 한 것과 남은 것을 가른다**
+
+| 자리 | 상태 |
+|---|---|
+| `components/shell/nav-config.ts` 레일 항목(과 그 자리의 `TODO(봇 빌더 이식)` 주석) | **레일 내리기에서 한다** — `refactor/nav-drop-builder` |
+| 봇 관리 목록 헤더 CTA 와 빈 상태의 링크 | 경로 이동 때 |
+| 운영 화면의 「새 클래스봇」 | 경로 이동 때 |
+| 위 § 4.3 의 라우트 표기 | 경로 이동 때 |
+| 핸드오프 § 3 IA 트리 | 경로 이동 때 |
+
+#### 4.4.8 봇 삭제 — 지우는 것과 거두는 것
+
+> **결론 먼저**: **하드 삭제를 만들지 않는다.** 봇을 내리는 일은 `archived_at` **소프트 삭제 + 목록 필터**로 한다. 아래는 그 판단의 근거이고, 뒤따르는 FE·BE PR 이 이 절을 기준으로 삼는다.
+
+##### (a) 지금 DB 는 이렇다 — 소스로 확인한 사실
+
+`lib/db/schema.ts` 의 `class_bots` 는 이미 **`ON DELETE CASCADE` 의 부모**다. 자식이 **열하나**다.
+
+| 자식 테이블 | 확인한 자리 |
+|---|---|
+| `enrollments` | `schema.ts:169` |
+| `self_enrollments` | `:204` |
+| `join_codes` | `:280` — `(bot_id, teacher_id)` 복합 FK 의 `onDelete('cascade')` |
+| `bot_curriculum_units` | `:295` |
+| `bot_settings` | `:306` |
+| `lessons` | `:320` |
+| `live_sessions` | `:343` |
+| `replays` | `:421` |
+| `assignments` | `:503` |
+| `interventions` | `:595` |
+| `chat_messages` | `:640` |
+
+**2차 연쇄로 더 간다** — `assignments` 아래 `submissions`·`assignment_questions`, `replays` 아래 북마크·교사 질문·시청 진행, `live_sessions` 아래 `bot_questions`.
+
+**그리고 `deleted_at`·`archived_at`·`status` 같은 소프트 삭제 컬럼은 `class_bots` 에 없다.** 지금 있는 것은 하드 삭제 한 길뿐이다.
+
+##### (b) 그래서 하드 삭제를 만들지 않는다
+
+`DELETE FROM class_bots` 한 줄은 **학생의 대화·제출·과제·성취를 교사 버튼 하나로 지운다.** 이건 이 리포가 **이미 반대 방향으로 못박아 둔 계약**과 정면으로 부딪힌다. 같은 말을 두 자리가 따로 적고 있다.
+
+> **담은 봇 빼기** — 「대화 기록(`chat_messages`)과 공부한 날은 남는다 — 뺀 것은 목록에서지 지난 일에서가 아니다.」
+> (`app/api/me/self-bots/[botId]/route.ts:8`)
+
+> **공유 그만두기** — 「다만 **이미 담아 간 학생의 봇은 계속 돌아가요** — 쓰던 중에 뺏지 않으려는 거예요.」
+> (`app/(teacher)/teacher/classroom/publish-bot-block.tsx:248`)
+
+학생 본인이 자기 목록에서 봇을 빼도 지난 일은 남기고, 교사가 게시를 내려도 이미 담아 간 학생의 봇은 돌아간다. **그 둘이 지키는 것을 교사의 삭제 버튼 하나가 뒤집게 둘 수 없다.**
+
+⇒ **정본 방향은 `archived_at` 소프트 삭제 + 목록 필터다.** 봇은 교사의 목록에서 내려가고, 학생이 가진 지난 일과 이미 담은 봇은 그대로 있다.
+
+##### (c) CASCADE 가 못 잡는 자리 — 소프트 삭제를 택하는 또 다른 이유
+
+하드 삭제는 **너무 많이 지우면서 동시에 덜 지운다.** 끊기지 않고 남는 자리가 다섯이다.
+
+| 자리 | 하드 삭제 뒤에 남는 것 |
+|---|---|
+| `classrooms` | 봇과 **FK 가 아예 없다**(`schema.ts` 의 `classrooms` 는 `teacher_id` 만 든다) → 「짝 봇이 없는 반」이 남는다 |
+| `grading_items` · `grading_history` | `bot_id` 가 **없다**. `assignment_title` 문자열만 든다 → 채점 대기열에 유령 항목이 남는다 |
+| `join_codes` 의 `teacher_id IS NULL` 행 | 복합 FK(MATCH SIMPLE)라 **안 지워진다** — `schema.ts` 가 그 상태를 「ownerless」로 일부러 두었다 |
+| 학생 브라우저의 localStorage | `pullim-lesson-progress`·`pullim-proficiency`·`pullim-self-learning` 이 **botId 를 키로** 들고 있고, 서버 삭제와 동기화할 경로가 없다 |
+| `class_bots.enrolled_count` 캐시 | 되맞추는 코드가 `app/api/enrollments/route.ts` 하나뿐이다 — **삭제는 그 길을 타지 않는다** |
+
+##### (d) 하드 삭제가 학생 화면에 만드는 것 — 지금 코드 기준
+
+**안내가 하나도 없다.**
+
+| 화면 | 지금 코드로 일어나는 일 |
+|---|---|
+| 담은 봇 · 반 카드 | **말없이 증발한다.** 담은 기록(`self_enrollments`)까지 CASCADE 로 함께 지워져서, 기존 폴백 문구 **「지금은 마켓에 없는 봇」**(`app/(student)/classbot/my-bots/my-bot-card.tsx:51`)조차 뜰 자리가 없다 |
+| 봇 대화(`/classbot/chat?bot=…`) | **조용히 첫 번째 봇으로 갈아탄다** — `initialBotId = botParam && slots.some(...) ? botParam : (slots[0]?.bot.id ?? 'cb_001')`(`chat/page.tsx:195`). **404 화면이 없다** |
+
+**소프트 삭제를 택하면 그 폴백 경로를 그대로 탈 수 있다** — 봇 행이 남으니 담은 기록도 남고, 학생은 「지금은 마켓에 없는 봇」이라는 **이미 있는 안내**를 본다. 새 빈 상태를 짓지 않아도 된다.
+
+##### (e) 소프트 삭제를 넣을 때 같이 고쳐야 하는 읽기 술어
+
+BE 별건의 범위를 미리 못박아 둔다. `archived_at IS NULL` 을 **조회 조건 안**에 넣는다(읽어 온 뒤에 거르지 않는다 — `app/api/marketplace/bots/[botId]/route.ts:6` 이 게시 여부로 같은 규약을 적어 두었다).
+
+| 자리 | 읽는 것 |
+|---|---|
+| `app/api/bots/route.ts` | 봇 목록 |
+| `app/api/marketplace/bots/route.ts` | 마켓 목록 |
+| `app/api/marketplace/bots/[botId]/route.ts` | 마켓 상세 |
+| `app/api/_lib/student-views.ts` | 학생·학부모가 함께 타는 반·과제 뷰 |
+| `app/api/teacher/classrooms/route.ts` | 교사 수업방의 짝 봇 |
+| `app/api/_lib/assignment-visibility.ts` | 과제 가시성 — 이 술어는 `class_bots` 를 **직접 읽지 않고** `enrollments.bot_id` 로 건다. 그래서 봇만 거르면 **거둔 봇의 과제가 그대로 뜬다** — 이 자리는 술어 안에서 따로 봐야 한다 |
+| `app/api/me/self-bots/route.ts` | 담은 봇 — **담기(POST)에만** 넣는다. 아래 ⛔ |
+
+> ⛔ **담은 봇 읽기(`self_enrollments`)에는 archived 조건을 더하지 마라.**
+> `schema.ts:195-199` 가 `is_published` 로 **같은 이유**를 적어 두었다 — 「그래서 이 테이블에는 그 조건이 없고, **읽기 쪽에도 더하면 안 된다**(더하는 순간 담아 둔 봇이 목록에서 증발한다)」. 「지금 쓸 수 있는가」와 「그때 담았는가」는 다른 사실이다. **더하면 학생 목록에서 증발한다** — (d) 가 적은 폴백 경로로 흘려보내는 쪽이 맞다.
+> 담는 순간(`route.ts:107` 의 `isPublished` 술어)에는 함께 건다 — 거둔 봇을 **새로** 담을 수는 없다.
+
+**삭제 라우트의 RBAC 는 이 리포 관용구를 따른다.** 소유권을 `where` 에 넣어 **0행이면 404** 다. **403 이 아니다.**
+
+> 「경로의 봇 id 는 클라이언트 입력이므로 먼저 읽고 나중에 주인을 비교하지 않고, `where` 에 명의를 함께 넣어 **남의 행이 아예 안 잡히게** 한다 — 0행이면 404 다. 403 으로 답하면 "그 봇은 있는데 네 것이 아니다" 를 알려 주는 셈이라, 남의 봇이 존재한다는 사실이 새 나간다.」
+> (`app/api/teacher/bots/[botId]/publish/route.ts:4-8`)
+
+##### (f) 지금 만드는 화면은 어디까지인가
+
+**`/teacher/classbot` 운영 화면은 mock 이다** — `lib/mock/classbot-teacher-ops.ts` 의 `getTeacherBotRows()` 가 카탈로그(`classBots`)와 운영 기록을 조인해 그린다. **실 DB 봇이 보이는 교사 화면은 `/teacher/classroom` 하나**다(그 화면은 `hooks/api/classroom` 으로 `/api/teacher/classrooms` 를 읽는다).
+
+그래서 뒤따르는 FE PR 이 붙이는 삭제는 **화면 안 상태로만 도는 데모**다. 새로고침하면 봇이 돌아온다.
+
+> **소유자 결정(2026-09-15)**: 화면에 **「데모 — 새로고침 시 초기화」 같은 표시는 넣지 않는다.** 이 사실은 문서에만 남긴다.
+
+**모달 문구는 소유자가 정한 그대로다.**
+
+> 「현재 이 봇으로 학습 중인 학생들이 있어요. 봇을 삭제하면 해당 학생은 봇을 이용할 수 없어요」
+
+**다만 「학습 중」은 지금 데이터로 판정할 수 없다.**
+
+| 무엇 | 왜 못 하나 |
+|---|---|
+| 실시간 접속 | **presence 필드가 없다.** `class_bots` 에도 `enrollments` 에도 「지금 붙어 있는가」를 적는 자리가 없다 |
+| 풀이 진행 중(임시저장) | `schema.ts:557-560` 이 자리를 **일부러 비워 두었다** — 「풀이 진행 라이프사이클(임시저장·startedAt·lastPosition·시험 이탈 카운트, spec 12 §5)은 solve-세션 영속(M3+)에서 별도 attempt/session 테이블로 다룬다 — 여기 컬럼을 선점하지 않는다」 |
+
+⇒ **그래서 이 문구는 고정 문구다.** 숫자를 넣지 않는다 — 없는 값을 지어내지 않는다(§ 4.4.3 과 같은 규칙). **BE 가 붙을 때 실데이터로 바꾼다**: 참여 학생 수(`enrollments`) · 담아 간 학생 수(`self_enrollments`) · 마감 전 과제 수(`assignments`) · 최근 대화 수(`chat_messages`). 그 넷은 **지금 스키마에 이미 있는 값**이라 새 테이블 없이 셀 수 있다.
 
 
 ### 4.5 풀림 무한풀기 — 솔브 (`/q/infinity/solve`)
