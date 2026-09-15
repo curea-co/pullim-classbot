@@ -9,6 +9,11 @@ import { ArrowRight } from 'lucide-react';
  *
  * 쓰지 않는 자리: 같은 화면 안 앵커 이동(#section). 그건 액션이 아니라 스크롤이라
  * 숫자만 남기고 링크를 걷어내는 게 맞다.
+ *
+ * ⚠ 패딩·간격·글자 크기는 **KpiStat 과 한 글자도 다르면 안 된다.**
+ * 같은 KpiStatBar 안에 섞여 놓이기 때문에 2px 만 어긋나도 값의 밑선이 이웃과 틀어진다.
+ * (배경이 <li> 가 아니라 안쪽 <a> 에 붙는 것만 다르다 — 칸 전체가 클릭 영역이어야 해서다.)
+ * __tests__/kpi-stat-link.test.tsx 가 두 부품의 클래스 일치를 지킨다.
  */
 export interface KpiStatLinkProps {
   label: string;
@@ -22,13 +27,13 @@ export function KpiStatLink({ label, value, href }: KpiStatLinkProps) {
     <li>
       <Link
         href={href}
-        className="group bg-pullim-slate-50/50 hover:bg-pullim-blue-50 focus-visible:ring-pullim-blue-400/50 flex h-full flex-col rounded-lg px-3 py-2 transition-colors outline-none focus-visible:ring-2"
+        className="group bg-pullim-slate-50/50 hover:bg-pullim-blue-50 focus-visible:ring-pullim-blue-400/50 flex h-full flex-col rounded-lg px-3.5 py-2.5 transition-colors outline-none focus-visible:ring-2"
       >
-        <span className="text-pullim-slate-500 group-hover:text-pullim-blue-700 inline-flex items-center gap-1 text-2xs font-semibold tracking-wider uppercase">
+        <span className="text-pullim-slate-500 group-hover:text-pullim-blue-700 inline-flex min-h-5 items-center gap-1 text-xs leading-5 font-semibold tracking-wider">
           {label}
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </span>
-        <span className="text-pullim-slate-900 mt-0.5 font-mono text-base font-bold">{value}</span>
+        <span className="text-pullim-slate-900 mt-1 font-mono text-2xl font-bold">{value}</span>
       </Link>
     </li>
   );

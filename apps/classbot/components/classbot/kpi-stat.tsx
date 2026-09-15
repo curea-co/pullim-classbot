@@ -56,14 +56,16 @@ export function KpiStat({ label, value, tone = 'default', icon: Icon, onDark = f
   return (
     <li className="bg-pullim-slate-50/50 rounded-lg px-3.5 py-2.5">
       <div className={cn(
-        'inline-flex items-center gap-1 text-2xs font-semibold tracking-wider uppercase',
+        // 라벨 줄 높이는 min-h-5/leading-5 로 못 박는다 — 아이콘 유무가 줄 높이를 바꾸면
+        // KpiStatLink(아이콘 있음)와 값의 밑선이 어긋난다. uppercase 는 한글에 무효라 뺐다.
+        'inline-flex min-h-5 items-center gap-1 text-xs leading-5 font-semibold tracking-wider',
         onDark ? 'text-white/70' : 'text-pullim-slate-500',
       )}>
         {Icon && <Icon className="h-3 w-3" />}
         {label}
       </div>
       <div className={cn(
-        'mt-1 font-mono text-base font-bold',
+        'mt-1 font-mono text-2xl font-bold',
         onDark ? toneValueClassDark[tone] : toneValueClass[tone],
       )}>
         {value}

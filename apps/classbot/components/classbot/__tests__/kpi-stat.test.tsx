@@ -66,7 +66,18 @@ describe('KpiStat', () => {
     // Check class string contains key identifiers
     expect(label?.className).toContain('font-semibold');
     expect(label?.className).toContain('tracking-wider');
-    expect(label?.className).toContain('uppercase');
+    // 라벨이 한글이라 uppercase 는 아무 효과가 없어 걷어냈다 — tracking-wider 만 남는다
+    expect(label?.className).not.toContain('uppercase');
+    // 2026-09-15: text-2xs(12px) → text-xs(13px). 통계 칸 글자가 작다는 교사 피드백
+    expect(label).toHaveClass('text-xs');
+  });
+
+  it('label row height is pinned so an icon cannot shift it', () => {
+    // 아이콘(h-3)이 있든 없든 라벨 줄은 20px — KpiStatLink 의 ArrowRight 가
+    // 그 칸만 라벨 줄을 키워 값의 밑선을 어긋나게 하던 것을 막는다
+    const { container } = render(<KpiStat label="레이블" value="값" />);
+    const label = container.querySelector('.text-pullim-slate-500');
+    expect(label).toHaveClass('min-h-5', 'leading-5');
   });
 
   it('value has correct base typography classes', () => {
@@ -74,7 +85,8 @@ describe('KpiStat', () => {
     const value = container.querySelector('.font-mono');
     expect(value).toBeInTheDocument();
     expect(value?.className).toContain('mt-1');
-    expect(value).toHaveClass('text-base', 'font-bold');
+    // 2026-09-15: text-base(16px) → text-2xl(25px). 값이 이 칸의 주인공이라 키웠다
+    expect(value).toHaveClass('text-2xl', 'font-bold');
   });
 });
 
