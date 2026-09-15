@@ -6,7 +6,7 @@
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School, Sprout,
+  LayoutDashboard, Bot, Target, BookMarked, Compass, School, Sprout,
   ClipboardCheck, ClipboardList, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -119,9 +119,19 @@ export const teacherNav: NavGroup[] = [
       // 목록·상세가 생겼으므로, `new` 만 떼어 이 항목에 붙여 두면 같은 트리가 두 레일 항목으로
       // 갈린다. 이제 `/teacher/assignment/*` 전부가 [낸 과제] 소속이다(접두사로 자연히 잡힌다).
       { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
-      // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
-      //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
-      { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
+      // 여기 「봇 빌더」가 있었다. **레일에서는 내렸다** (2026-09-15, 사용자 직접 지시 —
+      // `apps/classbot/CLAUDE.md § 5`). 레일은 「어디에 무엇이 사는가」를 적는 자리인데
+      // 빌더는 사는 곳이 아니라 **하는 일**이고, 그 일로 가는 길은 앱 안에 이미 아홉이다
+      // (「봇 관리」의 「새 봇」과 빈 상태, 운영 화면의 「새 클래스봇」 등) — 레일 항목은
+      // 그중 열 번째였다.
+      //
+      // **라우트 `/teacher/builder` 는 살아 있다.** 페이지도 컴포넌트도 그대로고, 그 아홉이
+      // 계속 그리로 보낸다. 내린 것은 레일 한 줄뿐이다.
+      //
+      // TODO(봇 빌더 이식): **남은 것은 경로 이동이다.** 빌더를 `/teacher/bots/new` 로 옮겨
+      //  [봇 관리] 안의 「새 봇」이 유일한 진입점이 되게 한다 (`proc/spec/03 § 4.4.7`).
+      //  미뤄 둔 것이지 접은 것이 아니다 — 그때까지 라우트가 둘로 읽히는 상태가 남는다.
+
       // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
       // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
       // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).
