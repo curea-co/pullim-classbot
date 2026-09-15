@@ -20,6 +20,7 @@ import { classBots, classrooms, enrollments, joinCodes } from '@/lib/db/schema';
 import { normalizeJoinCode } from '@/lib/join-code';
 import {
   forbidden,
+  gone,
   invalidInput,
   notFound,
   readJsonBody,
@@ -107,11 +108,23 @@ export async function POST(req: Request): Promise<NextResponse> {
         - 이 잠금이 먼저다 → 재발급의 DELETE 가 기다린다 → 학생은 코드가 죽기 직전에 들어왔다
     */
     const [liveCode] = await tx
-      .select({ code: joinCodes.code })
+      .select({ code: joinCodes.code, expiresAt: joinCodes.expiresAt })
       .from(joinCodes)
       .where(eq(joinCodes.code, codeRow.code))
       .for('update');
-    if (!liveCode) return null;
+    if (!liveCode) return { kind: 'gone' as const };
+
+    /*
+      만료도 **이 잠금 안에서** 잰다. 밖에서 재면 교사가 그 사이에 재발급(= 갈아 끼우기)을
+      커밋했을 때 이미 읽어 둔 낡은 만료로 통과시킨다 — 위 잠금이 막으려던 그 경합이다.
+
+      `expiresAt` 이 **null 이면 안 닫힌 코드**다. 만료 컬럼이 생기기 전에 발급된 행이
+      그렇고, 그 행들을 소급해서 닫으면 이미 나눠 준 코드가 한꺼번에 죽는다
+      (`lib/db/schema.ts` 의 그 컬럼 주석).
+    */
+    if (liveCode.expiresAt && liveCode.expiresAt.getTime() <= Date.now()) {
+      return { kind: 'expired' as const };
+    }
 
     const inserted = await tx
       .insert(enrollments)
@@ -178,7 +191,13 @@ export async function POST(req: Request): Promise<NextResponse> {
   });
 
   // 트랜잭션 안에서 코드가 이미 죽어 있었다 — 없는 코드와 같은 답을 준다.
-  if (!result) return notFound('참여 코드를 찾을 수 없어요.');
+  if ('kind' in result && result.kind === 'gone') {
+    return notFound('참여 코드를 찾을 수 없어요.');
+  }
+  // 기간이 지난 코드는 **없는 코드와 다른 답**이다(`gone()` 주석).
+  if ('kind' in result && result.kind === 'expired') {
+    return gone('이 코드는 기간이 지났어요. 선생님께 새 코드를 받아 주세요.');
+  }
 
   return NextResponse.json(result, { status: result.alreadyJoined ? 200 : 201 });
 }

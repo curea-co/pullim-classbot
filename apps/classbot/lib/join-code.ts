@@ -33,6 +33,15 @@ export {
 export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 
+/**
+ * 코드 수명 — 발급 시각 +48시간 (`proc/spec/03 § 4.3`).
+ *
+ * 수업 한 번과 「집에 가서 해 볼게요」 하루를 덮는 길이다. 더 짧으면 결석생이 못 들어오고,
+ * 더 길면 새 나간 코드가 다음 수업까지 산다. 교사가 더 일찍 닫고 싶으면 [코드 다시 내기]가
+ * 그 길이다 — 갈아 끼우면 옛 코드는 그 자리에서 죽는다.
+ */
+export const JOIN_CODE_TTL_HOURS = 48;
+
 /** 코드 뽑기 재시도 한도 — 이만큼 다 부딪히면 포화로 보고 409 를 준다. */
 export const JOIN_CODE_MAX_ATTEMPTS = 8;
 
@@ -97,6 +106,9 @@ export async function issueJoinCode(
         botId: input.botId,
         classroomId: input.classroomId,
         teacherId: input.teacherId,
+        // 수명은 **발급이 정한다** — 스키마 DEFAULT 로 두면 옛 행과 새 행이 같은 컬럼을
+        // 다른 뜻으로 쓰게 된다(그 컬럼 주석).
+        expiresAt: new Date(Date.now() + JOIN_CODE_TTL_HOURS * 3_600_000),
       })
       .onConflictDoNothing()
       .returning({ code: joinCodes.code });

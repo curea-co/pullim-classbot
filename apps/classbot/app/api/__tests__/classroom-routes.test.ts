@@ -733,6 +733,48 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
+  it('기간이 지난 코드는 410 GONE — 없는 코드(404)와 가른다', async () => {
+    /*
+      둘을 같은 답으로 뭉치면 학생이 아무 코드나 넣어 보며 「어떤 코드가 존재하는지」를
+      알아낼 수 있다. 반대로 만료를 알려 주는 것은 안전하다 — 이미 그 코드를 받은 사람만
+      만료를 보고, 그가 할 수 있는 일은 새 코드를 받는 것뿐이다 (`proc/spec/03 § 4.3`).
+    */
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      // 트랜잭션 안에서 잠그고 되읽은 코드 — 이미 지났다
+      [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }],
+    ];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('GONE');
+    // 참여 행을 만들지 않는다 — 만료는 잠금 안에서 걸린다
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('닫힐 시각이 없는 옛 코드는 그대로 통과한다', async () => {
+    // 만료 컬럼이 생기기 전에 발급된 행을 소급해서 닫으면 이미 나눠 준 코드가 한꺼번에 죽는다.
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123', expiresAt: null }],
+      [{ id: 'cb_001' }],
+      [{ n: 1 }],
+    ];
+    mockInsertQueue = [[{ botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' }]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(201);
+  });
+
   it('처음 참여하면 201 + 7개 필수 컬럼을 전부 적는다', async () => {
     mockSelectQueue = [
       [{ role: 'student' }],

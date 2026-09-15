@@ -28,6 +28,7 @@ function room(joinCode: string | null): TeacherClassroomItem {
     grade: '고2',
     studentCount: 0,
     joinCode,
+    joinCodeExpiresAt: null,
     isPublished: false,
     publishedAt: null,
     publishBlurb: null,

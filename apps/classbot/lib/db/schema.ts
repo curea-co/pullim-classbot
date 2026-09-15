@@ -272,6 +272,15 @@ export const joinCodes = pgTable(
     classroomId: text('classroom_id').notNull(),
     teacherId: text('teacher_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * 이 시각 뒤에는 안 통한다 (`proc/spec/03 § 4.3`).
+     *
+     * **NULL 은 「안 닫힘」이다** — 이 컬럼이 생기기 전에 발급된 행이 그렇다. 기본값을
+     * DB 에 두지 않은 이유가 그것이다: `DEFAULT now() + interval` 을 걸면 옛 행에는 안 붙고
+     * 새 행에만 붙어 **같은 컬럼이 두 뜻**을 갖는다. 수명은 발급 경로(`lib/join-code.ts`)가
+     * 한 곳에서 정하고, 여기서는 「적혀 있으면 지킨다」만 한다.
+     */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
   (t) => ({
     byBot: index('join_codes_bot_idx').on(t.botId),

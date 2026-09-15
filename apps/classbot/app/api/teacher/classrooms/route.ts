@@ -101,6 +101,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       grade: bot?.grade ?? null,
       studentCount: countByRoom.get(room.id) ?? 0,
       joinCode: pair?.joinCode ?? null,
+      joinCodeExpiresAt: pair?.joinCodeExpiresAt ?? null,
       // 짝 봇이 없는 반은 게시할 대상 자체가 없다 — 「안 걸림」이지 오류가 아니다.
       isPublished: bot?.isPublished ?? false,
       publishedAt: bot?.publishedAt?.toISOString() ?? null,

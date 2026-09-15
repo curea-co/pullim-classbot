@@ -180,6 +180,7 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
         grade: b.grade,
         studentCount: 0,
         joinCode: null,
+        joinCodeExpiresAt: null,
         isPublished: false,
         publishedAt: null,
         publishBlurb: null,

@@ -20,6 +20,8 @@ export interface ClassroomPair {
   botId: string;
   /** 지금 살아 있는 참여 코드(발급 전이면 null). */
   joinCode: string | null;
+  /** 코드가 닫히는 시각(ISO8601). **null 은 「안 닫힘」** — 만료가 생기기 전 발급된 행. */
+  joinCodeExpiresAt: string | null;
 }
 
 /**
@@ -44,6 +46,7 @@ export async function resolveClassroomPairs(
       classroomId: joinCodes.classroomId,
       botId: joinCodes.botId,
       code: joinCodes.code,
+      expiresAt: joinCodes.expiresAt,
     })
     .from(joinCodes)
     .where(
@@ -56,7 +59,11 @@ export async function resolveClassroomPairs(
 
   for (const row of codeRows) {
     if (pairs.has(row.classroomId)) continue;
-    pairs.set(row.classroomId, { botId: row.botId, joinCode: row.code });
+    pairs.set(row.classroomId, {
+      botId: row.botId,
+      joinCode: row.code,
+      joinCodeExpiresAt: row.expiresAt?.toISOString() ?? null,
+    });
   }
 
   // ② 코드가 없는 반 — 참여 행에 남은 짝으로 복원(시드 데모 반).
@@ -70,7 +77,8 @@ export async function resolveClassroomPairs(
 
   for (const row of enrolledPairs) {
     if (pairs.has(row.classroomId)) continue;
-    pairs.set(row.classroomId, { botId: row.botId, joinCode: null });
+    // 코드가 없으니 닫힐 시각도 없다 — 「안 닫힘」이 아니라 「아직 안 열림」이다.
+    pairs.set(row.classroomId, { botId: row.botId, joinCode: null, joinCodeExpiresAt: null });
   }
 
   return pairs;

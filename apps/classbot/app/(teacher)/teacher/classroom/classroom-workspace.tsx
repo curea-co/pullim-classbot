@@ -188,7 +188,11 @@ function RoomCard({ room }: { room: TeacherClassroomItem }) {
       </div>
 
       <div className="border-pullim-blue-200 bg-pullim-blue-50 mt-4 rounded-xl border p-4">
-        <JoinCodeBlock classroomId={room.classroomId} code={room.joinCode} />
+        <JoinCodeBlock
+          classroomId={room.classroomId}
+          code={room.joinCode}
+          expiresAt={room.joinCodeExpiresAt}
+        />
       </div>
 
       {/*

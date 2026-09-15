@@ -56,6 +56,11 @@ export interface TeacherClassroomItem {
   /** 지금 살아 있는 참여 코드(하이픈 없는 대문자 6자). 발급 전이면 null. */
   joinCode: string | null;
   /**
+   * 코드가 닫히는 시각(ISO8601). 발급 전이거나 **만료가 생기기 전에 발급된 옛 코드**면 null —
+   * 그때는 「안 닫힘」이다 (`proc/spec/03 § 4.3`).
+   */
+  joinCodeExpiresAt: string | null;
+  /**
    * 짝 봇이 마켓에 걸려 있나. 짝 봇이 없는 반은 게시할 것도 없으므로 false 다.
    *
    * 이 칸이 여기 있는 이유: 없으면 교사 카드가 배지 하나 때문에 마켓 목록 전체
