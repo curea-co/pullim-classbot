@@ -295,7 +295,7 @@ function ComponentBreakdown({
         {botInsight && insightSig ? (
           <div className="flex flex-col gap-2">
             <p className="text-pullim-slate-700 text-2xs leading-relaxed">
-              <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
+              <span className="font-bold">{botInsight.bot.name}</span>
               {audience === 'student-self' ? (
                 // [13 § 3.3.5] 본인 주간 리포트 1인칭 톤 — "봇이 본 나의 한 주" 형식. § 8.3 완화 표현.
                 <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.</span>

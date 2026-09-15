@@ -5,6 +5,7 @@ import { ArrowRight, BarChart3, GraduationCap, Lock, Share2, Sparkles, UserRound
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -17,7 +18,6 @@ import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { Skeleton } from '@/components/ui/skeleton';
-import { botSignature } from '@/lib/tokens/bot-signature';
 
 /** 역할 표시 이름 — 화면에서는 바꿀 수 없다(가입 때 정해진다). */
 const roleLabel: Record<string, string> = {
@@ -141,16 +141,10 @@ export default function MyProfilePage() {
           ) : (
             <ul className="space-y-1.5">
               {myBots.map(({ bot, enrollment }) => {
-                const hex = botSignature(bot).hex;
                 return (
                   // 여기서 세는 것은 봇이 아니라 소속 반이다 — 같은 봇의 두 반이 한 줄로 접히면 안 된다.
                   <li key={enrollment.classroomId} className="bg-card flex items-center gap-3 rounded-2xl border p-3">
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
-                      style={{ backgroundColor: hex }}
-                    >
-                      {bot.avatarEmoji}
-                    </span>
+                    <BotAvatar subject={bot.subject} name={bot.name} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="text-pullim-slate-900 truncate text-sm font-bold">
                         {enrollment.classroomLabel}

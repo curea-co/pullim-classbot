@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -44,15 +45,10 @@ export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: str
  */
 const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
-/** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
-const FALLBACK_BOT_EMOJI = '🧑‍🏫';
-
 /** 그룹 표시용 봇 메타 — `/api/bots` 봇 행 + 과제 행 메타를 합쳐 파생. */
 interface GroupBot {
   id: string;
   subject: string;
-  /** 봇 아바타 이모지([08 § 15.6] 페르소나 식별) — `/api/bots` 우선, 미상 시 폴백. */
-  avatarEmoji: string;
   /** 그룹 헤더 표시 이름 — 봇 이름(있으면) 또는 과제 발송자. */
   label: string;
 }
@@ -69,8 +65,10 @@ interface GroupBot {
  * 로 데모 폴백을 세우는 훅이다. 개발용 신원 쿠키로 보는 동안에도 실제로 요청이 나간다.
  * 미로그인(401)이면 로컬 스토어(교사 발사분 포함)를 보여 준다 — 데모/e2e 의 발사→수령
  * 흐름이 그대로 동작한다.
- * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 참여 중인
- * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
+ * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(봇 배지·이름)는 참여 중인
+ * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[봇 · N개]` 패턴 유지 — 그 조항이
+ * 예시로 든 `🧑‍🏫` 는 [08 § 14.1.1] 예외 2 가 좁혀지며 **과목 이니셜 배지**(`BotAvatar`)로
+ * 바뀌었다. 요구되는 것은 「머리줄이 어느 봇인지 말한다」이고 글리프의 종류가 아니다).
  */
 export default function StudentAssignmentListPage() {
   const me = useRosterMe();
@@ -141,7 +139,6 @@ function AssignmentListBody({
         bot: {
           id: a.botId,
           subject: meta?.subject ?? a.subject,
-          avatarEmoji: meta?.avatarEmoji ?? FALLBACK_BOT_EMOJI,
           label: meta?.name ?? a.assignedBy,
         },
         items: [a],
@@ -200,16 +197,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
-  // 묶음 표시는 머리줄(아바타·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
+  // 묶음 표시는 머리줄(봇 배지·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
   return (
     <section className="space-y-2">
       <header className="flex items-center gap-2">
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-          style={{ backgroundColor: groupHex }}
-        >
-          {bot.avatarEmoji}
-        </span>
+        <BotAvatar subject={bot.subject} name={bot.label} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {/* [08 § 15.6] 그룹 헤더가 요구하는 시그니처 점 — 명단을 훑을 때의 보조 단서다 */}
@@ -231,7 +223,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
-            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 그룹 왼쪽 라이너와 아바타가 한다 */}
+            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 머리줄의 시그니처 점이 한다(위 묶음 표시 주석과 같은 말) */}
             <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
               <div
                 className="bg-pullim-blue-600 h-full rounded-full transition-all"

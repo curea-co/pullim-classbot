@@ -7,6 +7,7 @@ import { getTeacherReplays, classBots, type Replay, type ReplayStatus } from '@/
 import { useReplayStore } from '@/lib/store/replay';
 import { PageHeader } from '@/components/shell/page-header';
 import { cn } from '@/lib/utils';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 
@@ -106,9 +107,7 @@ function TeacherReplayCard({ replay }: { replay: ListItem }) {
         className="bg-card hover:border-pullim-blue-400 group block rounded-2xl border p-5 transition-colors"
       >
         <div className="flex items-start gap-3">
-          <div className="bg-pullim-blue-50 text-pullim-blue-700 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg">
-            {bot?.avatarEmoji ?? '🎓'}
-          </div>
+          <BotAvatar subject={bot?.subject} name={bot?.name ?? replay.botName} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-pullim-slate-500 truncate text-xs">{replay.botName} · {replay.classroom}</span>

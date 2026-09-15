@@ -2,12 +2,12 @@
 
 import { Share2 } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { KpiStat } from '@/components/classbot/kpi-stat';
 import { formatAddedAt } from '@/components/classbot/marketplace';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { MetaRow } from '@/components/ui/meta-row';
 import type { ParentSelfStudyBot, ParentSelfStudyChild } from '@/hooks/api/types';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import {
   SHARE_CAN_STOP,
   formatStudyDay,
@@ -98,42 +98,34 @@ export function ChildSelfStudyCard({ child }: { child: ParentSelfStudyChild }) {
 /**
  * 봇 한 줄 — 이름 · 과목 · 시작한 날.
  *
- * 봇 색은 **이 타일 한 곳뿐**이다(`lib/tokens/bot-signature.ts` 의 사용 범위 주석).
- * 라이너도 칩도 덧대지 않는다 — 자녀가 봇을 넷 담으면 그것만으로도 카드에 hue 가 넷이라,
- * 한 줄에 두 번 찍으면 [08 § 14.1] 한도를 넘는다.
+ * ## 타일 안은 **아이가 보는 그 얼굴**이다
  *
- * 순색을 그대로 깔지 않고 흰색에 20% 섞는 이유도 같다. 시그니처 다섯의 밝기가 제각각이라
- * (수학은 `L 0.967`, 국어는 `L 0.62`) 순색으로 깔면 어떤 줄은 글자가 안 보이고 어떤 줄은
- * 면이 너무 세게 튄다. 20% 틴트는 다섯을 같은 밝기로 눕혀 두면서 색상은 남긴다 —
- * 「어느 과목인지 알아보는 표시」라는 원래 용도에는 그걸로 충분하다.
+ * 아이는 봇을 「과」라 적힌 파란 배지로 보고 「과학봇」이라 부른다. 부모 화면에 다른 표시가
+ * 떠 있으면 둘이 같은 봇을 이야기하면서 서로 다른 것을 보고 있는 셈이다. 그래서 이 자리는
+ * 아이의 담은 봇 카드(`my-bots/my-bot-card.tsx`)와 **같은 `BotAvatar`** 를 쓴다 — 크기까지
+ * 같을 필요는 없지만 면·글자·모양은 한 컴포넌트가 정한다.
  *
- * ## 타일 안은 **아이가 보는 그 얼굴**이다 — lucide 글리프로 되돌리지 마라
+ * 종전에는 `avatarEmoji` 와 시그니처 색 20% 틴트였다. 이모지를 걷어낸 것은 이 화면의 사정이
+ * 아니라 **봇 배지 전체의 규격이 바뀐 것**이고(`components/classbot/bot-avatar.tsx`),
+ * 색을 걷어낸 것은 자녀가 봇을 넷 담으면 그것만으로 카드에 hue 가 넷이 되어
+ * [08 § 14.1] 한도를 넘기 때문이다. 이제 넷을 담아도 hue 는 브랜드 블루 하나다.
  *
- * 아이는 봇을 🧑‍🔬 로 보고 「과학봇」이라 부른다. 부모 화면에 회색 글리프가 떠 있으면 둘이
- * 같은 봇을 이야기하면서 서로 다른 것을 보고 있는 셈이라, `avatarEmoji` 가 이 자리에 왔다.
- *
- * 처음엔 「이모지가 없는 봇은 글리프로」를 대비책으로 두려 했는데 **그게 틀렸다.**
- * `class_bots.avatar_emoji` 는 `NOT NULL DEFAULT '🤖'` 라 이모지를 안 고른 봇은 null 이
- * 아니라 **로봇 얼굴 🤖 로 도착한다.** 그 자리에 글리프를 그리면 아이는 🤖 를 보고 부모는
- * 회색 글리프를 보게 되어, 이 필드가 없애려던 어긋남을 **정확히 다시 만든다.**
- * 그래서 대비책은 글리프가 아니라 **같은 🤖** 다 — 담은 봇 카드가 쓰는 것과 같은 값이다
- * (`my-bots/my-bot-card.tsx` 의 `bot?.avatarEmoji || '🤖'`).
+ * ⛔ **폴백의 lucide `Bot` 글리프는 `subject`·`name` 이 둘 다 없을 때뿐이다 — 값이 있는데
+ * 글리프로 되돌리지 마라.** 종전 주석이 「lucide 글리프로 되돌리지 마라」고 못 박은 자리가
+ * 여기이고, **규격이 바뀌어도 그 경고는 그대로 유효하다.** `BotAvatar` 는 폴백에서 실제로
+ * lucide `Bot` 을 그리므로(`{initial ?? <Bot …/>}`) 되돌아갈 문이 닫혀 있지 않다.
+ * 부모 쪽만 글리프로 갈아 끼우면 아이는 「과」를 보고 부모는 회색 글리프를 보게 되어,
+ * 이 자리가 없애려던 어긋남이 **정확히 그대로 되살아난다.** 폴백이 정당한 경로인 것은
+ * 아이 화면도 같은 조건에서 **같은 글리프**를 그리기 때문이다 — 두 화면이 같이 내려간다.
  *
  * 기준은 「빈 값을 어떻게 메우나」가 아니라 **「아이 화면과 같은가」**다. 그 하나만 지키면 된다.
  */
 function SelfStudyBotRow({ bot }: { bot: ParentSelfStudyBot }) {
-  const sig = botSignature({ id: bot.botId, subject: bot.subject });
   const startedAt = formatAddedAt(bot.addedAt);
 
   return (
     <li className="border-pullim-slate-100 flex items-center gap-3 rounded-xl border px-3 py-2.5">
-      <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-        style={{ backgroundColor: `color-mix(in oklab, ${sig.hex} 20%, white)` }}
-        aria-hidden
-      >
-        {bot.avatarEmoji || '🤖'}
-      </span>
+      <BotAvatar subject={bot.subject} name={bot.name} size="md" />
       <div className="min-w-0 flex-1">
         <p className="text-pullim-slate-900 truncate text-sm font-bold">{bot.name}</p>
         <MetaRow

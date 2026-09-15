@@ -1,6 +1,7 @@
 import { Shield } from 'lucide-react';
 import type { ClassBot } from '@/lib/mock';
 import { scopeMeta } from '@/lib/mock';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { Chip } from '@/components/ui/chip';
 import { cn } from '@/lib/utils';
@@ -58,16 +59,15 @@ export function BotIdentityCard({
 
         {/* 봇 아바타 */}
         <div className="relative shrink-0">
-          <div
+          <BotAvatar
+            subject={bot.subject}
+            name={bot.name}
+            size={collapsed ? 'md' : 'xl'}
             className={cn(
-              'ring-pullim-blue-300/50 flex items-center justify-center rounded-2xl text-2xl ring-2 ring-offset-2 ring-offset-pullim-slate-900',
-              collapsed ? 'h-10 w-10 text-lg' : 'h-14 w-14',
+              'ring-pullim-blue-300/50 ring-2 ring-offset-2 ring-offset-pullim-slate-900',
               bot.isLive && 'pullim-anim-bot-breath',
             )}
-            style={{ backgroundColor: sig.hex }}
-          >
-            {bot.avatarEmoji}
-          </div>
+          />
           {bot.isLive && (
             <span className="bg-pullim-danger absolute -right-1 -bottom-1 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs font-bold uppercase">
               <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />

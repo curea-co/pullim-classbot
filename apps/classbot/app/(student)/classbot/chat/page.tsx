@@ -305,7 +305,19 @@ function ClassbotChatPageInner() {
                     const isActive = b.id === bot.id;
                     const isLiveNow = Boolean(activeLive[b.id]);
                     const sig = botSignature(b);
-                    // [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X)
+                    /*
+                      [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X).
+
+                      **이 색이 남아 있는 것은 누락이 아니다.** 아바타에서 시그니처를 걷은 변경의
+                      범위는 「아바타 면」까지이고, 남은 시그니처 자리와 함께 이 배경을 걷는 것은
+                      **별건 PR 의 범위**다(`lib/tokens/bot-signature.ts` 머리주석 — 자리 목록은
+                      거기에도 열거하지 않고 호출부 grep 에 맡긴다).
+                      그리고 그 별건 PR 은 **문서 PR 이 선행해야** 한다 — `04 § 9.4` 가 이 칩을
+                      「시그니처 컬러 배경 + 흰 글자」로 **아직 명문으로** 들고 있어, 코드만 먼저
+                      걷으면 그 순간 스펙 위반이 된다.
+                      그때까지 이 자리를 `BotAvatar` 로 바꾸지 마라 — 라임 바탕 위에 파란 배지가
+                      얹혀, 한 칩 안에 봇 얼굴이 둘이 된다.
+                    */
                     return (
                       <li key={b.id} className="shrink-0">
                         <button
@@ -322,7 +334,12 @@ function ClassbotChatPageInner() {
                             !isActive && source === 'class' && 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100 border-transparent',
                           )}
                         >
-                          <span className="text-base leading-none">{b.avatarEmoji}</span>
+                          {/*
+                            칩은 **이름만** 말한다. 아래 필터 칩·리플레이 목록과 같은 규칙이다 —
+                            배경면 없이 이름 옆에 붙던 이모지 글리프는 봇을 한 번 더 말할 뿐이고,
+                            [08 § 14.1.1] 예외 2 는 화면이 아니라 데이터 자리의 계약이다.
+                            (활성 칩의 시그니처 색 배경은 아직 남아 있다 — 별건 PR 이 걷는다.)
+                          */}
                           <span>{b.name}</span>
                           {isLiveNow && (
                             <LiveBadge variant="dot" aria-label="라이브 진행 중" />
@@ -1239,7 +1256,7 @@ function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { tur
   return (
     <ChatBubbleFrame
       isStudent={isStudent}
-      bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }}
+      bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }}
       meName={meName}
       at={turn.at}
       continuation={continuation}
@@ -1913,7 +1930,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
 
 function PendingBubble({ bot }: { bot: ClassBot }) {
   const botSig = botSignature(bot);
-  return <ChatPendingBubble bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }} />;
+  return <ChatPendingBubble bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }} />;
 }
 
 /* ─── A5 스크린리더 접근성 ─── */

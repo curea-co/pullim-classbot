@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Bot, ChevronRight, MessageSquare, Plus, Settings, Shield } from 'lucide-react';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { Chip } from '@/components/ui/chip';
@@ -104,9 +105,7 @@ function BotManageCard({ bot, carriedTab }: { bot: ManagedBot; carriedTab?: stri
         href={href}
         className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-start gap-4 rounded-2xl border p-5 transition-colors outline-none focus-visible:ring-2"
       >
-        <span className="bg-pullim-blue-50 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl" aria-hidden>
-          {bot.avatarEmoji}
-        </span>
+        <BotAvatar subject={bot.subject} name={bot.botName} size="lg" />
         <span className="min-w-0 flex-1">
           <span className="text-pullim-slate-900 block text-sm font-bold">{bot.botName}</span>
           <span className="text-pullim-slate-500 mt-0.5 block text-2xs">

@@ -7,6 +7,7 @@ import { useClassBots } from '@/lib/store/mode-bots';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useSelfLearningStore } from '@/lib/store/self-learning';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -31,12 +32,7 @@ export function WellnessBotCommentCard({ studentId }: { studentId: string }) {
   return (
     <section className="bg-card rounded-2xl border p-4">
       <header className="mb-2 flex items-center gap-2">
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-          style={{ backgroundColor: sig.hex }}
-        >
-          {botComment.bot.avatarEmoji}
-        </span>
+        <BotAvatar subject={botComment.bot.subject} name={botComment.bot.name} size="sm" />
         <div className="min-w-0 flex-1">
           {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
           <div className="inline-flex items-center gap-1.5 text-xs">

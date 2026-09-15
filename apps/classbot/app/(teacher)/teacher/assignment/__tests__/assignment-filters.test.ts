@@ -55,11 +55,12 @@ const botIndex = new Map<string, BotFacts>([
   ['cb_001', {
     botId: 'cb_001',
     botName: '수학이 형',
+    subject: '수학',
     avatarEmoji: '🧑‍🏫',
     classrooms: [{ classroomId: 'cr_math_a', label: '중2 수학 A반', studentCount: 18 }],
   }],
   ['cb_002', {
-    botId: 'cb_002', botName: '영어 누나', avatarEmoji: '👩‍🏫', classrooms: [],
+    botId: 'cb_002', botName: '영어 누나', subject: '영어', avatarEmoji: '👩‍🏫', classrooms: [],
   }],
 ]);
 

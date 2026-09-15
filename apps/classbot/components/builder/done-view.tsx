@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
-import { botSignature } from '@/lib/tokens/bot-signature';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { FieldLabel } from './field-mark';
 import { FilledSummary } from './filled-summary';
 import { PickChip } from './pick-chip';
@@ -46,7 +45,6 @@ function assignmentHref(draft: BotDraft): string {
 
 export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
   const subject = draft.subject ? subjectMeta[draft.subject] : null;
-  const sig = botSignature({ subject: subject?.label });
 
   function toggleClass(id: string) {
     const next = draft.classes.includes(id)
@@ -59,13 +57,7 @@ export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
     <div className="space-y-4">
       <section className="bg-card rounded-2xl border p-4 lg:p-6">
         <header className="flex flex-wrap items-center gap-3">
-          <span
-            aria-hidden
-            style={{ backgroundColor: sig.hex }}
-            className="text-pullim-slate-900 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold"
-          >
-            {subject?.initial ?? <Bot className="h-6 w-6" />}
-          </span>
+          <BotAvatar subject={subject?.label} name={botName(draft)} size="lg" />
           <div className="min-w-0 flex-1">
             <h2 className="text-pullim-slate-900 truncate text-xl font-bold tracking-tight">{botName(draft)}</h2>
             <p className="text-pullim-slate-500 mt-0.5 text-xs">

@@ -6,6 +6,7 @@ import { BarChart3, CalendarRange, Clock, GraduationCap, Inbox, MessageCircle, T
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -15,7 +16,6 @@ import { Sparkbar } from '@/components/classbot/sparkbar';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import {
   PROGRESS_PERIOD_OPTIONS,
   attainmentChipClass,
@@ -212,15 +212,9 @@ function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: st
               <ul className="space-y-1.5">
                 {day.items.map(item => {
                   const face = progressBotFace(item.botId);
-                  const hex = botSignature({ id: item.botId, subject: face.subject }).hex;
                   return (
                     <li key={item.id} className="bg-card flex items-start gap-3 rounded-2xl border p-3">
-                      <span
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-                        style={{ backgroundColor: hex }}
-                      >
-                        {face.avatarEmoji}
-                      </span>
+                      <BotAvatar subject={face.subject} name={face.name} size="md" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 text-2xs">
                           <span className="text-pullim-slate-500 font-bold">{face.name}</span>

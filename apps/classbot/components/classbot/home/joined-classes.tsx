@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { SectionHeading } from '@/components/shell/section-heading';
 
 import { groupByOrg, teacherCount } from './joined-classes-data';
@@ -52,19 +53,21 @@ export function JoinedClasses({ rooms }: { rooms: RoomSlot[] }) {
       >
         <span className="flex min-w-0 flex-1 items-center gap-3">
           {/* 겹친 아바타 — 「이 방들이 내 방이다」를 한 덩어리로 말한다.
-              시그니처 색은 바로 위 봇 카드가 이미 쓰고 있어 여기서는 중립 면으로 둔다. */}
+              바로 위 봇 카드와 같은 `BotAvatar` 다. 같은 반을 두 곳에서 보는 것이니
+              두 자리의 배지가 서로 달라 보이면 안 된다. */}
           <span className="flex shrink-0 items-center -space-x-2" aria-hidden="true">
             {stack.map((room) => (
-              <span
+              <BotAvatar
                 // 같은 봇을 쓰는 반이 둘일 수 있다 — key 는 반 단위여야 한다.
                 key={room.enrollment.classroomId}
-                className="bg-pullim-slate-100 ring-card flex h-9 w-9 items-center justify-center rounded-full text-base ring-2"
-              >
-                {room.bot.avatarEmoji}
-              </span>
+                subject={room.bot.subject}
+                name={room.bot.name}
+                size="md"
+                className="ring-card ring-2"
+              />
             ))}
             {rest > 0 && (
-              <span className="bg-pullim-slate-200 text-pullim-slate-600 ring-card text-2xs flex h-9 w-9 items-center justify-center rounded-full font-bold ring-2">
+              <span className="bg-pullim-slate-200 text-pullim-slate-600 ring-card text-2xs flex h-9 w-9 items-center justify-center rounded-md font-bold ring-2">
                 +{rest}
               </span>
             )}

@@ -180,10 +180,13 @@ export function isDueSoon(a: UserAssignment, now: number = Date.now()): boolean 
   return at - now <= DUE_SOON_MS;
 }
 
-/** 봇 한 대의 이름·얼굴·붙은 반 — 목록 행이 필요로 하는 것만. */
+/** 봇 한 대의 이름·과목·얼굴·붙은 반 — 목록 행이 필요로 하는 것만. */
 export interface BotFacts {
   botId: string;
   botName: string;
+  /** 아바타 이니셜의 1순위 출처(`BotAvatar`). 없으면 이름 첫 글자로 내려간다. */
+  subject: string;
+  /** 데이터 계약([08 § 14.1.1] 예외 2) — 목록 행은 읽지 않지만 지우지 않는다. */
   avatarEmoji: string;
   classrooms: { classroomId: string; label: string; studentCount: number }[];
 }
@@ -198,6 +201,7 @@ export function buildBotIndex(): Map<string, BotFacts> {
     index.set(row.bot.id, {
       botId: row.bot.id,
       botName: row.bot.name,
+      subject: row.bot.subject,
       avatarEmoji: row.bot.avatarEmoji,
       classrooms: row.ops.classrooms.map((c) => ({
         classroomId: c.id,
@@ -212,6 +216,7 @@ export function buildBotIndex(): Map<string, BotFacts> {
     index.set(bot.id, {
       botId: bot.id,
       botName: bot.name,
+      subject: bot.subject,
       avatarEmoji: bot.avatarEmoji,
       classrooms: [],
     });
@@ -222,6 +227,16 @@ export function buildBotIndex(): Map<string, BotFacts> {
 export interface AssignmentRow {
   assignment: UserAssignment;
   botName: string;
+  /**
+   * 아바타 이니셜의 출처. **비지 않는다** — 봇을 못 찾아도 과제 행이 제 과목을 들고 있다.
+   *
+   * 학생 쪽 같은 자리(`app/(student)/classbot/assignment/page.tsx` 의 `meta?.subject ?? a.subject`)와
+   * **같은 폴백 체인**이어야 한다. 갈리면 같은 과제의 봇이 교사 화면에서는 「김」(`assignedBy`
+   * 첫 글자), 학생 화면에서는 「수」로 떠서 [08 § 14.1.1] 예외 2 의 「역할을 가리지 않는다」가
+   * 그 자리에서 깨진다.
+   */
+  subject: string;
+  /** 데이터 계약([08 § 14.1.1] 예외 2) — 목록 행은 읽지 않지만 지우지 않는다. */
   avatarEmoji: string;
   classroomLabels: string[];
   /** 이 과제를 받은 학생 수 */
@@ -320,6 +335,8 @@ export function buildRows(
     return {
       assignment,
       botName: facts?.botName ?? assignment.assignedBy,
+      // 봇을 못 찾아도 과목은 과제 행이 안다 — 학생 화면과 같은 체인이다(위 타입 주석).
+      subject: facts?.subject ?? assignment.subject,
       avatarEmoji: facts?.avatarEmoji ?? '🤖',
       classroomLabels: facts?.classrooms.map((c) => c.label) ?? [],
       targetCount: assignment.targetStudentIds.length || wholeClassSize(),
