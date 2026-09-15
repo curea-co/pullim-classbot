@@ -10,6 +10,10 @@ import type { Assignment, ClassBot, StudentEnrollment } from '@/lib/mock';
 
 type BotSlot = { bot: ClassBot; enrollment: StudentEnrollment };
 
+// 줄의 공통 골격 — 테두리 상자는 카드가 대신하므로 줄은 라이너와 배경만 갖는다.
+const ROW_BASE =
+  'group focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-pullim-blue-50/40';
+
 function dDayChipTone(dDay: string): NonNullable<ChipProps['tone']> {
   if (dDay === '오늘') return 'danger';
   if (dDay === 'D-1') return 'info';
@@ -51,68 +55,76 @@ export function TodoPanel({
     incompleteAssignments.length - visibleAssignments.length;
 
   return (
-    <section>
+    // 옆 칸의 [나의 성장]과 같은 종류의 물건(카드 한 장)이어야 두 패널의 바닥선이 맞는다.
+    <section className="flex h-full flex-col">
       <SectionHeading title="오늘 할 일" />
       {light && !isEmpty && (
         <p className="text-pullim-slate-500 -mt-1 mb-2 text-xs">
           오늘은 이것 하나만 해도 충분해요.
         </p>
       )}
-      {isEmpty ? (
-        <div className="border-pullim-slate-100 rounded-xl border border-dashed bg-pullim-slate-50 px-4 py-6 text-center">
-          <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요</p>
-          <p className="text-pullim-slate-400 mt-1 text-xs">봇과 자유롭게 대화하며 한 발 더 나가볼까요?</p>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {/* LIVE bots first — light 접힘에서도 1개는 노출(시간 민감), 멀티는 접힘 */}
-          {visibleLiveBots.map(({ bot }) => (
-            <li key={bot.id}>
-              <Link
-                href={`/classbot/live/${bot.id}`}
-                className="group focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 bg-pullim-danger/5 border-pullim-danger/30 hover:bg-pullim-danger/10 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors"
-              >
-                <Radio className="text-pullim-danger pullim-anim-live-pulse h-4 w-4 shrink-0" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <span className="text-pullim-slate-900 text-sm font-bold">{bot.name}</span>
-                  <span className="text-pullim-slate-500 ml-1 text-xs">라이브 진행 중</span>
-                </div>
-                <span className="bg-pullim-danger text-micro inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold text-white shrink-0">
-                  <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
-                  LIVE
-                </span>
-                <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-danger h-4 w-4 shrink-0 transition-colors" aria-hidden />
-              </Link>
-            </li>
-          ))}
-
-          {/* Incomplete assignments — urgent first (already sorted) */}
-          {visibleAssignments.map((a) => (
-            <li key={a.id}>
-              <Link
-                href={a.solveHref ?? '/classbot/assignment'}
-                className={cn(
-                  'group focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors bg-card',
-                  // 오늘 마감은 급한 것이지 잘못된 것이 아니다 — 빨강 대신 **진한 블루 테두리**로 앞세운다
-                  a.dDay === '오늘'
-                    ? 'border-pullim-blue-500 hover:border-pullim-blue-600 hover:bg-pullim-blue-50/50'
-                    : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/30',
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="text-pullim-slate-900 line-clamp-1 text-sm font-bold">
-                    {a.title}
+      <div className="bg-card border-pullim-slate-100 shadow-pullim-xs flex flex-1 flex-col rounded-xl border p-2">
+        {isEmpty ? (
+          <div className="flex flex-1 flex-col items-center justify-center px-4 py-6 text-center">
+            <p className="text-pullim-slate-500 text-sm font-semibold">다 따라잡았어요</p>
+            <p className="text-pullim-slate-400 mt-1 text-xs">봇과 자유롭게 대화하며 한 발 더 나가볼까요?</p>
+          </div>
+        ) : (
+          // 줄 사이는 헤어라인으로만 나눈다 — 카드 안에 또 상자를 두지 않는다.
+          <ul className="divide-pullim-slate-100 divide-y">
+            {/* LIVE bots first — light 접힘에서도 1개는 노출(시간 민감), 멀티는 접힘 */}
+            {visibleLiveBots.map(({ bot }) => (
+              <li key={bot.id}>
+                <Link
+                  href={`/classbot/live/${bot.id}`}
+                  className={cn(
+                    ROW_BASE,
+                    'border-pullim-danger bg-pullim-danger/5 hover:bg-pullim-danger/10 border-l-[3px]',
+                  )}
+                >
+                  <Radio className="text-pullim-danger pullim-anim-live-pulse h-4 w-4 shrink-0" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-pullim-slate-900 text-sm font-bold">{bot.name}</span>
+                    <span className="text-pullim-slate-500 ml-1 text-xs">라이브 진행 중</span>
+                  </div>
+                  <span className="bg-pullim-danger text-micro inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold text-white shrink-0">
+                    <span className="bg-white pullim-anim-live-pulse inline-block h-1 w-1 rounded-full" />
+                    LIVE
                   </span>
-                </div>
-                <Chip tone={dDayChipTone(a.dDay)}>
-                  {a.dDay}
-                </Chip>
-                <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" aria-hidden />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+                  <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-danger h-4 w-4 shrink-0 transition-colors" aria-hidden />
+                </Link>
+              </li>
+            ))}
+
+            {/* Incomplete assignments — urgent first (already sorted) */}
+            {visibleAssignments.map((a) => (
+              <li key={a.id}>
+                <Link
+                  href={a.solveHref ?? '/classbot/assignment'}
+                  className={cn(
+                    ROW_BASE,
+                    // 오늘 마감은 급한 것이지 잘못된 것이 아니다 — 빨강 대신 **진한 블루 라이너**로 앞세운다.
+                    // 나머지 줄의 투명 라이너는 같은 폭을 차지해 제목 시작선을 한 줄로 맞춘다.
+                    a.dDay === '오늘'
+                      ? 'border-pullim-blue-500 border-l-[3px]'
+                      : 'border-l-[3px] border-transparent',
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-pullim-slate-900 line-clamp-1 text-sm font-bold">
+                      {a.title}
+                    </span>
+                  </div>
+                  <Chip tone={dDayChipTone(a.dDay)}>
+                    {a.dDay}
+                  </Chip>
+                  <ArrowRight className="text-pullim-slate-300 group-hover:text-pullim-blue-500 h-4 w-4 shrink-0 transition-colors" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* light 모드 푸터 — 나머지 접힘 안내 + 평소대로 복귀 (렌더만 바꾸고 데이터 불변).
           빈 상태에서도 [평소대로 보기]는 유지 — 없으면 low 신호+빈 할 일 조합에서 같은 날
