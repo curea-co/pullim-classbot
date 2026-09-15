@@ -236,7 +236,7 @@ describe('summarize — 거르개와 무관하게 전체를 센다', () => {
       botIndex,
     );
     // 마감 임박은 진행 중의 부분집합이다 — 따로 빼지 않는다.
-    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1, closed: 1 });
+    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1, closed: 1, scheduled: 0 });
   });
 });
 

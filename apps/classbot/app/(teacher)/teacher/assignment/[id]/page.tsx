@@ -180,6 +180,17 @@ function AssignmentDetail({ id }: { id: string }) {
               : '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요.'
           }
         />
+      ) : status === 'scheduled' ? (
+        /*
+          예약은 **아직 학생에게 안 갔다**(`isStudentVisible` 이 거른다). 그런데 아래 패널과
+          리마인드를 열면 「아직 못 받은 과제를 안 냈다고 재촉하는」 알림이 나간다.
+        */
+        <EmptyState
+          icon={ClipboardList}
+          tone="plain"
+          title="아직 나가지 않은 과제예요"
+          description="정한 시각이 되면 학생에게 갑니다. 그 전에는 학생별 현황이 없어요."
+        />
       ) : isDraft ? (
         <EmptyState
           icon={ClipboardList}

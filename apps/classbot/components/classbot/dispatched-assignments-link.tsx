@@ -40,7 +40,8 @@ export function DispatchedAssignmentsLink() {
     진행 중과 마감 둘 다)이고, 그 수가 0 일 때만 가린다. 마감된 과제만 남은 교사에게서
     낸 과제로 가는 길을 없애지 않는다 — 회수만 남은 교사에게 0건을 보이지도 않는다.
   */
-  const openCount = summary.live + summary.closed;
+  // 예약도 「낸 과제」다 — 빼면 예약만 있는 교사에게서 링크가 사라진다.
+  const openCount = summary.live + summary.closed + summary.scheduled;
   if (!hydrated || openCount === 0) return null;
 
   return (

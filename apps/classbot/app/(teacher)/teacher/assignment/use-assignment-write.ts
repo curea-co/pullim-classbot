@@ -83,6 +83,15 @@ export function useAssignmentWrite(): {
         });
         return 'local-only';
       }
+      /*
+        409 = **「지금 상태로는 못 한다」**(이미 회수됐다 · 초안이라 되돌릴 게 없다). 404 와 달리
+        서버에는 그 과제가 있고, 서버 말이 이미 사람이 읽을 수 있는 문장이다. 「반영되지
+        않았어요」로 덮으면 무엇이 문제인지가 사라진다 — 탭을 둘 열어 둔 흔한 경우다.
+      */
+      if (error instanceof ApiClientError && error.status === 409) {
+        toast.error(error.message, { description: '화면을 새로 고치면 지금 상태가 보여요.' });
+        return 'failed';
+      }
       const message = error instanceof ApiClientError ? error.message : '서버에 전하지 못했어요.';
       toast.error('학생 화면에는 아직 반영되지 않았어요', { description: message });
       return 'failed';

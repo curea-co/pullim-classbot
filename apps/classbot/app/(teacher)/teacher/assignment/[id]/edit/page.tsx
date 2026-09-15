@@ -14,7 +14,7 @@ import { computeDDay, formatDueLabel } from '@/lib/assignment-due';
 import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
-import { statusOf } from '../../assignment-filters';
+import { dueDisplay, statusOf } from '../../assignment-filters';
 import { useAssignmentWrite } from '../../use-assignment-write';
 
 type Params = Promise<{ id: string }>;
@@ -234,7 +234,8 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
         <div className="space-y-2">
           <Label htmlFor="edit-due">마감</Label>
           <p className="text-pullim-slate-500 text-2xs">
-            지금 <b className="text-pullim-slate-900">{assignment.dueLabel}</b>
+            {/* 굳은 라벨이 아니라 살아 있는 값 — 한 클릭 옆 상세와 같은 말을 해야 한다 */}
+            지금 <b className="text-pullim-slate-900">{dueDisplay(assignment).label}</b>
             {!isDraft && (knownCurrent
               ? ' · 늘리는 것만 돼요 — 당기면 지금 풀고 있는 학생이 잘려요.'
               : ' · 지난 시각으로는 못 옮겨요.')}

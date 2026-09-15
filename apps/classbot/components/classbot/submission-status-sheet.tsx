@@ -95,6 +95,14 @@ export function SubmissionStatusPanel({ assignment }: { assignment: AssignmentWi
       assignedAt: '방금 냈어요',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
+      /*
+        **원 과제의 `dueAt` 을 끌고 오지 않는다.** 위 스프레드가 그것까지 복사하는데, 그 값이
+        이제 마감 판정의 권위다(`assignment-filters.ts` 의 `isPastDue`·`statusOf`·`dueDisplay`).
+        오답 다시 내기는 대개 **마감이 지난 뒤**에 하므로, 안 덮으면 갓 만든 복습 과제가 태어나자마자
+        「마감」으로 뜨고 회수 버튼도 안 붙는다 — 학생은 +3일 라벨을 보고 계속 푼다.
+        바로 위 두 줄이 라벨만 덮고 있던 자리다.
+      */
+      dueAt: new Date(dueIso).toISOString(),
       scopeOverride: undefined,
       recentAccuracy: undefined, // 원 과제 정답률 미상속 — 새 과제가 진행된 것처럼 보이면 안 됨 (R6)
       solveHref: `/classbot/assignment/${id}/solve?step=1`,

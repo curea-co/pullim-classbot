@@ -356,11 +356,13 @@ export function summarize(rows: AssignmentRow[]): {
   dueSoon: number;
   draft: number;
   closed: number;
+  scheduled: number;
 } {
   return {
     live: rows.filter((r) => r.status === 'live').length,
     dueSoon: rows.filter((r) => r.dueSoon).length,
     draft: rows.filter((r) => r.status === 'draft').length,
     closed: rows.filter((r) => r.status === 'closed').length,
+    scheduled: rows.filter((r) => r.status === 'scheduled').length,
   };
 }

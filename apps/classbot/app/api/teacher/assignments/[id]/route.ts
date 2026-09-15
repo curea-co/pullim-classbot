@@ -18,7 +18,15 @@ import { and, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { assignments } from '@/lib/db/schema';
+/*
+  D-day 규칙은 **한 곳**에 있다 — 종전에는 이 파일이 제 사본(`dDayFromDate`)을 들고 있어서
+  클라이언트(경과 시간)와 서버(날짜 경계)가 같은 컬럼에 다른 값을 적었다. 같은 과제가 교사
+  화면과 학생 화면에서 다르게 읽힌 원인이다. (런타임 시간대 문제는 남는다 — `POST` 와 함께
+  `Asia/Seoul` 로 못박는 것이 별건이다. `app/api/_lib/study-date.ts` 가 선례.)
+*/
+import { computeDDay } from '@/lib/assignment-due';
 import {
+  conflict,
   forbidden,
   invalidInput,
   notFound,
@@ -35,22 +43,6 @@ export const runtime = 'nodejs';
  */
 const MAX_TITLE_LEN = 60;
 const MAX_REASON_HINT_LEN = 200;
-
-/**
- * 마감 시각에서 D-day — **`POST` 와 같은 규칙이어야 한다**(날짜 경계로 자른다. 시:분은 안 본다).
- * `lib/assignment-due.ts` 의 `computeDDay` 는 24시간 단위라 오늘 23시 마감을 `D-1` 로 센다 —
- * 한 컬럼에 두 규칙이 앉으면 같은 마감이 낸 경로와 고친 경로에서 다르게 읽힌다.
- *
- * ⚠️ 이 함수(와 `POST` 의 같은 함수)는 **런타임 시간대의 날짜 경계**를 쓴다 — 배포에서는 UTC 라
- * KST 기준 날짜와 하루 어긋날 수 있다. 여기서 한쪽만 KST 로 고치면 두 규칙이 되므로,
- * **둘을 함께** `Asia/Seoul` 로 못박는 것은 별건이다(`app/api/_lib/study-date.ts` 가 그 선례다).
- */
-function dDayFromDate(due: Date, now: Date): string {
-  const startOfDay = (d: Date): number =>
-    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
-  return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
-}
 
 /** 이 라우트가 받아 주는 내기 상태 — 「내기」와 「예약」은 각자의 경로가 따로 있다. */
 const PATCHABLE_STATUS = new Set(['sent', 'withdrawn']);
@@ -109,7 +101,7 @@ export async function PATCH(
     const label = typeof body.dueLabel === 'string' ? body.dueLabel.trim() : '';
     if (!label) return invalidInput('마감 표기를 함께 보내 주세요.');
     patch.dueLabel = label;
-    patch.dDay = dDayFromDate(at, now);
+    patch.dDay = computeDDay(at.toISOString(), now.getTime());
   }
 
   const nextStatus =
@@ -133,19 +125,31 @@ export async function PATCH(
     「내는 전이에서만 적는다」고 못박은 자리라, 여기서 뚫으면 목록 정렬까지 어긋난다.
     그래서 **지금 상태**를 조건에 함께 넣는다.
   */
+  const db = getDb();
   const owned = and(eq(assignments.id, id), eq(assignments.createdBy, actor.id));
-  const where =
-    nextStatus === 'sent'
-      ? and(owned, eq(assignments.dispatchStatus, 'withdrawn'))
-      : nextStatus === 'withdrawn'
-        ? and(owned, eq(assignments.dispatchStatus, 'sent'))
-        : owned;
 
-  const [updated] = await getDb()
-    .update(assignments)
-    .set(patch)
-    .where(where)
-    .returning();
+  /*
+    **「내 것이 아니다」와 「지금 상태로는 못 한다」를 가른다.** 둘을 한 조회에 접어 넣고 404 로
+    답하면 화면이 그 404 를 「서버에 없는 과제(데모)」로 읽어 **로컬만 고치고 성공을 알린다** —
+    탭을 둘 열어 두고 한쪽에서 이미 회수한 뒤 다른 쪽에서 누르면, 교사는 「이 브라우저에만
+    반영했어요」를 보지만 사실 서버에는 이미 반영돼 있다. 먼저 소유권을 확인하고, 상태가
+    안 맞으면 **409** 로 답한다(`guards.ts` 의 `conflict`).
+  */
+  const [current] = await db
+    .select({ dispatchStatus: assignments.dispatchStatus })
+    .from(assignments)
+    .where(owned)
+    .limit(1);
+  if (!current) return notFound('과제를 찾을 수 없어요.');
+
+  if (nextStatus === 'sent' && current.dispatchStatus !== 'withdrawn') {
+    return conflict('회수한 과제만 되돌릴 수 있어요.');
+  }
+  if (nextStatus === 'withdrawn' && current.dispatchStatus !== 'sent') {
+    return conflict('지금은 회수할 수 없는 과제예요.');
+  }
+
+  const [updated] = await db.update(assignments).set(patch).where(owned).returning();
 
   if (!updated) return notFound('과제를 찾을 수 없어요.');
 
