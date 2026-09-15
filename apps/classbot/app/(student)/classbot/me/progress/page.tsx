@@ -11,7 +11,6 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
-import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { Sparkbar } from '@/components/classbot/sparkbar';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
@@ -145,10 +144,7 @@ export default function MyProgressPage() {
 function StandardsSection({ standards }: { standards: AchievementStandard[] }) {
   return (
     <section>
-      <SectionHeading
-        title="성취기준별 달성도"
-        action={<ComingSoonButton note="기준 → 문항·대화 이동" aria-label="기준별 문항 보기">기준별 문항</ComingSoonButton>}
-      />
+      <SectionHeading title="성취기준별 달성도" />
       {standards.length === 0 ? (
         <EmptyState
           icon={Target}
@@ -169,30 +165,32 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
   // 어느 봇 기준인지는 아래 `{face.name}` 줄이 말한다 — 라이너까지 칠하면 목록 전체가 무지개가 된다 [08 § 14.1]
   return (
     <li className="bg-card rounded-2xl border p-4">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-4">
+        {/* 달성률이 이 화면의 답이다 — 종전엔 11px 로 맨 아래 있었다 */}
+        <div className="flex w-[76px] shrink-0 flex-col items-start gap-1.5">
+          <span className="text-pullim-blue-700 font-mono text-3xl leading-none font-bold">
+            {s.percent}%
+          </span>
+          <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-bold', attainmentChipClass[s.level])}>
+            {attainmentLabel[s.level]}
+          </span>
+        </div>
+
         <div className="min-w-0 flex-1">
-          <p className="text-pullim-slate-900 text-sm font-bold">{s.statement}</p>
-          <p className="text-pullim-slate-500 mt-0.5 text-2xs">
+          <p className="text-pullim-slate-900 text-base font-bold leading-snug">{s.statement}</p>
+          <p className="text-pullim-slate-500 mt-1 text-xs">
             {face.name} · {s.unitLabel}
           </p>
+          {/* 막대는 데이터지 봇 정체성이 아니다 — 같은 값을 눈으로 한 번 더 말한다 */}
+          <div className="bg-pullim-slate-200 mt-2.5 h-2 overflow-hidden rounded-full">
+            <div
+              className="bg-pullim-blue-600 h-full rounded-full transition-all"
+              style={{ width: `${s.percent}%` }}
+            />
+          </div>
+          <p className="text-pullim-slate-600 mt-2.5 text-sm leading-relaxed">{s.evidence}</p>
         </div>
-        <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-2xs font-bold', attainmentChipClass[s.level])}>
-          {attainmentLabel[s.level]}
-        </span>
       </div>
-
-      <div className="mt-2 flex items-center gap-2">
-        <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
-          {/* 막대는 데이터지 봇 정체성이 아니다 — 봇 표시는 카드 왼쪽 라이너가 이미 하고 있다 */}
-          <div
-            className="bg-pullim-blue-600 h-full rounded-full transition-all"
-            style={{ width: `${s.percent}%` }}
-          />
-        </div>
-        <span className="text-pullim-slate-500 font-mono text-micro font-bold">{s.percent}%</span>
-      </div>
-
-      <p className="text-pullim-slate-600 mt-2 text-xs leading-relaxed">{s.evidence}</p>
     </li>
   );
 }
@@ -201,11 +199,7 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
 function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: string }) {
   return (
     <section>
-      <SectionHeading
-        title="봇과의 학습 이력"
-        description={meta}
-        action={<ComingSoonButton note="지난 기록 더 불러오기">더 보기</ComingSoonButton>}
-      />
+      <SectionHeading title="봇과의 학습 이력" description={meta} />
       {days.length === 0 ? (
         <EmptyState icon={MessageCircle} title="아직 학습 기록이 없어요" description="봇과 대화하면 여기에 하루씩 쌓여요." />
       ) : (
@@ -253,11 +247,7 @@ function TimelineSection({ days, meta }: { days: LearningTimelineDay[]; meta: st
 function SubmissionSection({ rows, meta }: { rows: SubmissionHistoryRow[]; meta: string }) {
   return (
     <section>
-      <SectionHeading
-        title="과제 낸 기록"
-        description={meta}
-        action={<ComingSoonButton note="기록 → 과제 상세 이동" aria-label="과제 상세로 가기">과제</ComingSoonButton>}
-      />
+      <SectionHeading title="과제 낸 기록" description={meta} />
       {rows.length === 0 ? (
         <EmptyState icon={Inbox} title="아직 낸 과제가 없어요" description="과제를 내면 여기에 남아요." />
       ) : (
