@@ -389,7 +389,6 @@ function DispatchedAssignments({
   rows: TeacherBotRow[];
 }) {
   const submissions = useAssignmentStore((s) => s.submissions);
-  const totalSent = assignments.reduce((s, a) => s + (a.assignedAt.includes('오늘') || a.assignedAt.includes('방금') ? 1 : 0), 0);
   // 진행률 합산은 store submission 기준 — 실시간 반영
   const totalCompleted = assignments.reduce((s, a) => {
     const mine = submissions.filter((sub) => sub.assignmentId === a.id);
@@ -404,7 +403,12 @@ function DispatchedAssignments({
     <section id="dispatched" data-testid="dispatched-section" className="bg-card scroll-mt-20 rounded-2xl border p-5">
       <SectionHeading
         title="낸 과제"
-        description={`오늘 ${totalSent}건 · 학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
+        /*
+          「오늘 N건」은 걷어냈다 — 날짜를 보는 게 아니라 `assignedAt` 라벨에 '오늘'·'방금'이
+          들어 있는지 센 값이라, 라벨이 「3시간 전」이면 오늘 낸 과제도 0으로 떨어졌다.
+          부제는 사실만 남긴다 (`07 § 6.7`) — 문자열로 센 「오늘」은 사실이 아니다.
+        */
+        description={`학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
         action={
           <Link
             href="/teacher/assignment/new"
