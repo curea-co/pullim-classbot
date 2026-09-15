@@ -1,21 +1,22 @@
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense, useCallback, useMemo, useRef, useState, type Ref } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
   Rocket, Shield, Wrench, School, Pause, Play,
-  MoreHorizontal,
+  MoreHorizontal, Trash2,
 } from 'lucide-react';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, studentAssignments, scopeMeta, type Assignment,
+  currentTeacher, studentAssignments, scopeMeta, josa, type Assignment,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
@@ -68,13 +69,134 @@ export default function TeacherClassbotPage() {
     () => dispatched.filter((a) => a.dispatchStatus !== 'withdrawn'),
     [dispatched],
   );
-  const assignments = useMemo<AssignmentRow[]>(
+  const allAssignments = useMemo<AssignmentRow[]>(
     () => [...live, ...studentAssignments],
     [live],
   );
 
-  const botRows = getTeacherBotRows();
+  /*
+    삭제는 **화면 안 상태로만** 돈다 — 지운 봇의 id 를 여기 모아 두고 걸러낸다.
+    `lib/mock/*` 의 배열을 직접 지우지 않는 까닭: mock 모듈은 이 화면만 읽는 게 아니라
+    학생 화면·관제소·과제 폼이 함께 읽는 공유 데이터다. 거기서 지우면 이 화면에서 누른
+    버튼이 남의 화면까지 바꾼다.
+    진짜 삭제는 BE 별건이고, 그 방향은 `03 § 4.4.8` 이 정본으로 적어 뒀다 —
+    **하드 삭제를 만들지 않고 `archived_at` 소프트 삭제 + 목록 필터로 간다.**
+    까닭은 `class_bots` 가 이미 11개 테이블의 `ON DELETE CASCADE` 부모라,
+    `DELETE` 한 줄이 학생의 대화·제출·과제·성취를 교사 버튼 하나로 지우기 때문이다.
+
+    ── 이 리포의 판례 둘과 이 자리의 관계 ──────────────────────────────────────
+    이 화면에는 「사실이 아닌 것은 걷는다」와 「되돌릴 수 없는 일에만 되묻는다」가 이미
+    판례로 적혀 있다. 이 삭제는 둘 다에 걸리는 모양이라, 왜 그래도 이렇게 두는지를
+    여기 적어 둔다 — 다음 사람이 세 판단을 같이 읽으라고.
+
+    ㉠ #320 이 이 파일 머리주석에 「등록 학생 관리」를 걷은 이유를 적어 뒀다 —
+      「그 섹션이 사실이 아니어서다 … 스스로 「데모 — 새로고침 시 초기화」라 적을 만큼
+      **저장도 없는 토글**이었다」. 이 삭제도 저장이 없다(새로고침이면 봇이 돌아온다).
+      **다른 점은 걷을 자리가 아니라 놓을 자리라는 것**이다 — 그 섹션은 넘겨 줄 화면도,
+      BE 가 내려줄 데이터도, 정본 방향을 적은 문서도 없이 토글만 있었다. 봇 삭제는
+      **권위 문서가 갈 자리를 이름 대고 정해 뒀다**(`03 § 4.2.1`·`§ 4.4.8`) — 이 화면의
+      버튼이 「지금은 화면 안 데모」라는 것, 모달이 고정 문구라는 것, 그리고 BE 가
+      `archived_at` 소프트 삭제로 간다는 것까지 그 두 절이 적는다.
+      ⚠️ **스키마에 그 컬럼이 이미 있는 것은 아니다** — `§ 4.4.8 (a)` 가 「`deleted_at`·
+      `archived_at`·`status` 같은 소프트 삭제 컬럼은 `class_bots` 에 없다. 지금 있는 것은
+      하드 삭제 한 길뿐이다」라고 못박는다(직접 확인했다 — `lib/db/schema.ts`·`drizzle/`
+      어디에도 없다). 있는 것은 **결정**이지 **컬럼**이 아니다.
+      그래서 이 PR 은 그 앞단(되묻는 판·포커스·숫자 동반 감소)을 먼저 세운다.
+      **BE 가 붙을 때 바뀌는 곳은 `handleDelete` 하나가 아니다** — `§ 4.4.8 (e)` 가
+      같이 고쳐야 하는 술어를 전수로 센다((e-1) 읽기 일곱 · (e-2) 쓰기 검증 넷 ·
+      일부러 안 거르는 ⛔ 둘). 여기서 서는 것은 그 BE 작업의 **화면 쪽 절반**이다.
+    ㉡ 되묻기 관용구는 「되돌릴 수 없는 일에만 되묻는다」이고 두 자리가 그 기준을 주석으로
+      못 박아 뒀다 — `classroom/join-code-block.tsx`(「코드 다시 내기는 **되돌릴 수 없다**」),
+      `classbot/my-bots/my-bot-card.tsx`(「빼기는 되묻지 않는다 — 다시 담으면 그만이라
+      되돌릴 수 없는 일이 아니다」). **지금 구현만 재면 이 삭제는 후자 쪽**이다.
+      그런데도 되묻는 판을 먼저 세우는 까닭은, 이 자리에 올 진짜 삭제가 학생의 대화·제출·
+      성취까지 함께 지우는 11테이블 cascade 라서다(바로 위). 되묻는 판을 BE 와 같이
+      들이면 그때 급히 지어야 하고, 그 판이 접근성까지 맞는지 아무도 못 본다.
+      `my-bot-card` 주석도 「대화 기록까지 지우게 되는 P4 부터는 이 판단을 다시 봐야
+      한다」로 같은 방향을 가리킨다 — 여기가 그 P4 쪽 자리다.
+
+    화면에 「데모 — 새로고침 시 초기화」 같은 안내는 **넣지 않는다.** 규칙서·권위 문서
+    어디에도 그 안내를 강제하는 조항이 없고, 검토 끝에 사용자가 넣지 않기로 정했다.
+    (넣지 않기로 한 결정이지, 안 본 자리가 아니다.)
+  */
+  const [deletedBotIds, setDeletedBotIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [deleteNotice, setDeleteNotice] = useState('');
+  const botListRef = useRef<HTMLElement>(null);
+
+  const allRows = useMemo(() => getTeacherBotRows(), []);
+
+  /*
+    숫자가 거짓말하지 않게 — 이 화면에서 그 봇을 세는 자리가 넷이다(카드 · 상단 통계 4칸 ·
+    「낸 과제」 묶음). **한 군데서 거른 목록을 넷이 모두 받아 쓴다.**
+
+    거르는 목록도 넷이다 — 봇(`botRows`) · 낸 과제(`assignments`) · 초안(`visibleDrafts`) ·
+    그 셋을 받아 세는 `summary`. **넷 다 같은 `deletedBotIds` 를 지난다.** 하나라도 빠뜨리면
+    카드는 사라졌는데 숫자만 안 줄어드는, 이 화면이 막으려던 바로 그 모양이 된다.
+
+    `getTeacherBotSummary()` 의 시그니처를 넓히는 길(⑴)은 택하지 않았다 — 이미
+    `rows` 를 받고 기본값으로만 mock 전체를 읽고 있어서, 걸러진 목록을 넘기기만 하면
+    된다(⑵). 공유 mock 모듈을 건드리지 않고 끝나는 쪽이 이 PR 의 경계에도 맞는다.
+  */
+  const botRows = useMemo(
+    () => allRows.filter(r => !deletedBotIds.has(r.bot.id)),
+    [allRows, deletedBotIds],
+  );
   const summary = getTeacherBotSummary(botRows);
+
+  /*
+    지운 봇의 과제도 함께 내린다. 목록에서만 빼면 `groupByBot` 이 그 과제들을
+    「봇 목록에 없는 봇」 묶음으로 되살려, 지운 봇의 과제가 이름만 바뀐 채 남는다.
+  */
+  const assignments = useMemo(
+    () => allAssignments.filter(a => !deletedBotIds.has(a.botId)),
+    [allAssignments, deletedBotIds],
+  );
+
+  /*
+    초안도 같은 필터를 지난다. 「낸 과제」 칸이 세는 값은 `assignments + drafts` 인데
+    초안을 안 거르면 **카드 없는 봇의 초안이 상단 숫자에만 남는다.**
+
+    ⚠️ **지금 당장 나는 일은 아니다 — 초안을 만들 길이 닫혀 있다.** 출제 화면의
+    「임시저장」 버튼은 `disabled` + `aria-disabled="true"` + `title="준비 중 (v2)"` 이고
+    `onClick` 도 없다(`assignment/new/assignment-form.tsx`). 앱 전체에서 `saveDraft`
+    호출자는 **0개**다(직접 세었다 — store 의 정의와 주석뿐이다). 그러니 이 필터가 막는
+    것은 실재 결함이 아니라 **잠재** 결함이다.
+    그래도 거른다 — 식에 `drafts.length` 가 남아 있는 한 「봇을 세는 목록 넷이 모두 같은
+    필터를 지난다」가 참이어야 하고, 「임시저장」이 열리는 날 이 자리를 다시 찾아낼
+    사람은 없다. **도달 불가 코드로 읽고 걷어내지도, 급한 버그로 쫓지도 말라는 뜻이다.**
+
+    아래 「낸 과제」 묶음(`DispatchedAssignments`)은 초안을 안 그린다 — 그래서 이 누수는
+    목록에서는 안 보이고 KPI 숫자에서만 보인다.
+  */
+  const visibleDrafts = useMemo(
+    () => drafts.filter(d => !deletedBotIds.has(d.botId)),
+    [drafts, deletedBotIds],
+  );
+
+  const handleDelete = useCallback((botId: string, botName: string) => {
+    setDeletedBotIds(prev => {
+      if (prev.has(botId)) return prev;
+      const next = new Set(prev);
+      next.add(botId);
+      return next;
+    });
+    /*
+      지우면 그 카드가 사라지므로 포커스를 돌려줄 「더보기」 트리거도 함께 없어진다.
+      그대로 두면 포커스가 `body` 로 떨어져 낭독기가 문서 처음으로 되감긴다.
+      「내 봇」 목록으로 옮겨 준다 — 봇을 다 지운 경우에는 같은 자리에 빈 상태가 선다.
+      그 `<section>` 에는 `aria-label` 로 이름을 달아 뒀다(`BotOpsList`). 이름 없는 곳으로
+      포커스를 던지면 도착해도 낭독기가 부를 말이 없다.
+
+      **알림은 포커스가 자리를 잡은 뒤에 싣는다.** 둘을 같은 커밋에 두면 polite 라이브
+      리전 발화와 포커스 이동이 한 프레임 안에서 겹쳐, 낭독기가 「…을 삭제했어요」를
+      끊고 새 포커스 대상을 읽는다(흔한 충돌이다). 순서를 「포커스 → 알림」으로 못박으면
+      「내 봇, 영역」 다음에 「국어봇을 삭제했어요」가 이어 읽힌다.
+    */
+    requestAnimationFrame(() => {
+      botListRef.current?.focus();
+      setDeleteNotice(`${josa(botName, '을/를')} 삭제했어요.`);
+    });
+  }, []);
 
   return (
     <div className="space-y-7">
@@ -138,16 +260,40 @@ export default function TeacherClassbotPage() {
           **회수한 과제는 세지 않는다**(위 `live`) — 「낸 과제」라는 말이 가리키는 것이 아니다.
           도착한 목록은 초안도 함께 그리므로 그 수를 더한다. 이 둘이 어긋나면 「2건」을 눌러
           5줄짜리 목록에 도착한다.
+
+          ⚠️ **봇 삭제에 대해서는 그 불변식이 지금 깨져 있다 — 알고 두는 것이다.**
+          여기 세는 두 목록은 지운 봇을 걸렀지만, 도착지 `/teacher/assignment` 는 안 거른다:
+          그 화면은 `buildRows([...dispatched, ...drafts], …)` 로 **봇 존재 여부를 아예 보지
+          않고**, 봇을 못 찾으면 `assignedBy` 로 이름만 대신 채운다(`assignment-filters.ts`).
+          그래서 봇 하나를 지운 직후 이 칸은 N-1, 눌러 도착한 목록은 N 줄이다.
+
+          고치지 않는 까닭은 **삭제가 이 화면 안 상태(`deletedBotIds`)이기 때문**이다 —
+          저 화면은 그 사실을 알 길이 없다. 걸러 주려면 지운 봇 목록을 화면 밖으로 내보내야
+          하는데, 그건 이 PR 이 안 하기로 한 일(store·mock·BE 건드리기)이다. 이 어긋남은
+          「삭제가 화면 안 데모」라는 이 PR 의 성격에서 그대로 따라온다(`03 § 4.2.1`).
+
+          ⚠️ **BE 가 붙어도 저절로 맞지는 않는다.** 과제 가시성 술어는 `class_bots` 를
+          **직접 읽지 않고** `enrollments.bot_id` 로 건다(`app/api/_lib/assignment-visibility.ts`
+          의 `visibleAssignmentsWhere()` — `classBots` 를 import 조차 안 한다. 직접 확인했다).
+          그래서 `03 § 4.4.8 (e-1)` 이 그 파일을 「봇만 거르면 **거둔 봇의 과제가 그대로 뜬다**
+          … grep 바깥에서 손으로 더한 유일한 원소」로 이름 대고 든다. 즉 이 어긋남이 닫히는
+          것은 소프트 삭제가 붙는 날이 아니라 **그 술어까지 함께 고치는 날**이다.
         */}
         <KpiStatLink
           label="낸 과제"
-          value={`${assignments.length + drafts.length}건`}
+          value={`${assignments.length + visibleDrafts.length}건`}
           href="/teacher/assignment"
         />
       </KpiStatBar>
 
       {/* 봇 목록 — 이 화면의 본체 */}
-      <BotOpsList rows={botRows} assignments={assignments} />
+      <BotOpsList
+        ref={botListRef}
+        rows={botRows}
+        assignments={assignments}
+        onDelete={handleDelete}
+        notice={deleteNotice}
+      />
 
       {/* 낸 과제 — 봇별로 묶어서 본다 */}
       <DispatchedAssignments assignments={assignments} rows={botRows} />
@@ -160,9 +306,45 @@ export default function TeacherClassbotPage() {
 // 행 데이터 = store dispatched(UserAssignment) + mock 시드(Assignment) 혼합 — targetStudentIds 는 발송분만 보유.
 type AssignmentRow = Assignment & { targetStudentIds?: string[] };
 
-function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments: AssignmentRow[] }) {
+function BotOpsList({
+  ref,
+  rows,
+  assignments,
+  onDelete,
+  notice,
+}: {
+  ref?: Ref<HTMLElement>;
+  rows: TeacherBotRow[];
+  assignments: AssignmentRow[];
+  onDelete: (botId: string, botName: string) => void;
+  /** 삭제 직후 낭독기에 읽어줄 말 — 눈으로 읽는 안내가 아니다 */
+  notice: string;
+}) {
   return (
-    <section id="bot-list" data-testid="bot-ops-list" className="scroll-mt-20">
+    <section
+      ref={ref}
+      id="bot-list"
+      data-testid="bot-ops-list"
+      /*
+        지운 뒤 포커스를 받아 주는 자리 — 사라진 「더보기」 버튼에 포커스가 남지 않게 한다.
+        탭 순서에는 끼지 않는다(`-1`).
+
+        **이름을 단다.** 이름 없는 `<section>` 은 낭독기에 부를 말이 없어서, 포커스가
+        도착해도 아무 말 없이 조용하다. `aria-label` 로 아래 `SectionHeading` 과 같은 말을
+        달아 둔다 — 셸 프리미티브(`components/shell/section-heading.tsx`)는 제목에 id 를
+        받지 않아 `aria-labelledby` 로 잇자면 공유 컴포넌트를 넓혀야 하고, 그건 이 PR 의
+        경계 밖이다. 두 글자가 갈리면 이름만 바뀌는 것이라 조용히 틀리지도 않는다.
+
+        **포커스 표시를 살린다.** `outline-none` 만 두면 판의 「삭제」를 엔터로 누른
+        키보드 사용자가 아무 표시 없는 자리로 옮겨진다(크롬은 키보드 상호작용 직후의
+        프로그램적 포커스에도 `:focus-visible` 을 준다). 마우스로 눌렀을 때는 링이 뜨지
+        않게 `focus-visible:` 로 좁힌다 — 이 리포의 다른 포커스 대상과 같은 관용구다
+        (같은 파일 `DropdownMenuTrigger`, `my-bot-card.tsx`, `withdraw-controls.tsx`).
+      */
+      aria-label="내 봇"
+      tabIndex={-1}
+      className="focus-visible:ring-pullim-blue-400/50 scroll-mt-20 rounded-xl outline-none focus-visible:ring-2"
+    >
       {/*
         제목 옆 「봇 만들기」 링크는 걷어냈다 — 같은 화면 헤더의 「새 클래스봇」과 같은 곳으로 가는
         같은 버튼이라 한 화면이 같은 말을 두 번 했다 (`07 § 6.3` 「같은 정보를 두 번 말하지 않는다」 ·
@@ -176,6 +358,15 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
         따로 본다 — 여기서 같이 걷으면 그 어긋남이 고쳐지지 않은 채 숨는다.
       */}
       <SectionHeading title="내 봇" />
+
+      {/*
+        지운 사실은 낭독기에만 알린다 — 화면에는 남기지 않는다.
+        이 글이 채워지는 시점은 포커스가 이 `<section>` 에 닿은 **뒤**다(`handleDelete`) —
+        같은 프레임에 겹치면 polite 발화가 포커스 이동에 잘린다.
+      */}
+      <p className="sr-only" role="status">
+        {notice}
+      </p>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -191,6 +382,7 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
               key={row.bot.id}
               row={row}
               assignmentCount={assignments.filter(a => a.botId === row.bot.id).length}
+              onDelete={onDelete}
             />
           ))}
         </ul>
@@ -202,8 +394,10 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
 /**
  * 봇 하나에서 나가는 길 — 전부 「더보기」 안에 모은다.
  * 카드마다 링크를 깔면 봇 3개에 12개가 반복돼 정작 「지금 잘 도나」가 안 읽힌다.
+ * **「봇 삭제」도 카드에 따로 깔지 않고 이 안에 둔다** — 같은 까닭이고, 위험한 버튼일수록
+ * 카드마다 깔려 있으면 잘못 눌린다.
  *
- * **둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
+ * **나가는 길은 둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
  * 둘 다 어느 봇의 더보기를 눌렀는지가 링크에 실린다. 봇을 가리키지 못하는 길은 여기 두지 않는다.
  *
  * 걷어낸 셋:
@@ -219,35 +413,91 @@ function botMenuLinks(botId: string) {
   ];
 }
 
-function BotCardMenu({ botId, botName, running }: { botId: string; botName: string; running: boolean }) {
+function BotCardMenu({
+  botId,
+  botName,
+  running,
+  onDelete,
+}: {
+  botId: string;
+  botName: string;
+  running: boolean;
+  onDelete: (botId: string, botName: string) => void;
+}) {
   const RunIcon = running ? Pause : Play;
+  /*
+    판이 닫힐 때 포커스를 돌려줄 자리를 손으로 대 준다.
+    (base-ui 기본값으로도 여기로 돌아온다 — 드롭다운이 닫히며 제 트리거로 포커스를 되돌리기
+    때문이다. 그래도 명시하는 까닭은 `bot-delete-dialog.tsx` 머리주석에 적어 뒀다.)
+  */
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [confirming, setConfirming] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`${botName} 더보기`}
-        className="text-pullim-slate-500 hover:bg-pullim-slate-50 hover:text-pullim-slate-900 focus-visible:ring-pullim-blue-400/50 -mt-1 -mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-bold transition-colors outline-none focus-visible:ring-2"
-      >
-        <MoreHorizontal className="h-4 w-4" aria-hidden />
-        더보기
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
-        {botMenuLinks(botId).map(({ href, icon: Icon, label }) => (
-          <DropdownMenuItem key={href} className="p-0">
-            <Link href={href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
-              <Icon className="h-4 w-4" aria-hidden />
-              {label}
-            </Link>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          ref={triggerRef}
+          aria-label={`${botName} 더보기`}
+          className="text-pullim-slate-500 hover:bg-pullim-slate-50 hover:text-pullim-slate-900 focus-visible:ring-pullim-blue-400/50 -mt-1 -mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-bold transition-colors outline-none focus-visible:ring-2"
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden />
+          더보기
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          {botMenuLinks(botId).map(({ href, icon: Icon, label }) => (
+            <DropdownMenuItem key={href} className="p-0">
+              <Link href={href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
+                <Icon className="h-4 w-4" aria-hidden />
+                {label}
+              </Link>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {/* 멈추기·다시 돌리기는 아직 준비 중 — 자리는 두되 누를 수 없다 */}
+          <DropdownMenuItem disabled className="px-2 py-1.5">
+            <RunIcon className="h-4 w-4" aria-hidden />
+            {running ? '봇 멈추기' : '봇 다시 돌리기'}
+            <DropdownMenuShortcut className="tracking-normal">준비 중</DropdownMenuShortcut>
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        {/* 멈추기·다시 돌리기는 아직 준비 중 — 자리는 두되 누를 수 없다 */}
-        <DropdownMenuItem disabled className="px-2 py-1.5">
-          <RunIcon className="h-4 w-4" aria-hidden />
-          {running ? '봇 멈추기' : '봇 다시 돌리기'}
-          <DropdownMenuShortcut className="tracking-normal">준비 중</DropdownMenuShortcut>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {/*
+            삭제는 되돌릴 수 없는 일이라 위 둘과 눈으로도 갈려야 한다 —
+            이 리포의 danger 토큰(`AlertCard tone="danger"` 가 쓰는 `--color-pullim-danger`)
+            을 그대로 쓴다. 메뉴의 `variant="destructive"` 는 PUDS `--destructive` 를 따라가
+            이 화면의 빨강과 다른 빨강이 된다.
+            링크가 아니라 버튼이다 — 누르면 어디로 가는 게 아니라 여기서 한 번 더 묻는다.
+
+            **그 사실을 `aria-haspopup="dialog"` 로 낭독기에도 싣는다.** 옆의 두 항목
+            (`수정하기`·`과제 내기`)은 링크라 저절로 구별되지만 이 항목만 겉보기가 같고
+            하는 일이 다르다. `withdraw-controls.tsx` 가 같은 문제를 이름 대고 적어 뒀다 —
+            「평범한 button 을 쓰면 base-ui 가 `aria-haspopup`·`aria-expanded` 를 안 달고 …
+            키보드·스크린리더 사용자가 화면에서 제 자리를 잃는다」. 여기서는 메뉴 항목이라
+            `DialogTrigger` 를 쓸 수 없다 — 트리거 노릇을 하려면 판이 열려 있는 동안 붙어
+            있어야 하는데, 이 항목은 누르는 순간 메뉴와 함께 언마운트된다. 그래서 그 주석이
+            걱정한 둘을 나눠 푼다 — 포커스 복귀는 `finalFocus` 로, 힌트는 이 한 줄로.
+            `aria-expanded` 는 얹지 않는다: 이 항목은 눌린 순간 메뉴와 함께 사라져
+            「열려 있는 상태」를 가질 수 없고, 없는 상태를 `false` 로 말하면 그게 거짓말이다.
+          */}
+          <DropdownMenuItem
+            data-testid={`bot-delete-${botId}`}
+            aria-haspopup="dialog"
+            className="text-pullim-danger focus:bg-pullim-danger-bg focus:text-pullim-danger px-2 py-1.5 [&_svg]:text-pullim-danger"
+            onClick={() => setConfirming(true)}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            봇 삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <BotDeleteDialog
+        botName={botName}
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirm={() => onDelete(botId, botName)}
+        finalFocus={triggerRef}
+      />
+    </>
   );
 }
 
@@ -258,7 +508,15 @@ function BotCardMenu({ botId, botName, running }: { botId: string; botName: stri
  *            바닥 링크 5개(더보기 안으로), 「진행 상황 보기」 앵커(바로 아래 낸 과제 섹션).
  * 카드 본체는 누르는 자리가 아니다 — 봇 하나짜리 화면이 아직 없어서 갈 데가 없다.
  */
-function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCount: number }) {
+function BotOpsCard({
+  row,
+  assignmentCount,
+  onDelete,
+}: {
+  row: TeacherBotRow;
+  assignmentCount: number;
+  onDelete: (botId: string, botName: string) => void;
+}) {
   const { bot, ops, studentCount } = row;
   const running = ops.runState === 'running';
   const scope = scopeMeta[bot.scope];
@@ -297,7 +555,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
             <p className="text-pullim-slate-500 mt-0.5 text-2xs">{ops.pauseReason}</p>
           )}
         </div>
-        <BotCardMenu botId={bot.id} botName={bot.name} running={running} />
+        <BotCardMenu botId={bot.id} botName={bot.name} running={running} onDelete={onDelete} />
       </div>
 
       {/* 붙어 있는 학급 */}

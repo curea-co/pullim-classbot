@@ -103,8 +103,9 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await expect(card.getByRole('link')).toHaveCount(0);
     await card.getByRole('button', { name: /더보기/ }).click();
     const menu = page.getByRole('menu');
-    // 남는 길은 둘 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길
-    for (const label of ['수정하기', '과제 내기']) {
+    // 나가는 길은 둘 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.
+    // 「봇 삭제」는 나가는 길이 아니라 여기서 끝나는 일이라 같은 메뉴 아래쪽에 따로 선다.
+    for (const label of ['수정하기', '과제 내기', '봇 삭제']) {
       await expect(menu.getByRole('menuitem', { name: label })).toBeVisible();
     }
     // 걷어낸 셋은 다시 들어오면 안 된다
@@ -115,6 +116,23 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     // 보류 pane 은 내려갔다
     await expect(page.getByRole('button', { name: '새 퀴즈' })).toHaveCount(0);
     await expect(page.getByText('라이브 시작', { exact: true })).toHaveCount(0);
+  });
+
+  // 삭제는 되돌릴 수 없는 일이라 반드시 한 번 되묻는다. 「그만두기」로 빠져나오면 그 봇은 그대로다.
+  test('봇 카드 더보기 → 봇 삭제는 먼저 되묻는다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/classbot', { waitUntil: 'networkidle' });
+
+    await page.getByTestId('bot-ops-card-cb_004').getByRole('button', { name: /더보기/ }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: '봇 삭제' }).click();
+
+    const dialog = page.getByTestId('bot-delete-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('role', 'alertdialog');
+    await expect(dialog).toContainText('봇을 삭제하면 해당 학생은 봇을 이용할 수 없어요.');
+
+    await dialog.getByRole('button', { name: '그만두기' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('bot-ops-card-cb_004')).toBeVisible();
   });
 
   test('봇 카드 더보기 → 그 봇의 수정 화면으로, 값이 채워진 채로 열린다', async ({ page }) => {
