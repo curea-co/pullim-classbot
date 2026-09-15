@@ -759,7 +759,7 @@ bun --filter @pullim-classbot/classbot build
     별건으로 남는다(§ 4.4.7 이 「꼭 해소한다」로 적는다).
     **「화면과 nav 는 같은 PR 에 있어야 한다」는 앞 조항은 이번엔 해당 없다** — 빼는 쪽이라
     `nav-config.test.ts`(「레일의 모든 항목에 대응 page 가 있어야 한다」)가 깨지지 않고,
-    `/teacher/builder` page 는 **그대로 남는다**(앱 안에 그리로 가는 자리가 열 개 더 있다 — § 4.4.7 의 표).
+    `/teacher/builder` page 는 **그대로 남는다**(앱 안에 그리로 가는 자리가 여럿 더 있다 — § 4.4.7 의 표).
     → **인도**: `[예정]` FE PR `refactor/nav-drop-builder`.
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
