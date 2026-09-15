@@ -733,6 +733,75 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
+  it('기간이 지난 코드는 410 GONE — 없는 코드(404)와 가른다', async () => {
+    /*
+      둘을 같은 답으로 뭉치면 학생이 아무 코드나 넣어 보며 「어떤 코드가 존재하는지」를
+      알아낼 수 있다. 반대로 만료를 알려 주는 것은 안전하다 — 이미 그 코드를 받은 사람만
+      만료를 보고, 그가 할 수 있는 일은 새 코드를 받는 것뿐이다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+    */
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      // 트랜잭션 안에서 잠그고 되읽은 코드 — 이미 지났다
+      [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }],
+    ];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('GONE');
+    // 참여 행을 만들지 않는다 — 만료는 잠금 안에서 걸린다
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('이미 참여한 학생은 기간이 지난 코드로도 막히지 않는다', async () => {
+    /*
+      코드는 방에 **들이는 열쇠**이지 이미 들어와 있는 사람의 자격이 아니다. 순서를 뒤집으면
+      48시간 뒤에 자기 반 코드를 다시 넣어 본 학생이 「기간이 지났어요」를 받는다 —
+      이 라우트 머리가 약속한 멱등 재참여가 깨진다.
+    */
+    const existing = { botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' };
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }], // 이미 지난 코드
+      [existing], // 그런데 이 학생은 이미 들어와 있다 — 이 행이 그대로 응답이 된다
+      [{ id: 'cb_001' }],
+      [{ n: 1 }],
+    ];
+    mockInsertQueue = [[]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { alreadyJoined?: boolean };
+    expect(body.alreadyJoined).toBe(true);
+  });
+
+  it('닫힐 시각이 없는 옛 코드는 그대로 통과한다', async () => {
+    // 만료 컬럼이 생기기 전에 발급된 행을 소급해서 닫으면 이미 나눠 준 코드가 한꺼번에 죽는다.
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123', expiresAt: null }],
+      [], // 이미 참여했나 — 아직 아니다. 이게 없으면 `!already` 로 단락돼 null 분기를 안 탄다
+      [{ id: 'cb_001' }],
+      [{ n: 1 }],
+    ];
+    mockInsertQueue = [[{ botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' }]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(201);
+  });
+
   it('처음 참여하면 201 + 7개 필수 컬럼을 전부 적는다', async () => {
     mockSelectQueue = [
       [{ role: 'student' }],
@@ -740,6 +809,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [], // 이미 참여했나 — 아직 아니다(이게 빠지면 봇 잠금 행을 먹어 재참여 분기를 탄다)
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 1 }], // 잠근 뒤 센 인원
     ];
@@ -782,9 +852,9 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [existing], // 이미 참여했나 — 이 행이 그대로 응답이 된다(끝에서 다시 조회하지 않는다)
       [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
       [{ n: 1 }], // 잠근 뒤 다시 센 인원
-      [existing], // 트랜잭션 안에서 기존 행을 되읽는다
     ];
     // 삽입 0행 = PK 충돌(이미 있음).
     mockInsertQueue = [[]];
@@ -807,6 +877,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 코드 잠금
+      [], // 이미 참여했나 — 아직 아니다
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 2 }], // 잠근 뒤 센 인원 — 동시에 들어온 앞 요청까지 세어진다
     ];

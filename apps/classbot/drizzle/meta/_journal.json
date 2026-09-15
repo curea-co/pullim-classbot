@@ -57,6 +57,13 @@
       "when": 1788939412586,
       "tag": "0007_boring_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789463282178,
+      "tag": "0008_demonic_shiver_man",
+      "breakpoints": true
     }
   ]
 }

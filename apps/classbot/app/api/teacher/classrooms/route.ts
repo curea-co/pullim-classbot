@@ -101,6 +101,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       grade: bot?.grade ?? null,
       studentCount: countByRoom.get(room.id) ?? 0,
       joinCode: pair?.joinCode ?? null,
+      joinCodeExpiresAt: pair?.joinCodeExpiresAt ?? null,
       // 짝 봇이 없는 반은 게시할 대상 자체가 없다 — 「안 걸림」이지 오류가 아니다.
       isPublished: bot?.isPublished ?? false,
       publishedAt: bot?.publishedAt?.toISOString() ?? null,
@@ -114,7 +115,7 @@ export async function GET(req: Request): Promise<NextResponse> {
 /**
  * 수업방을 연다 — 반 + 봇 + 참여 코드를 한 번에.
  * @param req - body `{ label, subject, grade, organization?, botName? }`
- * @returns 201 { classroom, bot, joinCode } | 400 | 401 | 403 | 409
+ * @returns 201 { classroom, bot, joinCode, joinCodeExpiresAt } | 400 | 401 | 403 | 409
  */
 export async function POST(req: Request): Promise<NextResponse> {
   const actor = await resolveActor(req);
@@ -181,13 +182,19 @@ export async function POST(req: Request): Promise<NextResponse> {
         .returning();
 
       // teacherId 필수 — NULL 이면 복합 FK(MATCH SIMPLE)가 소유권을 검사하지 않는다.
-      const joinCode = await issueJoinCode(tx, {
+      const issued = await issueJoinCode(tx, {
         botId,
         classroomId,
         teacherId: actor.id,
       });
 
-      return { classroom, bot, joinCode };
+      // 만료도 함께 돌려준다 — 개설 직후 배너가 이 값을 다시 조회하지 않고 바로 쓴다.
+      return {
+        classroom,
+        bot,
+        joinCode: issued.code,
+        joinCodeExpiresAt: issued.expiresAt.toISOString(),
+      };
     });
 
     return NextResponse.json(created, { status: 201 });
