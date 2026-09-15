@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+import { SectionHeading } from '@/components/shell/section-heading';
+
 import { groupByOrg, teacherCount } from './joined-classes-data';
 import type { RoomSlot } from './my-rooms';
 
@@ -17,6 +19,9 @@ import type { RoomSlot } from './my-rooms';
  * 대신 목록이 못 하던 말을 한다 — 몇 반인지, 선생님이 몇 분인지, **어느 학원·학교에서
  * 몇 반인지**. 여섯 줄을 읽어야 알던 것을 두 줄로 준다.
  *
+ * **제목은 카드 밖 `SectionHeading` 이다** — 「내 봇」·「오늘 할 일」과 같은 h2 체계.
+ * 그래서 카드 본문은 제목을 되풀이하지 않고, 제목이 못 하는 말(학원·학교 이름, 선생님, 규모)만 한다.
+ *
  * **반별 「나가기」를 홈에 두지 않는 것은 의도다.** 그 버튼은 로컬(데모) 참여에만 붙는
  * 것이고(서버에 탈퇴 라우트가 아직 없어 실 참여에 붙이면 눌러도 아무 일이 없다), 같은
  * 게이트를 건 같은 버튼이 `/classbot/classroom` 의 반 카드에 이미 있다 — 이 카드가 그리로 보낸다.
@@ -30,11 +35,16 @@ export function JoinedClasses({ rooms }: { rooms: RoomSlot[] }) {
   const groups = groupByOrg(rooms);
   // 반이 하나면 세는 말(1명·1반)이 우스워진다 — 그럴 땐 이름을 그대로 부른다.
   const lead = rooms.length === 1 ? rooms[0].enrollment.assignedBy : `선생님 ${teacherCount(rooms)}명`;
+  // 굵은 줄이 말하는 것 — 어디서 듣는 수업인지. 제목이 밖으로 나가며 비운 자리다.
+  const orgLine = groups
+    .map((g) => (g.rooms.length > 1 ? `${g.org} ${g.rooms.length}반` : g.org))
+    .join(' · ');
   const stack = rooms.slice(0, 4);
   const rest = rooms.length - stack.length;
 
   return (
     <section className="pt-2">
+      <SectionHeading title="참여 중인 클래스" />
       <Link
         href="/classbot/classroom"
         aria-label={`참여 중인 클래스 ${rooms.length}곳 — 내 수업방 열기`}
@@ -61,19 +71,11 @@ export function JoinedClasses({ rooms }: { rooms: RoomSlot[] }) {
           </span>
 
           <span className="min-w-0">
-            <span className="text-pullim-slate-900 block text-sm font-bold">
-              참여 중인 클래스 {rooms.length}곳
-            </span>
-            {/* 모바일에서는 학원·학교가 두 줄까지 나온다 — 한 줄로 자르면 정작 이 카드가 새로 주는 말이 사라진다 */}
-            <span className="mt-0.5 line-clamp-2 block">
-              <span className="text-pullim-slate-600 text-2xs font-semibold">{lead}</span>
-              {groups.map((g) => (
-                <span key={g.org} className="text-pullim-slate-500 text-2xs">
-                  {' · '}
-                  {g.org}
-                  {g.rooms.length > 1 && ` ${g.rooms.length}반`}
-                </span>
-              ))}
+            {/* 모바일에서는 학원·학교가 두 줄까지 나온다 — 한 줄로 자르면 정작 이 카드가 새로 주는 말이 사라진다.
+                `block` 을 함께 주지 않는 이유: `line-clamp-2` 가 이미 `display:-webkit-box` 라 둘이 서로를 덮는다. */}
+            <span className="text-pullim-slate-900 line-clamp-2 text-sm font-bold">{orgLine}</span>
+            <span className="text-pullim-slate-600 text-2xs mt-0.5 block font-semibold">
+              {lead} · {rooms.length}곳
             </span>
           </span>
         </span>

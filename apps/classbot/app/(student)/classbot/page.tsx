@@ -9,7 +9,6 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { todayKey } from '@/lib/store/today-key';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStudentBots } from '@/lib/store/mode-bots';
-import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -18,7 +17,6 @@ import {
   TutorShowcase,
   TodoPanel,
   GrowthPanel,
-  WellnessNudge,
   LightDayNudge,
   LightDayExitStrip,
   JoinedClasses,
@@ -33,12 +31,7 @@ import {
  *   1. LearningHero  — 인사 + 스트릭 + 이어서 하기 CTA + 주간 진행
  *   2. TutorShowcase — 내 튜터 personality 카드 그리드
  *   3. 2-col: TodoPanel(좌) + GrowthPanel(우)
- *   4. WellnessNudge  — 웰빙 봇 코멘트 (optional)
- *   5. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
- *
- * 4 번은 **반 봇 기준**이다(`myBots`). 담은 봇을 여기 섞지 않는 이유: 웰빙 한 마디는
- * 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고, 그 반의 교사가 학습을 보고 있다는
- * 전제 위에 선다(계약 §1 — 담은 봇에는 그 관계가 없다).
+ *   4. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
  *
  * **홈은 하나다.** 예전에는 학습 모드(`lib/store/student-mode.ts`)를 보고 `self` 면 다른 홈
  * (`SelfHomePlaceholder`)을 그렸다. 그 분기는 걷었다 — 봇 마켓에서 담은 봇도 반 봇과 같은
@@ -123,8 +116,6 @@ export default function StudentClassbotPage() {
     );
   }
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
-  // 웰빙 한 마디 — **반 봇**이 건네는 말이라 `myBots` 로만 잰다(위 머리주석 4번).
-  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
 
   // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
   // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
@@ -168,10 +159,7 @@ export default function StudentClassbotPage() {
         <GrowthPanel streakDays={streak.count} />
       </div>
 
-      {/* 4. WellnessNudge — optional */}
-      {wellnessComment && <WellnessNudge comment={wellnessComment} />}
-
-      {/* 5. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
+      {/* 4. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
           반별 나가기는 여기 없다 — 그 버튼은 `/classbot/classroom` 의 반 카드에 있다. */}
       <JoinedClasses rooms={myBots} />
     </div>
