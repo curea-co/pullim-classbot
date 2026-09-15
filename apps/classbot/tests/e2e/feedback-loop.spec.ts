@@ -2,7 +2,7 @@
  * 피드백 루프 — 학생 제출 → 교사 진행률 실시간 반영.
  *
  * 검증 핵심:
- *  1. 새 과제 발사 → 학생 풀이 → 제출 → 교사 화면 진행률 1+ 증가
+ *  1. 새 과제 내기 → 학생 풀이 → 제출 → 교사 화면 진행률 1+ 증가
  *  2. 결과 페이지에 store 기반 점수(% 표기) 표시
  *  3. 새로고침 후에도 submission 유지 (localStorage persist)
  *  4. 라이브 인디케이터 — 최근 30초 내 "방금 제출" 뱃지
@@ -20,7 +20,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     await page.evaluate(() => {
       window.localStorage.removeItem('pullim-assignments');
       // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
-      // 발사 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 발사→학생 목록 노출이 동작한다.
+      // 과제를 내는 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 내기→학생 목록 노출이 동작한다.
       window.localStorage.setItem(
         'pullim-class-enrollment',
         JSON.stringify({
@@ -43,17 +43,15 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   });
 
   test('학생 제출 → 교사 화면 진행률 +1 + 라이브 뱃지', async ({ page }) => {
-    // [1] 교사: 과제 발사
+    // [1] 교사: 과제 내기
     await page.goto(BASE + '/teacher/assignment/new');
-    // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석.
+    // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석. 그 헬퍼가 「과제 내기」
+    // 버튼의 활성까지 확인하고 돌아오므로 여기서 따로 못박지 않는다.
     await fillAssignmentTitle(page, '피드백 루프 검증 과제');
-    // 클릭 전에 활성 상태를 따로 못박는다 — 없으면 실패가 「클릭 타임아웃」으로만 보여
-    // 어느 검증이 막았는지(`titleValid`·`targetValid`·`dueValid`·문항 수) 로그에 남지 않는다.
-    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
-    // 발사 직후 진행률은 0/N
+    // 낸 직후 진행률은 0/N
     // 학생 진입은 동일 컨텍스트의 다른 탭으로
     const initialRowProgress = await page
       .locator('[data-testid^="progress-as_user_"]')
@@ -86,10 +84,9 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
   });
 
   test('새로고침 영속성 — submission 도 localStorage 에 persist', async ({ page }) => {
-    // 발사 + 제출
+    // 과제 내기 + 제출
     await page.goto(BASE + '/teacher/assignment/new');
     await fillAssignmentTitle(page, '영속성 검증 과제');
-    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
 
     await page.goto(BASE + '/classbot/assignment');
@@ -126,7 +123,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
    * (시드가 돌아오거나, 배포에 DB 가 붙어 서버가 과제를 내려주는 날) 아래 가드가 풀리고
    * 종단 검증이 그대로 돈다. 아무도 `skip` 을 걷는 것을 기억하지 않아도 된다.
    *
-   * 발사분 경로의 같은 누적은 위 두 검사가 이미 못 박는다.
+   * 교사가 낸 과제 경로의 같은 누적은 위 두 검사가 이미 못 박는다.
    */
   test('시드 과제 풀이 시에도 store 진행률 누적', async ({ page }) => {
     await page.goto(BASE + '/classbot/assignment/as_today', { waitUntil: 'networkidle' });

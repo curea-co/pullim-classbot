@@ -1,8 +1,8 @@
 /**
- * E2E — 과제 발사 → 학생 수령 → 풀이 → 결과 사이클 (spec 14 § 12, plan 1~5단계).
+ * E2E — 과제 내기 → 학생 수령 → 풀이 → 결과 사이클 (spec 14 § 12, plan 1~5단계).
  *
  * 검증 핵심:
- * 1. 교사가 발사한 새 과제가 학생 홈에 즉시 등장
+ * 1. 교사가 낸 새 과제가 학생 홈에 즉시 등장
  * 2. localStorage persist — 새로고침 후에도 보존
  * 3. 풀이 워크스페이스 진입 가능
  * 4. 제출 → 결과 페이지 도달
@@ -13,14 +13,14 @@ import { fillAssignmentTitle, solveAllAndSubmit } from './helpers';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
-test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () => {
+test.describe('과제 내기 → 학생 수령 → 풀이 → 결과 E2E', () => {
   test.beforeEach(async ({ page }) => {
     // localStorage 초기화 — 깨끗한 상태로 시작
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => {
       window.localStorage.removeItem('pullim-assignments');
       // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
-      // 발사 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 발사→학생 목록 노출이 동작한다.
+      // 과제를 내는 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 내기→학생 목록 노출이 동작한다.
       window.localStorage.setItem(
         'pullim-class-enrollment',
         JSON.stringify({
@@ -42,7 +42,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     });
   });
 
-  test('교사가 새 과제 발사 → 학생이 받음 → 풀이 → 결과', async ({ page }) => {
+  test('교사가 새 과제 내기 → 학생이 받음 → 풀이 → 결과', async ({ page }) => {
     // [1] 교사 진입 — /teacher/classbot
     await page.goto(BASE + '/teacher/classbot');
     await expect(page.getByTestId('new-assignment-cta')).toBeVisible();
@@ -57,12 +57,12 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await fillAssignmentTitle(page, 'E2E 테스트 과제 — 기울기 마무리');
     await page.getByTestId('mode-practice').click();
 
-    // [4] 발사 버튼 활성 확인 → 발사
+    // [4] 「과제 내기」 버튼 활성 확인 → 내기
     const dispatchBtn = page.getByTestId('dispatch-btn');
     await expect(dispatchBtn).toBeEnabled();
     await dispatchBtn.click();
 
-    // [5] 발사 후 /teacher/classbot로 리다이렉트
+    // [5] 낸 뒤 /teacher/classbot 로 리다이렉트
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
     // localStorage 확인 — store에 저장됨
@@ -96,11 +96,10 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await expect(page.getByRole('heading', { name: '수고했어요' })).toBeVisible();
   });
 
-  test('localStorage 새로고침 영속성 — 발사 후 새 탭에서도 보임', async ({ page, context }) => {
-    // 과제 발사
+  test('localStorage 새로고침 영속성 — 낸 뒤 새 탭에서도 보임', async ({ page, context }) => {
+    // 과제 내기
     await page.goto(BASE + '/teacher/assignment/new');
     await fillAssignmentTitle(page, '영속성 테스트 과제');
-    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
@@ -110,7 +109,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
     await expect(studentPage.getByText('영속성 테스트 과제')).toBeVisible();
   });
 
-  test('검증 — 제목 5자 미만이면 발사 비활성', async ({ page }) => {
+  test('검증 — 제목 5자 미만이면 「과제 내기」 비활성', async ({ page }) => {
     await page.goto(BASE + '/teacher/assignment/new');
     await page.getByTestId('title-input').fill('짧');
     await expect(page.getByTestId('dispatch-btn')).toBeDisabled();
@@ -121,7 +120,7 @@ test.describe('과제 발사 → 학생 수령 → 풀이 → 결과 E2E', () =>
 
   test('시험 모드 선택 시 시험 모드 섹션 노출', async ({ page }) => {
     await page.goto(BASE + '/teacher/assignment/new');
-    await page.getByTestId('title-input').fill('시험 모드 발사 테스트');
+    await page.getByTestId('title-input').fill('시험 모드 내기 테스트');
     await page.getByTestId('mode-exam').click();
 
     // Scope L1 자동 안내 노출

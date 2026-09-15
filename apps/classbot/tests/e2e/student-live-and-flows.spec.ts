@@ -86,7 +86,7 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
 });
 
 /**
- * 기획 보류 — 즉석 퀴즈 발사 모달(F4, B8 / SCR-C-20) 검증이 여기 있었다.
+ * 기획 보류 — 즉석 퀴즈 내기 모달(F4, B8 / SCR-C-20) 검증이 여기 있었다.
  * 운영 메인에서 퀴즈 pane 을 내리면서 같은 화면의 봇 운영 목록 검증으로 갈아끼웠다. 재개 시 되살린다.
  */
 test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () => {
@@ -139,7 +139,7 @@ test.describe('클래스봇 운영 메인 — 봇 운영 목록 (SCR-C-17)', () 
     await page.getByTestId('bot-ops-card-cb_004').getByRole('button', { name: /더보기/ }).click();
     await page.getByRole('menu').getByRole('menuitem', { name: '과제 내기' }).click();
     await expect(page).toHaveURL(BASE + '/teacher/assignment/new?bot=cb_004');
-    // 「발사 봇」이 눌러 온 봇이다 — 종전에는 늘 첫 봇(수학봇)이 골라져 있었다
+    // 폼의 봇 자리(지금 이름은 「수업방」)가 눌러 온 봇이다 — 종전에는 늘 첫 봇(수학봇)이 골라져 있었다
     await expect(page.getByTestId('bot-select')).toHaveValue('cb_004');
   });
 });

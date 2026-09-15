@@ -45,7 +45,7 @@ test.describe('모바일 viewport 검증', () => {
     expect(bodyWordBreak).toBe('keep-all');
   });
 
-  test('과제 발사 폼 — 375px 에서 정상 렌더', async ({ browser }) => {
+  test('과제 내기 폼 — 375px 에서 정상 렌더', async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 667 } });
     const page = await context.newPage();
     await page.goto(BASE + '/teacher/assignment/new');
@@ -56,7 +56,7 @@ test.describe('모바일 viewport 검증', () => {
 });
 
 test.describe('키보드 Tab 포커스 가시성', () => {
-  test('과제 발사 폼 — 제목 input Tab 진입 시 focus-visible 활성', async ({ page }) => {
+  test('과제 내기 폼 — 제목 input Tab 진입 시 focus-visible 활성', async ({ page }) => {
     // 2026-05-18 flake mitigation: networkidle + visible gate + 10s timeout (proc/plan/2026-05-18_prod-verify-stability.md)
     await page.goto(BASE + '/teacher/assignment/new', { waitUntil: 'networkidle' });
     const titleInput = page.getByTestId('title-input');
@@ -78,19 +78,16 @@ test.describe('키보드 Tab 포커스 가시성', () => {
   });
 
   test('학생 풀이 — 객관식 선택지 role=radio + aria-checked 전환', async ({ page }) => {
-    // 먼저 발사
+    // 먼저 과제를 낸다
     await page.goto(BASE + '/teacher/assignment/new');
-    // 하이드레이션 경합 — 근거와 실측은 `fillAssignmentTitle` 머리주석으로 옮겼다.
-    // 같은 자리가 스펙 파일 셋에 있어서 헬퍼 한 곳으로 모았다.
+    // 하이드레이션 경합 — 근거와 실측, 그리고 #294 가 세워 둔 「버튼 활성」 증인까지
+    // `fillAssignmentTitle` 머리주석·본문으로 옮겼다. 같은 자리가 스펙 파일 셋에 있었다.
     await fillAssignmentTitle(page, '포커스 검증 과제');
-    // 클릭 전에 활성 상태를 따로 못박는다 — 이게 없으면 실패가 「클릭 타임아웃」으로만 보여
-    // 어느 검증이 막았는지(`titleValid`·`targetValid`·`dueValid`·문항 수) 로그에 남지 않는다.
-    await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
     await page.getByTestId('dispatch-btn').click();
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
     // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
-    // 발사 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 참여시켜야 발사분이 학생 목록에 노출된다.
+    // 과제를 내는 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 참여시켜야 낸 과제가 학생 목록에 노출된다.
     await page.evaluate(() => {
       window.localStorage.setItem(
         'pullim-class-enrollment',
@@ -136,7 +133,7 @@ test.describe('회귀 — 기존 E2E 정합성', () => {
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => window.localStorage.removeItem('pullim-assignments'));
 
-    // 발사 폼 — Label htmlFor↔Input id 연결 확인
+    // 과제 내기 폼 — Label htmlFor↔Input id 연결 확인
     await page.goto(BASE + '/teacher/assignment/new');
     const titleLabel = page.locator('label[for="af-title"]');
     await expect(titleLabel).toBeVisible();
