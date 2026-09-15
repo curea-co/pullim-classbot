@@ -3,8 +3,11 @@ import {
   buildRows,
   filterRows,
   isDueSoon,
+  dueDisplay,
+  progressForTargets,
   sortRows,
   statusOf,
+  wholeClassSize,
   summarize,
   toModeFilter,
   toStatusFilter,
@@ -41,6 +44,13 @@ function make(over: Partial<UserAssignment> = {}): UserAssignment {
   } as UserAssignment;
 }
 
+/** 2026-09-15 18:00 고정 — 마감 판정은 시각을 보므로 기준을 못박는다. */
+const NOW = new Date(2026, 8, 15, 18, 0).getTime();
+/** NOW 기준 N시간 뒤(음수면 전)의 ISO. */
+const iso = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString();
+/** buildRows·summarize 는 now 를 안 받는다 — 그 경로용으로 지금 기준 시각을 쓴다. */
+const realIso = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+
 const botIndex = new Map<string, BotFacts>([
   ['cb_001', {
     botId: 'cb_001',
@@ -69,32 +79,71 @@ describe('statusOf — 교사 시점이 학생 시점보다 먼저다', () => {
   });
 });
 
-describe('isDueSoon', () => {
-  it('D-1 과 오늘만 급하다', () => {
-    expect(isDueSoon(make({ dDay: 'D-1' }))).toBe(true);
-    expect(isDueSoon(make({ dDay: '오늘' }))).toBe(true);
-    expect(isDueSoon(make({ dDay: 'D-2' }))).toBe(false);
+describe('isDueSoon — 라벨이 아니라 시각을 본다', () => {
+  /*
+    `dDay` 는 낼 때 굳는다. 그걸로 재면 「D-1 로 낸 과제」는 한 달 뒤에도 마감 임박이고,
+    「D-7 로 낸 과제」는 마감 하루 전에도 안 급하다. 그래서 `dueAt` 을 본다.
+  */
+  it('하루 안에 닫히면 급하다', () => {
+    expect(isDueSoon(make({ dueAt: iso(+3), dDay: 'D-7' }), NOW)).toBe(true);
+  });
+
+  it('하루보다 멀면 안 급하다 — 라벨이 D-1 이라도', () => {
+    expect(isDueSoon(make({ dueAt: iso(+50), dDay: 'D-1' }), NOW)).toBe(false);
+  });
+
+  it('마감이 지났으면 급한 것이 아니라 끝난 것이다', () => {
+    expect(isDueSoon(make({ dueAt: iso(-1) }), NOW)).toBe(false);
+    expect(statusOf(make({ dueAt: iso(-1) }), NOW)).toBe('closed');
   });
 
   it('진행 중이 아니면 마감이 가까워도 급하지 않다', () => {
-    // 초안은 아직 아무도 못 받았고, 회수된 과제는 이미 끝난 결정이다.
-    expect(isDueSoon(make({ dDay: 'D-1', dispatchStatus: 'draft' }))).toBe(false);
-    expect(isDueSoon(make({ dDay: 'D-1', dispatchStatus: 'withdrawn' }))).toBe(false);
+    expect(isDueSoon(make({ dueAt: iso(+3), dispatchStatus: 'draft' }), NOW)).toBe(false);
+    expect(isDueSoon(make({ dueAt: iso(+3), dispatchStatus: 'withdrawn' }), NOW)).toBe(false);
+  });
+
+  it('마감 시각을 모르는 옛 행은 급하지 않은 것으로 본다', () => {
+    // 모를 때 빨갛게 칠하지 않는다.
+    expect(isDueSoon(make({ dueAt: undefined, dDay: 'D-1' }), NOW)).toBe(false);
+  });
+
+  it('마감 시각이 없으면 서버 판정(state)으로 떨어진다', () => {
+    // BE 동기화 행은 마감 시각을 안 싣고 상태만 싣는다.
+    expect(statusOf(make({ dueAt: undefined, state: 'overdue' }), NOW)).toBe('closed');
   });
 });
 
 describe('buildRows — 대상 인원', () => {
   const noSubmissions: Submission[] = [];
 
-  it('대상이 비어 있으면 반 전체다 (store 계약)', () => {
+  it('대상이 비어 있으면 반 전체다 — 세는 곳은 학생별 현황 패널과 같은 명단이다', () => {
+    /*
+      종전에는 봇 운영 기록의 반 인원 합을 셌다. 그런데 화면 아래 패널·리마인드는
+      `classRoster` 를 편다 — 「대상 12명」인데 명단이 18줄이 뜨고, 13명이 내면 회수 모달이
+      「12명 중 13명이 이미 풀었어요」를 말했다. 패널이 보여 주는 것이 교사가 읽는 사실이다.
+    */
     const [row] = buildRows([make()], noSubmissions, botIndex);
-    expect(row.targetCount).toBe(18);
+    expect(row.targetCount).toBe(wholeClassSize());
     expect(row.classroomLabels).toEqual(['중2 수학 A반']);
   });
 
   it('대상을 골라 냈으면 그 수가 대상이다', () => {
     const [row] = buildRows([make({ targetStudentIds: ['s1', 's2'] })], noSubmissions, botIndex);
     expect(row.targetCount).toBe(2);
+  });
+
+  it('평균도 학생당 하나로 센다 — 마지막 제출이 그 학생의 답이다', () => {
+    /*
+      제출은 학생 수로 세면서 평균만 제출 건으로 세면, 두 번 낸 학생이 평균을 두 배로 끌어당긴다
+      (「제출 2명」인데 평균은 세 건의 평균). 세는 단위를 둘로 두지 않는다.
+    */
+    const subs = [
+      { id: 'x1', assignmentId: 'as_1', studentId: 's1', submittedAt: '2026-09-15T00:00:00Z', answers: {}, scorePercent: 80 },
+      { id: 'x2', assignmentId: 'as_1', studentId: 's1', submittedAt: '2026-09-15T01:00:00Z', answers: {}, scorePercent: 90 },
+      { id: 'x3', assignmentId: 'as_1', studentId: 's2', submittedAt: '2026-09-15T02:00:00Z', answers: {}, scorePercent: 70 },
+    ];
+    // s1 의 마지막 답은 90 — (90 + 70) / 2 = 80. 세 건 평균(80)과 우연히 같지 않게 고른 값이다.
+    expect(progressForTargets(make(), subs)).toEqual({ submittedCount: 2, avgScore: 80 });
   });
 
   it('제출은 학생 수로 센다 — 한 학생이 여러 번 내도 하나다', () => {
@@ -110,7 +159,9 @@ describe('buildRows — 대상 인원', () => {
   it('운영 기록에 반이 없는 봇도 행을 만든다 — 이름 빈 줄을 두지 않는다', () => {
     const [row] = buildRows([make({ botId: 'cb_002' })], noSubmissions, botIndex);
     expect(row.botName).toBe('영어 누나');
-    expect(row.targetCount).toBe(0);
+    // 붙은 반이 없어도 「반 전체」의 뜻은 그대로다 — 아래 패널이 같은 명단을 펴 보이므로
+    // 여기서 0 을 말하면 같은 화면이 두 숫자를 갖는다.
+    expect(row.targetCount).toBe(wholeClassSize());
   });
 });
 
@@ -147,10 +198,10 @@ describe('sortRows — 급한 것이 위로', () => {
     const rows = buildRows(
       [
         make({ id: 'withdrawn', dispatchStatus: 'withdrawn' }),
-        make({ id: 'closed', state: 'overdue' }),
+        make({ id: 'closed', dueAt: realIso(-1) }),
         make({ id: 'draft', dispatchStatus: 'draft' }),
-        make({ id: 'live' }),
-        make({ id: 'urgent', dDay: 'D-1' }),
+        make({ id: 'live', dueAt: realIso(+100) }),
+        make({ id: 'urgent', dueAt: realIso(+3) }),
       ],
       [],
       botIndex,
@@ -177,16 +228,16 @@ describe('summarize — 거르개와 무관하게 전체를 센다', () => {
   it('진행 중·마감 임박·초안을 따로 센다', () => {
     const rows = buildRows(
       [
-        make({ id: '1', dDay: 'D-1' }),
-        make({ id: '2' }),
+        make({ id: '1', dueAt: realIso(+3) }),
+        make({ id: '2', dueAt: realIso(+100) }),
         make({ id: '3', dispatchStatus: 'draft' }),
-        make({ id: '4', state: 'overdue' }),
+        make({ id: '4', dueAt: realIso(-1) }),
       ],
       [],
       botIndex,
     );
     // 마감 임박은 진행 중의 부분집합이다 — 따로 빼지 않는다.
-    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1 });
+    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1, closed: 1, scheduled: 0 });
   });
 });
 
@@ -205,5 +256,55 @@ describe('URL', () => {
     expect(toStatusFilter(null)).toBe('all');
     expect(toModeFilter('exam')).toBe('exam');
     expect(toModeFilter(undefined)).toBe('all');
+  });
+});
+
+describe('statusOf — 예약은 제 칸을 갖는다', () => {
+  it('예약된 과제를 진행 중으로 접지 않는다', () => {
+    // 접으면 회수 버튼이 붙고, 되돌릴 때 `sent` 로 굳어 예약이 조용히 사라진다.
+    expect(statusOf(make({ dispatchStatus: 'scheduled' }))).toBe('scheduled');
+  });
+
+  it('예약은 마감이 가까워도 급하지 않다 — 아직 안 나갔다', () => {
+    expect(isDueSoon(make({ dispatchStatus: 'scheduled', dDay: 'D-1' }))).toBe(false);
+  });
+});
+
+describe('dueDisplay — 지난 마감은 라벨도 「오늘」이 아니다', () => {
+  it('지난 과제는 날짜와 며칠 지났는지로 말한다', () => {
+    /*
+      D-day 만 고치고 라벨을 두면 같은 칸이 스스로 모순된다 — 「지난 21일 (오늘 09:00)」.
+      `formatDueLabel` 이 `computeDDay` 에 기대는데 그쪽이 과거를 전부 「오늘」로 접기 때문이다.
+    */
+    const at = new Date(NOW - 21 * 86_400_000);
+    const shown = dueDisplay(make({ dueAt: at.toISOString() }), NOW);
+    expect(shown.dDay).toBe('지난 21일');
+    expect(shown.label).not.toContain('오늘');
+    expect(shown.label).toMatch(/^\d{1,2}\/\d{1,2} \d{2}:\d{2}$/);
+  });
+
+  it('오늘 지난 것은 「마감」이다', () => {
+    const shown = dueDisplay(make({ dueAt: new Date(NOW - 3_600_000).toISOString() }), NOW);
+    expect(shown.dDay).toBe('마감');
+  });
+
+  it('앞으로 남은 것은 D-day 로 말한다', () => {
+    // NOW 는 9/15 18:00 — +20시간이면 9/16 이라 날짜 경계로 D-1 이다.
+    expect(dueDisplay(make({ dueAt: iso(+20) }), NOW).dDay).toBe('D-1');
+    // 같은 날 22시는 「오늘」 — 경과 시간으로 세면 D-1 이 되던 자리다.
+    expect(dueDisplay(make({ dueAt: iso(+4) }), NOW).dDay).toBe('오늘');
+  });
+});
+
+describe('eligibleStudentIds — 아래 패널과 같은 명단', () => {
+  it('명단에 없는 대상 id 는 빼고 센다', () => {
+    // 날것 그대로 쓰면 「대상 3명 · 제출 0명」인데 아래 명단이 비어 있는 화면이 된다.
+    const a = make({ targetStudentIds: ['s1', 's2', 'real_db_id_999'] });
+    expect(progressForTargets(a, []).submittedCount).toBe(0);
+    expect(
+      progressForTargets(a, [
+        { id: 'x', assignmentId: 'as_1', studentId: 'real_db_id_999', submittedAt: '2026-09-15T00:00:00Z', answers: {}, scorePercent: 90 },
+      ]).submittedCount,
+    ).toBe(0);
   });
 });

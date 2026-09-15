@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import {
   assignmentListHref,
   buildBotIndex,
+  dueDisplay,
   buildRows,
   filterRows,
   modeFilterOptions,
@@ -60,12 +61,16 @@ function AssignmentList() {
   // 한 번 번쩍인 뒤 목록이 나타난다 — 다른 화면들과 같은 처리.
   const hydrated = useStoresHydrated(useAssignmentStore);
 
-  const filter: AssignmentListFilter = {
-    status: toStatusFilter(params.get('status')),
-    mode: toModeFilter(params.get('mode')),
-    roomId: params.get('room') ?? undefined,
-    botId: params.get('bot') ?? undefined,
-  };
+  const status = toStatusFilter(params.get('status'));
+  const mode = toModeFilter(params.get('mode'));
+  const roomId = params.get('room') ?? undefined;
+  const botId = params.get('bot') ?? undefined;
+  // 거르개를 **객체 하나로 굳힌 뒤** 아래 memo 들이 그것 하나만 본다. 매 렌더 새 객체를 만들면
+  // 의존성이 늘 달라져 memo 가 의미를 잃고, 값으로 펴서 적으면 칸이 늘 때마다 빠뜨리기 쉽다.
+  const filter: AssignmentListFilter = useMemo(
+    () => ({ status, mode, roomId, botId }),
+    [status, mode, roomId, botId],
+  );
 
   const botIndex = useMemo(() => buildBotIndex(), []);
   const allRows = useMemo(
@@ -74,10 +79,14 @@ function AssignmentList() {
   );
   const rows = useMemo(
     () => sortRows(filterRows(allRows, filter, botIndex)),
-    // `filter` 는 매 렌더 새 객체라 값으로 편다 — 객체째 넣으면 의존성이 매번 달라진다.
-    [allRows, botIndex, filter.status, filter.mode, filter.roomId, filter.botId],
+    [allRows, botIndex, filter],
   );
   const summary = useMemo(() => summarize(allRows), [allRows]);
+  // 「전체」인데 빈 목록의 두 뜻을 가른다 — 거르개가 좁아서인가, 다 회수해서인가.
+  const allWithdrawn = useMemo(
+    () => allRows.length > 0 && allRows.every((r) => r.status === 'withdrawn'),
+    [allRows],
+  );
 
   /*
     걸려 있는 반·봇 — 봇 조건은 봇 운영 KPI 가 실어 보낸다(진입점 2). **반 조건은 아직
@@ -142,14 +151,30 @@ function AssignmentList() {
           action={{ href: '/teacher/assignment/new', label: '과제 내기' }}
         />
       ) : rows.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          tone="plain"
-          size="sm"
-          title="이 조건에 맞는 과제가 없어요"
-          description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
-          action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
-        />
+        /*
+          「전체」인데도 비는 경우가 있다 — 낸 과제가 **전부 회수된** 상태다(기본 목록은 회수된 것을
+          내린다). 그때 「거르개 지우기」를 주면 지금 있는 화면으로 되돌아와 같은 빈 화면이 뜬다.
+          그래서 어디에 있는지 알려 주고 그리로 보낸다.
+        */
+        allWithdrawn ? (
+          <EmptyState
+            icon={ClipboardList}
+            tone="plain"
+            size="sm"
+            title="낸 과제를 모두 회수했어요"
+            description="회수한 과제는 「회수됨」에서 볼 수 있어요."
+            action={{ href: '/teacher/assignment?status=withdrawn', label: '회수됨 보기' }}
+          />
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            tone="plain"
+            size="sm"
+            title="이 조건에 맞는 과제가 없어요"
+            description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
+            action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
+          />
+        )
       ) : (
         <ul data-testid="assignment-list" className="space-y-2">
           {rows.map((row) => (
@@ -235,7 +260,7 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
   return (
     <Link
       href={href}
-      aria-current={active ? 'true' : undefined}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'focus-visible:ring-pullim-blue-400/50 rounded-full border px-2.5 py-1 text-xs font-bold transition-colors outline-none focus-visible:ring-2',
         active
@@ -295,7 +320,7 @@ function AssignmentListRow({ row }: { row: AssignmentRow }) {
         <span className="hidden w-24 shrink-0 text-right md:block">
           <span className="text-pullim-slate-500 block text-micro font-semibold tracking-wider uppercase">마감</span>
           <span className={cn('font-mono text-sm font-bold', row.dueSoon ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
-            {isDraft ? '—' : a.dDay}
+            {isDraft ? '—' : dueDisplay(a).dDay}
           </span>
         </span>
 

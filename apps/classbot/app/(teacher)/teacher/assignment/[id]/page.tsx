@@ -2,7 +2,7 @@
 
 import { use, useMemo } from 'react';
 import Link from 'next/link';
-import { ClipboardList, Users } from 'lucide-react';
+import { ClipboardList, Pencil, Users } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -10,11 +10,15 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { RemindButton } from '@/components/classbot/remind-button';
 import { SubmissionStatusPanel } from '@/components/classbot/submission-status-sheet';
 import { Chip } from '@/components/ui/chip';
-import { computeProgress, useAssignmentStore } from '@/lib/store/assignments';
+import { useAssignmentStore } from '@/lib/store/assignments';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
-import { buildBotIndex, statusLabels, statusOf } from '../assignment-filters';
+import {
+  buildBotIndex, dueDisplay, isDueSoon, isPastDue, progressForTargets,
+  statusLabels, statusOf, wholeClassSize,
+} from '../assignment-filters';
+import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
 type Params = Promise<{ id: string }>;
 
@@ -85,10 +89,13 @@ function AssignmentDetail({ id }: { id: string }) {
   const mode = assignmentModeBadge[assignment.mode];
   const status = statusOf(assignment);
   const facts = botIndex.get(assignment.botId);
-  const roomTotal = facts?.classrooms.reduce((n, c) => n + c.studentCount, 0) ?? 0;
-  const targetCount = assignment.targetStudentIds.length || roomTotal;
-  const { submittedStudentCount, avgScore } = computeProgress(assignment, submissions);
+  // 아래 학생별 현황 패널과 **같은 명단**에서 센다 — 세는 곳이 둘이면 갈린다
+  // (`assignment-filters.ts` 의 `wholeClassSize` 주석).
+  const targetCount = assignment.targetStudentIds.length || wholeClassSize();
+  // 대상 밖 제출은 세지 않는다 — 아래 패널과 같은 규약(`progressForTargets` 주석).
+  const { submittedCount, avgScore } = progressForTargets(assignment, submissions);
   const isDraft = status === 'draft';
+  const due = dueDisplay(assignment);
 
   return (
     <TeacherPageShell
@@ -103,6 +110,36 @@ function AssignmentDetail({ id }: { id: string }) {
           `${assignment.questionCount}문항`,
           `난이도 ${assignment.difficulty}`,
         ].join(' · '),
+        /*
+          회수된 과제에는 [고치기]를 두지 않는다 — 고쳐 놓고 되돌리면 학생이 못 보던 내용을
+          갑자기 받는다. 되돌린 뒤에 고치는 순서라야 학생이 보는 것과 어긋나지 않는다
+          (수정 화면도 같은 판정을 한 번 더 한다 — 주소로 바로 들어올 수 있어서).
+        */
+        action: (
+          <div className="flex flex-wrap gap-2">
+            {status === 'withdrawn' ? (
+              <RestoreButton assignment={assignment} />
+            ) : (
+              <>
+                <Link
+                  href={`/teacher/assignment/${assignment.id}/edit`}
+                  data-testid="assignment-edit-link"
+                  className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden />
+                  고치기
+                </Link>
+                {status === 'live' && (
+                  <WithdrawButton
+                    assignment={assignment}
+                    submittedCount={submittedCount}
+                    targetCount={targetCount}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        ),
       }}
     >
       {/* 이 과제가 무엇인지 — 모드·상태·마감은 한 줄에 함께 둔다. 셋이 같이 읽혀야 뜻이 선다 */}
@@ -111,9 +148,10 @@ function AssignmentDetail({ id }: { id: string }) {
           {mode.label}
         </span>
         <Chip tone="outline" className="py-1">{statusLabels[status]}</Chip>
+        {/* 글자와 색이 **같은 판정**을 쓴다 — 굳은 라벨을 찍으면 한 달 전 D-1 이 오늘도 빨갛다 */}
         {!isDraft && (
-          <span className={cn('font-mono text-2xs font-bold', assignment.dDay === 'D-1' || assignment.dDay === '오늘' ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
-            {assignment.dDay} ({assignment.dueLabel})
+          <span className={cn('font-mono text-2xs font-bold', isDueSoon(assignment) ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
+            {due.dDay} ({due.label})
           </span>
         )}
         <span className="text-pullim-slate-500 text-2xs">{assignment.scope}</span>
@@ -125,12 +163,35 @@ function AssignmentDetail({ id }: { id: string }) {
       */}
       <KpiStatBar cols={4}>
         <KpiStat label="대상" value={`${targetCount}명`} icon={Users} />
-        <KpiStat label="제출" value={isDraft ? '—' : `${submittedStudentCount}명`} />
-        <KpiStat label="미제출" value={isDraft ? '—' : `${Math.max(targetCount - submittedStudentCount, 0)}명`} />
+        <KpiStat label="제출" value={isDraft ? '—' : `${submittedCount}명`} />
+        <KpiStat label="미제출" value={isDraft ? '—' : `${Math.max(targetCount - submittedCount, 0)}명`} />
         <KpiStat label="평균 점수" value={avgScore == null ? '—' : `${avgScore}점`} />
       </KpiStatBar>
 
-      {isDraft ? (
+      {status === 'withdrawn' ? (
+        <EmptyState
+          icon={ClipboardList}
+          tone="plain"
+          title="회수한 과제예요"
+          description={
+            // 버튼을 숨기는 판정과 **같은 값**을 쓴다 — 갈리면 버튼도 없고 설명도 없는 화면이 된다.
+            isPastDue(assignment)
+              ? '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요. 마감이 지나서 되돌릴 수는 없어요 — 다시 내려면 같은 내용으로 새 과제를 내주세요.'
+              : '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요.'
+          }
+        />
+      ) : status === 'scheduled' ? (
+        /*
+          예약은 **아직 학생에게 안 갔다**(`isStudentVisible` 이 거른다). 그런데 아래 패널과
+          리마인드를 열면 「아직 못 받은 과제를 안 냈다고 재촉하는」 알림이 나간다.
+        */
+        <EmptyState
+          icon={ClipboardList}
+          tone="plain"
+          title="아직 나가지 않은 과제예요"
+          description="정한 시각이 되면 학생에게 갑니다. 그 전에는 학생별 현황이 없어요."
+        />
+      ) : isDraft ? (
         <EmptyState
           icon={ClipboardList}
           tone="plain"

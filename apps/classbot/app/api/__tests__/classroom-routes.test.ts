@@ -30,6 +30,7 @@ const deleteSpy = jest.fn();
 let mockSelectQueue: unknown[][] = [];
 /** 다음 `insert ... returning` 들이 차례로 돌려줄 행 묶음. */
 let mockInsertQueue: unknown[][] = [];
+let mockUpdateQueue: unknown[][] = [];
 
 jest.mock('@/lib/db', () => {
   type Chain = Record<string, unknown>;
@@ -76,7 +77,10 @@ jest.mock('@/lib/db', () => {
       return chain;
     };
     chain.where = () => chain;
-    chain.then = (resolve: (v: unknown[]) => unknown) => resolve([]);
+    // `.returning()` 을 쓰는 라우트(낸 과제 PATCH)가 있어 체인에 둔다. 큐가 비면 0행 —
+    // 소유권이 안 맞아 아무것도 안 고쳐진 경우와 같은 모양이다.
+    chain.returning = () => chain;
+    chain.then = (resolve: (v: unknown[]) => unknown) => resolve(mockUpdateQueue.shift() ?? []);
     return chain;
   };
 
@@ -104,6 +108,7 @@ jest.mock('@/lib/db', () => {
 
 import { GET as getAssignments } from '@/app/api/assignments/route';
 import { POST as dispatchAssignment } from '@/app/api/teacher/assignments/route';
+import { PATCH as patchAssignment } from '@/app/api/teacher/assignments/[id]/route';
 import { POST as issueCode } from '@/app/api/teacher/classrooms/[id]/join-codes/route';
 import { GET as getStudents } from '@/app/api/teacher/classrooms/[id]/students/route';
 import {
@@ -130,6 +135,7 @@ beforeEach(() => {
   deleteSpy.mockClear();
   mockSelectQueue = [];
   mockInsertQueue = [];
+  mockUpdateQueue = [];
 });
 
 function base64Url(input: string | Buffer): string {
@@ -1239,5 +1245,112 @@ describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들�
       publishedAt: null,
       publishBlurb: null,
     });
+  });
+});
+
+describe('PATCH /api/teacher/assignments/[id] — 낸 과제 고치기·회수', () => {
+  const ctx = { params: Promise.resolve({ id: 'as_1' }) };
+  const patchReq = (body: unknown, role: 'student' | 'teacher' = 'teacher') =>
+    req(role === 'teacher' ? 'teacher_001' : 's2', role, { method: 'PATCH', body: JSON.stringify(body) });
+
+  it('회수는 dispatch_status 를 뒤집는다 — 학생 술어가 그 칸을 읽는다', () => {
+    /*
+      종전에는 브라우저 스토어만 뒤집었다. 로그인한 교사의 과제는 DB 행으로도 있고
+      `assignment-visibility.ts` 가 `dispatch_status = 'sent'` 인 것만 학생에게 보여 주므로,
+      서버를 안 고치면 확인 모달이 약속한 「사라져요」가 거짓이 된다.
+    */
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ dispatchStatus: 'sent' }], // 소유권 + 지금 상태 — 「내 것 아님(404)」과 「지금은 못 함(409)」을 가른다
+    ];
+    mockUpdateQueue = [[{ id: 'as_1', dispatchStatus: 'withdrawn' }]];
+
+    return patchAssignment(patchReq({ dispatchStatus: 'withdrawn' }), ctx).then(async (res) => {
+      expect(res.status).toBe(200);
+      expect(setSpy).toHaveBeenCalledWith({ dispatchStatus: 'withdrawn' });
+    });
+  });
+
+  it('결과를 뒤집는 칸은 본문에 실려 와도 안 받는다', async () => {
+    // 잠금 행렬(§ 5.7)은 화면이 지키지만, 화면 하나가 실수해도 DB 가 안 어긋나게 하는 울타리다.
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    mockUpdateQueue = [[{ id: 'as_1' }]];
+
+    await patchAssignment(patchReq({ title: '새 제목', mode: 'exam', botId: 'cb_999' }), ctx);
+
+    expect(setSpy).toHaveBeenCalledWith({ title: '새 제목' });
+  });
+
+  it('지난 마감으로는 못 옮긴다 — 서버가 라벨을 만든다', async () => {
+    /*
+      화면이 만든 라벨을 그대로 믿으면 폼을 우회한 요청이 과거 마감이나 앞뒤 안 맞는 짝
+      (`dDay:'D-99'` + `dueLabel:'오늘'`)을 밀어 넣는다. 시각만 받고 라벨은 서버가 만든다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const res = await patchAssignment(
+      patchReq({ dueAt: new Date(Date.now() - 1000).toISOString() }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('마감 라벨은 클라이언트가 보낸 것을 그대로 저장한다 — 서버가 그리면 시간대가 어긋난다', async () => {
+    /*
+      라벨은 `getHours()` 로 그려지는데 서버 런타임은 UTC 다. 서버가 만들면 KST 교사의
+      「내일 22:00」이 DB 에 「내일 13:00」으로 앉고, 학생은 서버 행을 읽으므로 9시간 어긋난
+      마감을 본다. 그래서 검증만 시각으로 하고 저장은 교사 시간대로 그려진 라벨로 한다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    mockUpdateQueue = [[{ id: 'as_1' }]];
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+
+    await patchAssignment(patchReq({ dueAt: future, dueLabel: '9/20 22:00' }), ctx);
+
+    const written = setSpy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(written.dueLabel).toBe('9/20 22:00');
+    expect(written.dDay).toMatch(/^(오늘|D-\d+)$/);
+  });
+
+  it('시각만 보내고 라벨을 빠뜨리면 400 — 둘은 짝이다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const res = await patchAssignment(patchReq({ dueAt: future }), ctx);
+    expect(res.status).toBe(400);
+  });
+
+  it('되돌리기는 회수한 것에서만 — 초안·예약이 이 문으로 나가지 않는다', async () => {
+    // 들어오는 값만 보고 'sent' 를 허용하면 `dispatched_at` 이 NULL 인 채로 학생에게 나간다.
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'draft' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'sent' }), ctx);
+    expect(res.status).toBe(409);
+  });
+
+  it('이미 회수된 과제를 또 회수하면 409 — 404 와 가른다', async () => {
+    /*
+      둘을 뭉쳐 404 로 답하면 화면이 그것을 「서버에 없는 과제(데모)」로 읽어 로컬만 고치고
+      성공을 알린다 — 탭 둘을 열어 두고 한쪽에서 회수한 뒤 다른 쪽에서 누른 교사가
+      「이 브라우저에만 반영했어요」를 보는데, 사실 서버에는 이미 반영돼 있다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'withdrawn' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'withdrawn' }), ctx);
+    expect(res.status).toBe(409);
+  });
+
+  it('바꿀 수 없는 상태는 400', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'draft' }), ctx);
+    expect(res.status).toBe(400);
+  });
+
+  it('남의 과제는 404 — 존재도 알리지 않는다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], []]; // 소유권 조회가 0행
+    const res = await patchAssignment(patchReq({ title: '바꾸기' }), ctx);
+    expect(res.status).toBe(404);
+  });
+
+  it('학생은 못 고친다', async () => {
+    mockSelectQueue = [[{ role: 'student' }]];
+    const res = await patchAssignment(patchReq({ title: '바꾸기' }, 'student'), ctx);
+    expect(res.status).toBe(403);
   });
 });

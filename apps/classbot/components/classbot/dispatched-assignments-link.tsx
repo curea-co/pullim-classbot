@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { useAssignmentStore } from '@/lib/store/assignments';
@@ -18,12 +19,33 @@ import { buildBotIndex, buildRows, summarize } from '@/app/(teacher)/teacher/ass
  */
 export function DispatchedAssignmentsLink() {
   const dispatched = useAssignmentStore((s) => s.dispatched);
+  const drafts = useAssignmentStore((s) => s.drafts);
   const submissions = useAssignmentStore((s) => s.submissions);
   const hydrated = useStoresHydrated(useAssignmentStore);
 
-  if (!hydrated || dispatched.length === 0) return null;
+  // `buildBotIndex()` 는 mock 카탈로그를 매번 다시 훑는다 — 교사 홈은 자주 다시 그려지는 화면이라
+  // 렌더마다 세우지 않는다. 훅은 조기 반환보다 **위**에 있어야 호출 순서가 안 흔들린다.
+  const botIndex = useMemo(() => buildBotIndex(), []);
+  // 도착할 목록이 그리는 집합과 **같은 것**을 센다 — 두 진입점이 같은 목록에 다른 숫자를
+  // 붙이면 어느 쪽이 맞는지 알 길이 없다(`/teacher/classbot` KPI 도 초안을 더한다).
+  const rows = useMemo(
+    () => buildRows([...dispatched, ...drafts], submissions, botIndex),
+    [dispatched, drafts, submissions, botIndex],
+  );
+  const summary = useMemo(() => summarize(rows), [rows]);
 
-  const summary = summarize(buildRows(dispatched, submissions, buildBotIndex()));
+  /*
+    **보이는 숫자와 가리는 기준을 같게 둔다.** 이게 어긋나면 「낸 과제 0건 →」이 뜬다.
+    `buildRows` 는 1:1 매핑이라 `rows.length` 는 `dispatched.length` 와 **같다** — 종전의
+    「목록이 그릴 줄 수로 잰다」는 말은 사실이 아니었다(같은 값을 다른 이름으로 부른 것뿐).
+
+    그래서 숫자 쪽을 고친다: 「낸 과제」가 가리키는 것은 **지금 살아 있는 것**(회수 뺀 전부 —
+    진행 중과 마감 둘 다)이고, 그 수가 0 일 때만 가린다. 마감된 과제만 남은 교사에게서
+    낸 과제로 가는 길을 없애지 않는다 — 회수만 남은 교사에게 0건을 보이지도 않는다.
+  */
+  // 예약도 「낸 과제」다 — 빼면 예약만 있는 교사에게서 링크가 사라진다.
+  const openCount = summary.live + summary.closed + summary.scheduled + summary.draft;
+  if (!hydrated || openCount === 0) return null;
 
   return (
     <Link
@@ -32,7 +54,7 @@ export function DispatchedAssignmentsLink() {
       className="text-pullim-slate-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-lg px-1 text-2xs font-semibold outline-none focus-visible:ring-2"
     >
       <span>
-        낸 과제 <span className="text-pullim-slate-900 font-mono font-bold">{summary.live}</span>건
+        낸 과제 <span className="text-pullim-slate-900 font-mono font-bold">{openCount}</span>건
         {summary.dueSoon > 0 && (
           <>
             {' · 마감 임박 '}
