@@ -27,7 +27,7 @@ This version (Next.js 16, `apps/classbot/`) has breaking changes — APIs, conve
 # 모노레포 글로벌 작업 (확인 필요)
 
 - root `package.json`, `turbo.json`, `tsconfig.base.json`, `docker-compose.yml`
-- `.github/workflows/**` (ci, codex-review, prod-verify)
+- `.github/workflows/**` (ci, prod-verify)
 - `packages/*` 내부 (apps/classbot ↔ apps/backend 양쪽 영향)
 - 이 가이드 / CLAUDE.md / README.md 편집
 
