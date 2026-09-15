@@ -659,7 +659,7 @@ const keyboardOpen = vv && vv.height < window.innerHeight - 100;
 | **P2** | 웰빙 7일 막대 컬러 + 5지표 펼침 | [13 § 9.1·§ 9.2](13-reports-and-emotion-checkin.md) |
 | **P3** | 리플레이 16:9 썸네일 | § 9.10.3 |
 | **P3** | 온보딩 학생 시선 + 인터랙티브 데모 | [07 § 4.10](07-branding.md) + § 9.11 |
-| **P3** | 봇 idle 호흡·wave (M3·M9) | [08 § 15.2](08-design-system.md) — 종전 항목의 `blink`(M4)는 **보류**다: 아바타 면이 과목 이니셜 배지가 되어 **가릴 눈이 없다**. 재검토 전까지 P3 작업이 아니다 |
+| **P3** | 봇 idle 호흡·wave (M3·M9) | [08 § 15.2](08-design-system.md) — 종전 항목의 `blink`(M4)는 **폐기**했다: 아바타 면이 과목 이니셜 배지가 되어 **가릴 눈이 없다** |
 | **P3** | 풀림 자체 무드 이모지 셋 | [13 § 9.4](13-reports-and-emotion-checkin.md) |
 | **P3** | 시청자 수 라이브 카운터 spring | § 9.10.1 + [08 § 15.2.2](08-design-system.md) |
 
