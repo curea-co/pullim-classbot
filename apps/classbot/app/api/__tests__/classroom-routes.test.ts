@@ -1278,6 +1278,27 @@ describe('PATCH /api/teacher/assignments/[id] — 낸 과제 고치기·회수',
     expect(setSpy).toHaveBeenCalledWith({ title: '새 제목' });
   });
 
+  it('지난 마감으로는 못 옮긴다 — 서버가 라벨을 만든다', async () => {
+    /*
+      화면이 만든 라벨을 그대로 믿으면 폼을 우회한 요청이 과거 마감이나 앞뒤 안 맞는 짝
+      (`dDay:'D-99'` + `dueLabel:'오늘'`)을 밀어 넣는다. 시각만 받고 라벨은 서버가 만든다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }]];
+    const res = await patchAssignment(
+      patchReq({ dueAt: new Date(Date.now() - 1000).toISOString() }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('되돌리기는 회수한 것에서만 — 초안·예약이 이 문으로 나가지 않는다', async () => {
+    // 들어오는 값만 보고 'sent' 를 허용하면 `dispatched_at` 이 NULL 인 채로 학생에게 나간다.
+    mockSelectQueue = [[{ role: 'teacher' }]];
+    mockUpdateQueue = [[]]; // 지금 상태가 withdrawn 이 아니라 0행
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'sent' }), ctx);
+    expect(res.status).toBe(404);
+  });
+
   it('바꿀 수 없는 상태는 400', async () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
     const res = await patchAssignment(patchReq({ dispatchStatus: 'draft' }), ctx);

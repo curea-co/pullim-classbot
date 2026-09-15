@@ -87,8 +87,8 @@ export interface UpdateAssignmentInput {
   id: string;
   title?: string;
   reasonHint?: string;
-  dueLabel?: string;
-  dDay?: string;
+  /** 마감 **시각**(ISO8601). 라벨(`dueLabel`·`dDay`)은 서버가 만든다 — 둘이 어긋날 자리를 없앤다. */
+  dueAt?: string;
   /** 회수(`'withdrawn'`) · 되돌리기(`'sent'`). */
   dispatchStatus?: 'sent' | 'withdrawn';
 }

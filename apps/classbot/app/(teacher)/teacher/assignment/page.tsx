@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import {
   assignmentListHref,
   buildBotIndex,
+  dueDisplay,
   buildRows,
   filterRows,
   modeFilterOptions,
@@ -319,7 +320,7 @@ function AssignmentListRow({ row }: { row: AssignmentRow }) {
         <span className="hidden w-24 shrink-0 text-right md:block">
           <span className="text-pullim-slate-500 block text-micro font-semibold tracking-wider uppercase">마감</span>
           <span className={cn('font-mono text-sm font-bold', row.dueSoon ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
-            {isDraft ? '—' : a.dDay}
+            {isDraft ? '—' : dueDisplay(a).dDay}
           </span>
         </span>
 

@@ -18,6 +18,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { assignments } from '@/lib/db/schema';
+import { computeDDay, formatDueLabel } from '@/lib/assignment-due';
 import {
   forbidden,
   invalidInput,
@@ -42,9 +43,10 @@ const PATCHABLE_STATUS = new Set(['sent', 'withdrawn']);
 /**
  * 낸 과제의 일부를 고친다(회수·되돌리기 포함).
  *
- * @param req - body `{ title?, reasonHint?, dueLabel?, dDay?, dispatchStatus? }`.
- *   `dueAt` 은 **받지 않는다** — 마감 시각의 정본은 아직 `POST` 뿐이고, 여기서까지 받으면
- *   라벨과 시각이 갈릴 자리가 하나 더 는다. 화면은 라벨 둘만 보낸다.
+ * @param req - body `{ title?, reasonHint?, dueAt?, dispatchStatus? }`.
+ *   마감은 **시각(`dueAt`)으로만 받는다.** 라벨(`dueLabel`·`dDay`)을 받으면 둘이 서로
+ *   어긋난 짝(`dDay:'D-99'` + `dueLabel:'오늘'`)이 그대로 저장되고, 서버가 「지난 마감인가」를
+ *   검사할 근거도 사라진다 — `POST` 가 `readDueAt` 으로 같은 판단을 하는 이유다.
  * @param ctx - 동적 세그먼트 `{ id }` = 과제 id
  * @returns 200 { assignment } | 400 | 401 | 403(역할) | 404(내가 낸 과제가 아님)
  */
@@ -76,18 +78,24 @@ export async function PATCH(
     patch.reasonHint = body.reasonHint.trim().slice(0, MAX_REASON_HINT_LEN) || null;
   }
 
-  if (typeof body.dueLabel === 'string' && body.dueLabel.trim()) {
-    patch.dueLabel = body.dueLabel.trim();
-  }
-  if (typeof body.dDay === 'string' && body.dDay.trim()) {
-    patch.dDay = body.dDay.trim();
+  /*
+    마감 — 시각을 받아 **라벨을 서버가 만든다.** 화면이 만든 라벨을 그대로 믿으면 폼을 우회한
+    요청이 과거 마감이나 앞뒤 안 맞는 짝을 밀어 넣을 수 있다.
+  */
+  if (body.dueAt !== undefined) {
+    const at = typeof body.dueAt === 'string' ? new Date(body.dueAt) : new Date(NaN);
+    const ms = at.getTime();
+    if (!Number.isFinite(ms)) return invalidInput('마감을 읽지 못했어요.');
+    if (ms <= Date.now()) return invalidInput('마감은 지난 시각으로 옮길 수 없어요.');
+    patch.dueLabel = formatDueLabel(at.toISOString());
+    patch.dDay = computeDDay(at.toISOString());
   }
 
-  if (typeof body.dispatchStatus === 'string') {
-    if (!PATCHABLE_STATUS.has(body.dispatchStatus)) {
-      return invalidInput('바꿀 수 없는 상태예요.');
-    }
-    patch.dispatchStatus = body.dispatchStatus as 'sent' | 'withdrawn';
+  const nextStatus =
+    typeof body.dispatchStatus === 'string' ? body.dispatchStatus : undefined;
+  if (nextStatus !== undefined) {
+    if (!PATCHABLE_STATUS.has(nextStatus)) return invalidInput('바꿀 수 없는 상태예요.');
+    patch.dispatchStatus = nextStatus as 'sent' | 'withdrawn';
   }
 
   if (Object.keys(patch).length === 0) {
@@ -98,10 +106,24 @@ export async function PATCH(
     **소유권을 조회 조건에 넣는다.** 남의 과제는 403 이 아니라 404 다 — 403 은 그 과제가
     존재한다는 사실을 알려 주는 답이다(참여 코드 라우트와 같은 규약).
   */
+  /*
+    **되돌리기는 회수한 것에서만.** 들어오는 값만 보고 `'sent'` 를 허용하면 초안·예약 행도
+    이 문으로 학생에게 나간다 — `dispatched_at` 은 NULL 인 채로. 그 컬럼은 스키마 주석이
+    「내는 전이에서만 적는다」고 못박은 자리라, 여기서 뚫으면 목록 정렬까지 어긋난다.
+    그래서 **지금 상태**를 조건에 함께 넣는다.
+  */
+  const owned = and(eq(assignments.id, id), eq(assignments.createdBy, actor.id));
+  const where =
+    nextStatus === 'sent'
+      ? and(owned, eq(assignments.dispatchStatus, 'withdrawn'))
+      : nextStatus === 'withdrawn'
+        ? and(owned, eq(assignments.dispatchStatus, 'sent'))
+        : owned;
+
   const [updated] = await getDb()
     .update(assignments)
     .set(patch)
-    .where(and(eq(assignments.id, id), eq(assignments.createdBy, actor.id)))
+    .where(where)
     .returning();
 
   if (!updated) return notFound('과제를 찾을 수 없어요.');

@@ -3,6 +3,7 @@ import {
   buildRows,
   filterRows,
   isDueSoon,
+  progressForTargets,
   sortRows,
   statusOf,
   wholeClassSize,
@@ -130,6 +131,20 @@ describe('buildRows — 대상 인원', () => {
     expect(row.targetCount).toBe(2);
   });
 
+  it('평균도 학생당 하나로 센다 — 마지막 제출이 그 학생의 답이다', () => {
+    /*
+      제출은 학생 수로 세면서 평균만 제출 건으로 세면, 두 번 낸 학생이 평균을 두 배로 끌어당긴다
+      (「제출 2명」인데 평균은 세 건의 평균). 세는 단위를 둘로 두지 않는다.
+    */
+    const subs = [
+      { id: 'x1', assignmentId: 'as_1', studentId: 's1', submittedAt: '2026-09-15T00:00:00Z', answers: {}, scorePercent: 80 },
+      { id: 'x2', assignmentId: 'as_1', studentId: 's1', submittedAt: '2026-09-15T01:00:00Z', answers: {}, scorePercent: 90 },
+      { id: 'x3', assignmentId: 'as_1', studentId: 's2', submittedAt: '2026-09-15T02:00:00Z', answers: {}, scorePercent: 70 },
+    ];
+    // s1 의 마지막 답은 90 — (90 + 70) / 2 = 80. 세 건 평균(80)과 우연히 같지 않게 고른 값이다.
+    expect(progressForTargets(make(), subs)).toEqual({ submittedCount: 2, avgScore: 80 });
+  });
+
   it('제출은 학생 수로 센다 — 한 학생이 여러 번 내도 하나다', () => {
     const subs = [
       { id: 'x1', assignmentId: 'as_1', studentId: 's1', submittedAt: '2026-09-15T00:00:00Z', answers: {}, scorePercent: 80 },
@@ -221,7 +236,7 @@ describe('summarize — 거르개와 무관하게 전체를 센다', () => {
       botIndex,
     );
     // 마감 임박은 진행 중의 부분집합이다 — 따로 빼지 않는다.
-    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1 });
+    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, draft: 1, closed: 1 });
   });
 });
 

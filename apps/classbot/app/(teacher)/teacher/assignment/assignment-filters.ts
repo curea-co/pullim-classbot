@@ -1,6 +1,7 @@
 import { classBots, classRoster } from '@/lib/mock/classbot';
 import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
 import type { Submission, UserAssignment } from '@/lib/store/assignments';
+import { computeDDay, formatDueLabel } from '@/lib/assignment-due';
 import type { AssignmentMode } from '@/lib/mock';
 
 /**
@@ -122,6 +123,24 @@ export function isPastDue(a: UserAssignment, now: number = Date.now()): boolean 
   return a.state === 'overdue';
 }
 
+/**
+ * 화면에 찍을 마감 — **굳은 라벨이 아니라 지금 기준으로 다시 센다.**
+ *
+ * 이 PR 의 논지가 「`dDay` 는 낼 때 굳으니 판정에 쓰지 마라」인데, 정작 화면이 그 문자열을
+ * 그대로 찍고 있었다: 한 달 전에 D-1 로 낸 과제가 오늘도 빨간 「D-1」로 뜨고, 목록 줄은
+ * 「D-7」을 위험 색으로 칠했다(색은 살아 있는 판정, 글자는 굳은 라벨이라 서로 어긋났다).
+ * `dueAt` 이 있으면 그것으로 다시 세고, 없는 옛 행에서만 저장된 라벨로 떨어진다.
+ */
+export function dueDisplay(a: UserAssignment, now: number = Date.now()): {
+  label: string;
+  dDay: string;
+} {
+  const at = dueAtOf(a);
+  if (at == null) return { label: a.dueLabel, dDay: a.dDay };
+  const iso = new Date(at).toISOString();
+  return { label: formatDueLabel(iso), dDay: computeDDay(iso) };
+}
+
 /** 하루 — 「마감 임박」의 창. */
 const DUE_SOON_MS = 24 * 60 * 60 * 1000;
 
@@ -199,6 +218,12 @@ export interface AssignmentRow {
  * 「대상 12명」인데 명단은 18줄이 뜨고, 13명이 내면 회수 모달이 「12명 중 13명이 이미
  * 풀었어요」를 말했다. 세는 곳이 둘이면 반드시 갈린다. 패널이 실제로 보여 주는 명단이
  * 교사가 읽는 사실이므로 그쪽을 권위로 삼는다.
+ *
+ * ⚠️ **로그인 교사의 실제 반은 아직 이 셈에 안 들어온다.** `classRoster` 는 mock 18명
+ * (`s1…s18`)이고, 실제 수업방 명단은 `useClassroomStudents` 가 따로 읽는다. 제출도 마찬가지로
+ * 학생의 실제 제출은 교사 브라우저의 `submissions` 에 오지 않는다. 그래서 **데모 경로에서만**
+ * 이 숫자가 참이다. 이 어긋남은 이 PR 이 만든 것이 아니라(아래 패널·리마인드가 이미
+ * `classRoster` 를 편다) 과제·제출이 실DB 로 옮겨 가는 PR 이 함께 걷어야 할 자리다.
  */
 export function wholeClassSize(): number {
   return classRoster.length;
@@ -228,12 +253,23 @@ export function progressForTargets(
 ): { submittedCount: number; avgScore: number | null } {
   const eligible = eligibleStudentIds(a);
   const mine = submissions.filter((s) => s.assignmentId === a.id && eligible.has(s.studentId));
-  const students = new Set(mine.map((s) => s.studentId));
+  /*
+    **학생당 한 번만 센다 — 평균도 마찬가지다.** 제출은 학생 수로 세면서 평균만 제출 건으로
+    세면 두 번 낸 학생이 평균을 두 배로 끌어당긴다(「제출 2명 · 평균은 세 건의 평균」).
+    같은 학생의 여러 제출 중에서는 **마지막 것**이 그 학생의 답이다(`recordSubmission` 도
+    같은 학생을 upsert 한다).
+  */
+  const latest = new Map<string, Submission>();
+  for (const sub of mine) {
+    const prev = latest.get(sub.studentId);
+    if (!prev || sub.submittedAt > prev.submittedAt) latest.set(sub.studentId, sub);
+  }
+  const scores = [...latest.values()].map((sub) => sub.scorePercent);
   const avgScore =
-    mine.length === 0
+    scores.length === 0
       ? null
-      : Math.round(mine.reduce((sum, s) => sum + s.scorePercent, 0) / mine.length);
-  return { submittedCount: students.size, avgScore };
+      : Math.round(scores.reduce((sum, v) => sum + v, 0) / scores.length);
+  return { submittedCount: latest.size, avgScore };
 }
 
 /**
@@ -319,10 +355,12 @@ export function summarize(rows: AssignmentRow[]): {
   live: number;
   dueSoon: number;
   draft: number;
+  closed: number;
 } {
   return {
     live: rows.filter((r) => r.status === 'live').length,
     dueSoon: rows.filter((r) => r.dueSoon).length,
     draft: rows.filter((r) => r.status === 'draft').length,
+    closed: rows.filter((r) => r.status === 'closed').length,
   };
 }

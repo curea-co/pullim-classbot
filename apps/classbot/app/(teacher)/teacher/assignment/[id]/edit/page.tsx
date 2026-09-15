@@ -163,17 +163,24 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
       // 라벨과 **함께** 시각을 적는다 — 다음 수정이 견줄 값이 이것이다(위 주석).
       patch.dueAt = new Date(dueIso).toISOString();
     }
-    // 서버가 먼저다 — 로그인한 교사의 과제는 DB 행으로도 있고 학생은 그쪽을 읽는다(그 훅 주석).
-    // 실패하면 로컬도 안 고치고 화면도 안 떠난다 — 성공 토스트와 오류 토스트가 나란히 뜨면
-    // 교사는 둘 중 무엇을 믿을지 모른다.
-    const outcome = await write({
-      id: assignment.id,
-      title: patch.title,
-      reasonHint: patch.reasonHint ?? '',
-      dueLabel: patch.dueLabel,
-      dDay: patch.dDay,
-    });
-    if (outcome === 'failed') return;
+    /*
+      서버가 먼저다 — 로그인한 교사의 과제는 DB 행으로도 있고 학생은 그쪽을 읽는다(그 훅 주석).
+      실패하면 로컬도 안 고치고 화면도 안 떠난다: 성공 토스트와 오류 토스트가 나란히 뜨면
+      교사는 둘 중 무엇을 믿을지 모른다.
+
+      **초안은 건너뛴다.** 초안은 클라이언트 스토어에만 산다(`saveDraft` 는 서버로 안 간다).
+      그대로 부르면 소유권 조회가 0행이라 404 → `'failed'` → 편집이 조용히 버려지고 오류만 뜬다.
+      마감도 **시각으로** 보낸다 — 라벨은 서버가 만든다(그 라우트 `@param`).
+    */
+    if (!isDraft) {
+      const outcome = await write({
+        id: assignment.id,
+        title: patch.title,
+        reasonHint: patch.reasonHint ?? '',
+        ...(dueIso ? { dueAt: new Date(dueIso).toISOString() } : {}),
+      });
+      if (outcome === 'failed') return;
+    }
 
     update(assignment.id, patch);
 

@@ -15,7 +15,8 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import {
-  buildBotIndex, isPastDue, progressForTargets, statusLabels, statusOf, wholeClassSize,
+  buildBotIndex, dueDisplay, isDueSoon, isPastDue, progressForTargets,
+  statusLabels, statusOf, wholeClassSize,
 } from '../assignment-filters';
 import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
@@ -94,6 +95,7 @@ function AssignmentDetail({ id }: { id: string }) {
   // 대상 밖 제출은 세지 않는다 — 아래 패널과 같은 규약(`progressForTargets` 주석).
   const { submittedCount, avgScore } = progressForTargets(assignment, submissions);
   const isDraft = status === 'draft';
+  const due = dueDisplay(assignment);
 
   return (
     <TeacherPageShell
@@ -146,9 +148,10 @@ function AssignmentDetail({ id }: { id: string }) {
           {mode.label}
         </span>
         <Chip tone="outline" className="py-1">{statusLabels[status]}</Chip>
+        {/* 글자와 색이 **같은 판정**을 쓴다 — 굳은 라벨을 찍으면 한 달 전 D-1 이 오늘도 빨갛다 */}
         {!isDraft && (
-          <span className={cn('font-mono text-2xs font-bold', assignment.dDay === 'D-1' || assignment.dDay === '오늘' ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
-            {assignment.dDay} ({assignment.dueLabel})
+          <span className={cn('font-mono text-2xs font-bold', isDueSoon(assignment) ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
+            {due.dDay} ({due.label})
           </span>
         )}
         <span className="text-pullim-slate-500 text-2xs">{assignment.scope}</span>

@@ -3,6 +3,7 @@
 import { toast } from 'sonner';
 import { ApiClientError } from '@/lib/api/client-fetch';
 import { useUpdateAssignment, type UpdateAssignmentInput } from '@/hooks/api/assignment-dispatch';
+import { useTeacherClassrooms } from '@/hooks/api/classroom';
 
 /** 쓰기 결과 — 호출부가 **성공을 알릴지** 가르는 값이다. */
 export type WriteOutcome = 'saved' | 'local-only' | 'failed';
@@ -36,6 +37,15 @@ export function useAssignmentWrite(): {
   isPending: boolean;
 } {
   const mutation = useUpdateAssignment();
+  /*
+    세션 유무의 **단일 출처**. 내기 화면이 쓰는 것과 같은 신호라, 두 화면이 「지금 데모인가」를
+    다르게 답하지 않는다. 이 조회는 이미 다른 교사 화면들이 걸어 두어 캐시에서 온다.
+  */
+  const classrooms = useTeacherClassrooms();
+  const signedOut =
+    classrooms.isError &&
+    classrooms.error instanceof ApiClientError &&
+    classrooms.error.status === 401;
 
   async function write(input: UpdateAssignmentInput): Promise<WriteOutcome> {
     try {
@@ -43,12 +53,16 @@ export function useAssignmentWrite(): {
       return 'saved';
     } catch (error) {
       /*
-        **401 만 데모 경로다.** 종전에는 404 도 같이 삼켰는데 그건 위험하다 — 로그인한 교사도
-        PATCH 의 소유권 조건(`createdBy = 나`)이 0행이면 404 를 받는다(`created_by` 가 비어 있는
-        옛 행, 남의 계정으로 만든 과제). 그걸 「데모라서 없는 과제」로 읽으면 호출부가 성공을
-        알리고 회수는 학생에게 영영 안 간다.
+        **데모인지는 「401 이 왔나」로 판정하지 않는다.** 토큰이 만료됐거나 다른 탭에서 로그아웃한
+        **진짜 교사**도 401 을 받는다 — 그걸 「데모라 서버에 없는 과제」로 읽으면 로컬만 회수하고
+        성공을 알린 뒤, DB 행은 `'sent'` 그대로라 학생은 계속 푼다. 이 파일이 「제일 나쁘다」고
+        적은 바로 그 상태다.
+
+        그래서 **들어오기 전에** 정한다 — 교사 수업방 조회가 401 이면 이 브라우저에는 세션이
+        없는 것이고(내기 화면의 `signedOut` 과 같은 신호), 그때만 서버를 건너뛴다.
+        세션이 있는데 온 401 은 **실패**다.
       */
-      if (error instanceof ApiClientError && error.status === 401) return 'local-only';
+      if (signedOut) return 'local-only';
       const message = error instanceof ApiClientError ? error.message : '서버에 전하지 못했어요.';
       toast.error('학생 화면에는 아직 반영되지 않았어요', { description: message });
       return 'failed';

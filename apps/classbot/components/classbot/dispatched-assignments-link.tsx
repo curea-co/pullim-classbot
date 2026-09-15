@@ -32,12 +32,16 @@ export function DispatchedAssignmentsLink() {
   const summary = useMemo(() => summarize(rows), [rows]);
 
   /*
-    **볼 것이 하나도 없을 때만** 가린다. `summary.live` 로 재면 낸 과제가 다 마감된 교사에게
-    링크가 통째로 사라져 낸 과제로 가는 길이 홈에서 없어진다 — 「0건 링크를 두지 않는다」와
-    「길을 없앤다」는 다른 일이다. `dispatched.length` 로 재면 반대로 회수만 남은 교사에게
-    「낸 과제 0건 →」이 뜬다. 그래서 목록이 실제로 그릴 줄 수로 잰다.
+    **보이는 숫자와 가리는 기준을 같게 둔다.** 이게 어긋나면 「낸 과제 0건 →」이 뜬다.
+    `buildRows` 는 1:1 매핑이라 `rows.length` 는 `dispatched.length` 와 **같다** — 종전의
+    「목록이 그릴 줄 수로 잰다」는 말은 사실이 아니었다(같은 값을 다른 이름으로 부른 것뿐).
+
+    그래서 숫자 쪽을 고친다: 「낸 과제」가 가리키는 것은 **지금 살아 있는 것**(회수 뺀 전부 —
+    진행 중과 마감 둘 다)이고, 그 수가 0 일 때만 가린다. 마감된 과제만 남은 교사에게서
+    낸 과제로 가는 길을 없애지 않는다 — 회수만 남은 교사에게 0건을 보이지도 않는다.
   */
-  if (!hydrated || rows.length === 0) return null;
+  const openCount = summary.live + summary.closed;
+  if (!hydrated || openCount === 0) return null;
 
   return (
     <Link
@@ -46,7 +50,7 @@ export function DispatchedAssignmentsLink() {
       className="text-pullim-slate-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-lg px-1 text-2xs font-semibold outline-none focus-visible:ring-2"
     >
       <span>
-        낸 과제 <span className="text-pullim-slate-900 font-mono font-bold">{summary.live}</span>건
+        낸 과제 <span className="text-pullim-slate-900 font-mono font-bold">{openCount}</span>건
         {summary.dueSoon > 0 && (
           <>
             {' · 마감 임박 '}
