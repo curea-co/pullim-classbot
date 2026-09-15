@@ -7,7 +7,7 @@
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
   LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School, Sprout,
-  ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
+  ClipboardCheck, ClipboardList, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -114,11 +114,11 @@ export const teacherNav: NavGroup[] = [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
       // 반을 열고 참여 코드를 내는 곳. 학생을 들이는 유일한 입구라 홈 바로 다음에 둔다.
       { href: '/teacher/classroom', label: '내 수업방',  icon: School,          description: '반 만들기 · 참여 코드 · 참여 학생' },
-      // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
-      // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
-      // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
-      // 나중에 형제 경로가 생기면 소속을 새로 정하게 두려는 것이다(조용히 물려받지 않게).
-      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링', matchPrefix: ['/teacher/assignment/new'] },
+      // 「과제 내기」의 소속이 여기서 **평가 그룹의 [낸 과제]로 옮겨 갔다.** 위 줄이 예고한
+      // 「나중에 형제 경로가 생기면 소속을 새로 정한다」의 그 자리다 — `/teacher/assignment` 아래에
+      // 목록·상세가 생겼으므로, `new` 만 떼어 이 항목에 붙여 두면 같은 트리가 두 레일 항목으로
+      // 갈린다. 이제 `/teacher/assignment/*` 전부가 [낸 과제] 소속이다(접두사로 자연히 잡힌다).
+      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
       // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
       //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
       { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
@@ -136,6 +136,9 @@ export const teacherNav: NavGroup[] = [
   {
     label: '평가',
     items: [
+      // 채점·리포트보다 **앞선 단계**라 그룹 맨 위다 — 과제를 내야 제출이 생기고, 제출이 있어야
+      // 채점할 것이 생긴다. 목록·상세·내기가 모두 이 접두사 아래라 `matchPrefix` 가 필요 없다.
+      { href: '/teacher/assignment', label: '낸 과제',   icon: ClipboardList,   description: '낸 과제 현황 · 학생별 제출' },
       { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: '학생 전체 · AI 초안 검수' },
       { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
       // 기획 보류 — 수업 리플레이(/teacher/replay) 진입점 비노출. 재개 시 되살린다
