@@ -31,8 +31,14 @@ const dispatchedFor = (botId: string, id: string): UserAssignment => ({
   state: 'todo',
 } as unknown as UserAssignment);
 
+/** 임시저장 — 출제 화면의 `saveDraft` 가 만드는 모양 그대로(`dispatchStatus: 'draft'`) */
+const draftFor = (botId: string, id: string): UserAssignment => ({
+  ...dispatchedFor(botId, id), dispatchStatus: 'draft',
+});
+
 beforeEach(() => {
-  act(() => useAssignmentStore.setState({ dispatched: [], submissions: [] }));
+  // 초안도 함께 비운다 — 이 store 는 localStorage 에 굳으므로 테스트끼리 샌다.
+  act(() => useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [] }));
 });
 
 /**
@@ -46,6 +52,16 @@ function statBar() {
 /** 상단 통계 한 칸의 값 — KpiStat·KpiStatLink 둘 다 라벨과 값이 한 `<li>` 안에 있다 */
 function kpi(label: string) {
   return within(statBar()).getByText(label).closest('li')!.textContent ?? '';
+}
+
+/**
+ * 상단 통계 한 칸을 **경계까지** 잰다.
+ * 부분 문자열로 재면 헛돈다 — `toContain('0명')` 은 `10명`·`20명` 에도, `toContain('2건')` 은
+ * `12건`·`22건` 에도 통과한다. 「지운 몫만큼, 정확히」를 재겠다는 이 파일에서 그건 뜻이 없다.
+ * 앞에 숫자가 더 붙어 있으면 다른 값이라는 것만 못박으면 된다(뒤는 단위 글자가 막는다).
+ */
+function expectKpi(label: string, value: string) {
+  expect(kpi(label)).toMatch(new RegExp(`(?<!\\d)${value}`));
 }
 
 /** 「더보기 → 봇 삭제」로 되묻는 판을 연다 */
@@ -100,7 +116,14 @@ it('되묻는 판은 alertdialog 이고 제목·본문이 연결돼 있다', () 
   포커스 이동은 판이 뜬 **뒤** 한 틱 늦게 일어난다(base-ui 의 focus manager). 그래서
   이 둘만 `waitFor` 다 — 동기 단정으로 두면 늘 `body` 를 보고 빨개진다.
 */
-// 위험한 쪽에 포커스가 먼저 가면 엔터 한 번에 지워진다.
+/*
+  위험한 쪽에 포커스가 먼저 가면 엔터 한 번에 지워진다.
+  이 단정이 지키는 것은 **결과**(그만두기에 선다)이지 `initialFocus` prop 이 아니다 —
+  base-ui 기본값이 「첫 tabbable」이고 DOM 순서상 그게 마침 「그만두기」라, prop 을 빼도
+  초록이다(돌연변이로 확인했다). 두 버튼의 DOM 순서를 뒤집으면 prop 이 있는 쪽만 살아남는다.
+  같은 이유로 `finalFocus` 도 prop 자체는 잴 수 없다(그쪽은 아래 「그만두기」 테스트가
+  결과를 잰다). 두 prop 의 존재 이유는 컴포넌트 머리주석에 적어 뒀다.
+*/
 it('열리면 포커스는 「그만두기」에 있다', async () => {
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.bot.name);
@@ -137,9 +160,9 @@ it('「삭제」를 누르면 카드와 상단 통계 넉 칸이 함께 줄어�
   render(<TeacherClassbotPage />);
 
   const before = getTeacherBotSummary(ROWS);
-  expect(kpi('운영 중')).toContain(`${before.runningCount}/${before.botCount}개`);
-  expect(kpi('붙은 학급')).toContain(`${before.classroomCount}개`);
-  expect(kpi('등록 학생')).toContain(`${before.studentCount}명`);
+  expectKpi('운영 중', `${before.runningCount}/${before.botCount}개`);
+  expectKpi('붙은 학급', `${before.classroomCount}개`);
+  expectKpi('등록 학생', `${before.studentCount}명`);
 
   openDeleteDialog(TARGET.bot.name);
   fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
@@ -154,9 +177,9 @@ it('「삭제」를 누르면 카드와 상단 통계 넉 칸이 함께 줄어�
   expect(after.classroomCount).toBe(before.classroomCount - TARGET.ops.classrooms.length);
   expect(after.studentCount).toBe(before.studentCount - TARGET.studentCount);
 
-  expect(kpi('운영 중')).toContain(`${after.runningCount}/${after.botCount}개`);
-  expect(kpi('붙은 학급')).toContain(`${after.classroomCount}개`);
-  expect(kpi('등록 학생')).toContain(`${after.studentCount}명`);
+  expectKpi('운영 중', `${after.runningCount}/${after.botCount}개`);
+  expectKpi('붙은 학급', `${after.classroomCount}개`);
+  expectKpi('등록 학생', `${after.studentCount}명`);
 });
 
 it('「낸 과제」도 함께 줄어든다 — 지운 봇의 과제 묶음이 남지 않는다', () => {
@@ -169,13 +192,13 @@ it('「낸 과제」도 함께 줄어든다 — 지운 봇의 과제 묶음이 �
     }),
   );
   render(<TeacherClassbotPage />);
-  expect(kpi('낸 과제')).toContain('2건');
+  expectKpi('낸 과제', '2건');
   expect(screen.getByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeInTheDocument();
 
   openDeleteDialog(TARGET.bot.name);
   fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
 
-  expect(kpi('낸 과제')).toContain('1건');
+  expectKpi('낸 과제', '1건');
   // 「봇 목록에 없는 봇」 묶음으로 되살아나서도 안 된다
   expect(screen.queryByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeNull();
   expect(screen.queryByText('as_del_1 과제')).toBeNull();
@@ -193,6 +216,96 @@ it('봇을 전부 지우면 헤더 CTA 가 사라지고 빈 상태의 「봇 만
   const list = screen.getByTestId('bot-ops-list');
   expect(within(list).getByText('아직 만든 봇이 없어요')).toBeInTheDocument();
   expect(within(list).getByRole('link', { name: '봇 만들기' })).toBeInTheDocument();
-  expect(kpi('운영 중')).toContain('0/0개');
-  expect(kpi('등록 학생')).toContain('0명');
+  expectKpi('운영 중', '0/0개');
+  expectKpi('등록 학생', '0명');
+});
+
+/*
+  ─── 여기부터: 되묻는 판이 지키기로 한 접근성 약속들 ──────────────────────────
+  아래 넷은 「동작은 하는데 재는 곳이 없던」 자리다. prop 하나를 지워도 파일이 초록으로
+  남으면, 다음 사람이 그 prop 을 군더더기로 읽고 걷어낸다. 각 단정 옆에 어느 prop 을
+  지키는지 적어 둔다. (넷 다 돌연변이로 빨개지는 것을 확인했다.)
+*/
+
+it('바깥을 눌러도 안 닫힌다 — 되돌릴 수 없는 일을 묻는 판이라 잘못 눌러 닫히면 안 된다', () => {
+  // `<Dialog disablePointerDismissal>` 을 지키는 단정 (base-ui `AlertDialog` 가 세우는 값과 같다)
+  render(<TeacherClassbotPage />);
+  openDeleteDialog(TARGET.bot.name);
+
+  const backdrop = document.querySelector('[data-slot="dialog-overlay"]')!;
+  fireEvent.pointerDown(backdrop);
+  fireEvent.mouseDown(backdrop);
+  fireEvent.mouseUp(backdrop);
+  fireEvent.click(backdrop);
+
+  expect(screen.getByTestId('bot-delete-dialog')).toBeInTheDocument();
+  expect(screen.getByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeInTheDocument();
+});
+
+it('프리미티브 기본 X 버튼은 뜨지 않는다 — 판의 나가는 길은 「그만두기」 하나다', () => {
+  // `showCloseButton={false}` 를 지키는 단정. 프리미티브의 sr 텍스트가 영어 `Close` 라
+  // 되살아나면 이 판에서만 한국어 사이에 영어 이름이 하나 낀다.
+  render(<TeacherClassbotPage />);
+  openDeleteDialog(TARGET.bot.name);
+
+  const dialog = screen.getByTestId('bot-delete-dialog');
+  expect(within(dialog).queryByRole('button', { name: 'Close' })).toBeNull();
+  // 판 안의 버튼은 딱 둘 — 그만두기 · 삭제
+  expect(within(dialog).getAllByRole('button')).toHaveLength(2);
+});
+
+it('메뉴의 「봇 삭제」는 「판을 여는 항목」이라고 낭독기에 말한다', () => {
+  // 옆 두 항목은 링크라 저절로 갈리지만 이 항목만 겉보기가 같고 하는 일이 다르다.
+  render(<TeacherClassbotPage />);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 더보기` }));
+
+  expect(screen.getByRole('menuitem', { name: '봇 삭제' }))
+    .toHaveAttribute('aria-haspopup', 'dialog');
+});
+
+it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 사실이 낭독기에 뜬다', async () => {
+  // 포커스 이동(rAF)·`role="status"` 알림 둘 다 이 PR 이 새로 지은 동작이라 재는 곳이
+  // 여기뿐이다. 순서도 함께 잰다 — 알림은 포커스가 자리를 잡은 **뒤**에 실린다.
+  render(<TeacherClassbotPage />);
+  const list = screen.getByTestId('bot-ops-list');
+  // 이름 없는 곳으로 포커스를 던지면 도착해도 낭독기가 부를 말이 없다
+  expect(list).toHaveAttribute('aria-label', '내 봇');
+  expect(screen.getByRole('status')).toHaveTextContent('');
+
+  openDeleteDialog(TARGET.bot.name);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
+
+  /*
+    아직은 비어 있어야 한다 — 알림이 카드가 사라지는 그 커밋에 함께 실리면, polite 발화와
+    포커스 이동이 한 프레임 안에서 겹쳐 「…을 삭제했어요」가 잘린다. 이 줄이 그 순서를
+    못박는다(먼저 포커스, 그 다음 알림).
+  */
+  expect(screen.getByRole('status')).toHaveTextContent('');
+
+  await waitFor(() => expect(document.activeElement).toBe(list));
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent(`${TARGET.bot.name}을 삭제했어요.`),
+  );
+});
+
+it('「낸 과제」는 초안도 함께 거른다 — 지운 봇의 임시저장이 숫자에만 남지 않는다', () => {
+  /*
+    이 칸의 값은 `assignments + drafts` 인데 초안 쪽 필터가 빠져 있었다. 아래 「낸 과제」
+    묶음은 초안을 안 그리므로, 이 누수는 **상단 숫자에서만** 드러난다 — 카드는 사라졌는데
+    「1건」이 그대로 남는 모양이다.
+  */
+  act(() =>
+    useAssignmentStore.setState({
+      dispatched: [],
+      drafts: [draftFor(TARGET.bot.id, 'dr_del_1'), draftFor(REST[0].bot.id, 'dr_keep_1')],
+    }),
+  );
+  render(<TeacherClassbotPage />);
+  expectKpi('낸 과제', '2건');
+
+  openDeleteDialog(TARGET.bot.name);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
+
+  expect(screen.queryByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeNull();
+  expectKpi('낸 과제', '1건');
 });
