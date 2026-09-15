@@ -428,7 +428,7 @@ function DispatchedAssignments({
                   **보내는 쪽이 없었다**(`assignment-filters.ts` 의 `filterRows`).
                 */}
                 <Link
-                  href={`/teacher/assignment?bot=${g.botId}`}
+                  href={`/teacher/assignment?bot=${encodeURIComponent(g.botId)}`}
                   className="text-pullim-slate-500 hover:text-pullim-blue-700 ml-auto shrink-0 font-mono text-2xs font-bold"
                 >
                   {g.items.length}건

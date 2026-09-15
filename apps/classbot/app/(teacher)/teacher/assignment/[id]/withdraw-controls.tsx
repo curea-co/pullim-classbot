@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { RotateCcw, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
 import { isPastDue } from '../assignment-filters';
@@ -60,15 +61,18 @@ export function WithdrawButton({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <button
-        type="button"
+      {/*
+        `DialogTrigger` 로 연다 — 평범한 button 을 쓰면 base-ui 가 `aria-haspopup`·`aria-expanded`
+        를 안 달고, 「그만두기」로 닫았을 때 **포커스가 body 로 떨어진다.** 키보드·스크린리더
+        사용자가 화면에서 제 자리를 잃는다.
+      */}
+      <DialogTrigger
         data-testid="assignment-withdraw-trigger"
-        onClick={() => setOpen(true)}
         className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
       >
         <RotateCcw className="h-4 w-4" aria-hidden />
         회수
-      </button>
+      </DialogTrigger>
 
       <DialogContent data-testid="assignment-withdraw-dialog">
         <DialogHeader>

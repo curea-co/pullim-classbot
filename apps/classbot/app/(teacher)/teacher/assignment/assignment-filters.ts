@@ -144,10 +144,19 @@ export function dueDisplay(a: UserAssignment, now: number = Date.now()): {
     3주 전에 끝난 과제가 「오늘」로 뜨고 옆의 「마감」 칩과 어긋난다.
     지난 것은 며칠 지났는지로 말한다(`08 § 15.6` 의 지연 표기와 같은 말).
   */
-  const daysLate = Math.floor((now - at) / 86_400_000);
   if (at <= now) {
+    /*
+      **라벨도 함께 고쳐야 한다.** `formatDueLabel` 은 `computeDDay` 에 기대는데 그쪽이 지난
+      시각을 전부 `'오늘'` 로 접으므로, 그대로 쓰면 3주 전 마감이 「지난 21일 (**오늘** 09:00)」로
+      나온다 — D-day 만 고치고 라벨을 두면 같은 칸 안에서 스스로 모순된다.
+      지난 것은 언제였는지를 날짜로 말한다.
+    */
+    const d = new Date(at);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const daysLate = Math.floor((now - at) / 86_400_000);
     return {
-      label: formatDueLabel(iso, now),
+      label: `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`,
       dDay: daysLate >= 1 ? `지난 ${daysLate}일` : '마감',
     };
   }
@@ -248,8 +257,19 @@ export function wholeClassSize(): number {
  * 아래 `SubmissionStatusPanel` 이 쓰는 규약과 **같은 문장**이다(그 파일의 `eligible`).
  */
 export function eligibleStudentIds(a: UserAssignment): Set<string> {
+  const roster = classRoster.map((r) => r.id);
   const targets = a.targetStudentIds;
-  return new Set(targets.length > 0 ? targets : classRoster.map((r) => r.id));
+  if (targets.length === 0) return new Set(roster);
+  /*
+    **명단과 **교집합**을 낸다 — 아래 패널·리마인드가 하는 것과 같다
+    (`submission-status-sheet.tsx` 의 `eligible`, `remind-button.tsx`).
+    날것 그대로 쓰면 로그인 교사의 실제 반 id 는 mock 명단과 하나도 안 겹치므로
+    「대상 3명 · 제출 0명」인데 아래 명단은 **비어 있고** 회수 모달은 「3명 중 0명」을 말한다.
+    셋이 같은 셈을 쓰면 적어도 한 화면 안에서는 어긋나지 않는다(실제 반을 못 보는 한계는
+    `wholeClassSize` 주석에 적어 두었다).
+  */
+  const rosterSet = new Set(roster);
+  return new Set(targets.filter((id) => rosterSet.has(id)));
 }
 
 /**

@@ -148,6 +148,9 @@ export async function PATCH(
   if (nextStatus === 'withdrawn' && current.dispatchStatus !== 'sent') {
     return conflict('지금은 회수할 수 없는 과제예요.');
   }
+  if (nextStatus === undefined && current.dispatchStatus !== 'sent') {
+    return conflict('낸 과제만 고칠 수 있어요. 회수한 과제는 되돌린 뒤에 고쳐 주세요.');
+  }
 
   /*
     **조건을 쓰기에 함께 건다.** 위 조회와 이 UPDATE 사이에 다른 탭이 먼저 바꿀 수 있어서,
@@ -160,7 +163,10 @@ export async function PATCH(
       ? and(owned, eq(assignments.dispatchStatus, 'withdrawn'))
       : nextStatus === 'withdrawn'
         ? and(owned, eq(assignments.dispatchStatus, 'sent'))
-        : owned;
+        // 상태를 안 바꾸는 고치기는 **낸 과제에만** 닿는다. 화면이 이미 「회수한 과제는
+        // 고칠 수 없어요」로 막지만(되돌릴 때 학생이 못 보던 내용을 갑자기 받는다),
+        // 탭이 둘이면 회수된 뒤에도 옛 탭의 저장이 그 행에 앉는다.
+        : and(owned, eq(assignments.dispatchStatus, 'sent'));
 
   const [updated] = await db.update(assignments).set(patch).where(guarded).returning();
 

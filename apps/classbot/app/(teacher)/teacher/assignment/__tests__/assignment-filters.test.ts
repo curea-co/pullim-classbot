@@ -3,6 +3,7 @@ import {
   buildRows,
   filterRows,
   isDueSoon,
+  dueDisplay,
   progressForTargets,
   sortRows,
   statusOf,
@@ -266,5 +267,44 @@ describe('statusOf — 예약은 제 칸을 갖는다', () => {
 
   it('예약은 마감이 가까워도 급하지 않다 — 아직 안 나갔다', () => {
     expect(isDueSoon(make({ dispatchStatus: 'scheduled', dDay: 'D-1' }))).toBe(false);
+  });
+});
+
+describe('dueDisplay — 지난 마감은 라벨도 「오늘」이 아니다', () => {
+  it('지난 과제는 날짜와 며칠 지났는지로 말한다', () => {
+    /*
+      D-day 만 고치고 라벨을 두면 같은 칸이 스스로 모순된다 — 「지난 21일 (오늘 09:00)」.
+      `formatDueLabel` 이 `computeDDay` 에 기대는데 그쪽이 과거를 전부 「오늘」로 접기 때문이다.
+    */
+    const at = new Date(NOW - 21 * 86_400_000);
+    const shown = dueDisplay(make({ dueAt: at.toISOString() }), NOW);
+    expect(shown.dDay).toBe('지난 21일');
+    expect(shown.label).not.toContain('오늘');
+    expect(shown.label).toMatch(/^\d{1,2}\/\d{1,2} \d{2}:\d{2}$/);
+  });
+
+  it('오늘 지난 것은 「마감」이다', () => {
+    const shown = dueDisplay(make({ dueAt: new Date(NOW - 3_600_000).toISOString() }), NOW);
+    expect(shown.dDay).toBe('마감');
+  });
+
+  it('앞으로 남은 것은 D-day 로 말한다', () => {
+    // NOW 는 9/15 18:00 — +20시간이면 9/16 이라 날짜 경계로 D-1 이다.
+    expect(dueDisplay(make({ dueAt: iso(+20) }), NOW).dDay).toBe('D-1');
+    // 같은 날 22시는 「오늘」 — 경과 시간으로 세면 D-1 이 되던 자리다.
+    expect(dueDisplay(make({ dueAt: iso(+4) }), NOW).dDay).toBe('오늘');
+  });
+});
+
+describe('eligibleStudentIds — 아래 패널과 같은 명단', () => {
+  it('명단에 없는 대상 id 는 빼고 센다', () => {
+    // 날것 그대로 쓰면 「대상 3명 · 제출 0명」인데 아래 명단이 비어 있는 화면이 된다.
+    const a = make({ targetStudentIds: ['s1', 's2', 'real_db_id_999'] });
+    expect(progressForTargets(a, []).submittedCount).toBe(0);
+    expect(
+      progressForTargets(a, [
+        { id: 'x', assignmentId: 'as_1', studentId: 'real_db_id_999', submittedAt: '2026-09-15T00:00:00Z', answers: {}, scorePercent: 90 },
+      ]).submittedCount,
+    ).toBe(0);
   });
 });
