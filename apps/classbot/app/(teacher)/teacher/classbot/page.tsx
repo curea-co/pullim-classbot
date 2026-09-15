@@ -79,14 +79,22 @@ export default function TeacherClassbotPage() {
         eyebrow={{ icon: Bot, text: '클래스봇 운영' }}
         title="내 클래스봇"
         description={`${currentTeacher.name} 선생님 · ${currentTeacher.organization}`}
+        /*
+          봇 만들러 가는 길은 화면에 **하나만** 둔다 — 봇이 있으면 이 헤더 CTA,
+          없으면 아래 「내 봇」 빈 상태의 「봇 만들기」. 둘이 같이 뜨면 같은 화면에
+          같은 일을 하는 버튼이 둘이다 (`07 § 6.6.2(2)`).
+          봇 관리(`/teacher/bots`)가 쓰는 배타 방식과 같다.
+        */
         action={
-          <Link
-            href="/teacher/builder"
-            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
-          >
-            <Plus className="h-4 w-4" />
-            새 클래스봇
-          </Link>
+          botRows.length > 0 ? (
+            <Link
+              href="/teacher/builder"
+              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
+            >
+              <Plus className="h-4 w-4" />
+              새 클래스봇
+            </Link>
+          ) : undefined
         }
       />
 
@@ -142,17 +150,11 @@ type AssignmentRow = Assignment & { targetStudentIds?: string[] };
 function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments: AssignmentRow[] }) {
   return (
     <section id="bot-list" data-testid="bot-ops-list" className="scroll-mt-20">
-      <SectionHeading
-        title="내 봇"
-        action={
-          <Link
-            href="/teacher/builder"
-            className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-0.5 text-xs font-bold"
-          >
-            봇 만들기 <ArrowRight className="h-3 w-3" />
-          </Link>
-        }
-      />
+      {/*
+        제목 옆 「봇 만들기」 링크는 걷어냈다 — 같은 화면 헤더의 「새 클래스봇」과 같은 곳으로 가는
+        같은 버튼이었다. 봇 만들러 가는 길은 봇이 있으면 헤더 CTA, 없으면 아래 빈 상태 하나뿐이다.
+      */}
+      <SectionHeading title="내 봇" />
 
       {rows.length === 0 ? (
         <EmptyState
