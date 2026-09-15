@@ -35,21 +35,29 @@ import { cn } from '@/lib/utils';
  * 글자를 두 번 듣게 된다. 그래서 루트에 `aria-hidden` 을 고정한다 — 호출부가 끄지 못한다.
  */
 
-export type BotAvatarSize = 'sm' | 'md' | 'lg' | 'xl';
+export type BotAvatarSize = 'sm' | 'base' | 'md' | 'lg' | 'xl';
 
 /**
- * 크기별 규격 — 28 / 36 / 44 / 56.
+ * 크기별 규격 — 28 / 32 / 36 / 44 / 56.
+ *
+ * `base` 32 는 **대화 화면이 요구한 칸**이다. [08 § 15.1.1] 이 봇 연속 발화를 「아바타 생략 +
+ * **32px** 들여쓰기」로 못 박아, 첫 발화 아바타도 그 폭이어야 두 줄의 왼쪽 끝이 맞는다.
+ * 이름이 `sm`·`md` 사이에 끼는 것은 타입 스케일(`text-sm` 15 · `text-base` 16 · `text-lg` 18)과
+ * 같은 자리 감각이다 — 이미 쓰이는 28/36/44/56 을 되이름 붙이지 않으려고 이 축을 골랐다.
  *
  * radius 는 앱 스케일(`rounded-sm` 8 · `rounded-md` 14 · `rounded-lg` 20)에서 고른다.
  * 이 앱의 `rounded-lg`·`rounded-xl`·`rounded-2xl` 은 **셋 다 20px** 이라, 28px 배지에
  * `rounded-xl` 을 얹으면 반지름이 변의 절반을 넘어 **완전한 원**이 된다 — 위 「왜 원형이
  * 아닌가」가 막으려는 바로 그 모양이다. 그래서 크기마다 변 대비 0.3 안팎이 되는 단을 쓴다.
+ * 32 에 `rounded-md` 를 얹으면 14/32 = **0.44** 로 이 축에서 가장 둥근 칸이 된다 — 바로 옆
+ * 36px 보다 더 둥글어 순서가 뒤집힌다. 그래서 8(0.25)을 쓴다.
  */
 const SIZE: Record<BotAvatarSize, { box: string; radius: string; text: string; icon: string }> = {
-  sm: { box: 'h-7 w-7',   radius: 'rounded-sm', text: 'text-xs',  icon: 'h-3.5 w-3.5' }, //  28 / 8
-  md: { box: 'h-9 w-9',   radius: 'rounded-md', text: 'text-sm',  icon: 'h-4 w-4' },     //  36 / 14
-  lg: { box: 'h-11 w-11', radius: 'rounded-md', text: 'text-lg',  icon: 'h-5 w-5' },     //  44 / 14
-  xl: { box: 'h-14 w-14', radius: 'rounded-lg', text: 'text-2xl', icon: 'h-6 w-6' },     //  56 / 20
+  sm:   { box: 'h-7 w-7',   radius: 'rounded-sm', text: 'text-xs',  icon: 'h-3.5 w-3.5' }, //  28 / 8
+  base: { box: 'h-8 w-8',   radius: 'rounded-sm', text: 'text-xs',  icon: 'h-4 w-4' },     //  32 / 8
+  md:   { box: 'h-9 w-9',   radius: 'rounded-md', text: 'text-sm',  icon: 'h-4 w-4' },     //  36 / 14
+  lg:   { box: 'h-11 w-11', radius: 'rounded-md', text: 'text-lg',  icon: 'h-5 w-5' },     //  44 / 14
+  xl:   { box: 'h-14 w-14', radius: 'rounded-lg', text: 'text-2xl', icon: 'h-6 w-6' },     //  56 / 20
 };
 
 /** 과목 → 봇 이름 순으로 첫 글자 하나. 서러게이트 쌍을 쪼개지 않으려고 `Array.from` 을 쓴다. */

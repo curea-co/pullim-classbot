@@ -112,18 +112,19 @@ export function ChatBubbleFrame({
   return (
     <div className={cn('pullim-anim-message-mount flex gap-2.5', isStudent && 'flex-row-reverse')}>
       {continuation ? (
-        // 연속 발화 — 아바타 자리 들여쓰기만
-        <span aria-hidden className="h-9 w-9 shrink-0" />
+        // 연속 발화 — 아바타 자리 들여쓰기만. 32px 은 [08 § 15.1.1] 이 못 박은 값이고,
+        // 아래 첫 발화 아바타와 같은 폭이라야 두 줄의 왼쪽 끝이 맞는다.
+        <span aria-hidden className="h-8 w-8 shrink-0" />
       ) : isStudent ? (
         // 학생은 사람이다 — 원형을 그대로 둔다. 둥근 사각은 봇 쪽 표시다(`BotAvatar` 주석).
         <div
           aria-hidden
-          className="bg-pullim-slate-200 text-pullim-slate-700 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+          className="bg-pullim-slate-200 text-pullim-slate-700 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
         >
           {meName[0] ?? '나'}
         </div>
       ) : (
-        <BotAvatar subject={bot.subject} name={bot.name} size="md" />
+        <BotAvatar subject={bot.subject} name={bot.name} size="base" />
       )}
 
       <div className={cn('max-w-[88%] sm:max-w-[80%]', isStudent && 'flex flex-col items-end')}>
