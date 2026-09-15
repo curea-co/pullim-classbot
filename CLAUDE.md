@@ -11,7 +11,7 @@
 > **이 항목은 본 리포의 최상위 규칙이다. 작업 편의·속도보다 우선하며 반드시 준수한다.**
 
 - **FE 변경과 BE 변경을 하나의 PR에 함께 담지 않는다.** PR은 변경 단위로 분리한다 — 예: `apps/classbot`(FE) PR / `apps/backend`(BE) PR / `packages/*`(공유) PR 을 각각 따로 올린다.
-- **이유**: FE+BE를 한꺼번에 올리면 PR diff가 **Codex Review가 한 번에 탐지·수렴할 수 있는 depth를 초과**한다. 그 결과 코덱스가 매 라운드 새 지적을 내며 리뷰가 무한 반복(COMMENTED 누적)되어 머지가 끝나지 않는다. 단위를 쪼개면 각 PR diff가 작아져 리뷰가 수렴한다.
+- **이유**: FE+BE를 한꺼번에 올리면 PR diff가 **리뷰어(사람·AI 에이전트)가 한 번에 탐지·수렴할 수 있는 depth를 초과**한다. 그 결과 매 라운드 새 지적이 나오며 리뷰가 무한 반복되어 머지가 끝나지 않는다. 단위를 쪼개면 각 PR diff가 작아져 리뷰가 수렴한다. (PR 자동 AI 리뷰 봇(Codex 워크플로)은 2026-09-15 폐지.)
 - **한 PR = 한 계층/한 단위.** 공유 타입·패키지 변경은 그것을 쓰는 FE/BE PR보다 **먼저** 별도 PR로 올린다.
 - 부득이 FE/BE를 한 PR에 묶어야 하는 예외는 **사용자 명시 승인 후에만** 허용한다.
 
@@ -120,7 +120,7 @@ bun --filter @pullim-classbot/backend <script>
 
 ### 사용자 명시 확인 필요 (글로벌 작업)
 - root 파일(`package.json`, `turbo.json`, `tsconfig.base.json`, `docker-compose.yml`) 편집
-- `.github/workflows/**` 편집 (CI/Codex Review/prod-verify 등 저장소 전체 자동화 동작 변경)
+- `.github/workflows/**` 편집 (CI/prod-verify 등 저장소 전체 자동화 동작 변경)
 - `packages/*` 내부 인터페이스 변경 (apps 양쪽 영향)
 - `apps/backend/src/{common,config,database}/*` 편집 (BE 전역 영향)
 - 새 도메인 모듈 추가 (이 리포는 classbot 단일 도메인이라 본질적으로 거의 발생 X)
