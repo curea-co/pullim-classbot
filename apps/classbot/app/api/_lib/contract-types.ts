@@ -129,11 +129,15 @@ export interface CreateClassroomResponse {
   bot: ClassBotRow;
   /** 개설과 함께 발급된 참여 코드. */
   joinCode: string;
+  /** 그 코드가 닫히는 시각(ISO8601) — 개설 배너가 바로 쓴다. */
+  joinCodeExpiresAt: string;
 }
 
 /** `POST /api/teacher/classrooms/[id]/join-codes` 응답. */
 export interface IssueJoinCodeResponse {
   joinCode: string;
+  /** 새 코드가 닫히는 시각(ISO8601). */
+  joinCodeExpiresAt: string;
 }
 
 /** `GET /api/teacher/classrooms/[id]/students` 한 줄. */

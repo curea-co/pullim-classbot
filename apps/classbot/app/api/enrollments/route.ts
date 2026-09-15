@@ -35,7 +35,7 @@ export const runtime = 'nodejs';
  * 참여 코드로 수업방에 들어간다.
  * @param req - body `{ code }`
  * @returns 201 { enrollment, alreadyJoined:false } | 200 { enrollment, alreadyJoined:true }
- *          | 400 | 401 | 403 | 404
+ *          | 400 | 401 | 403 | 404(없는 코드) | 410(기간이 지난 코드 — `guards.ts` 의 `gone()`)
  */
 export async function POST(req: Request): Promise<NextResponse> {
   const actor = await resolveActor(req);
@@ -115,6 +115,18 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (!liveCode) return { kind: 'gone' as const };
 
     /*
+      **만료는 새로 들어오는 사람만 막는다.** 코드는 방에 들이는 열쇠이지 이미 들어와 있는
+      사람의 자격이 아니다 — 그래서 이미 참여한 학생인지 먼저 보고, 그 사람에게는 만료를
+      묻지 않는다. 순서를 뒤집으면 48시간 뒤에 자기 반 코드를 다시 넣어 본 학생이
+      「기간이 지났어요」를 받는다(이 파일 머리가 약속한 멱등 재참여가 깨진다).
+    */
+    const [already] = await tx
+      .select({ botId: enrollments.botId })
+      .from(enrollments)
+      .where(and(eq(enrollments.botId, bot.id), eq(enrollments.studentId, actor.id)))
+      .limit(1);
+
+    /*
       만료도 **이 잠금 안에서** 잰다. 밖에서 재면 교사가 그 사이에 재발급(= 갈아 끼우기)을
       커밋했을 때 이미 읽어 둔 낡은 만료로 통과시킨다 — 위 잠금이 막으려던 그 경합이다.
 
@@ -122,7 +134,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       그렇고, 그 행들을 소급해서 닫으면 이미 나눠 준 코드가 한꺼번에 죽는다
       (`lib/db/schema.ts` 의 그 컬럼 주석).
     */
-    if (liveCode.expiresAt && liveCode.expiresAt.getTime() <= Date.now()) {
+    if (!already && liveCode.expiresAt && liveCode.expiresAt.getTime() <= Date.now()) {
       return { kind: 'expired' as const };
     }
 

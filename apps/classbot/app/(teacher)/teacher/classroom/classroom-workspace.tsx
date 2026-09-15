@@ -74,6 +74,14 @@ export function ClassroomWorkspace() {
     ? rooms.find((r) => r.classroomId === created.classroomId)
     : undefined;
   const createdCode = createdRoom ? createdRoom.joinCode : (created?.joinCode ?? null);
+  /*
+    갓 만든 방의 만료 — 목록을 다시 읽어 온 뒤에는 그 카드가 정본이고, 그 전(개설 직후
+    한 박자)에는 개설 응답이 실어 준 값을 쓴다. 이 폴백이 없으면 배너만 「안 닫힘」으로
+    그려져, 바로 아래 카드가 48시간을 말하는데 위에서는 아무 말도 안 하는 상태가 된다.
+  */
+  const createdExpiresAt = createdRoom
+    ? createdRoom.joinCodeExpiresAt
+    : (created?.joinCodeExpiresAt ?? null);
 
   return (
     <>
@@ -87,7 +95,12 @@ export function ClassroomWorkspace() {
             이 코드를 학생에게 알려주세요. 학생이 코드를 넣으면 바로 이 반에 들어와요.
           </p>
           <div className="mt-3">
-            <JoinCodeBlock classroomId={created.classroomId} code={createdCode} size="lg" />
+            <JoinCodeBlock
+              classroomId={created.classroomId}
+              code={createdCode}
+              expiresAt={createdExpiresAt}
+              size="lg"
+            />
           </div>
           <Button
             type="button"

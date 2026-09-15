@@ -182,13 +182,19 @@ export async function POST(req: Request): Promise<NextResponse> {
         .returning();
 
       // teacherId 필수 — NULL 이면 복합 FK(MATCH SIMPLE)가 소유권을 검사하지 않는다.
-      const joinCode = await issueJoinCode(tx, {
+      const issued = await issueJoinCode(tx, {
         botId,
         classroomId,
         teacherId: actor.id,
       });
 
-      return { classroom, bot, joinCode };
+      // 만료도 함께 돌려준다 — 개설 직후 배너가 이 값을 다시 조회하지 않고 바로 쓴다.
+      return {
+        classroom,
+        bot,
+        joinCode: issued.code,
+        joinCodeExpiresAt: issued.expiresAt.toISOString(),
+      };
     });
 
     return NextResponse.json(created, { status: 201 });

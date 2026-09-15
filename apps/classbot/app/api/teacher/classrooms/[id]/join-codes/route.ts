@@ -62,7 +62,7 @@ export async function POST(
   if (!bot) return notFound('수업방에 연결된 봇을 찾을 수 없어요.');
 
   try {
-    const joinCode = await db.transaction(async (tx) => {
+    const issued = await db.transaction(async (tx) => {
       /*
         먼저 반 행을 잠근다 — **이 잠금이 「살아 있는 코드는 하나」를 지킨다.**
 
@@ -95,7 +95,10 @@ export async function POST(
       return issueJoinCode(tx, { botId, classroomId, teacherId: actor.id });
     });
 
-    return NextResponse.json({ joinCode }, { status: 201 });
+    return NextResponse.json(
+      { joinCode: issued.code, joinCodeExpiresAt: issued.expiresAt.toISOString() },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof JoinCodeExhaustedError) {
       return conflict(error.message);

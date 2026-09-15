@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,24 @@ export function JoinCodeBlock({
       },
     );
   }
+
+  /*
+    **닫히는 순간 화면이 스스로 바뀐다.** 종전에는 렌더할 때 한 번만 재서, 교사가 탭을 열어 둔
+    채 수업을 하면 만료가 지난 뒤에도 「…까지 쓸 수 있어요」와 복사 버튼이 그대로 살아 있었다.
+    서버는 이미 그 코드를 거절하는데 화면만 아직 모르는 상태 — 교사가 죽은 코드를 불러 준다.
+
+    초 단위로 돌리지 않는다. 필요한 순간은 **딱 하나**(닫히는 시각)라, 거기까지 한 번만 잰다.
+    `setTimeout` 의 상한(약 24.8일)을 넘기면 즉시 발화하므로 넘는 길이는 걸지 않는다 —
+    그만큼 먼 만료는 어차피 이 화면이 열려 있는 동안 지나지 않는다.
+  */
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!expiresAt) return;
+    const left = new Date(expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(left) || left <= 0 || left > 2_147_483_647) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), left + 1_000);
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
 
   const life = joinCodeLife(expiresAt);
   const closed = life.state === 'closed';
