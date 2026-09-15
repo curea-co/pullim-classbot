@@ -26,6 +26,8 @@ interface InsertedRow {
   botId: string;
   classroomId: string;
   teacherId: string | null;
+  /** 발급이 함께 적는 수명 — 코드와 같이 다닌다. */
+  expiresAt: Date;
 }
 
 /**
@@ -97,7 +99,7 @@ describe('issueJoinCode — 유일성은 PK 가 판정한다', () => {
   it('첫 삽입이 성공하면 그 코드를 돌려준다', async () => {
     const { writer, inserted, attemptCount } = fakeWriter(0);
 
-    const code = await issueJoinCode(writer, {
+    const { code, expiresAt } = await issueJoinCode(writer, {
       botId: 'cb_1',
       classroomId: 'cr_1',
       teacherId: 'teacher_001',
@@ -106,6 +108,9 @@ describe('issueJoinCode — 유일성은 PK 가 판정한다', () => {
     expect(code).toHaveLength(JOIN_CODE_LENGTH);
     expect(attemptCount()).toBe(1);
     expect(inserted).toHaveLength(1);
+    // 코드와 만료는 **같이 다닌다** — 갓 발급한 코드를 보여 주는 화면이 다시 조회하지 않아도 되게.
+    expect(expiresAt.getTime()).toBeGreaterThan(Date.now());
+    expect(inserted[0].expiresAt).toEqual(expiresAt);
   });
 
   it('teacher_id 를 반드시 싣는다 (NULL 이면 소유권 복합 FK 가 검사에서 빠진다)', async () => {
@@ -128,7 +133,7 @@ describe('issueJoinCode — 유일성은 PK 가 판정한다', () => {
   it('삽입 0행(= 이미 쓰인 코드)이면 다른 코드로 다시 뽑는다', async () => {
     const { writer, inserted, attemptCount } = fakeWriter(3);
 
-    const code = await issueJoinCode(writer, {
+    const { code } = await issueJoinCode(writer, {
       botId: 'cb_1',
       classroomId: 'cr_1',
       teacherId: 'teacher_001',
@@ -136,6 +141,8 @@ describe('issueJoinCode — 유일성은 PK 가 판정한다', () => {
 
     expect(attemptCount()).toBe(4);
     expect(inserted).toHaveLength(4);
+    // 재시도해도 만료는 한 번만 정해진다 — 코드마다 수명이 흔들리면 안 된다.
+    expect(new Set(inserted.map((r) => String(r.expiresAt))).size).toBe(1);
     // 재시도마다 새 코드를 뽑는다 — 같은 코드를 다시 밀어 넣지 않는다.
     expect(new Set(inserted.map((r) => r.code)).size).toBe(4);
     expect(code).toBe(inserted[3].code);

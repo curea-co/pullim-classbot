@@ -325,7 +325,14 @@ async function main() {
   }
   console.log(`[seed] enrollments: ${studentEnrollments.length}`);
 
-  /* 6b. join_codes — 참여 코드(mock CODE_MAP)의 실전판. 학생 join 의 진입점. */
+  /*
+    6b. join_codes — 참여 코드(mock CODE_MAP)의 실전판. 학생 join 의 진입점.
+
+    **`expires_at` 을 일부러 비운다(= 안 닫힘).** 발급 경로(`lib/join-code.ts`)는 48시간을
+    주지만 이 코드들은 **데모 문**이라 늘 열려 있어야 한다 — prod-verify 가 `MATH-2024` 로
+    매일 반에 들어간다(`tests/e2e`). 여기에 수명을 주면 이틀 뒤부터 회귀가 깨진다.
+    (같은 이유를 `lib/db/schema.ts` 의 그 컬럼 주석이 ②로 적어 두었다.)
+  */
   const codeRows = Object.entries(CODE_MAP).map(([code, t]) => ({
     code,
     botId: t.botId,

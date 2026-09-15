@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { useIssueJoinCode } from '@/hooks/api/classroom';
 // 표기 규칙의 주인. `lib/join-code.ts` 를 부르지 않는 이유는 그 파일이 코드 **발급**까지
 // 소유해서 `node:crypto` 와 Drizzle 스키마를 함께 끌고 오기 때문이다 — client 컴포넌트가
 // 그걸 import 하면 DB 스키마가 통째로 브라우저 번들에 실린다.
-import { formatJoinCode } from '@/lib/join-code-format';
+import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
 import { cn } from '@/lib/utils';
 
 /**
@@ -28,11 +28,17 @@ import { cn } from '@/lib/utils';
 export function JoinCodeBlock({
   classroomId,
   code,
+  expiresAt = null,
   size = 'md',
 }: {
   classroomId: string;
   /** 지금 살아 있는 코드. 아직 없으면 null — 그때는 「코드 내기」가 대신 선다. */
   code: string | null;
+  /**
+   * 코드가 닫히는 시각(ISO8601). null 이면 안 닫힌다 — 만료가 생기기 전 발급된 코드다.
+   * 소급해서 닫지 않는 이유는 이미 나눠 준 코드가 한꺼번에 죽기 때문이다.
+   */
+  expiresAt?: string | null;
   /** 갓 만든 수업방 배너에서는 한 칸 더 크게 — 그 순간 교사가 볼 것은 이 코드뿐이다. @default 'md' */
   size?: 'md' | 'lg';
 }) {
@@ -72,6 +78,27 @@ export function JoinCodeBlock({
     );
   }
 
+  /*
+    **닫히는 순간 화면이 스스로 바뀐다.** 종전에는 렌더할 때 한 번만 재서, 교사가 탭을 열어 둔
+    채 수업을 하면 만료가 지난 뒤에도 「…까지 쓸 수 있어요」와 복사 버튼이 그대로 살아 있었다.
+    서버는 이미 그 코드를 거절하는데 화면만 아직 모르는 상태 — 교사가 죽은 코드를 불러 준다.
+
+    초 단위로 돌리지 않는다. 필요한 순간은 **딱 하나**(닫히는 시각)라, 거기까지 한 번만 잰다.
+    `setTimeout` 의 상한(약 24.8일)을 넘기면 즉시 발화하므로 넘는 길이는 걸지 않는다 —
+    그만큼 먼 만료는 어차피 이 화면이 열려 있는 동안 지나지 않는다.
+  */
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!expiresAt) return;
+    const left = new Date(expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(left) || left <= 0 || left > 2_147_483_647) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), left + 1_000);
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+
+  const life = joinCodeLife(expiresAt);
+  const closed = life.state === 'closed';
+
   return (
     <div>
       <p className="text-pullim-slate-500 text-2xs font-bold">참여 코드</p>
@@ -85,20 +112,42 @@ export function JoinCodeBlock({
           <span
             data-testid="join-code"
             className={cn(
-              'text-pullim-slate-900 font-mono font-bold tracking-widest',
+              'font-mono font-bold tracking-widest',
+              // 닫힌 코드는 **지우지 않고 물린다.** 지우면 교사가 「내가 뭘 나눠 줬더라」를
+              // 잃고, 그대로 두면 아직 쓸 수 있는 것처럼 보인다. 그래서 회색 + 취소선이다.
+              closed ? 'text-pullim-slate-400 line-through' : 'text-pullim-slate-900',
               size === 'lg' ? 'text-3xl' : 'text-2xl',
             )}
           >
             {formatJoinCode(code)}
           </span>
-          <Button type="button" variant="outline" size="sm" onClick={handleCopy} data-testid="join-code-copy">
-            <Copy />
-            복사
-          </Button>
+          {/* 닫힌 코드는 복사할 이유가 없다 — 학생이 넣어도 안 열린다 */}
+          {!closed && (
+            <Button type="button" variant="outline" size="sm" onClick={handleCopy} data-testid="join-code-copy">
+              <Copy />
+              복사
+            </Button>
+          )}
         </div>
       ) : (
         <p className="text-pullim-slate-500 mt-1 text-2xs">
           아직 코드가 없어요. 코드를 내면 학생이 그 코드로 들어올 수 있어요.
+        </p>
+      )}
+
+      {/*
+        언제까지 사는지 — 교사가 이 값으로 하는 결정은 하나다: 「지금 불러 줘도 되나」.
+        안 닫히는 옛 코드는 아무 말도 붙이지 않는다. 「계속 열려 있어요」라고 적으면 그게
+        정상 상태로 읽히는데, 사실은 만료가 생기기 전에 나간 행이라 곧 사라질 상태다.
+      */}
+      {code && life.state === 'open' && (
+        <p data-testid="join-code-life" className="text-pullim-slate-500 mt-1 text-2xs">
+          {life.label} 쓸 수 있어요
+        </p>
+      )}
+      {code && closed && (
+        <p data-testid="join-code-life" className="text-pullim-danger mt-1 text-2xs font-bold">
+          기간이 지나 닫혔어요 · 새 코드를 내면 다시 열려요
         </p>
       )}
 

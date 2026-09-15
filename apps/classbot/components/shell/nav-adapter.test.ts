@@ -82,16 +82,28 @@ describe("nav-adapter", () => {
     expect(activeLabels("/classbot/chat")).toEqual(["봇 대화"]);
     expect(activeLabels("/classbot/assignment/1")).toEqual(["받은 과제"]);
   });
-  // 과제 내기 · 커리큘럼은 각각 봇 · 대화에서 이어지는 화면인데 경로가 갈라져 있다 —
+  // 커리큘럼은 대화에서 이어지는 화면인데 경로가 갈라져 있다 —
   // 소속을 밝힌 항목이 잡되, 그 때문에 두 곳이 켜지지는 않아야 한다 (nav-config 의 matchPrefix).
   it("keeps split-off routes on the section that owns them", () => {
-    const teacherLabels = (pathname: string) =>
-      railSectionsForRole("teacher", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
     const studentLabels = (pathname: string) =>
       railSectionsForRole("student", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
-    expect(teacherLabels("/teacher/assignment/new")).toEqual(["내 클래스봇"]);
     expect(studentLabels("/classbot/learn/t1")).toEqual(["봇 대화"]);
     expect(studentLabels("/classbot/learn/t1/u1")).toEqual(["봇 대화"]);
+  });
+
+  /*
+    과제 내기는 **더 이상 「내 클래스봇」 소속이 아니다.** 종전에는 `/teacher/assignment` 아래에
+    `new` 하나뿐이라 봇 운영 항목이 `matchPrefix` 로 데려갔고, nav-config 의 그 자리 주석이
+    「나중에 형제 경로가 생기면 소속을 새로 정한다」고 예고해 두었다. 목록·상세가 생기면서
+    그 날이 왔다 — 이제 `/teacher/assignment/*` 셋 다 [낸 과제] 하나로 켜진다.
+    셋을 같이 못박는 이유는 하나만 어긋나도 교사가 「내가 어디 있는지」를 잃기 때문이다.
+  */
+  it("owns every /teacher/assignment/* route under 낸 과제", () => {
+    const teacherLabels = (pathname: string) =>
+      railSectionsForRole("teacher", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
+    expect(teacherLabels("/teacher/assignment")).toEqual(["낸 과제"]);
+    expect(teacherLabels("/teacher/assignment/new")).toEqual(["낸 과제"]);
+    expect(teacherLabels("/teacher/assignment/as_today")).toEqual(["낸 과제"]);
   });
   // 커리큘럼 소속은 레일만의 결정이 아니다 — 모바일 하단탭도 「대화」로 같이 켜져야
   // 같은 화면에서 「내가 어디 있는지」가 두 표면에 같게 나온다.

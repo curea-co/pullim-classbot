@@ -31,7 +31,7 @@ export const runtime = 'nodejs';
  * 이 반의 참여 코드를 새로 뽑는다(옛 코드는 무효).
  * @param req - 신원(쿠키 또는 Bearer)
  * @param ctx - 동적 세그먼트 `{ id }` = 반 id
- * @returns 201 { joinCode } | 400 | 401 | 403 | 404 | 409
+ * @returns 201 { joinCode, joinCodeExpiresAt } | 400 | 401 | 403 | 404 | 409
  */
 export async function POST(
   req: Request,
@@ -62,7 +62,7 @@ export async function POST(
   if (!bot) return notFound('수업방에 연결된 봇을 찾을 수 없어요.');
 
   try {
-    const joinCode = await db.transaction(async (tx) => {
+    const issued = await db.transaction(async (tx) => {
       /*
         먼저 반 행을 잠근다 — **이 잠금이 「살아 있는 코드는 하나」를 지킨다.**
 
@@ -95,7 +95,10 @@ export async function POST(
       return issueJoinCode(tx, { botId, classroomId, teacherId: actor.id });
     });
 
-    return NextResponse.json({ joinCode }, { status: 201 });
+    return NextResponse.json(
+      { joinCode: issued.code, joinCodeExpiresAt: issued.expiresAt.toISOString() },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof JoinCodeExhaustedError) {
       return conflict(error.message);

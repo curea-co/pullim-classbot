@@ -22,7 +22,7 @@ export class ApiClientError extends Error {
     message: string,
     /** HTTP 상태. */
     public readonly status: number,
-    /** 계약 §4 의 오류 코드(AUTH_REQUIRED · FORBIDDEN · INVALID_INPUT · NOT_FOUND · CONFLICT). */
+    /** 계약 §4 의 오류 코드(AUTH_REQUIRED · FORBIDDEN · INVALID_INPUT · NOT_FOUND · GONE · CONFLICT). */
     public readonly code: string,
   ) {
     super(message);
@@ -41,6 +41,8 @@ function fallbackMessage(status: number): string {
   if (status === 401) return '로그인이 필요합니다.';
   if (status === 403) return '권한이 없어요.';
   if (status === 404) return '찾을 수 없어요.';
+  // 410 은 「있었지만 이제 없다」다 — 404 와 같은 말을 쓰면 서버가 굳이 가른 뜻이 화면에서 뭉개진다.
+  if (status === 410) return '기간이 지났어요.';
   if (status === 409) return '지금은 처리할 수 없어요.';
   return `요청에 실패했어요 (HTTP ${status})`;
 }
@@ -112,7 +114,12 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ?? {} });
 }
 
-/** DELETE 단축 — 본문 없이 보낸다(자원을 끄는 라우트가 쓴다). */
+/** PATCH — 일부만 고친다(낸 과제 수정·회수). */
+export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, { method: 'PATCH', body });
+}
+
+/** DELETE 단축. */
 export function apiDelete<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE' });
 }
