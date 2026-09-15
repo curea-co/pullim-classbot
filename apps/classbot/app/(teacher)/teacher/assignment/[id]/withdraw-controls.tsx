@@ -15,9 +15,14 @@ import { useAssignmentWrite } from '../use-assignment-write';
  * 회수 · 되돌리기 (`proc/spec/14 § 3.3.6`).
  *
  * **회수는 지우는 것이 아니다.** 학생의 「받은 과제」에서 내려갈 뿐, 이미 낸 답과 채점은
- * 그대로 남는다(§ 5.3). 지우기로 만들면 회수가 곧 증거 인멸이 된다 — 그래서 확인 모달이
+ * 데이터로 남는다(§ 5.3). 지우기로 만들면 회수가 곧 증거 인멸이 된다 — 그래서 확인 모달이
  * 그 사실을 **먼저** 말한다. 「정말 하시겠어요?」만 묻는 모달은 무엇이 남고 무엇이 사라지는지를
  * 안 알려 줘서, 교사가 겁을 먹거나 반대로 아무 생각 없이 누르게 된다.
+ *
+ * **「남는다」를 학생이 계속 본다는 뜻으로 적지 않는다.** 회수하면 학생 쪽 결과 화면도 닫힌다 —
+ * 서버 술어가 `dispatch_status='sent'` 인 것만 보여 주기 때문이고, 그건 목록만 감추고 결과는
+ * 열어 두는 반쪽 상태보다 낫다(반쪽이면 데모 경로와 로그인 경로가 서로 다르게 군다).
+ * 남는 것은 **기록**이고, 되돌리면 학생도 다시 본다 — 모달이 그렇게 말한다.
  *
  * 스키마에는 이미 자리가 있었다 — `assignments.dispatch_status` 의 `'withdrawn'` 값이
  * 정의만 되고 아무도 쓰지 않았다. 새 컬럼이 필요 없는 이유다.
@@ -37,8 +42,15 @@ export function WithdrawButton({
   const router = useRouter();
 
   async function confirm() {
-    // 서버가 먼저다 — 학생이 보는 술어는 DB 의 `dispatch_status` 를 읽는다(그 훅 주석).
-    await write({ id: assignment.id, dispatchStatus: 'withdrawn' });
+    /*
+      서버가 먼저다 — 학생이 보는 술어는 DB 의 `dispatch_status` 를 읽는다(그 훅 주석).
+      **실패하면 아무것도 하지 않는다.** 로컬만 회수해 두면 교사 화면은 「회수됨」인데 학생은
+      그대로 풀고 있다 — 그 훅이 「제일 나쁘다」고 적은 상태다. 모달은 열어 둔 채로 두어
+      교사가 다시 누를 수 있게 한다(오류 토스트는 훅이 이미 띄웠다).
+    */
+    const outcome = await write({ id: assignment.id, dispatchStatus: 'withdrawn' });
+    if (outcome === 'failed') return;
+
     withdraw(assignment.id);
     setOpen(false);
     toast.success('과제를 회수했어요');
@@ -66,9 +78,10 @@ export function WithdrawButton({
             {targetCount}명 중 <span className="font-mono">{submittedCount}</span>명이 이미 풀었어요.
           </DialogDescription>
           <p className="text-pullim-slate-500 text-sm">
-            회수하면 학생의 「받은 과제」에서 사라져요.
+            회수하면 학생의 「받은 과제」에서 사라져요 — 결과 화면도 함께 닫혀요.
             <br />
-            <b className="text-pullim-slate-900">이미 낸 답과 채점은 그대로 남아요.</b>
+            <b className="text-pullim-slate-900">이미 낸 답과 채점은 지워지지 않아요.</b>
+            {' '}되돌리면 학생이 다시 볼 수 있어요.
           </p>
         </DialogHeader>
         <DialogFooter>
@@ -112,7 +125,8 @@ export function RestoreButton({ assignment }: { assignment: UserAssignment }) {
       data-testid="assignment-restore"
       onClick={() => {
         void (async () => {
-          await write({ id: assignment.id, dispatchStatus: 'sent' });
+          const outcome = await write({ id: assignment.id, dispatchStatus: 'sent' });
+          if (outcome === 'failed') return;
           restore(assignment.id);
           toast.success('회수를 되돌렸어요');
         })();

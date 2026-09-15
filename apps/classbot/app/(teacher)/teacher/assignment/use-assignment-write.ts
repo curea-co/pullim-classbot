@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { ApiClientError } from '@/lib/api/client-fetch';
 import { useUpdateAssignment, type UpdateAssignmentInput } from '@/hooks/api/assignment-dispatch';
 
+/** 쓰기 결과 — 호출부가 **성공을 알릴지** 가르는 값이다. */
+export type WriteOutcome = 'saved' | 'local-only' | 'failed';
+
 /**
  * 낸 과제 고치기·회수의 **한 통로** (`proc/spec/14 § 3.3.5`·`§ 3.3.6`).
  *
@@ -20,28 +23,35 @@ import { useUpdateAssignment, type UpdateAssignmentInput } from '@/hooks/api/ass
  * 로컬 사본만 고친다(내기 화면의 `signedOut` 분기와 같은 결).
  *
  * 그 밖의 실패(권한 · 5xx)는 **삼키지 않는다** — 교사는 회수했다고 믿는데 학생에게는 그대로
- * 남아 있는 상태가 제일 나쁘다. 로컬은 되돌리지 않고(화면이 이미 그렇게 그려졌다) 무엇이
- * 안 됐는지 말한다.
+ * 남아 있는 상태가 제일 나쁘다. 그래서 실패를 **값으로 돌려준다**: 호출부는 그 값을 보고
+ * 성공 토스트와 화면 이동을 **건다**. 토스트만 띄우고 호출부가 그대로 성공을 알리면
+ * 오류와 성공이 나란히 뜨고 교사는 둘 중 무엇을 믿을지 모른다.
  */
 export function useAssignmentWrite(): {
-  /** 서버를 먼저 고치고, 서버에 없는 과제면 조용히 넘긴다. @returns 서버까지 닿았으면 true */
-  write: (input: UpdateAssignmentInput) => Promise<boolean>;
+  /**
+   * 서버를 먼저 고친다.
+   * @returns `'saved'` 서버까지 닿았다 · `'local-only'` 서버에 없는 과제(데모) · `'failed'` 못 고쳤다
+   */
+  write: (input: UpdateAssignmentInput) => Promise<WriteOutcome>;
   isPending: boolean;
 } {
   const mutation = useUpdateAssignment();
 
-  async function write(input: UpdateAssignmentInput): Promise<boolean> {
+  async function write(input: UpdateAssignmentInput): Promise<WriteOutcome> {
     try {
       await mutation.mutateAsync(input);
-      return true;
+      return 'saved';
     } catch (error) {
-      // 데모 경로 — 서버에 그 과제가 없다. 오류가 아니다.
-      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
-        return false;
-      }
+      /*
+        **401 만 데모 경로다.** 종전에는 404 도 같이 삼켰는데 그건 위험하다 — 로그인한 교사도
+        PATCH 의 소유권 조건(`createdBy = 나`)이 0행이면 404 를 받는다(`created_by` 가 비어 있는
+        옛 행, 남의 계정으로 만든 과제). 그걸 「데모라서 없는 과제」로 읽으면 호출부가 성공을
+        알리고 회수는 학생에게 영영 안 간다.
+      */
+      if (error instanceof ApiClientError && error.status === 401) return 'local-only';
       const message = error instanceof ApiClientError ? error.message : '서버에 전하지 못했어요.';
       toast.error('학생 화면에는 아직 반영되지 않았어요', { description: message });
-      return false;
+      return 'failed';
     }
   }
 

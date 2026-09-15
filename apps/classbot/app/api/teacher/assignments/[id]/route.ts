@@ -29,13 +29,22 @@ import {
 
 export const runtime = 'nodejs';
 
+/**
+ * 글자 수 상한 — **`POST` 와 같은 값이어야 한다.** 한쪽만 막으면 그쪽을 피해 다른 쪽으로
+ * 넣을 수 있어서, 울타리가 있으나 마나가 된다(`app/api/teacher/assignments/route.ts`).
+ */
+const MAX_TITLE_LEN = 60;
+const MAX_REASON_HINT_LEN = 200;
+
 /** 이 라우트가 받아 주는 내기 상태 — 「내기」와 「예약」은 각자의 경로가 따로 있다. */
 const PATCHABLE_STATUS = new Set(['sent', 'withdrawn']);
 
 /**
  * 낸 과제의 일부를 고친다(회수·되돌리기 포함).
  *
- * @param req - body `{ title?, reasonHint?, dueLabel?, dDay?, dueAt?, dispatchStatus? }`
+ * @param req - body `{ title?, reasonHint?, dueLabel?, dDay?, dispatchStatus? }`.
+ *   `dueAt` 은 **받지 않는다** — 마감 시각의 정본은 아직 `POST` 뿐이고, 여기서까지 받으면
+ *   라벨과 시각이 갈릴 자리가 하나 더 는다. 화면은 라벨 둘만 보낸다.
  * @param ctx - 동적 세그먼트 `{ id }` = 과제 id
  * @returns 200 { assignment } | 400 | 401 | 403(역할) | 404(내가 낸 과제가 아님)
  */
@@ -57,14 +66,14 @@ export async function PATCH(
   // 「비워서 보냈다」를 가르려면 타입을 먼저 본다 — 안 그러면 제목을 안 보낸 회수 요청이
   // 「제목은 비울 수 없어요」로 튕긴다.
   if (typeof body.title === 'string') {
-    const title = body.title.trim();
+    const title = body.title.trim().slice(0, MAX_TITLE_LEN);
     if (!title) return invalidInput('제목은 비울 수 없어요.');
     patch.title = title;
   }
 
   // 봇 한 마디는 **비우는 것도 뜻이 있다** — 빈 문자열은 지우라는 말이라 null 로 적는다.
   if (typeof body.reasonHint === 'string') {
-    patch.reasonHint = body.reasonHint.trim() || null;
+    patch.reasonHint = body.reasonHint.trim().slice(0, MAX_REASON_HINT_LEN) || null;
   }
 
   if (typeof body.dueLabel === 'string' && body.dueLabel.trim()) {

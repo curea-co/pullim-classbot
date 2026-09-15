@@ -164,13 +164,17 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
       patch.dueAt = new Date(dueIso).toISOString();
     }
     // 서버가 먼저다 — 로그인한 교사의 과제는 DB 행으로도 있고 학생은 그쪽을 읽는다(그 훅 주석).
-    await write({
+    // 실패하면 로컬도 안 고치고 화면도 안 떠난다 — 성공 토스트와 오류 토스트가 나란히 뜨면
+    // 교사는 둘 중 무엇을 믿을지 모른다.
+    const outcome = await write({
       id: assignment.id,
       title: patch.title,
       reasonHint: patch.reasonHint ?? '',
       dueLabel: patch.dueLabel,
       dDay: patch.dDay,
     });
+    if (outcome === 'failed') return;
+
     update(assignment.id, patch);
 
     toast.success('고쳤어요');

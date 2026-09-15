@@ -81,6 +81,11 @@ function AssignmentList() {
     [allRows, botIndex, filter],
   );
   const summary = useMemo(() => summarize(allRows), [allRows]);
+  // 「전체」인데 빈 목록의 두 뜻을 가른다 — 거르개가 좁아서인가, 다 회수해서인가.
+  const allWithdrawn = useMemo(
+    () => allRows.length > 0 && allRows.every((r) => r.status === 'withdrawn'),
+    [allRows],
+  );
 
   /*
     걸려 있는 반·봇 — 봇 조건은 봇 운영 KPI 가 실어 보낸다(진입점 2). **반 조건은 아직
@@ -145,14 +150,30 @@ function AssignmentList() {
           action={{ href: '/teacher/assignment/new', label: '과제 내기' }}
         />
       ) : rows.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          tone="plain"
-          size="sm"
-          title="이 조건에 맞는 과제가 없어요"
-          description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
-          action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
-        />
+        /*
+          「전체」인데도 비는 경우가 있다 — 낸 과제가 **전부 회수된** 상태다(기본 목록은 회수된 것을
+          내린다). 그때 「거르개 지우기」를 주면 지금 있는 화면으로 되돌아와 같은 빈 화면이 뜬다.
+          그래서 어디에 있는지 알려 주고 그리로 보낸다.
+        */
+        allWithdrawn ? (
+          <EmptyState
+            icon={ClipboardList}
+            tone="plain"
+            size="sm"
+            title="낸 과제를 모두 회수했어요"
+            description="회수한 과제는 「회수됨」에서 볼 수 있어요."
+            action={{ href: '/teacher/assignment?status=withdrawn', label: '회수됨 보기' }}
+          />
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            tone="plain"
+            size="sm"
+            title="이 조건에 맞는 과제가 없어요"
+            description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
+            action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
+          />
+        )
       ) : (
         <ul data-testid="assignment-list" className="space-y-2">
           {rows.map((row) => (

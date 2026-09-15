@@ -480,20 +480,6 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
   return dispatched.find((d) => d.id === id && isStudentVisible(d)) ?? getSeedAssignmentById(id);
 }
 
-/**
- * **결과 화면 전용** 조회 — 회수된 과제도 찾는다.
- *
- * 회수 확인 모달이 교사에게 「이미 낸 답과 채점은 그대로 남아요」라고 약속한다. 그런데
- * `useAssignmentLookup` 이 회수된 과제를 안 돌려주면 **학생 쪽에서** 제 점수·오답·선생님
- * 한 마디가 통째로 「과제를 찾을 수 없어요」가 된다 — 목록에서 감추는 것과 이미 낸 것을
- * 뺏는 것은 다른 일이다. 목록·개요·풀이는 그대로 가리고, **결과만** 이 문으로 연다.
- */
-export function useSubmittedAssignmentLookup(id: string): Assignment | undefined {
-  useBackendAssignmentSync();
-  const dispatched = useAssignmentStore((s) => s.dispatched);
-  return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
-}
-
 /** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */
 const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
   practice: 'as_today',

@@ -25,14 +25,19 @@ export function DispatchedAssignmentsLink() {
   // `buildBotIndex()` 는 mock 카탈로그를 매번 다시 훑는다 — 교사 홈은 자주 다시 그려지는 화면이라
   // 렌더마다 세우지 않는다. 훅은 조기 반환보다 **위**에 있어야 호출 순서가 안 흔들린다.
   const botIndex = useMemo(() => buildBotIndex(), []);
-  const summary = useMemo(
-    () => summarize(buildRows(dispatched, submissions, botIndex)),
+  const rows = useMemo(
+    () => buildRows(dispatched, submissions, botIndex),
     [dispatched, submissions, botIndex],
   );
+  const summary = useMemo(() => summarize(rows), [rows]);
 
-  // 그리는 숫자(`summary.live`)로 가린다 — `dispatched.length` 로 재면 하나뿐인 과제를
-  // 회수한 교사에게 「낸 과제 0건 →」이 뜬다. 이 파일 머리가 없다고 못박은 바로 그 상태다.
-  if (!hydrated || summary.live === 0) return null;
+  /*
+    **볼 것이 하나도 없을 때만** 가린다. `summary.live` 로 재면 낸 과제가 다 마감된 교사에게
+    링크가 통째로 사라져 낸 과제로 가는 길이 홈에서 없어진다 — 「0건 링크를 두지 않는다」와
+    「길을 없앤다」는 다른 일이다. `dispatched.length` 로 재면 반대로 회수만 남은 교사에게
+    「낸 과제 0건 →」이 뜬다. 그래서 목록이 실제로 그릴 줄 수로 잰다.
+  */
+  if (!hydrated || rows.length === 0) return null;
 
   return (
     <Link

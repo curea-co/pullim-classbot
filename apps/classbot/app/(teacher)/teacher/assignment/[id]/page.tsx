@@ -15,7 +15,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import {
-  buildBotIndex, progressForTargets, statusLabels, statusOf, wholeClassSize,
+  buildBotIndex, isPastDue, progressForTargets, statusLabels, statusOf, wholeClassSize,
 } from '../assignment-filters';
 import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
@@ -171,7 +171,8 @@ function AssignmentDetail({ id }: { id: string }) {
           tone="plain"
           title="회수한 과제예요"
           description={
-            assignment.state === 'overdue'
+            // 버튼을 숨기는 판정과 **같은 값**을 쓴다 — 갈리면 버튼도 없고 설명도 없는 화면이 된다.
+            isPastDue(assignment)
               ? '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요. 마감이 지나서 되돌릴 수는 없어요 — 다시 내려면 같은 내용으로 새 과제를 내주세요.'
               : '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요.'
           }
