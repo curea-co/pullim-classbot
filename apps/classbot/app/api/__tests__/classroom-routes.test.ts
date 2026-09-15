@@ -1291,6 +1291,30 @@ describe('PATCH /api/teacher/assignments/[id] — 낸 과제 고치기·회수',
     expect(res.status).toBe(400);
   });
 
+  it('마감 라벨은 **클라이언트 것을 그대로** 저장한다 — 서버가 그리면 시간대가 어긋난다', async () => {
+    /*
+      라벨은 `getHours()` 로 그려지는데 서버 런타임은 UTC 다. 서버가 만들면 KST 교사의
+      「내일 22:00」이 DB 에 「내일 13:00」으로 앉고, 학생은 서버 행을 읽으므로 9시간 어긋난
+      마감을 본다. 그래서 검증만 시각으로 하고 저장은 교사 시간대로 그려진 라벨로 한다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }]];
+    mockUpdateQueue = [[{ id: 'as_1' }]];
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+
+    await patchAssignment(patchReq({ dueAt: future, dueLabel: '9/20 22:00' }), ctx);
+
+    const written = setSpy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(written.dueLabel).toBe('9/20 22:00');
+    expect(written.dDay).toMatch(/^(오늘|D-\d+)$/);
+  });
+
+  it('시각만 보내고 라벨을 빠뜨리면 400 — 둘은 짝이다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }]];
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const res = await patchAssignment(patchReq({ dueAt: future }), ctx);
+    expect(res.status).toBe(400);
+  });
+
   it('되돌리기는 회수한 것에서만 — 초안·예약이 이 문으로 나가지 않는다', async () => {
     // 들어오는 값만 보고 'sent' 를 허용하면 `dispatched_at` 이 NULL 인 채로 학생에게 나간다.
     mockSelectQueue = [[{ role: 'teacher' }]];

@@ -87,8 +87,16 @@ export interface UpdateAssignmentInput {
   id: string;
   title?: string;
   reasonHint?: string;
-  /** 마감 **시각**(ISO8601). 라벨(`dueLabel`·`dDay`)은 서버가 만든다 — 둘이 어긋날 자리를 없앤다. */
+  /**
+   * 마감 **시각**(ISO8601) — 서버가 「지난 마감인가」를 재는 근거.
+   * `dueLabel` 과 **짝으로** 보낸다(하나만 보내면 400).
+   */
   dueAt?: string;
+  /**
+   * 마감 **표시 문자열** — 교사 시간대로 그려진 값이라 클라이언트가 만든다.
+   * 서버 런타임은 UTC 라 서버가 그리면 KST 교사의 마감이 9시간 어긋나 앉는다.
+   */
+  dueLabel?: string;
   /** 회수(`'withdrawn'`) · 되돌리기(`'sent'`). */
   dispatchStatus?: 'sent' | 'withdrawn';
 }

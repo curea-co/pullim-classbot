@@ -177,7 +177,13 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
         id: assignment.id,
         title: patch.title,
         reasonHint: patch.reasonHint ?? '',
-        ...(dueIso ? { dueAt: new Date(dueIso).toISOString() } : {}),
+        /*
+          시각과 라벨을 **함께** 보낸다 — 서버는 시각으로 「지난 마감」을 막고, 저장할 표시
+          문자열은 교사 시간대로 그려진 이 라벨을 쓴다(서버가 만들면 UTC 로 그려진다).
+        */
+        ...(dueIso
+          ? { dueAt: new Date(dueIso).toISOString(), dueLabel: formatDueLabel(dueIso) }
+          : {}),
       });
       if (outcome === 'failed') return;
     }

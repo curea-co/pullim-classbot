@@ -18,7 +18,6 @@ import { and, eq } from 'drizzle-orm';
 
 import { getDb } from '@/lib/db';
 import { assignments } from '@/lib/db/schema';
-import { computeDDay, formatDueLabel } from '@/lib/assignment-due';
 import {
   forbidden,
   invalidInput,
@@ -37,16 +36,35 @@ export const runtime = 'nodejs';
 const MAX_TITLE_LEN = 60;
 const MAX_REASON_HINT_LEN = 200;
 
+/**
+ * 마감 시각에서 D-day — **`POST` 와 같은 규칙이어야 한다**(날짜 경계로 자른다. 시:분은 안 본다).
+ * `lib/assignment-due.ts` 의 `computeDDay` 는 24시간 단위라 오늘 23시 마감을 `D-1` 로 센다 —
+ * 한 컬럼에 두 규칙이 앉으면 같은 마감이 낸 경로와 고친 경로에서 다르게 읽힌다.
+ *
+ * ⚠️ 이 함수(와 `POST` 의 같은 함수)는 **런타임 시간대의 날짜 경계**를 쓴다 — 배포에서는 UTC 라
+ * KST 기준 날짜와 하루 어긋날 수 있다. 여기서 한쪽만 KST 로 고치면 두 규칙이 되므로,
+ * **둘을 함께** `Asia/Seoul` 로 못박는 것은 별건이다(`app/api/_lib/study-date.ts` 가 그 선례다).
+ */
+function dDayFromDate(due: Date, now: Date): string {
+  const startOfDay = (d: Date): number =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
+  return diffDays <= 0 ? '오늘' : `D-${diffDays}`;
+}
+
 /** 이 라우트가 받아 주는 내기 상태 — 「내기」와 「예약」은 각자의 경로가 따로 있다. */
 const PATCHABLE_STATUS = new Set(['sent', 'withdrawn']);
 
 /**
  * 낸 과제의 일부를 고친다(회수·되돌리기 포함).
  *
- * @param req - body `{ title?, reasonHint?, dueAt?, dispatchStatus? }`.
- *   마감은 **시각(`dueAt`)으로만 받는다.** 라벨(`dueLabel`·`dDay`)을 받으면 둘이 서로
- *   어긋난 짝(`dDay:'D-99'` + `dueLabel:'오늘'`)이 그대로 저장되고, 서버가 「지난 마감인가」를
- *   검사할 근거도 사라진다 — `POST` 가 `readDueAt` 으로 같은 판단을 하는 이유다.
+ * @param req - body `{ title?, reasonHint?, dueAt?, dueLabel?, dispatchStatus? }`.
+ *   마감은 **둘을 함께** 받는다 — 검증은 시각(`dueAt`)으로, 저장할 표시 문자열은 라벨(`dueLabel`)로.
+ *   `POST` 와 **같은 규약**이고, 그 이유는 시간대다: 라벨은 `getHours()` 로 그려지는데 서버 런타임은
+ *   UTC 라 서버가 만들면 KST 교사의 「내일 22:00」이 DB 에 「내일 13:00」으로 앉는다(아침 마감은
+ *   날짜까지 하루 밀린다). 학생은 서버 행을 읽으므로 그대로 9시간 어긋난 마감을 본다.
+ *   `d_day` 도 `POST` 와 같은 함수(`dDayFromDate`)로 센다 — 한 컬럼에 규칙이 둘이면 같은 마감이
+ *   낸 경로와 고친 경로에서 다르게 읽힌다.
  * @param ctx - 동적 세그먼트 `{ id }` = 과제 id
  * @returns 200 { assignment } | 400 | 401 | 403(역할) | 404(내가 낸 과제가 아님)
  */
@@ -79,16 +97,19 @@ export async function PATCH(
   }
 
   /*
-    마감 — 시각을 받아 **라벨을 서버가 만든다.** 화면이 만든 라벨을 그대로 믿으면 폼을 우회한
-    요청이 과거 마감이나 앞뒤 안 맞는 짝을 밀어 넣을 수 있다.
+    마감 — **검증은 시각으로, 저장은 라벨로.** 시각이 있어야 「지난 마감」을 막을 수 있고,
+    라벨은 교사 시간대로 그려진 것이어야 한다(위 `@param` 의 시간대 설명).
   */
   if (body.dueAt !== undefined) {
     const at = typeof body.dueAt === 'string' ? new Date(body.dueAt) : new Date(NaN);
     const ms = at.getTime();
+    const now = new Date();
     if (!Number.isFinite(ms)) return invalidInput('마감을 읽지 못했어요.');
-    if (ms <= Date.now()) return invalidInput('마감은 지난 시각으로 옮길 수 없어요.');
-    patch.dueLabel = formatDueLabel(at.toISOString());
-    patch.dDay = computeDDay(at.toISOString());
+    if (ms <= now.getTime()) return invalidInput('마감은 지난 시각으로 옮길 수 없어요.');
+    const label = typeof body.dueLabel === 'string' ? body.dueLabel.trim() : '';
+    if (!label) return invalidInput('마감 표기를 함께 보내 주세요.');
+    patch.dueLabel = label;
+    patch.dDay = dDayFromDate(at, now);
   }
 
   const nextStatus =

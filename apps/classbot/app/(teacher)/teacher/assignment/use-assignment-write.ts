@@ -46,6 +46,12 @@ export function useAssignmentWrite(): {
     classrooms.isError &&
     classrooms.error instanceof ApiClientError &&
     classrooms.error.status === 401;
+  /*
+    조회가 **아직 안 끝났으면 판정이 없다.** 그 사이에 누르면 `signedOut` 이 false 라
+    공개 데모의 401 이 「실패」로 읽히고, 서버에 닿을 길이 애초에 없는 세션에서
+    「학생 화면에는 아직 반영되지 않았어요」가 뜬다. 그래서 정해질 때까지 버튼을 잠근다.
+  */
+  const settling = classrooms.isPending;
 
   async function write(input: UpdateAssignmentInput): Promise<WriteOutcome> {
     try {
@@ -63,11 +69,25 @@ export function useAssignmentWrite(): {
         세션이 있는데 온 401 은 **실패**다.
       */
       if (signedOut) return 'local-only';
+
+      /*
+        **404 = 「내 명의로 서버에 없는 과제」.** 데모에서 낸 뒤 같은 브라우저에서 로그인하면
+        localStorage 는 살아남는데 그 행들은 DB 에 없다 — `signedOut` 은 이제 false 라
+        실패로 떨어뜨리면 그 과제들이 **영영 고칠 수도 회수할 수도 없게** 된다.
+        그래서 로컬만 고치되 **조용히 넘기지 않는다** — 학생에게 안 갔다는 사실을 말한다.
+        (`createdBy` 가 다른 신원으로 만든 행도 같은 답을 받는다.)
+      */
+      if (error instanceof ApiClientError && error.status === 404) {
+        toast.info('이 브라우저에만 반영했어요', {
+          description: '서버에 없는 과제예요 — 학생 화면은 바뀌지 않아요.',
+        });
+        return 'local-only';
+      }
       const message = error instanceof ApiClientError ? error.message : '서버에 전하지 못했어요.';
       toast.error('학생 화면에는 아직 반영되지 않았어요', { description: message });
       return 'failed';
     }
   }
 
-  return { write, isPending: mutation.isPending };
+  return { write, isPending: mutation.isPending || settling };
 }

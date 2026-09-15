@@ -50,6 +50,7 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  */
 export default function TeacherClassbotPage() {
   const dispatched = useAssignmentStore((s) => s.dispatched);
+  const drafts = useAssignmentStore((s) => s.drafts);
   /*
     회수한 과제는 이 화면에서도 내린다. 이 섹션이 답하는 질문은 「이 봇이 지금 뭘 돌리고 있나」라
     회수된 것이 섞이면 봇이 더 바빠 보인다. 교사가 회수한 것을 다시 볼 자리는 낸 과제 목록이고,
@@ -110,12 +111,13 @@ export default function TeacherClassbotPage() {
         />
         {/*
           낸 과제는 이제 갈 곳이 있다 — 숫자만 보여 주고 끊던 자리였다 (`proc/spec/14 § 3.2` 진입점 2).
-          **회수한 과제는 세지 않는다**(위 `live`) — 「낸 과제」라는 말이 가리키는 것이 아니고,
-          세면 이 숫자가 링크를 눌러 도착한 목록과 어긋난다.
+          **회수한 과제는 세지 않는다**(위 `live`) — 「낸 과제」라는 말이 가리키는 것이 아니다.
+          도착한 목록은 초안도 함께 그리므로 그 수를 더한다. 이 둘이 어긋나면 「2건」을 눌러
+          5줄짜리 목록에 도착한다.
         */}
         <KpiStatLink
           label="낸 과제"
-          value={`${assignments.length}건`}
+          value={`${assignments.length + drafts.length}건`}
           href="/teacher/assignment"
         />
       </KpiStatBar>
