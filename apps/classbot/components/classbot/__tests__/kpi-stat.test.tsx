@@ -63,10 +63,8 @@ describe('KpiStat', () => {
     const { container } = render(<KpiStat label="레이블" value="값" />);
     const label = container.querySelector('.text-pullim-slate-500');
     expect(label).toBeInTheDocument();
-    // Check class string contains key identifiers
     expect(label?.className).toContain('font-semibold');
     expect(label?.className).toContain('tracking-wider');
-    expect(label?.className).toContain('uppercase');
   });
 
   it('value has correct base typography classes', () => {
@@ -74,7 +72,48 @@ describe('KpiStat', () => {
     const value = container.querySelector('.font-mono');
     expect(value).toBeInTheDocument();
     expect(value?.className).toContain('mt-1');
-    expect(value).toHaveClass('text-base', 'font-bold');
+    expect(value).toHaveClass('font-bold');
+  });
+});
+
+/**
+ * 크기 변형.
+ *
+ * KpiStat 은 12개 화면 64자리에서 쓰인다. 그래서 「글자를 키워 달라」는 요청은
+ * 기본값을 올리는 것이 아니라 **opt-in 변형**으로 받는다 — 기본 md 가 한 픽셀이라도
+ * 움직이면 나머지 11개 화면이 같이 움직이고, 좁은 칸에서는 숫자가 줄바꿈으로 쪼개진다.
+ */
+describe('KpiStat size', () => {
+  function labelOf(node: HTMLElement) {
+    return node.querySelector('.text-pullim-slate-500');
+  }
+  function valueOf(node: HTMLElement) {
+    return node.querySelector('.font-mono');
+  }
+
+  it('md 가 기본이고, 기본은 이 PR 이전과 같다 (text-2xs · uppercase · text-base)', () => {
+    const { container } = render(<KpiStat label="레이블" value="값" />);
+    expect(labelOf(container)).toHaveClass('text-2xs', 'uppercase');
+    expect(valueOf(container)).toHaveClass('text-base');
+  });
+
+  it('lg 는 값을 text-xl(21px)로 올린다 — text-2xl(25px)은 페이지 제목 h1(shell 25px · ui 24px)과 같거나 커서 쓰지 않는다', () => {
+    const { container } = render(<KpiStat label="레이블" value="값" size="lg" />);
+    expect(valueOf(container)).toHaveClass('text-xl');
+    expect(valueOf(container)).not.toHaveClass('text-2xl');
+  });
+
+  it('lg 만 라벨을 text-xs 로 올리고 uppercase 를 뗀다', () => {
+    const { container } = render(<KpiStat label="레이블" value="값" size="lg" />);
+    expect(labelOf(container)).toHaveClass('text-xs');
+    expect(labelOf(container)?.className).not.toContain('uppercase');
+  });
+
+  it('uppercase 제거는 md 로 새지 않는다 — D-day 같은 라틴 라벨이 D-DAY 로 그려지던 자리다', () => {
+    // 「라벨이 한글이라 uppercase 는 무효」는 사실이 아니다:
+    // components/classbot/assignment-overview-header.tsx 의 label="D-day" 가 실제로 바뀐다.
+    const { container } = render(<KpiStat label="D-day" value="D-3" />);
+    expect(labelOf(container)).toHaveClass('uppercase');
   });
 });
 
@@ -152,5 +191,35 @@ describe('KpiStatBar', () => {
     );
     const section = container.querySelector('section');
     expect(section).toHaveClass('extra-class');
+  });
+
+  it('size 를 자식 전부에게 내려 준다 — 한 바 안에서 한 칸만 커지면 밑선이 다시 깨진다', () => {
+    const { container } = render(
+      <KpiStatBar cols={4} size="lg">
+        <KpiStat label="A" value="1" />
+        <KpiStat label="B" value="2" />
+      </KpiStatBar>
+    );
+    const values = Array.from(container.querySelectorAll('.font-mono'));
+    expect(values).toHaveLength(2);
+    for (const v of values) expect(v).toHaveClass('text-xl');
+  });
+
+  it('size 를 안 주면 자식도 md 그대로다', () => {
+    const { container } = render(
+      <KpiStatBar cols={4}>
+        <KpiStat label="A" value="1" />
+      </KpiStatBar>
+    );
+    expect(container.querySelector('.font-mono')).toHaveClass('text-base');
+  });
+
+  it('자식이 직접 준 size 가 바의 size 를 이긴다', () => {
+    const { container } = render(
+      <KpiStatBar cols={4} size="lg">
+        <KpiStat label="A" value="1" size="md" />
+      </KpiStatBar>
+    );
+    expect(container.querySelector('.font-mono')).toHaveClass('text-base');
   });
 });

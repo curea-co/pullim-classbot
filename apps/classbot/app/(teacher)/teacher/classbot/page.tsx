@@ -121,7 +121,7 @@ export default function TeacherClassbotPage() {
         없는 카드는 숫자만(KpiStat). 「봇 목록(#bot-list)」·「과제 현황(#dispatched)」은
         바로 아래 있는 같은 화면 섹션으로 내려가는 스크롤이라 액션으로 세지 않고 걷어냈다.
       */}
-      <KpiStatBar cols={4}>
+      <KpiStatBar cols={4} size="lg">
         <KpiStat
           label="운영 중"
           value={`${summary.runningCount}/${summary.botCount}개`}
