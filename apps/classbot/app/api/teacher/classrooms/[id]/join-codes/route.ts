@@ -31,7 +31,7 @@ export const runtime = 'nodejs';
  * 이 반의 참여 코드를 새로 뽑는다(옛 코드는 무효).
  * @param req - 신원(쿠키 또는 Bearer)
  * @param ctx - 동적 세그먼트 `{ id }` = 반 id
- * @returns 201 { joinCode } | 400 | 401 | 403 | 404 | 409
+ * @returns 201 { joinCode, joinCodeExpiresAt } | 400 | 401 | 403 | 404 | 409
  */
 export async function POST(
   req: Request,

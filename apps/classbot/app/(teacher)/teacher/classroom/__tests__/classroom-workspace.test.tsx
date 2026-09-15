@@ -16,6 +16,9 @@ const CLASSROOM_ID = 'cr_1';
 const SNAPSHOT_CODE = 'OLD111';
 /** 목록이 들고 있는 지금 코드. */
 const LIVE_CODE = 'NEW999';
+/** 만들던 순간 받은 만료 — 목록이 도착하면 그쪽 값이 이긴다. */
+const SNAPSHOT_EXPIRES = '2026-09-17T09:00:00.000Z';
+const LIVE_EXPIRES = '2026-09-18T09:00:00.000Z';
 
 function room(joinCode: string | null): TeacherClassroomItem {
   return {
@@ -28,7 +31,7 @@ function room(joinCode: string | null): TeacherClassroomItem {
     grade: '고2',
     studentCount: 0,
     joinCode,
-    joinCodeExpiresAt: null,
+    joinCodeExpiresAt: joinCode === LIVE_CODE ? LIVE_EXPIRES : null,
     isPublished: false,
     publishedAt: null,
     publishBlurb: null,
@@ -47,10 +50,19 @@ jest.mock('@/hooks/api/classroom', () => ({
   }),
 }));
 
-/* 배너가 **어떤 code 를 넘기는지**가 이 테스트의 관심사라, 코드 상자는 값만 비춘다. */
+/*
+  배너가 **어떤 code 와 만료를 넘기는지**가 이 테스트의 관심사라, 코드 상자는 값만 비춘다.
+  `expiresAt` 도 함께 비춘다 — 안 비추면 배너에서 그 prop 을 빼도 테스트가 초록으로 남는다
+  (TS 는 파라미터 이변성 때문에 못 잡는다).
+*/
 jest.mock('../join-code-block', () => ({
-  JoinCodeBlock: ({ code, size }: { code: string | null; size?: 'md' | 'lg' }) => (
-    <span data-testid={size === 'lg' ? 'banner-code' : 'card-code'}>{code ?? '없음'}</span>
+  JoinCodeBlock: ({ code, expiresAt, size }: {
+    code: string | null; expiresAt?: string | null; size?: 'md' | 'lg';
+  }) => (
+    <span data-testid={size === 'lg' ? 'banner-code' : 'card-code'}>
+      {code ?? '없음'}
+      <span data-testid={size === 'lg' ? 'banner-expires' : 'card-expires'}>{expiresAt ?? '없음'}</span>
+    </span>
   ),
 }));
 
@@ -59,13 +71,18 @@ jest.mock('../create-classroom-form', () => ({
   CreateClassroomForm: ({
     onCreated,
   }: {
-    onCreated: (c: { classroomId: string; label: string; joinCode: string }) => void;
+    onCreated: (c: { classroomId: string; label: string; joinCode: string; joinCodeExpiresAt: string }) => void;
   }) => (
     <button
       type="button"
       data-testid="fake-create"
       onClick={() =>
-        onCreated({ classroomId: CLASSROOM_ID, label: '고2 미적분 A반', joinCode: SNAPSHOT_CODE })
+        onCreated({
+          classroomId: CLASSROOM_ID,
+          label: '고2 미적분 A반',
+          joinCode: SNAPSHOT_CODE,
+          joinCodeExpiresAt: SNAPSHOT_EXPIRES,
+        })
       }
     >
       만들기
@@ -134,5 +151,23 @@ describe('갓 만든 수업방 배너', () => {
 
     expect(screen.getByTestId('banner-code')).toHaveTextContent(LIVE_CODE);
     expect(screen.getByTestId('card-code')).toHaveTextContent(LIVE_CODE);
+  });
+});
+
+describe('배너는 만료도 함께 받는다', () => {
+  it('목록이 도착하기 전에는 개설 응답이 실어 준 만료를 쓴다', () => {
+    // 이 폴백이 없으면 배너만 「안 닫힘」으로 그려진다 — 바로 아래 카드는 48시간을 말하는데.
+    createRoom();
+
+    expect(screen.getByTestId('banner-expires')).toHaveTextContent(SNAPSHOT_EXPIRES);
+  });
+
+  it('목록이 도착하면 그쪽 만료가 이긴다 — 스냅샷에 머무르지 않는다', () => {
+    createRoom();
+    classrooms = [room(LIVE_CODE)];
+    fireEvent.click(screen.getByTestId('fake-create'));
+
+    expect(screen.getByTestId('banner-expires')).toHaveTextContent(LIVE_EXPIRES);
+    expect(screen.getByTestId('banner-expires')).not.toHaveTextContent(SNAPSHOT_EXPIRES);
   });
 });

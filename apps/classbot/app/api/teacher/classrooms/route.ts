@@ -115,7 +115,7 @@ export async function GET(req: Request): Promise<NextResponse> {
 /**
  * 수업방을 연다 — 반 + 봇 + 참여 코드를 한 번에.
  * @param req - body `{ label, subject, grade, organization?, botName? }`
- * @returns 201 { classroom, bot, joinCode } | 400 | 401 | 403 | 409
+ * @returns 201 { classroom, bot, joinCode, joinCodeExpiresAt } | 400 | 401 | 403 | 409
  */
 export async function POST(req: Request): Promise<NextResponse> {
   const actor = await resolveActor(req);

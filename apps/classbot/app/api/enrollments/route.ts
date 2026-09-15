@@ -112,7 +112,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       .from(joinCodes)
       .where(eq(joinCodes.code, codeRow.code))
       .for('update');
-    if (!liveCode) return { kind: 'gone' as const };
+    if (!liveCode) return { kind: 'no-code' as const };
 
     /*
       **만료는 새로 들어오는 사람만 막는다.** 코드는 방에 들이는 열쇠이지 이미 들어와 있는
@@ -121,7 +121,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       「기간이 지났어요」를 받는다(이 파일 머리가 약속한 멱등 재참여가 깨진다).
     */
     const [already] = await tx
-      .select({ botId: enrollments.botId })
+      .select()
       .from(enrollments)
       .where(and(eq(enrollments.botId, bot.id), eq(enrollments.studentId, actor.id)))
       .limit(1);
@@ -188,22 +188,21 @@ export async function POST(req: Request): Promise<NextResponse> {
       return { enrollment: inserted[0], alreadyJoined: false };
     }
 
-    // 이미 들어와 있던 경우 — 있는 행을 그대로 돌려준다(멱등).
-    const [existing] = await tx
-      .select()
-      .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.botId, bot.id),
-          eq(enrollments.studentId, actor.id),
-        ),
-      )
-      .limit(1);
-    return { enrollment: existing, alreadyJoined: true };
+    /*
+      이미 들어와 있던 경우 — 위에서 **같은 트랜잭션 안에서** 읽어 둔 행을 그대로 돌려준다.
+      한 번 더 조회하지 않는다: 트랜잭션 안이라 값이 바뀔 수 없고, 같은 질문을 두 번 적으면
+      한쪽만 고쳐지는 날이 온다.
+    */
+    return { enrollment: already, alreadyJoined: true };
   });
 
   // 트랜잭션 안에서 코드가 이미 죽어 있었다 — 없는 코드와 같은 답을 준다.
-  if ('kind' in result && result.kind === 'gone') {
+  /*
+    이름을 응답에 맞춘다. 종전에는 `kind:'gone'` 이 404(`notFound`)로, `kind:'expired'` 가
+    410(`gone`)으로 갔다 — 읽는 사람이 「어긋났네」 하고 맞바꾸면 **없는 코드가 410 을 주게 되어**
+    코드 존재 여부가 새 나간다. `guards.ts` 의 `gone()` 주석이 막으려던 바로 그 유출이다.
+  */
+  if ('kind' in result && result.kind === 'no-code') {
     return notFound('참여 코드를 찾을 수 없어요.');
   }
   // 기간이 지난 코드는 **없는 코드와 다른 답**이다(`gone()` 주석).

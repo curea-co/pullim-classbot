@@ -770,10 +770,9 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }], // 이미 지난 코드
-      [{ botId: 'cb_001' }], // 그런데 이 학생은 이미 들어와 있다
+      [existing], // 그런데 이 학생은 이미 들어와 있다 — 이 행이 그대로 응답이 된다
       [{ id: 'cb_001' }],
       [{ n: 1 }],
-      [existing],
     ];
     mockInsertQueue = [[]];
 
@@ -853,10 +852,9 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
-      [{ botId: 'cb_001' }], // 이미 참여했나 — 만료는 **새로 들어오는 사람만** 막는다
+      [existing], // 이미 참여했나 — 이 행이 그대로 응답이 된다(끝에서 다시 조회하지 않는다)
       [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
       [{ n: 1 }], // 잠근 뒤 다시 센 인원
-      [existing], // 트랜잭션 안에서 기존 행을 되읽는다
     ];
     // 삽입 0행 = PK 충돌(이미 있음).
     mockInsertQueue = [[]];
