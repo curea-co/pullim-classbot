@@ -59,7 +59,7 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
 
           했다 — 교사 레일(`components/shell/nav-config.ts`)의 [봇 빌더] 항목은
           2026-09-15 에 내렸다(사용자 직접 지시). 라우트 `/teacher/builder` 는 살아 있고
-          앱 안 진입점 아홉이 계속 쓰므로, **남은 것은 경로 이동뿐이다** —
+          앱 안 여러 진입점이 계속 쓰므로, **남은 것은 경로 이동뿐이다** —
           미뤄 둔 것이지 접은 것이 아니다 (`proc/spec/03 § 4.4.7`).
           아직 남은 곳 — 운영 화면(`/teacher/classbot`)의 「새 클래스봇」.
         */

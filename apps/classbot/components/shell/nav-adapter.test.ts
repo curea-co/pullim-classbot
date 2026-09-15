@@ -18,7 +18,7 @@ describe("nav-adapter", () => {
       // 반을 열고 참여 코드를 내는 화면 — 학생을 들이는 입구라 홈 바로 뒤에 온다
       "/teacher/classroom",
       "/teacher/classbot",
-      // 봇 빌더(`/teacher/builder`)는 레일에서 내렸다 — 라우트는 살아 있고 앱 안 진입점 아홉이 쓴다 (nav-config)
+      // 봇 빌더(`/teacher/builder`)는 레일에서 내렸다 — 라우트는 살아 있고 앱 안 여러 진입점이 쓴다 (nav-config)
       "/teacher/monitor",
       "/teacher/bots",
       // 게시된 봇이 모이는 곳 — 봇 관리 다음
