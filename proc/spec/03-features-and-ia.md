@@ -182,6 +182,14 @@ nav 는 같은 PR 에 있어야 한다** — 학생 레일(§ 2.1)과 같은 이
 ├─ /teacher/classbot           ← 클래스봇 운영 메인
 ├─ /teacher/builder            ← 봇 빌더 (8단계 위저드 → 한 길·세 마당 재편 인도 중, #223)
 │
+├─ /teacher/assignment         ← 낸 과제 목록 **`[예정]`** — 낸 과제를 다시 보는 자리 ([14 § 3.3.3](14-teacher-assignment-workspace.md))
+│                                **교사 레일 「평가」 그룹 맨 위에 연다** — 채점 허브·리포트 센터보다 앞선 단계다
+│                                (사용자 승인 2026-09-15. 레일 항목과 화면은 같은 PR 이어야 한다 — 위 메모)
+├─ /teacher/assignment/new     ← 과제 내기 워크스페이스 (dev) · **레일에 싣지 않는다** — 목록·홈·봇 운영에서 들어간다
+├─ /teacher/assignment/[id]    ← 과제 상세 **`[예정]`** — 진행률·제출 현황·문항별 오답률·시험 결과 공개 ([14 § 3.3.4](14-teacher-assignment-workspace.md))
+│  │                             **교사 개입 네 종이 여기 산다** — 지금은 갈 자리가 없어 `/teacher/classbot` 에 얹혀 있다
+│  └─ …/edit                   ← 낸 뒤 수정 **`[예정]`** — 잠금 행렬 ([14 § 5.7](14-teacher-assignment-workspace.md))
+│
 ├─ /teacher/live               ← 라이브 모니터링
 ├─ /teacher/quiz               ← 퀴즈 운영
 ├─ /teacher/reports            ← 리포트 (6종) · 등록 학생 전체 명단은 v1 후보 ([13] § 3.1 [S6])
