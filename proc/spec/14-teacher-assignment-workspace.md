@@ -266,7 +266,10 @@ sent ──[회수] (v2)──> withdrawn (학생 화면에서 사라짐)
 
 ### 5.5 클라이언트 Store 정책 (E2E mock 시연 핵심)
 - Zustand store (`lib/store/assignments.ts`) + `persist` 미들웨어 → `localStorage['pullim-assignments']`
-- 학생 측 `studentAssignments` 소비 함수가 **mock 시드 + store 추가분**을 합쳐 반환
+- 학생 측 소비 함수가 **mock 시드 + store 추가분**을 합쳐 반환 — 다만 `[지금]` **시드 쪽이 비어 있다.**
+  2026-06-24 출시 빈 상태 정리(`0540828`)가 `studentAssignments` 를 빈 배열로 만들었으므로
+  (§ 7.1 · [12 § 7.1](12-student-assignment-solve.md)), 합치는 코드는 그대로 남아 있지만
+  학생이 받는 과제는 **교사가 낸 것뿐**이다. 이 줄을 「시드가 깔려 있다」로 읽지 마라
 - 키 충돌 회피: 새 과제 id는 `as_user_${timestamp}` 형식
 - 낸 뒤 store 변경 → React 컴포넌트 자동 리렌더
 - 새로고침 시 localStorage에서 복원 → 시연 일관성 유지
@@ -319,10 +322,19 @@ Submission (1) ── (0,1) GradingItem     (spec 11)
 
 ## 7. Seed Data
 
-### 7.1 기존 mock 그대로 활용
-- `studentAssignments` 3건 (as_today, as_prescription, as_exam_prep) — 시연용 초기 상태
-- `classBots` 3건 — 봇 드롭다운 옵션
-- `classRoster` 18명 — 대상 학생 체크박스
+### 7.1 기존 mock 활용 — `[지금]` 과제 시드만 빠졌다
+
+- ~~`studentAssignments` 3건 (as_today, as_prescription, as_exam_prep) — 시연용 초기 상태~~
+  → **없다.** 2026-06-24 출시 빈 상태 정리(`0540828`)가 빈 배열로 만들었다
+  (`// 출시: 데모 과제 시드 제거(신규 빈 상태)`). 신규 사용자가 처음 열었을 때 남의 과제가
+  놓이지 않게 한 결정이고, 그래서 **시연의 출발점도 「교사가 과제를 내는 것」이다** — § 12
+  시나리오가 이미 그렇게 적혀 있다(단계 [2]에서 store 에 push 된다).
+  남은 것은 문항 풀(`assignmentQuestions` — § 7.2 셋째 줄)뿐이고, 그것은 교사가 낸 과제에
+  문항이 없을 때의 폴백으로 쓰인다. 자세한 정산은 [12 § 7.1 · § 7.2](12-student-assignment-solve.md).
+  ⚠ 이 줄을 근거로 시드를 되살리지 마라 — 되살리면 출시 빈 상태가 깨지고
+  `student-live-and-flows.spec.ts` 의 「빈 홈 … 과제 빈 상태」가 빨개진다.
+- `classBots` 3건 — 봇 드롭다운 옵션 **(그대로 있다)**
+- `classRoster` — 대상 학생 체크박스 **(그대로 있다)**
 
 ### 7.2 추가 필요 시드
 - 봇 처방 자동 생성 시연용 — 도현(s4) 오답 패턴 누적 mock + 시스템 알림 1건
@@ -602,5 +614,10 @@ Submission (1) ── (0,1) GradingItem     (spec 11)
 ---
 
 ## 13. 변경 이력
+
+- **2026-09-14**: § 7.1 · § 5.5 의 **과제 시드 전제**를 `[지금]` 으로 맞춤. `studentAssignments` 3건은
+  2026-06-24 출시 빈 상태 정리(`0540828`)로 이미 걷혀 있었는데 이 명세와 [12](12-student-assignment-solve.md)
+  양쪽이 「시연용 초기 상태로 깔려 있다」에 남아 있었다. 한쪽만 고치면 다음 작업이 다시 시드를
+  기대하므로 **두 명세를 함께** 고친다. 시연의 출발점은 § 12 대로 **교사가 과제를 내는 것**이다.
 
 - **2026-05-11**: 초안 생성 — 풀림 클래스봇 추출본 E2E 진입점 명세 신설. 권위 문서 Flow C 1단계의 구체화. spec 11/12/13과 함께 사이클 완성.
