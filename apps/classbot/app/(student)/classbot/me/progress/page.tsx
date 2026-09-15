@@ -167,7 +167,7 @@ function StandardRow({ standard: s }: { standard: AchievementStandard }) {
     <li className="bg-card rounded-2xl border p-4">
       <div className="flex items-start gap-4">
         {/* 달성률이 이 화면의 답이다 — 종전엔 11px 로 맨 아래 있었다 */}
-        <div className="flex w-[76px] shrink-0 flex-col items-start gap-1.5">
+        <div className="flex w-[76px] shrink-0 flex-col items-center gap-1.5">
           <span className="text-pullim-blue-700 font-mono text-3xl leading-none font-bold">
             {s.percent}%
           </span>
