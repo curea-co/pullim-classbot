@@ -1,11 +1,11 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
-  Rocket, ToggleRight, Shield, Wrench, School, Pause, Play,
+  Rocket, Shield, Wrench, School, Pause, Play,
   MoreHorizontal,
 } from 'lucide-react';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, myClassBot, studentAssignments, classRoster, scopeMeta, type Assignment,
+  currentTeacher, studentAssignments, scopeMeta, type Assignment,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
@@ -35,6 +35,9 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *
  * 이 화면이 하지 않는 것:
  *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 봇마다 길만 열어둔다.
+ *  - 등록 학생 관리(명단 활성/비활성) → 학급(/teacher/classroom) · 학생(/teacher/students).
+ *    이 화면은 봇 여럿을 다루는데 그 섹션은 「중2 수학 A반」 한 반만 하드코딩이라 위 봇 목록과
+ *    이어지지 않았고, 저장도 없는 토글이었다. 위 「등록 학생」 카드가 학급 관제소로 간다.
  *  - 안전 등급 변경 → 봇 관리(/teacher/bots/[botId]?tab=safety). 여기서는 지금 등급만 읽어준다.
  *
  * 액션 규칙: 봇에서 나가는 길은 카드 우상단 「더보기」 하나에 모은다.
@@ -135,9 +138,6 @@ export default function TeacherClassbotPage() {
 
       {/* 낸 과제 — 봇별로 묶어서 본다 */}
       <DispatchedAssignments assignments={assignments} rows={botRows} />
-
-      {/* 등록 학생 관리 — enrollment 토글 */}
-      <EnrollmentToggleSection />
     </div>
   );
 }
@@ -562,67 +562,6 @@ function CreatedBanner() {
           ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
           : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남아요.'}
       </p>
-    </section>
-  );
-}
-
-/* ─── 등록 학생 토글 — enrollment 활성/비활성 (client-side mock) ─── */
-function EnrollmentToggleSection() {
-  const [inactive, setInactive] = useState<Set<string>>(new Set());
-  const enrolled = classRoster;
-  const activeCount = enrolled.length - inactive.size;
-
-  function toggle(id: string) {
-    setInactive(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  return (
-    <section className="bg-card rounded-2xl border p-5">
-      <SectionHeading
-        title="등록 학생 관리"
-        // 명단 mock 은 수학봇 A반 한 반치다 — 어느 반 명단인지 밝히고 쓴다.
-        description={`${myClassBot.name} · 중2 수학 A반 · ${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
-        action={
-          <span className="text-pullim-slate-500 text-2xs">데모 — 새로고침 시 초기화</span>
-        }
-      />
-      {enrolled.length === 0 ? (
-        <EmptyState
-          tone="plain"
-          size="sm"
-          title="등록된 학생이 없어요"
-          description="학생이 참여 코드로 들어오면 여기에 쌓여요."
-        />
-      ) : (
-        <ul className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
-          {enrolled.map(s => {
-            const off = inactive.has(s.id);
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(s.id)}
-                  aria-pressed={!off}
-                  className={cn(
-                    'group flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors',
-                    off
-                      ? 'border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-400'
-                      : 'border-pullim-blue-200 bg-pullim-blue-50/50 text-pullim-slate-900 hover:border-pullim-blue-400',
-                  )}
-                >
-                  <span className={cn('font-bold', off && 'line-through')}>{s.name}</span>
-                  <ToggleRight className={cn('h-3.5 w-3.5', off ? 'rotate-180 text-pullim-slate-400' : 'text-pullim-blue-600')} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </section>
   );
 }
