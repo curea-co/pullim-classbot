@@ -43,12 +43,36 @@ export const KPI_LABEL: Record<KpiSize, string> = {
  * 값 줄.
  *
  * `lg` 는 `text-xl`(21px)까지만 올린다. `text-2xl` 을 쓰지 않는 이유가 둘이다.
- * ① 위계 — `PageHeader` 의 h1 은 이 앱에서 **25px** 로 그려진다(크롬 실측). 그래서
- *    유틸리티 `text-2xl`(역시 25px)을 값에 쓰면 **숫자가 페이지 제목과 같은 크기**가 된다.
- *    21px 이면 기본 16px 에서 확실히 커지면서도 제목 아래에 머문다.
- * ② 줄바꿈 — `body { word-break: keep-all; overflow-wrap: break-word }` 라 칸을 넘치면
+ *
+ * ① **위계** — `text-2xl` 은 페이지 제목과 같거나 그보다 크다.
+ *    `2xl` 이라는 같은 이름에 값이 둘이다(크롬 실측):
+ *      - 유틸리티 `text-2xl` = **25px** (앱 `@theme`, `globals.css`)
+ *      - `var(--text-2xl)`   = **24px** (PUDS `app/tokens/_base.css:106`)
+ *    변수 쪽이 PUDS 값으로 남는 이유는 소스 순서가 아니라 **캐스케이드 레이어**다 —
+ *    Tailwind 는 `@theme` 을 `@layer theme` 안에 넣는데, `@import "./tokens/_base.css"`
+ *    는 레이어가 없고 **레이어 없는 선언이 레이어 안의 선언을 이긴다.** 유틸리티는 그
+ *    변수를 읽지 않으므로 25px 그대로다.
+ *    화면에 실제로 그려지는 h1 은 `components/shell/page-header.tsx` 의 유틸리티
+ *    `text-2xl` = **25px** 다(KpiStat 을 쓰는 화면 전부가 이 shell 판을 쓴다. 24px 로
+ *    그려지는 `components/ui/page-header.tsx` 는 import 하는 곳이 0 이다).
+ *    → 값에 `text-2xl` 을 쓰면 shell 제목과 **동률 25px**, `ui` 판 자리라면 **25 > 24 역전**.
+ *      어느 쪽이든 숫자가 제목 위계를 먹는다. 21px 이면 기본 16px 에서 확실히 커지면서
+ *      제목 아래에 머문다.
+ *
+ * ② **줄바꿈** — `body { word-break: keep-all; overflow-wrap: break-word }` 라 칸을 넘치면
  *    숫자 **중간**에서 끊긴다. 좁은 칸일수록 위험한데(375px `cols={3}` 은 값 폭 62px),
  *    한 칸만 2줄이 되면 그 바의 밑선 정렬이 통째로 다시 깨진다.
+ *
+ * ⚠ `lg` 에 아직 남은 잔량 — **768~811px 에서 값이 7글자를 넘으면 2줄이 된다.**
+ *    이 구간은 레일(`w-64`)이 펼쳐지는데 뷰포트는 아직 좁아 `cols={4}` 칸의 값 폭이
+ *    70~80px 로 주저앉는다(크롬 실측: 768px→70px, 806px→80px, 812px→81px 부터 해소).
+ *    21px 에서 `10/10개`·`12/30개` 는 **80.1px** 이라 저 구간에서만 넘친다 —
+ *    한 칸이 2줄이 되면 그 바 밑선이 30px 어긋난다.
+ *    **오늘은 안 터진다**: mock 봇이 7개라 최댓값이 `7/7개`(55.3px)이고 768px 에서도
+ *    14.7px 남는다. 네 자리 학생 수 `1024명`(67.7px)도 넘치지 않는다.
+ *    **트리거는 「운영 중」의 양쪽이 다 두 자리가 될 때** — 즉 한 교사의 봇이 10개 이상.
+ *    그때 고쳐라. `tracking-tight` 로는 안 닫힌다(78px, 여전히 70px 초과) — 저 구간에서
+ *    `cols={4}` 를 두 칸으로 내리는 레이아웃 쪽 손질이 필요하다.
  */
 export const KPI_VALUE: Record<KpiSize, string> = {
   md: 'mt-1 font-mono text-base font-bold',

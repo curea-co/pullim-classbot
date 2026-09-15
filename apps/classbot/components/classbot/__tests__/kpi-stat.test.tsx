@@ -97,7 +97,7 @@ describe('KpiStat size', () => {
     expect(valueOf(container)).toHaveClass('text-base');
   });
 
-  it('lg 는 값을 text-xl(21px)로 올린다 — text-2xl 은 페이지 제목 h1 과 같은 25px 이라 쓰지 않는다', () => {
+  it('lg 는 값을 text-xl(21px)로 올린다 — text-2xl(25px)은 페이지 제목 h1(shell 25px · ui 24px)과 같거나 커서 쓰지 않는다', () => {
     const { container } = render(<KpiStat label="레이블" value="값" size="lg" />);
     expect(valueOf(container)).toHaveClass('text-xl');
     expect(valueOf(container)).not.toHaveClass('text-2xl');
