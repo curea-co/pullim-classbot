@@ -792,6 +792,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123', expiresAt: null }],
+      [], // 이미 참여했나 — 아직 아니다. 이게 없으면 `!already` 로 단락돼 null 분기를 안 탄다
       [{ id: 'cb_001' }],
       [{ n: 1 }],
     ];
@@ -809,6 +810,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [], // 이미 참여했나 — 아직 아니다(이게 빠지면 봇 잠금 행을 먹어 재참여 분기를 탄다)
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 1 }], // 잠근 뒤 센 인원
     ];

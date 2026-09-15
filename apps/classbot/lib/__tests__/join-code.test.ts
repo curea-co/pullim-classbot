@@ -26,6 +26,8 @@ interface InsertedRow {
   botId: string;
   classroomId: string;
   teacherId: string | null;
+  /** 발급이 함께 적는 수명 — 코드와 같이 다닌다. */
+  expiresAt: Date;
 }
 
 /**
