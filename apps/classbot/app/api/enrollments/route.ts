@@ -207,7 +207,6 @@ export async function POST(req: Request): Promise<NextResponse> {
     return { enrollment: reread, alreadyJoined: true };
   });
 
-  // 트랜잭션 안에서 코드가 이미 죽어 있었다 — 없는 코드와 같은 답을 준다.
   /*
     이름을 응답에 맞춘다. 종전에는 `kind:'gone'` 이 404(`notFound`)로, `kind:'expired'` 가
     410(`gone`)으로 갔다 — 읽는 사람이 「어긋났네」 하고 맞바꾸면 **없는 코드가 410 을 주게 되어**
