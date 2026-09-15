@@ -305,7 +305,16 @@ function ClassbotChatPageInner() {
                     const isActive = b.id === bot.id;
                     const isLiveNow = Boolean(activeLive[b.id]);
                     const sig = botSignature(b);
-                    // [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X)
+                    /*
+                      [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X).
+
+                      **이 색이 남아 있는 것은 누락이 아니다.** 아바타에서 시그니처를 걷은 변경의
+                      범위는 「아바타 면」까지이고, 말풍선 3px 라이너 · 타이핑 점 · 8px 시그니처 점과
+                      함께 이 활성 칩 배경을 걷는 것은 **별건 PR 의 선언된 범위**다
+                      (`lib/tokens/bot-signature.ts` 머리주석의 「아직 남은 곳」 넷이 그 목록이다).
+                      그때까지 이 자리를 `BotAvatar` 로 바꾸지 마라 — 라임 바탕 위에 파란 배지가
+                      얹혀, 한 칩 안에 봇 얼굴이 둘이 된다.
+                    */
                     return (
                       <li key={b.id} className="shrink-0">
                         <button
