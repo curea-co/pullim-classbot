@@ -33,6 +33,15 @@ import { cn } from '@/lib/utils';
  *
  * 봇 이름이 늘 옆에 글자로 있으므로 이 배지는 **장식**이다. 읽히면 「수 수학봇」처럼 같은
  * 글자를 두 번 듣게 된다. 그래서 루트에 `aria-hidden` 을 고정한다 — 호출부가 끄지 못한다.
+ *
+ * ## 폴백 면의 글자색이 slate-600 인 까닭
+ *
+ * 과목도 이름도 없을 때의 중립 면(`slate-100`)은 실제로 도달한다 — 담은 봇 카드의
+ * 「지금은 마켓에 없는 봇」이 그 경로다(`my-bots/my-bot-card.tsx`). `aria-hidden` 이라
+ * 글리프가 텍스트로 읽히지는 않지만, **눈으로는 읽어야 하는 모양**이라 대비를 재야 한다.
+ * `slate-100` 위에서 slate-400 은 **2.30:1** 로 비-텍스트 3:1 에도 못 미치고 slate-500 도
+ * **4.10:1** 이라 AA 4.5 에 닿지 않는다. slate-600 이 **6.72:1** 로, 평소 면(8.12:1)·
+ * 활성 면(9.02:1)과 자릿수가 맞는 유일한 단이다.
  */
 
 export type BotAvatarSize = 'sm' | 'base' | 'md' | 'lg' | 'xl';
@@ -71,7 +80,14 @@ export interface BotAvatarProps {
   /** 봇 이름 — 과목이 없을 때의 2순위 출처. */
   name?: string | null;
   size?: BotAvatarSize;
-  /** 지금 보고 있는 봇 — 면을 blue-700 으로 채우고 글자를 흰색으로 뒤집는다. */
+  /**
+   * 지금 보고 있는 봇 — 켜면 면을 blue-700 으로 채우고 글자를 흰색으로 뒤집는다.
+   *
+   * **아직 쓰는 자리가 없다** — 호출부 전수에서 0곳이다. 남겨 둔 것은 곧 올 소비자가
+   * 정해져 있기 때문이다: 대화 화면의 활성 봇 칩이 지금은 시그니처 색 배경을 쓰는데
+   * (`app/(student)/classbot/chat/page.tsx`), 그 배경을 걷는 별건 PR 이 **첫 소비자**다.
+   * 지웠다 되넣는 것보다 자리를 비워 두는 편이 그 PR 의 diff 를 작게 만든다.
+   */
   active?: boolean;
   className?: string;
 }
@@ -88,7 +104,7 @@ export function BotAvatar({ subject, name, size = 'md', active = false, classNam
         spec.box,
         spec.radius,
         initial === null
-          ? 'bg-pullim-slate-100 text-pullim-slate-400'
+          ? 'bg-pullim-slate-100 text-pullim-slate-600'
           : active
             ? 'bg-pullim-blue-700 text-white'
             : 'bg-pullim-blue-50 text-pullim-blue-700',

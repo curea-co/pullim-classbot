@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles, Users } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat } from '@/components/classbot/kpi-stat';
 import { PageHeader } from '@/components/shell/page-header';
@@ -196,13 +197,13 @@ function ChildSummaryCard({
                 key={room.classroomId}
                 className="border-pullim-slate-100 flex items-center gap-3 rounded-xl border px-3 py-2.5"
               >
-                {/* 봇 아바타 — 계약 §7 이 이모지를 허락하는 세 자리 중 하나 */}
-                <span
-                  className="bg-pullim-slate-50 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-                  aria-hidden
-                >
-                  {room.botAvatarEmoji}
-                </span>
+                {/*
+                  봇 아바타 — **아이가 보는 그 얼굴**이다. 그래서 자녀 화면과 같은 `BotAvatar` 를 쓴다.
+                  [08 § 14.1.1] 예외 2 가 이모지를 허락하는 것은 **데이터 자리**(DB 컬럼 · 직렬화 ·
+                  API 응답 · mock)뿐이고, 화면에 그리는 아바타 면은 그 예외에 들지 않는다.
+                  `room.botAvatarEmoji` 는 계약이라 응답에 그대로 남는다 — **읽지 않을 뿐 지우지 않는다.**
+                */}
+                <BotAvatar subject={room.subject} name={room.botName} size="base" />
                 <div className="min-w-0 flex-1">
                   <p className="text-pullim-slate-900 truncate text-sm font-bold">
                     {room.label}

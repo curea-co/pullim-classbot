@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronRight, ClipboardList, Plus, Users } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
@@ -287,9 +288,12 @@ function AssignmentListRow({ row }: { row: AssignmentRow }) {
         href={`/teacher/assignment/${a.id}`}
         className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-center gap-4 rounded-2xl border p-4 transition-colors outline-none focus-visible:ring-2"
       >
-        <span className="bg-pullim-blue-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg" aria-hidden>
-          {row.avatarEmoji}
-        </span>
+        {/*
+          봇 아바타 — 교사가 보는 얼굴도 학생·학부모가 보는 그 얼굴이다([08 § 14.1.1] 예외 2).
+          예외가 허락하는 것은 데이터 자리뿐이라 `row.avatarEmoji` 는 뷰 타입에 그대로 남고,
+          화면에 그리는 면은 `BotAvatar` 한 곳이 정한다.
+        */}
+        <BotAvatar subject={row.subject} name={row.botName} size="md" />
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">

@@ -227,7 +227,6 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
   const myInteractions = r.segments.filter(s => s.ownedByMe).length;
   const isCompleted = r.watchProgress.completed;
   const isStarted = r.watchProgress.lastSec > 0 && !isCompleted;
-  const bot = classBots.find(b => b.id === r.botId);
 
   return (
     <li>
@@ -237,7 +236,12 @@ function ReplayRow({ replay: r }: { replay: Replay }) {
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-2xs">
-            {bot && <span className="text-base leading-none">{bot.avatarEmoji}</span>}
+            {/*
+              머리줄은 **언제**만 말한다. 종전엔 봇 이모지가 여기 붙어 있었는데, 같은 화면 위쪽
+              필터 칩이 이미 봇을 이름으로 부르는 터라 한 화면이 같은 봇을 두 모양으로 가리켰다.
+              어느 봇인지는 아래 메타 줄(`{r.botName} · …`)이 이름으로 말한다 — 빼도 봇 표시는
+              사라지지 않는다. 배경면이 없는 인라인 글리프라 아바타 면(`BotAvatar`)도 아니다.
+            */}
             <span className="text-pullim-slate-500 font-mono font-bold">{r.date} · {r.startedAt}</span>
             {isCompleted && (
               <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">

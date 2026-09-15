@@ -322,7 +322,12 @@ function ClassbotChatPageInner() {
                             !isActive && source === 'class' && 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100 border-transparent',
                           )}
                         >
-                          <span className="text-base leading-none">{b.avatarEmoji}</span>
+                          {/*
+                            칩은 **이름만** 말한다. 아래 필터 칩·리플레이 목록과 같은 규칙이다 —
+                            배경면 없이 이름 옆에 붙던 이모지 글리프는 봇을 한 번 더 말할 뿐이고,
+                            [08 § 14.1.1] 예외 2 는 화면이 아니라 데이터 자리의 계약이다.
+                            (활성 칩의 시그니처 색 배경은 아직 남아 있다 — 별건 PR 이 걷는다.)
+                          */}
                           <span>{b.name}</span>
                           {isLiveNow && (
                             <LiveBadge variant="dot" aria-label="라이브 진행 중" />

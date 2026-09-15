@@ -180,10 +180,13 @@ export function isDueSoon(a: UserAssignment, now: number = Date.now()): boolean 
   return at - now <= DUE_SOON_MS;
 }
 
-/** 봇 한 대의 이름·얼굴·붙은 반 — 목록 행이 필요로 하는 것만. */
+/** 봇 한 대의 이름·과목·얼굴·붙은 반 — 목록 행이 필요로 하는 것만. */
 export interface BotFacts {
   botId: string;
   botName: string;
+  /** 아바타 이니셜의 1순위 출처(`BotAvatar`). 없으면 이름 첫 글자로 내려간다. */
+  subject: string;
+  /** 데이터 계약([08 § 14.1.1] 예외 2) — 목록 행은 읽지 않지만 지우지 않는다. */
   avatarEmoji: string;
   classrooms: { classroomId: string; label: string; studentCount: number }[];
 }
@@ -198,6 +201,7 @@ export function buildBotIndex(): Map<string, BotFacts> {
     index.set(row.bot.id, {
       botId: row.bot.id,
       botName: row.bot.name,
+      subject: row.bot.subject,
       avatarEmoji: row.bot.avatarEmoji,
       classrooms: row.ops.classrooms.map((c) => ({
         classroomId: c.id,
@@ -212,6 +216,7 @@ export function buildBotIndex(): Map<string, BotFacts> {
     index.set(bot.id, {
       botId: bot.id,
       botName: bot.name,
+      subject: bot.subject,
       avatarEmoji: bot.avatarEmoji,
       classrooms: [],
     });
@@ -222,6 +227,9 @@ export function buildBotIndex(): Map<string, BotFacts> {
 export interface AssignmentRow {
   assignment: UserAssignment;
   botName: string;
+  /** 아바타 이니셜의 1순위 출처. 운영 기록에 없는 봇이면 `null` — 이름 첫 글자로 내려간다. */
+  subject: string | null;
+  /** 데이터 계약([08 § 14.1.1] 예외 2) — 목록 행은 읽지 않지만 지우지 않는다. */
   avatarEmoji: string;
   classroomLabels: string[];
   /** 이 과제를 받은 학생 수 */
@@ -320,6 +328,7 @@ export function buildRows(
     return {
       assignment,
       botName: facts?.botName ?? assignment.assignedBy,
+      subject: facts?.subject ?? null,
       avatarEmoji: facts?.avatarEmoji ?? '🤖',
       classroomLabels: facts?.classrooms.map((c) => c.label) ?? [],
       targetCount: assignment.targetStudentIds.length || wholeClassSize(),
