@@ -11,8 +11,6 @@ import {
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
-import { RemindButton } from '@/components/classbot/remind-button';
-import { SubmissionStatusSheet } from '@/components/classbot/submission-status-sheet';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
@@ -100,7 +98,12 @@ export default function TeacherClassbotPage() {
           value={`${summary.studentCount}명`}
           href="/teacher/monitor"
         />
-        <KpiStat label="낸 과제" value={`${assignments.length}건`} />
+        {/* 낸 과제는 이제 갈 곳이 있다 — 숫자만 보여 주고 끊던 자리였다 (`proc/spec/14 § 3.2` 진입점 2) */}
+        <KpiStatLink
+          label="낸 과제"
+          value={`${assignments.length}건`}
+          href="/teacher/assignment"
+        />
       </KpiStatBar>
 
       {/* 봇 목록 — 이 화면의 본체 */}
@@ -482,15 +485,20 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
             )}
           </div>
 
-          {/* 개입 — 미제출 리마인드(PR-1) + 제출 현황 시트(PR-2: 코멘트·오답 재발송) */}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <RemindButton
-              assignmentId={a.id}
-              botId={a.botId}
-              title={a.title}
-              targetStudentIds={a.targetStudentIds}
-            />
-            <SubmissionStatusSheet assignment={a} />
+          {/*
+            개입 셋(리마인드 · 코멘트 · 오답 다시 내기)은 **과제 상세로 옮겼다**
+            (`proc/spec/14 § 3.3.4`). 여기 있던 이유는 갈 자리가 없어서였다 — 이 화면의 질문은
+            「봇이 잘 돌고 있나」이고, 「이 과제가 어떻게 되고 있나」는 다른 질문이다.
+            그래서 남기는 것은 그리로 가는 길 하나뿐이다.
+          */}
+          <div className="mt-2">
+            <Link
+              href={`/teacher/assignment/${a.id}`}
+              className="text-pullim-blue-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1 rounded-lg text-2xs font-bold outline-none focus-visible:ring-2"
+            >
+              학생별 현황
+              <ArrowRight className="h-3 w-3" aria-hidden />
+            </Link>
           </div>
         </div>
         {/* 아이콘만 — 9x9 버튼 안에서 글자가 넘치지 않게 이름은 읽어주기용으로만 둔다 */}

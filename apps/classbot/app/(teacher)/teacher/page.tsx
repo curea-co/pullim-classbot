@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DispatchedAssignmentsLink } from '@/components/classbot/dispatched-assignments-link';
 import {
   ArrowRight, ChevronRight, ClipboardCheck, LayoutDashboard, Plus, Send,
 } from 'lucide-react';
@@ -62,6 +63,13 @@ export default function TeacherHomePage() {
           </div>
         }
       />
+
+      {/*
+        낸 과제로 가는 길 (`proc/spec/14 § 3.2` 진입점 3). 헤더 버튼은 「새로 내기」이고
+        이 줄은 「이미 낸 것 보기」다 — 같은 트리인데 하는 일이 반대라 버튼 옆에 세우지 않는다.
+        낸 과제가 없으면 이 줄 자체가 뜨지 않는다(그 컴포넌트 머리주석).
+      */}
+      <DispatchedAssignmentsLink />
 
       {/*
         읽는 숫자 4개 — 링크를 달지 않는다.
