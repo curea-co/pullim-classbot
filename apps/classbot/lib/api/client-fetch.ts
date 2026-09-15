@@ -115,6 +115,11 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
 }
 
 /** DELETE 단축 — 본문 없이 보낸다(자원을 끄는 라우트가 쓴다). */
+/** PATCH — 일부만 고친다(낸 과제 수정·회수). */
+export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, { method: 'PATCH', body });
+}
+
 export function apiDelete<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE' });
 }

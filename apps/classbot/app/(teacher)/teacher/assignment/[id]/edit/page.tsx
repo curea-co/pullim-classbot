@@ -15,6 +15,7 @@ import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { statusOf } from '../../assignment-filters';
+import { useAssignmentWrite } from '../../use-assignment-write';
 
 type Params = Promise<{ id: string }>;
 
@@ -94,6 +95,7 @@ function EditScreen({ id }: { id: string }) {
 function EditForm({ assignment }: { assignment: UserAssignment }) {
   const router = useRouter();
   const update = useAssignmentStore((s) => s.updateDispatched);
+  const { write, isPending } = useAssignmentWrite();
 
   const [title, setTitle] = useState(assignment.title);
   const [reasonHint, setReasonHint] = useState(assignment.reasonHint ?? '');
@@ -149,7 +151,7 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
     dueIso !== '';
   const canSave = dirty && title.trim().length > 0 && dueError == null;
 
-  function save() {
+  async function save() {
     if (!canSave) return;
     const patch: Partial<UserAssignment> = {
       title: title.trim(),
@@ -161,6 +163,14 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
       // 라벨과 **함께** 시각을 적는다 — 다음 수정이 견줄 값이 이것이다(위 주석).
       patch.dueAt = new Date(dueIso).toISOString();
     }
+    // 서버가 먼저다 — 로그인한 교사의 과제는 DB 행으로도 있고 학생은 그쪽을 읽는다(그 훅 주석).
+    await write({
+      id: assignment.id,
+      title: patch.title,
+      reasonHint: patch.reasonHint ?? '',
+      dueLabel: patch.dueLabel,
+      dDay: patch.dDay,
+    });
     update(assignment.id, patch);
 
     toast.success('고쳤어요');
@@ -266,8 +276,8 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
         <button
           type="button"
           data-testid="edit-save"
-          onClick={save}
-          disabled={!canSave}
+          onClick={() => void save()}
+          disabled={!canSave || isPending}
           className="bg-pullim-slate-900 hover:bg-pullim-slate-800 disabled:bg-pullim-slate-200 disabled:text-pullim-slate-400 rounded-xl px-4 py-2 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed"
         >
           저장

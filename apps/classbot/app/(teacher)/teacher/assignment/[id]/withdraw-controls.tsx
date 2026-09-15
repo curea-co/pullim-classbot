@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
 import { isPastDue } from '../assignment-filters';
+import { useAssignmentWrite } from '../use-assignment-write';
 
 /**
  * 회수 · 되돌리기 (`proc/spec/14 § 3.3.6`).
@@ -32,9 +33,12 @@ export function WithdrawButton({
 }) {
   const [open, setOpen] = useState(false);
   const withdraw = useAssignmentStore((s) => s.withdraw);
+  const { write, isPending } = useAssignmentWrite();
   const router = useRouter();
 
-  function confirm() {
+  async function confirm() {
+    // 서버가 먼저다 — 학생이 보는 술어는 DB 의 `dispatch_status` 를 읽는다(그 훅 주석).
+    await write({ id: assignment.id, dispatchStatus: 'withdrawn' });
     withdraw(assignment.id);
     setOpen(false);
     toast.success('과제를 회수했어요');
@@ -76,8 +80,9 @@ export function WithdrawButton({
           <button
             type="button"
             data-testid="assignment-withdraw-confirm"
-            onClick={confirm}
-            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-white"
+            onClick={() => void confirm()}
+            disabled={isPending}
+            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-white disabled:opacity-60"
           >
             회수하기
           </button>
@@ -95,6 +100,7 @@ export function WithdrawButton({
  */
 export function RestoreButton({ assignment }: { assignment: UserAssignment }) {
   const restore = useAssignmentStore((s) => s.restore);
+  const { write, isPending } = useAssignmentWrite();
 
   // `state` 는 낼 때 굳어서 로컬 경로에서는 영영 `'overdue'` 가 되지 않는다 — 그걸로 재면
   // 이 가드가 **한 번도 안 걸리고**, 몇 달 지난 과제도 되살아나 학생 목록에 다시 뜬다.
@@ -105,9 +111,13 @@ export function RestoreButton({ assignment }: { assignment: UserAssignment }) {
       type="button"
       data-testid="assignment-restore"
       onClick={() => {
-        restore(assignment.id);
-        toast.success('회수를 되돌렸어요');
+        void (async () => {
+          await write({ id: assignment.id, dispatchStatus: 'sent' });
+          restore(assignment.id);
+          toast.success('회수를 되돌렸어요');
+        })();
       }}
+      disabled={isPending}
       className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
     >
       <Undo2 className="h-4 w-4" aria-hidden />

@@ -124,6 +124,17 @@ type DispatchableRoom = TeacherClassroomItem & { botId: string };
  * 그 자리에서 404 로 튕긴다. 대상 학생도 같은 이유로 **그 방의 실제 참여자**여야 한다
  * (서버가 `enrollments` 로 대조한다).
  */
+/**
+ * `datetime-local` 값을 ISO 로 — 비었거나 못 읽으면 `undefined`.
+ *
+ * 저장하는 쪽은 「없으면 없는 대로」가 되고, 화면은 안 죽는다.
+ */
+function dueValidIso(iso: string): string | undefined {
+  if (!iso) return undefined;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? new Date(t).toISOString() : undefined;
+}
+
 export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string }) {
   const router = useRouter();
   const dispatch = useAssignmentStore((s) => s.dispatch);
@@ -348,9 +359,17 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       assignedAt: '방금 냈어요',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
-      // 라벨은 낼 때 굳는다 — 나중에 마감을 견줄 값은 시각 그대로 남긴다
-      // (`lib/store/assignments.ts` 의 `dueAt` 주석). API 본문에는 이미 싣고 있었다.
-      dueAt: new Date(dueIso).toISOString(),
+      /*
+        라벨은 낼 때 굳는다 — 나중에 마감을 견줄 값은 시각 그대로 남긴다
+        (`lib/store/assignments.ts` 의 `dueAt` 주석). API 본문에는 이미 싣고 있었다.
+
+        **빈 값을 그대로 넘기지 않는다.** 이 함수는 미리보기 모달이 `buildAssignment()` 로
+        아무 조건 없이 부른다(미리보기 버튼에 `disabled` 가 없다). `dueIso` 는
+        `datetime-local` 입력에 바로 묶여 있어 교사가 마감을 지우면 `''` 가 되고,
+        `new Date('').toISOString()` 은 `RangeError` 로 화면을 통째로 떨어뜨린다.
+        바로 위 `formatDueLabel`·`computeDDay` 가 `if (!iso)` 를 들고 있는 이유가 그것이다.
+      */
+      dueAt: dueValidIso(dueIso),
       completedCount: 0,
       state: 'todo',
       reasonHint: botMessage.trim() || undefined,
