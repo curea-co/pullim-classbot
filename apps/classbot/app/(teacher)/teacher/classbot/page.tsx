@@ -1,21 +1,22 @@
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense, useCallback, useMemo, useRef, useState, type Ref } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
   Rocket, Shield, Wrench, School, Pause, Play,
-  MoreHorizontal,
+  MoreHorizontal, Trash2,
 } from 'lucide-react';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, studentAssignments, scopeMeta, type Assignment,
+  currentTeacher, studentAssignments, scopeMeta, josa, type Assignment,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
@@ -68,13 +69,64 @@ export default function TeacherClassbotPage() {
     () => dispatched.filter((a) => a.dispatchStatus !== 'withdrawn'),
     [dispatched],
   );
-  const assignments = useMemo<AssignmentRow[]>(
+  const allAssignments = useMemo<AssignmentRow[]>(
     () => [...live, ...studentAssignments],
     [live],
   );
 
-  const botRows = getTeacherBotRows();
+  /*
+    삭제는 **화면 안 상태로만** 돈다 — 지운 봇의 id 를 여기 모아 두고 걸러낸다.
+    `lib/mock/*` 의 배열을 직접 지우지 않는 까닭: mock 모듈은 이 화면만 읽는 게 아니라
+    학생 화면·관제소·과제 폼이 함께 읽는 공유 데이터다. 거기서 지우면 이 화면에서 누른
+    버튼이 남의 화면까지 바꾼다.
+    진짜 삭제(`archived_at` 소프트 삭제)는 BE 별건이다 — `class_bots` 는 지금
+    11개 테이블의 `ON DELETE CASCADE` 부모라, 하드 삭제는 학생의 대화·제출·성취까지
+    함께 지운다.
+  */
+  const [deletedBotIds, setDeletedBotIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [deleteNotice, setDeleteNotice] = useState('');
+  const botListRef = useRef<HTMLElement>(null);
+
+  const allRows = useMemo(() => getTeacherBotRows(), []);
+
+  /*
+    숫자가 거짓말하지 않게 — 이 화면에서 그 봇을 세는 자리가 넷이다(카드 · 상단 통계 4칸 ·
+    「낸 과제」 묶음). **한 군데서 거른 목록을 넷이 모두 받아 쓴다.**
+
+    `getTeacherBotSummary()` 의 시그니처를 넓히는 길(⑴)은 택하지 않았다 — 이미
+    `rows` 를 받고 기본값으로만 mock 전체를 읽고 있어서, 걸러진 목록을 넘기기만 하면
+    된다(⑵). 공유 mock 모듈을 건드리지 않고 끝나는 쪽이 이 PR 의 경계에도 맞는다.
+  */
+  const botRows = useMemo(
+    () => allRows.filter(r => !deletedBotIds.has(r.bot.id)),
+    [allRows, deletedBotIds],
+  );
   const summary = getTeacherBotSummary(botRows);
+
+  /*
+    지운 봇의 과제도 함께 내린다. 목록에서만 빼면 `groupByBot` 이 그 과제들을
+    「봇 목록에 없는 봇」 묶음으로 되살려, 지운 봇의 과제가 이름만 바뀐 채 남는다.
+  */
+  const assignments = useMemo(
+    () => allAssignments.filter(a => !deletedBotIds.has(a.botId)),
+    [allAssignments, deletedBotIds],
+  );
+
+  const handleDelete = useCallback((botId: string, botName: string) => {
+    setDeletedBotIds(prev => {
+      if (prev.has(botId)) return prev;
+      const next = new Set(prev);
+      next.add(botId);
+      return next;
+    });
+    setDeleteNotice(`${josa(botName, '을/를')} 삭제했어요.`);
+    /*
+      지우면 그 카드가 사라지므로 포커스를 돌려줄 「더보기」 트리거도 함께 없어진다.
+      그대로 두면 포커스가 `body` 로 떨어져 낭독기가 문서 처음으로 되감긴다.
+      목록 자체로 옮겨 준다 — 봇을 다 지운 경우에는 같은 자리에 빈 상태가 선다.
+    */
+    requestAnimationFrame(() => botListRef.current?.focus());
+  }, []);
 
   return (
     <div className="space-y-7">
@@ -147,7 +199,13 @@ export default function TeacherClassbotPage() {
       </KpiStatBar>
 
       {/* 봇 목록 — 이 화면의 본체 */}
-      <BotOpsList rows={botRows} assignments={assignments} />
+      <BotOpsList
+        ref={botListRef}
+        rows={botRows}
+        assignments={assignments}
+        onDelete={handleDelete}
+        notice={deleteNotice}
+      />
 
       {/* 낸 과제 — 봇별로 묶어서 본다 */}
       <DispatchedAssignments assignments={assignments} rows={botRows} />
@@ -160,9 +218,32 @@ export default function TeacherClassbotPage() {
 // 행 데이터 = store dispatched(UserAssignment) + mock 시드(Assignment) 혼합 — targetStudentIds 는 발송분만 보유.
 type AssignmentRow = Assignment & { targetStudentIds?: string[] };
 
-function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments: AssignmentRow[] }) {
+function BotOpsList({
+  ref,
+  rows,
+  assignments,
+  onDelete,
+  notice,
+}: {
+  ref?: Ref<HTMLElement>;
+  rows: TeacherBotRow[];
+  assignments: AssignmentRow[];
+  onDelete: (botId: string, botName: string) => void;
+  /** 삭제 직후 낭독기에 읽어줄 말 — 눈으로 읽는 안내가 아니다 */
+  notice: string;
+}) {
   return (
-    <section id="bot-list" data-testid="bot-ops-list" className="scroll-mt-20">
+    <section
+      ref={ref}
+      id="bot-list"
+      data-testid="bot-ops-list"
+      /*
+        지운 뒤 포커스를 받아 주는 자리 — 사라진 「더보기」 버튼에 포커스가 남지 않게 한다.
+        탭 순서에는 끼지 않는다(`-1`).
+      */
+      tabIndex={-1}
+      className="scroll-mt-20 outline-none"
+    >
       {/*
         제목 옆 「봇 만들기」 링크는 걷어냈다 — 같은 화면 헤더의 「새 클래스봇」과 같은 곳으로 가는
         같은 버튼이라 한 화면이 같은 말을 두 번 했다 (`07 § 6.3` 「같은 정보를 두 번 말하지 않는다」 ·
@@ -176,6 +257,11 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
         따로 본다 — 여기서 같이 걷으면 그 어긋남이 고쳐지지 않은 채 숨는다.
       */}
       <SectionHeading title="내 봇" />
+
+      {/* 지운 사실은 낭독기에만 알린다 — 화면에는 남기지 않는다 */}
+      <p className="sr-only" role="status">
+        {notice}
+      </p>
 
       {rows.length === 0 ? (
         <EmptyState
@@ -191,6 +277,7 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
               key={row.bot.id}
               row={row}
               assignmentCount={assignments.filter(a => a.botId === row.bot.id).length}
+              onDelete={onDelete}
             />
           ))}
         </ul>
@@ -202,8 +289,10 @@ function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments:
 /**
  * 봇 하나에서 나가는 길 — 전부 「더보기」 안에 모은다.
  * 카드마다 링크를 깔면 봇 3개에 12개가 반복돼 정작 「지금 잘 도나」가 안 읽힌다.
+ * **「봇 삭제」도 카드에 따로 깔지 않고 이 안에 둔다** — 같은 까닭이고, 위험한 버튼일수록
+ * 카드마다 깔려 있으면 잘못 눌린다.
  *
- * **둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
+ * **나가는 길은 둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
  * 둘 다 어느 봇의 더보기를 눌렀는지가 링크에 실린다. 봇을 가리키지 못하는 길은 여기 두지 않는다.
  *
  * 걷어낸 셋:
@@ -219,35 +308,75 @@ function botMenuLinks(botId: string) {
   ];
 }
 
-function BotCardMenu({ botId, botName, running }: { botId: string; botName: string; running: boolean }) {
+function BotCardMenu({
+  botId,
+  botName,
+  running,
+  onDelete,
+}: {
+  botId: string;
+  botName: string;
+  running: boolean;
+  onDelete: (botId: string, botName: string) => void;
+}) {
   const RunIcon = running ? Pause : Play;
+  // 판이 닫힐 때 포커스를 돌려줄 자리. 메뉴 항목은 누르는 순간 사라져서 「직전 포커스」가 없다.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [confirming, setConfirming] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`${botName} 더보기`}
-        className="text-pullim-slate-500 hover:bg-pullim-slate-50 hover:text-pullim-slate-900 focus-visible:ring-pullim-blue-400/50 -mt-1 -mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-bold transition-colors outline-none focus-visible:ring-2"
-      >
-        <MoreHorizontal className="h-4 w-4" aria-hidden />
-        더보기
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
-        {botMenuLinks(botId).map(({ href, icon: Icon, label }) => (
-          <DropdownMenuItem key={href} className="p-0">
-            <Link href={href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
-              <Icon className="h-4 w-4" aria-hidden />
-              {label}
-            </Link>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          ref={triggerRef}
+          aria-label={`${botName} 더보기`}
+          className="text-pullim-slate-500 hover:bg-pullim-slate-50 hover:text-pullim-slate-900 focus-visible:ring-pullim-blue-400/50 -mt-1 -mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-bold transition-colors outline-none focus-visible:ring-2"
+        >
+          <MoreHorizontal className="h-4 w-4" aria-hidden />
+          더보기
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          {botMenuLinks(botId).map(({ href, icon: Icon, label }) => (
+            <DropdownMenuItem key={href} className="p-0">
+              <Link href={href} className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm">
+                <Icon className="h-4 w-4" aria-hidden />
+                {label}
+              </Link>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {/* 멈추기·다시 돌리기는 아직 준비 중 — 자리는 두되 누를 수 없다 */}
+          <DropdownMenuItem disabled className="px-2 py-1.5">
+            <RunIcon className="h-4 w-4" aria-hidden />
+            {running ? '봇 멈추기' : '봇 다시 돌리기'}
+            <DropdownMenuShortcut className="tracking-normal">준비 중</DropdownMenuShortcut>
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        {/* 멈추기·다시 돌리기는 아직 준비 중 — 자리는 두되 누를 수 없다 */}
-        <DropdownMenuItem disabled className="px-2 py-1.5">
-          <RunIcon className="h-4 w-4" aria-hidden />
-          {running ? '봇 멈추기' : '봇 다시 돌리기'}
-          <DropdownMenuShortcut className="tracking-normal">준비 중</DropdownMenuShortcut>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {/*
+            삭제는 되돌릴 수 없는 일이라 위 둘과 눈으로도 갈려야 한다 —
+            이 리포의 danger 토큰(`AlertCard tone="danger"` 가 쓰는 `--color-pullim-danger`)
+            을 그대로 쓴다. 메뉴의 `variant="destructive"` 는 PUDS `--destructive` 를 따라가
+            이 화면의 빨강과 다른 빨강이 된다.
+            링크가 아니라 버튼이다 — 누르면 어디로 가는 게 아니라 여기서 한 번 더 묻는다.
+          */}
+          <DropdownMenuItem
+            data-testid={`bot-delete-${botId}`}
+            className="text-pullim-danger focus:bg-pullim-danger-bg focus:text-pullim-danger px-2 py-1.5 [&_svg]:text-pullim-danger"
+            onClick={() => setConfirming(true)}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            봇 삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <BotDeleteDialog
+        botName={botName}
+        open={confirming}
+        onOpenChange={setConfirming}
+        onConfirm={() => onDelete(botId, botName)}
+        finalFocus={triggerRef}
+      />
+    </>
   );
 }
 
@@ -258,7 +387,15 @@ function BotCardMenu({ botId, botName, running }: { botId: string; botName: stri
  *            바닥 링크 5개(더보기 안으로), 「진행 상황 보기」 앵커(바로 아래 낸 과제 섹션).
  * 카드 본체는 누르는 자리가 아니다 — 봇 하나짜리 화면이 아직 없어서 갈 데가 없다.
  */
-function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCount: number }) {
+function BotOpsCard({
+  row,
+  assignmentCount,
+  onDelete,
+}: {
+  row: TeacherBotRow;
+  assignmentCount: number;
+  onDelete: (botId: string, botName: string) => void;
+}) {
   const { bot, ops, studentCount } = row;
   const running = ops.runState === 'running';
   const scope = scopeMeta[bot.scope];
@@ -297,7 +434,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
             <p className="text-pullim-slate-500 mt-0.5 text-2xs">{ops.pauseReason}</p>
           )}
         </div>
-        <BotCardMenu botId={bot.id} botName={bot.name} running={running} />
+        <BotCardMenu botId={bot.id} botName={bot.name} running={running} onDelete={onDelete} />
       </div>
 
       {/* 붙어 있는 학급 */}
