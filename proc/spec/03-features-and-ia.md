@@ -184,7 +184,8 @@ nav 는 같은 PR 에 있어야 한다** — 학생 레일(§ 2.1)과 같은 이
 │                                **`[예정]` #319 가 교사 레일에서 이 항목을 내린다** — 라우트는 그대로 살아 있고
 │                                레일에서만 빠진다. 들어가는 자리는 여럿 남는다(§ 4.4.7 의 표).
 │                                경로 이동(`/teacher/bots/new`)은 **별건**이다 — § 4.4.7 의 ⚠
-│                                (사용자 승인 2026-09-15. 기록은 `apps/classbot/CLAUDE.md` § 5 — 위 메모의 「§ 2.2 등재 + § 5 기록」 한 쌍)
+│                                (사용자 승인 2026-09-15. 기록은 `apps/classbot/CLAUDE.md` § 5 — **`[예정]` #324**.
+│                                 위 메모의 「§ 2.2 등재 + § 5 기록」 한 쌍)
 │
 ├─ /teacher/assignment         ← 낸 과제 목록 **`[예정]`** — 낸 과제를 다시 보는 자리 ([14 § 3.3.3](14-teacher-assignment-workspace.md))
 │                                **교사 레일 「평가」 그룹 맨 위에 연다** — 채점 허브·리포트 센터보다 앞선 단계다
@@ -621,19 +622,20 @@ export const plannerSection: NavSubItem[] = [
 | 자리 | 파일 | 심볼 |
 |---|---|---|
 | 교사 홈 「새 클래스봇」 | `app/(teacher)/teacher/page.tsx:49` | `PageHeader` 의 `action` |
-| 운영 화면 헤더 CTA 「새 클래스봇」 | `app/(teacher)/teacher/classbot/page.tsx:84` | `TeacherClassbotPage()` → `PageHeader` 의 `action` |
-| 운영 화면 「내 봇」 섹션 CTA 「봇 만들기」 — **`[예정]` #320 이 걷는다**(같은 화면에 같은 동작을 하는 버튼이 둘이라) | 〃 `:149` | `BotOpsList()` → `SectionHeading` 의 `action` |
-| 운영 화면 빈 상태 「봇 만들기」 | 〃 `:162` | `BotOpsList()` → `EmptyState` 의 `action` |
-| 운영 화면 봇 카드 메뉴 「수정하기」 — `/teacher/builder/[botId]`. **새로 만드는 길이 아니라 봇별 수정이라, 세는 기준에 따라 뺄 수도 있다** | 〃 `:194` | `botMenuLinks()` |
-| 운영 화면 「학급에 붙이기」 빈 상태 | 〃 `:299` | `BotOpsCard()` → 「붙어 있는 학급」 `EmptyState` |
+| 운영 화면 헤더 CTA 「새 클래스봇」 | `app/(teacher)/teacher/classbot/page.tsx:106` | `TeacherClassbotPage()` → `PageHeader` 의 `action` |
+| 운영 화면 빈 상태 「봇 만들기」 | 〃 `:185` | `BotOpsList()` → `EmptyState` 의 `action` |
+| 운영 화면 봇 카드 메뉴 「수정하기」 — `/teacher/builder/[botId]`. **새로 만드는 길이 아니라 봇별 수정이라, 세는 기준에 따라 뺄 수도 있다** | 〃 `:217` | `botMenuLinks()` |
+| 운영 화면 「학급에 붙이기」 빈 상태 | 〃 `:322` | `BotOpsCard()` → 「붙어 있는 학급」 `EmptyState` |
 | 봇 관리 헤더 CTA 「새 봇」 | `app/(teacher)/teacher/bots/page.tsx:64` | `PageHeader` 의 `action`(`data-testid="bots-new-cta"`) |
 | 봇 관리 빈 상태 「봇 만들기」 | 〃 `:79` | `EmptyState` 의 `action` |
 | 학생 기록 「과제 문항 손보기」 | `app/(teacher)/teacher/students/[id]/page.tsx:108` | 「지름길 시도」 `KpiStat` 의 `action` |
 | 학급 관제소 「봇 설명」 | `components/classbot/reteach-concepts.tsx:29` | `SectionHeading` 의 `action`(`aria-label="봇 설명 손보러 가기"`) |
 
-> **⚠ 라인 번호는 `dev` `0efefe7`(2026-09-16) 시점이다.** 줄 번호는 이 리포에서 **한 PR 에 곧 낡는다** — 실제로 이 절의 종전 판본은 #318(참여 코드 만료)이 `join_codes` 에 넣은 주석 열넉 줄만큼 좌표가 밀린 채로 올라왔다. **어긋나면 줄이 아니라 파일과 심볼 이름을 따라가라** — 그래서 위 표에 심볼 칸을 둔다.
+> **걷힌 자리 하나 — `(#320 · dev)`.** 이 표에는 「내 봇」 섹션 헤더의 CTA 「봇 만들기」(`BotOpsList()` → `SectionHeading` 의 `action`)가 한 행 더 있었다. **#320 이 걷었다** — 같은 화면 헤더의 「새 클래스봇」과 **같은 곳으로 가는 같은 버튼**이라 한 화면이 같은 말을 두 번 했다(`classbot/page.tsx:167` 의 주석이 그 까닭을 적는다). `dev` 에 **자리 자체가 없으므로** 표에서 뺀다 — 줄이 밀린 것이 아니라 없어진 것이라 심볼로도 못 찾는다.
 
-> **이 목록은 `dev` 시점이다.** `[예정]` **#320**(`refactor/classbot-ops-declutter` — 운영 화면 정리)이 머지되면 `:149` 줄이 **사라지고**, 같은 파일 아래쪽 줄 번호도 함께 밀린다. `[예정]` **#319**(`refactor/nav-drop-builder` — 레일 내리기)의 `nav-config.ts` 주석은 같은 자리들을 **아홉**으로 센다 — `/teacher/builder/[botId]`(봇별 수정)를 「새로 만드는 길」이 아니라고 보고 뺀 셈법이다. **둘 다 틀린 것이 아니라 세는 기준이 다르다.** 그래서 이 절은 **표를 권위로 두고 총계를 적지 않는다** — 스펙과 코드 주석이 서로 다른 숫자를 말하면 리뷰가 그 자리를 잡는다.
+> **⚠ 라인 번호는 `dev` `33e3b3a`(2026-09-16) 시점이다.** 줄 번호는 이 리포에서 **한 PR 에 곧 낡는다 — 실제로 두 번 낡았다.** 이 절의 초안은 #318(참여 코드 만료)이 `join_codes` 에 넣은 주석 열넉 줄만큼 밀린 채 올라왔고, 그 다음 판본은 **#320 하나에 `classbot/page.tsx` 좌표 넷이 또 밀렸다**(`:84`→`:106` · `:162`→`:185` · `:194`→`:217` · `:299`→`:322`). **어긋나면 줄이 아니라 파일과 심볼 이름을 따라가라** — 그래서 위 표에 심볼 칸을 둔다.
+
+> **총계를 적지 않기로 한 까닭이 바로 위 두 단서다.** 숫자를 박아 두었으면 **#320 한 PR 에 곧장 틀렸다** — 자리가 하나 줄었고, 세는 기준도 갈린다(`/teacher/builder/[botId]` 는 「새로 만드는 길」이 아니라 봇별 수정이라 빼고 셀 수 있다). `[예정]` **#319**(`refactor/nav-drop-builder` — 레일 내리기)의 `nav-config.ts` 주석도 같은 결론에 이르러 **「세지 않는다 — 자리가 늘고 줄 때마다 틀리는 숫자를 주석에 박아 두지 않는다」**로 적는다. **스펙과 코드 주석이 같은 자리에서 같은 규칙을 쓴다.**
 
 > 종전 이 절은 「옮기면 사이드바에서 [봇 빌더] 항목이 빠진다」를 **경로 이동의 결과**로 적었다. 실제로는 그 둘이 갈라진다 — 항목이 먼저 빠지고, 경로는 남는다.
 
@@ -677,7 +679,7 @@ export const plannerSection: NavSubItem[] = [
 | `interventions` | `:609` | `interventions.botId` |
 | `chat_messages` | `:654` | `chatMessages.botId` |
 
-> **⚠ 좌표는 `dev` `0efefe7`(2026-09-16) 시점이다.** 이 표의 종전 판본은 `join_codes` 아래 아홉 줄이 **일제히 열넉 줄 밀려 있었다** — #318(참여 코드 만료)이 `joinCodes` 에 `expiresAt` 과 주석을 넣기 전 판본을 보고 적은 탓이다. `schema.ts` 는 이 리포에서 가장 자주 자라는 파일이다. **어긋나면 줄이 아니라 심볼 이름을 따라가라.**
+> **⚠ 좌표는 `dev` `33e3b3a`(2026-09-16) 시점이다.**(#320 은 `schema.ts` 를 안 건드려 `0efefe7` 과 같다.) 이 표의 종전 판본은 `join_codes` 아래 아홉 줄이 **일제히 열넉 줄 밀려 있었다** — #318(참여 코드 만료)이 `joinCodes` 에 `expiresAt` 과 주석을 넣기 전 판본을 보고 적은 탓이다. `schema.ts` 는 이 리포에서 가장 자주 자라는 파일이다. **어긋나면 줄이 아니라 심볼 이름을 따라가라.**
 
 **2차 연쇄로 더 간다** — `assignments` 아래 `submissions`·`assignment_questions`, `replays` 아래 북마크·교사 질문·시청 진행, `live_sessions` 아래 `bot_questions`(`:410`, `onDelete: 'cascade'`).
 
@@ -725,7 +727,16 @@ export const plannerSection: NavSubItem[] = [
 
 BE 별건의 범위를 미리 못박아 둔다. `archived_at IS NULL` 을 **조회 조건 안**에 넣는다(읽어 온 뒤에 거르지 않는다 — `app/api/marketplace/bots/[botId]/route.ts:6` 이 게시 여부로 같은 규약을 적어 두었다).
 
-**전수 근거**: `git grep -l classBots -- 'apps/classbot/app/api'`(`dev` `0efefe7`)가 내놓는 비테스트 파일 **열둘**을 하나씩 열어 갈랐다. 그중 `app/api/teacher/bots/route.ts` 는 `insert` 만 한다(새 봇을 만드는 자리라 archived 와 무관) — **그 하나를 뺀 열하나가 아래 둘로 갈린다.**
+**전수 근거**: `git grep -l classBots -- 'apps/classbot/app/api'`(`dev` `33e3b3a`)가 내놓는 비테스트 파일 **열둘**을 하나씩 열어 갈랐다. 그중 `app/api/teacher/bots/route.ts` 는 `insert` 만 한다(새 봇을 만드는 자리라 archived 와 무관) — **그 하나를 뺀 열하나가 아래 셋으로 갈린다: (e-1) 여섯 · (e-2) 넷 · ⛔ 전용 하나.**
+
+**그 열하나 바깥에서 둘이 더 오간다. 세는 자리를 헷갈리지 마라.**
+
+| | 왜 어긋나 보이나 |
+|---|---|
+| `app/api/_lib/assignment-visibility.ts` 는 **열둘에 없는데 (e-1) 에 있다** | `classBots` 를 **import 조차 안 한다** — `enrollments.bot_id` 로 건다. 그래서 grep 에 안 잡히지만, **봇만 거르면 거둔 봇의 과제가 그대로 뜨는** 자리라 술어에 넣어야 한다. grep 바깥에서 손으로 더한 유일한 원소다 |
+| `app/api/me/self-bots/route.ts` 는 **(e-1) 과 ⛔ 양쪽에 있다** | 한 파일의 두 메서드다 — **POST 에는 더하고 GET 에는 안 더한다.** 파일로는 열하나에 한 번만 센다 |
+
+⇒ **(e-1) 일곱 = 열하나 중 여섯 + `assignment-visibility.ts`**, **(e-2) 넷 = 열하나 중 넷**, **⛔ 둘 = 열하나 중 하나(`parent/children/self-study`) + `me/self-bots` 의 GET**.
 
 **(e-1) 목록·상세를 그리는 읽기 술어 — 일곱**
 
