@@ -1,12 +1,14 @@
 /**
  * 통합 네비게이션 설정 — 클래스봇 도메인 단일 추출본.
  * 원본 풀림 스터디 데모에서 클래스봇만 분리했기 때문에
- * 학생 GNB / 사이드바 / 하단탭 / 교사 nav 모두 클래스봇·빌더로 한정.
+ * 학생 GNB / 사이드바 / 하단탭 / 교사 nav 모두 클래스봇 라우트로 한정.
+ * (종전에는 「클래스봇·빌더로 한정」이었다 — 교사 레일에서 [봇 빌더]를 내린 뒤로
+ *  빌더는 레일에 없다. 라우트는 살아 있고 화면 안 여러 자리가 그리로 보낸다.)
  */
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School, Sprout,
+  LayoutDashboard, Bot, Target, BookMarked, Compass, School, Sprout,
   ClipboardCheck, ClipboardList, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -106,7 +108,7 @@ export const studentNav: NavGroup[] = [
   { label: '', items: [studentHomeItem, ...studentDomains] },
 ];
 
-/** 교사 사이드바 — 클래스봇 운영 + 빌더 + 평가 */
+/** 교사 사이드바 — 클래스봇 운영 + 평가 (빌더는 레일에 없다 — 아래 [봇 빌더] 자리의 주석) */
 export const teacherNav: NavGroup[] = [
   {
     label: '워크스페이스',
@@ -119,9 +121,33 @@ export const teacherNav: NavGroup[] = [
       // 목록·상세가 생겼으므로, `new` 만 떼어 이 항목에 붙여 두면 같은 트리가 두 레일 항목으로
       // 갈린다. 이제 `/teacher/assignment/*` 전부가 [낸 과제] 소속이다(접두사로 자연히 잡힌다).
       { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
-      // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
-      //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
-      { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
+      // 여기 「봇 빌더」가 있었다. **레일에서는 내렸다** (2026-09-15, 사용자 직접 지시 —
+      // `apps/classbot/CLAUDE.md § 5`). 레일은 「어디에 무엇이 사는가」를 적는 자리인데
+      // 빌더는 사는 곳이 아니라 **하는 일**이고, 그 일로 가는 길은 앱 안에 **여러 곳**이다 —
+      // [봇 관리]의 「새 봇」과 빈 상태, 홈 대시보드, 운영 화면의 「새 클래스봇」,
+      // 학생 상세에서 과제 문항을 손보러 가는 길까지. 레일 항목은 그 위에 하나 더였다.
+      // (**세지 않는다** — 자리가 늘고 줄 때마다 틀리는 숫자를 주석에 박아 두지 않는다.
+      //  요지는 몇 개냐가 아니라 **레일에서 내려도 갈 길이 사라지지 않는다**는 것이다.)
+      //
+      // **라우트 `/teacher/builder` 는 살아 있다.** 페이지도 컴포넌트도 그대로고, 그 자리들이
+      // 계속 그리로 보낸다.
+      //
+      // **다만 레일 한 줄만 꺼지는 것이 아니다 — 빵부스러기도 같이 꺼진다.** 아래
+      // `buildBreadcrumb()` 이 `navForRole()` 을 훑어 지금 경로를 먹는 항목을 찾으므로,
+      // 레일에 행이 없으면 trail 이 뿌리 한 칸으로 끝나고 `breadcrumb.tsx` 가 막대를 통째로
+      // 안 그린다(`trail.length <= 1`). `/teacher/builder` 와 `/teacher/builder/[botId]`
+      // 둘 다 그렇다. **이 판정을 여기서 넓히지 않는다** — `matchPrefix` 를 읽게 고치면
+      // 레일에 없는 다른 경로들의 빵부스러기까지 함께 움직인다.
+      // 대신 **잃은 위치 단서를 그 화면이 직접 든다**: `/teacher/builder` 는
+      // `TeacherPageShell` 의 `backHref="/teacher/bots"`([봇 관리]) 로 돌아갈 길을 얻었고,
+      // `[botId]` 쪽은 이미 `backHref="/teacher/classbot"` 을 들고 있었다.
+      // 못박아 둔 자리 — `nav-config.test.ts` 의 `buildBreadcrumb` describe,
+      // `components/builder/__tests__/builder.test.tsx` 의 「돌아갈 길」.
+      //
+      // TODO(봇 빌더 이식): **남은 것은 경로 이동이다.** 빌더를 `/teacher/bots/new` 로 옮겨
+      //  [봇 관리] 안의 「새 봇」이 유일한 진입점이 되게 한다 (`proc/spec/03 § 4.4.7`).
+      //  미뤄 둔 것이지 접은 것이 아니다 — 그때까지 라우트가 둘로 읽히는 상태가 남는다.
+
       // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
       // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
       // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).

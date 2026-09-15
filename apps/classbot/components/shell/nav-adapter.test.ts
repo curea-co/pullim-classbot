@@ -18,7 +18,7 @@ describe("nav-adapter", () => {
       // 반을 열고 참여 코드를 내는 화면 — 학생을 들이는 입구라 홈 바로 뒤에 온다
       "/teacher/classroom",
       "/teacher/classbot",
-      "/teacher/builder",
+      // 봇 빌더(`/teacher/builder`)는 레일에서 내렸다 — 라우트는 살아 있고 앱 안 여러 진입점이 쓴다 (nav-config)
       "/teacher/monitor",
       "/teacher/bots",
       // 게시된 봇이 모이는 곳 — 봇 관리 다음
@@ -49,7 +49,8 @@ describe("nav-adapter", () => {
         .map((i) => i.label);
     expect(activeLabels("/teacher")).toEqual(["홈 대시보드"]);
     expect(activeLabels("/teacher/classbot")).toEqual(["내 클래스봇"]);
-    expect(activeLabels("/teacher/builder")).toEqual(["봇 빌더"]);
+    // 봇 빌더는 레일에서 내렸다 — 라우트는 살아 있지만 레일에 행이 없으니 어느 행도 켜지 않는다
+    expect(activeLabels("/teacher/builder")).toEqual([]);
     expect(activeLabels("/teacher/grading/7")).toEqual(["채점 허브"]);
     // nav 에 없고 어느 행에도 속한다고 선언되지 않은 페이지 — 현재 위치라고 주장할 행이 없으니 아무것도 켜지 않는다
     expect(activeLabels("/teacher/settings")).toEqual([]);

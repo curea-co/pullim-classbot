@@ -373,6 +373,35 @@ describe('위쪽 「단계」에도 같은 관문이 걸린다', () => {
   });
 });
 
+/*
+  **돌아갈 길은 이 화면이 직접 든다.**
+
+  종전에는 교사 레일의 [봇 빌더] 행이 「여기가 어디인지」를 말했다 — 켜진 레일 행 하나,
+  그리고 그 행을 읽어 그려지던 빵부스러기 막대 하나(`buildBreadcrumb` 이 `navForRole` 을
+  훑는다). 2026-09-15 승인으로 그 행을 내리면서 **둘이 같이 꺼졌다.** 남은 위치 단서가
+  eyebrow 한 줄뿐이 되지 않도록 화면이 `backHref` 를 든다.
+
+  도착지가 [봇 관리]인 것은 지어낸 자리가 아니다 — `proc/spec/03 § 4.4.7` 이 빌더의 종착지를
+  `/teacher/bots/new`([봇 관리] 하위)로 못박아 두었다. 경로 이동이 오는 날 이 링크는 고칠
+  것이 없다.
+*/
+describe('돌아갈 길', () => {
+  it('[봇 관리]로 돌아가는 링크를 화면이 직접 든다 — 레일도 빵부스러기도 없는 화면이라', () => {
+    render(<BotBuilderPage />);
+    const back = screen.getByRole('link', { name: '봇 관리' });
+    expect(back).toHaveAttribute('href', '/teacher/bots');
+  });
+
+  it('만든 뒤 화면에서도 나갈 길이 남는다 — 헤더의 「생성」만 사라진다', () => {
+    render(<BotBuilderPage />);
+    fireEvent.click(screen.getByRole('radio', { name: '과학' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '채운 그대로 봇 생성하기' })[0]);
+
+    expect(screen.getByRole('link', { name: '봇 관리' })).toHaveAttribute('href', '/teacher/bots');
+    expect(screen.queryByRole('button', { name: '채운 그대로 봇 생성하기' })).toBeNull();
+  });
+});
+
 describe('과목 카드', () => {
   /** 과목 카드가 사는 자리 — 다른 라디오 묶음(학년·말투)과 섞이지 않게 여기서만 본다. */
   function subjectGroup() {
