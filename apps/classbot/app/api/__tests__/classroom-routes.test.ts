@@ -30,6 +30,7 @@ const deleteSpy = jest.fn();
 let mockSelectQueue: unknown[][] = [];
 /** 다음 `insert ... returning` 들이 차례로 돌려줄 행 묶음. */
 let mockInsertQueue: unknown[][] = [];
+let mockUpdateQueue: unknown[][] = [];
 
 jest.mock('@/lib/db', () => {
   type Chain = Record<string, unknown>;
@@ -76,7 +77,10 @@ jest.mock('@/lib/db', () => {
       return chain;
     };
     chain.where = () => chain;
-    chain.then = (resolve: (v: unknown[]) => unknown) => resolve([]);
+    // `.returning()` 을 쓰는 라우트(낸 과제 PATCH)가 있어 체인에 둔다. 큐가 비면 0행 —
+    // 소유권이 안 맞아 아무것도 안 고쳐진 경우와 같은 모양이다.
+    chain.returning = () => chain;
+    chain.then = (resolve: (v: unknown[]) => unknown) => resolve(mockUpdateQueue.shift() ?? []);
     return chain;
   };
 
@@ -104,6 +108,7 @@ jest.mock('@/lib/db', () => {
 
 import { GET as getAssignments } from '@/app/api/assignments/route';
 import { POST as dispatchAssignment } from '@/app/api/teacher/assignments/route';
+import { PATCH as patchAssignment } from '@/app/api/teacher/assignments/[id]/route';
 import { POST as issueCode } from '@/app/api/teacher/classrooms/[id]/join-codes/route';
 import { GET as getStudents } from '@/app/api/teacher/classrooms/[id]/students/route';
 import {
@@ -130,6 +135,7 @@ beforeEach(() => {
   deleteSpy.mockClear();
   mockSelectQueue = [];
   mockInsertQueue = [];
+  mockUpdateQueue = [];
 });
 
 function base64Url(input: string | Buffer): string {
@@ -733,6 +739,75 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
+  it('기간이 지난 코드는 410 GONE — 없는 코드(404)와 가른다', async () => {
+    /*
+      둘을 같은 답으로 뭉치면 학생이 아무 코드나 넣어 보며 「어떤 코드가 존재하는지」를
+      알아낼 수 있다. 반대로 만료를 알려 주는 것은 안전하다 — 이미 그 코드를 받은 사람만
+      만료를 보고, 그가 할 수 있는 일은 새 코드를 받는 것뿐이다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+    */
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      // 트랜잭션 안에서 잠그고 되읽은 코드 — 이미 지났다
+      [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }],
+    ];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(410);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('GONE');
+    // 참여 행을 만들지 않는다 — 만료는 잠금 안에서 걸린다
+    expect(insertValuesSpy).not.toHaveBeenCalled();
+  });
+
+  it('이미 참여한 학생은 기간이 지난 코드로도 막히지 않는다', async () => {
+    /*
+      코드는 방에 **들이는 열쇠**이지 이미 들어와 있는 사람의 자격이 아니다. 순서를 뒤집으면
+      48시간 뒤에 자기 반 코드를 다시 넣어 본 학생이 「기간이 지났어요」를 받는다 —
+      이 라우트 머리가 약속한 멱등 재참여가 깨진다.
+    */
+    const existing = { botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' };
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123', expiresAt: new Date(Date.now() - 1000) }], // 이미 지난 코드
+      [existing], // 그런데 이 학생은 이미 들어와 있다 — 이 행이 그대로 응답이 된다
+      [{ id: 'cb_001' }],
+      [{ n: 1 }],
+    ];
+    mockInsertQueue = [[]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { alreadyJoined?: boolean };
+    expect(body.alreadyJoined).toBe(true);
+  });
+
+  it('닫힐 시각이 없는 옛 코드는 그대로 통과한다', async () => {
+    // 만료 컬럼이 생기기 전에 발급된 행을 소급해서 닫으면 이미 나눠 준 코드가 한꺼번에 죽는다.
+    mockSelectQueue = [
+      [{ role: 'student' }],
+      [codeRow],
+      [botRow],
+      [roomRow],
+      [{ code: 'ABC123', expiresAt: null }],
+      [], // 이미 참여했나 — 아직 아니다. 이게 없으면 `!already` 로 단락돼 null 분기를 안 탄다
+      [{ id: 'cb_001' }],
+      [{ n: 1 }],
+    ];
+    mockInsertQueue = [[{ botId: 'cb_001', studentId: 's2', classroomId: 'cr_math_a' }]];
+
+    const res = await joinByCode(joinReq('ABC123'));
+
+    expect(res.status).toBe(201);
+  });
+
   it('처음 참여하면 201 + 7개 필수 컬럼을 전부 적는다', async () => {
     mockSelectQueue = [
       [{ role: 'student' }],
@@ -740,6 +815,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [], // 이미 참여했나 — 아직 아니다(이게 빠지면 봇 잠금 행을 먹어 재참여 분기를 탄다)
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 1 }], // 잠근 뒤 센 인원
     ];
@@ -782,9 +858,9 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 트랜잭션 안에서 코드를 잠그고 되읽는다
+      [existing], // 이미 참여했나 — 이 행이 그대로 응답이 된다(끝에서 다시 조회하지 않는다)
       [{ id: 'cb_001' }], // 봇 행 잠금(FOR UPDATE)
       [{ n: 1 }], // 잠근 뒤 다시 센 인원
-      [existing], // 트랜잭션 안에서 기존 행을 되읽는다
     ];
     // 삽입 0행 = PK 충돌(이미 있음).
     mockInsertQueue = [[]];
@@ -807,6 +883,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
       [botRow],
       [roomRow],
       [{ code: 'ABC123' }], // 코드 잠금
+      [], // 이미 참여했나 — 아직 아니다
       [{ id: 'cb_001' }], // 봇 행 잠금
       [{ n: 2 }], // 잠근 뒤 센 인원 — 동시에 들어온 앞 요청까지 세어진다
     ];
@@ -1168,5 +1245,112 @@ describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들�
       publishedAt: null,
       publishBlurb: null,
     });
+  });
+});
+
+describe('PATCH /api/teacher/assignments/[id] — 낸 과제 고치기·회수', () => {
+  const ctx = { params: Promise.resolve({ id: 'as_1' }) };
+  const patchReq = (body: unknown, role: 'student' | 'teacher' = 'teacher') =>
+    req(role === 'teacher' ? 'teacher_001' : 's2', role, { method: 'PATCH', body: JSON.stringify(body) });
+
+  it('회수는 dispatch_status 를 뒤집는다 — 학생 술어가 그 칸을 읽는다', () => {
+    /*
+      종전에는 브라우저 스토어만 뒤집었다. 로그인한 교사의 과제는 DB 행으로도 있고
+      `assignment-visibility.ts` 가 `dispatch_status = 'sent'` 인 것만 학생에게 보여 주므로,
+      서버를 안 고치면 확인 모달이 약속한 「사라져요」가 거짓이 된다.
+    */
+    mockSelectQueue = [
+      [{ role: 'teacher' }],
+      [{ dispatchStatus: 'sent' }], // 소유권 + 지금 상태 — 「내 것 아님(404)」과 「지금은 못 함(409)」을 가른다
+    ];
+    mockUpdateQueue = [[{ id: 'as_1', dispatchStatus: 'withdrawn' }]];
+
+    return patchAssignment(patchReq({ dispatchStatus: 'withdrawn' }), ctx).then(async (res) => {
+      expect(res.status).toBe(200);
+      expect(setSpy).toHaveBeenCalledWith({ dispatchStatus: 'withdrawn' });
+    });
+  });
+
+  it('결과를 뒤집는 칸은 본문에 실려 와도 안 받는다', async () => {
+    // 잠금 행렬(§ 5.7)은 화면이 지키지만, 화면 하나가 실수해도 DB 가 안 어긋나게 하는 울타리다.
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    mockUpdateQueue = [[{ id: 'as_1' }]];
+
+    await patchAssignment(patchReq({ title: '새 제목', mode: 'exam', botId: 'cb_999' }), ctx);
+
+    expect(setSpy).toHaveBeenCalledWith({ title: '새 제목' });
+  });
+
+  it('지난 마감으로는 못 옮긴다 — 서버가 라벨을 만든다', async () => {
+    /*
+      화면이 만든 라벨을 그대로 믿으면 폼을 우회한 요청이 과거 마감이나 앞뒤 안 맞는 짝
+      (`dDay:'D-99'` + `dueLabel:'오늘'`)을 밀어 넣는다. 시각만 받고 라벨은 서버가 만든다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const res = await patchAssignment(
+      patchReq({ dueAt: new Date(Date.now() - 1000).toISOString() }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('마감 라벨은 클라이언트가 보낸 것을 그대로 저장한다 — 서버가 그리면 시간대가 어긋난다', async () => {
+    /*
+      라벨은 `getHours()` 로 그려지는데 서버 런타임은 UTC 다. 서버가 만들면 KST 교사의
+      「내일 22:00」이 DB 에 「내일 13:00」으로 앉고, 학생은 서버 행을 읽으므로 9시간 어긋난
+      마감을 본다. 그래서 검증만 시각으로 하고 저장은 교사 시간대로 그려진 라벨로 한다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    mockUpdateQueue = [[{ id: 'as_1' }]];
+    const future = new Date(Date.now() + 3 * 86_400_000).toISOString();
+
+    await patchAssignment(patchReq({ dueAt: future, dueLabel: '9/20 22:00' }), ctx);
+
+    const written = setSpy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(written.dueLabel).toBe('9/20 22:00');
+    expect(written.dDay).toMatch(/^(오늘|D-\d+)$/);
+  });
+
+  it('시각만 보내고 라벨을 빠뜨리면 400 — 둘은 짝이다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    const res = await patchAssignment(patchReq({ dueAt: future }), ctx);
+    expect(res.status).toBe(400);
+  });
+
+  it('되돌리기는 회수한 것에서만 — 초안·예약이 이 문으로 나가지 않는다', async () => {
+    // 들어오는 값만 보고 'sent' 를 허용하면 `dispatched_at` 이 NULL 인 채로 학생에게 나간다.
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'draft' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'sent' }), ctx);
+    expect(res.status).toBe(409);
+  });
+
+  it('이미 회수된 과제를 또 회수하면 409 — 404 와 가른다', async () => {
+    /*
+      둘을 뭉쳐 404 로 답하면 화면이 그것을 「서버에 없는 과제(데모)」로 읽어 로컬만 고치고
+      성공을 알린다 — 탭 둘을 열어 두고 한쪽에서 회수한 뒤 다른 쪽에서 누른 교사가
+      「이 브라우저에만 반영했어요」를 보는데, 사실 서버에는 이미 반영돼 있다.
+    */
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'withdrawn' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'withdrawn' }), ctx);
+    expect(res.status).toBe(409);
+  });
+
+  it('바꿀 수 없는 상태는 400', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], [{ dispatchStatus: 'sent' }]];
+    const res = await patchAssignment(patchReq({ dispatchStatus: 'draft' }), ctx);
+    expect(res.status).toBe(400);
+  });
+
+  it('남의 과제는 404 — 존재도 알리지 않는다', async () => {
+    mockSelectQueue = [[{ role: 'teacher' }], []]; // 소유권 조회가 0행
+    const res = await patchAssignment(patchReq({ title: '바꾸기' }), ctx);
+    expect(res.status).toBe(404);
+  });
+
+  it('학생은 못 고친다', async () => {
+    mockSelectQueue = [[{ role: 'student' }]];
+    const res = await patchAssignment(patchReq({ title: '바꾸기' }, 'student'), ctx);
+    expect(res.status).toBe(403);
   });
 });

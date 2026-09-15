@@ -12,8 +12,6 @@ import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
-import { RemindButton } from '@/components/classbot/remind-button';
-import { SubmissionStatusSheet } from '@/components/classbot/submission-status-sheet';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
@@ -53,9 +51,20 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  */
 export default function TeacherClassbotPage() {
   const dispatched = useAssignmentStore((s) => s.dispatched);
-  const assignments = useMemo<AssignmentRow[]>(
-    () => [...dispatched, ...studentAssignments],
+  const drafts = useAssignmentStore((s) => s.drafts);
+  /*
+    회수한 과제는 이 화면에서도 내린다. 이 섹션이 답하는 질문은 「이 봇이 지금 뭘 돌리고 있나」라
+    회수된 것이 섞이면 봇이 더 바빠 보인다. 교사가 회수한 것을 다시 볼 자리는 낸 과제 목록이고,
+    거기서는 「회수됨」으로 갈라 보인다(`/teacher/assignment?status=withdrawn`).
+    KPI 도 같은 셈을 읽어야 링크를 눌러 도착한 목록과 안 어긋난다.
+  */
+  const live = useMemo(
+    () => dispatched.filter((a) => a.dispatchStatus !== 'withdrawn'),
     [dispatched],
+  );
+  const assignments = useMemo<AssignmentRow[]>(
+    () => [...live, ...studentAssignments],
+    [live],
   );
 
   const botRows = getTeacherBotRows();
@@ -101,7 +110,17 @@ export default function TeacherClassbotPage() {
           value={`${summary.studentCount}명`}
           href="/teacher/monitor"
         />
-        <KpiStat label="낸 과제" value={`${assignments.length}건`} />
+        {/*
+          낸 과제는 이제 갈 곳이 있다 — 숫자만 보여 주고 끊던 자리였다 (`proc/spec/14 § 3.2` 진입점 2).
+          **회수한 과제는 세지 않는다**(위 `live`) — 「낸 과제」라는 말이 가리키는 것이 아니다.
+          도착한 목록은 초안도 함께 그리므로 그 수를 더한다. 이 둘이 어긋나면 「2건」을 눌러
+          5줄짜리 목록에 도착한다.
+        */}
+        <KpiStatLink
+          label="낸 과제"
+          value={`${assignments.length + drafts.length}건`}
+          href="/teacher/assignment"
+        />
       </KpiStatBar>
 
       {/* 봇 목록 — 이 화면의 본체 */}
@@ -403,9 +422,16 @@ function DispatchedAssignments({
               <div className="mb-1.5 flex items-baseline gap-1.5">
                 <h3 className="text-pullim-slate-900 text-xs font-bold">{g.botName}</h3>
                 <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">{g.classLabel}</span>
-                <span className="text-pullim-slate-500 ml-auto shrink-0 font-mono text-2xs font-bold">
+                {/*
+                  이 봇으로 걸러진 목록으로 — 목록 쪽은 `?bot=` 를 받는 자리를 열어 두었는데
+                  **보내는 쪽이 없었다**(`assignment-filters.ts` 의 `filterRows`).
+                */}
+                <Link
+                  href={`/teacher/assignment?bot=${encodeURIComponent(g.botId)}`}
+                  className="text-pullim-slate-500 hover:text-pullim-blue-700 ml-auto shrink-0 font-mono text-2xs font-bold"
+                >
                   {g.items.length}건
-                </span>
+                </Link>
               </div>
               <ul className="space-y-2">
                 {g.items.map(a => <DispatchedRow key={a.id} assignment={a} />)}
@@ -481,15 +507,20 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
             )}
           </div>
 
-          {/* 개입 — 미제출 리마인드(PR-1) + 제출 현황 시트(PR-2: 코멘트·오답 재발송) */}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <RemindButton
-              assignmentId={a.id}
-              botId={a.botId}
-              title={a.title}
-              targetStudentIds={a.targetStudentIds}
-            />
-            <SubmissionStatusSheet assignment={a} />
+          {/*
+            개입 셋(리마인드 · 코멘트 · 오답 다시 내기)은 **과제 상세로 옮겼다**
+            (`proc/spec/14 § 3.3.4`). 여기 있던 이유는 갈 자리가 없어서였다 — 이 화면의 질문은
+            「봇이 잘 돌고 있나」이고, 「이 과제가 어떻게 되고 있나」는 다른 질문이다.
+            그래서 남기는 것은 그리로 가는 길 하나뿐이다.
+          */}
+          <div className="mt-2">
+            <Link
+              href={`/teacher/assignment/${a.id}`}
+              className="text-pullim-blue-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1 rounded-lg text-2xs font-bold outline-none focus-visible:ring-2"
+            >
+              학생별 현황
+              <ArrowRight className="h-3 w-3" aria-hidden />
+            </Link>
           </div>
         </div>
         {/* 아이콘만 — 9x9 버튼 안에서 글자가 넘치지 않게 이름은 읽어주기용으로만 둔다 */}

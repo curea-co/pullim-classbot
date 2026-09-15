@@ -35,6 +35,21 @@ export type UserAssignment = Assignment & {
   targetStudentIds: string[];
   /** 교사가 낸 시각 (ISO8601) */
   dispatchedAt?: string;
+  /** 회수한 시각 (ISO8601) — `dispatchStatus: 'withdrawn'` 과 짝 (`proc/spec/14 § 6`) */
+  withdrawnAt?: string;
+  /**
+   * 마감 **시각**(ISO8601). `dueLabel`·`dDay` 는 **낼 때 굳은 문자열**이라 시간이 지나도
+   * 안 움직인다 — 「D-7 로 낸 과제」는 닷새 뒤에도 `dDay: 'D-7'` 이다. 그 라벨로 마감을
+   * 견주면 두 방향으로 틀린다(연장을 거절하고, 당기기를 통과시킨다). 그래서 견줄 값은
+   * 따로 남긴다. 옛 행에는 없으므로(`undefined`) 읽는 쪽이 그 경우를 답해야 한다.
+   *
+   * ⚠️ **이 값은 아직 브라우저에만 산다.** `assignments` 테이블에는 `due_at` 컬럼이 없어서
+   * (`lib/db/schema.ts` — `due_label`·`d_day` 뿐) BE 동기화로 온 행에는 늘 비어 있다.
+   * 그래서 다른 기기에서는 「마감 지났나」가 `state === 'overdue'` 로만 답해지는데 그 값을
+   * 쓰는 곳이 서버에 없다 — 즉 **동기화된 행은 영영 진행 중**으로 읽힌다. 컬럼을 더하는 것이
+   * 제 자리 고침이고 별건이다(`proc/spec/14 § 6` 이 `results_released_at` 과 같이 적어 둘 것).
+   */
+  dueAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
   /** 오답 다시 내기(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
@@ -69,6 +84,28 @@ type AssignmentStore = {
 
   dispatch: (a: UserAssignment) => void;
   saveDraft: (a: UserAssignment) => void;
+  /**
+   * 낸 과제의 일부 칸을 고친다 (`proc/spec/14 § 3.3.5`).
+   *
+   * **무엇을 잠글지는 여기서 정하지 않는다** — 수정 화면이 정한다(§ 5.7 잠금 행렬).
+   * store 에 행렬을 넣으면 초안 편집까지 같은 규칙에 걸리는데, 초안은 아무도 못 받았으므로
+   * 잠글 칸이 없다. 다만 **신원과 상태는 patch 로 못 바꾼다** — 그 둘은 고치기가 아니라
+   * 다른 일(내기·회수)이라 각자의 액션이 있다.
+   */
+  updateDispatched: (id: string, patch: Partial<UserAssignment>) => void;
+  /**
+   * 회수 — 학생 목록에서 내린다. 제출·채점은 남는다(§ 5.3).
+   *
+   * ⚠️ **`USE_REAL_CORE_BE` 경로는 아직 없다.** `dispatch`·`recordSubmission` 과 달리 이 셋
+   * (`withdraw`·`restore`·`updateDispatched`)은 서버로 보내지 않는다. 플래그가 켜지면
+   * `useBackendAssignmentSync` 의 병합이 「같은 id 는 서버 행이 이긴다」라서, 교사가 고친
+   * 제목·마감이 학생 쪽 동기화 한 번에 **조용히 되돌아간다**. 회수는 서버가 학생 목록에서
+   * 그 행을 빼 주는 덕에 우연히 살아남을 뿐 다른 기기에는 안 간다.
+   * 플래그를 켜기 전에 이 셋의 서버 경로를 먼저 낸다(`proc/spec/14 § 10.2`).
+   */
+  withdraw: (id: string) => void;
+  /** 회수 되돌리기 — 마감 전에만 화면이 연다(§ 3.3.6). */
+  restore: (id: string) => void;
   recordSubmission: (s: Omit<Submission, 'id' | 'submittedAt'>) => Submission;
   /** 과제를 낸 직후 토스트 카피용 */
   lastDispatched: { count: number; botName: string; assignmentTitle: string } | null;
@@ -108,6 +145,35 @@ export const useAssignmentStore = create<AssignmentStore>()(
           }
           return { drafts: [...s.drafts, { ...a, dispatchStatus: 'draft' }] };
         }),
+
+      updateDispatched: (id, patch) =>
+        set((s) => {
+          // 신원(`id`)·내기 상태(`dispatchStatus`)·회수 시각은 고치기의 대상이 아니다.
+          // 뽑아서 버린다 — 화면이 실수로 넘겨도 조용히 무시되게.
+          const { id: _id, dispatchStatus: _st, withdrawnAt: _wd, ...safe } = patch;
+          void _id; void _st; void _wd;
+          return {
+            dispatched: s.dispatched.map((a) => (a.id === id ? { ...a, ...safe } : a)),
+            drafts: s.drafts.map((a) => (a.id === id ? { ...a, ...safe } : a)),
+          };
+        }),
+
+      withdraw: (id) =>
+        set((s) => ({
+          // 제출(`submissions`)은 건드리지 않는다 — 회수가 곧 증거 인멸이 되지 않게(§ 5.3).
+          dispatched: s.dispatched.map((a) =>
+            a.id === id
+              ? { ...a, dispatchStatus: 'withdrawn' as const, withdrawnAt: new Date().toISOString() }
+              : a,
+          ),
+        })),
+
+      restore: (id) =>
+        set((s) => ({
+          dispatched: s.dispatched.map((a) =>
+            a.id === id ? { ...a, dispatchStatus: 'sent' as const, withdrawnAt: undefined } : a,
+          ),
+        })),
 
       recordSubmission: (payload) => {
         const submission: Submission = {
@@ -379,17 +445,45 @@ export function nextAssignmentId(): string {
 export function useMergedAssignments(studentId?: string): Assignment[] {
   useBackendAssignmentSync(); // Ph7 — 플래그 OFF 면 no-op
   const dispatched = useAssignmentStore((s) => s.dispatched);
+  const visible = dispatched.filter(isStudentVisible);
   const filteredDispatched = studentId
-    ? dispatched.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
-    : dispatched;
+    ? visible.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
+    : visible;
   return [...filteredDispatched, ...studentAssignments];
+}
+
+/**
+ * 학생에게 보여도 되는 과제인가 — **회수와 초안을 여기 한 곳에서 거른다.**
+ *
+ * 회수(`withdrawn`)는 교사 쪽 상태 변경만으로 끝나지 않는다. 확인 모달이 학생에게
+ * 「받은 과제에서 사라져요」라고 약속하므로, 그 약속을 지키는 자리가 **학생이 읽는 선택자**다.
+ * 종전에는 `dispatchStatus` 를 아무도 안 봐서 회수한 과제가 학생 목록에 그대로 남고
+ * 풀이·제출까지 됐다 — 회수가 이름만 있고 아무 일도 안 한 셈이었다.
+ *
+ * 예약(`scheduled`)도 같이 거른다. 아직 낼 시각이 안 됐다는 뜻이라 학생이 볼 것이 아니다.
+ * 지금 이 값을 만드는 FE 경로는 없지만 BE 동기화(`toUserAssignment`)가 그대로 실어 온다.
+ *
+ * 실 BE 경로는 서버가 이미 같은 판정을 한다(`app/api/_lib/assignment-visibility.ts`) —
+ * 이 함수는 **mock·localStorage 경로**의 같은 문장이다. 둘이 갈리면 데모에서만 새는
+ * 구멍이 생기므로 뜻을 같게 둔다.
+ */
+export function isStudentVisible(a: UserAssignment): boolean {
+  // 초안은 `s.drafts` 에 살아서 오늘은 여기 안 온다. 그래도 거른다 — `toUserAssignment` 가
+  // 서버 행의 `dispatchStatus` 를 그대로 `dispatched` 에 복사하므로, 서버가 초안을 돌려주는
+  // 날 이 함수가 「거른다」고 읽히면서 실제로는 안 거르는 상태가 된다.
+  return (
+    a.dispatchStatus !== 'withdrawn' &&
+    a.dispatchStatus !== 'scheduled' &&
+    a.dispatchStatus !== 'draft'
+  );
 }
 
 /** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
 export function useAssignmentLookup(id: string): Assignment | undefined {
   useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
   const dispatched = useAssignmentStore((s) => s.dispatched);
-  return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
+  // 목록에서 감추면서 딥링크는 열어 두면 회수가 반만 된다 — 풀이·제출이 그대로 가능하다.
+  return dispatched.find((d) => d.id === id && isStudentVisible(d)) ?? getSeedAssignmentById(id);
 }
 
 /** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */

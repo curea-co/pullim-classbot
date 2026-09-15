@@ -18,7 +18,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 
-import { ApiClientError, apiGet, apiPost } from '@/lib/api/client-fetch';
+import { ApiClientError, apiGet, apiPatch, apiPost } from '@/lib/api/client-fetch';
 import { useCurrentUserId } from '@/lib/current-user';
 import type {
   DispatchAssignmentInput,
@@ -79,5 +79,50 @@ export function useTeacherAssignments(): UseQueryResult<
     queryKey: [...assignmentDispatchKeys.teacherAssignments, userId],
     queryFn: () => apiGet<TeacherAssignmentsResponse>('/api/teacher/assignments'),
     retry: retryUnlessGuarded,
+  });
+}
+
+/** 낸 과제에서 고칠 수 있는 칸 — 서버도 이 밖은 안 받는다(`app/api/teacher/assignments/[id]/route.ts`). */
+export interface UpdateAssignmentInput {
+  id: string;
+  title?: string;
+  reasonHint?: string;
+  /**
+   * 마감 **시각**(ISO8601) — 서버가 「지난 마감인가」를 재는 근거.
+   * `dueLabel` 과 **짝으로** 보낸다(하나만 보내면 400).
+   */
+  dueAt?: string;
+  /**
+   * 마감 **표시 문자열** — 교사 시간대로 그려진 값이라 클라이언트가 만든다.
+   * 서버 런타임은 UTC 라 서버가 그리면 KST 교사의 마감이 9시간 어긋나 앉는다.
+   */
+  dueLabel?: string;
+  /** 회수(`'withdrawn'`) · 되돌리기(`'sent'`). */
+  dispatchStatus?: 'sent' | 'withdrawn';
+}
+
+/**
+ * `PATCH /api/teacher/assignments/[id]` — 낸 과제 고치기·회수.
+ *
+ * **비로그인 데모에서는 부르지 않는다.** 그 경로의 과제는 DB 에 없어서 404 가 돌아온다 —
+ * 호출부가 401·404 를 「서버에 없는 과제」로 읽고 로컬 사본만 고친다(두 경로를 섞지 않는다).
+ * @returns mutation. 성공하면 교사 목록과 학생 쪽 읽기를 다시 읽는다.
+ */
+export function useUpdateAssignment(): UseMutationResult<
+  DispatchAssignmentResponse,
+  ApiClientError,
+  UpdateAssignmentInput
+> {
+  const queryClient = useQueryClient();
+  return useMutation<DispatchAssignmentResponse, ApiClientError, UpdateAssignmentInput>({
+    mutationFn: ({ id, ...patch }) =>
+      // id 는 스토어·BE 동기화에서 오므로 그대로 끼우지 않는다 — `/`·`?` 가 들어가면
+      // 요청이 다른 경로로 가거나 잘린다(`hooks/api/classroom.ts` 와 같은 처리).
+      apiPatch<DispatchAssignmentResponse>(`/api/teacher/assignments/${encodeURIComponent(id)}`, patch),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: assignmentDispatchKeys.teacherAssignments });
+      // 회수는 학생이 보는 술어를 바꾼다 — 같은 브라우저에서 역할을 오갈 때 바로 비치게.
+      void queryClient.invalidateQueries({ queryKey: ['student-read'] });
+    },
   });
 }

@@ -13,6 +13,8 @@ export interface CreatedClassroom {
   classroomId: string;
   label: string;
   joinCode: string;
+  /** 그 코드가 닫히는 시각(ISO8601) — 배너가 목록 재조회 전 한 박자 동안 쓴다. */
+  joinCodeExpiresAt: string;
 }
 
 /** 학년 — 초1~고3. 손으로 적게 두면 「고2」·「고 2」·「2학년」이 한 화면에 섞인다. */
@@ -62,8 +64,8 @@ export function CreateClassroomForm({
         ...(organization.trim() ? { organization: organization.trim() } : {}),
       },
       {
-        onSuccess: ({ classroom, joinCode }) => {
-          onCreated({ classroomId: classroom.id, label: classroom.label, joinCode });
+        onSuccess: ({ classroom, joinCode, joinCodeExpiresAt }) => {
+          onCreated({ classroomId: classroom.id, label: classroom.label, joinCode, joinCodeExpiresAt });
           setLabel('');
           setSubject('');
           setOrganization('');

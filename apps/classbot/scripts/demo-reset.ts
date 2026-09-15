@@ -277,7 +277,7 @@ async function main(): Promise<void> {
       .values({ id: classroomId, ...roomFields })
       .onConflictDoUpdate({ target: classrooms.id, set: roomFields });
 
-    const code = await issueJoinCode(db, { botId, classroomId, teacherId: room.teacherId });
+    const { code } = await issueJoinCode(db, { botId, classroomId, teacherId: room.teacherId });
     created.push({ room, code });
 
     if (room.seedAssignment) {
@@ -313,7 +313,7 @@ async function main(): Promise<void> {
   // ── 3. 기존 시드 반에도 코드를 하나 쥐어 준다 ─────────────────────
   // 「학생이 이미 있는 반」에서 코드 재발급을 눌러 보기 위한 자리.
   await db.delete(joinCodes).where(eq(joinCodes.classroomId, SEEDED_ROOM_WITH_CODE.classroomId));
-  const seededCode = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
+  const { code: seededCode } = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
 
   // ── 3.5 마켓 예시 하나 ────────────────────────────────────────────
   // 빈 마켓만 보면 「게시가 되긴 하나」를 알 수 없다. 시드 봇 하나를 올려 두고,

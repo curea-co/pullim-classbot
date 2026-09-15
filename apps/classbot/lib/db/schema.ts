@@ -272,6 +272,20 @@ export const joinCodes = pgTable(
     classroomId: text('classroom_id').notNull(),
     teacherId: text('teacher_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * 이 시각 뒤에는 안 통한다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+     *
+     * **NULL 은 「안 닫힘」이다.** 두 부류가 여기 있다:
+     *   ① 이 컬럼이 생기기 전에 발급된 행,
+     *   ② **시드 데모 코드**(`scripts/seed.ts` 의 `CODE_MAP` — `MATH-2024` 등). 이건 실수가
+     *      아니라 **의도**다. 그 코드로 prod-verify 가 매일 반을 들어가므로(`tests/e2e`),
+     *      48시간을 주면 이틀 뒤부터 회귀 테스트가 깨진다. 데모 문 하나는 늘 열어 둔다.
+     *
+     * 기본값을 DB 에 두지 않은 이유도 그것이다: `DEFAULT now() + interval` 을 걸면 옛 행·시드에는
+     * 안 붙고 새 행에만 붙어 **같은 컬럼이 두 뜻**을 갖는다. 수명은 발급 경로
+     * (`lib/join-code.ts`)가 한 곳에서 정하고, 여기서는 「적혀 있으면 지킨다」만 한다.
+     */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
   (t) => ({
     byBot: index('join_codes_bot_idx').on(t.botId),

@@ -95,6 +95,22 @@ export function conflict(message: string): NextResponse {
 }
 
 /**
+ * 410 — 있었지만 이제 없다(만료된 참여 코드).
+ *
+ * 404 와 **가른다 — 다만 가르는 것은 존재를 숨기는 규칙의 예외다.** 이 리포의 기본은
+ * 「남의 것은 404」(존재조차 알리지 않는다)이고, 가르면 그 자체로 존재를 알려 주는 창이 된다.
+ * 그런데도 만료는 가른다: 만료된 코드는 **아무 권한도 주지 않으므로** 그 존재를 알아도 얻는
+ * 것이 없고, 대신 학생은 「내가 잘못 쳤나」와 「기간이 지났나」를 가려 다음 행동을 안다.
+ *
+ * **그러니 진짜로 없는 것에는 쓰지 마라** — 그건 `notFound()` 다. 이 함수는 「있었고, 지금은
+ * 쓸 수 없고, 그 사실을 알려도 안전한 것」에만 쓴다
+ * (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+ */
+export function gone(message: string): NextResponse {
+  return NextResponse.json({ message, code: 'GONE' }, { status: 410 });
+}
+
+/**
  * 요청 본문을 JSON 으로 읽는다 — 못 읽으면 null(호출부가 400 으로 옮긴다).
  * @param req - Next.js Request
  * @returns 파싱된 객체 또는 null
