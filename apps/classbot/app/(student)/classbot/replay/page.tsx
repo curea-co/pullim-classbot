@@ -92,7 +92,7 @@ export default function ClassbotReplayListPage() {
               { value: 'all', label: '전체', count: allReplays.length },
               ...botFilters.map(b => ({
                 value: b.id,
-                label: b.avatarEmoji ? `${b.avatarEmoji} ${b.name}` : b.name,
+                label: b.name,
                 count: allReplays.filter(r => r.botId === b.id).length,
               })),
             ]}

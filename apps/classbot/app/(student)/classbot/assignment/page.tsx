@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -44,15 +45,10 @@ export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: str
  */
 const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
-/** 봇 페르소나 미상 시 그룹 헤더 폴백 이모지([08 § 15.6] 페르소나 식별 보존용). */
-const FALLBACK_BOT_EMOJI = '🧑‍🏫';
-
 /** 그룹 표시용 봇 메타 — `/api/bots` 봇 행 + 과제 행 메타를 합쳐 파생. */
 interface GroupBot {
   id: string;
   subject: string;
-  /** 봇 아바타 이모지([08 § 15.6] 페르소나 식별) — `/api/bots` 우선, 미상 시 폴백. */
-  avatarEmoji: string;
   /** 그룹 헤더 표시 이름 — 봇 이름(있으면) 또는 과제 발송자. */
   label: string;
 }
@@ -141,7 +137,6 @@ function AssignmentListBody({
         bot: {
           id: a.botId,
           subject: meta?.subject ?? a.subject,
-          avatarEmoji: meta?.avatarEmoji ?? FALLBACK_BOT_EMOJI,
           label: meta?.name ?? a.assignedBy,
         },
         items: [a],
@@ -200,16 +195,11 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
-  // 묶음 표시는 머리줄(아바타·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
+  // 묶음 표시는 머리줄(봇 배지·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
   return (
     <section className="space-y-2">
       <header className="flex items-center gap-2">
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-          style={{ backgroundColor: groupHex }}
-        >
-          {bot.avatarEmoji}
-        </span>
+        <BotAvatar subject={bot.subject} name={bot.label} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             {/* [08 § 15.6] 그룹 헤더가 요구하는 시그니처 점 — 명단을 훑을 때의 보조 단서다 */}

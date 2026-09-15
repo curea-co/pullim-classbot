@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, Heart } from 'lucide-react';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
 import BackLink from '@/components/classbot/back-link';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,12 +60,7 @@ export function CheckInForm() {
           return (
             <section className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border p-3 text-left">
               <div className="flex items-center gap-2">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-                  style={{ backgroundColor: sig.hex }}
-                >
-                  {reaction.bot.avatarEmoji}
-                </span>
+                <BotAvatar subject={reaction.bot.subject} name={reaction.bot.name} size="sm" />
                 {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
                 <div className="inline-flex items-center gap-1.5 text-xs">
                   <span className="text-pullim-slate-900 font-bold">{reaction.bot.name}</span>

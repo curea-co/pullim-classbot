@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { SectionHeading } from '@/components/shell/section-heading';
 import type { ClassBot } from '@/lib/mock';
 
@@ -33,7 +33,6 @@ function NewActivityDot() {
 }
 
 function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
-  const sig = botSignature(slot.bot);
   const preview = getBotHomePreview(slot.bot.id);
   const hasNewToday = !isLive && (preview?.lastAt.startsWith('오늘') ?? false);
 
@@ -42,7 +41,6 @@ function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
       <Link
         href={`/classbot/chat?bot=${slot.bot.id}`}
         className={cn(
-          // 봇 시그니처는 아바타 한 곳에서만 — 라이너까지 칠하면 한 화면에 hue 가 [08 § 14.1] 한도(≤3종)를 넘는다
           'group bg-card focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex h-full min-h-11 gap-3 rounded-xl border p-3 transition-all shadow-pullim-xs',
           isLive
             ? 'border-pullim-danger/40 bg-pullim-danger/5 hover:bg-pullim-danger/10'
@@ -51,16 +49,13 @@ function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
       >
         {/* Avatar */}
         <div className="relative shrink-0">
-          <span
-            className={cn(
-              'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
-              // LIVE 표시는 이미 위험색 테두리 + LiveBadge 가 한다 — 링까지 다른 색을 더하지 않는다
-              isLive && 'ring-pullim-danger ring-2 pullim-anim-bot-breath',
-            )}
-            style={{ backgroundColor: sig.hex }}
-          >
-            {slot.bot.avatarEmoji}
-          </span>
+          <BotAvatar
+            subject={slot.bot.subject}
+            name={slot.bot.name}
+            size="lg"
+            // LIVE 표시는 이미 위험색 테두리 + LiveBadge 가 한다 — 링까지 다른 색을 더하지 않는다
+            className={cn(isLive && 'ring-pullim-danger ring-2 pullim-anim-bot-breath')}
+          />
           {isLive && (
             <span className="absolute -top-1 -right-1">
               <LiveBadge />

@@ -93,7 +93,7 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
   const catalogBot = classBots.find(b => b.id === a.botId);
   const bot = {
     name: botRow?.name ?? catalogBot?.name ?? a.assignedBy,
-    avatarEmoji: botRow?.avatarEmoji ?? catalogBot?.avatarEmoji ?? '🧑‍🏫',
+    subject: botRow?.subject ?? a.subject,
     hex: botSignature({ id: a.botId, subject: botRow?.subject ?? a.subject }).hex,
   };
 

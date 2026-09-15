@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { UserRound, Users } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { Chip } from '@/components/ui/chip';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { formatPublishedAt } from './format';
 import { SelfAddButton } from './self-add-button';
 
@@ -25,9 +25,9 @@ import { SelfAddButton } from './self-add-button';
  * 덮개 링크는 글자를 감싸지 않으니 **이름을 `aria-label` 로 준다** — 그러지 않으면
  * 낭독기에 이름 없는 링크가 된다.
  *
- * ⚠️ 봇 시그니처 색은 **아바타 타일 한 곳에만** 쓴다. 왼쪽 컬러 라이너를 덧대지 마라 —
- * 목록에 5색이 깔리면 화면 hue 가 [08 § 14.1] 한도(≤ 3종)를 넘는다. 학생 카드에서
- * 방금 걷어낸 실수라 여기서 다시 만들지 않는다.
+ * ⚠️ 봇 배지는 `BotAvatar` 한 곳뿐이고 브랜드 블루 한 색이다. 왼쪽 컬러 라이너나 과목별
+ * 색 칩을 덧대지 마라 — 목록에 봇이 여럿 깔리므로, 봇마다 hue 를 주면 그 자리에서
+ * [08 § 14.1] 한도(≤ 3종)를 넘는다. 「어느 봇인가」는 바로 옆 이름이 이미 말한다.
  */
 export function MarketplaceBotCard({
   bot,
@@ -43,7 +43,6 @@ export function MarketplaceBotCard({
   /** 카드에서 바로 담게 한다. 학생 셸만 넘긴다. @default false */
   showSelfAdd?: boolean;
 }) {
-  const sig = botSignature({ id: bot.botId, subject: bot.subject });
   const publishedLabel = formatPublishedAt(bot.publishedAt);
 
   return (
@@ -57,13 +56,7 @@ export function MarketplaceBotCard({
         />
 
         <div className="flex items-start gap-3">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
-            style={{ backgroundColor: sig.hex }}
-            aria-hidden
-          >
-            {bot.avatarEmoji || '🤖'}
-          </span>
+          <BotAvatar subject={bot.subject} name={bot.name} size="lg" />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-pullim-slate-900 truncate text-sm font-bold">{bot.name}</h3>

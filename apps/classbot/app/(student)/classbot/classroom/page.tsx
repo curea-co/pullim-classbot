@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, GraduationCap, KeyRound, Target } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -11,7 +12,6 @@ import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 
 /**
@@ -106,19 +106,13 @@ function joinedLabel(assignedAt: string): string | null {
 
 function RoomCard({ room, onLeave }: { room: RoomSlot; onLeave?: () => void }) {
   const { bot, enrollment } = room;
-  const sig = botSignature(bot);
   const joined = joinedLabel(enrollment.assignedAt);
 
   return (
     <li>
       <article className="bg-card h-full rounded-2xl border p-4">
         <div className="flex items-start gap-3">
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
-            style={{ backgroundColor: sig.hex }}
-          >
-            {bot.avatarEmoji}
-          </span>
+          <BotAvatar subject={bot.subject} name={bot.name} size="md" />
           <div className="min-w-0 flex-1">
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
               {enrollment.classroomLabel}

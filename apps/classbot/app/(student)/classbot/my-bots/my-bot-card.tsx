@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { Chip } from '@/components/ui/chip';
 import type { SelfBotRow } from '@/hooks/api/self-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { formatAddedAt } from '@/components/classbot/marketplace';
 
 /**
@@ -45,8 +45,6 @@ export function MyBotCard({
   onRemove: () => void;
   isRemoving: boolean;
 }) {
-  // 시그니처는 id 로도 잡힌다(`cb_001` → 수학) — 이름을 모르는 봇도 제 색을 쓴다.
-  const sig = botSignature({ id: row.botId, subject: bot?.subject });
   const addedLabel = formatAddedAt(row.addedAt);
   const name = bot?.name ?? '지금은 마켓에 없는 봇';
 
@@ -57,14 +55,7 @@ export function MyBotCard({
         data-testid={`my-bot-${row.botId}`}
       >
         <div className="flex items-start gap-3">
-          {/* ⚠️ 봇 색은 이 타일 한 곳만. 왼쪽 라이너를 덧대면 목록 hue 가 한도를 넘는다. */}
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
-            style={{ backgroundColor: sig.hex }}
-            aria-hidden
-          >
-            {bot?.avatarEmoji || '🤖'}
-          </span>
+          <BotAvatar subject={bot?.subject} name={bot?.name} size="lg" />
           <div className="min-w-0 flex-1">
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold">{name}</h3>
             <p className="text-pullim-slate-500 mt-0.5 truncate text-2xs">

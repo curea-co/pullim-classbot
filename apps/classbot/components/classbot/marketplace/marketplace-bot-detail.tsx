@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, KeyRound, LogIn, MessageCircle, Store, UserRound, Users } from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { PageHeader } from '@/components/shell/page-header';
@@ -12,7 +13,6 @@ import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketplaceBot } from '@/hooks/api/marketplace';
 import { ApiClientError } from '@/lib/api/client-fetch';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 import { formatPublishedAt } from './format';
 import { SelfAddButton } from './self-add-button';
@@ -71,7 +71,6 @@ export function MarketplaceBotDetail({
     viewer === 'student'
       ? '공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요.'
       : '공유가 내려갔거나 아직 공개되지 않았어요. 다시 공유하면 여기에 보여요.';
-  const sig = botSignature({ id: botId, subject: bot?.subject });
   const publishedLabel = formatPublishedAt(bot?.publishedAt);
 
   return (
@@ -120,13 +119,7 @@ export function MarketplaceBotDetail({
         <>
           <section className="bg-card rounded-2xl border p-5" data-testid="marketplace-detail">
             <div className="flex items-start gap-4">
-              <span
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
-                style={{ backgroundColor: sig.hex }}
-                aria-hidden
-              >
-                {bot.avatarEmoji || '🤖'}
-              </span>
+              <BotAvatar subject={bot.subject} name={bot.name} size="xl" />
               {/*
                 봇 이름을 여기서 다시 적지 않는다 — 바로 위 페이지 제목이 이미 그 이름이고,
                 한 화면에 같은 글자가 두 번 서면 둘 중 무엇이 제목인지 안 읽힌다.

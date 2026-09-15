@@ -1239,7 +1239,7 @@ function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { tur
   return (
     <ChatBubbleFrame
       isStudent={isStudent}
-      bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }}
+      bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }}
       meName={meName}
       at={turn.at}
       continuation={continuation}
@@ -1913,7 +1913,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
 
 function PendingBubble({ bot }: { bot: ClassBot }) {
   const botSig = botSignature(bot);
-  return <ChatPendingBubble bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }} />;
+  return <ChatPendingBubble bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }} />;
 }
 
 /* ─── A5 스크린리더 접근성 ─── */

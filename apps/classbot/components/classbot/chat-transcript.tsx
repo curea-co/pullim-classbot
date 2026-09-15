@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Send } from 'lucide-react';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,8 +25,9 @@ export const CHAT_CONTINUOUS_THRESHOLD_MS = 3 * 60 * 1000;
 /** 대화 UI 가 봇에 대해 알아야 하는 전부 — `ClassBot` 전체를 요구하지 않는다. */
 export interface ChatBotFace {
   name: string;
-  avatarEmoji: string;
-  /** 시그니처 컬러 hex — `botSignature(bot).hex`. */
+  /** 과목 — 봇 배지 이니셜의 1순위 출처(`BotAvatar`). 없으면 이름 첫 글자로 내려간다. */
+  subject?: string;
+  /** 시그니처 컬러 hex — `botSignature(bot).hex`. 말풍선 라이너·타이핑 점이 쓴다. */
   hex: string;
 }
 
@@ -111,18 +113,17 @@ export function ChatBubbleFrame({
     <div className={cn('pullim-anim-message-mount flex gap-2.5', isStudent && 'flex-row-reverse')}>
       {continuation ? (
         // 연속 발화 — 아바타 자리 들여쓰기만
-        <span aria-hidden className="h-8 w-8 shrink-0" />
-      ) : (
+        <span aria-hidden className="h-9 w-9 shrink-0" />
+      ) : isStudent ? (
+        // 학생은 사람이다 — 원형을 그대로 둔다. 둥근 사각은 봇 쪽 표시다(`BotAvatar` 주석).
         <div
           aria-hidden
-          className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-            isStudent ? 'bg-pullim-slate-200 text-pullim-slate-700 text-sm font-bold' : 'text-lg',
-          )}
-          style={isStudent ? undefined : { backgroundColor: bot.hex }}
+          className="bg-pullim-slate-200 text-pullim-slate-700 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
         >
-          {isStudent ? (meName[0] ?? '나') : bot.avatarEmoji}
+          {meName[0] ?? '나'}
         </div>
+      ) : (
+        <BotAvatar subject={bot.subject} name={bot.name} size="md" />
       )}
 
       <div className={cn('max-w-[88%] sm:max-w-[80%]', isStudent && 'flex flex-col items-end')}>
@@ -145,12 +146,7 @@ export function ChatBubbleFrame({
 export function ChatPendingBubble({ bot }: { bot: ChatBotFace }) {
   return (
     <div className="pullim-anim-message-mount flex gap-2">
-      <div
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-        style={{ backgroundColor: bot.hex }}
-      >
-        {bot.avatarEmoji}
-      </div>
+      <BotAvatar subject={bot.subject} name={bot.name} size="sm" />
       <div>
         <div className="text-pullim-slate-700 mb-1 text-sm font-bold">{bot.name}</div>
         <div

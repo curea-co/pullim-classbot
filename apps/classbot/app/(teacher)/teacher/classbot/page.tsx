@@ -8,6 +8,7 @@ import {
   Rocket, ToggleRight, Shield, Wrench, School, Pause, Play,
   MoreHorizontal,
 } from 'lucide-react';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
@@ -225,9 +226,7 @@ function BotOpsCard({ row, assignmentCount }: { row: TeacherBotRow; assignmentCo
     <li data-testid={`bot-ops-card-${bot.id}`} className="bg-card flex flex-col rounded-2xl border p-5">
       {/* 정체 — 이름 · 과목 · 학년 · 지금 도는지 · 안전 등급 */}
       <div className="flex items-start gap-3">
-        <span className="bg-pullim-blue-50 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl" aria-hidden>
-          {bot.avatarEmoji}
-        </span>
+        <BotAvatar subject={bot.subject} name={bot.name} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="text-pullim-slate-900 text-sm font-bold">{bot.name}</h3>
