@@ -65,8 +65,10 @@ interface GroupBot {
  * 로 데모 폴백을 세우는 훅이다. 개발용 신원 쿠키로 보는 동안에도 실제로 요청이 나간다.
  * 미로그인(401)이면 로컬 스토어(교사 발사분 포함)를 보여 준다 — 데모/e2e 의 발사→수령
  * 흐름이 그대로 동작한다.
- * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(아바타·이름)는 참여 중인
- * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[🧑‍🏫 수학봇 · N개]` 패턴 유지).
+ * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(봇 배지·이름)는 참여 중인
+ * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[봇 · N개]` 패턴 유지 — 그 조항이
+ * 예시로 든 `🧑‍🏫` 는 [08 § 14.1.1] 예외 2 가 좁혀지며 **과목 이니셜 배지**(`BotAvatar`)로
+ * 바뀌었다. 요구되는 것은 「머리줄이 어느 봇인지 말한다」이고 글리프의 종류가 아니다).
  */
 export default function StudentAssignmentListPage() {
   const me = useRosterMe();
@@ -221,7 +223,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2">
-            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 그룹 왼쪽 라이너와 아바타가 한다 */}
+            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 머리줄의 시그니처 점이 한다(위 묶음 표시 주석과 같은 말) */}
             <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
               <div
                 className="bg-pullim-blue-600 h-full rounded-full transition-all"

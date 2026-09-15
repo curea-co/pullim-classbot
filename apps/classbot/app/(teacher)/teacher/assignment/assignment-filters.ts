@@ -227,8 +227,15 @@ export function buildBotIndex(): Map<string, BotFacts> {
 export interface AssignmentRow {
   assignment: UserAssignment;
   botName: string;
-  /** 아바타 이니셜의 1순위 출처. 운영 기록에 없는 봇이면 `null` — 이름 첫 글자로 내려간다. */
-  subject: string | null;
+  /**
+   * 아바타 이니셜의 출처. **비지 않는다** — 봇을 못 찾아도 과제 행이 제 과목을 들고 있다.
+   *
+   * 학생 쪽 같은 자리(`app/(student)/classbot/assignment/page.tsx` 의 `meta?.subject ?? a.subject`)와
+   * **같은 폴백 체인**이어야 한다. 갈리면 같은 과제의 봇이 교사 화면에서는 「김」(`assignedBy`
+   * 첫 글자), 학생 화면에서는 「수」로 떠서 [08 § 14.1.1] 예외 2 의 「역할을 가리지 않는다」가
+   * 그 자리에서 깨진다.
+   */
+  subject: string;
   /** 데이터 계약([08 § 14.1.1] 예외 2) — 목록 행은 읽지 않지만 지우지 않는다. */
   avatarEmoji: string;
   classroomLabels: string[];
@@ -328,7 +335,8 @@ export function buildRows(
     return {
       assignment,
       botName: facts?.botName ?? assignment.assignedBy,
-      subject: facts?.subject ?? null,
+      // 봇을 못 찾아도 과목은 과제 행이 안다 — 학생 화면과 같은 체인이다(위 타입 주석).
+      subject: facts?.subject ?? assignment.subject,
       avatarEmoji: facts?.avatarEmoji ?? '🤖',
       classroomLabels: facts?.classrooms.map((c) => c.label) ?? [],
       targetCount: assignment.targetStudentIds.length || wholeClassSize(),
