@@ -1,11 +1,11 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
-  Rocket, ToggleRight, Shield, Wrench, School, Pause, Play,
+  Rocket, Shield, Wrench, School, Pause, Play,
   MoreHorizontal,
 } from 'lucide-react';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, myClassBot, studentAssignments, classRoster, scopeMeta, type Assignment,
+  currentTeacher, studentAssignments, scopeMeta, type Assignment,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
@@ -36,6 +36,13 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *
  * 이 화면이 하지 않는 것:
  *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 봇마다 길만 열어둔다.
+ *  - 등록 학생 관리(명단 활성/비활성) — **지금 이 기능은 어디에도 없다.** 넘겨 줄 화면이 있어서
+ *    걷은 게 아니다. 학급(/teacher/classroom)·학생(/teacher/students)·관제소(/teacher/monitor)는
+ *    다 읽기 전용 명단이고(classroom 은 이름·들어온 날 두 칸짜리 표, students 는 관제소 명단을
+ *    그대로 쓰는 얇은 화면), 세 트리 어디에도 「비활성」 토글이 없다. enrollment 를 BE 가
+ *    내려줄 때 제 화면에 붙는다. 걷은 이유는 그 섹션이 사실이 아니어서다 — 「중2 수학 A반」
+ *    한 반만 하드코딩이라 위 봇 목록과 이어지지 않았고, 스스로 「데모 — 새로고침 시 초기화」라
+ *    적을 만큼 저장도 없는 토글이었다.
  *  - 안전 등급 변경 → 봇 관리(/teacher/bots/[botId]?tab=safety). 여기서는 지금 등급만 읽어준다.
  *
  * 액션 규칙: 봇에서 나가는 길은 카드 우상단 「더보기」 하나에 모은다.
@@ -80,14 +87,31 @@ export default function TeacherClassbotPage() {
         eyebrow={{ icon: Bot, text: '클래스봇 운영' }}
         title="내 클래스봇"
         description={`${currentTeacher.name} 선생님 · ${currentTeacher.organization}`}
+        /*
+          봇을 새로 만드는 버튼은 이 헤더와 아래 「내 봇」 빈 상태 둘 중 하나만 뜬다 —
+          봇이 있으면 이 헤더 CTA, 없으면 빈 상태의 「봇 만들기」.
+
+          근거는 `03 § 4.4.5` 의 「둘은 같은 화면에 함께 나오지 않는다 — 봇이 없으면 헤더 CTA 를
+          내리고 빈 상태 액션 하나만 둔다」인데, **그 절은 스스로를 봇 관리(`/teacher/bots`)로
+          한정한다.** 그러니 이 화면에 적용하는 것은 그 판례를 따르는 **유추**다.
+          (`07 § 6.6.2(2)` 는 「같은 화면 버튼끼리 구분돼야 한다」는 **라벨 구분** 조항이라
+          배타 규칙의 출처가 아니다 — `03 § 4.4.5` 가 그 조항을 다시 인용할 뿐이다.)
+
+          이름이 옆 화면의 「새 봇」과 갈리는 것은 알고 두는 것이다 — `07 § 6.6.3` 표에 이 자리가
+          없어 막는 규칙이 없고, `bots/page.tsx` 주석이 이 자리를 빌더 이식 TODO 의 「함께 고칠 곳」
+          으로 이미 지목해 뒀다. 이름은 그 이식과 함께 움직인다.
+        */
         action={
-          <Link
-            href="/teacher/builder"
-            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
-          >
-            <Plus className="h-4 w-4" />
-            새 클래스봇
-          </Link>
+          botRows.length > 0 ? (
+            <Link
+              href="/teacher/builder"
+              data-testid="classbot-new-cta"
+              className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
+            >
+              <Plus className="h-4 w-4" />
+              새 클래스봇
+            </Link>
+          ) : undefined
         }
       />
 
@@ -128,9 +152,6 @@ export default function TeacherClassbotPage() {
 
       {/* 낸 과제 — 봇별로 묶어서 본다 */}
       <DispatchedAssignments assignments={assignments} rows={botRows} />
-
-      {/* 등록 학생 관리 — enrollment 토글 */}
-      <EnrollmentToggleSection />
     </div>
   );
 }
@@ -143,17 +164,19 @@ type AssignmentRow = Assignment & { targetStudentIds?: string[] };
 function BotOpsList({ rows, assignments }: { rows: TeacherBotRow[]; assignments: AssignmentRow[] }) {
   return (
     <section id="bot-list" data-testid="bot-ops-list" className="scroll-mt-20">
-      <SectionHeading
-        title="내 봇"
-        action={
-          <Link
-            href="/teacher/builder"
-            className="text-pullim-blue-600 hover:text-pullim-blue-700 inline-flex items-center gap-0.5 text-xs font-bold"
-          >
-            봇 만들기 <ArrowRight className="h-3 w-3" />
-          </Link>
-        }
-      />
+      {/*
+        제목 옆 「봇 만들기」 링크는 걷어냈다 — 같은 화면 헤더의 「새 클래스봇」과 같은 곳으로 가는
+        같은 버튼이라 한 화면이 같은 말을 두 번 했다 (`07 § 6.3` 「같은 정보를 두 번 말하지 않는다」 ·
+        `§ 6.5` 체크리스트).
+
+        **「길이 하나뿐」이 된 것은 아니다.** 지금 모은 것은 헤더 CTA 하나이고, 아래 카드의
+        「아직 붙은 학급이 없어요」 빈 상태 액션 「학급에 붙이기」도 같은 `/teacher/builder` 로 간다.
+        죽은 갈래도 아니다 — `getTeacherBotRows()` 가 「만들어 두고 아직 안 붙인 봇」을
+        `classrooms: []` 로 떨어뜨리므로, 봇을 막 만든 교사는 헤더 CTA 와 그 링크를 함께 본다.
+        그 자리는 라벨이 하는 말(붙이기)과 도착지(빌더)가 어긋난 자리라 이번 범위 밖으로 두고
+        따로 본다 — 여기서 같이 걷으면 그 어긋남이 고쳐지지 않은 채 숨는다.
+      */}
+      <SectionHeading title="내 봇" />
 
       {rows.length === 0 ? (
         <EmptyState
@@ -386,7 +409,6 @@ function DispatchedAssignments({
   rows: TeacherBotRow[];
 }) {
   const submissions = useAssignmentStore((s) => s.submissions);
-  const totalSent = assignments.reduce((s, a) => s + (a.assignedAt.includes('오늘') || a.assignedAt.includes('방금') ? 1 : 0), 0);
   // 진행률 합산은 store submission 기준 — 실시간 반영
   const totalCompleted = assignments.reduce((s, a) => {
     const mine = submissions.filter((sub) => sub.assignmentId === a.id);
@@ -401,7 +423,24 @@ function DispatchedAssignments({
     <section id="dispatched" data-testid="dispatched-section" className="bg-card scroll-mt-20 rounded-2xl border p-5">
       <SectionHeading
         title="낸 과제"
-        description={`오늘 ${totalSent}건 · 학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
+        /*
+          「오늘 N건」은 걷어냈다. 그 값은 날짜를 본 것이 아니라 `assignedAt` 라벨에 '오늘'·'방금'이
+          들어 있는지를 센 것이라, **두 방향 모두 틀려 있었다**:
+
+           - **과다 계수(로컬 경로)** — 출제 화면이 `assignedAt: '방금 냈어요'` 를 박고
+             (`teacher/assignment/new/assignment-form.tsx` · `components/classbot/submission-status-sheet.tsx`)
+             store 가 그것을 localStorage 로 굳힌다(`pullim-assignments`).
+             그래서 **닷새 전에 낸 과제도 영원히 「오늘」로 세어졌다.**
+           - **과소 계수(BE 경로)** — BE 동기화 행은 `assignedAt = row.dispatchedAt ?? ''` 로 ISO 가
+             들어온다(`lib/store/assignments.ts`). '오늘'·'방금'이 있을 리 없어 **영영 0** 이었다.
+
+          **고칠 수 있는 값이기는 하다** — `UserAssignment.dispatchedAt` 이 로컬 발송과 BE 동기화
+          양쪽에 ISO 로 실리므로, KST 날짜로 견주면 두 경로 모두에서 맞는 「오늘 N건」이 나온다.
+          **그 길을 닫는 게 아니라 지금은 안 하는 것**이다 — 사용자가 이 자리를 걷으라고 정했고
+          (2026-09-15), 걷는 시점의 값은 위 두 방향으로 다 틀려 있었다.
+          되살릴 때는 문자열 매칭이 아니라 `dispatchedAt` 의 KST 날짜로 센다.
+        */
+        description={`학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
         action={
           <Link
             href="/teacher/assignment/new"
@@ -555,67 +594,6 @@ function CreatedBanner() {
           ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
           : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남아요.'}
       </p>
-    </section>
-  );
-}
-
-/* ─── 등록 학생 토글 — enrollment 활성/비활성 (client-side mock) ─── */
-function EnrollmentToggleSection() {
-  const [inactive, setInactive] = useState<Set<string>>(new Set());
-  const enrolled = classRoster;
-  const activeCount = enrolled.length - inactive.size;
-
-  function toggle(id: string) {
-    setInactive(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  return (
-    <section className="bg-card rounded-2xl border p-5">
-      <SectionHeading
-        title="등록 학생 관리"
-        // 명단 mock 은 수학봇 A반 한 반치다 — 어느 반 명단인지 밝히고 쓴다.
-        description={`${myClassBot.name} · 중2 수학 A반 · ${enrolled.length}명 등록 · 활성 ${activeCount}명 · 비활성 ${inactive.size}명`}
-        action={
-          <span className="text-pullim-slate-500 text-2xs">데모 — 새로고침 시 초기화</span>
-        }
-      />
-      {enrolled.length === 0 ? (
-        <EmptyState
-          tone="plain"
-          size="sm"
-          title="등록된 학생이 없어요"
-          description="학생이 참여 코드로 들어오면 여기에 쌓여요."
-        />
-      ) : (
-        <ul className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
-          {enrolled.map(s => {
-            const off = inactive.has(s.id);
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => toggle(s.id)}
-                  aria-pressed={!off}
-                  className={cn(
-                    'group flex w-full items-center justify-between rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors',
-                    off
-                      ? 'border-pullim-slate-200 bg-pullim-slate-50 text-pullim-slate-400'
-                      : 'border-pullim-blue-200 bg-pullim-blue-50/50 text-pullim-slate-900 hover:border-pullim-blue-400',
-                  )}
-                >
-                  <span className={cn('font-bold', off && 'line-through')}>{s.name}</span>
-                  <ToggleRight className={cn('h-3.5 w-3.5', off ? 'rotate-180 text-pullim-slate-400' : 'text-pullim-blue-600')} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </section>
   );
 }
