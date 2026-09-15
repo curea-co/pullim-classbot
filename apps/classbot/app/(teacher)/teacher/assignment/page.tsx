@@ -60,12 +60,16 @@ function AssignmentList() {
   // 한 번 번쩍인 뒤 목록이 나타난다 — 다른 화면들과 같은 처리.
   const hydrated = useStoresHydrated(useAssignmentStore);
 
-  const filter: AssignmentListFilter = {
-    status: toStatusFilter(params.get('status')),
-    mode: toModeFilter(params.get('mode')),
-    roomId: params.get('room') ?? undefined,
-    botId: params.get('bot') ?? undefined,
-  };
+  const status = toStatusFilter(params.get('status'));
+  const mode = toModeFilter(params.get('mode'));
+  const roomId = params.get('room') ?? undefined;
+  const botId = params.get('bot') ?? undefined;
+  // 거르개를 **객체 하나로 굳힌 뒤** 아래 memo 들이 그것 하나만 본다. 매 렌더 새 객체를 만들면
+  // 의존성이 늘 달라져 memo 가 의미를 잃고, 값으로 펴서 적으면 칸이 늘 때마다 빠뜨리기 쉽다.
+  const filter: AssignmentListFilter = useMemo(
+    () => ({ status, mode, roomId, botId }),
+    [status, mode, roomId, botId],
+  );
 
   const botIndex = useMemo(() => buildBotIndex(), []);
   const allRows = useMemo(
@@ -74,8 +78,7 @@ function AssignmentList() {
   );
   const rows = useMemo(
     () => sortRows(filterRows(allRows, filter, botIndex)),
-    // `filter` 는 매 렌더 새 객체라 값으로 편다 — 객체째 넣으면 의존성이 매번 달라진다.
-    [allRows, botIndex, filter.status, filter.mode, filter.roomId, filter.botId],
+    [allRows, botIndex, filter],
   );
   const summary = useMemo(() => summarize(allRows), [allRows]);
 
@@ -235,7 +238,7 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
   return (
     <Link
       href={href}
-      aria-current={active ? 'true' : undefined}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'focus-visible:ring-pullim-blue-400/50 rounded-full border px-2.5 py-1 text-xs font-bold transition-colors outline-none focus-visible:ring-2',
         active

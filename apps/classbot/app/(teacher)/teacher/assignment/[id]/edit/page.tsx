@@ -10,10 +10,8 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { computeDDay, dDayValue, formatDueLabel } from '@/lib/assignment-due';
-import { classRoster } from '@/lib/mock';
+import { computeDDay, formatDueLabel } from '@/lib/assignment-due';
 import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
-import { useInterventionStore } from '@/lib/store/interventions';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { statusOf } from '../../assignment-filters';
@@ -96,31 +94,60 @@ function EditScreen({ id }: { id: string }) {
 function EditForm({ assignment }: { assignment: UserAssignment }) {
   const router = useRouter();
   const update = useAssignmentStore((s) => s.updateDispatched);
-  const send = useInterventionStore((s) => s.send);
 
   const [title, setTitle] = useState(assignment.title);
   const [reasonHint, setReasonHint] = useState(assignment.reasonHint ?? '');
   const [dueIso, setDueIso] = useState('');
-  const [notify, setNotify] = useState(true);
+  const [dueError, setDueError] = useState<string | null>(null);
 
   const isDraft = statusOf(assignment) === 'draft';
   const mode = assignmentModeBadge[assignment.mode];
 
   /*
-    연장인지 재는 근거가 **라벨뿐이다** — 과제에 마감 ISO 가 남지 않는다(`dueLabel` · `dDay` 만).
-    그래서 새 날짜의 D-day 를 계산해 지금 것과 견준다. 둘 중 하나라도 못 읽으면 검사를
-    건너뛴다(`dDayValue` 가 null) — 라벨 규약이 바뀌는 날 모든 날짜를 통과시키지 않기 위해서다.
+    마감을 견주는 값은 **시각이지 라벨이 아니다.**
+
+    종전에는 `dDay` 라벨끼리 견줬는데 두 방향으로 틀렸다.
+      ① 당기기를 통과시켰다 — `computeDDay` 는 지금보다 이른 시각을 **전부** `'오늘'`(=0)로
+         접는다. 그래서 지금 마감이 `'오늘'` 인 과제는 **어제로도** 옮겨졌다(`0 < 0` 이 거짓).
+      ② 연장을 거절했다 — `dDay` 는 낼 때 굳은 문자열이라 안 움직인다. 닷새 전에 `'D-7'` 로
+         낸 과제는 오늘도 `'D-7'` 이고, 이틀 뒤로 **늘리는** 것이 `2 < 7` 로 걸렸다.
+
+    그래서 실제 마감 시각(`dueAt`)을 견준다. 옛 행에는 그 값이 없으므로 그때는 **연장 여부를
+    모른다** — 모를 때 통과시키지 않고 지킬 수 있는 최소선만 지킨다: 마감은 지금보다 뒤여야 한다.
+
+    판정을 **고를 때** 하고 렌더에서는 하지 않는다. 렌더에서 `Date.now()` 를 읽으면 순수하지
+    않을뿐더러(lint), 탭을 오래 열어 둔 사이 기준이 흘러 같은 화면이 다른 답을 낸다.
   */
-  const currentDDay = dDayValue(assignment.dDay);
-  const nextDDay = dueIso ? dDayValue(computeDDay(dueIso)) : null;
-  const shortensDue =
-    !isDraft && currentDDay != null && nextDDay != null && nextDDay < currentDDay;
+  const knownCurrent = assignment.dueAt != null && Number.isFinite(new Date(assignment.dueAt).getTime());
+
+  function pickDue(next: string) {
+    setDueIso(next);
+    if (!next || isDraft) {
+      setDueError(null);
+      return;
+    }
+    const nextAt = new Date(next).getTime();
+    if (!Number.isFinite(nextAt)) {
+      setDueError('날짜를 읽지 못했어요. 다시 골라 주세요.');
+      return;
+    }
+    if (nextAt <= Date.now()) {
+      setDueError('지금보다 이른 날짜예요. 마감은 지난 시각으로 옮길 수 없어요.');
+      return;
+    }
+    const currentAt = assignment.dueAt ? new Date(assignment.dueAt).getTime() : NaN;
+    if (Number.isFinite(currentAt) && nextAt <= currentAt) {
+      setDueError('지금 마감보다 이르거나 같아요. 마감은 늘리는 것만 돼요.');
+      return;
+    }
+    setDueError(null);
+  }
 
   const dirty =
     title.trim() !== assignment.title ||
     reasonHint.trim() !== (assignment.reasonHint ?? '') ||
     dueIso !== '';
-  const canSave = dirty && title.trim().length > 0 && !shortensDue;
+  const canSave = dirty && title.trim().length > 0 && dueError == null;
 
   function save() {
     if (!canSave) return;
@@ -131,30 +158,12 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
     if (dueIso) {
       patch.dueLabel = formatDueLabel(dueIso);
       patch.dDay = computeDDay(dueIso);
+      // 라벨과 **함께** 시각을 적는다 — 다음 수정이 견줄 값이 이것이다(위 주석).
+      patch.dueAt = new Date(dueIso).toISOString();
     }
     update(assignment.id, patch);
 
-    if (notify && !isDraft) {
-      /*
-        알림은 **새 통로를 만들지 않는다** — 이미 있는 리마인드 개입을 그대로 쓴다
-        (`proc/spec/14 § 3.3.5`). 학생은 헤더 벨에서 다른 알림과 같은 자리에서 받는다.
-        대상이 비어 있으면 반 전체라는 뜻이라 명단을 펴서 한 명씩 보낸다(개입 스토어 규약).
-      */
-      const targets = assignment.targetStudentIds.length > 0
-        ? assignment.targetStudentIds
-        : classRoster.map((s) => s.id);
-      for (const studentId of targets) {
-        send({
-          type: 'remind',
-          botId: assignment.botId,
-          studentId,
-          assignmentId: assignment.id,
-          message: `「${title.trim()}」 과제 내용이 바뀌었어요. 다시 확인해 주세요.`,
-        });
-      }
-    }
-
-    toast.success(notify && !isDraft ? '고쳤어요 · 학생에게 알렸어요' : '고쳤어요');
+    toast.success('고쳤어요');
     router.push(`/teacher/assignment/${assignment.id}`);
   }
 
@@ -198,19 +207,21 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
         <div className="space-y-2">
           <Label htmlFor="edit-due">마감</Label>
           <p className="text-pullim-slate-500 text-2xs">
-            지금 <b className="text-pullim-slate-900">{assignment.dDay} ({assignment.dueLabel})</b>
-            {!isDraft && ' · 늘리는 것만 돼요 — 당기면 지금 풀고 있는 학생이 잘려요.'}
+            지금 <b className="text-pullim-slate-900">{assignment.dueLabel}</b>
+            {!isDraft && (knownCurrent
+              ? ' · 늘리는 것만 돼요 — 당기면 지금 풀고 있는 학생이 잘려요.'
+              : ' · 지난 시각으로는 못 옮겨요.')}
           </p>
           <Input
             id="edit-due"
             data-testid="edit-due"
             type="datetime-local"
             value={dueIso}
-            onChange={(e) => setDueIso(e.target.value)}
+            onChange={(e) => pickDue(e.target.value)}
           />
-          {shortensDue && (
+          {dueError && (
             <p data-testid="edit-due-error" className="text-pullim-danger text-2xs font-bold">
-              지금보다 이른 날짜예요. 마감은 늘리는 것만 돼요.
+              {dueError}
             </p>
           )}
         </div>
@@ -242,20 +253,16 @@ function EditForm({ assignment }: { assignment: UserAssignment }) {
       )}
 
       <section className="bg-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
-        {!isDraft ? (
-          <label className="text-pullim-slate-600 flex items-center gap-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              data-testid="edit-notify"
-              checked={notify}
-              onChange={(e) => setNotify(e.target.checked)}
-              className="accent-pullim-blue-600 h-4 w-4"
-            />
-            바뀐 내용을 학생에게 알릴까요?
-          </label>
-        ) : (
-          <span className="text-pullim-slate-500 text-2xs">아직 안 낸 과제라 알릴 학생이 없어요.</span>
-        )}
+        {/*
+          **「학생에게 알리기」는 아직 없다.** 첫 판에서는 기존 리마인드 개입을 그대로 쓰려 했는데,
+          그러면 그 과제의 진짜 리마인드가 죽는다 — `useRemindedStudentIds` 가 `type === 'remind'`
+          와 과제 id 만으로 「이미 보냈다」를 판정해서, 수정 알림 한 번이 전 학생에게 remind 이벤트를
+          남기고 상세의 [미제출 N명 리마인드] 가 영영 비활성으로 잠긴다.
+          제 통로(개입 타입)를 따로 내는 것이 맞고, 그건 별건이다.
+        */}
+        <span className="text-pullim-slate-500 text-2xs">
+          {isDraft ? '아직 안 낸 과제라 알릴 학생이 없어요.' : '바뀐 내용은 학생이 과제를 열 때 보여요.'}
+        </span>
         <button
           type="button"
           data-testid="edit-save"

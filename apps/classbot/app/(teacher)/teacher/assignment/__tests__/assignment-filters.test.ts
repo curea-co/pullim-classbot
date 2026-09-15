@@ -5,6 +5,7 @@ import {
   isDueSoon,
   sortRows,
   statusOf,
+  wholeClassSize,
   summarize,
   toModeFilter,
   toStatusFilter,
@@ -87,9 +88,14 @@ describe('isDueSoon', () => {
 describe('buildRows — 대상 인원', () => {
   const noSubmissions: Submission[] = [];
 
-  it('대상이 비어 있으면 반 전체다 (store 계약)', () => {
+  it('대상이 비어 있으면 반 전체다 — 세는 곳은 학생별 현황 패널과 같은 명단이다', () => {
+    /*
+      종전에는 봇 운영 기록의 반 인원 합을 셌다. 그런데 화면 아래 패널·리마인드는
+      `classRoster` 를 편다 — 「대상 12명」인데 명단이 18줄이 뜨고, 13명이 내면 회수 모달이
+      「12명 중 13명이 이미 풀었어요」를 말했다. 패널이 보여 주는 것이 교사가 읽는 사실이다.
+    */
     const [row] = buildRows([make()], noSubmissions, botIndex);
-    expect(row.targetCount).toBe(18);
+    expect(row.targetCount).toBe(wholeClassSize());
     expect(row.classroomLabels).toEqual(['중2 수학 A반']);
   });
 
@@ -111,7 +117,9 @@ describe('buildRows — 대상 인원', () => {
   it('운영 기록에 반이 없는 봇도 행을 만든다 — 이름 빈 줄을 두지 않는다', () => {
     const [row] = buildRows([make({ botId: 'cb_002' })], noSubmissions, botIndex);
     expect(row.botName).toBe('영어 누나');
-    expect(row.targetCount).toBe(0);
+    // 붙은 반이 없어도 「반 전체」의 뜻은 그대로다 — 아래 패널이 같은 명단을 펴 보이므로
+    // 여기서 0 을 말하면 같은 화면이 두 숫자를 갖는다.
+    expect(row.targetCount).toBe(wholeClassSize());
   });
 });
 
@@ -222,5 +230,16 @@ describe('dDayValue — 마감 연장 판정의 근거', () => {
     expect(dDayValue('지난 3일')).toBeNull();
     expect(dDayValue('')).toBeNull();
     expect(dDayValue('D-')).toBeNull();
+  });
+});
+
+describe('statusOf — 예약은 제 칸을 갖는다', () => {
+  it('예약된 과제를 진행 중으로 접지 않는다', () => {
+    // 접으면 회수 버튼이 붙고, 되돌릴 때 `sent` 로 굳어 예약이 조용히 사라진다.
+    expect(statusOf(make({ dispatchStatus: 'scheduled' }))).toBe('scheduled');
+  });
+
+  it('예약은 마감이 가까워도 급하지 않다 — 아직 안 나갔다', () => {
+    expect(isDueSoon(make({ dispatchStatus: 'scheduled', dDay: 'D-1' }))).toBe(false);
   });
 });

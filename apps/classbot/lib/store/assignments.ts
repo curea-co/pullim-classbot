@@ -37,6 +37,13 @@ export type UserAssignment = Assignment & {
   dispatchedAt?: string;
   /** 회수한 시각 (ISO8601) — `dispatchStatus: 'withdrawn'` 과 짝 (`proc/spec/14 § 6`) */
   withdrawnAt?: string;
+  /**
+   * 마감 **시각**(ISO8601). `dueLabel`·`dDay` 는 **낼 때 굳은 문자열**이라 시간이 지나도
+   * 안 움직인다 — 「D-7 로 낸 과제」는 닷새 뒤에도 `dDay: 'D-7'` 이다. 그 라벨로 마감을
+   * 견주면 두 방향으로 틀린다(연장을 거절하고, 당기기를 통과시킨다). 그래서 견줄 값은
+   * 따로 남긴다. 옛 행에는 없으므로(`undefined`) 읽는 쪽이 그 경우를 답해야 한다.
+   */
+  dueAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
   /** 오답 다시 내기(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
@@ -423,17 +430,38 @@ export function nextAssignmentId(): string {
 export function useMergedAssignments(studentId?: string): Assignment[] {
   useBackendAssignmentSync(); // Ph7 — 플래그 OFF 면 no-op
   const dispatched = useAssignmentStore((s) => s.dispatched);
+  const visible = dispatched.filter(isStudentVisible);
   const filteredDispatched = studentId
-    ? dispatched.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
-    : dispatched;
+    ? visible.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
+    : visible;
   return [...filteredDispatched, ...studentAssignments];
+}
+
+/**
+ * 학생에게 보여도 되는 과제인가 — **회수와 초안을 여기 한 곳에서 거른다.**
+ *
+ * 회수(`withdrawn`)는 교사 쪽 상태 변경만으로 끝나지 않는다. 확인 모달이 학생에게
+ * 「받은 과제에서 사라져요」라고 약속하므로, 그 약속을 지키는 자리가 **학생이 읽는 선택자**다.
+ * 종전에는 `dispatchStatus` 를 아무도 안 봐서 회수한 과제가 학생 목록에 그대로 남고
+ * 풀이·제출까지 됐다 — 회수가 이름만 있고 아무 일도 안 한 셈이었다.
+ *
+ * 예약(`scheduled`)도 같이 거른다. 아직 낼 시각이 안 됐다는 뜻이라 학생이 볼 것이 아니다.
+ * 지금 이 값을 만드는 FE 경로는 없지만 BE 동기화(`toUserAssignment`)가 그대로 실어 온다.
+ *
+ * 실 BE 경로는 서버가 이미 같은 판정을 한다(`app/api/_lib/assignment-visibility.ts`) —
+ * 이 함수는 **mock·localStorage 경로**의 같은 문장이다. 둘이 갈리면 데모에서만 새는
+ * 구멍이 생기므로 뜻을 같게 둔다.
+ */
+export function isStudentVisible(a: UserAssignment): boolean {
+  return a.dispatchStatus !== 'withdrawn' && a.dispatchStatus !== 'scheduled';
 }
 
 /** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
 export function useAssignmentLookup(id: string): Assignment | undefined {
   useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
   const dispatched = useAssignmentStore((s) => s.dispatched);
-  return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
+  // 목록에서 감추면서 딥링크는 열어 두면 회수가 반만 된다 — 풀이·제출이 그대로 가능하다.
+  return dispatched.find((d) => d.id === id && isStudentVisible(d)) ?? getSeedAssignmentById(id);
 }
 
 /** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */

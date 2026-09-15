@@ -14,7 +14,7 @@ import { computeProgress, useAssignmentStore } from '@/lib/store/assignments';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
-import { buildBotIndex, statusLabels, statusOf } from '../assignment-filters';
+import { buildBotIndex, statusLabels, statusOf, wholeClassSize } from '../assignment-filters';
 import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
 type Params = Promise<{ id: string }>;
@@ -86,8 +86,9 @@ function AssignmentDetail({ id }: { id: string }) {
   const mode = assignmentModeBadge[assignment.mode];
   const status = statusOf(assignment);
   const facts = botIndex.get(assignment.botId);
-  const roomTotal = facts?.classrooms.reduce((n, c) => n + c.studentCount, 0) ?? 0;
-  const targetCount = assignment.targetStudentIds.length || roomTotal;
+  // 아래 학생별 현황 패널과 **같은 명단**에서 센다 — 세는 곳이 둘이면 갈린다
+  // (`assignment-filters.ts` 의 `wholeClassSize` 주석).
+  const targetCount = assignment.targetStudentIds.length || wholeClassSize();
   const { submittedStudentCount, avgScore } = computeProgress(assignment, submissions);
   const isDraft = status === 'draft';
 
@@ -123,7 +124,7 @@ function AssignmentDetail({ id }: { id: string }) {
                   <Pencil className="h-4 w-4" aria-hidden />
                   고치기
                 </Link>
-                {!isDraft && (
+                {status === 'live' && (
                   <WithdrawButton
                     assignment={assignment}
                     submittedCount={submittedStudentCount}
@@ -166,7 +167,11 @@ function AssignmentDetail({ id }: { id: string }) {
           icon={ClipboardList}
           tone="plain"
           title="회수한 과제예요"
-          description="학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요."
+          description={
+            assignment.state === 'overdue'
+              ? '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요. 마감이 지나서 되돌릴 수는 없어요 — 다시 내려면 같은 내용으로 새 과제를 내주세요.'
+              : '학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요.'
+          }
         />
       ) : isDraft ? (
         <EmptyState

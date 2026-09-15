@@ -1,4 +1,4 @@
-import { classBots } from '@/lib/mock/classbot';
+import { classBots, classRoster } from '@/lib/mock/classbot';
 import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
 import { computeProgress, type Submission, type UserAssignment } from '@/lib/store/assignments';
 import type { AssignmentMode } from '@/lib/mock';
@@ -20,7 +20,7 @@ import type { AssignmentMode } from '@/lib/mock';
  */
 
 /** 화면에 뜨는 과제 상태 — `dispatchStatus` + `state` 를 접은 값. */
-export type AssignmentRowStatus = 'draft' | 'live' | 'closed' | 'withdrawn';
+export type AssignmentRowStatus = 'draft' | 'scheduled' | 'live' | 'closed' | 'withdrawn';
 
 export type StatusFilter = 'all' | AssignmentRowStatus;
 export type ModeFilter = 'all' | AssignmentMode;
@@ -30,6 +30,7 @@ export const MODE_FILTER_DEFAULT: ModeFilter = 'all';
 
 export const statusLabels: Record<AssignmentRowStatus, string> = {
   draft: '초안',
+  scheduled: '예약됨',
   live: '진행 중',
   closed: '마감',
   withdrawn: '회수됨',
@@ -40,6 +41,7 @@ export const statusFilterOptions: { value: StatusFilter; label: string }[] = [
   { value: 'live', label: '진행 중' },
   { value: 'closed', label: '마감' },
   { value: 'draft', label: '초안' },
+  { value: 'scheduled', label: '예약됨' },
   { value: 'withdrawn', label: '회수됨' },
 ];
 
@@ -51,7 +53,7 @@ export const modeFilterOptions: { value: ModeFilter; label: string }[] = [
 ];
 
 export function toStatusFilter(v: string | undefined | null): StatusFilter {
-  return v === 'draft' || v === 'live' || v === 'closed' || v === 'withdrawn'
+  return v === 'draft' || v === 'scheduled' || v === 'live' || v === 'closed' || v === 'withdrawn'
     ? v
     : STATUS_FILTER_DEFAULT;
 }
@@ -68,11 +70,6 @@ export interface AssignmentListFilter {
   /** 봇 id — 반보다 좁다. 둘 다 오면 둘 다 건다 */
   botId?: string;
 }
-
-export const EMPTY_FILTER: AssignmentListFilter = {
-  status: STATUS_FILTER_DEFAULT,
-  mode: MODE_FILTER_DEFAULT,
-};
 
 /**
  * 목록 URL — 기본값은 적지 않는다(주소만 길어진다). 채점 허브 `studentViewHref` 와 같은 결.
@@ -93,6 +90,10 @@ export function assignmentListHref(f: AssignmentListFilter): string {
 export function statusOf(a: UserAssignment): AssignmentRowStatus {
   if (a.dispatchStatus === 'withdrawn') return 'withdrawn';
   if (a.dispatchStatus === 'draft') return 'draft';
+  // 예약은 「아직 안 나갔다」다 — 진행 중으로 접으면 회수 버튼이 붙고, 회수를 되돌릴 때
+  // `sent` 로 굳어 예약이 조용히 사라진다. FE 에는 아직 이 값을 만드는 경로가 없지만
+  // BE 동기화(`toUserAssignment`)가 그대로 실어 온다.
+  if (a.dispatchStatus === 'scheduled') return 'scheduled';
   return a.state === 'overdue' ? 'closed' : 'live';
 }
 
@@ -161,10 +162,22 @@ export interface AssignmentRow {
 }
 
 /**
+ * 「반 전체」의 인원 — **학생별 현황 패널과 같은 명단에서 센다.**
+ *
+ * 종전에는 봇 운영 기록의 반 인원 합(`ops.classrooms`)을 썼다. 그런데 상세 화면 아래의
+ * `SubmissionStatusPanel` 과 `RemindButton` 은 `classRoster` 를 편다 — 같은 화면에서
+ * 「대상 12명」인데 명단은 18줄이 뜨고, 13명이 내면 회수 모달이 「12명 중 13명이 이미
+ * 풀었어요」를 말했다. 세는 곳이 둘이면 반드시 갈린다. 패널이 실제로 보여 주는 명단이
+ * 교사가 읽는 사실이므로 그쪽을 권위로 삼는다.
+ */
+export function wholeClassSize(): number {
+  return classRoster.length;
+}
+
+/**
  * 과제 + 제출 기록 + 봇 사실 → 목록 행.
  *
- * 대상 인원은 `targetStudentIds` 가 비어 있으면 **반 전체**라는 뜻이라(store 계약),
- * 붙은 반의 인원 합으로 읽는다.
+ * 대상 인원은 `targetStudentIds` 가 비어 있으면 **반 전체**라는 뜻이다(store 계약).
  */
 export function buildRows(
   assignments: UserAssignment[],
@@ -173,13 +186,12 @@ export function buildRows(
 ): AssignmentRow[] {
   return assignments.map((assignment) => {
     const facts = botIndex.get(assignment.botId);
-    const roomTotal = facts?.classrooms.reduce((n, c) => n + c.studentCount, 0) ?? 0;
     return {
       assignment,
       botName: facts?.botName ?? assignment.assignedBy,
       avatarEmoji: facts?.avatarEmoji ?? '🤖',
       classroomLabels: facts?.classrooms.map((c) => c.label) ?? [],
-      targetCount: assignment.targetStudentIds.length || roomTotal,
+      targetCount: assignment.targetStudentIds.length || wholeClassSize(),
       submittedCount: computeProgress(assignment, submissions).submittedStudentCount,
       status: statusOf(assignment),
       dueSoon: isDueSoon(assignment),
@@ -216,9 +228,10 @@ export function filterRows(
  */
 const STATUS_ORDER: Record<AssignmentRowStatus, number> = {
   live: 0,
-  draft: 1,
-  closed: 2,
-  withdrawn: 3,
+  scheduled: 1,
+  draft: 2,
+  closed: 3,
+  withdrawn: 4,
 };
 
 export function sortRows(rows: AssignmentRow[]): AssignmentRow[] {

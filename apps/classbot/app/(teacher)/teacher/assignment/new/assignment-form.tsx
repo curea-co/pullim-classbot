@@ -348,6 +348,9 @@ export function AssignmentForm({ initialBotId = '' }: { initialBotId?: string })
       assignedAt: '방금 냈어요',
       dueLabel: formatDueLabel(dueIso),
       dDay: computeDDay(dueIso),
+      // 라벨은 낼 때 굳는다 — 나중에 마감을 견줄 값은 시각 그대로 남긴다
+      // (`lib/store/assignments.ts` 의 `dueAt` 주석). API 본문에는 이미 싣고 있었다.
+      dueAt: new Date(dueIso).toISOString(),
       completedCount: 0,
       state: 'todo',
       reasonHint: botMessage.trim() || undefined,

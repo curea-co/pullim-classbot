@@ -4,7 +4,11 @@
  *  2) patch 로 신원·내기 상태를 못 바꾼다 (고치기와 내기/회수는 다른 일이다)
  *  3) 되돌리면 회수 흔적(`withdrawnAt`)이 지워진다
  */
-import { useAssignmentStore, type Submission, type UserAssignment } from '../assignments';
+import { renderHook } from '@testing-library/react';
+import {
+  isStudentVisible, useAssignmentLookup, useAssignmentStore, useMergedAssignments,
+  type Submission, type UserAssignment,
+} from '../assignments';
 
 function make(over: Partial<UserAssignment> = {}): UserAssignment {
   return {
@@ -89,5 +93,57 @@ describe('updateDispatched', () => {
     useAssignmentStore.setState({ dispatched: [], drafts: [make({ id: 'as_d', dispatchStatus: 'draft' })] });
     useAssignmentStore.getState().updateDispatched('as_d', { title: '초안 수정' });
     expect(useAssignmentStore.getState().drafts[0].title).toBe('초안 수정');
+  });
+});
+
+describe('isStudentVisible — 회수가 학생 화면까지 가 닿는다', () => {
+  /*
+    **이 파일에서 제일 중요한 덫.** 회수 확인 모달은 학생에게 「받은 과제에서 사라져요」라고
+    약속한다. 그런데 첫 판은 `dispatchStatus` 만 바꾸고 학생이 읽는 선택자
+    (`useMergedAssignments` · `useAssignmentLookup`)는 그 값을 아예 안 봤다 —
+    회수한 과제가 학생 목록에 그대로 남고, 열리고, 풀리고, 제출까지 됐다.
+    회수가 **이름만 있고 아무 일도 안 한** 상태였다.
+  */
+  it('회수한 과제는 학생에게 안 보인다', () => {
+    expect(isStudentVisible(make({ dispatchStatus: 'withdrawn' }))).toBe(false);
+  });
+
+  it('예약된 과제도 아직 안 보인다 — 낼 시각이 안 됐다', () => {
+    expect(isStudentVisible(make({ dispatchStatus: 'scheduled' }))).toBe(false);
+  });
+
+  it('낸 과제는 보인다', () => {
+    expect(isStudentVisible(make({ dispatchStatus: 'sent' }))).toBe(true);
+  });
+
+  it('회수해도 제출 기록은 남는다 — 가리는 것과 지우는 것은 다르다', () => {
+    useAssignmentStore.getState().withdraw('as_1');
+    const s = useAssignmentStore.getState();
+    expect(isStudentVisible(s.dispatched[0])).toBe(false);
+    expect(s.submissions).toHaveLength(1);
+  });
+});
+
+describe('학생이 읽는 선택자가 실제로 가린다', () => {
+  /*
+    `isStudentVisible` 만 맞고 선택자가 안 쓰면 아무 일도 안 일어난다 — 첫 판이 정확히 그
+    상태였다. 그래서 규칙이 아니라 **학생이 실제로 부르는 두 함수**를 건다.
+  */
+  it('useMergedAssignments 는 회수한 과제를 안 돌려준다', () => {
+    const { result, rerender } = renderHook(() => useMergedAssignments('s1'));
+    expect(result.current.map((a) => a.id)).toContain('as_1');
+
+    useAssignmentStore.getState().withdraw('as_1');
+    rerender();
+    expect(result.current.map((a) => a.id)).not.toContain('as_1');
+  });
+
+  it('useAssignmentLookup 도 안 돌려준다 — 딥링크로 풀이가 열리면 회수가 반만 된다', () => {
+    const { result, rerender } = renderHook(() => useAssignmentLookup('as_1'));
+    expect(result.current?.id).toBe('as_1');
+
+    useAssignmentStore.getState().withdraw('as_1');
+    rerender();
+    expect(result.current).toBeUndefined();
   });
 });
