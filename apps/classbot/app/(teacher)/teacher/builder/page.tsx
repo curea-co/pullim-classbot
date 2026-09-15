@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { PageHeader } from '@/components/shell/page-header';
+import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { Button } from '@/components/ui/button';
 import { Yard1Intro, Yard2Answers, Yard3Teaching } from '@/components/builder/build-yards';
 import { DoneView } from '@/components/builder/done-view';
@@ -120,22 +120,48 @@ export default function BotBuilderPage() {
   }
 
   return (
-    <div className="space-y-7">
-      <PageHeader
-        eyebrow={{ icon: Bot, text: '봇 빌더' }}
-        title="새 클래스봇 만들기"
+    /*
+      **돌아갈 길을 화면이 직접 든다.**
+
+      종전에는 안 들었다 — 교사 레일에 [봇 빌더] 행이 있어서, 그 행이 「여기가 어디인지」를
+      두 표면에서 말해 줬기 때문이다. 켜진 레일 행이 하나, 그리고 빵부스러기 막대가 하나.
+      **빵부스러기는 레일을 읽는다** — `buildBreadcrumb()` 이 `navForRole()` 을 훑어 지금
+      경로를 먹는 항목을 찾고, 없으면 뿌리 한 칸만 남는다. 뿌리 한 칸이면 `breadcrumb.tsx`
+      가 막대를 통째로 안 그린다(`trail.length <= 1`).
+
+      그래서 레일에서 행을 내리면 **둘이 같이 꺼진다.** 그대로 두면 이 화면은 켜진 레일 행도,
+      빵부스러기도, 돌아갈 링크도 없는 화면이 된다 — 들어온 자리가 여럿이라 브라우저 뒤로가기
+      말고는 나갈 길을 화면이 말하지 않는다.
+
+      **그 자리를 여기서 메운다.** 다른 교사 화면이 쓰는 관용구 그대로 `TeacherPageShell` 의
+      `backHref` 다. 도착지는 [봇 관리](`/teacher/bots`) — 지어낸 자리가 아니라
+      `proc/spec/03 § 4.4.7` 이 빌더의 종착지로 못박아 둔 부모다(빌더는 `/teacher/bots/new`
+      로 들어가고 [봇 관리]의 「새 봇」이 유일한 진입점이 된다). 경로 이동이 오는 날
+      이 링크는 **고칠 것이 없다** — 이미 그 부모를 가리키고 있다.
+
+      레일을 되살리거나 `buildBreadcrumb` 이 `matchPrefix` 를 읽게 넓히는 쪽은 택하지 않았다.
+      앞은 내리기로 한 결정을 뒤집는 것이고, 뒤는 공유 셸의 판정을 바꿔 **`matchPrefix` 를 든
+      다른 항목의 빵부스러기까지 함께 움직인다**(`/teacher/students/*` 가 「학급 관제소」를,
+      `/classbot/learn/*` 가 「봇 대화」를 달게 된다). 이 화면 한 칸이 잃은 것은 이 화면에서
+      메운다.
+    */
+    <TeacherPageShell
+      backHref="/teacher/bots"
+      backLabel="봇 관리"
+      header={{
+        eyebrow: { icon: Bot, text: '봇 빌더' },
+        title: '새 클래스봇 만들기',
         // 「고르지 않으면 어떻게 되는지」는 `(선택)` 만으로는 알 수 없다 — 한 줄로 여기서만 말한다
-        description={view === 'build' ? '과목만 고르면 나머지는 기본값으로 채워져요.' : undefined}
+        description: view === 'build' ? '과목만 고르면 나머지는 기본값으로 채워져요.' : undefined,
         // 마당마다 반복하던 「생성」을 여기 한 자리로 올렸다 — 어느 마당에서 눌러도 같다
-        action={
+        action:
           view === 'build' ? (
             <Button type="button" variant="pullim" size="lg" onClick={make} aria-label="채운 그대로 봇 생성하기">
               생성
             </Button>
-          ) : undefined
-        }
-      />
-
+          ) : undefined,
+      }}
+    >
       {view === 'done' ? (
         <DoneView
           draft={draft}
@@ -160,7 +186,7 @@ export default function BotBuilderPage() {
           </aside>
         </div>
       )}
-    </div>
+    </TeacherPageShell>
   );
 }
 

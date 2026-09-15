@@ -89,6 +89,31 @@ describe('buildBreadcrumb — 뿌리는 역할을 따라간다', () => {
     expect(buildBreadcrumb(pathname, role)[0].label).toBe(rootLabel);
   });
 
+  /*
+    빵부스러기는 레일을 읽는다 — `buildBreadcrumb` 이 `navForRole` 을 훑으므로 **레일에서
+    내린 경로는 빵부스러기도 잃는다.** `/teacher/builder` 가 그 경우다(2026-09-15 교사 레일
+    승인). 뿌리 한 칸으로 끝나면 `breadcrumb.tsx` 의 `trail.length <= 1` 이 막대를 통째로
+    안 그린다.
+
+    **알고 한 것임을 여기에 못박는다.** 모르고 되돌리지 않도록, 그리고 되살릴 때 무엇이
+    함께 움직이는지 알도록. 이 화면이 길을 잃지 않는 것은 `/teacher/builder` 페이지가
+    `TeacherPageShell` 의 `backHref="/teacher/bots"` 로 돌아갈 길을 직접 들기 때문이고,
+    그쪽은 `components/builder/__tests__/builder.test.tsx` 가 못박는다.
+  */
+  it('봇 빌더는 레일에 없으니 빵부스러기도 뿌리 한 칸뿐이다 — 돌아갈 길은 화면이 든다', () => {
+    expect(buildBreadcrumb('/teacher/builder', 'teacher')).toEqual([
+      { label: '풀림 교사', href: '/teacher' },
+    ]);
+    expect(buildBreadcrumb('/teacher/builder/cb_004', 'teacher')).toEqual([
+      { label: '풀림 교사', href: '/teacher' },
+    ]);
+    // 레일에 있는 이웃은 그대로다 — 레일을 통째로 잃은 것이 아니라 한 줄만 내린 것이다
+    expect(buildBreadcrumb('/teacher/bots', 'teacher')).toEqual([
+      { label: '풀림 교사', href: '/teacher' },
+      { label: '봇 관리', href: '/teacher/bots' },
+    ]);
+  });
+
   it('역할 홈에서는 뿌리 한 칸뿐이다', () => {
     expect(buildBreadcrumb('/parent', 'parent')).toEqual([
       { label: '풀림 학부모', href: '/parent' },
