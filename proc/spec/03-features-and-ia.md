@@ -456,7 +456,7 @@ export const plannerSection: NavSubItem[] = [
 
 | 항목 | 출처 |
 |---|---|
-| 아바타 · 이름 | 아바타 = `classBots[].subject` 첫 글자 → 없으면 `name` 첫 글자 → 둘 다 없으면 lucide `Bot` (**`[예정]` #308**) · 이름 = `classBots[].name` |
+| 아바타 · 이름 | 아바타 = `classBots[].subject` 첫 글자 → 없으면 `name` 첫 글자 → 둘 다 없으면 lucide `Bot` — **이 세 단계가 통째로 `[예정]` #308** · 이름 = `classBots[].name` |
 | 과목 · 학년 | `classBots[].subject` · `grade` |
 | 지금 안전 등급 | `classBots[].scope` → `scopeMeta` (L1~L5) |
 | 말투 | `classBots[].tone` |
