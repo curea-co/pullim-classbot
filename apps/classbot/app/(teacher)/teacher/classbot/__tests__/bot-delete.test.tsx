@@ -31,7 +31,11 @@ const dispatchedFor = (botId: string, id: string): UserAssignment => ({
   state: 'todo',
 } as unknown as UserAssignment);
 
-/** 임시저장 — 출제 화면의 `saveDraft` 가 만드는 모양 그대로(`dispatchStatus: 'draft'`) */
+/**
+ * 임시저장 — `saveDraft` 가 만들 모양 그대로(`dispatchStatus: 'draft'`).
+ * 지금 UI 로는 이 길이 닫혀 있다(출제 화면의 「임시저장」이 `disabled` · 준비 중 v2).
+ * 그래서 이 테스트는 store 에 직접 넣어 잰다 — 막는 것은 잠재 결함이다.
+ */
 const draftFor = (botId: string, id: string): UserAssignment => ({
   ...dispatchedFor(botId, id), dispatchStatus: 'draft',
 });
@@ -293,6 +297,8 @@ it('「낸 과제」는 초안도 함께 거른다 — 지운 봇의 임시저�
     이 칸의 값은 `assignments + drafts` 인데 초안 쪽 필터가 빠져 있었다. 아래 「낸 과제」
     묶음은 초안을 안 그리므로, 이 누수는 **상단 숫자에서만** 드러난다 — 카드는 사라졌는데
     「1건」이 그대로 남는 모양이다.
+    (지금 UI 로는 초안을 만들 길이 없다 — 위 `draftFor` 주석. 그래도 식에 `drafts.length`
+    가 있는 한 걸러야 하고, 그 「넷이 같은 필터를 지난다」를 이 줄이 지킨다.)
   */
   act(() =>
     useAssignmentStore.setState({
