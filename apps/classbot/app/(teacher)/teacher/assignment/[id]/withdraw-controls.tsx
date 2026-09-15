@@ -1,0 +1,114 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { RotateCcw, Undo2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
+
+/**
+ * 회수 · 되돌리기 (`proc/spec/14 § 3.3.6`).
+ *
+ * **회수는 지우는 것이 아니다.** 학생의 「받은 과제」에서 내려갈 뿐, 이미 낸 답과 채점은
+ * 그대로 남는다(§ 5.3). 지우기로 만들면 회수가 곧 증거 인멸이 된다 — 그래서 확인 모달이
+ * 그 사실을 **먼저** 말한다. 「정말 하시겠어요?」만 묻는 모달은 무엇이 남고 무엇이 사라지는지를
+ * 안 알려 줘서, 교사가 겁을 먹거나 반대로 아무 생각 없이 누르게 된다.
+ *
+ * 스키마에는 이미 자리가 있었다 — `assignments.dispatch_status` 의 `'withdrawn'` 값이
+ * 정의만 되고 아무도 쓰지 않았다. 새 컬럼이 필요 없는 이유다.
+ */
+export function WithdrawButton({
+  assignment,
+  submittedCount,
+  targetCount,
+}: {
+  assignment: UserAssignment;
+  submittedCount: number;
+  targetCount: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const withdraw = useAssignmentStore((s) => s.withdraw);
+  const router = useRouter();
+
+  function confirm() {
+    withdraw(assignment.id);
+    setOpen(false);
+    toast.success('과제를 회수했어요');
+    // 회수한 자리에 그대로 머물면 「회수됨」 배너만 남아 할 일이 없다. 목록이 다음 자리다.
+    router.push('/teacher/assignment');
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <button
+        type="button"
+        data-testid="assignment-withdraw-trigger"
+        onClick={() => setOpen(true)}
+        className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
+      >
+        <RotateCcw className="h-4 w-4" aria-hidden />
+        회수
+      </button>
+
+      <DialogContent data-testid="assignment-withdraw-dialog">
+        <DialogHeader>
+          <DialogTitle>회수할까요?</DialogTitle>
+          {/* 숫자를 먼저 말한다 — 「몇 명이 이미 풀었나」가 이 결정의 전부다 */}
+          <DialogDescription className="text-pullim-slate-900 font-bold">
+            {targetCount}명 중 <span className="font-mono">{submittedCount}</span>명이 이미 풀었어요.
+          </DialogDescription>
+          <p className="text-pullim-slate-500 text-sm">
+            회수하면 학생의 「받은 과제」에서 사라져요.
+            <br />
+            <b className="text-pullim-slate-900">이미 낸 답과 채점은 그대로 남아요.</b>
+          </p>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose
+            className="text-pullim-slate-600 hover:bg-pullim-slate-50 rounded-lg px-3 py-2 text-sm font-bold"
+          >
+            그만두기
+          </DialogClose>
+          <button
+            type="button"
+            data-testid="assignment-withdraw-confirm"
+            onClick={confirm}
+            className="bg-pullim-slate-900 hover:bg-pullim-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-white"
+          >
+            회수하기
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * 되돌리기 — **마감 전에만** 연다.
+ *
+ * 마감이 지난 뒤 되돌리면 학생 목록에 「이미 끝난 과제」가 다시 나타난다. 그건 회수를 무르는
+ * 것이 아니라 새 과제를 내는 것에 가깝고, 그 길은 [복제해서 다시 내기]다.
+ */
+export function RestoreButton({ assignment }: { assignment: UserAssignment }) {
+  const restore = useAssignmentStore((s) => s.restore);
+
+  if (assignment.state === 'overdue') return null;
+
+  return (
+    <button
+      type="button"
+      data-testid="assignment-restore"
+      onClick={() => {
+        restore(assignment.id);
+        toast.success('회수를 되돌렸어요');
+      }}
+      className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
+    >
+      <Undo2 className="h-4 w-4" aria-hidden />
+      되돌리기
+    </button>
+  );
+}

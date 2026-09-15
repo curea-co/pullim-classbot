@@ -24,3 +24,21 @@ export function computeDDay(iso: string): string {
   if (diffDays === 1) return 'D-1';
   return `D-${diffDays}`;
 }
+
+/**
+ * D-day 라벨을 숫자로 — 「연장인가」를 재려면 두 마감을 견줘야 하는데 과제에 남는 것은
+ * 라벨뿐이다(`dueLabel` · `dDay`). 저장된 ISO 가 없어서 라벨을 되읽는다.
+ *
+ * `'오늘'` = 0, `'D-3'` = 3. 모르는 꼴은 `null` — **0 으로 접지 않는다.**
+ * 0 으로 접으면 「오늘 마감」으로 읽혀서, 라벨 규약이 바뀌는 날 연장 검사가 조용히
+ * 모든 날짜를 통과시킨다(fail-open). 모르면 호출부가 검사를 건너뛰게 둔다.
+ *
+ * @param label - `dDay` 문자열
+ * @returns 남은 날 수, 또는 읽을 수 없으면 null
+ */
+export function dDayValue(label: string): number | null {
+  const t = label.trim();
+  if (t === '오늘') return 0;
+  const m = /^D-(\d+)$/.exec(t);
+  return m ? Number(m[1]) : null;
+}

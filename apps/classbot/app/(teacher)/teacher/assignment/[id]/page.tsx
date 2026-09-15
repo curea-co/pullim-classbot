@@ -2,7 +2,7 @@
 
 import { use, useMemo } from 'react';
 import Link from 'next/link';
-import { ClipboardList, Users } from 'lucide-react';
+import { ClipboardList, Pencil, Users } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
@@ -15,6 +15,7 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import { buildBotIndex, statusLabels, statusOf } from '../assignment-filters';
+import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
 type Params = Promise<{ id: string }>;
 
@@ -103,6 +104,36 @@ function AssignmentDetail({ id }: { id: string }) {
           `${assignment.questionCount}문항`,
           `난이도 ${assignment.difficulty}`,
         ].join(' · '),
+        /*
+          회수된 과제에는 [고치기]를 두지 않는다 — 고쳐 놓고 되돌리면 학생이 못 보던 내용을
+          갑자기 받는다. 되돌린 뒤에 고치는 순서라야 학생이 보는 것과 어긋나지 않는다
+          (수정 화면도 같은 판정을 한 번 더 한다 — 주소로 바로 들어올 수 있어서).
+        */
+        action: (
+          <div className="flex flex-wrap gap-2">
+            {status === 'withdrawn' ? (
+              <RestoreButton assignment={assignment} />
+            ) : (
+              <>
+                <Link
+                  href={`/teacher/assignment/${assignment.id}/edit`}
+                  data-testid="assignment-edit-link"
+                  className="text-pullim-slate-600 border-pullim-slate-200 hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors outline-none focus-visible:ring-2"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden />
+                  고치기
+                </Link>
+                {!isDraft && (
+                  <WithdrawButton
+                    assignment={assignment}
+                    submittedCount={submittedStudentCount}
+                    targetCount={targetCount}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        ),
       }}
     >
       {/* 이 과제가 무엇인지 — 모드·상태·마감은 한 줄에 함께 둔다. 셋이 같이 읽혀야 뜻이 선다 */}
@@ -130,7 +161,14 @@ function AssignmentDetail({ id }: { id: string }) {
         <KpiStat label="평균 점수" value={avgScore == null ? '—' : `${avgScore}점`} />
       </KpiStatBar>
 
-      {isDraft ? (
+      {status === 'withdrawn' ? (
+        <EmptyState
+          icon={ClipboardList}
+          tone="plain"
+          title="회수한 과제예요"
+          description="학생의 「받은 과제」에서는 사라졌어요. 이미 낸 답과 채점은 그대로 남아 있어요."
+        />
+      ) : isDraft ? (
         <EmptyState
           icon={ClipboardList}
           tone="plain"

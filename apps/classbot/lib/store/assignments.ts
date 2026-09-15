@@ -35,6 +35,8 @@ export type UserAssignment = Assignment & {
   targetStudentIds: string[];
   /** 교사가 낸 시각 (ISO8601) */
   dispatchedAt?: string;
+  /** 회수한 시각 (ISO8601) — `dispatchStatus: 'withdrawn'` 과 짝 (`proc/spec/14 § 6`) */
+  withdrawnAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
   /** 오답 다시 내기(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
@@ -69,6 +71,19 @@ type AssignmentStore = {
 
   dispatch: (a: UserAssignment) => void;
   saveDraft: (a: UserAssignment) => void;
+  /**
+   * 낸 과제의 일부 칸을 고친다 (`proc/spec/14 § 3.3.5`).
+   *
+   * **무엇을 잠글지는 여기서 정하지 않는다** — 수정 화면이 정한다(§ 5.7 잠금 행렬).
+   * store 에 행렬을 넣으면 초안 편집까지 같은 규칙에 걸리는데, 초안은 아무도 못 받았으므로
+   * 잠글 칸이 없다. 다만 **신원과 상태는 patch 로 못 바꾼다** — 그 둘은 고치기가 아니라
+   * 다른 일(내기·회수)이라 각자의 액션이 있다.
+   */
+  updateDispatched: (id: string, patch: Partial<UserAssignment>) => void;
+  /** 회수 — 학생 목록에서 내린다. 제출·채점은 남는다(§ 5.3). */
+  withdraw: (id: string) => void;
+  /** 회수 되돌리기 — 마감 전에만 화면이 연다(§ 3.3.6). */
+  restore: (id: string) => void;
   recordSubmission: (s: Omit<Submission, 'id' | 'submittedAt'>) => Submission;
   /** 과제를 낸 직후 토스트 카피용 */
   lastDispatched: { count: number; botName: string; assignmentTitle: string } | null;
@@ -108,6 +123,35 @@ export const useAssignmentStore = create<AssignmentStore>()(
           }
           return { drafts: [...s.drafts, { ...a, dispatchStatus: 'draft' }] };
         }),
+
+      updateDispatched: (id, patch) =>
+        set((s) => {
+          // 신원(`id`)·내기 상태(`dispatchStatus`)·회수 시각은 고치기의 대상이 아니다.
+          // 뽑아서 버린다 — 화면이 실수로 넘겨도 조용히 무시되게.
+          const { id: _id, dispatchStatus: _st, withdrawnAt: _wd, ...safe } = patch;
+          void _id; void _st; void _wd;
+          return {
+            dispatched: s.dispatched.map((a) => (a.id === id ? { ...a, ...safe } : a)),
+            drafts: s.drafts.map((a) => (a.id === id ? { ...a, ...safe } : a)),
+          };
+        }),
+
+      withdraw: (id) =>
+        set((s) => ({
+          // 제출(`submissions`)은 건드리지 않는다 — 회수가 곧 증거 인멸이 되지 않게(§ 5.3).
+          dispatched: s.dispatched.map((a) =>
+            a.id === id
+              ? { ...a, dispatchStatus: 'withdrawn' as const, withdrawnAt: new Date().toISOString() }
+              : a,
+          ),
+        })),
+
+      restore: (id) =>
+        set((s) => ({
+          dispatched: s.dispatched.map((a) =>
+            a.id === id ? { ...a, dispatchStatus: 'sent' as const, withdrawnAt: undefined } : a,
+          ),
+        })),
 
       recordSubmission: (payload) => {
         const submission: Submission = {

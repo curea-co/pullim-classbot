@@ -11,6 +11,7 @@ import {
   type BotFacts,
 } from '../assignment-filters';
 import type { Submission, UserAssignment } from '@/lib/store/assignments';
+import { dDayValue } from '@/lib/assignment-due';
 
 /** 판정에 쓰이는 칸만 채운 과제 — 나머지는 화면이 그릴 뿐 규칙이 읽지 않는다. */
 function make(over: Partial<UserAssignment> = {}): UserAssignment {
@@ -205,5 +206,21 @@ describe('URL', () => {
     expect(toStatusFilter(null)).toBe('all');
     expect(toModeFilter('exam')).toBe('exam');
     expect(toModeFilter(undefined)).toBe('all');
+  });
+});
+
+describe('dDayValue — 마감 연장 판정의 근거', () => {
+  it('읽을 수 있는 라벨은 숫자로 편다', () => {
+    expect(dDayValue('오늘')).toBe(0);
+    expect(dDayValue('D-1')).toBe(1);
+    expect(dDayValue(' D-12 ')).toBe(12);
+  });
+
+  it('모르는 꼴은 null — 0 으로 접지 않는다', () => {
+    // 0 으로 접으면 「오늘 마감」으로 읽혀서, 라벨 규약이 바뀌는 날 연장 검사가
+    // 모든 날짜를 조용히 통과시킨다(fail-open).
+    expect(dDayValue('지난 3일')).toBeNull();
+    expect(dDayValue('')).toBeNull();
+    expect(dDayValue('D-')).toBeNull();
   });
 });
