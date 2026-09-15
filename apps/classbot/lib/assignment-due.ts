@@ -29,13 +29,15 @@ export function formatDueLabel(iso: string, now: number = Date.now()): string {
  * 한 컬럼(`d_day`)에 두 규칙이 앉으니 **같은 과제가 교사 화면과 학생 화면에서 다르게** 읽혔다.
  * 사람이 마감을 세는 방식은 날짜 경계다(「오늘까지」·「내일까지」), 그래서 그쪽으로 모은다.
  *
- * @param iso - 마감 시각. 비었거나 못 읽으면 `'오늘'`(모를 때 더 급한 쪽)
+ * @param iso - 마감 시각. 비었거나 못 읽으면 `'D-1'` — **`formatDueLabel` 의 빈 값 폴백
+ *   (`'내일 22:00'`)과 같은 날을 말해야 한다.** 둘이 어긋나면 마감을 비운 폼이
+ *   「내일 22:00 (오늘)」을 나란히 찍는다(이 PR 이 없애려는 바로 그 어긋남이다).
  * @param now - 기준 시각(테스트 주입용)
  */
 export function computeDDay(iso: string, now: number = Date.now()): string {
-  if (!iso) return '오늘';
+  if (!iso) return 'D-1';
   const due = new Date(iso);
-  if (!Number.isFinite(due.getTime())) return '오늘';
+  if (!Number.isFinite(due.getTime())) return 'D-1';
   const startOfDay = (d: Date): number =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const diffDays = Math.round((startOfDay(due) - startOfDay(new Date(now))) / 86_400_000);

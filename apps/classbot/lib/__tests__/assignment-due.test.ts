@@ -27,9 +27,14 @@ describe('computeDDay — 날짜 경계로 자른다', () => {
     expect(computeDDay(at(15, 22), NOW)).toBe('오늘');
   });
 
-  it('못 읽는 값도 「오늘」이다', () => {
-    expect(computeDDay('', NOW)).toBe('오늘');
-    expect(computeDDay('어제', NOW)).toBe('오늘');
+  it('못 읽는 값의 폴백은 라벨 쪽과 **같은 날**을 말한다', () => {
+    /*
+      `formatDueLabel('')` 은 `'내일 22:00'` 이다. 여기서 `'오늘'` 을 돌려주면 마감을 비운 폼이
+      「내일 22:00 (오늘)」을 나란히 찍는다 — 이 PR 이 없애려는 바로 그 어긋남이다.
+    */
+    expect(computeDDay('', NOW)).toBe('D-1');
+    expect(computeDDay('어제', NOW)).toBe('D-1');
+    expect(formatDueLabel('', NOW)).toBe('내일 22:00');
   });
 });
 

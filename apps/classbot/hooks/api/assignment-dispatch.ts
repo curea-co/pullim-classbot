@@ -116,7 +116,9 @@ export function useUpdateAssignment(): UseMutationResult<
   const queryClient = useQueryClient();
   return useMutation<DispatchAssignmentResponse, ApiClientError, UpdateAssignmentInput>({
     mutationFn: ({ id, ...patch }) =>
-      apiPatch<DispatchAssignmentResponse>(`/api/teacher/assignments/${id}`, patch),
+      // id 는 스토어·BE 동기화에서 오므로 그대로 끼우지 않는다 — `/`·`?` 가 들어가면
+      // 요청이 다른 경로로 가거나 잘린다(`hooks/api/classroom.ts` 와 같은 처리).
+      apiPatch<DispatchAssignmentResponse>(`/api/teacher/assignments/${encodeURIComponent(id)}`, patch),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: assignmentDispatchKeys.teacherAssignments });
       // 회수는 학생이 보는 술어를 바꾼다 — 같은 브라우저에서 역할을 오갈 때 바로 비치게.

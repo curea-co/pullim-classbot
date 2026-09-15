@@ -19,15 +19,18 @@ import { buildBotIndex, buildRows, summarize } from '@/app/(teacher)/teacher/ass
  */
 export function DispatchedAssignmentsLink() {
   const dispatched = useAssignmentStore((s) => s.dispatched);
+  const drafts = useAssignmentStore((s) => s.drafts);
   const submissions = useAssignmentStore((s) => s.submissions);
   const hydrated = useStoresHydrated(useAssignmentStore);
 
   // `buildBotIndex()` 는 mock 카탈로그를 매번 다시 훑는다 — 교사 홈은 자주 다시 그려지는 화면이라
   // 렌더마다 세우지 않는다. 훅은 조기 반환보다 **위**에 있어야 호출 순서가 안 흔들린다.
   const botIndex = useMemo(() => buildBotIndex(), []);
+  // 도착할 목록이 그리는 집합과 **같은 것**을 센다 — 두 진입점이 같은 목록에 다른 숫자를
+  // 붙이면 어느 쪽이 맞는지 알 길이 없다(`/teacher/classbot` KPI 도 초안을 더한다).
   const rows = useMemo(
-    () => buildRows(dispatched, submissions, botIndex),
-    [dispatched, submissions, botIndex],
+    () => buildRows([...dispatched, ...drafts], submissions, botIndex),
+    [dispatched, drafts, submissions, botIndex],
   );
   const summary = useMemo(() => summarize(rows), [rows]);
 
@@ -41,7 +44,7 @@ export function DispatchedAssignmentsLink() {
     낸 과제로 가는 길을 없애지 않는다 — 회수만 남은 교사에게 0건을 보이지도 않는다.
   */
   // 예약도 「낸 과제」다 — 빼면 예약만 있는 교사에게서 링크가 사라진다.
-  const openCount = summary.live + summary.closed + summary.scheduled;
+  const openCount = summary.live + summary.closed + summary.scheduled + summary.draft;
   if (!hydrated || openCount === 0) return null;
 
   return (

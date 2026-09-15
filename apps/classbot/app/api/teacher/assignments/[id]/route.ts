@@ -55,7 +55,7 @@ const PATCHABLE_STATUS = new Set(['sent', 'withdrawn']);
  *   `POST` 와 **같은 규약**이고, 그 이유는 시간대다: 라벨은 `getHours()` 로 그려지는데 서버 런타임은
  *   UTC 라 서버가 만들면 KST 교사의 「내일 22:00」이 DB 에 「내일 13:00」으로 앉는다(아침 마감은
  *   날짜까지 하루 밀린다). 학생은 서버 행을 읽으므로 그대로 9시간 어긋난 마감을 본다.
- *   `d_day` 도 `POST` 와 같은 함수(`dDayFromDate`)로 센다 — 한 컬럼에 규칙이 둘이면 같은 마감이
+ *   `d_day` 도 `POST` 와 **같은 규칙**(`lib/assignment-due.ts` 의 `computeDDay` — 날짜 경계)으로 센다 — 한 컬럼에 규칙이 둘이면 같은 마감이
  *   낸 경로와 고친 경로에서 다르게 읽힌다.
  * @param ctx - 동적 세그먼트 `{ id }` = 과제 id
  * @returns 200 { assignment } | 400 | 401 | 403(역할) | 404(내가 낸 과제가 아님)
@@ -149,9 +149,22 @@ export async function PATCH(
     return conflict('지금은 회수할 수 없는 과제예요.');
   }
 
-  const [updated] = await db.update(assignments).set(patch).where(owned).returning();
+  /*
+    **조건을 쓰기에 함께 건다.** 위 조회와 이 UPDATE 사이에 다른 탭이 먼저 바꿀 수 있어서,
+    검사만으로는 둘 다 통과해 둘 다 쓴다 — 409 를 만든 이유(「탭을 둘 열어 두고」)가 그대로
+    남는다. 조건을 `WHERE` 에 넣으면 진 쪽이 0행을 받고, 위에서 소유권을 이미 확인했으므로
+    그 0행은 **전이 충돌**로만 읽힌다.
+  */
+  const guarded =
+    nextStatus === 'sent'
+      ? and(owned, eq(assignments.dispatchStatus, 'withdrawn'))
+      : nextStatus === 'withdrawn'
+        ? and(owned, eq(assignments.dispatchStatus, 'sent'))
+        : owned;
 
-  if (!updated) return notFound('과제를 찾을 수 없어요.');
+  const [updated] = await db.update(assignments).set(patch).where(guarded).returning();
+
+  if (!updated) return conflict('다른 곳에서 먼저 바뀌었어요. 화면을 새로 고쳐 주세요.');
 
   return NextResponse.json({ assignment: updated });
 }

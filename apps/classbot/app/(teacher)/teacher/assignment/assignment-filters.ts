@@ -138,7 +138,20 @@ export function dueDisplay(a: UserAssignment, now: number = Date.now()): {
   const at = dueAtOf(a);
   if (at == null) return { label: a.dueLabel, dDay: a.dDay };
   const iso = new Date(at).toISOString();
-  return { label: formatDueLabel(iso), dDay: computeDDay(iso) };
+  /*
+    **지난 마감은 「오늘」이 아니다.** `computeDDay` 는 지난 시각을 전부 `'오늘'` 로 접는다 —
+    낼 때는 마감이 늘 미래라 안전한 규칙이지만, 지나간 과제를 **되보는** 이 화면에서는
+    3주 전에 끝난 과제가 「오늘」로 뜨고 옆의 「마감」 칩과 어긋난다.
+    지난 것은 며칠 지났는지로 말한다(`08 § 15.6` 의 지연 표기와 같은 말).
+  */
+  const daysLate = Math.floor((now - at) / 86_400_000);
+  if (at <= now) {
+    return {
+      label: formatDueLabel(iso, now),
+      dDay: daysLate >= 1 ? `지난 ${daysLate}일` : '마감',
+    };
+  }
+  return { label: formatDueLabel(iso, now), dDay: computeDDay(iso, now) };
 }
 
 /** 하루 — 「마감 임박」의 창. */
@@ -326,7 +339,7 @@ export function filterRows(
 /**
  * 마감 임박순 — 급한 것이 위로.
  *
- * 순서: 급한 진행 중 → 나머지 진행 중 → 초안 → 마감 → 회수됨. 같은 칸 안에서는 낸 순서
+ * 순서: 급한 진행 중 → 나머지 진행 중 → 예약 → 초안 → 마감 → 회수됨. 같은 칸 안에서는 낸 순서
  * 역순(새것이 위)이다. 회수된 과제를 맨 아래로 내리는 이유는 목록의 일이 「지금 돌봐야 할
  * 것」을 위에 두는 것이라서다 — 회수는 이미 끝난 결정이다.
  */
