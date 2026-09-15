@@ -1,6 +1,6 @@
 import { classBots, classRoster } from '@/lib/mock/classbot';
 import { getTeacherBotRows } from '@/lib/mock/classbot-teacher-ops';
-import { computeProgress, type Submission, type UserAssignment } from '@/lib/store/assignments';
+import type { Submission, UserAssignment } from '@/lib/store/assignments';
 import type { AssignmentMode } from '@/lib/mock';
 
 /**
@@ -87,26 +87,56 @@ export function assignmentListHref(f: AssignmentListFilter): string {
 /**
  * 화면용 상태 — 교사 시점(`dispatchStatus`)이 학생 시점(`state`)보다 먼저다(위 머리주석).
  */
-export function statusOf(a: UserAssignment): AssignmentRowStatus {
+export function statusOf(a: UserAssignment, now: number = Date.now()): AssignmentRowStatus {
   if (a.dispatchStatus === 'withdrawn') return 'withdrawn';
   if (a.dispatchStatus === 'draft') return 'draft';
   // 예약은 「아직 안 나갔다」다 — 진행 중으로 접으면 회수 버튼이 붙고, 회수를 되돌릴 때
   // `sent` 로 굳어 예약이 조용히 사라진다. FE 에는 아직 이 값을 만드는 경로가 없지만
   // BE 동기화(`toUserAssignment`)가 그대로 실어 온다.
   if (a.dispatchStatus === 'scheduled') return 'scheduled';
-  return a.state === 'overdue' ? 'closed' : 'live';
+  return isPastDue(a, now) ? 'closed' : 'live';
 }
+
+/**
+ * 마감 **시각** — 없으면 null.
+ *
+ * `dueLabel` · `dDay` 는 **낼 때 굳은 문자열**이라 시간이 지나도 안 움직인다. 그걸로 마감을
+ * 판정하면 「D-7 로 낸 과제」가 한 달 뒤에도 D-7 이고, 「D-1 로 낸 과제」는 영원히 마감 임박이다.
+ */
+function dueAtOf(a: UserAssignment): number | null {
+  if (!a.dueAt) return null;
+  const t = new Date(a.dueAt).getTime();
+  return Number.isFinite(t) ? t : null;
+}
+
+/**
+ * 마감이 지났는가.
+ *
+ * `dueAt` 이 있으면 그것이 답이다. 없으면 **서버 판정**(`state === 'overdue'`)으로 떨어진다 —
+ * BE 동기화로 온 행은 마감 시각을 안 싣고 상태만 싣는다. 둘 다 없으면 「안 지났다」이고,
+ * 그건 옛 로컬 행(마감 시각이 없던 시절)뿐이다.
+ */
+export function isPastDue(a: UserAssignment, now: number = Date.now()): boolean {
+  const at = dueAtOf(a);
+  if (at != null) return at <= now;
+  return a.state === 'overdue';
+}
+
+/** 하루 — 「마감 임박」의 창. */
+const DUE_SOON_MS = 24 * 60 * 60 * 1000;
 
 /**
  * 마감이 급한가 — 진행 중인 과제에만 묻는다.
  *
- * `dDay` 는 문자열 라벨이다(`'D-1'` · `'오늘'`). 날짜 계산을 여기서 새로 하지 않는 이유는
- * 라벨을 만드는 주인이 따로 있기 때문이다 — 봇 운영 화면(`/teacher/classbot`)의 `isUrgent`
- * 도 같은 두 값을 본다. 판정이 두 벌이 되면 같은 과제가 화면마다 다르게 급해진다.
+ * 하루 안에 닫히면 급하다. **라벨을 보지 않는다** — 위 `dueAtOf` 주석대로 라벨은 낼 때
+ * 굳어서, `dDay === 'D-1'` 로 재면 그렇게 낸 과제가 영원히 급한 상태로 남는다.
+ * `dueAt` 을 모르는 옛 행은 급하지 않은 것으로 본다(모를 때 빨갛게 칠하지 않는다).
  */
-export function isDueSoon(a: UserAssignment): boolean {
-  if (statusOf(a) !== 'live') return false;
-  return a.dDay === 'D-1' || a.dDay === '오늘';
+export function isDueSoon(a: UserAssignment, now: number = Date.now()): boolean {
+  if (statusOf(a, now) !== 'live') return false;
+  const at = dueAtOf(a);
+  if (at == null) return false;
+  return at - now <= DUE_SOON_MS;
 }
 
 /** 봇 한 대의 이름·얼굴·붙은 반 — 목록 행이 필요로 하는 것만. */
@@ -175,6 +205,38 @@ export function wholeClassSize(): number {
 }
 
 /**
+ * 이 과제를 받은 학생 id — 대상이 비어 있으면 반 전체.
+ *
+ * 아래 `SubmissionStatusPanel` 이 쓰는 규약과 **같은 문장**이다(그 파일의 `eligible`).
+ */
+export function eligibleStudentIds(a: UserAssignment): Set<string> {
+  const targets = a.targetStudentIds;
+  return new Set(targets.length > 0 ? targets : classRoster.map((r) => r.id));
+}
+
+/**
+ * 낸 학생 수 — **대상 밖 제출은 세지 않는다.**
+ *
+ * `computeProgress` 는 `assignmentId` 만으로 거른다. 그래서 대상이 아닌 학생이 딥링크로
+ * 들어와 제출하면(풀이 화면은 대상 필터를 안 건다 — 그 파일 주석) 이 화면만 숫자가 부풀었다:
+ * 「대상 1명 · 제출 2명 · 미제출 0명」에 회수 모달은 「1명 중 2명이 이미 풀었어요」.
+ * 아래 패널은 같은 제출을 이미 빼고 있어서(Codex #186 R2) 한 화면이 두 숫자를 갖는다.
+ */
+export function progressForTargets(
+  a: UserAssignment,
+  submissions: Submission[],
+): { submittedCount: number; avgScore: number | null } {
+  const eligible = eligibleStudentIds(a);
+  const mine = submissions.filter((s) => s.assignmentId === a.id && eligible.has(s.studentId));
+  const students = new Set(mine.map((s) => s.studentId));
+  const avgScore =
+    mine.length === 0
+      ? null
+      : Math.round(mine.reduce((sum, s) => sum + s.scorePercent, 0) / mine.length);
+  return { submittedCount: students.size, avgScore };
+}
+
+/**
  * 과제 + 제출 기록 + 봇 사실 → 목록 행.
  *
  * 대상 인원은 `targetStudentIds` 가 비어 있으면 **반 전체**라는 뜻이다(store 계약).
@@ -192,7 +254,7 @@ export function buildRows(
       avatarEmoji: facts?.avatarEmoji ?? '🤖',
       classroomLabels: facts?.classrooms.map((c) => c.label) ?? [],
       targetCount: assignment.targetStudentIds.length || wholeClassSize(),
-      submittedCount: computeProgress(assignment, submissions).submittedStudentCount,
+      submittedCount: progressForTargets(assignment, submissions).submittedCount,
       status: statusOf(assignment),
       dueSoon: isDueSoon(assignment),
     };
@@ -205,6 +267,12 @@ export function filterRows(
   botIndex: Map<string, BotFacts>,
 ): AssignmentRow[] {
   return rows.filter((row) => {
+    /*
+      **회수한 과제는 기본 목록에서 내린다.** 「전체」가 회수된 것까지 보여 주면 교사 홈·봇 운영의
+      「낸 과제 N건」과 목록의 줄 수가 늘 어긋난다(그 숫자들은 회수된 것을 안 센다). 회수는 끝난
+      결정이라 기본값에 있을 이유도 없다 — 볼 길은 「회수됨」 칩 하나로 남긴다.
+    */
+    if (f.status === 'all' && row.status === 'withdrawn') return false;
     if (f.status !== 'all' && row.status !== f.status) return false;
     if (f.mode !== 'all' && row.assignment.mode !== f.mode) return false;
     if (f.botId && row.assignment.botId !== f.botId) return false;

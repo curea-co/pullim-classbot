@@ -12,7 +12,6 @@ import {
   type BotFacts,
 } from '../assignment-filters';
 import type { Submission, UserAssignment } from '@/lib/store/assignments';
-import { dDayValue } from '@/lib/assignment-due';
 
 /** 판정에 쓰이는 칸만 채운 과제 — 나머지는 화면이 그릴 뿐 규칙이 읽지 않는다. */
 function make(over: Partial<UserAssignment> = {}): UserAssignment {
@@ -43,6 +42,13 @@ function make(over: Partial<UserAssignment> = {}): UserAssignment {
   } as UserAssignment;
 }
 
+/** 2026-09-15 18:00 고정 — 마감 판정은 시각을 보므로 기준을 못박는다. */
+const NOW = new Date(2026, 8, 15, 18, 0).getTime();
+/** NOW 기준 N시간 뒤(음수면 전)의 ISO. */
+const iso = (hours: number) => new Date(NOW + hours * 3_600_000).toISOString();
+/** buildRows·summarize 는 now 를 안 받는다 — 그 경로용으로 지금 기준 시각을 쓴다. */
+const realIso = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
+
 const botIndex = new Map<string, BotFacts>([
   ['cb_001', {
     botId: 'cb_001',
@@ -71,17 +77,37 @@ describe('statusOf — 교사 시점이 학생 시점보다 먼저다', () => {
   });
 });
 
-describe('isDueSoon', () => {
-  it('D-1 과 오늘만 급하다', () => {
-    expect(isDueSoon(make({ dDay: 'D-1' }))).toBe(true);
-    expect(isDueSoon(make({ dDay: '오늘' }))).toBe(true);
-    expect(isDueSoon(make({ dDay: 'D-2' }))).toBe(false);
+describe('isDueSoon — 라벨이 아니라 시각을 본다', () => {
+  /*
+    `dDay` 는 낼 때 굳는다. 그걸로 재면 「D-1 로 낸 과제」는 한 달 뒤에도 마감 임박이고,
+    「D-7 로 낸 과제」는 마감 하루 전에도 안 급하다. 그래서 `dueAt` 을 본다.
+  */
+  it('하루 안에 닫히면 급하다', () => {
+    expect(isDueSoon(make({ dueAt: iso(+3), dDay: 'D-7' }), NOW)).toBe(true);
+  });
+
+  it('하루보다 멀면 안 급하다 — 라벨이 D-1 이라도', () => {
+    expect(isDueSoon(make({ dueAt: iso(+50), dDay: 'D-1' }), NOW)).toBe(false);
+  });
+
+  it('마감이 지났으면 급한 것이 아니라 끝난 것이다', () => {
+    expect(isDueSoon(make({ dueAt: iso(-1) }), NOW)).toBe(false);
+    expect(statusOf(make({ dueAt: iso(-1) }), NOW)).toBe('closed');
   });
 
   it('진행 중이 아니면 마감이 가까워도 급하지 않다', () => {
-    // 초안은 아직 아무도 못 받았고, 회수된 과제는 이미 끝난 결정이다.
-    expect(isDueSoon(make({ dDay: 'D-1', dispatchStatus: 'draft' }))).toBe(false);
-    expect(isDueSoon(make({ dDay: 'D-1', dispatchStatus: 'withdrawn' }))).toBe(false);
+    expect(isDueSoon(make({ dueAt: iso(+3), dispatchStatus: 'draft' }), NOW)).toBe(false);
+    expect(isDueSoon(make({ dueAt: iso(+3), dispatchStatus: 'withdrawn' }), NOW)).toBe(false);
+  });
+
+  it('마감 시각을 모르는 옛 행은 급하지 않은 것으로 본다', () => {
+    // 모를 때 빨갛게 칠하지 않는다.
+    expect(isDueSoon(make({ dueAt: undefined, dDay: 'D-1' }), NOW)).toBe(false);
+  });
+
+  it('마감 시각이 없으면 서버 판정(state)으로 떨어진다', () => {
+    // BE 동기화 행은 마감 시각을 안 싣고 상태만 싣는다.
+    expect(statusOf(make({ dueAt: undefined, state: 'overdue' }), NOW)).toBe('closed');
   });
 });
 
@@ -156,10 +182,10 @@ describe('sortRows — 급한 것이 위로', () => {
     const rows = buildRows(
       [
         make({ id: 'withdrawn', dispatchStatus: 'withdrawn' }),
-        make({ id: 'closed', state: 'overdue' }),
+        make({ id: 'closed', dueAt: realIso(-1) }),
         make({ id: 'draft', dispatchStatus: 'draft' }),
-        make({ id: 'live' }),
-        make({ id: 'urgent', dDay: 'D-1' }),
+        make({ id: 'live', dueAt: realIso(+100) }),
+        make({ id: 'urgent', dueAt: realIso(+3) }),
       ],
       [],
       botIndex,
@@ -186,10 +212,10 @@ describe('summarize — 거르개와 무관하게 전체를 센다', () => {
   it('진행 중·마감 임박·초안을 따로 센다', () => {
     const rows = buildRows(
       [
-        make({ id: '1', dDay: 'D-1' }),
-        make({ id: '2' }),
+        make({ id: '1', dueAt: realIso(+3) }),
+        make({ id: '2', dueAt: realIso(+100) }),
         make({ id: '3', dispatchStatus: 'draft' }),
-        make({ id: '4', state: 'overdue' }),
+        make({ id: '4', dueAt: realIso(-1) }),
       ],
       [],
       botIndex,
@@ -214,22 +240,6 @@ describe('URL', () => {
     expect(toStatusFilter(null)).toBe('all');
     expect(toModeFilter('exam')).toBe('exam');
     expect(toModeFilter(undefined)).toBe('all');
-  });
-});
-
-describe('dDayValue — 마감 연장 판정의 근거', () => {
-  it('읽을 수 있는 라벨은 숫자로 편다', () => {
-    expect(dDayValue('오늘')).toBe(0);
-    expect(dDayValue('D-1')).toBe(1);
-    expect(dDayValue(' D-12 ')).toBe(12);
-  });
-
-  it('모르는 꼴은 null — 0 으로 접지 않는다', () => {
-    // 0 으로 접으면 「오늘 마감」으로 읽혀서, 라벨 규약이 바뀌는 날 연장 검사가
-    // 모든 날짜를 조용히 통과시킨다(fail-open).
-    expect(dDayValue('지난 3일')).toBeNull();
-    expect(dDayValue('')).toBeNull();
-    expect(dDayValue('D-')).toBeNull();
   });
 });
 

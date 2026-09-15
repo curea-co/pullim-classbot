@@ -8,6 +8,7 @@ import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
+import { isPastDue } from '../assignment-filters';
 
 /**
  * 회수 · 되돌리기 (`proc/spec/14 § 3.3.6`).
@@ -95,7 +96,9 @@ export function WithdrawButton({
 export function RestoreButton({ assignment }: { assignment: UserAssignment }) {
   const restore = useAssignmentStore((s) => s.restore);
 
-  if (assignment.state === 'overdue') return null;
+  // `state` 는 낼 때 굳어서 로컬 경로에서는 영영 `'overdue'` 가 되지 않는다 — 그걸로 재면
+  // 이 가드가 **한 번도 안 걸리고**, 몇 달 지난 과제도 되살아나 학생 목록에 다시 뜬다.
+  if (isPastDue(assignment)) return null;
 
   return (
     <button

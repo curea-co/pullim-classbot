@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { classBots } from '@/lib/mock';
 import { useRosterMe } from '@/lib/current-user';
-import { useAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
+import { useSubmittedAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
 import { useVisibleAssignment } from '../../use-assignment-reads';
 import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { questionTypeMeta } from '@/lib/question-type';
@@ -26,7 +26,8 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
 
   // 상세 페이지와 같은 dual-source 해석 — 인증 사용자는 실API, 미인증은 로컬 스토어 폴백.
   const api = useVisibleAssignment(id);
-  const localA = useAssignmentLookup(id);
+  // 회수된 과제도 찾는다 — 이미 낸 답을 뺏지 않는다(그 함수 주석).
+  const localA = useSubmittedAssignmentLookup(id);
   const demo = api.isUnauthenticated;
   const apiRow = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
   const isLoading = demo ? false : api.isLoading;

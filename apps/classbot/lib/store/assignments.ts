@@ -87,7 +87,16 @@ type AssignmentStore = {
    * 다른 일(내기·회수)이라 각자의 액션이 있다.
    */
   updateDispatched: (id: string, patch: Partial<UserAssignment>) => void;
-  /** 회수 — 학생 목록에서 내린다. 제출·채점은 남는다(§ 5.3). */
+  /**
+   * 회수 — 학생 목록에서 내린다. 제출·채점은 남는다(§ 5.3).
+   *
+   * ⚠️ **`USE_REAL_CORE_BE` 경로는 아직 없다.** `dispatch`·`recordSubmission` 과 달리 이 셋
+   * (`withdraw`·`restore`·`updateDispatched`)은 서버로 보내지 않는다. 플래그가 켜지면
+   * `useBackendAssignmentSync` 의 병합이 「같은 id 는 서버 행이 이긴다」라서, 교사가 고친
+   * 제목·마감이 학생 쪽 동기화 한 번에 **조용히 되돌아간다**. 회수는 서버가 학생 목록에서
+   * 그 행을 빼 주는 덕에 우연히 살아남을 뿐 다른 기기에는 안 간다.
+   * 플래그를 켜기 전에 이 셋의 서버 경로를 먼저 낸다(`proc/spec/14 § 10.2`).
+   */
   withdraw: (id: string) => void;
   /** 회수 되돌리기 — 마감 전에만 화면이 연다(§ 3.3.6). */
   restore: (id: string) => void;
@@ -453,7 +462,14 @@ export function useMergedAssignments(studentId?: string): Assignment[] {
  * 구멍이 생기므로 뜻을 같게 둔다.
  */
 export function isStudentVisible(a: UserAssignment): boolean {
-  return a.dispatchStatus !== 'withdrawn' && a.dispatchStatus !== 'scheduled';
+  // 초안은 `s.drafts` 에 살아서 오늘은 여기 안 온다. 그래도 거른다 — `toUserAssignment` 가
+  // 서버 행의 `dispatchStatus` 를 그대로 `dispatched` 에 복사하므로, 서버가 초안을 돌려주는
+  // 날 이 함수가 「거른다」고 읽히면서 실제로는 안 거르는 상태가 된다.
+  return (
+    a.dispatchStatus !== 'withdrawn' &&
+    a.dispatchStatus !== 'scheduled' &&
+    a.dispatchStatus !== 'draft'
+  );
 }
 
 /** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
@@ -462,6 +478,20 @@ export function useAssignmentLookup(id: string): Assignment | undefined {
   const dispatched = useAssignmentStore((s) => s.dispatched);
   // 목록에서 감추면서 딥링크는 열어 두면 회수가 반만 된다 — 풀이·제출이 그대로 가능하다.
   return dispatched.find((d) => d.id === id && isStudentVisible(d)) ?? getSeedAssignmentById(id);
+}
+
+/**
+ * **결과 화면 전용** 조회 — 회수된 과제도 찾는다.
+ *
+ * 회수 확인 모달이 교사에게 「이미 낸 답과 채점은 그대로 남아요」라고 약속한다. 그런데
+ * `useAssignmentLookup` 이 회수된 과제를 안 돌려주면 **학생 쪽에서** 제 점수·오답·선생님
+ * 한 마디가 통째로 「과제를 찾을 수 없어요」가 된다 — 목록에서 감추는 것과 이미 낸 것을
+ * 뺏는 것은 다른 일이다. 목록·개요·풀이는 그대로 가리고, **결과만** 이 문으로 연다.
+ */
+export function useSubmittedAssignmentLookup(id: string): Assignment | undefined {
+  useBackendAssignmentSync();
+  const dispatched = useAssignmentStore((s) => s.dispatched);
+  return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
 }
 
 /** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */

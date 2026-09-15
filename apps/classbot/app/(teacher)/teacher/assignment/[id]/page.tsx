@@ -10,11 +10,13 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { RemindButton } from '@/components/classbot/remind-button';
 import { SubmissionStatusPanel } from '@/components/classbot/submission-status-sheet';
 import { Chip } from '@/components/ui/chip';
-import { computeProgress, useAssignmentStore } from '@/lib/store/assignments';
+import { useAssignmentStore } from '@/lib/store/assignments';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
-import { buildBotIndex, statusLabels, statusOf, wholeClassSize } from '../assignment-filters';
+import {
+  buildBotIndex, progressForTargets, statusLabels, statusOf, wholeClassSize,
+} from '../assignment-filters';
 import { RestoreButton, WithdrawButton } from './withdraw-controls';
 
 type Params = Promise<{ id: string }>;
@@ -89,7 +91,8 @@ function AssignmentDetail({ id }: { id: string }) {
   // 아래 학생별 현황 패널과 **같은 명단**에서 센다 — 세는 곳이 둘이면 갈린다
   // (`assignment-filters.ts` 의 `wholeClassSize` 주석).
   const targetCount = assignment.targetStudentIds.length || wholeClassSize();
-  const { submittedStudentCount, avgScore } = computeProgress(assignment, submissions);
+  // 대상 밖 제출은 세지 않는다 — 아래 패널과 같은 규약(`progressForTargets` 주석).
+  const { submittedCount, avgScore } = progressForTargets(assignment, submissions);
   const isDraft = status === 'draft';
 
   return (
@@ -127,7 +130,7 @@ function AssignmentDetail({ id }: { id: string }) {
                 {status === 'live' && (
                   <WithdrawButton
                     assignment={assignment}
-                    submittedCount={submittedStudentCount}
+                    submittedCount={submittedCount}
                     targetCount={targetCount}
                   />
                 )}
@@ -157,8 +160,8 @@ function AssignmentDetail({ id }: { id: string }) {
       */}
       <KpiStatBar cols={4}>
         <KpiStat label="대상" value={`${targetCount}명`} icon={Users} />
-        <KpiStat label="제출" value={isDraft ? '—' : `${submittedStudentCount}명`} />
-        <KpiStat label="미제출" value={isDraft ? '—' : `${Math.max(targetCount - submittedStudentCount, 0)}명`} />
+        <KpiStat label="제출" value={isDraft ? '—' : `${submittedCount}명`} />
+        <KpiStat label="미제출" value={isDraft ? '—' : `${Math.max(targetCount - submittedCount, 0)}명`} />
         <KpiStat label="평균 점수" value={avgScore == null ? '—' : `${avgScore}점`} />
       </KpiStatBar>
 
