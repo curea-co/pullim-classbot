@@ -9,10 +9,6 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./providers/api": {
-      "types": "./src/providers/api.ts",
-      "default": "./src/providers/api.ts"
     }
   },
   "type": "module",
@@ -20,7 +16,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pullim-classbot/api-client": "workspace:*",
     "@pullim-classbot/types": "workspace:*"
   },
   "devDependencies": {

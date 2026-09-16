@@ -107,7 +107,6 @@
       "name": "@pullim-classbot/auth",
       "version": "0.0.1",
       "dependencies": {
-        "@pullim-classbot/api-client": "workspace:*",
         "@pullim-classbot/types": "workspace:*",
       },
       "devDependencies": {
