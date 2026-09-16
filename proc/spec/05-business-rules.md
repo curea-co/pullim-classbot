@@ -308,20 +308,36 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 
 ### 11.1 세션
 - Next.js 15+ App Router 기반
-- **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
-- **현재 사용자 해석기** — `lib/current-user.ts` 가 도메인 신원의 단일 진입점이고 **`dev` 에
-  이미 있다.** 서버는 `getCurrentUserIdFromRequest(req)` 로 `Authorization: Bearer` 토큰을
-  **서명까지 검증**한 뒤에만 claim(sub/role)을 믿고, 토큰이 없거나 검증에 실패하면
-  **데모 폴백**(`student_001` · `isAuthenticated: false`)으로 본다. 쓰기 가드가 그
-  `isAuthenticated: false` 를 401 로 처리한다.
+- **풀림 OS SSO 쿠키 세션** — 인증·인가는 **pullim-os·pullim-api 가 소유한다**. 클래스봇은
+  로그인 화면을 갖지 않고 `osLoginUrl()`(`apps/classbot/lib/auth/os-sso.ts`)로 OS 로그인에
+  위임하며, 복귀 뒤에는 `Domain=.pullim.ai` HttpOnly access 쿠키가 신원이다. 정본 표면은
+  `api.pullim.ai/classbot/*` 이고 **서버가** 그 쿠키에서 `sub` 를 파생한다
+  (`JwtVerifyGuard` + `EntitlementGuard('classbot')`). 쓰기는 double-submit
+  `X-CSRF-Token` 을 요구한다(`lib/auth/os-sso.ts` `fetchOsCsrfToken`).
+  *(`[2026-09-16 정정]` 종전 「**JWT access/refresh 세션** — 자체 구현(이메일/비밀번호) ·
+  auth PR #88/#89 로 인도 · refresh 회전 + `auth_revoked_tokens` 블랙리스트」는 **폐기됐다.**
+  클래스봇 자체 이메일/비밀번호 인증과 그 화면(`/login`·`/signup`)은 걷혔다 — 경위는
+  [`archive/2026-05-29_auth-login-signup.md`](../archive/2026-05-29_auth-login-signup.md).
+  공개 가입도 클래스봇 몫이 아니다 — 가입은 OS 에서 일어난다.)*
+- **현재 사용자 해석기** — `lib/current-user.ts` 가 Next route handler(`/api/*`) 신원의 단일
+  진입점이고 **`dev` 에 이미 있다.** `getCurrentUserIdFromRequest(req)` 는 **개발 전용 신원
+  쿠키**(아래 불릿)를 보고, 없으면 **데모 폴백**(`student_001` · `isAuthenticated: false` ·
+  `isIdentified: false`)으로 본다. 쓰기 가드가 `isIdentified: false` 를 401 로 처리한다.
+  ⚠️ **이 경로에는 production 신원이 없다.** 개발 신원 쿠키는 prod 호스트에서 항상 닫히고
+  (아래 ①), OS 세션 쿠키는 **pullim-api 가** 검증하므로 클래스봇 route handler 가 풀 수 없다
+  — 즉 prod 의 `/api/*` 는 익명이고 쓰기는 401 이다. prod 신원이 필요한 표면은 route handler
+  가 아니라 **정본 `api.pullim.ai/classbot/*`**(`lib/api/domain-fetch.ts`)다.
+  *(`[2026-09-16 정정]` 종전 「`Authorization: Bearer` 토큰을 **서명까지 검증**한 뒤에만
+  claim(sub/role)을 믿는다」는 폐기됐다 — 그 토큰을 발급하던 주체가 클래스봇 자체 인증
+  BE 뿐이었고, 그것이 걷히며 검증 경로도 함께 걷혔다.)*
 - **개발 전용 신원 폴백** — 위 해석기에 **한 겹을 더한 것**이고 **`dev` 에 있다**
   (`lib/dev-identity.ts` 의 `DEV_IDENTITY_COOKIE = 'pullim_dev_identity'` · `lib/current-user.ts`
   의 쿠키 경로 — **#266**). *(`[2026-09-14 정정]` 종전 「**`[예정]`** · `dev` 에는 그 파일도
   그 쿠키 처리도 없다 — #266 이 인도한다 · 아래는 현재 동작 설명이 아니다」는 그 PR 이
   머지되며 낡았다. 아래는 이제 **현재 동작 설명이면서 동시에 지켜야 할 규칙**이다 —
   경계 셋을 걷어내는 변경은 이 절 위반이다.)*
-  JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안 `/api/*` 를 실제 DB 로 확인할 수
-  없다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한 뒤에만** 폴백으로 읽는다.
+  `/api/*` 를 실제 DB 로 확인할 신원이 로컬에 없다 — OS 세션 쿠키는 pullim-api 소관이고
+  클래스봇 route handler 가 검증할 수 없다. 그래서 `pullim_dev_identity` 쿠키를 읽는다.
   **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가 아니라
   `isIdentified`(그 사용자 **명의로** 처리해도 되는가)이고, 라우트 가드가 보는 값이 그쪽이다.
   경계 셋을 **규칙으로 못 박는다**:
