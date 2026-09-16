@@ -4,7 +4,6 @@
  * 정본 서버는 OS 쿠키의 sub 로 신원을 파생하므로 **사용자 프로비저닝(me/sync) 호출이 없다** —
  * `/me` 외 다른 fetch 가 나가지 않는 것을 함께 검증한다(구 x-user-id + me/sync 모델 폐기 회귀).
  */
-jest.mock('@/lib/auth/auth-mode', () => ({ OS_SSO_ENABLED: true }));
 jest.mock('@/lib/features', () => ({ USE_REAL_CORE_BE: true, USE_REAL_REQUIZ_BE: false }));
 
 import { render, screen, waitFor } from '@testing-library/react';

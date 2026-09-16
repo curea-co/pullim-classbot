@@ -1,8 +1,8 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { AlertCircle, Lock } from 'lucide-react';
 import { EmptyState } from './empty-state';
+import { redirectToOsLogin } from '@/lib/auth/os-sso';
 
 /**
  * 읽기 4면(Phase 7 Stage 2) 공통 상태 카드 — 로그인 게이트 / 에러.
@@ -11,19 +11,19 @@ import { EmptyState } from './empty-state';
 
 /** 비로그인 — 로그인월(D1). mock 을 보여주지 않고 로그인으로 유도한다. */
 export function ReadLoginGate({ label = '내 정보' }: { label?: string }) {
-  // 현재 위치를 next 에 실어 보낸다 — auth-guard/login-form 의 `?next=` 복귀 계약 정합.
-  // 로그인 후 이 읽기 surface(예: /classbot/assignment)로 되돌아오게 한다.
-  const pathname = usePathname();
-  const loginHref = pathname
-    ? `/login?next=${encodeURIComponent(pathname)}`
-    : '/login';
+  // 클래스봇은 자체 로그인 화면이 없다 — 풀림 OS 로그인으로 보낸다. 현재 위치를 `next` 로
+  // 실어 복귀시키는 것과 cross-host 절대 URL 승격은 `redirectToOsLogin` 이 소유한다
+  // (헤더 프로필 메뉴와 **같은 함수**를 지난다 — 종전엔 양쪽이 복귀를 각자 만들었다).
+  //
+  // href 가 아니라 onClick 인 이유: OS 로그인 URL 은 앱 오리진(`window.location.origin`)이
+  // 있어야 만들 수 있어 SSR 시점엔 값이 없다. 링크로 두면 첫 페인트에 틀린 href 가 실린다.
   return (
     <EmptyState
       tone="neutral"
       icon={Lock}
       title="로그인이 필요해요"
       description={`${label}를 보려면 먼저 로그인해 주세요.`}
-      action={{ href: loginHref, label: '로그인' }}
+      action={{ onClick: redirectToOsLogin, label: '로그인' }}
     />
   );
 }
