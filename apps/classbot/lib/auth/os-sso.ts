@@ -100,6 +100,28 @@ function osAuthUrl(path: '/login' | '/signup', next: string, selfOrigin?: string
   return `${base}?next=${encodeURIComponent(next)}`;
 }
 
+/**
+ * 현재 위치를 복귀 대상으로 실어 **OS 로그인으로 이동**한다.
+ *
+ * 클래스봇은 자체 로그인 화면을 갖지 않는다 — 로그인 진입은 전부 이 함수 하나를 지난다
+ * (헤더 프로필 메뉴 · 읽기 로그인 게이트). 계약을 한곳에 두는 이유는, 종전에 헤더와
+ * 읽기 게이트가 `?next=` 복귀를 **각자 만들어** 한쪽만 cross-host 승격을 하고 있었기 때문이다.
+ *
+ * cross-host(예: Dev — OS ≠ classbot 오리진)면 내부 경로만으론 OS 가 앱으로 못 돌아오므로
+ * `resolveReturnTarget` 이 앱 오리진 절대 URL 로 승격한다(same-origin 은 내부 경로 유지). (B-7)
+ *
+ * 브라우저에서만 동작한다 — 서버(SSR)에서는 현재 위치를 알 수 없어 아무것도 하지 않는다.
+ */
+export function redirectToOsLogin(): void {
+  if (typeof window === 'undefined') return;
+  const appOrigin = window.location.origin;
+  const target = resolveReturnTarget(
+    window.location.pathname + window.location.search,
+    appOrigin,
+  );
+  window.location.assign(osLoginUrl(target, appOrigin));
+}
+
 /** URL 문자열의 오리진을 안전하게 추출한다(파싱 실패 시 null). */
 function safeOrigin(url: string): string | null {
   try {

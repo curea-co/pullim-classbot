@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -16,8 +15,7 @@ import {
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
-import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
-import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
+import { redirectToOsLogin, OS_URL } from '@/lib/auth/os-sso';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { DevRoleSwitch } from './dev-role-switch';
@@ -166,7 +164,6 @@ function StudentStreakBadge() {
 function ProfileMenu({ role }: { role: Role }) {
   const me = useCurrentUser();
   const { signOut } = useAuth();
-  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -183,24 +180,13 @@ function ProfileMenu({ role }: { role: Role }) {
   async function handleLogout() {
     await signOut();
     toast.success('로그아웃되었습니다.');
-    // OS SSO 모드: 로그아웃 후 OS 로 내보낸다(인증 진입 일원화). 비-SSO 모드: 루트로.
-    if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
+    // 로그아웃 후 OS 로 내보낸다 — 인증 진입이 OS 하나라 나가는 곳도 하나다.
+    if (typeof window !== 'undefined') window.location.assign(OS_URL);
   }
 
-  // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
-  // 아니면 기존 classbot 로그인 폼(`/login`)으로 라우팅.
-  // cross-host(예: Dev — OS≠classbot 오리진)면 내부 경로만으론 OS 가 앱으로 못 돌아오므로
-  // resolveReturnTarget 이 앱 오리진 절대 URL 로 승격한다(same-origin 은 기존 내부 경로 유지). (B-7)
-  function goLogin() {
-    if (OS_SSO_ENABLED) {
-      if (typeof window === 'undefined') return;
-      const appOrigin = window.location.origin;
-      const target = resolveReturnTarget(window.location.pathname + window.location.search, appOrigin);
-      window.location.assign(osLoginUrl(target, appOrigin));
-      return;
-    }
-    router.push('/login');
-  }
+  // 로그인 진입 — 클래스봇은 자체 로그인 화면이 없다. 복귀 경로 · cross-host 승격은
+  // `redirectToOsLogin` 이 소유한다(읽기 로그인 게이트와 같은 함수를 지난다).
+  const goLogin = redirectToOsLogin;
 
   return (
     <DropdownMenu>
