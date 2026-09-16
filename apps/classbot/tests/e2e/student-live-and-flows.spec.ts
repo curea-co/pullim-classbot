@@ -79,6 +79,38 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
     ).toBeVisible({ timeout: 10_000 });
   });
 
+  /**
+   * 빈 상태 상자는 세 화면이 **같은 폭**이다.
+   *
+   * 봇 대화·학습 기록의 빈 상태는 `flex items-center justify-center` 래퍼 안에 있어
+   * flex 아이템이 글자 폭으로 줄어 있었다 — 같은 `EmptyState` 인데 봇 마켓(블록으로 놓여
+   * 제 폭을 쓴다)보다 눈에 띄게 좁았다. 고장이 아니라 **조용히 좁아지는** 종류라 눈으로
+   * 볼 때까지 아무도 몰랐고, 단위 테스트(jsdom)는 폭을 재지 못한다. 그래서 여기서 잡는다.
+   *
+   * 픽셀을 박지 않고 **본문 폭 대비 비율**로 본다 — 좁아진 상자는 본문의 30% 안쪽이었고
+   * 제 폭을 쓰는 상자는 패딩을 빼도 90%를 넘는다. 그 사이는 어느 쪽도 아니다.
+   *
+   * 셋 다 익명으로 도는 이 스펙에서 빈 상태(또는 로그인 안내)를 그린다 — 마켓은 신원이
+   * 있어야 열리고(마켓 계약 §2), 나머지 둘은 봇이 없으니 빈 상태다. 읽기 실패로 에러
+   * 카드가 뜬 경우에도 같은 껍데기(`CenteredState`)를 쓰므로 이 단언은 그대로 유효하다.
+   */
+  test('빈 상태 상자 — 봇 마켓·봇 대화·학습 기록이 같은 폭을 쓴다', async ({ page }) => {
+    for (const path of ['/classbot/discover', '/classbot/chat', '/classbot/me/progress']) {
+      await page.goto(BASE + path, { waitUntil: 'networkidle' });
+
+      const box = page.locator('main section.border-dashed').first();
+      await expect(box, `${path} — 빈 상태 상자가 떠야 한다`).toBeVisible({ timeout: 10_000 });
+
+      const ratio = await box.evaluate((el) => {
+        const main = el.closest('main');
+        if (!main) return 0;
+        return el.getBoundingClientRect().width / main.getBoundingClientRect().width;
+      });
+
+      expect(ratio, `${path} — 빈 상태 상자가 본문 폭을 못 쓰고 글자 폭으로 줄었다`).toBeGreaterThan(0.9);
+    }
+  });
+
   test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
     await page.goto(BASE + '/classbot/live/cb_001', { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/classbot\/chat\?bot=cb_001/);

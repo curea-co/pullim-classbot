@@ -8,7 +8,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
-import { EmptyState } from '@/components/classbot/empty-state';
+import { CenteredState, EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
@@ -63,26 +63,22 @@ export default function MyProgressPage() {
   // 못 읽은 것과 없는 것을 가른다 — 실패를 빈 상태로 적으면 「내 기록이 사라졌다」로 읽힌다.
   if (roomsError) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
+      <CenteredState>
         <ReadErrorState onRetry={retryRooms} />
-      </div>
+      </CenteredState>
     );
   }
 
-  // `items-center`+`justify-center` 는 **세로만** 가운데로 두고 가로는 꽉 채운다 —
-  // `w-full` 이 없으면 flex 아이템이 글자 폭으로 줄어, 같은 `EmptyState` 인데도 봇 마켓의
-  // 빈 상태(블록으로 놓여 제 폭을 쓴다)보다 눈에 띄게 좁은 상자가 된다.
   if (myBots.length === 0) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
+      <CenteredState>
         <EmptyState
-          className="w-full"
           icon={GraduationCap}
           title="아직 쌓인 학습 기록이 없어요"
           description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
           action={{ href: '/classbot/classroom', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
         />
-      </div>
+      </CenteredState>
     );
   }
 

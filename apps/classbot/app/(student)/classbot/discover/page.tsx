@@ -22,6 +22,17 @@ import { PageHeader } from '@/components/shell/page-header';
  * 크고 작은 관계가 아니라서 「코드를 받아야 쓸 수 있어요」로 되돌리지 마라 — 그건 담기가
  * 생기기 전에도 정확하지 않았고(코드가 여는 것은 반이지 봇을 쓸 자격이 아니다) 지금은
  * 화면이 하는 일과 정면으로 어긋난다.
+ *
+ * **목록 제목 옆에 「담은 봇」 링크가 있었다 — 사용자 지시로 내렸다(2026-09-16).**
+ * 자리에 「모바일 유일 지름길이라 없애지 마라」는 주석이 붙어 있었으나 근거가 사실과
+ * 달랐다. `/classbot/my-bots` 로 가는 길은 폭마다 이렇게 남는다(실측):
+ *  - **~767**: 헤더 햄버거 → `MobileDrawer` → `AppSidebar` 가 레일을 통째로, 글자까지 그린다.
+ *    (하단 탭 셋에는 원래 없었다 — `studentBottomTabs`.)
+ *  - **768~1023**: `AppSidebarRail` 이 `compact` 고정이라 **아이콘만** 뜬다. 링크는 살아
+ *    있지만 라벨이 `title=` 뿐이라, 터치 태블릿에서는 눌러 보기 전까지 이름이 안 보인다.
+ *    이 띠는 이 링크가 있을 때도 얇았고(링크는 목록 제목 옆 한 자리), 넓히는 일은 레일
+ *    쪽 별건이다 — **여기에 링크를 되돌려 때우지 마라.**
+ *  - **1024+**: 레일이 펼쳐져 「담은 봇」이 글자로 선다.
  */
 export default function ClassbotDiscoverPage() {
   return (
@@ -37,13 +48,6 @@ export default function ClassbotDiscoverPage() {
         detailHref={(botId) => `/classbot/discover/${botId}`}
         emptyDescription="선생님이 봇을 올리면 여기에 보여요. 지금 듣는 수업은 내 수업방에서 볼 수 있어요."
         showSelfAdd
-        /*
-          목록 제목 옆에 「담은 봇」 링크가 있었다. **사용자 지시로 내렸다**(2026-09-16).
-          내렸어도 담은 봇으로 가는 길은 남는다 — `/classbot/my-bots` 는 학생 레일
-          항목이고(`components/shell/nav-config.ts`), 폰에서는 헤더 햄버거 →
-          `MobileDrawer` 가 같은 레일을 통째로 그린다. 없어진 것은 이 화면에서의
-          한 탭 지름길이지 경로 자체가 아니다.
-        */
       />
     </div>
   );

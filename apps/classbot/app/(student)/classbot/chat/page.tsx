@@ -51,7 +51,7 @@ import {
   ChatBubbleFrame, ChatComposer, ChatDateDivider, ChatPendingBubble, ChatTypingDots,
   chatBubbleClass,
 } from '@/components/classbot/chat-transcript';
-import { EmptyState } from '@/components/classbot/empty-state';
+import { CenteredState, EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
@@ -243,27 +243,25 @@ function ClassbotChatPageInner() {
   // 참여·마켓 안내를 내밀면 「내 봇이 사라졌다」로 읽힌다. 다시 시도를 준다.
   if (!current && botsError) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
+      <CenteredState>
         <ReadErrorState onRetry={retryBots} />
-      </div>
+      </CenteredState>
     );
   }
 
   if (!current) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        {/* 가운데 정렬은 **세로만** 한다. `w-full` 이 없으면 flex 아이템이 글자 폭으로 줄어,
-            같은 `EmptyState` 인데도 봇 마켓의 빈 상태(블록으로 놓여 제 폭을 쓴다)보다
-            눈에 띄게 좁은 상자가 된다. 아래 안내문은 `items-center` 로 계속 가운데다. */}
-        <div className="flex w-full flex-col items-center gap-2">
+      <CenteredState>
+        {/* 열에 `items-center` 를 주지 않는다 — 세로 열에서 그건 다시 「글자 폭」이라
+            상자가 좁아진다(`CenteredState` 주석). 안내문만 `text-center` 로 가운데. */}
+        <div className="flex flex-col gap-2">
           <EmptyState
-            className="w-full"
             icon={Compass}
             title="아직 대화할 봇이 없어요"
             description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
             action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
           />
-          <p className="text-pullim-slate-500 text-2xs">
+          <p className="text-pullim-slate-500 text-2xs text-center">
             선생님께 참여 코드를 받았다면{' '}
             <Link
               href="/classbot"
@@ -275,7 +273,7 @@ function ClassbotChatPageInner() {
             </Link>
           </p>
         </div>
-      </div>
+      </CenteredState>
     );
   }
 

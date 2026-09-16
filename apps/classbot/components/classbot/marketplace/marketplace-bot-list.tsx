@@ -66,7 +66,20 @@ export function MarketplaceBotList({
 
   return (
     <section>
+      {/*
+        `description` 을 넘기지 않는다. 이 자리에 「선생님들이 직접 만들어 공유한 봇이에요.」가
+        있었는데 바로 위 제목 「공유된 봇 N개」가 이미 같은 말이었다 — 화면이 이미 말하는
+        부제는 적지 않는다(07 § 6.7). **되살리지 마라**: 학생·교사 두 셸이 이 한 벌을 쓰므로
+        여기 한 줄이 두 화면에 동시에 되풀이로 돌아온다. 교사 쪽 설명은 페이지 헤더가 든다
+        (`app/(teacher)/teacher/marketplace/page.tsx`).
+
+        부제가 빠지면서 정렬도 바뀐다. `SectionHeading` 은 `sm:items-end` 라 제목+부제(44px)와
+        44px 버튼을 밑선으로 맞췄는데, 이제 왼쪽이 제목 한 줄(20px)뿐이라 밑선에 맞추면 제목
+        위로 24px 빈 칸이 생긴다(실측: 48px→44px 행, 제목 offsetTop 0→24). 한 줄과 버튼은
+        가운데로 맞춘다.
+      */}
       <SectionHeading
+        className="sm:items-center"
         title={query.isPending || isSignedOut ? '공유된 봇' : `공유된 봇 ${bots.length}개`}
         action={headingAction}
       />
