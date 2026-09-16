@@ -1,22 +1,19 @@
 /**
  * 현재 사용자 해석기 — 도메인 신원의 단일 진입점.
  *
- * 신원 단일화 원칙(plan 2026-06-01):
- *  - `auth_users.id`(uuid) 가 정본. 가입 시 같은 id 로 도메인 `users` 행이 생성된다(BE).
- *  - 도메인 코드는 "현재 사용자"를 더 이상 mock `currentPersona`(student_001)로
- *    하드코딩하지 않고, 이 해석기를 통해 **로그인 세션**에서 가져온다.
- *  - 세션이 없으면 **개발용 신원 쿠키**(`lib/dev-identity.ts`)를 본다. prod 호스트가
- *    아닐 때만 유효하고, allowlist 안의 데모 사용자만 인정한다. 폴백 경로일 뿐
- *    **JWT 를 이기지 못한다.**
- *  - 그것도 없으면 `student_001`(서연, student) 로 폴백한다.
+ * 신원 단일화 원칙:
+ *  - 도메인 코드는 "현재 사용자"를 mock `currentPersona`(student_001)로 하드코딩하지 않고
+ *    이 해석기를 통해 얻는다.
+ *  - **client** 는 `useCurrentUser()`/`useCurrentUserId()` — 풀림 OS SSO 세션
+ *    (`auth-context` → pullim-api `/me` 쿠키)에서 온다.
+ *  - **서버(route handler)** 는 `getCurrentUserIdFromRequest(req)` — **개발용 신원 쿠키**
+ *    (`lib/dev-identity.ts`)를 보고, 없으면 `student_001`(서연, student) 로 폴백한다.
  *    데모 화면이 로그인 없이도 깨지지 않게 하기 위한 의도된 폴백이다.
  *
- * client 컴포넌트는 `useCurrentUser()`/`useCurrentUserId()` 를 쓴다.
- * 서버(route handler)는 `getCurrentUserIdFromRequest(req)` 로 JWT → 개발용 신원 쿠키
- * 순으로 id 를 얻는다.
+ * ⚠️ 두 쪽의 신원 출처가 다르다. 서버 쪽에 **production 신원이 없는** 이유는
+ * `getCurrentUserIdFromRequest` 주석에 적어 뒀다.
  */
 
-import { verifyAccessToken } from '@pullim-classbot/api-client/jwt-verify';
 import type { UserRole } from '@pullim-classbot/types';
 
 import { useAuth } from '@/lib/auth/auth-context';
@@ -32,10 +29,10 @@ export const DEMO_FALLBACK_USER_ID = currentPersona.id;
  * 이 앱 안에서만 쓰는 역할 union — `UserRole` 에 'parent' 를 더한 것.
  *
  * `packages/types` 의 `UserRole` 은 'student' | 'teacher' | 'admin' 이라 학부모가 없다.
- * 학부모 화면은 **이 앱에만** 있고 BE 인증(JWT claim)은 여전히 그 셋만 발급하므로,
+ * 학부모 화면은 **이 앱에만** 있고 공유 claim union 에도 'parent' 가 없으므로,
  * BE 와 공유하는 계약(`packages/*`)을 이 앱 사정으로 넓히지 않는다 —
  * 대신 여기서 넓힌 별칭을 두고 앱 경계 안에서만 쓴다.
- * (JWT 경로가 돌려주는 role 은 지금도 `UserRole` 뿐이다. 'parent' 는 개발용 신원 쿠키에서만 온다.)
+ * ('parent' 는 개발용 신원 쿠키에서만 온다.)
  */
 export type AppUserRole = UserRole | 'parent';
 
@@ -100,28 +97,31 @@ export function useCurrentUserId(): string {
 /**
  * 요청에서 현재 사용자 id 를 해석한다(서버 route handler 용).
  *
- * `Authorization: Bearer <access>` 의 토큰을 **서명까지 검증**(HS256, BE 와 공유하는
- * JWT_SECRET)한 뒤에만 claim(sub/role)을 신뢰한다. 디코드만 하면 공격자가 임의의
- * sub/role 을 넣은 self-signed 토큰으로 타인 명의·교사 권한을 위조할 수 있으므로,
- * 신원·역할 판정 경로는 반드시 서명 검증을 통과해야 한다.
+ * **개발 전용 신원 쿠키**(`lib/dev-identity.ts`)를 보고, 없으면 데모 폴백으로 본다.
+ * 쿠키는 prod 호스트가 아니고 allowlist 안의 id 일 때만 인정된다.
  *
- * 토큰이 없거나·서명/만료/형식 검증에 실패하면 **JWT 로는 인증되지 않는다** — 위조 토큰이
- * 신원을 얻는 경로는 여기에 없다.
+ * ── 이 경로에는 production 신원이 없다 ──────────────────────────────────────
+ * 인증·인가는 **pullim-os·pullim-api 가 소유한다.** OS 세션은 `Domain=.pullim.ai` HttpOnly
+ * access 쿠키이고 **pullim-api 가** 그것을 검증한다(ES256 · `JwtVerifyGuard`) — 클래스봇
+ * route handler 는 그 서명을 풀 열쇠가 없다. 개발 신원 쿠키는 prod 에서 항상 닫히므로,
+ * **prod 의 `/api/*` 는 익명이고 쓰기 가드는 401 을 준다.**
  *
- * 그다음에야 **개발용 신원 쿠키**(`lib/dev-identity.ts`)를 본다. prod 호스트가 아니고
- * allowlist 안의 id 일 때만 인정하는 별도 경로다. 위조 JWT 를 들고 왔더라도 그 토큰이
- * 신원이 되는 일은 없고, 쿠키가 있으면 **쿠키의** 데모 사용자가 될 뿐이다.
- * 둘 다 없으면 데모 폴백(student_001)으로 본다.
+ * prod 신원이 필요한 표면은 route handler 가 아니라 **정본 `api.pullim.ai/classbot/*`**
+ * (`lib/api/domain-fetch.ts`)다 — 서버가 쿠키에서 `sub` 를 파생한다.
+ *
+ * *(종전에는 `Authorization: Bearer` 토큰을 **서명까지 검증**(HS256, classbot BE 와 공유하는
+ * `JWT_SECRET`)해 claim 을 믿는 경로가 먼저 있었다. 그 토큰을 발급하던 주체가 클래스봇
+ * 자체 인증 BE 뿐이었고, 그것이 걷히며 검증 경로도 함께 걷혔다 — `05 § 11.1`.)*
  *
  * ── 플래그가 둘인 이유 ────────────────────────────────────────────────────
- * `isAuthenticated` 는 **실제 세션(JWT)** 하나만 가리킨다. 스펙이 세션을 JWT 로 고정하고
- * 매 요청 서명 검증을 요구하므로(spec 05 §311·be-api-design §255), 개발용 쿠키가 이 이름을
- * 얻으면 계약이 갈라진다 — client 훅(`useCurrentUser`)도 같은 쿠키를 `isAuthenticated: false`
- * 로 보기 때문에 서버만 true 로 두면 **같은 쿠키를 두 층이 반대로 부르는** 상태가 된다.
- *
  * 라우트가 실제로 물어야 하는 건 「인증됐나」가 아니라 **「이 요청을 그 사용자 명의로
- * 처리해도 되나」**다. 그 판정은 `isIdentified` 가 진다 — JWT 세션이거나, prod 가 아닌 곳의
- * allowlist 개발 신원. 데모 폴백은 둘 다 false 이므로 가드가 401 을 준다.
+ * 처리해도 되나」**다. 그 판정은 `isIdentified` 가 진다 — 가드가 보는 값도 그쪽이다
+ * (`app/api/_lib/guards.ts`). 데모 폴백은 false 이므로 가드가 401 을 준다.
+ *
+ * `isAuthenticated` 는 **실제 로그인 세션**만 가리키고 지금은 **늘 false** 다 — 위에서
+ * 적은 대로 이 경로가 세울 수 있는 세션이 없다. 이름을 남겨 둔 이유는 client 훅
+ * (`useCurrentUser`)이 같은 이름을 **OS 세션** 기준으로 쓰기 때문이다 — 서버만 이름을
+ * 바꾸면 같은 질문을 두 층이 다른 말로 부르게 된다. 이 값으로 분기하지 마라.
  *
  * @param req - Next.js Request
  * @returns { id, role, isAuthenticated, isIdentified }
@@ -129,24 +129,12 @@ export function useCurrentUserId(): string {
 export function getCurrentUserIdFromRequest(req: Request): {
   id: string;
   role: AppUserRole;
-  /** 실제 로그인 세션(JWT)인가 — 개발용 쿠키는 여기 들어오지 않는다. */
+  /** 실제 로그인 세션인가 — **늘 false**(위 주석). 이 값으로 분기하지 마라. */
   isAuthenticated: boolean;
-  /** 그 사용자 명의로 처리해도 되는가 — JWT 세션이거나 개발용 신원. 가드는 이 값을 본다. */
+  /** 그 사용자 명의로 처리해도 되는가 — 개발용 신원. 가드는 이 값을 본다. */
   isIdentified: boolean;
 } {
-  const header = req.headers.get('authorization') ?? req.headers.get('Authorization');
-  const token = header?.toLowerCase().startsWith('bearer ')
-    ? header.slice('bearer '.length).trim()
-    : null;
-  if (token) {
-    // 서명 secret 미설정 시 검증 불가 → 토큰을 신뢰하지 않는다(폴백).
-    const secret = process.env.JWT_SECRET ?? '';
-    const payload = verifyAccessToken(token, secret);
-    if (payload) {
-      return { id: payload.sub, role: payload.role, isAuthenticated: true, isIdentified: true };
-    }
-  }
-  // 개발 전용 폴백 — prod 호스트에서는 resolveDevIdentity 가 항상 null 이다.
+  // 개발 전용 — prod 호스트에서는 resolveDevIdentity 가 항상 null 이다.
   const dev = resolveDevIdentity(req.headers.get('cookie'), req.headers.get('host'));
   if (dev) {
     // 개발 신원은 **인증이 아니다** — 명의로 쓸 수 있을 뿐이다(위 주석).

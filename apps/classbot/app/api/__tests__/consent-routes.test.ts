@@ -20,9 +20,6 @@
  * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다. 실제 왕복(부여 →
  * 학부모 화면에 뜸 → 철회 → 사라짐 · 만료 · 남의 보호자)은 dev 서버에 curl 로 따로 확인했다.
  */
-import { createHmac } from 'node:crypto';
-
-import type { AccessTokenPayload } from '@pullim-classbot/types';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 // ── getDb mock — 이웃 라우트 테스트와 같은 thenable 체인 ──
@@ -127,12 +124,6 @@ import {
   weekStart,
 } from '@/app/api/_lib/self-study-summary';
 
-const SECRET = 'test-jwt-secret';
-
-beforeAll(() => {
-  process.env.JWT_SECRET = SECRET;
-});
-
 beforeEach(() => {
   selectFieldsSpy.mockClear();
   whereSpy.mockClear();
@@ -147,38 +138,30 @@ beforeEach(() => {
   mockInsertError = null;
 });
 
-function base64Url(input: string | Buffer): string {
-  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
+/**
+ * 개발용 신원이 인정되는 호스트 — `lib/dev-identity.ts` 허용 목록 안의 이름이다.
+ *
+ * **명시해야 한다.** `new Request(url)` 은 `Host` 헤더를 만들어 주지 않아
+ * `req.headers.get('host')` 가 `null` 이고, 신원 판정은 **모르면 닫는다**(fail-closed).
+ */
+const DEV_HOST = 'localhost:3032';
 
-function signToken(payload: Partial<AccessTokenPayload>): string {
-  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const p = base64Url(JSON.stringify(payload));
-  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
-  return `${h}.${p}.${sig}`;
-}
-
-/** 서명된 토큰을 실은 요청. */
-function req(
-  sub: string,
-  role: 'student' | 'teacher',
-  init: RequestInit = {},
-): Request {
-  const token = signToken({
-    sub,
-    email: `${sub}@example.com`,
-    role,
-    type: 'access',
-    jti: 'j1',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  });
+/**
+ * 개발용 신원 쿠키를 실은 요청.
+ *
+ * 역할은 **인자로 받지 않는다** — 쿠키 값(= allowlist 의 id)이 역할을 정하고, 그 위에서
+ * `resolveActor` 가 도메인 `users.role` 로 다시 판정한다. 종전 픽스처는 JWT claim 에
+ * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
+ * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
+ */
+function req(sub: string, init: RequestInit = {}): Request {
   return new Request('http://localhost/api/me/consents', {
     ...init,
-    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+    headers: {
+      cookie: `pullim_dev_identity=${sub}`,
+      host: DEV_HOST,
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -219,7 +202,7 @@ function render(sqlLike: unknown): { text: string; params: unknown[] } {
 
 /** 부여 본문을 실은 POST. */
 function grantReq(sub: string, body: Record<string, unknown>): Request {
-  return req(sub, 'student', {
+  return req(sub, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -266,7 +249,7 @@ describe('학부모 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', () =>
     ['학생', 'student'],
   ] as const)('%s 가 치면 막힌다', async (_label, role) => {
     mockSelectQueue = [[{ role }]]; // resolveActor 가 읽는 도메인 users.role
-    const res = await getSelfStudy(req('u1', role));
+    const res = await getSelfStudy(req('student_001'));
 
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
@@ -295,7 +278,7 @@ describe('학생 동의 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', (
     ['학부모', 'parent'],
   ] as const)('%s 명의로는 동의를 읽지 못한다', async (_label, role) => {
     mockSelectQueue = [[{ role }]];
-    const res = await getConsents(req('u1', 'teacher'));
+    const res = await getConsents(req('student_001'));
 
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
@@ -318,7 +301,7 @@ describe('학생 동의 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', (
     mockSelectQueue = [[{ role }], [{ id: 'parent_001', name: '어머니', relation: 'mother' }]];
 
     const res = await grantConsent(
-      grantReq('u1', { type: 'self_study_summary', scopeLabel: '계속' }),
+      grantReq('student_001', { type: 'self_study_summary', scopeLabel: '계속' }),
     );
 
     expect(res.status).toBe(403);
@@ -333,7 +316,7 @@ describe('학생 동의 라우트의 역할 게이트 — 403 FORBIDDEN_ROLE', (
     mockSelectQueue = [[{ role }]];
 
     const res = await revokeConsent(
-      req('u1', 'teacher', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
 
@@ -369,7 +352,7 @@ describe('자기주도 응답 모양 — 자녀는 전원, 게이트는 내용�
    */
   async function callAsParent(views: unknown[][] = [[], []]): Promise<Response> {
     mockSelectQueue = [[{ role: 'parent' }], LINKED, ...views];
-    return getSelfStudy(req('parent_001', 'student'));
+    return getSelfStudy(req('parent_001'));
   }
 
   it('자녀 목록 조회에 동의가 **없다** — 전원을 싣는다', async () => {
@@ -439,7 +422,7 @@ describe('자기주도 응답 모양 — 자녀는 전원, 게이트는 내용�
       [], // 민준: 봇 0 · 날 0
     ];
 
-    const res = await getSelfStudy(req('parent_001', 'student'));
+    const res = await getSelfStudy(req('parent_001'));
     const body = (await res.json()) as { children: Array<Record<string, unknown>> };
 
     expect(res.status).toBe(200);
@@ -508,7 +491,7 @@ describe('반·과제 축은 자녀 동의 뒤에 있다 — 이름은 주고 �
    */
   async function callAsParent(views: unknown[][] = [[], []]): Promise<Response> {
     mockSelectQueue = [[{ role: 'parent' }], LINKED, ...views];
-    return getChildren(req('parent_001', 'student'));
+    return getChildren(req('parent_001'));
   }
 
   it('반·과제 질의 **둘 다** 동의 술어를 지고 나간다 — 받는 사람·타입·철회·만료 전부', async () => {
@@ -566,7 +549,7 @@ describe('반·과제 축은 자녀 동의 뒤에 있다 — 이름은 주고 �
       [],
       [],
     ];
-    await getSelfStudy(req('parent_001', 'student'));
+    await getSelfStudy(req('parent_001'));
 
     for (const call of whereSpy.mock.calls.slice(-2)) {
       const where = render(call[0]);
@@ -602,7 +585,7 @@ describe('봇에서 내보내는 칸은 넷뿐 — 행을 그대로 흘리지 �
       [],
     ];
 
-    const res = await getSelfStudy(req('parent_001', 'student'));
+    const res = await getSelfStudy(req('parent_001'));
     const body = (await res.json()) as {
       children: Array<{ bots: Array<Record<string, unknown>> }>;
     };
@@ -790,7 +773,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     mockUpdateQueue = [[{ id: 'c1' }]];
 
     const res = await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
 
@@ -826,7 +809,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     mockUpdateQueue = [[{ id: 'c_dup_a' }, { id: 'c_dup_b' }]];
 
     const res = await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
 
@@ -855,7 +838,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     mockUpdateQueue = [[{ id: 'c_dup_a' }]];
 
     const res = await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
 
@@ -867,7 +850,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     // `livingConsent()` 를 쓰기 때문이다. 두 술어에서 그 조각이 같은지 직접 견준다.
     mockUpdateQueue = [[{ id: 'c1' }]];
     await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
     const revokeWhere = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]).text;
@@ -880,7 +863,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
       [],
       [],
     ];
-    await getSelfStudy(req('parent_001', 'student'));
+    await getSelfStudy(req('parent_001'));
     // 학부모 쪽 게이트는 **데이터 조회의 where** 다(조인이 아니다).
     const parentGate = render(whereSpy.mock.calls[whereSpy.mock.calls.length - 1][0]).text;
 
@@ -897,7 +880,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     mockUpdateQueue = [[]];
 
     const res = await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx('self_study_summary'),
     );
 
@@ -911,7 +894,7 @@ describe('철회 — 행을 지우지 않고 revoked_at 을 찍는다', () => {
     ['망가진 escape — 500 이 아니라 400', '%E0%A4%A'],
   ])('%s 는 400 이고 아무것도 고치지 않는다', async (_label, type) => {
     const res = await revokeConsent(
-      req('student_001', 'student', { method: 'DELETE' }),
+      req('student_001', { method: 'DELETE' }),
       ctx(type),
     );
 
@@ -929,7 +912,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
 
   it('조회 술어에 철회·만료 판정이 들어 있다', async () => {
     mockSelectQueue = [STUDENT, LINK, []];
-    const res = await getConsents(req('student_001', 'student'));
+    const res = await getConsents(req('student_001'));
 
     expect(res.status).toBe(200);
     // 마지막 where 가 동의 조회의 술어다(첫 번째는 링크 조회).
@@ -954,7 +937,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
       ],
     ];
 
-    const res = await getConsents(req('student_001', 'student'));
+    const res = await getConsents(req('student_001'));
     const body = (await res.json()) as { consents: Array<Record<string, unknown>> };
 
     expect(Object.keys(body.consents[0]).sort()).toEqual([
@@ -971,7 +954,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
   it('보호자는 이름·관계만 싣는다 — id 는 떼고 나간다', async () => {
     mockSelectQueue = [STUDENT, LINK, []];
 
-    const res = await getConsents(req('student_001', 'student'));
+    const res = await getConsents(req('student_001'));
     const body = (await res.json()) as { parent: Record<string, unknown> | null };
 
     expect(body.parent).toEqual({ name: '어머니', relation: 'mother' });
@@ -981,7 +964,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
 
   it('⛔ 받는 사람으로 좁히지 않는다 — 학생이 못 끄는 살아 있는 권한을 만들지 않기 위해', async () => {
     mockSelectQueue = [STUDENT, LINK, []];
-    await getConsents(req('student_001', 'student'));
+    await getConsents(req('student_001'));
 
     /*
       한 번 `parent_id = <지금 보호자>` 로 좁혔다가 되돌린 자리다. 좁히면 옛 보호자에게
@@ -1018,7 +1001,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
       ],
     ];
 
-    const res = await getConsents(req('student_001', 'student'));
+    const res = await getConsents(req('student_001'));
     const body = (await res.json()) as {
       parent: { name: string } | null;
       consents: Array<{ type: string; toCurrentParent: boolean }>;
@@ -1054,7 +1037,7 @@ describe('내 동의 목록 — 살아 있는 것만', () => {
       ],
     ];
 
-    const res = await getConsents(req('s2', 'student'));
+    const res = await getConsents(req('s2'));
     const body = (await res.json()) as {
       parent: unknown;
       consents: Array<{ toCurrentParent: boolean }>;
