@@ -2,7 +2,7 @@
   "name": "@pullim-classbot/api-client",
   "version": "0.0.1",
   "private": true,
-  "description": "FE에서 classbot BE(/api/auth/*) 호출용 fetch 래퍼 + 토큰 매니저.",
+  "description": "같은 오리진 /api/* 호출의 공용 조각 — ApiError 와 토큰 매니저.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
