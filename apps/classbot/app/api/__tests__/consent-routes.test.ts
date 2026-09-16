@@ -663,7 +663,7 @@ describe('부여 — 받는 사람도 기한도 본문이 정하지 않는다', 
     expect(lockWhere.params).toContain('student_001');
   });
 
-  it('parent_id 는 링크에서 읽는다 — 명의는 토큰 주인이다', async () => {
+  it('parent_id 는 링크에서 읽는다 — 명의는 신원 주인이다', async () => {
     mockSelectQueue = [STUDENT, [{ id: 'parent_001', name: '어머니', relation: 'mother' }], LOCK];
     mockInsertQueue = [
       [

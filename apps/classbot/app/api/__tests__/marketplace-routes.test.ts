@@ -136,12 +136,16 @@ beforeEach(() => {
  * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
  * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
  */
-function req(sub: string, init: RequestInit = {}): Request {
+function req(
+  sub: string,
+  init: RequestInit = {},
+  host: string | null = DEV_HOST,
+): Request {
   return new Request('http://localhost/api/x', {
     ...init,
     headers: {
       cookie: `pullim_dev_identity=${sub}`,
-      host: DEV_HOST,
+      ...(host === null ? {} : { host }),
       ...(init.headers ?? {}),
     },
   });
@@ -158,17 +162,11 @@ function req(sub: string, init: RequestInit = {}): Request {
 const DEV_HOST = 'localhost:3032';
 
 /**
- * 개발용 신원 쿠키를 실은 요청.
- * 학부모는 JWT claim 에 없는 역할(`UserRole` 은 student/teacher/admin)이라
- * 토큰으로는 만들 수 없다 — 마켓의 「역할 무관」을 학부모로 확인하려면 이 경로뿐이다.
+ * 호스트를 바꿔 가며 보는 GET 픽스처 — 신원 판정이 **호스트에 걸린다**는 것을 확인한다
+ * (`host: null` = Host 헤더 없음 · prod 호스트 = 닫힘). 본문이 필요하면 `req` 를 쓴다.
  */
 function cookieReq(identity: string, host: string | null = DEV_HOST): Request {
-  return new Request('http://localhost/api/x', {
-    headers: {
-      cookie: `pullim_dev_identity=${identity}`,
-      ...(host === null ? {} : { host }),
-    },
-  });
+  return req(identity, {}, host);
 }
 
 /** 신원이 아예 없는 요청. */

@@ -17,10 +17,51 @@
  * 그래서 **모든 케이스가 쿠키·호스트 상태를 명시**한다.
  * RBAC 쓰기 가드(/api/chat, /api/teacher/bots)의 신원 토대다.
  */
+import { createHmac } from "node:crypto";
+
 import {
   DEMO_FALLBACK_USER_ID,
   getCurrentUserIdFromRequest,
 } from "@/lib/current-user";
+
+/**
+ * HS256 서명 토큰 — **걷힌 검증 경로를 되살리면 통과할** 토큰을 만들기 위해 남긴다.
+ *
+ * 무효 서명으로는 회귀를 잡지 못한다: 검증 코드를 되돌려도 그 토큰은 거부되어 결국
+ * 같은 폴백으로 떨어지므로 테스트가 그대로 통과한다. 그래서 **종전 코드가 실제로 믿었을**
+ * 서명(같은 `JWT_SECRET`, `type:"access"`, 미만료)을 만들어 그것조차 신원이 안 됨을 본다.
+ */
+const SECRET = "test-jwt-secret";
+
+beforeAll(() => {
+  // 종전 코드는 secret 이 비면 검증을 건너뛰었다 — 비워 두면 잠금이 헛돈다.
+  process.env.JWT_SECRET = SECRET;
+});
+
+function base64Url(input: string | Buffer): string {
+  return (typeof input === "string" ? Buffer.from(input, "utf-8") : input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function signToken(payload: Record<string, unknown>): string {
+  const h = base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const p = base64Url(JSON.stringify(payload));
+  const sig = base64Url(createHmac("sha256", SECRET).update(`${h}.${p}`).digest());
+  return `${h}.${p}.${sig}`;
+}
+
+/** 종전 검증 경로가 통과시켰을 토큰 — sub/role 을 주장한다. */
+const VALID_SIGNED = signToken({
+  sub: "attacker",
+  email: "x@x.com",
+  role: "teacher",
+  type: "access",
+  jti: "jlock",
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
 
 const LOCAL_HOST = "localhost:3032";
 const PROD_HOST = "classbot.pullim.ai";
@@ -67,10 +108,52 @@ describe("getCurrentUserIdFromRequest", () => {
   그래서 헤더로 명의를 주장하는 길은 **없어야 한다.** 아래가 그것을 못 박는다.
 */
 describe("getCurrentUserIdFromRequest — Authorization 헤더는 신원이 되지 못한다", () => {
-  /** 토큰처럼 생긴 문자열 — 서명은 아무 의미가 없다(검증하는 코드가 없다). */
+  /** 형식만 토큰인 문자열 — 서명이 무효라 이것만으로는 회귀를 못 잡는다(아래 VALID_SIGNED 가 잡는다). */
   const TOKEN_SHAPED =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
     "eyJzdWIiOiJhdHRhY2tlciIsInJvbGUiOiJ0ZWFjaGVyIn0.c2ln";
+
+  it("**유효하게 서명된** access 토큰조차 신원이 되지 못한다 — 이것이 회귀 잠금이다", () => {
+    /*
+      종전 코드(`verifyAccessToken(token, process.env.JWT_SECRET)`)를 그대로 되살리면
+      이 토큰은 **검증을 통과해** { id:"attacker", role:"teacher", isAuthenticated:true }
+      를 만든다. 그래서 이 단정이 깨진다 — 되살리는 사람이 그것을 보게 된다.
+      무효 서명 토큰으로는 이 회귀가 안 잡힌다(거부되어 같은 폴백으로 떨어지므로).
+    */
+    const result = getCurrentUserIdFromRequest(
+      requestWith({ authorization: `Bearer ${VALID_SIGNED}`, host: LOCAL_HOST }),
+    );
+    expect(result).toEqual({
+      id: DEMO_FALLBACK_USER_ID,
+      role: "student",
+      isAuthenticated: false,
+      isIdentified: false,
+    });
+  });
+
+  it("유효 서명 토큰 + 쿠키면 쿠키 쪽 사용자다 — 토큰의 teacher 주장은 무시된다", () => {
+    const result = getCurrentUserIdFromRequest(
+      requestWith({
+        authorization: `Bearer ${VALID_SIGNED}`,
+        devIdentity: "s2",
+        host: LOCAL_HOST,
+      }),
+    );
+    expect(result).toEqual({
+      id: "s2",
+      role: "student",
+      isAuthenticated: false,
+      isIdentified: true,
+    });
+  });
+
+  it("유효 서명 토큰도 prod 호스트의 닫힘을 열지 못한다", () => {
+    const result = getCurrentUserIdFromRequest(
+      requestWith({ authorization: `Bearer ${VALID_SIGNED}`, host: PROD_HOST }),
+    );
+    expect(result.isIdentified).toBe(false);
+    expect(result.id).toBe(DEMO_FALLBACK_USER_ID);
+  });
 
   it("Bearer 토큰만 있으면 데모 폴백이다 — sub·role 을 주장해도 반영되지 않는다", () => {
     const result = getCurrentUserIdFromRequest(
@@ -117,6 +200,7 @@ describe("getCurrentUserIdFromRequest — Authorization 헤더는 신원이 되�
       requestWith({ host: LOCAL_HOST }),
       requestWith({ devIdentity: "teacher_001", host: LOCAL_HOST }),
       requestWith({ authorization: `Bearer ${TOKEN_SHAPED}`, host: LOCAL_HOST }),
+      requestWith({ authorization: `Bearer ${VALID_SIGNED}`, host: LOCAL_HOST }),
     ]) {
       expect(getCurrentUserIdFromRequest(req).isAuthenticated).toBe(false);
     }

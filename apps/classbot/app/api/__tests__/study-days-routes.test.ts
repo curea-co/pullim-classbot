@@ -142,7 +142,7 @@ function anonReq(init: RequestInit = {}): Request {
  * `resolveActor` 가 읽는 도메인 `users.role` 한 줄 — **select 큐의 맨 앞**이다.
  * 역할 게이트가 붙으면서 세 경로 전부 이 조회를 먼저 한다.
  *
- * 큐를 비워 두면 `resolveActor` 는 **토큰 claim 의 role 로 떨어진다**(도메인 행이 아직
+ * 큐를 비워 두면 `resolveActor` 는 **쿠키 신원의 role 로 떨어진다**(도메인 행이 아직
  * 없는 가입 직후 — `app/api/_lib/guards.ts`). 아래 테스트 중 이 줄을 안 넣은 것들은
  * `req(..., 'student')` 의 claim 으로 통과하는, 그 폴백 경로를 함께 지나간다.
  */
@@ -301,7 +301,7 @@ describe('미인증은 401 — 세 경로 모두', () => {
 });
 
 describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
-  it('POST 는 토큰 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
+  it('POST 는 신원 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
     mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
@@ -320,7 +320,7 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
     });
   });
 
-  it('백필도 토큰 주인으로 쓴다', async () => {
+  it('백필도 신원 주인으로 쓴다', async () => {
     mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
@@ -336,7 +336,7 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
     ]);
   });
 
-  it('GET 은 내 행만 — 조회 술어에 토큰 주인이 들어간다', async () => {
+  it('GET 은 내 행만 — 조회 술어에 신원 주인이 들어간다', async () => {
     mockSelectQueue = [actorRow('student'), []];
 
     await getStudyDays(req('s2'));
@@ -612,23 +612,25 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
-  it('학부모 신원도 403 — 토큰에 없는 역할이라 도메인 users 행으로만 갈린다', async () => {
+  it('학부모 행은 403 — 쿠키 신원이 student 여도 도메인 users 행이 갈린다', async () => {
     mockSelectQueue = [actorRow('parent')];
 
-    // 토큰 claim 은 student 다(공유 UserRole 에 parent 가 없다).
+    // 쿠키 신원은 **student** 다. 행만 parent — 둘이 갈려야 「행이 권위」가 증명된다.
     const res = await recordStudyDay(
-      req('parent_001', { method: 'POST' }),
+      req('student_001', { method: 'POST' }),
     );
 
     expect(res.status).toBe(403);
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
-  it('역할의 권위는 **도메인 users.role** — 토큰이 student 라도 그 행이 teacher 면 막힌다', async () => {
+  it('역할의 권위는 **도메인 users.role** — 쿠키 신원이 student 라도 그 행이 teacher 면 막힌다', async () => {
     mockSelectQueue = [actorRow('teacher')];
 
+    // 쿠키 신원은 student_001(역할 student) — 통과해야 할 역할이다.
+    // 그런데 users 행이 teacher 라 막힌다. 쿠키 쪽을 믿으면 이 단정이 깨진다.
     const res = await recordStudyDay(
-      req('teacher_001', { method: 'POST' }),
+      req('student_001', { method: 'POST' }),
     );
 
     expect(res.status).toBe(403);

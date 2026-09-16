@@ -4,7 +4,7 @@
  * 담은 봇 라우트 단위 테스트 (자기주도 계약 §2).
  *
  * 여기서 지키려는 것 다섯:
- *  1. **명의는 신원에서만** — 본문에 `studentId` 를 실어도 쓰기·조회 술어에는 토큰의
+ *  1. **명의는 신원에서만** — 본문에 `studentId` 를 실어도 쓰기·조회 술어에는 신원의
  *     주인이 들어간다. 남의 목록에 봇을 밀어 넣는 경로가 없다는 것이 이 라우트의 전부다.
  *  2. **멱등 담기** — 같은 봇을 두 번 담으면 201 이 아니라 **200**, 그리고 `addedAt` 은
  *     처음 담은 시각 그대로다(재시도가 목록 순서를 흔들면 안 된다).
@@ -12,7 +12,7 @@
  *     자리에서 화면이 빨개진다.
  *  4. **학생만** — 자기주도는 역할이 아니라 학생의 하위 컨텍스트다(dual-mode spec §1·§7).
  *     교사·학부모 신원은 세 메서드 모두 403 이고, 역할의 권위는 **도메인 `users.role`**
- *     이라 토큰 claim 이 student 라도 그 행이 teacher 면 막힌다.
+ *     이라 쿠키 신원이 student 라도 그 행이 teacher 면 막힌다.
  *  5. **담기는 마켓과 같은 조건을 본다** — 술어에 `is_published` 가 들어간다. 미게시 봇은
  *     없는 봇과 **똑같이 404** 라, 「그 id 의 봇이 있긴 하다」가 응답에 남지 않는다.
  *
@@ -179,7 +179,7 @@ describe('미인증은 401 — 세 메서드 모두', () => {
 });
 
 describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
-  it('POST 는 토큰 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
+  it('POST 는 신원 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
     mockSelectQueue = [actorRow('student'), publishedBotRow('cb_001')];
     mockInsertQueue = [[{ botId: 'cb_001', addedAt: new Date('2026-09-03T00:00:00Z') }]];
 
@@ -195,7 +195,7 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
     expect(insertValuesSpy).toHaveBeenCalledWith({ botId: 'cb_001', studentId: 's2' });
   });
 
-  it('GET 은 내 행만 — 조회 술어에 토큰 주인이 들어간다', async () => {
+  it('GET 은 내 행만 — 조회 술어에 신원 주인이 들어간다', async () => {
     mockSelectQueue = [actorRow('student'), []];
 
     await getSelfBots(req('s2'));
@@ -430,12 +430,12 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     expect(deleteWhereSpy).not.toHaveBeenCalled();
   });
 
-  it('학부모 신원도 403 — 토큰에 없는 역할이라 도메인 users 행으로만 갈린다', async () => {
+  it('학부모 행은 403 — 쿠키 신원이 student 여도 도메인 users 행이 갈린다', async () => {
     mockSelectQueue = [actorRow('parent')];
 
     const res = await addSelfBot(
-      // 토큰 claim 은 student 다(공유 UserRole 에 parent 가 없다).
-      req('parent_001', {
+      // 쿠키 신원은 **student** 다. 행만 parent — 둘이 갈려야 「행이 권위」가 증명된다.
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ botId: 'cb_001' }),
       }),
@@ -445,11 +445,13 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
-  it('역할의 권위는 **도메인 users.role** — 토큰이 student 라도 그 행이 teacher 면 막힌다', async () => {
+  it('역할의 권위는 **도메인 users.role** — 쿠키 신원이 student 라도 그 행이 teacher 면 막힌다', async () => {
     mockSelectQueue = [actorRow('teacher')];
 
     const res = await addSelfBot(
-      req('teacher_001', {
+      // 쿠키 신원은 student_001(역할 student) — 통과해야 할 역할이다.
+      // 그런데 users 행이 teacher 라 막힌다. 쿠키 쪽을 믿으면 이 단정이 깨진다.
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ botId: 'cb_001' }),
       }),
