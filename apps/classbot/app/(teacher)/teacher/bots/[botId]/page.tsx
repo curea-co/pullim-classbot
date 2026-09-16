@@ -35,7 +35,7 @@ type SearchParams = Promise<{ tab?: string }>;
  *  - **갈린다**: 헤더가 읽는 정체와 기본 안전 등급, 그리고 **안전 등급 시간대 스케줄** —
  *    가운데 두 칸(방과 후·저녁)이 이 봇의 기본 등급을 따라간다(`getSafetySchedule`).
  *    한 벌짜리 상수였을 때 L4 봇의 머리 배지와 아래 L1~L5 표가 서로 다른 말을 했다.
- *  - **아직 한 벌이다**: 이탈 대응 강도와 알림 기준. 데모 기본값을 모든 봇이 같이 본다
+ *  - **아직 한 벌이다**: 시험 기간 덮어쓰기 · 이탈 대응 강도 · 알림 기준. 데모 기본값을 모든 봇이 같이 본다
  *    (`lib/mock/classbot-bot-policy.ts` 주석).
  */
 export default async function TeacherBotSettingsPage({
