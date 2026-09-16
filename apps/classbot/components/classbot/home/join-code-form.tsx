@@ -4,24 +4,21 @@ import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useJoinByCode } from '@/hooks/api/classroom';
-import { ApiClientError } from '@/lib/api/client-fetch';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { joinFailureMessage, useJoinByCode } from '@/hooks/api/classroom';
 import { cn } from '@/lib/utils';
 
 /**
  * 참여 코드 입력 한 벌 — 홈 hero(남색 면)와 「내 수업방」 카드(흰 면)가 같이 쓴다.
  *
- * 참여는 **실 API**(`POST /api/enrollments`, `useJoinByCode`)가 먼저다. 선생님이 발급한
- * 코드는 DB(`join_codes`)에만 있으므로 예전 mock 표(`CODE_MAP`)로는 영영 안 풀린다.
+ * 참여는 pullim-api 정본 하나다(`POST /classbot/enrollments`, `useJoinByCode`). 선생님이 발급한 코드는
+ * 그 서버의 `join_codes` 에만 있다.
  *
- * 다만 서버가 **모르는 코드(404)**·**신원이 없어 막은 경우(401)** 에는 예전 경로
- * (스토어의 `join()` → mock `resolveClassCode` → localStorage)로 한 번 더 시도한다.
- * 스토어를 **직접** 부른다 — `joinClass()` 는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로
- * 가고 그쪽 4xx 를 실패로 전파하므로, 그 경로를 타면 데모 코드가 통째로 막힌다.
- * 데모 코드 `MATH-2024`·`ENG-2024`·`SCI-2024` 가 그 자리다 — prod 회귀 자동화
- * (`tests/e2e/helpers.ts` 의 `joinDemoClass`)가 로그인 없이 그 코드로 들어가고,
- * 그 경로가 사라지면 prod-verify 가 통째로 깨진다.
+ * **실패는 실패로 보인다.** 종전에는 서버가 404·401 을 주면 예전 mock 표(`MATH-2024` 등)로 한 번 더
+ * 풀어 성공처럼 보였다 — 2026-09-16 계획 §01 R2 가 「서버가 401·404 를 주면 목 참여로 조용히 갈아탄다.
+ * 실패가 성공처럼 보인다」로 짚은 자리다. 그 폴백을 걷었고(결정 ②·§07), 서버가 가른 뜻은
+ * `joinFailureMessage` 가 그대로 말한다 — 없는 코드 · 닫힌 코드 · 이미 들어와 있음.
+ * 데모 코드로 반에 들어가던 prod 회귀 자동화(`tests/e2e/helpers.ts` `joinDemoClass`)는 로그인 레인으로
+ * 옮겨 간다(계획 PR 4-ci).
  */
 export type JoinCodeFormTone = 'dark' | 'light';
 
@@ -49,6 +46,14 @@ const skin = {
   },
 } as const;
 
+/** 성공 토스트 한 줄 — 반 이름을 못 읽었으면 이름 없이 말한다(참여는 이미 됐다). */
+export function joinSuccessMessage(className: string | null, alreadyJoined: boolean): string {
+  if (alreadyJoined) {
+    return className ? `이미 들어와 있는 반이에요 — ${className}` : '이미 들어와 있는 반이에요.';
+  }
+  return className ? `${className}에 들어왔어요!` : '수업방에 들어왔어요!';
+}
+
 /**
  * 참여 코드를 받아 수업방에 들어간다.
  * @param tone - 놓이는 면(기본 light)
@@ -67,45 +72,13 @@ export function JoinCodeForm({ tone = 'light', onJoined }: Props) {
       return;
     }
 
-    const succeed = (label: string, teacher: string, already: boolean) => {
-      toast.success(
-        already
-          ? `이미 참여한 반이에요 — ${label}`
-          : `${teacher}의 ${label}에 참여했어요!`,
-      );
-      setCode('');
-      onJoined?.();
-    };
-
     try {
       const res = await join.mutateAsync({ code: raw });
-      succeed(res.enrollment.classroomLabel, res.enrollment.assignedBy, res.alreadyJoined);
-      return;
+      toast.success(joinSuccessMessage(res.className, res.alreadyJoined));
+      setCode('');
+      onJoined?.();
     } catch (error) {
-      const apiError = error instanceof ApiClientError ? error : null;
-
-      // 서버가 모르는 코드(404)이거나 신원이 없어 막힌 경우(401)만 예전 데모 경로로 한 번 더.
-      // 403·409·5xx 는 서버가 뜻을 갖고 거절한 것이라 mock 성공으로 가장하지 않는다.
-      if (apiError && (apiError.status === 401 || apiError.status === 404)) {
-        // **스토어의 mock 참여를 직접 부른다** — `joinClass()` 를 쓰지 않는다.
-        // 그 함수는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로 가고 그쪽 4xx 를 실패로
-        // 전파한다(mock 폴백은 5xx·네트워크 실패에만 준다). 여기 도착한 요청은 방금
-        // 같은 오리진 라우트가 401·404 로 거절한 것이라, 또 다른 BE 에 물어봐도 답이 같다 —
-        // 그리고 그 경로를 타면 플래그가 켜진 환경에서 `MATH-2024` 같은 데모 코드가
-        // 통째로 막혀 prod-verify 가 깨진다. 이 자리가 원하는 것은 **mock 해석** 하나다.
-        const legacy = useClassEnrollmentStore.getState().join(raw);
-        if (legacy.ok) {
-          succeed(legacy.enrollment.classroomLabel, legacy.enrollment.assignedBy, false);
-          return;
-        }
-        // 신원이 없어 막힌 것이면 「로그인이 필요합니다」보다 데모 경로의 문구가 맞는 말이다.
-        if (apiError.status === 401) {
-          toast.error(legacy.error);
-          return;
-        }
-      }
-
-      toast.error(apiError ? apiError.message : '참여하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      toast.error(joinFailureMessage(error));
     }
   };
 
@@ -118,7 +91,7 @@ export function JoinCodeForm({ tone = 'light', onJoined }: Props) {
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => e.key === 'Enter' && void handleJoin()}
-          placeholder="참여 코드 입력 (예: ABC-123)"
+          placeholder="참여 코드 입력 (예: AB3K9M)"
           aria-label="참여 코드 입력"
           maxLength={12}
           className={cn(

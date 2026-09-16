@@ -1,70 +1,44 @@
+/**
+ * class-enrollment — 계획 PR 4 뒤에 남은 것: 로컬 방의 목록과 나가기.
+ * 데모 코드 `join`·`resolveClassCode`·카탈로그 브리지 `useMyClassBots` 는 호출부와 함께 걷혔다
+ * (스토어 머리주석). 참여는 `hooks/api/classroom.ts` 의 정본 훅이 진다.
+ */
 import { renderHook, act } from '@testing-library/react';
-import { useClassEnrollmentStore, useClassEnrollments, useMyClassBots } from '../class-enrollment';
-import { resolveClassCode } from '@/lib/mock/class-codes';
+import { useClassEnrollmentStore, useClassEnrollments } from '../class-enrollment';
+import { CODE_MAP } from '@/lib/mock/class-codes';
+
+const MATH = CODE_MAP['MATH-2024'];
+const ENG = CODE_MAP['ENG-2024'];
 
 beforeEach(() => useClassEnrollmentStore.setState({ enrollments: [] }));
 
-describe('resolveClassCode', () => {
-  it('resolves a known code to an enrollment (case-insensitive, trimmed)', () => {
-    const e = resolveClassCode('  math-2024 ');
-    expect(e).not.toBeNull();
-    expect(e!.botId).toBe('cb_001');
-    expect(e!.assignedBy).toBe('김보람 선생님');
-    expect(e!.classroomLabel).toBeTruthy();
-  });
-
-  it('returns null for an unknown code', () => {
-    expect(resolveClassCode('NOPE-9999')).toBeNull();
-    expect(resolveClassCode('')).toBeNull();
-  });
-});
-
-describe('useClassEnrollmentStore.join / leave', () => {
-  it('join with a valid code adds an enrollment and returns ok', () => {
+describe('useClassEnrollmentStore.leave', () => {
+  it('removes the enrollment for a botId and keeps the others', () => {
     const s = () => useClassEnrollmentStore.getState();
-    let res: { ok: boolean } | undefined;
-    act(() => { res = s().join('MATH-2024'); });
-    expect(res!.ok).toBe(true);
-    expect(s().enrollments).toHaveLength(1);
-    expect(s().enrollments[0].botId).toBe('cb_001');
+    act(() => useClassEnrollmentStore.setState({ enrollments: [MATH, ENG] }));
+
+    act(() => s().leave('cb_001'));
+
+    expect(s().enrollments.map((e) => e.botId)).toEqual(['cb_002']);
   });
 
-  it('join is idempotent for the same class', () => {
+  it('is a no-op for an unknown botId', () => {
     const s = () => useClassEnrollmentStore.getState();
-    act(() => { s().join('MATH-2024'); s().join('math-2024'); });
-    expect(s().enrollments.filter(e => e.botId === 'cb_001')).toHaveLength(1);
-  });
+    act(() => useClassEnrollmentStore.setState({ enrollments: [MATH] }));
 
-  it('join with an unknown code returns an error and adds nothing', () => {
-    const s = () => useClassEnrollmentStore.getState();
-    let res: { ok: boolean; error?: string } | undefined;
-    act(() => { res = s().join('NOPE-9999'); });
-    expect(res!.ok).toBe(false);
-    expect(res!.error).toBeTruthy();
-    expect(s().enrollments).toHaveLength(0);
-  });
+    act(() => s().leave('cb_999'));
 
-  it('leave removes the enrollment for a botId', () => {
-    const s = () => useClassEnrollmentStore.getState();
-    act(() => { s().join('MATH-2024'); });
-    act(() => { s().leave('cb_001'); });
-    expect(s().enrollments).toHaveLength(0);
+    expect(s().enrollments).toEqual([MATH]);
   });
 });
 
 describe('selectors', () => {
-  it('useClassEnrollments + useMyClassBots reflect the store', () => {
-    const { result: empty } = renderHook(() => useMyClassBots());
-    expect(empty.current).toHaveLength(0);
+  it('useClassEnrollments reflects the store', () => {
+    const { result } = renderHook(() => useClassEnrollments());
+    expect(result.current).toHaveLength(0);
 
-    act(() => { useClassEnrollmentStore.getState().join('ENG-2024'); });
+    act(() => useClassEnrollmentStore.setState({ enrollments: [ENG] }));
 
-    const { result: bots } = renderHook(() => useMyClassBots());
-    expect(bots.current).toHaveLength(1);
-    expect(bots.current[0].bot.id).toBe('cb_002');
-    expect(bots.current[0].enrollment.botId).toBe('cb_002');
-
-    const { result: enrollments } = renderHook(() => useClassEnrollments());
-    expect(enrollments.current.map(e => e.botId)).toContain('cb_002');
+    expect(result.current.map((e) => e.botId)).toEqual(['cb_002']);
   });
 });

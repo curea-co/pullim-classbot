@@ -180,6 +180,7 @@ export function ChatComposer({
   onSubmit,
   placeholder,
   disabled = false,
+  inputDisabled = false,
   leading,
   textareaRef,
   onKeyDown,
@@ -189,7 +190,13 @@ export function ChatComposer({
   onValueChange: (next: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   placeholder: string;
+  /** 보내기 버튼만 잠근다(빈 입력·전송 중). 입력은 계속 받는다. */
   disabled?: boolean;
+  /**
+   * 입력칸까지 잠근다 — 갈 곳이 없는 레인(담은 봇 챗, `app/(student)/classbot/chat/chat-lane.ts`).
+   * `disabled` 와 갈라 둔 이유: 전송 중에는 다음 말을 미리 적어 둘 수 있어야 해서 입력칸은 열어 둔다.
+   */
+  inputDisabled?: boolean;
   leading?: ReactNode;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -212,6 +219,8 @@ export function ChatComposer({
         }}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
+        disabled={inputDisabled}
+        aria-disabled={inputDisabled || undefined}
         style={{ maxHeight: `${CHAT_TEXTAREA_MAX_PX}px` }}
         className="border-pullim-slate-200 focus-visible:border-pullim-blue-400 flex-1 resize-none rounded-2xl border px-3.5 py-2.5 text-base leading-relaxed outline-none"
       />

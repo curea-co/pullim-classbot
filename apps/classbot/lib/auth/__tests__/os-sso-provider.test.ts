@@ -1,4 +1,4 @@
-import { OsSsoAuthProvider } from '@/lib/auth/os-sso-provider';
+import { mapRole, OsSsoAuthProvider } from '@/lib/auth/os-sso-provider';
 import { API_BASE } from '@/lib/auth/os-sso';
 
 function jsonRes(status: number, body: unknown): Response {
@@ -35,24 +35,67 @@ describe('OsSsoAuthProvider', () => {
     });
   });
 
-  it('getSession: globalRole=admin → admin, 그 외 도메인 role(parent) → student', async () => {
+  it('getSession: globalRole=admin → admin · parent·institution 은 그대로(학생으로 위장하지 않는다 — 계획 결정 ⑥)', async () => {
     global.fetch = jest
       .fn()
       .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'd', role: 'student', globalRole: 'admin' }))
-      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'd', role: 'parent', globalRole: 'user' })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'd', role: 'parent', globalRole: 'user' }))
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'd', role: 'institution', globalRole: 'user' })) as unknown as typeof fetch;
 
     expect((await new OsSsoAuthProvider().getSession())?.role).toBe('admin');
-    expect((await new OsSsoAuthProvider().getSession())?.role).toBe('student');
+    expect((await new OsSsoAuthProvider().getSession())?.role).toBe('parent');
+    expect((await new OsSsoAuthProvider().getSession())?.role).toBe('institution');
   });
 
-  it('getSession: 401 → null (미로그인)', async () => {
+  it('mapRole: OS 역할 넷은 그대로, admin 이 우선, 낯선 값은 student(가장 좁은 화면)', () => {
+    expect(mapRole('student', 'user')).toBe('student');
+    expect(mapRole('teacher', 'user')).toBe('teacher');
+    expect(mapRole('parent', 'user')).toBe('parent');
+    expect(mapRole('institution', 'user')).toBe('institution');
+    expect(mapRole('teacher', 'admin')).toBe('admin');
+    expect(mapRole('unknown', 'user')).toBe('student');
+  });
+
+  it('getSession: 401 → null (미로그인) · lastFailure=unauthenticated', async () => {
     global.fetch = jest.fn().mockResolvedValue(jsonRes(401, {})) as unknown as typeof fetch;
-    expect(await new OsSsoAuthProvider().getSession()).toBeNull();
+    const provider = new OsSsoAuthProvider();
+    expect(await provider.getSession()).toBeNull();
+    expect(provider.lastFailure).toBe('unauthenticated');
   });
 
-  it('getSession: 네트워크 오류 → null (fail-closed)', async () => {
+  it('getSession: 네트워크 오류 → null (fail-closed) · lastFailure=unavailable — 비로그인으로 접지 않는다', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
-    expect(await new OsSsoAuthProvider().getSession()).toBeNull();
+    const provider = new OsSsoAuthProvider();
+    expect(await provider.getSession()).toBeNull();
+    expect(provider.lastFailure).toBe('unavailable');
+  });
+
+  it('getSession: 5xx·그 밖의 비200 도 unavailable — CORS 미등록 dev 배포의 왕복을 막는 자리(리뷰 #350)', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonRes(503, {}))
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'd', role: 'student', globalRole: 'user' }))
+      .mockResolvedValueOnce(jsonRes(401, {})) as unknown as typeof fetch;
+    const provider = new OsSsoAuthProvider();
+
+    expect(await provider.getSession()).toBeNull();
+    expect(provider.lastFailure).toBe('unavailable');
+    // 200 이 오면 실패 이유가 지워진다.
+    expect((await provider.getSession())?.id).toBe('u');
+    expect(provider.lastFailure).toBeNull();
+    // 그 뒤 401 은 확정 비로그인.
+    expect(await provider.getSession()).toBeNull();
+    expect(provider.lastFailure).toBe('unauthenticated');
+  });
+
+  it('signOut 뒤의 null 은 비로그인이다 — unavailable 이 아니다', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonRes(200, { csrfToken: 'c' }))
+      .mockResolvedValueOnce(jsonRes(204, {})) as unknown as typeof fetch;
+    const provider = new OsSsoAuthProvider();
+    await provider.signOut();
+    expect(provider.lastFailure).toBe('unauthenticated');
   });
 
   it('signOut: GET /auth/csrf 토큰을 받아 POST /auth/logout 에 X-CSRF-Token 동봉', async () => {

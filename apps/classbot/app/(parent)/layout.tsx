@@ -1,29 +1,34 @@
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/shell/app-shell';
 import { RoleGuard } from '@/components/features/auth/role-guard';
-import type { UserRole } from '@pullim-classbot/types';
 
 /**
  * 학부모 라우트 그룹의 셸 — `(teacher)/layout.tsx` 와 같은 모양.
  *
- * ⚠️ 역할 union 이 둘로 갈려 있다:
+ * ⚠️ **이 트리는 지금 비활성이다 — 아무도 들어오지 못한다.** 2026-09-16 계획 §10 해소 2:
+ * 「결정 ①·②·⑥ 을 합치면 학부모 화면에 아무도 못 들어간다 — 받아들인다. `app/(parent)` 세 화면과
+ * 서버 라우트 둘은 『학부모 별건 PR 까지 비활성』으로 05 § 11.2 에 적는다.」
+ *  - 비로그인 → RoleGuard 가 OS 로그인으로 보낸다(결정 ②). 종전의 데모 통과 분기는 걷혔다.
+ *  - 로그인 학부모(`/me` role=parent) → RoleGuard 가 「클래스봇은 학생과 선생님이 쓰는 곳」 안내로
+ *    보낸다(결정 ⑥ — `mapRole` 이 이제 parent 를 student 로 내리지 않는다).
+ *  - 학생·교사 → 역할 불일치라 본인 홈으로.
+ * 개발용 신원 쿠키로 들어오던 길(`lib/dev-identity.ts`)도 화면 쪽에서는 닫혔다 — 그 쿠키는
+ * 이제 `/api/*` route handler 의 명의로만 남고, 은퇴 대상이다(PR 8).
+ *
+ * 화면과 라우트는 **지우지 않는다.** 실제 학부모를 여는 일은 별건 승인 사항이고, 그때 필요한 것은
+ * `packages/types` 의 claim union(`UserRole`)을 넓히는 일과 자녀 동의(05 § 11.4) 게이트다 —
+ * 이 트리의 내용은 그대로 그 PR 의 출발점이다(`proc/spec/03 § 2.3`).
+ *
+ * 역할 union 이 둘로 갈려 있는 것은 그대로다:
  *  - `components/shell` 의 `Role` = student | teacher | **parent** (이 앱의 화면 역할)
  *  - `packages/types` 의 `UserRole` = student | teacher | **admin** (BE 와 공유하는 인증 계약)
- * BE 설계 spec 의 `users.role` 에는 'parent' 가 있다(2026-05-18 §73). 갈린 것은 **인증 claim
- * union** 쪽이고, 그걸 넓히는 것은 `packages/types` 변경이라 이 앱 사정으로 할 수 없다
- * (packages/ 는 apps 양쪽 영향 — 별건 승인 사항). 그래서 경계 한 곳에서만 캐스팅한다.
- *
- * ⚠️ 그래서 **지금 이 화면에 들어올 수 있는 것은 개발용 신원 쿠키(또는 비로그인 데모)뿐이다.**
- *  - 비로그인(데모·개발용 신원 쿠키) → RoleGuard 통과 (`user === null`).
- *  - 로그인 세션 → claim 의 role 이 'parent' 일 수 없어 항상 불일치 → 본인 홈으로 되돌아간다.
- *    OS SSO 도 지금은 학부모를 'student' 로 내린다(`lib/auth/os-sso-provider.ts` — 그 주석의
- *    전제였던 「대응 라우트 없음」은 이 시리즈로 해소됐다).
- * 실제 로그인 학부모에게 이 화면을 열려면 `packages/types` 의 claim union 과 SSO 매핑을
- * 함께 넓히는 **별도 PR** 이 선행해야 한다. 그 전까지 이 라우트는 개발·데모 전용이다.
+ * 이 앱은 `AppUserRole`(`lib/auth/app-user-role.ts`)로 그 사이를 잇고, 캐스팅은
+ * `lib/auth/os-sso-provider.ts` 한 곳에만 있다 — 종전에 이 파일에 있던 `'parent' as UserRole` 은
+ * RoleGuard 의 prop 이 `AppUserRole` 이 되면서 필요가 없어졌다.
  */
 export default function ParentLayout({ children }: { children: ReactNode }) {
   return (
-    <RoleGuard requiredRole={'parent' as UserRole}>
+    <RoleGuard requiredRole="parent">
       <AppShell role="parent">{children}</AppShell>
     </RoleGuard>
   );

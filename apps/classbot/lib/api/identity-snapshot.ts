@@ -12,14 +12,13 @@
 
 /**
  * 스냅샷 사용자의 최소 형태 — `AuthUser`({ id, email, role }) 가 그대로 대입 가능하도록
- * 구조적으로 느슨하게 둔다. `name` 은 OS `/me` 의 displayName(OsSsoAuthProvider 가 동봉)
- * — me/sync 표시명(없으면 email 폴백)에 쓰인다.
+ * 구조적으로 느슨하게 둔다. `name` 은 OS `/me` 의 displayName(OsSsoAuthProvider 가 동봉).
  */
 export interface SsoIdentityUser {
-  /** OS 세션 sub (raw uuid) — `x-user-id` 명의. */
+  /** OS 세션 sub (raw uuid) — 캐시 키로만 쓴다. 요청 명의는 쿠키가 진다(FE 는 id 를 보내지 않는다). */
   id: string;
   email: string;
-  /** student|teacher|admin — me/sync body 의 role. */
+  /** `AppUserRole`(student·teacher·admin·parent·institution) — 여기서는 갈라 읽지 않아 string 으로 둔다. */
   role: string;
   /** OS `/me` displayName. */
   name?: string;
@@ -27,13 +26,13 @@ export interface SsoIdentityUser {
 
 let sessionUser: SsoIdentityUser | null = null;
 
-/** 스냅샷 변경 구독자 — useSyncUserId 재동기화 트리거용. */
+/** 스냅샷 변경 구독자 — `useSyncExternalStore` 어댑터가 재렌더 트리거로 쓴다. */
 const listeners = new Set<() => void>();
 
 /**
  * auth-context → domain-fetch 세션 사용자 publish (얇은 배선).
- * 로그인/세션 복원 시 AuthUser, 로그아웃 시 null. publish 자체는 인증 모드와 무관하게
- * 항상 안전하다 — 소비 측(domain-fetch)이 `USE_REAL_CORE_BE` 로 게이트한다.
+ * 로그인/세션 복원 시 AuthUser, 로그아웃 시 null. publish 자체는 언제나 안전하다 —
+ * 소비 측(domain-fetch `currentSessionUserId`)은 이 값을 캐시 키로만 읽고 요청 명의로는 쓰지 않는다.
  * @param user - 세션 사용자 (미로그인 null)
  */
 export function setDomainIdentitySnapshot(user: SsoIdentityUser | null): void {

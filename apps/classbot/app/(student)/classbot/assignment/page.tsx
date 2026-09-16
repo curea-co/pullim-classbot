@@ -139,7 +139,10 @@ function AssignmentListBody({
         bot: {
           id: a.botId,
           subject: meta?.subject ?? a.subject,
-          label: meta?.name ?? a.assignedBy,
+          // 반 봇 이름이 먼저다. 정본 행에는 교사 표시명이 없어 `assignedBy` 가 빈 값으로 온다
+          // (`use-assignment-reads.ts` 머리주석 · pullim-api PR 2 members 조인 전) — 그때의 「선생님」은
+          // 여기 화면의 폴백이고, 카드도 같은 라벨을 받아 한 화면이 두 말을 하지 않는다.
+          label: meta?.name || a.assignedBy || '선생님',
         },
         items: [a],
       });
@@ -237,14 +240,14 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
         </div>
       </header>
       <ul className="grid gap-2 sm:grid-cols-2">
-        {items.map(a => <AssignmentCard key={a.id} assignment={a} />)}
+        {items.map(a => <AssignmentCard key={a.id} assignment={a} botLabel={bot.label} />)}
       </ul>
     </section>
   );
 }
 
 /* ─── Assignment Card ─── */
-function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
+function AssignmentCard({ assignment: a, botLabel }: { assignment: AssignmentReadRow; botLabel: string }) {
   const m = modeMeta[a.mode];
   const Icon = m.icon;
   // getAssignmentVisual 은 mode/dDay/state 만 읽는다 — read row 와 호환.
@@ -264,7 +267,8 @@ function AssignmentCard({ assignment: a }: { assignment: AssignmentReadRow }) {
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-2xs">
-              <span className="text-pullim-slate-500 font-bold">{a.assignedBy}</span>
+              {/* 그룹 머리줄과 같은 라벨 — 봇 이름 → 교사 표시명 → 「선생님」(위 그룹 조립 주석). */}
+              <span className="text-pullim-slate-500 font-bold">{botLabel}</span>
               <span className="text-pullim-slate-300">·</span>
               <span className="text-pullim-slate-500">{a.assignedAtLabel}</span>
               <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', visual.dDayChipClass)}>
