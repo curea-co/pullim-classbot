@@ -47,6 +47,8 @@ export async function GET(req: Request): Promise<NextResponse> {
       teacherName: classBots.teacherName,
       organization: classBots.organization,
       publishedAt: classBots.publishedAt,
+      // 공식 봇 판별에만 쓰고 응답에서는 뺀다 — 아래 조립부 참조.
+      teacherId: classBots.teacherId,
     })
     .from(classBots)
     .where(eq(classBots.isPublished, true))
@@ -69,10 +71,14 @@ export async function GET(req: Request): Promise<NextResponse> {
     .groupBy(enrollments.botId);
   const countByBot = new Map(countRows.map((r) => [r.botId, r.count]));
 
-  const bots: MarketplaceBotItem[] = rows.map((row) => ({
+  // `teacherId` 를 여기서 떼어 낸다 — **판별에만 쓰고 내보내지 않는다.** 마켓은 둘러보는
+  // 곳이라 소유자 id 를 실을 자리가 아니고, 「소유자가 없는 봇 = 풀림 공식 봇」이라는
+  // 판별(spec `03 § 4.13.1`)은 컬럼을 새로 두지 않고 이 한 줄로 파생한다.
+  const bots: MarketplaceBotItem[] = rows.map(({ teacherId, ...row }) => ({
     ...row,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     enrolledCount: countByBot.get(row.botId) ?? 0,
+    isOfficial: teacherId === null,
   }));
 
   return NextResponse.json({ bots });

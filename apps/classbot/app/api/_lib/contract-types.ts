@@ -332,6 +332,18 @@ export interface MarketplaceBotItem {
   publishedAt: string | null;
   /** 지금 이 봇에 참여 중인 학생 수(`enrollments` 실측). */
   enrolledCount: number;
+  /**
+   * 풀림이 제공하는 기본 봇인가 (spec `03 § 4.13.1`).
+   *
+   * **컬럼이 아니라 파생이다** — 「소유자가 없는 봇(`class_bots.teacher_id IS NULL`)
+   * = 풀림 공식 봇」을 라우트가 계산해 채운다. 새 컬럼을 두면 소유자 유무와 이 값이
+   * 서로 어긋날 수 있는데, 파생이면 어긋날 자리 자체가 없다.
+   *
+   * 판별의 근거인 `teacherId` 는 **응답에 싣지 않는다** — 마켓은 둘러보는 곳이지
+   * 소유자 id 를 내보내는 자리가 아니다. 카드가 「누구의 봇인가」로 쓰는 것은
+   * `teacherName` · `organization` 이고, 공식 봇은 그 자리를 배지로 대신한다.
+   */
+  isOfficial: boolean;
 }
 
 /** `GET /api/marketplace/bots` 응답. */

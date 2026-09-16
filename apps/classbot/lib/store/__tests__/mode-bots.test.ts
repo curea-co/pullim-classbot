@@ -83,6 +83,7 @@ const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
   organization: '풀림 마켓',
   publishedAt: '2026-09-01T00:00:00.000Z',
   enrolledCount: 3,
+  isOfficial: false, // 교사가 공유한 봇. 공식 봇은 소유자가 없는 쪽이다
 });
 
 /**

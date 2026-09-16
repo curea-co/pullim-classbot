@@ -48,6 +48,8 @@ export async function GET(
       teacherName: classBots.teacherName,
       organization: classBots.organization,
       publishedAt: classBots.publishedAt,
+      // 공식 봇 판별에만 쓰고 응답에서는 뺀다 — 아래 조립부 참조.
+      teacherId: classBots.teacherId,
     })
     .from(classBots)
     .where(and(eq(classBots.id, botId), eq(classBots.isPublished, true)))
@@ -61,10 +63,13 @@ export async function GET(
     .from(enrollments)
     .where(eq(enrollments.botId, botId));
 
+  // 목록과 같다 — `teacherId` 는 판별에만 쓰고 떼어 낸다(까닭은 목록 라우트 조립부 주석).
+  const { teacherId, ...rest } = row;
   const bot: MarketplaceBotItem = {
-    ...row,
+    ...rest,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     enrolledCount: countRow?.count ?? 0,
+    isOfficial: teacherId === null,
   };
 
   return NextResponse.json({ bot });
