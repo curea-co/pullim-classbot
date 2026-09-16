@@ -2,8 +2,9 @@
  * 담은 봇(source='self') 챗은 닫힌 레인이다(`../chat-lane.ts` · 리뷰 #350 Must 1).
  *
  * 화면 전체를 올려 본다 — 보는 것은 셋: 잠긴 봇에는 기록(`fetchChatHistory`)도 전송(`streamChat`)도
- * 나가지 않고, 입력칸·보내기·빠른 칩이 잠기며 안내 한 줄이 서는 것 · 반 봇은 종전대로 기록을 읽고
+ * 나가지 않고, 입력칸·보내기·빠른 칩이 잠기며 안내 한 줄이 서는 것 · 반 칸은 종전대로 기록을 읽고
  * 입력칸이 열리는 것 · 선택기에서 담은 봇으로 갈아타면 그 순간 잠기는 것.
+ * 기록을 읽는 단위는 **반 id** 다(계획 PR 5a · 해소 3) — 봇 id 가 아니다. 반 단위 자체는 `class-unit.test.tsx`.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
@@ -36,6 +37,12 @@ import { classBots } from '@/lib/mock/classbot';
 
 const CLASS_BOT = classBots[0];
 const SELF_BOT = classBots[1];
+/** 반 id — 봇 id 와 **다르게** 둔다. 기록·전송이 어느 id 로 나가는지 갈려 보여야 한다. */
+const CLASS_ID = 'cls_math_a';
+
+const classSlot = (): StudentBotsResult['slots'][number] =>
+  ({ source: 'class', bot: CLASS_BOT, classId: CLASS_ID, classLabel: '중2 수학 A반' });
+const selfSlot = (): StudentBotsResult['slots'][number] => ({ source: 'self', bot: SELF_BOT });
 
 function bots(slots: StudentBotsResult['slots']): StudentBotsResult {
   return {
@@ -73,7 +80,7 @@ describe('chatLaneFor', () => {
 
 describe('담은 봇만 있을 때', () => {
   beforeEach(() => {
-    studentBots = bots([{ bot: SELF_BOT, source: 'self' }]);
+    studentBots = bots([selfSlot()]);
   });
 
   it('기록을 읽지 않고, 입력칸·보내기·빠른 칩을 잠근 채 안내 한 줄을 세운다', async () => {
@@ -100,32 +107,30 @@ describe('담은 봇만 있을 때', () => {
   });
 });
 
-describe('반 봇만 있을 때', () => {
+describe('반 칸만 있을 때', () => {
   beforeEach(() => {
-    studentBots = bots([{ bot: CLASS_BOT, source: 'class' }]);
+    studentBots = bots([classSlot()]);
   });
 
-  it('종전대로 기록을 읽고 입력칸이 열린다 — 안내는 없다', async () => {
+  it('종전대로 기록을 읽고 입력칸이 열린다 — 안내는 없다. 기록은 반 id 로 읽는다', async () => {
     render(<ClassbotChatPage />);
 
-    await waitFor(() => expect(fetchChatHistory).toHaveBeenCalledWith(CLASS_BOT.id));
+    await waitFor(() => expect(fetchChatHistory).toHaveBeenCalledWith(CLASS_ID));
+    expect(fetchChatHistory).not.toHaveBeenCalledWith(CLASS_BOT.id);
     expect(textarea()).not.toBeDisabled();
     expect(screen.queryByText(SELF_BOT_CHAT_LOCKED_NOTICE)).toBeNull();
     expect(quickChips().length).toBeGreaterThan(0);
   });
 });
 
-describe('반 봇과 담은 봇이 함께 있을 때', () => {
+describe('반 칸과 담은 봇이 함께 있을 때', () => {
   beforeEach(() => {
-    studentBots = bots([
-      { bot: CLASS_BOT, source: 'class' },
-      { bot: SELF_BOT, source: 'self' },
-    ]);
+    studentBots = bots([classSlot(), selfSlot()]);
   });
 
   it('담은 봇은 선택기에 그대로 보이고, 고르면 그 순간 잠긴다 — 그 봇의 기록은 읽지 않는다', async () => {
     render(<ClassbotChatPage />);
-    await waitFor(() => expect(fetchChatHistory).toHaveBeenCalledWith(CLASS_BOT.id));
+    await waitFor(() => expect(fetchChatHistory).toHaveBeenCalledWith(CLASS_ID));
     expect(screen.queryByText(SELF_BOT_CHAT_LOCKED_NOTICE)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: `${SELF_BOT.name} — 내가 담은 봇` }));

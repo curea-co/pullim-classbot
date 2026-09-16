@@ -11,11 +11,14 @@
  * 지웠기 때문이다. `USE_REAL_CORE_BE` 플래그로 켜던 정본 동기화 레인도 같은 이유로 없다.
  *
  * 남은 것과 남은 이유:
- *  - `enrollments` — 하이드레이션 게이트(`useStoresHydrated(useClassEnrollmentStore)`) 여섯 곳과
+ *  - `enrollments` — 하이드레이션 게이트(`useStoresHydrated(useClassEnrollmentStore)`)를 세운 화면들과
  *    받은 과제 목록의 데모 필터(`app/(student)/classbot/assignment/page.tsx`)가 읽는다.
+ *    **봇 대화는 더 읽지 않는다** — 챗이 반을 고르게 되면서(계획 PR 5a · 해소 3) 그 게이트를 걷었다.
  *  - `leave` — 내 수업방의 「나가기」(`app/(student)/classbot/classroom/page.tsx`). 로컬 방(`source='local'`)
- *    에만 붙는데 그 방은 더 만들어지지 않는다 — 서버 탈퇴 문과 함께 PR 5 가 정리한다.
- * 이 persist 의 은퇴는 챗이 반을 고르게 되는 PR 5 다(계획 §07 「class-enrollment persist」).
+ *    에만 붙는데 그 방은 더 만들어지지 않는다 — 서버 탈퇴 문과 함께 정리한다.
+ *  - 셀렉터 `useClassEnrollments` 는 부르는 곳이 자기 테스트뿐이라 PR 5a 가 걷었다(#350 리뷰 지적) —
+ *    필요하면 `useClassEnrollmentStore((s) => s.enrollments)` 를 그 자리에서 쓴다.
+ * 이 persist 의 은퇴는 남은 소비자(과제 필터 · 웰빙 · 홈)가 정본으로 옮겨 간 뒤다(계획 §07 「class-enrollment persist」).
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -37,8 +40,3 @@ export const useClassEnrollmentStore = create<ClassEnrollmentStore>()(
     { name: 'pullim-class-enrollment' },
   ),
 );
-
-/** 참여 중인 enrollment 목록 (reactive). */
-export function useClassEnrollments(): StudentEnrollment[] {
-  return useClassEnrollmentStore((s) => s.enrollments);
-}

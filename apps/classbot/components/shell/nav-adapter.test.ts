@@ -32,6 +32,29 @@ describe("nav-adapter", () => {
     expect(items.find((i) => i.href === "/")?.active).toBe(true);
     expect(items.some((i) => i.href === "/classbot/chat")).toBe(true);
   });
+  /*
+    결정 ④(2026-09-16 · nav-config): 「봇 대화」는 「내 수업방」 아래 한 단계다. PUDS `OsRail` 은 행마다
+    여백을 달리 줄 수 없어 어댑터가 평탄화하며 **부모 바로 뒤에 depth 1 로** 세운다 — 여기서 빠지면
+    배포 레일에서 「봇 대화」가 통째로 사라진다(`app-shell.tsx` 가 이 목록을 그대로 그린다).
+  */
+  it("student rail nests 봇 대화 right under 내 수업방 as a depth-1 row, others depth 0", () => {
+    const items = railSectionsForRole("student", "/classbot").flatMap((s) => s.items);
+    expect(items.map((i) => [i.href, i.depth])).toEqual([
+      ["/", 0],
+      ["/classbot/classroom", 0],
+      ["/classbot/chat", 1],
+      ["/classbot/assignment", 0],
+      ["/classbot/my-bots", 0],
+      ["/classbot/discover", 0],
+      ["/classbot/me/progress", 0],
+      ["/classbot/onboarding", 0],
+    ]);
+    // 들여쓴 행만 아이콘 앞에 빈 칸을 달고 있다 — 낭독기에는 안 들리는(aria-hidden) 여백이다.
+    const nested = items.find((i) => i.href === "/classbot/chat");
+    const flat = items.find((i) => i.href === "/classbot/classroom");
+    expect(JSON.stringify(nested?.icon)).toContain('"aria-hidden":true');
+    expect(JSON.stringify(flat?.icon)).not.toContain('"aria-hidden":true');
+  });
   // 내 정보(/classbot/me) 는 nav 비노출 — 프로필 메뉴 전용 진입점.
   it("student rail exposes 학습 기록 but not /classbot/me", () => {
     const items = railSectionsForRole("student", "/classbot/me/progress").flatMap((s) => s.items);

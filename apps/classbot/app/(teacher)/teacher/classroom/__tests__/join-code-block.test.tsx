@@ -1,55 +1,125 @@
 /**
- * 참여 코드 상자 — **수명이 화면에 제대로 서는지.**
+ * 참여 코드 상자 — **낸 코드가 그 자리에 서고, 수명이 제대로 읽히는지.**
  *
- * 이 칸이 틀리면 교사가 죽은 코드를 학생에게 불러 준다. 서버는 이미 그 코드를 410 으로
- * 거절하는데 화면만 아직 모르는 상태가 제일 나쁘다 — 학생은 못 들어오고 교사는 이유를 모른다.
+ * 정본 카드에는 코드가 없어 이 상자는 「새로 내기」로만 채워진다. 이 칸이 틀리면 교사가 없는 코드를 부르거나
+ * 죽은 코드를 학생에게 불러 준다. 옛 코드가 죽는다는 말은 **하지 않는다** — 정본이 그렇게 하지 않기 때문이다
+ * (`join-code-block.tsx` 머리주석 · 완성 설계 § 5 R1).
  */
 
-import { render, screen } from '@testing-library/react';
-import { JoinCodeBlock } from '../join-code-block';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { ApiError } from '@pullim-classbot/api-client';
+import type { JoinCodeDto } from '@/lib/api/classbot-dto';
+import { JoinCodeBlock, issueFailureMessage } from '../join-code-block';
 
+type Handlers = { onSuccess: (dto: JoinCodeDto) => void; onError: (e: unknown) => void };
+/** 다음 `mutate` 가 무엇으로 끝나는지 — 테스트가 갈아 끼운다. */
+let outcome: { dto: JoinCodeDto } | { error: unknown } = { dto: issued() };
+const mutate = jest.fn((_vars: { classId: string }, handlers: Handlers) => {
+  if ('dto' in outcome) handlers.onSuccess(outcome.dto);
+  else handlers.onError(outcome.error);
+});
 jest.mock('@/hooks/api/classroom', () => ({
-  useIssueJoinCode: () => ({ mutate: jest.fn(), isPending: false }),
+  useIssueJoinCode: () => ({ mutate, isPending: false }),
 }));
 
+const toastSuccess = jest.fn();
+const toastError = jest.fn();
+jest.mock('sonner', () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}));
+
+function issued(expiresAt?: string | null): JoinCodeDto {
+  return {
+    id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z',
+    ...(expiresAt === undefined ? {} : { expiresAt }),
+  };
+}
+
 const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+const issueButton = () => screen.getByTestId('join-code-issue');
 
-describe('JoinCodeBlock — 수명', () => {
-  it('살아 있는 코드는 언제까지 쓸 수 있는지 말하고 복사를 연다', () => {
-    render(<JoinCodeBlock classroomId="cr_1" code="ABC123" expiresAt={hoursFromNow(5)} />);
+beforeEach(() => {
+  outcome = { dto: issued() };
+  mutate.mockClear();
+  toastSuccess.mockClear();
+  toastError.mockClear();
+});
 
-    expect(screen.getByTestId('join-code-life')).toHaveTextContent('쓸 수 있어요');
+describe('JoinCodeBlock — 새로 내기', () => {
+  it('처음에는 코드가 없고 안내 한 줄과 「참여 코드 새로 내기」만 있다 — 옛 코드의 운명은 말하지 않는다', () => {
+    render(<JoinCodeBlock classId="cls_1" />);
+
+    expect(screen.getByTestId('join-code-hint')).toBeInTheDocument();
+    expect(screen.queryByTestId('join-code')).toBeNull();
+    expect(issueButton()).toHaveTextContent('참여 코드 새로 내기');
+    expect(screen.queryByText(/못 써요/)).toBeNull();
+  });
+
+  it('누르면 그 반 id 로 내고, 돌아온 코드를 하이픈 표기로 크게 보이며 복사를 연다', () => {
+    render(<JoinCodeBlock classId="cls_1" />);
+
+    fireEvent.click(issueButton());
+
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(mutate.mock.calls[0][0]).toEqual({ classId: 'cls_1' });
+    expect(screen.getByTestId('join-code')).toHaveTextContent('AB3-K9M');
     expect(screen.getByTestId('join-code-copy')).toBeInTheDocument();
+    expect(screen.queryByTestId('join-code-hint')).toBeNull();
+    expect(toastSuccess).toHaveBeenCalledWith('새 참여 코드를 냈어요', { description: 'AB3-K9M' });
+  });
+
+  it('정본이 만료를 보내지 않는 지금은 수명을 말하지 않는다', () => {
+    render(<JoinCodeBlock classId="cls_1" />);
+    fireEvent.click(issueButton());
+
+    expect(screen.queryByTestId('join-code-life')).toBeNull();
     expect(screen.getByTestId('join-code')).not.toHaveClass('line-through');
   });
 
-  it('닫힌 코드는 물리고 복사를 닫는다 — 지우지는 않는다', () => {
-    /*
-      지우면 교사가 「내가 뭘 나눠 줬더라」를 잃고, 그대로 두면 아직 쓸 수 있는 것처럼 보인다.
-      그래서 회색 + 취소선이고, 복사 버튼만 사라진다(넣어도 안 열리는 코드라서).
-    */
-    render(<JoinCodeBlock classroomId="cr_1" code="ABC123" expiresAt={hoursFromNow(-1)} />);
+  it('만료(expiresAt)가 오면 언제까지 쓸 수 있는지 말한다', () => {
+    outcome = { dto: issued(hoursFromNow(5)) };
+    render(<JoinCodeBlock classId="cls_1" />);
+    fireEvent.click(issueButton());
+
+    expect(screen.getByTestId('join-code-life')).toHaveTextContent('쓸 수 있어요');
+    expect(screen.getByTestId('join-code-copy')).toBeInTheDocument();
+  });
+
+  it('이미 닫힌 코드는 물리고 복사를 닫는다 — 지우지는 않는다', () => {
+    outcome = { dto: issued(hoursFromNow(-1)) };
+    render(<JoinCodeBlock classId="cls_1" />);
+    fireEvent.click(issueButton());
 
     expect(screen.getByTestId('join-code-life')).toHaveTextContent('기간이 지나 닫혔어요');
     expect(screen.queryByTestId('join-code-copy')).toBeNull();
     expect(screen.getByTestId('join-code')).toHaveClass('line-through');
-    // 코드는 여전히 읽힌다.
-    expect(screen.getByTestId('join-code')).toHaveTextContent('ABC-123');
+    expect(screen.getByTestId('join-code')).toHaveTextContent('AB3-K9M');
   });
 
-  it('닫힐 시각이 없는 옛 코드에는 아무 말도 붙이지 않는다', () => {
-    // 「계속 열려 있어요」라고 적으면 그게 정상 상태로 읽히는데, 사실은 만료가 생기기 전에
-    // 나간 행이라 곧 사라질 상태다.
-    render(<JoinCodeBlock classroomId="cr_1" code="ABC123" expiresAt={null} />);
+  it('남의 반(403)은 코드를 지어내지 않고 그 뜻을 말한다', () => {
+    outcome = { error: new ApiError('forbidden', 403) };
+    render(<JoinCodeBlock classId="cls_1" />);
+    fireEvent.click(issueButton());
 
-    expect(screen.queryByTestId('join-code-life')).toBeNull();
-    expect(screen.getByTestId('join-code-copy')).toBeInTheDocument();
+    expect(screen.queryByTestId('join-code')).toBeNull();
+    expect(toastError).toHaveBeenCalledWith('이 반의 운영 교사만 코드를 낼 수 있어요.');
+  });
+});
+
+describe('issueFailureMessage', () => {
+  it.each([
+    [401, '로그인이 필요해요.'],
+    [403, '이 반의 운영 교사만 코드를 낼 수 있어요.'],
+    [404, '반을 찾을 수 없어요.'],
+    [500, '코드를 내지 못했어요. 잠시 후 다시 시도해 주세요.'],
+  ])('%s → %s', (status, message) => {
+    expect(issueFailureMessage(new ApiError('x', status))).toBe(message);
   });
 
-  it('코드가 아직 없으면 수명도 말하지 않는다', () => {
-    render(<JoinCodeBlock classroomId="cr_1" code={null} expiresAt={null} />);
-
-    expect(screen.queryByTestId('join-code-life')).toBeNull();
-    expect(screen.getByText(/아직 코드가 없어요/)).toBeInTheDocument();
+  it('ApiError 가 아니면(네트워크) 일반 실패', () => {
+    expect(issueFailureMessage(new Error('offline'))).toBe('코드를 내지 못했어요. 잠시 후 다시 시도해 주세요.');
   });
 });

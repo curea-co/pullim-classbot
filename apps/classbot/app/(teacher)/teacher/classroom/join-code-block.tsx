@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { Copy, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIssueJoinCode } from '@/hooks/api/classroom';
+import { statusOf } from '@/lib/api/classbot-client';
+import type { JoinCodeDto } from '@/lib/api/classbot-dto';
 // 표기 규칙의 주인. `lib/join-code.ts` 를 부르지 않는 이유는 그 파일이 코드 **발급**까지
 // 소유해서 `node:crypto` 와 Drizzle 스키마를 함께 끌고 오기 때문이다 — client 컴포넌트가
 // 그걸 import 하면 DB 스키마가 통째로 브라우저 번들에 실린다.
@@ -12,38 +14,56 @@ import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
 import { cn } from '@/lib/utils';
 
 /**
- * 참여 코드 한 덩어리 — 이 화면의 주인공이다.
+ * 참여 코드 한 덩어리 — 반 카드·반 상세의 주인공이다.
  *
- * 교사가 여기서 하는 일은 셋뿐이다: **읽어서 부르기 · 복사하기 · 다시 내기**.
+ * 교사가 여기서 하는 일은 셋뿐이다: **새로 내기 · 읽어서 부르기 · 복사하기**.
  * 그래서 코드는 카드 안 다른 어떤 글자보다 크고, 복사 버튼은 코드 바로 옆에 붙는다.
  *
- * 저장된 코드는 하이픈이 없는 대문자 6자이고 하이픈은 **표시할 때만** 붙는다
- * (계약 §5, `lib/join-code.ts`). 복사도 보이는 그대로(`ABC-123`)를 담는다 —
- * 학생 입력이 대문자화·하이픈 제거로 정규화되므로 어느 쪽을 붙여 넣어도 같은 코드로 모인다.
- * 학생에게 불러 주는 글자와 붙여 넣는 글자가 다르면 그게 더 헷갈린다.
+ * **정본 카드에는 코드가 실리지 않는다**(`GET /bots?role=teacher` · `operator-class.ts`). 코드는 낼 때만
+ * 돌아오므로(`POST /classes/:classId/join-codes` · `useIssueJoinCode`) 이 상자는 **이 화면에서 마지막으로 낸
+ * 코드**만 든다 — 새로 고치면 비고, 그건 잃은 것이 아니라 「다시 내면 된다」다. 옛 코드는 학생 손에 있다.
  *
- * 코드 다시 내기는 **되돌릴 수 없다** — 새 코드가 나오는 순간 옛 코드는 못 쓴다.
- * 그래서 한 번에 실행하지 않고 그 사실을 먼저 말한 뒤 한 번 더 누르게 한다.
+ * 종전(같은 오리진) 판은 「새 코드를 내면 지금 코드는 그 자리에서 못 써요」라고 한 번 더 물었다. **그 말은 정본에
+ * 맞지 않아 걷었다** — pullim-api `createJoinCode()` 는 저장만 하고 옛 코드를 지우지 않는다(완성 설계 § 5 R1 ·
+ * 「반 하나에 살아 있는 코드는 하나」와 `expires_at` 은 pullim-api PR 2). 그래서 여기서는 옛 코드의 운명을
+ * 말하지 않는다 — 사실이 아닌 안내가 더 나쁘다. 만료가 오면(`JoinCodeDto.expiresAt`) 남은 시간을 그린다.
+ *
+ * 저장된 코드는 하이픈이 없는 대문자이고 하이픈은 **표시할 때만** 붙는다(`lib/join-code-format.ts`).
+ * 복사도 보이는 그대로(`ABC-123`)를 담는다 — 학생 입력이 대문자화·하이픈 제거로 정규화되므로 어느 쪽을
+ * 붙여 넣어도 같은 코드로 모인다.
  */
+
+/**
+ * 발급 실패 → 교사가 읽는 한 줄. 서버가 가른 뜻을 뭉개지 않는다(`authz.md § 1.5` — 남의 반은 403).
+ * @param error - `useIssueJoinCode` 가 던진 오류
+ * @returns 토스트에 띄우는 한 줄
+ */
+export function issueFailureMessage(error: unknown): string {
+  switch (statusOf(error)) {
+    case 401:
+      return '로그인이 필요해요.';
+    case 403:
+      return '이 반의 운영 교사만 코드를 낼 수 있어요.';
+    case 404:
+      return '반을 찾을 수 없어요.';
+    default:
+      return '코드를 내지 못했어요. 잠시 후 다시 시도해 주세요.';
+  }
+}
+
 export function JoinCodeBlock({
-  classroomId,
-  code,
-  expiresAt = null,
+  classId,
   size = 'md',
 }: {
-  classroomId: string;
-  /** 지금 살아 있는 코드. 아직 없으면 null — 그때는 「코드 내기」가 대신 선다. */
-  code: string | null;
-  /**
-   * 코드가 닫히는 시각(ISO8601). null 이면 안 닫힌다 — 만료가 생기기 전 발급된 코드다.
-   * 소급해서 닫지 않는 이유는 이미 나눠 준 코드가 한꺼번에 죽기 때문이다.
-   */
-  expiresAt?: string | null;
-  /** 갓 만든 수업방 배너에서는 한 칸 더 크게 — 그 순간 교사가 볼 것은 이 코드뿐이다. @default 'md' */
+  /** 반 id(pullim-api). */
+  classId: string;
+  /** 반 상세 머리에서는 한 칸 더 크게. @default 'md' */
   size?: 'md' | 'lg';
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [issued, setIssued] = useState<JoinCodeDto | null>(null);
   const issue = useIssueJoinCode();
+  const code = issued?.code ?? null;
+  const expiresAt = issued?.expiresAt ?? null;
 
   async function handleCopy() {
     if (!code) return;
@@ -63,29 +83,25 @@ export function JoinCodeBlock({
 
   function handleIssue() {
     issue.mutate(
-      { classroomId },
+      { classId },
       {
-        onSuccess: ({ joinCode }) => {
-          setConfirming(false);
-          toast.success('새 참여 코드를 냈어요', {
-            description: `${formatJoinCode(joinCode)} · 옛 코드는 이제 못 써요`,
-          });
+        onSuccess: (dto) => {
+          setIssued(dto);
+          toast.success('새 참여 코드를 냈어요', { description: formatJoinCode(dto.code) });
         },
         onError: (error) => {
-          toast.error(error.message);
+          toast.error(issueFailureMessage(error));
         },
       },
     );
   }
 
   /*
-    **닫히는 순간 화면이 스스로 바뀐다.** 종전에는 렌더할 때 한 번만 재서, 교사가 탭을 열어 둔
-    채 수업을 하면 만료가 지난 뒤에도 「…까지 쓸 수 있어요」와 복사 버튼이 그대로 살아 있었다.
-    서버는 이미 그 코드를 거절하는데 화면만 아직 모르는 상태 — 교사가 죽은 코드를 불러 준다.
-
+    **닫히는 순간 화면이 스스로 바뀐다.** 렌더할 때 한 번만 재면, 교사가 탭을 열어 둔 채 수업을 하는 동안
+    만료가 지나도 「…까지 쓸 수 있어요」와 복사 버튼이 살아 있다 — 죽은 코드를 불러 준다.
     초 단위로 돌리지 않는다. 필요한 순간은 **딱 하나**(닫히는 시각)라, 거기까지 한 번만 잰다.
-    `setTimeout` 의 상한(약 24.8일)을 넘기면 즉시 발화하므로 넘는 길이는 걸지 않는다 —
-    그만큼 먼 만료는 어차피 이 화면이 열려 있는 동안 지나지 않는다.
+    `setTimeout` 의 상한(약 24.8일)을 넘기면 즉시 발화하므로 넘는 길이는 걸지 않는다.
+    지금 정본은 `expiresAt` 을 보내지 않아 이 효과는 돌지 않는다 — PR 2 가 값을 실으면 그대로 산다.
   */
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -130,15 +146,14 @@ export function JoinCodeBlock({
           )}
         </div>
       ) : (
-        <p className="text-pullim-slate-500 mt-1 text-2xs">
-          아직 코드가 없어요. 코드를 내면 학생이 그 코드로 들어올 수 있어요.
+        <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="join-code-hint">
+          코드를 새로 내면 여기 보여요. 학생에게 알려 주면 그 코드로 이 반에 들어와요.
         </p>
       )}
 
       {/*
         언제까지 사는지 — 교사가 이 값으로 하는 결정은 하나다: 「지금 불러 줘도 되나」.
-        안 닫히는 옛 코드는 아무 말도 붙이지 않는다. 「계속 열려 있어요」라고 적으면 그게
-        정상 상태로 읽히는데, 사실은 만료가 생기기 전에 나간 행이라 곧 사라질 상태다.
+        닫힐 시각이 없는 코드에는 아무 말도 붙이지 않는다 — 지금 정본이 그렇다(PR 2 전).
       */}
       {code && life.state === 'open' && (
         <p data-testid="join-code-life" className="text-pullim-slate-500 mt-1 text-2xs">
@@ -151,53 +166,19 @@ export function JoinCodeBlock({
         </p>
       )}
 
-      {/* 다시 내기 — 옛 코드를 죽이는 일이라 한 번 더 묻는다 */}
       <div className="mt-2">
-        {confirming ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-pullim-slate-600 text-2xs">
-              새 코드를 내면 지금 코드는 그 자리에서 못 써요.
-            </span>
-            <Button
-              type="button"
-              variant="pullim"
-              size="sm"
-              onClick={handleIssue}
-              disabled={issue.isPending}
-              data-testid="join-code-reissue-confirm"
-            >
-              <RefreshCw />
-              {issue.isPending ? '내는 중…' : '새 코드 내기'}
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-              그만두기
-            </Button>
-          </div>
-        ) : code ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setConfirming(true)}
-            className="text-pullim-slate-600 hover:text-pullim-slate-900"
-            data-testid="join-code-reissue"
-          >
-            <RefreshCw />
-            코드 다시 내기
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="pullim"
-            size="sm"
-            onClick={handleIssue}
-            disabled={issue.isPending}
-            data-testid="join-code-issue"
-          >
-            <RefreshCw />
-            {issue.isPending ? '내는 중…' : '코드 내기'}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant={code ? 'ghost' : 'pullim'}
+          size="sm"
+          onClick={handleIssue}
+          disabled={issue.isPending}
+          className={cn(code && 'text-pullim-slate-600 hover:text-pullim-slate-900')}
+          data-testid="join-code-issue"
+        >
+          <RefreshCw />
+          {issue.isPending ? '내는 중…' : '참여 코드 새로 내기'}
+        </Button>
       </div>
     </div>
   );

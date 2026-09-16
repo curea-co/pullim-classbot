@@ -9,10 +9,11 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useClassBots, useStudentBots } from '../mode-bots';
+import { classSlotLabel, studentBotSlotKey, useClassBots, useStudentBots } from '../mode-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import type { SelfBotRow } from '@/hooks/api/self-bots';
 import type { ClassBot } from '@/lib/mock';
+import type { RoomSlot } from '@/components/classbot/home/my-rooms';
 
 /*
   반 봇 소스도 **훅 경계에서** 세운다.
@@ -21,7 +22,7 @@ import type { ClassBot } from '@/lib/mock';
   그 방식은 실제 화면이 쓰는 길을 더 이상 흉내내지 못한다 —
   코드로 들어간 반은 DB 에 있고 스토어엔 없기 때문이다.
 */
-let classRooms: { bot: ClassBot; source: 'api' | 'local' }[] = [];
+let classRooms: RoomSlot[] = [];
 let roomsLoading = false;
 let roomsError = false;
 const retryRooms = jest.fn();
@@ -34,15 +35,22 @@ jest.mock('@/components/classbot/home/my-rooms', () => ({
   }),
 }));
 
-/** 반 봇 한 칸 — 화면이 읽는 필드만 채운다. */
-const classRoom = (botId: string, name: string) => ({
+/**
+ * 반 봇 한 칸 — 화면이 읽는 필드만 채운다.
+ * 반 id·이름은 기본으로 봇과 같다(bot == class). 같은 봇이 걸린 두 반을 세울 때만 따로 준다.
+ */
+const classRoom = (botId: string, name: string, classId = botId, classLabel = name): RoomSlot => ({
   bot: {
     id: botId, name, avatarEmoji: '🧑‍🏫', teacherName: '김수학 선생님',
     organization: '대치프리미엄 수학학원', subject: '수학Ⅱ', grade: '고2',
     tone: '친근' as const, greeting: '안녕!', quickPrompts: [], scope: 3 as const,
     isLive: false, enrolledCount: 1,
   } as unknown as ClassBot,
-  source: 'api' as const,
+  enrollment: {
+    botId, classroomId: classId, classroomLabel: classLabel,
+    assignedBy: '선생님', assignedAt: '', via: '',
+  },
+  source: 'api',
 });
 
 // 담은 봇 소스는 훅 계약(계약 §3)만 알면 된다 — 저장소 내부는 이 테스트의 관심사가 아니다.
@@ -194,20 +202,50 @@ it('봇 id 가 같아도 이름·아바타가 바뀌면 목록이 따라온다',
   expect(result.current.slots[0].bot.avatarEmoji).toBe('📐');
 });
 
-// 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
-// `useMyRooms()` 는 그 두 반을 일부러 다 남긴다(목록 단위가 반이라 그게 맞다). 그러나 챗의
-// 단위는 봇이라, 그대로 옮기면 같은 봇 버튼이 두 개 뜨고 `bot.id` React key 까지 겹친다.
-it('같은 봇으로 반이 둘이어도 대화 상대는 하나다', () => {
+/*
+  한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
+  종전에는 여기서 봇 id 로 접어 「대화 상대는 하나」로 만들었다. **뒤집혔다**(완성 설계 § 6.2 · 해소 3 ·
+  계획 PR 5a): 서버가 반 단위로 기록·인가하므로 두 반은 다른 대화다. 칸은 둘, key 는 반 id 다.
+*/
+it('같은 봇으로 반이 둘이면 칸도 둘 — 단위는 반이고 key 는 반 id 다', () => {
   marketBots = [];
   selfRows = [];
-  classRooms = [classRoom('cb_001', '수학봇'), classRoom('cb_001', '수학봇')];
+  classRooms = [
+    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
+    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
+  ];
   const { result } = render();
-  expect(result.current.slots).toHaveLength(1);
-  expect(result.current.slots[0].bot.id).toBe('cb_001');
-  expect(result.current.classCount).toBe(1);
-  // key 로 쓰이는 값이 유일해야 한다 — 중복이면 React 가 같은 자리를 두 번 그린다.
-  const ids = result.current.slots.map((s) => s.bot.id);
-  expect(new Set(ids).size).toBe(ids.length);
+  expect(result.current.slots).toHaveLength(2);
+  expect(result.current.classCount).toBe(2);
+  expect(result.current.slots.map((s) => (s.source === 'class' ? s.classId : null))).toEqual(['cls_a', 'cls_b']);
+  // React key · URL 정체는 봇이 아니라 반이다 — 둘이 겹치지 않는다.
+  const keys = result.current.slots.map(studentBotSlotKey);
+  expect(keys).toEqual(['class:cls_a', 'class:cls_b']);
+  expect(new Set(keys).size).toBe(keys.length);
+});
+
+// 웰빙 3면이 읽는 `useClassBots` 는 여전히 **봇** 단위다 — 반이 둘이어도 같은 봇이 두 번 말하지 않는다.
+it('useClassBots 는 같은 봇을 한 번만 돌려준다 — 반이 둘이어도', () => {
+  classRooms = [
+    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
+    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
+    classRoom('cb_002', '영어봇'),
+  ];
+  const { result } = renderHook(() => useClassBots(), { wrapper: Wrapper });
+  expect(result.current.map((b) => b.id)).toEqual(['cb_001', 'cb_002']);
+});
+
+// 선택기 라벨 「<반 이름> · <봇 이름>」 — 지금은 bot == class 라 두 이름이 같아 한 번만 적는다.
+it('classSlotLabel — 반 이름과 봇 이름이 같으면 한 번, 다르면 「반 · 봇」', () => {
+  classRooms = [
+    classRoom('cls_1', '고2 미적분 A반'),
+    classRoom('cb_001', '수학봇', 'cls_2', '중2 A반'),
+  ];
+  const { result } = render();
+  const labels = result.current.slots.map((s) => (s.source === 'class' ? classSlotLabel(s) : null));
+  expect(labels).toEqual(['고2 미적분 A반', '중2 A반 · 수학봇']);
+  // 담은 봇의 key 는 봇으로 — 반 id 와 다른 이름공간이다.
+  expect(studentBotSlotKey({ source: 'self', bot: classRoom('cb_009', 'x').bot })).toBe('self:cb_009');
 });
 
 // 먼저 담아 두고 나중에 선생님 코드로 들어간 학생 — 한 봇이 양쪽에 다 있다.

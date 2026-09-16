@@ -21,10 +21,56 @@ import { useMyRooms } from '@/components/classbot/home/my-rooms';
  */
 export type StudentBotSource = 'class' | 'self';
 
-/** 학생 화면 한 칸 — 봇 + 그 봇이 어느 경로로 왔는지. */
-export interface StudentBotSlot {
+/**
+ * 선생님 반의 봇 한 칸 — **단위는 반이다**(완성 설계 § 6.2 · 해소 3 · 계획 PR 5a).
+ *
+ * 서버가 대화를 반 단위로 저장·인가하므로(`POST/GET /classbot/classes/:classId/chat`) 챗이 고르는
+ * 것은 봇이 아니라 반이다. 한 봇이 두 반에 걸려 있으면 칸도 둘이다 — 기록이 다르고 보는 선생님이
+ * 다르다. `classId` 가 그 반의 pullim-api id 이고 `bot.id` 는 지금(bot == class · ADR-063) 같은 값이지만
+ * **같다고 기대하지 마라** — `bots` 표(pullim-api PR 1)가 오면 갈리는 칸이 이것이다.
+ */
+export interface ClassBotSlot {
+  source: 'class';
   bot: ClassBot;
-  source: StudentBotSource;
+  /** 대화 단위 — 그 반의 pullim-api class id. */
+  classId: string;
+  /** 반 이름 — 선택기 라벨(`classSlotLabel`). */
+  classLabel: string;
+}
+
+/** 마켓에서 담은 봇 한 칸 — 반이 없다(`enrollments` 행 없음 · 계약 §1). 챗 레인은 닫혀 있다(`chat-lane.ts`). */
+export interface SelfBotSlot {
+  source: 'self';
+  bot: ClassBot;
+  classId?: undefined;
+  classLabel?: undefined;
+}
+
+/** 학생 화면 한 칸 — 반의 봇이거나 담은 봇. `source` 로 가른다. */
+export type StudentBotSlot = ClassBotSlot | SelfBotSlot;
+
+/**
+ * 칸의 React key · URL 정체 — 반 칸은 반으로, 담은 칸은 봇으로.
+ *
+ * `bot.id` 를 key 로 쓰면 같은 봇이 두 반에 걸린 학생에게서 겹친다(위 `ClassBotSlot` 주석).
+ * 두 접두사를 두는 이유는 담은 봇 id 가 같은 오리진 `class_bots.id` 라 정본 반 id 와 우연히 같을 수
+ * 있어서다 — 다른 세계의 id 를 한 이름공간에 두지 않는다.
+ * @param slot - 학생 화면 한 칸
+ * @returns `class:<classId>` 또는 `self:<botId>`
+ */
+export function studentBotSlotKey(slot: StudentBotSlot): string {
+  return slot.source === 'class' ? `class:${slot.classId}` : `self:${slot.bot.id}`;
+}
+
+/**
+ * 반 칸의 표시 이름 — 「<반 이름> · <봇 이름>」. 지금은 bot == class 라 두 이름이 같아 **한 번만** 적는다
+ * (「고2 미적분 A반 · 고2 미적분 A반」을 학생에게 보이지 않는다). `bots` 표가 오면 둘이 갈리고 이 함수는
+ * 그때 그대로 둘을 잇는다.
+ * @param slot - 반 칸
+ * @returns 선택기 칩·헤더에 쓰는 이름
+ */
+export function classSlotLabel(slot: ClassBotSlot): string {
+  return slot.bot.name === slot.classLabel ? slot.classLabel : `${slot.classLabel} · ${slot.bot.name}`;
 }
 
 export interface StudentBotsResult {
@@ -219,30 +265,36 @@ export function useStudentBots(): StudentBotsResult {
 
   const slots = useMemo<StudentBotSlot[]>(() => {
     const out: StudentBotSlot[] = [];
-    const seen = new Set<string>();
+    // 반 봇의 id — 담은 봇이 겹치면 반 관계가 이긴다(아래).
+    const classBotIds = new Set<string>();
 
-    // **반이 여럿이어도 대화 상대는 하나다.** `useMyRooms()` 는 같은 봇으로 열린 서로 다른
-    // 반을 일부러 다 남긴다(목록의 단위가 반이라 그게 맞고, 그 화면은 key 로
-    // `enrollment.classroomId` 를 쓴다). 그러나 여기 단위는 **봇**이다 — 그대로 옮기면 챗
-    // 선택기와 홈 카드에 같은 봇 버튼이 두 개 뜨고, 그 자리들이 `bot.id` 를 React key 로
-    // 쓰므로 key 까지 겹친다. 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸면 바로 난다.
+    // **반마다 한 칸이다**(해소 3 · 계획 PR 5a). 종전에는 여기서 봇 id 로 접어 「반이 여럿이어도 대화
+    // 상대는 하나」로 만들었다 — 단위가 봇이던 시절의 규칙이다. 서버는 반 단위로 기록하고 인가하므로
+    // 같은 봇이 걸린 「중2 A반」·「중2 B반」은 **다른 대화**다. 그래서 `useMyRooms()` 가 남긴 반을 그대로
+    // 옮기고, key 는 `studentBotSlotKey`(반 id)로 잡는다 — `bot.id` 를 key 로 쓰던 자리가 겹치는 문제는
+    // 그 헬퍼로 풀었다(`tutor-showcase.tsx` · 챗 선택기).
     for (const room of classRooms) {
-      if (seen.has(room.bot.id)) continue;
-      seen.add(room.bot.id);
-      out.push({ bot: room.bot, source: 'class' });
+      classBotIds.add(room.bot.id);
+      out.push({
+        source: 'class',
+        bot: room.bot,
+        classId: room.enrollment.classroomId,
+        classLabel: room.enrollment.classroomLabel,
+      });
     }
 
     // 담은 순서대로 — 담을 때마다 기존 칸이 자리를 바꾸지 않게.
     const added = [...(selfBots.data ?? [])].sort((a, b) => a.addedAt.localeCompare(b.addedAt));
+    const seenSelf = new Set<string>();
     for (const row of added) {
-      if (seen.has(row.botId)) continue; // 반 관계가 이긴다
+      if (classBotIds.has(row.botId) || seenSelf.has(row.botId)) continue; // 반 관계가 이긴다
       const item = marketById.get(row.botId);
       // 마켓이 아직 답하지 않은 구간에는 자리표시자를 만들지 않는다 — 그 구간은 아래
       // `isLoading` 이 이미 들고 있어서, 여기서 채우면 진짜 이름이 오기 전에
       // 「지금은 마켓에 없는 봇」이 한 번 번쩍인다.
       if (!item && marketPending) continue;
-      seen.add(row.botId);
-      out.push({ bot: item ? toClassBot(item) : fallbackBot(row.botId), source: 'self' });
+      seenSelf.add(row.botId);
+      out.push({ source: 'self', bot: item ? toClassBot(item) : fallbackBot(row.botId) });
     }
     return out;
     // `classRooms` 를 그대로 deps 에 둔다. 종전엔 봇 id 만 이은 문자열 키를 썼는데(브리지가
@@ -280,8 +332,21 @@ export function useStudentBots(): StudentBotsResult {
  * **반 봇 + 담은 봇**을 합쳐 돌려주게 되자, 반에 참여하지 않고 봇만 담은 학생에게도 그 봇의
  * 웰빙 코멘트가 떴다 — 그래서 이름과 범위를 함께 좁혔다.
  * 두 종류가 다 필요하면 `useStudentBots()` 를 쓴다(챗·홈이 그쪽이다).
- * @returns 참여한 반의 봇 목록
+ *
+ * 단위는 **봇**이다 — 반 칸이 반마다 하나가 된 뒤(`ClassBotSlot`)에도 여기서는 같은 봇을 한 번만 돌려준다.
+ * 웰빙 한 마디는 「이 봇이 건네는 말」이라 반이 둘이어도 봇이 두 번 말할 이유가 없다.
+ * @returns 참여한 반의 봇 목록(봇마다 하나)
  */
 export function useClassBots(): ClassBot[] {
-  return useStudentBots().slots.filter((s) => s.source === 'class').map((s) => s.bot);
+  const { slots } = useStudentBots();
+  return useMemo(() => {
+    const seen = new Set<string>();
+    const out: ClassBot[] = [];
+    for (const s of slots) {
+      if (s.source !== 'class' || seen.has(s.bot.id)) continue;
+      seen.add(s.bot.id);
+      out.push(s.bot);
+    }
+    return out;
+  }, [slots]);
 }

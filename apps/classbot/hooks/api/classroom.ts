@@ -1,16 +1,20 @@
 'use client';
 
 /**
- * 수업방 훅 — 교사(목록·개설·코드 재발급·명단)와 학생(코드 참여·내 수업방).
+ * 수업방 훅 — 교사(반 목록·반 하나·코드 발급 / 개설·명단)와 학생(코드 참여·내 수업방).
  *
- * 두 무리가 **다른 서버**를 본다 — 2026-09-16 계획 §09 PR 4 · §10 해소 7:
- *  - **학생 둘**(`useJoinByCode`·`useMyClassrooms`)은 pullim-api 정본(`api.pullim.ai/classbot/*`,
- *    OS 쿠키)이다. 그 문은 이미 있다 — `POST /enrollments`·`GET /bots?role=student`.
- *  - **교사 넷**(목록·개설·코드 재발급·명단)은 아직 같은 오리진 `/api/teacher/classrooms*` 다.
- *    정본에는 반을 만드는 문과 명단 문이 없어서(`POST /classes`·`GET /classes/:id/members` —
- *    pullim-api PR 2), 지금 옮기면 그 화면이 PR 2 전까지 404 다. PR 5 가 옮긴다.
+ * 두 무리가 **다른 서버**를 본다 — 완성 설계 `2026-09-16_classbot-completion-design.md` § 5 · § 8:
+ *  - **정본**(pullim-api `api.pullim.ai/classbot/*`, OS 쿠키) — 문이 이미 있는 것들.
+ *    학생 둘 `useJoinByCode`(`POST /enrollments`) · `useMyClassrooms`(`GET /bots?role=student`),
+ *    교사 셋 `useOperatorClasses`(`GET /bots?role=teacher`) · `useOperatorClass`(`GET /bots/:id`) ·
+ *    `useIssueJoinCode`(`POST /classes/:classId/join-codes`). 교사 셋은 계획 PR 5a(해소 7)가 옮겼다.
+ *  - **같은 오리진** `/api/teacher/classrooms*` — 정본에 아직 문이 없는 둘.
+ *    `useCreateClassroom`(`POST /classes` 는 pullim-api PR 2) · `useClassroomStudents`
+ *    (`GET /classes/:id/members` 도 PR 2). 그리고 `useTeacherClassrooms` — 내 수업방 화면은 더 안 읽지만
+ *    과제 내기 폼(`app/(teacher)/teacher/assignment/new/*` · 계획 PR 6 영역)과 봇 마켓의 「내 봇 공유」
+ *    (`app/(teacher)/teacher/marketplace/*` · 결정 ① 범위 밖)가 아직 읽는다. 그 둘이 옮겨 가는 날 함께 걷는다.
  *
- * 학생 훅의 신원·캐시 규약:
+ * 정본 훅의 신원·캐시 규약:
  *  - 신원은 OS 세션(`useAuth`)이다. 세션 복원 전(`isReady=false`)에는 묻지 않는다 — 그 구간의
  *    요청은 누구 것인지 몰라 캐시가 남의 키에 남는다. 복원 뒤 비로그인이면 RoleGuard 가 이미
  *    로그인으로 보내는 중이라 역시 묻지 않는다.
@@ -18,7 +22,7 @@
  *  - 오류는 `ApiError`(`@pullim-classbot/api-client`)다. 401 은 `lib/api/classbot-client.ts` 가
  *    로그인으로 보낸다. 목 폴백은 없다 — 실패는 실패로 보인다(계획 §07 학생·내 수업방 줄).
  *
- * 교사 훅의 오류는 종전대로 `ApiClientError`(같은 오리진)다. 두 타입을 섞어 판정하지 마라.
+ * 같은 오리진 훅의 오류는 종전대로 `ApiClientError` 다. 두 타입을 섞어 판정하지 마라.
  */
 
 import {
@@ -36,7 +40,7 @@ import {
   retryUnlessClientError,
   statusOf,
 } from '@/lib/api/classbot-client';
-import type { BotCardDto, BotDetailDto, EnrollmentDto } from '@/lib/api/classbot-dto';
+import type { BotCardDto, BotDetailDto, EnrollmentDto, JoinCodeDto } from '@/lib/api/classbot-dto';
 import { ApiClientError, apiGet, apiPost } from '@/lib/api/client-fetch';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCurrentUserId } from '@/lib/current-user';
@@ -44,7 +48,6 @@ import type {
   ClassroomStudentsResponse,
   CreateClassroomInput,
   CreateClassroomResponse,
-  IssueJoinCodeResponse,
   TeacherClassroomsResponse,
 } from '@/hooks/api/types';
 
@@ -57,6 +60,10 @@ export const classroomKeys = {
   classroomStudents: (classroomId: string) =>
     ['classroom-students', classroomId] as const,
   myClassrooms: ['my-classrooms'] as const,
+  /** 정본 — 내가 operator 인 반 목록(`GET /bots?role=teacher`). */
+  operatorClasses: ['operator-classes'] as const,
+  /** 정본 — 반 하나(`GET /bots/:id`). 목록과 키를 따로 두는 이유는 반 상세가 목록 없이 열려서다. */
+  operatorClass: (classId: string) => ['operator-class', classId] as const,
 };
 
 /** 같은 오리진 교사 라우트용 — 401 은 재시도해도 같은 답이다. 그 밖에는 1회만 다시. */
@@ -65,10 +72,13 @@ function retryUnlessGuarded(failureCount: number, error: unknown): boolean {
   return failureCount < 1;
 }
 
-/* ─── 교사 — 같은 오리진 `/api/teacher/classrooms*` (PR 5 에서 정본으로) ─── */
+/* ─── 교사 — 같은 오리진 `/api/teacher/classrooms*` (정본에 문이 없는 것들 · 머리주석) ─── */
 
 /**
- * `GET /api/teacher/classrooms` — 내가 연 수업방 목록.
+ * `GET /api/teacher/classrooms` — 내가 연 수업방 목록(같은 오리진).
+ *
+ * 내 수업방 화면(`/teacher/classroom`)은 더 이상 이것을 읽지 않는다 — `useOperatorClasses` 가 정본이다.
+ * 남아 있는 소비자는 과제 내기 폼과 봇 마켓 「내 봇 공유」(머리주석). 새 소비자를 붙이지 마라.
  * @returns react-query 결과(`data.classrooms`)
  */
 export function useTeacherClassrooms(): UseQueryResult<
@@ -103,30 +113,11 @@ export function useCreateClassroom(): UseMutationResult<
 }
 
 /**
- * `POST /api/teacher/classrooms/[id]/join-codes` — 참여 코드 다시 뽑기.
+ * `GET /api/teacher/classrooms/[id]/students` — 참여 학생 명단(같은 오리진).
  *
- * 새 코드가 나오면 **옛 코드는 그 자리에서 무효**다(서버가 지운다).
- * @returns mutation. 성공하면 수업방 목록을 다시 읽는다.
- */
-export function useIssueJoinCode(): UseMutationResult<
-  IssueJoinCodeResponse,
-  ApiClientError,
-  { classroomId: string }
-> {
-  const queryClient = useQueryClient();
-  return useMutation<IssueJoinCodeResponse, ApiClientError, { classroomId: string }>({
-    mutationFn: ({ classroomId }) =>
-      apiPost<IssueJoinCodeResponse>(
-        `/api/teacher/classrooms/${encodeURIComponent(classroomId)}/join-codes`,
-      ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: classroomKeys.teacherClassrooms });
-    },
-  });
-}
-
-/**
- * `GET /api/teacher/classrooms/[id]/students` — 참여 학생 명단.
+ * 내 수업방 카드의 명단은 내렸다(계획 PR 5a) — 정본에 명단 문이 없어(`GET /classes/:id/members` · PR 2)
+ * 정본 카드에 같은 오리진 명단을 붙이면 반 id 가 서로 다른 세계의 것이 된다. 5b 가 정본 문으로 되살린다.
+ * 남은 소비자는 과제 내기 폼(대상 학생 고르기)이다.
  * @param classroomId - 반 id. 비어 있으면 조회하지 않는다(선택 전 상태).
  * @returns react-query 결과(`data.students`)
  */
@@ -142,6 +133,66 @@ export function useClassroomStudents(
       ),
     enabled: Boolean(classroomId),
     retry: retryUnlessGuarded,
+  });
+}
+
+/* ─── 교사 — pullim-api 정본 `api.pullim.ai/classbot/*` (계획 PR 5a) ─── */
+
+/**
+ * `GET /classbot/bots?role=teacher` — 내가 operator 인 반(과 그 봇) 목록.
+ *
+ * 응답은 봉투 없는 `BotCardDto[]` 다. bot == class(ADR-063)라 카드 한 장이 반 하나이고 `name` 은 반 이름,
+ * 봇 성격은 `profile`(생성 전 null)에 있다 — 참여 코드는 **카드에 없다**(코드는 낼 때만 돌아온다 ·
+ * `useIssueJoinCode`). 화면 모양으로 옮기는 일은 `app/(teacher)/teacher/classroom/operator-class.ts` 가 한다.
+ * @returns react-query 결과(`data` = 카드 배열)
+ */
+export function useOperatorClasses(): UseQueryResult<BotCardDto[], ApiError> {
+  const { user, isReady } = useAuth();
+  return useQuery<BotCardDto[], ApiError>({
+    queryKey: [...classroomKeys.operatorClasses, user?.id ?? null],
+    queryFn: () => classbotRead<BotCardDto[]>('/bots?role=teacher'),
+    enabled: isReady && user !== null,
+    retry: retryUnlessClientError,
+  });
+}
+
+/**
+ * `GET /classbot/bots/:id` — 반 하나(반 상세 `/teacher/classroom/[id]` 의 머리).
+ *
+ * 목록에서 찾지 않고 따로 읽는 이유: 상세는 링크로 바로 열리는 화면이라 목록이 캐시에 없을 수 있고,
+ * 남의 반은 정본이 **403** 으로 가른다(`authz.md § 1.5` · 없는 반은 404) — 목록에서 못 찾는 것과
+ * 다른 뜻이다. 화면은 `statusOf` 로 둘을 갈라 말한다.
+ * @param classId - 반 id. 비어 있으면 묻지 않는다.
+ * @returns react-query 결과(`data` = 반 상세)
+ */
+export function useOperatorClass(classId: string | null | undefined): UseQueryResult<BotDetailDto, ApiError> {
+  const { user, isReady } = useAuth();
+  return useQuery<BotDetailDto, ApiError>({
+    queryKey: [...classroomKeys.operatorClass(classId ?? ''), user?.id ?? null],
+    queryFn: () => classbotRead<BotDetailDto>(`/bots/${encodeURIComponent(classId ?? '')}`),
+    enabled: isReady && user !== null && Boolean(classId),
+    retry: retryUnlessClientError,
+  });
+}
+
+/**
+ * `POST /classbot/classes/:classId/join-codes` — 이 반의 참여 코드 새로 내기(201).
+ *
+ * operator 만 낼 수 있다(남의 반 403). 본문은 비운다 — 서버가 코드를 만든다(`IssueJoinCodeDto.code` 는 선택).
+ * **옛 코드는 아직 살아 있다** — 정본 `createJoinCode()` 는 저장만 하고, 「반 하나에 살아 있는 코드는
+ * 하나」 규칙과 `expires_at` 은 pullim-api PR 2 가 옮겨 온다(완성 설계 § 5 R1). 그래서 화면은 옛 코드가
+ * 죽는다고 말하지 않는다. 카드·상세 응답에 코드가 실리지 않으므로 다시 읽을 쿼리도 없다.
+ * @returns mutation — 새 코드(`JoinCodeDto`)
+ */
+export function useIssueJoinCode(): UseMutationResult<JoinCodeDto, ApiError, { classId: string }> {
+  return useMutation<JoinCodeDto, ApiError, { classId: string }>({
+    mutationFn: async ({ classId }) => {
+      const { body } = await classbotWrite<JoinCodeDto>(
+        `/classes/${encodeURIComponent(classId)}/join-codes`,
+        {},
+      );
+      return body;
+    },
   });
 }
 

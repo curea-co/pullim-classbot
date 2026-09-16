@@ -17,19 +17,22 @@ import type { TeacherClassroomItem } from '@/hooks/api/types';
 const BLURB_MAX = 200;
 
 /**
- * 이 반의 봇을 봇 마켓에 공유하고 거두는 자리.
+ * 내 봇을 봇 마켓에 공유하고 거두는 자리.
  *
- * 왜 수업방 카드인가: 공유는 「이 봇을 남들이 둘러봐도 되는가」를 정하는 일이고, 그 봇이
- * 실제로 사는 곳이 수업방이다. 봇 관리(`/teacher/bots`)는 아직 mock 카탈로그라
- * 거기 붙은 토글은 어느 DB 행도 바꾸지 못한다.
+ * **여기(`/teacher/marketplace`)로 옮겨 왔다**(계획 PR 5a · #351 리뷰 S1). 종전에는 내 수업방 카드에 붙어
+ * 있었다 — 「봇이 실제로 사는 곳이 수업방」이어서다. 그 카드가 pullim-api 정본(`GET /bots?role=teacher`)을
+ * 읽게 되면서 이 칸이 전제하는 둘 — 같은 오리진 봇 id(`class_bots.id`)와 게시 상태
+ * (`TeacherClassroomItem.isPublished`) — 가 카드에서 사라졌다. 마켓 계열은 완성 설계 결정 ①의 **범위 밖**
+ * (「로컬 전용」 표시 유지)이라 정본으로 옮기지 않고, 같은 축(`useTeacherClassrooms` — 이 화면이 「내 봇」
+ * 판정에 이미 쓰는 같은 오리진 목록)에 그대로 세운다. **정본 반 id 를 이 축에 섞지 않는다.**
+ * 봇 관리(`/teacher/bots`)는 아직 mock 카탈로그라 거기 붙은 토글은 어느 DB 행도 바꾸지 못한다.
  *
- * **공유 상태는 수업방 목록이 그대로 들고 온다**(`TeacherClassroomItem.isPublished`).
+ * **공유 상태는 같은 오리진 수업방 목록이 그대로 들고 온다**(`TeacherClassroomItem.isPublished`).
  * 여기서 마켓 목록을 따로 읽지 않는다 — 배지 하나 때문에 **남의 봇까지 든 공개 목록**을
  * 받아 오게 되고, 내 반 목록이 그 목록의 크기에 매인다. 공유·거두기가
  * `classroomKeys.teacherClassrooms` 를 무효화하므로 배지는 저절로 따라온다.
  *
  * 공유 그만두기는 **되돌릴 수 있는 일**이라 무섭게 굴지 않는다 — 빨간 버튼도, 「정말요?」도 없다.
- * 참여 코드 다시 내기(`join-code-block.tsx`)가 한 번 더 묻는 건 그건 **옛 코드가 죽어서**다.
  * 공유를 그만둬도 봇도 반도 학생도 그대로 있고, 다시 공유하면 그만이다.
  */
 export function PublishBotBlock({

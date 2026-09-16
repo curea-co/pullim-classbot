@@ -7,8 +7,8 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
-  buildBreadcrumb, parentNav, studentBottomTabs, studentNav, teacherNav,
-  type NavGroup, type Role,
+  buildBreadcrumb, classbotStudentSection, parentNav, studentBottomTabs, studentNav, teacherNav,
+  type NavGroup, type NavSubItem, type Role,
 } from './nav-config';
 
 const APP_DIR = join(__dirname, '..', '..', 'app');
@@ -42,9 +42,18 @@ function routeMatcher(route: string): RegExp {
   return new RegExp(`^${body}$`);
 }
 
+/**
+ * 항목 아래 한 단계까지 훑는다(결정 ④ · 2026-09-16). 종전 flatMap 은 도메인 → 항목 한 단계만
+ * 봤다 — 그대로 두면 들여쓴 항목이 없는 page 를 가리켜도 이 검사가 초록으로 남는다
+ * (`proc/spec/03 § 2.1` 「학생 레일」 메모 · 완성 설계 § 6.1).
+ */
+function subHrefs(items: NavSubItem[] | undefined): string[] {
+  return (items ?? []).flatMap((c) => [c.href, ...subHrefs(c.children)]);
+}
+
 function hrefsOf(groups: NavGroup[]): string[] {
   return groups.flatMap((group) =>
-    group.items.flatMap((item) => [item.href, ...(item.children ?? []).map((c) => c.href)]),
+    group.items.flatMap((item) => [item.href, ...subHrefs(item.children)]),
   );
 }
 
@@ -72,6 +81,52 @@ describe('nav-config 라우트 인벤토리', () => {
     expect(hrefsOf(studentNav)).toContain('/classbot/discover');
     // 하단탭은 기획 보류로 셋만 남긴 자리다(아래 tabItems 테스트) — 여기 늘리지 않는다.
     expect(studentBottomTabs.map((t) => t.href)).not.toContain('/classbot/discover');
+  });
+
+  // 중첩 항목도 인벤토리다 — 들여쓴 「봇 대화」가 훑기에서 빠지면 위 규칙이 그 항목을 못 본다.
+  it('중첩 항목(내 수업방 ▾ 봇 대화)까지 인벤토리에 든다', () => {
+    const hrefs = hrefsOf(studentNav);
+    expect(hrefs).toContain('/classbot/chat');
+    expect(hrefs.filter((href) => !exists(href))).toEqual([]);
+    // 헬퍼가 실제로 한 층 더 내려갔는지 — 가짜 자식을 넣어 못박는다.
+    const fake: NavGroup[] = [{ label: '', items: [{ ...studentNav[0].items[1], children: [
+      { href: '/classbot/classroom', label: 'x', children: [{ href: '/classbot/없는-화면', label: 'y' }] },
+    ] }] }];
+    expect(hrefsOf(fake)).toContain('/classbot/없는-화면');
+  });
+});
+
+/*
+  결정 ④(2026-09-16 · `apps/classbot/CLAUDE.md § 5` ㉠ · 완성 설계 § 6.1): 「봇 대화」는 「내 수업방」
+  아래 한 단계, 「받은 과제」는 수업방 바로 뒤. 나머지 항목의 라벨·경로·아이콘과 하단탭은 그대로다.
+  순서를 목록째로 못박는 이유는 하나만 어긋나도 「반에서 나오는 것 둘이 붙는다」가 깨지기 때문이다.
+*/
+describe('학생 레일 — 반이 척추다(결정 ④)', () => {
+  it('첫 층은 홈 · 내 수업방 · 받은 과제 · 담은 봇 · 봇 마켓 · 학습 기록 · 소개', () => {
+    expect(classbotStudentSection.map((s) => s.href)).toEqual([
+      '/classbot',
+      '/classbot/classroom',
+      '/classbot/assignment',
+      '/classbot/my-bots',
+      '/classbot/discover',
+      '/classbot/me/progress',
+      '/classbot/onboarding',
+    ]);
+  });
+
+  it('「봇 대화」는 「내 수업방」 아래 한 단계 — 경로와 커리큘럼 소속(matchPrefix)은 그대로', () => {
+    const classroom = classbotStudentSection.find((s) => s.href === '/classbot/classroom');
+    expect(classroom?.children?.map((c) => ({ href: c.href, label: c.label, matchPrefix: c.matchPrefix }))).toEqual([
+      { href: '/classbot/chat', label: '봇 대화', matchPrefix: ['/classbot/learn'] },
+    ]);
+    // 첫 층에는 더 이상 없다 — 두 층에 같은 목적지가 있으면 레일에 행이 둘 선다.
+    expect(classbotStudentSection.some((s) => s.href === '/classbot/chat')).toBe(false);
+    // 층은 하나만 더 열렸다.
+    expect(classroom?.children?.every((c) => !c.children)).toBe(true);
+  });
+
+  it('하단탭은 셋 그대로 — 레일의 층은 탭을 바꾸지 않는다', () => {
+    expect(studentBottomTabs.map((t) => t.href)).toEqual(['/classbot', '/classbot/assignment', '/classbot/chat']);
   });
 });
 
@@ -118,5 +173,30 @@ describe('buildBreadcrumb — 뿌리는 역할을 따라간다', () => {
     expect(buildBreadcrumb('/parent', 'parent')).toEqual([
       { label: '풀림 학부모', href: '/parent' },
     ]);
+  });
+
+  /*
+    중첩 항목의 빵부스러기(결정 ④) — `/classbot/chat` 은 `/classbot/classroom` 아래 경로가 아닌데
+    「내 수업방」 아래에 산다. 경로만 보면 부모가 빠지고, 그러면 레일은 들여쓰는데 빵부스러기는
+    형제처럼 말한다. 부모부터 싣는 것을 여기서 못박는다. (뿌리 `/` 와 도메인 `/classbot` 의 라벨이
+    같은 것은 `breadcrumb.tsx` 가 인접 중복으로 접는다 — 여기서는 원본 trail 을 본다.)
+  */
+  it('중첩 항목은 부모부터 싣는다 — 풀림 클래스봇 › 내 수업방 › 봇 대화', () => {
+    expect(buildBreadcrumb('/classbot/chat', 'student')).toEqual([
+      { label: '풀림 클래스봇', href: '/' },
+      { label: '풀림 클래스봇', href: '/classbot' },
+      { label: '내 수업방', href: '/classbot/classroom' },
+      { label: '봇 대화', href: '/classbot/chat' },
+    ]);
+    // 부모 자신은 종전대로 두 칸 — 자식을 끌어오지 않는다.
+    expect(buildBreadcrumb('/classbot/classroom', 'student').slice(2)).toEqual([
+      { label: '내 수업방', href: '/classbot/classroom' },
+    ]);
+    // 형제는 층이 바뀌지 않았다.
+    expect(buildBreadcrumb('/classbot/assignment/a1', 'student').slice(2)).toEqual([
+      { label: '받은 과제', href: '/classbot/assignment' },
+    ]);
+    // `matchPrefix` 는 빵부스러기가 읽지 않는다(교사 레일 주석과 같은 결정) — 커리큘럼은 종전대로 없다.
+    expect(buildBreadcrumb('/classbot/learn/t1', 'student')).toHaveLength(2);
   });
 });

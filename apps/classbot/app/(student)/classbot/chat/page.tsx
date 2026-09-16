@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Suspense, type Dispatch, type SetStateAction } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, Eye, GraduationCap, MessageCircleQuestion } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { type QuickReplyKey, type ClassBot } from '@/lib/mock';
-import { useStudentBots, type StudentBotSlot, type StudentBotSource } from '@/lib/store/mode-bots';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
-import { useStoresHydrated } from '@/lib/store/use-hydrated';
+import {
+  classSlotLabel, studentBotSlotKey, useStudentBots, type StudentBotSlot, type StudentBotSource,
+} from '@/lib/store/mode-bots';
 import { Chip } from '@/components/ui/chip';
 import {
   getBotLesson, getSelfExplain,
@@ -53,7 +53,9 @@ import { useMisconceptionStore } from '@/lib/store/misconception';
 import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
 import { cn } from '@/lib/utils';
-import { chatLaneFor, SELF_BOT_CHAT_LOCKED_NOTICE, SELF_BOT_CHAT_LOCKED_PLACEHOLDER } from './chat-lane';
+import {
+  chatLaneFor, CLASS_CHAT_TEACHER_VISIBLE_NOTICE, SELF_BOT_CHAT_LOCKED_NOTICE, SELF_BOT_CHAT_LOCKED_PLACEHOLDER,
+} from './chat-lane';
 
 /**
  * 메시지 타입 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
@@ -175,54 +177,84 @@ export default function ClassbotChatPage() {
   );
 }
 
+/**
+ * 딥링크 → 칸. **`?classId=` 가 정본**(반이 대화의 단위 · 완성 설계 § 6.2 · 해소 3)이고 `?bot=` 은 종전 링크
+ * (라이브 리다이렉트 `/classbot/live/[botId]` · 알림 · 회고 · 웰빙 CTA)의 호환이다 — 봇으로 오면 그 봇이
+ * 걸린 **첫 반**(반 칸이 앞에 실린다)을, 반이 없으면 담은 칸을 고른다. 둘 다 안 맞으면 null(호출부가 첫 칸).
+ * @param slots - 지금 목록
+ * @param classIdParam - `?classId=`
+ * @param botParam - `?bot=`
+ * @returns 칸 key(`studentBotSlotKey`) 또는 null
+ */
+function resolveSlotKey(slots: StudentBotSlot[], classIdParam: string | null, botParam: string | null): string | null {
+  if (classIdParam) {
+    const byClass = slots.find(s => s.source === 'class' && s.classId === classIdParam);
+    if (byClass) return studentBotSlotKey(byClass);
+  }
+  if (botParam) {
+    const byBot = slots.find(s => s.bot.id === botParam);
+    if (byBot) return studentBotSlotKey(byBot);
+  }
+  return null;
+}
+
+/** 칸의 URL — 반 칸은 `?classId=`, 담은 칸은 `?bot=`(`components/classbot/home/tutor-showcase.tsx` 와 같은 규칙). */
+function slotHref(slot: StudentBotSlot): string {
+  return slot.source === 'class'
+    ? `/classbot/chat?classId=${encodeURIComponent(slot.classId)}`
+    : `/classbot/chat?bot=${encodeURIComponent(slot.bot.id)}`;
+}
+
 function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const classIdParam = searchParams.get('classId');
   const botParam = searchParams.get('bot');
   const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
-  // 반 봇과 담은 봇을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
+  // 반 칸과 담은 칸을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
   // 걷었다 — 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
+  // **고르는 단위는 반이다**(계획 PR 5a · 해소 3) — 같은 봇이 두 반에 걸려 있으면 칸도 둘이고 기록도 둘이다.
+  // 종전에 여기 있던 `class-enrollment` persist 하이드레이션 게이트는 걷었다 — 반은 서버에서 오고
+  // (`useStudentBots().isLoading`), 이 화면은 그 스토어를 더 읽지 않는다.
   const { slots, isLoading: botsLoading, isError: botsError, retry: retryBots } = useStudentBots();
-  // `classHydrated` — 반은 이제 서버(`useMyRooms` → `useStudentBots().isLoading`)에서 오므로 이 게이트가
-  // 기다리는 로컬 방은 더 없다. persist 와 함께 PR 5 가 걷는다(2026-09-16 계획 §07 「class-enrollment
-  // persist」) — 여기서는 표기만 하고 그대로 둔다.
-  const classHydrated = useStoresHydrated(useClassEnrollmentStore);
-  const initialBotId = botParam && slots.some(s => s.bot.id === botParam) ? botParam : (slots[0]?.bot.id ?? 'cb_001');
-  const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
+  const linkedKey = resolveSlotKey(slots, classIdParam, botParam);
+  const [selectedKey, setSelectedKey] = useState<string | null>(linkedKey);
   // `slots[0]` 은 목록이 비면 런타임에 undefined 다 — `noUncheckedIndexedAccess` 를 켜지
   // 않아 타입에는 안 나타나므로 여기서 **명시적으로** 옵셔널로 적는다. 아래 가드도 `bot` 이
   // 아니라 `current` 를 본다 — 별칭을 좁혀도 원본은 좁혀지지 않아 `current.source` 를 읽는
   // 자리가 가드 밖에 놓인 것처럼 남는다.
   const current: StudentBotSlot | undefined =
-    slots.find(s => s.bot.id === selectedBotId) ?? slots[0];
+    slots.find(s => studentBotSlotKey(s) === selectedKey) ?? slots[0];
+  const currentKey = current ? studentBotSlotKey(current) : null;
   const activeLive = useLiveStore(s => s.active);
 
-  // selectedBotId / ?bot= 정규화
-  useEffect(() => {
-    // 1) 외부 링크가 유효한 봇을 지정 → 반영
-    if (botParam && botParam !== selectedBotId && slots.some(s => s.bot.id === botParam)) {
-      setSelectedBotId(botParam);
-      return;
-    }
-    // 2) 반 나가기·담은 봇 빼기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
-    //    (보이는 봇 = slots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
-    if (slots.length > 0 && !slots.some(s => s.bot.id === selectedBotId)) {
-      const next = slots[0].bot.id;
-      setSelectedBotId(next);
-      if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
-    }
-  }, [botParam, slots, selectedBotId, router]);
-
-  function handleBotChange(nextId: string) {
-    setSelectedBotId(nextId);
-    // URL 동기화 — 다른 탭에서 라이브 알림이 와도 정확한 봇이 보이도록
-    router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
+  // 딥링크가 **바뀌었을 때만** 따라간다 — 지금 칸과 다르다는 이유로 되돌리면, 칩을 눌러 칸을 바꾸고
+  // URL 이 따라오기 전 한 박자 동안 옛 링크가 선택을 뒤집는다(A→B→A→B). 렌더 중에 「직전에 본 링크」와
+  // 비교해 맞추는 React 의 정석 패턴이다(effect 안 setState 가 아니라 — 그쪽은 한 렌더를 더 태운다).
+  const [seenLinkedKey, setSeenLinkedKey] = useState<string | null>(linkedKey);
+  if (linkedKey !== seenLinkedKey) {
+    setSeenLinkedKey(linkedKey);
+    if (linkedKey) setSelectedKey(linkedKey);
   }
 
-  // persist(참여·담기) hydration 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  // 반 나가기·담은 봇 빼기로 지금 칸이 목록에서 사라지면 URL 을 첫 칸으로 동기화한다. 보이는 칸은 이미
+  // `current` 의 `?? slots[0]` 폴백이 첫 칸이고, URL 이 바뀌면 위 링크 채택이 `selectedKey` 를 맞춘다 —
+  // 여기서 state 를 따로 만지지 않는다(URL 이 진실원).
+  useEffect(() => {
+    if (slots.length === 0 || slots.some(s => studentBotSlotKey(s) === selectedKey)) return;
+    router.replace(slotHref(slots[0]), { scroll: false });
+  }, [slots, selectedKey, router]);
+
+  function handleSlotChange(next: StudentBotSlot) {
+    setSelectedKey(studentBotSlotKey(next));
+    // URL 동기화 — 다른 탭에서 라이브 알림이 와도 정확한 반이 보이도록
+    router.replace(slotHref(next), { scroll: false });
+  }
+
+  // 반 목록(서버) 도착 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
   // 이 분기의 `justify-center` 는 남겨 둔다 — 여기 든 것은 상자가 아니라 **한 줄 글자**라
   // 가로 가운데가 맞다. 아래 빈 상태에서 같은 클래스를 걷어낸 것과 어긋나 보이지만 다른 경우다.
-  if (!classHydrated || botsLoading) {
+  if (botsLoading) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
@@ -281,14 +313,16 @@ function ClassbotChatPageInner() {
     // main(중앙) 스크롤바가 생기지 않는다. 모바일은 h-full + 스크롤 max-h 휴리스틱 유지.
     <div className="flex h-full min-h-0 flex-col gap-3 lg:h-[calc(100dvh-11rem)]">
       {/*
-        봇 선택 chip strip — **종류별로 나눠** 싣는다.
+        칸 선택 chip strip — **종류별로 나눠** 싣는다.
         학생이 알아야 할 것은 「어느 봇인가」만이 아니라 「선생님 반의 봇인가, 내가 담은 봇인가」다.
         그 구분을 색으로 하지 않는 이유: 시그니처 색은 이미 「어느 봇인가」에 쓰였고
         (`lib/tokens/bot-signature.ts` 머리주석), 초록·앰버는 앱 전역에서 걷어냈다.
         그래서 **말(그룹 이름)과 모양(담은 봇은 점선 테두리)** 으로 가른다 — 범례가 필요 없다.
+        반 칸의 칩은 **반 이름**이다(`classSlotLabel` — 봇 이름이 다르면 「반 · 봇」). 같은 봇이 두 반에
+        걸려 있으면 칩도 둘이다 — 대화의 단위가 반이라서다(완성 설계 § 6.2 · 해소 3).
       */}
       {slots.length > 1 && (
-        <section className="bg-card space-y-1.5 rounded-xl border p-2" aria-label="대화할 봇 고르기">
+        <section className="bg-card space-y-1.5 rounded-xl border p-2" aria-label="대화할 반 고르기">
           {BOT_SOURCE_ORDER.filter(source => slots.some(s => s.source === source)).map(source => {
             const meta = BOT_SOURCE_META[source];
             const GroupIcon = meta.icon;
@@ -299,8 +333,11 @@ function ClassbotChatPageInner() {
                   {meta.label}
                 </p>
                 <ul className="flex gap-1.5 overflow-x-auto">
-                  {slots.filter(s => s.source === source).map(({ bot: b }) => {
-                    const isActive = b.id === bot.id;
+                  {slots.filter(s => s.source === source).map(slot => {
+                    const b = slot.bot;
+                    const slotKey = studentBotSlotKey(slot);
+                    const label = slot.source === 'class' ? classSlotLabel(slot) : b.name;
+                    const isActive = slotKey === currentKey;
                     const isLiveNow = Boolean(activeLive[b.id]);
                     const sig = botSignature(b);
                     /*
@@ -317,12 +354,12 @@ function ClassbotChatPageInner() {
                       얹혀, 한 칩 안에 봇 얼굴이 둘이 된다.
                     */
                     return (
-                      <li key={b.id} className="shrink-0">
+                      <li key={slotKey} className="shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleBotChange(b.id)}
+                          onClick={() => handleSlotChange(slot)}
                           aria-pressed={isActive}
-                          aria-label={`${b.name} — ${meta.label}`}
+                          aria-label={`${label} — ${meta.label}`}
                           style={isActive ? { backgroundColor: sig.hex, color: sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF' } : undefined}
                           className={cn(
                             'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors',
@@ -338,7 +375,7 @@ function ClassbotChatPageInner() {
                             [08 § 14.1.1] 예외 2 는 화면이 아니라 데이터 자리의 계약이다.
                             (활성 칩의 시그니처 색 배경은 아직 남아 있다 — 별건 PR 이 걷는다.)
                           */}
-                          <span>{b.name}</span>
+                          <span>{label}</span>
                           {isLiveNow && (
                             <LiveBadge variant="dot" aria-label="라이브 진행 중" />
                           )}
@@ -356,28 +393,37 @@ function ClassbotChatPageInner() {
       {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇 무관 항상. */}
       <AiDisclosureNotice />
 
-      {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
-      <ChatPanel key={bot.id} bot={bot} source={current.source} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
+      {/* 칸별 채팅 — key(반 id · 담은 봇 id)로 unmount/remount 시 state reset. `?ask=` 는 링크가 이 칸을 가리킬 때만. */}
+      <ChatPanel key={currentKey ?? bot.id} slot={current} initialAsk={linkedKey === currentKey ? (askParam ?? undefined) : undefined} />
     </div>
   );
 }
 
 const STICKY_THRESHOLD = 80;
 
-function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: StudentBotSource; initialAsk?: string }) {
+function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: string }) {
+  const bot = slot.bot;
+  const source = slot.source;
+  // **대화의 단위는 반이다**(완성 설계 § 6.2 · 해소 3). 기록(`GET /classes/:classId/chat`)과 전송
+  // (`POST /classes/:classId/chat`)은 이 id 로 나간다 — `bot.id` 가 아니다. 담은 봇은 반이 없어 null 이고
+  // 그 칸은 아래 `locked` 가 문을 닫는다. 봇 단위로 남는 것은 로컬 학습 보조(수업 데이터·진행·목표 키)뿐이다.
+  const classId = slot.source === 'class' ? slot.classId : null;
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
   // 담은 봇(source='self')은 지금 **닫힌 레인**이다 — 이유와 기한은 `./chat-lane.ts`. 잠기면 기록도
   // 전송도 부르지 않고 composer 와 빠른 칩을 잠근 채 안내 한 줄을 세운다.
-  const locked = chatLaneFor(source) === 'locked';
+  const locked = chatLaneFor(source) === 'locked' || classId === null;
   // A5: prefers-reduced-motion → 칩 stagger 무력화
   const reduced = useReducedMotion();
   // A5: 스크린리더 announce 텍스트는 격리된 SrLiveRegion 이 자체 state 로 들고,
   // ChatPanel 은 imperative setter 를 ref 로 받아 호출한다 → turns.map 리렌더 회피.
   const announceRef = useRef<((text: string) => void) | null>(null);
-  // 봇 주도 가이드 수업 데이터 (단일 출처)
+  // 봇 주도 가이드 수업 데이터 (단일 출처).
+  // 5b — 봇 단위로 남은 로컬 학습 보조 셋(이 수업 데이터 · 아래 세션 목표 키 `goalKey` · 오프너 turn id `t0_/t1_`)은
+  // 대화 단위가 반으로 바뀐 뒤에도 `bot.id` 를 키로 쓴다. 같은 봇이 걸린 두 반에서 진행·목표가 겹치는 문제는
+  // 목 수업 데이터가 정본으로 옮겨 가는 5b 에서 반 단위로 옮길지 정한다 — 여기서는 표기만.
   const lesson = useMemo(() => getBotLesson(bot.id), [bot.id]);
 
   // A6 컨텍스트 앵커 — 마지막 본 개념(비스크롤 헤더에 위치 표시 + 1탭 재진입)
@@ -422,19 +468,19 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     setValue(initialAsk ?? '');
   }, [initialAsk]);
 
-  // 진입 시 서버 완결 히스토리(`GET /classbot/classes/:id/chat`)를 **초기 오프너(인사+lesson-intro) 뒤에
+  // 진입 시 서버 완결 히스토리(`GET /classbot/classes/:classId/chat`)를 **초기 오프너(인사+lesson-intro) 뒤에
   // 이어붙인다**(base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면
   // 오프너만 유지(graceful). 종전의 `USE_REAL_CORE_BE` 게이트는 걷혔다 — 기록은 서버 하나에서 온다
-  // (2026-09-16 계획 §07 학생·봇 대화 줄). 반이 아니라 봇을 고르는 선택기는 PR 5 가 바꾼다(해소 3).
+  // (2026-09-16 계획 §07 학생·봇 대화 줄). 읽는 단위는 **반**이다(계획 PR 5a · 해소 3).
   useEffect(() => {
-    if (locked) return;
+    if (locked || classId === null) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
     // summary 히스토리 배너 goalKey — **오늘 메시지에만**(로컬 store 는 과거 권위 아님, Codex #210:
     // 지난 날 키 주입은 타 기기/스토리지 초기화 시 거짓 0/N 배너). 지난 날은 undefined → 평문 폴백.
     const todayGoalKey = `${me.id}::${bot.id}::${todayKey()}`;
     const goalKeyForDay = (at: number) => historySummaryGoalKey(at, todayGoalKey);
-    void fetchChatHistory(bot.id)
+    void fetchChatHistory(classId)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
         // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
@@ -451,7 +497,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     return () => {
       cancelled = true;
     };
-  }, [bot.id, me.id, locked]);
+  }, [classId, bot.id, me.id, locked]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -567,6 +613,8 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   // 콜백 상태전이는 buildRealSendCallbacks(순수 테스트 단위), 카드 적응은 adaptCardToTurn(순수)에 위임.
   // clientTurnId=crypto.randomUUID(멱등 키) — 재전송 시 서버가 dedup·done 재생.
   async function sendReal(text: string, forcedKey?: QuickReplyKey) {
+    // 반이 없는 칸(담은 봇)은 `send` 의 `locked` 가 이미 막았다 — 여기는 타입을 좁히는 자리다. 문이 없으면 보내지 않는다.
+    if (classId === null) return;
     // 스트리밍 세그먼트/카드 turn 제어는 모듈 스코프 컨트롤러(createRealChatTurnController)에 위임한다
     // — 컴포넌트 내부에서 커서(let)를 재대입하면 React Compiler 가 immutable 위반으로 막으므로
     // (buildLessonActionTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
@@ -593,7 +641,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
       setLastReplyKey: setLastBotReplyKey,
       setPending,
     });
-    await streamChat(bot.id, text, clientTurnId, callbacks);
+    await streamChat(classId, text, clientTurnId, callbacks);
   }
 
   function submit() {
@@ -697,6 +745,21 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
             </span>
           )}
         </header>
+
+        {/*
+          반 대화 고지(완성 설계 § 6.2 「고지 문구」) — 반 칸에만, 화면을 보는 순간부터, 접히지 않는다.
+          정보성이라 경고색이 아니다(`AiDisclosureNotice` 와 같은 결). 담은 봇에는 보는 선생님이 없어 붙이지 않는다.
+        */}
+        {classId !== null && (
+          <p
+            role="note"
+            data-slot="chat-class-disclosure"
+            className="text-pullim-slate-500 border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-1.5 text-2xs"
+          >
+            <Eye aria-hidden className="h-3 w-3 shrink-0" />
+            {CLASS_CHAT_TEACHER_VISIBLE_NOTICE}
+          </p>
+        )}
 
         {/* 라이브 진행 중이면 — 컴팩트 바 (펼치면 슬라이드·자막·즉석 퀴즈·질문) */}
         {isLive && <LiveCompactBar bot={bot} />}

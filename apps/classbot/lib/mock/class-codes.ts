@@ -6,7 +6,8 @@ import type { StudentEnrollment } from '@/lib/mock/classbot';
  * 화면은 더 이상 이 표로 코드를 풀지 않는다 — 참여는 pullim-api 정본(`POST /classbot/enrollments`,
  * `hooks/api/classroom.ts`) 하나다(2026-09-16 계획 PR 4). 종전의 `resolveClassCode`(스토어 `join` 이 쓰던
  * 해석기)는 호출부가 사라져 함께 걷었다. 남은 쓰임은 로컬 DB 시드(`scripts/seed.ts` — `join_codes` 표의
- * 실전판)와 문서용 코드 목록뿐이다.
+ * 실전판)와 스토어 테스트의 표본뿐이다. 「인정되는 코드 목록」 `DEMO_CLASS_CODES` 는 부르는 곳이 0 이라
+ * 계획 PR 5a 가 걷었다(#350 리뷰 지적) — 코드 목록이 필요하면 `Object.keys(CODE_MAP)` 을 그 자리에서 쓴다.
  * assignedBy는 대응 봇(classBots)의 teacherName과 일치시킨다.
  */
 export const CODE_MAP: Record<string, StudentEnrollment> = {
@@ -35,6 +36,3 @@ export const CODE_MAP: Record<string, StudentEnrollment> = {
     via: '대치프리미엄 과학학원',
   },
 };
-
-/** 데모용 — 인정되는 참여 코드 목록 (안내·문서용). */
-export const DEMO_CLASS_CODES = Object.keys(CODE_MAP);
