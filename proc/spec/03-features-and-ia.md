@@ -661,7 +661,7 @@ L3 인 나머지 셋은 **맞아서가 아니라 스케줄의 한 칸과 우연�
 |---|---|---|
 | `components/shell/nav-config.ts` 사이드바 | `/teacher/settings` 「봇 설정」 | `/teacher/bots` 「봇 관리」 |
 | `app/(teacher)/teacher/classbot/page.tsx` 봇 카드 「더보기」 | `/teacher/settings` · `?tab=safety` | `/teacher/bots/[botId]` · `?tab=safety` — 어느 봇의 더보기였는지가 링크에 실린다 |
-| `app/(teacher)/teacher/page.tsx` 처리 대기(승인) | `/teacher/settings` | `/teacher/bots` |
+| ~~`app/(teacher)/teacher/page.tsx` 처리 대기(승인)~~ | `/teacher/settings` | ~~`/teacher/bots`~~ — **`[2026-09-16]` 그 줄 자체가 화면에서 걷혔다** (§ 4.4.6.1) |
 | `app/(teacher)/teacher/students/[id]/page.tsx` 「이탈 대응 강도」 | `/teacher/settings?tab=drift` | `/teacher/bots?tab=drift` |
 | `app/(teacher)/teacher/monitor/monitor-roster.tsx` 「봇 관리」 | `/teacher/settings?tab=drift` | `/teacher/bots?tab=drift` |
 | `components/builder/build-yards.tsx` 「봇 관리 › 안전 등급」 | `/teacher/settings?tab=safety` | `/teacher/bots?tab=safety` |
@@ -669,6 +669,28 @@ L3 인 나머지 셋은 **맞아서가 아니라 스케줄의 한 칸과 우연�
 **봇을 가리킬 수 있는 링크는 봇까지 가고, 못 가리키는 링크는 목록까지만 간다.** 위 표의 아래 셋(학생 기록 · 학급 관제소 · 봇 빌더)은 봇 id 를 알 길이 없다 — 학생 기록과 학급 관제소는 관제소 mock 에 봇 id 가 없고, 봇 빌더는 아직 봇을 만들기 전이다. 그래서 **`?tab=` 만 실어 목록으로 보내고, 봇은 교사가 고른다** — 고르면 그 탭으로 바로 들어간다.
 
 > `monitor-roster.tsx` · `build-yards.tsx` 두 파일은 앞선 FE PR(#243) 때 다른 작업이 물고 있어 손댈 수 없었다. **그 작업들이 끝나 둘 다 옮겼다.** 넘겨보내는 자리는 위 까닭으로 남는다.
+
+##### 4.4.6.1 교사 홈의 「루브릭 수정 요청」은 걷는다 *(`[2026-09-16]` 소유자 지시)*
+
+위 표의 「처리 대기(승인)」 줄은 **#243 이 옛 경로에서 `/teacher/bots` 로 옮긴 링크**다. 그런데
+**옮겨 온 곳에서도 할 일이 없었다** — 봇 관리 목록에는 루브릭도 승인 대기도 없다.
+
+**「나를 기다리는 일」의 계약은 「교사가 지금 처리할 수 있는 일」**이고, 줄 하나가 서려면 **그 일이
+끝나는 화면**이 있어야 한다. 이 줄은 그 화면이 어디에도 없었다:
+
+| 확인한 것 | 사실 (`dev` `52fcdf8`) |
+|---|---|
+| 도착지 | `/teacher/bots` — 루브릭도 승인 대기도 없는 화면 |
+| 루브릭을 고치는 자리 | 봇별 설정의 **「평가 규칙」 탭 — 준비 중**(`botPolicyTabs` 의 `ready: false`) |
+| 루브릭이 어긋났다는 신호 | 채점 쪽 **재학습 제안**. 누적 변경률이 임계를 넘어야 뜬다 — mock 은 `avgOverrideRate` **8** < `rubricLearningThreshold` **20** 이라 **떠 있지 않다** |
+| 「요청」의 주체 | **없다.** 학생도 AI도 이 요청을 만들지 않는다 |
+
+**그래서 줄을 걷는다.** `PendingItem` union 의 `'approval'` 도 함께 걷는다 — 쓰는 줄이 없어지면
+`pendingHref` 에 `'/teacher/bots'` 매핑만 남는데, **그게 이 줄을 엉뚱한 곳으로 보내던 바로 그 자리**다.
+
+**남는 둘(서술형 채점 대기 · 학부모 리포트 승인)은 그대로다** — 둘 다 도착지에서 실제로 처리한다.
+**「평가 규칙」 탭이 실제로 오는 날 되살린다**(그때는 그 탭으로 바로 보낸다). **인도**: **`[예정]`** —
+이 개정에 뒤따르는 FE PR.
 
 #### 4.4.7 [봇 빌더]를 [봇 관리] 하위로 — 레일부터 내린다, 경로는 남는다
 
