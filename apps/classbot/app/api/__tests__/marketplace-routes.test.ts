@@ -23,6 +23,15 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 // ── getDb mock — select/update 체인을 가짜로 대체 ──
 const whereSpy = jest.fn();
 const setSpy = jest.fn();
+/**
+ * `select({...})` 에 넘어온 **열 묶음**을 잡아 둔다.
+ *
+ * 행 자체는 `mockSelectQueue` 가 주므로, 라우트가 어떤 열을 **실제로 고르는지**는 그것만으로는
+ * 잴 수 없다 — 픽스처에 있는 칸은 라우트가 안 골라도 그대로 나온다. 공식 봇 판별이
+ * `teacherId === null` 이라, 라우트에서 그 열이 빠지면 값이 `undefined` 가 되어
+ * **모든 봇이 조용히 「공식 봇 아님」**이 된다. 그 구멍을 여기서 닫는다.
+ */
+const selectSpy = jest.fn();
 
 /** 다음 `select` 들이 차례로 돌려줄 행 묶음(호출 순서대로 shift). */
 let mockSelectQueue: unknown[][] = [];
@@ -66,7 +75,10 @@ jest.mock('@/lib/db', () => {
 
   return {
     getDb: () => ({
-      select: () => selectChain(),
+      select: (projection?: unknown) => {
+        selectSpy(projection);
+        return selectChain();
+      },
       update: () => updateChain(),
     }),
   };
@@ -120,6 +132,7 @@ beforeAll(() => {
 beforeEach(() => {
   whereSpy.mockClear();
   setSpy.mockClear();
+  selectSpy.mockClear();
   mockSelectQueue = [];
   mockUpdateQueue = [];
 });
@@ -428,6 +441,16 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
     const { text, params } = render(whereSpy.mock.calls[0][0]);
     expect(text).toContain('is_published');
     expect(params).toContain(true);
+  });
+
+  // 판별에 쓰는 열이 select 에서 빠지면 값이 `undefined` 가 되어 모든 봇이 조용히
+  // 「공식 봇 아님」이 된다 — 픽스처는 그걸 못 잡으므로 고르는 열을 직접 본다.
+  it('소유자 열을 실제로 고른다 — 공식 봇 판별의 근거다', async () => {
+    mockSelectQueue = [[]];
+
+    await getMarketplaceBots(cookieReq('student_001'));
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('teacherId');
   });
 
   /*

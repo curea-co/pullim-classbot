@@ -149,11 +149,26 @@ const OFFICIAL_BOT_SEEDS: Array<{ id: string; tutorId: string }> = [
 ];
 
 /**
- * 공식 봇 게시 시각 — **못박은 값이고 `new Date()` 가 아니다.**
+ * 공식 봇 게시 시각의 기준점 — **못박은 값이고 `new Date()` 가 아니다.**
  * 마켓 목록이 이 값의 내림차순이라, 실행 시각을 넣으면 **언제 시드를 돌렸느냐에 따라
  * 목록 차례가 달라진다.** 같은 시드는 언제 돌려도 같은 결과여야 한다.
  */
-const OFFICIAL_PUBLISHED_AT = new Date('2026-09-16T00:00:00Z');
+const OFFICIAL_PUBLISHED_AT_BASE = new Date('2026-09-16T00:00:00Z');
+
+/**
+ * 세 행에 **같은 시각을 주지 않는다 — 1초씩 어긋낸다.**
+ *
+ * 목록 라우트의 정렬은 `desc(published_at)` **하나뿐**이고 보조 키가 없다. 세 행이 같은 값을
+ * 가지면 동률이라 **Postgres 가 돌려주는 차례가 실행마다 달라질 수 있다** — 값을 못박아
+ * 얻으려던 「같은 시드는 같은 결과」가 정작 이 셋 사이에서 서지 않는다.
+ *
+ * 내림차순이므로 **먼저 세울 봇에 더 늦은 시각**을 준다 — 위 목록 차례(수학 → 영어 → 과학)가
+ * 화면에 그대로 선다. 봇을 더하면 이 계산이 알아서 자리를 준다.
+ */
+function officialPublishedAt(index: number): Date {
+  const lastIndex = OFFICIAL_BOT_SEEDS.length - 1;
+  return new Date(OFFICIAL_PUBLISHED_AT_BASE.getTime() + (lastIndex - index) * 1000);
+}
 
 const TEACHER_NAMES: Record<string, string> = {
   teacher_001: '김보람',
@@ -353,7 +368,7 @@ async function main() {
    * 전체 경로)를 NOT NULL 로 요구한다 — 없는 값을 지어내야 한다. 게다가 그 테이블을
    * 읽는 코드가 아직 없고(라우트 전수 확인), 런타임에 만들어지는 봇도 단원 없이 선다.
    */
-  const officialBotRows = OFFICIAL_BOT_SEEDS.map(({ id, tutorId }) => {
+  const officialBotRows = OFFICIAL_BOT_SEEDS.map(({ id, tutorId }, i) => {
     const t = getOfficialTutor(tutorId);
     // mock 에서 봇이 빠지면 조용히 한 줄 덜 깔리는데, 마켓에서 공식 봇이 사라진 것은
     // 시드가 끝난 뒤에 알아채기 어렵다. 그래서 여기서 멈춘다.
@@ -380,7 +395,7 @@ async function main() {
       // 참여 인원은 마켓이 참여 행을 실제로 세므로 전시용 숫자를 심지 않는다.
       enrolledCount: 0,
       isPublished: true,
-      publishedAt: OFFICIAL_PUBLISHED_AT,
+      publishedAt: officialPublishedAt(i),
       publishBlurb: t.tagline,
     };
   });
