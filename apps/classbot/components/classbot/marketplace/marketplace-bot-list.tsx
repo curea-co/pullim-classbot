@@ -66,9 +66,9 @@ export function MarketplaceBotList({
 
   return (
     <section>
-      {/* 제목 밑에 설명은 두지 않는다 — 곧 풀림 공식 봇이 이 목록에 섞여 「선생님들이 직접 만들어」가 참이 아니게 된다. */}
       <SectionHeading
         title={query.isPending || isSignedOut ? '공유된 봇' : `공유된 봇 ${bots.length}개`}
+        description="선생님들이 직접 만들어 공유한 봇이에요."
         action={headingAction}
       />
 
