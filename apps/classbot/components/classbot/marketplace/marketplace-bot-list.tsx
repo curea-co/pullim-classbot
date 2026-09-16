@@ -75,8 +75,13 @@ export function MarketplaceBotList({
 
         부제가 빠지면서 정렬도 바뀐다. `SectionHeading` 은 `sm:items-end` 라 제목+부제(44px)와
         44px 버튼을 밑선으로 맞췄는데, 이제 왼쪽이 제목 한 줄(20px)뿐이라 밑선에 맞추면 제목
-        위로 24px 빈 칸이 생긴다(실측: 48px→44px 행, 제목 offsetTop 0→24). 한 줄과 버튼은
-        가운데로 맞춘다.
+        위로 24px 빈 칸이 생긴다(실측: 행 48→44px, 제목 offsetTop 0→24). 여기서 가운데로 맞춘다.
+
+        ⚠ 이건 **이 호출처만** 고친 것이다. `SectionHeading` 은 부제 없이 action 만 있는 모양을
+        늘 `sm:items-end` 로 그리고, 같은 모양이 지금 셋이다(교사 홈 「먼저 볼 학생」·
+        `class-reach-roster` 「학생 한 줄 보기」·여기). 나머지 둘은 이 PR 이전부터 그랬던
+        자리라 손대지 않았다 — `components/shell/*` 는 이 리포에서 사용자 확인 사항이라
+        (`apps/classbot/CLAUDE.md § 5`) 셋을 한 번에 고치는 건 별건으로 올린다.
       */}
       <SectionHeading
         className="sm:items-center"

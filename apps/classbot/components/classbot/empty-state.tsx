@@ -96,7 +96,7 @@ export function EmptyState({
 
   if (isPlain) {
     return (
-      <div className={wrapperClass}>
+      <div className={wrapperClass} data-testid="empty-state">
         <p className="text-pullim-slate-500 text-sm font-bold">{title}</p>
         {description && (
           <p className="text-pullim-slate-500 text-2xs">{description}</p>
@@ -107,7 +107,7 @@ export function EmptyState({
   }
 
   return (
-    <section className={wrapperClass}>
+    <section className={wrapperClass} data-testid="empty-state">
       {Icon && (
         <span className={chipClass}>
           <Icon className={iconSize[size]} aria-hidden />
@@ -119,30 +119,5 @@ export function EmptyState({
       )}
       {actionEl}
     </section>
-  );
-}
-
-/**
- * 빈 상태·에러 상태를 **세로만** 가운데로 두는 껍데기.
- *
- * 종전에는 화면마다 `flex h-full min-h-0 items-center justify-center` 를 직접 적었는데,
- * 그러면 가로도 같이 가운데가 되면서 **flex 아이템이 글자 폭으로 줄어든다.** 같은
- * `EmptyState` 인데도 블록으로 놓인 곳(봇 마켓 목록 안)보다 눈에 띄게 좁은 상자가 됐다.
- * 안쪽 `w-full` 이 그 수축을 막는다 — `justify-center` 는 아이템이 가로를 꽉 채우면
- * 남는 공간이 없어 할 일이 없으므로 **적지 않는다**(적어 두면 「가로도 가운데」로 읽혀
- * 다음 사람이 `w-full` 을 걷어낸다).
- *
- * 화면마다 손으로 `w-full` 을 붙이지 않고 여기로 모은 이유: 한 번 빠뜨리면 그 화면만
- * 조용히 좁아지고 테스트는 초록으로 지나간다 — 봇 대화·학습 기록이 실제로 그랬고,
- * 두 화면 모두 **에러 상태 쪽은 고쳐지지 않은 채로** 한 라운드를 더 갔다.
- *
- * 안에 여러 줄을 넣을 때 `items-center` 를 쓰지 마라 — 세로 열에서 그건 다시 「글자 폭」이다.
- * 가운데로 보이고 싶은 글자에는 `text-center` 를 준다.
- */
-export function CenteredState({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full min-h-0 items-center">
-      <div className="w-full">{children}</div>
-    </div>
   );
 }

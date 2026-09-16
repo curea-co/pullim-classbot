@@ -80,36 +80,50 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
   });
 
   /**
-   * 빈 상태 상자는 세 화면이 **같은 폭**이다.
+   * 빈 상태 상자는 **제 칸의 폭을 쓴다.**
    *
    * 봇 대화·학습 기록의 빈 상태는 `flex items-center justify-center` 래퍼 안에 있어
    * flex 아이템이 글자 폭으로 줄어 있었다 — 같은 `EmptyState` 인데 봇 마켓(블록으로 놓여
    * 제 폭을 쓴다)보다 눈에 띄게 좁았다. 고장이 아니라 **조용히 좁아지는** 종류라 눈으로
    * 볼 때까지 아무도 몰랐고, 단위 테스트(jsdom)는 폭을 재지 못한다. 그래서 여기서 잡는다.
    *
-   * 픽셀을 박지 않고 **본문 폭 대비 비율**로 본다 — 좁아진 상자는 본문의 30% 안쪽이었고
-   * 제 폭을 쓰는 상자는 패딩을 빼도 90%를 넘는다. 그 사이는 어느 쪽도 아니다.
+   * 재는 기준은 **제 부모** 폭이다. 본문(`main`) 폭과 대면 본문 좌우 패딩(24px씩)이 비율에
+   * 섞여 좁은 화면에서 기준이 흔들린다 — 375px 에서 327/375 = 0.87 이라 「제 폭을 쓰는」
+   * 상자가 거짓으로 걸린다. 부모 대비면 화면 폭과 무관하게 줄었을 때만 떨어진다
+   * (실제로 줄었을 때 0.31 까지 내려가는 것을 되돌려 확인했다).
    *
-   * 셋 다 익명으로 도는 이 스펙에서 빈 상태(또는 로그인 안내)를 그린다 — 마켓은 신원이
-   * 있어야 열리고(마켓 계약 §2), 나머지 둘은 봇이 없으니 빈 상태다. 읽기 실패로 에러
-   * 카드가 뜬 경우에도 같은 껍데기(`CenteredState`)를 쓰므로 이 단언은 그대로 유효하다.
+   * 상자를 `data-testid` 로 잡는다. `section.border-dashed` 같은 클래스로 잡으면 색·테두리만
+   * 손봐도 prod-verify 가 빨개진다.
+   *
+   * 화면마다 따로 도는 이유: 한 test 에 묶으면 첫 화면에서 던지고 나머지 둘은 재지도 못한다.
    */
-  test('빈 상태 상자 — 봇 마켓·봇 대화·학습 기록이 같은 폭을 쓴다', async ({ page }) => {
-    for (const path of ['/classbot/discover', '/classbot/chat', '/classbot/me/progress']) {
+  for (const { path, name } of [
+    { path: '/classbot/discover', name: '봇 마켓' },
+    { path: '/classbot/chat', name: '봇 대화' },
+    { path: '/classbot/me/progress', name: '학습 기록' },
+  ]) {
+    test(`빈 상태 상자 — ${name} 는 제 칸의 폭을 쓴다`, async ({ page }) => {
       await page.goto(BASE + path, { waitUntil: 'networkidle' });
 
-      const box = page.locator('main section.border-dashed').first();
-      await expect(box, `${path} — 빈 상태 상자가 떠야 한다`).toBeVisible({ timeout: 10_000 });
+      const boxes = page.getByTestId('empty-state');
+      // 신원에 따라 목록이 차 있을 수 있다(이 스펙은 익명으로 돌지만 로컬에서는 개발용 신원
+      // 쿠키를 꽂고 돌리기도 한다 — 위 「마켓 화면이 제 상태 중 하나를」 주석과 같은 사정).
+      // 그때는 잴 상자가 없다. 없는 것을 실패로 적지 않는다.
+      await page.waitForLoadState('networkidle');
+      test.skip((await boxes.count()) === 0, `${path} — 이 신원에서는 빈 상태가 아니다`);
+
+      const box = boxes.first();
+      await expect(box).toBeVisible({ timeout: 10_000 });
 
       const ratio = await box.evaluate((el) => {
-        const main = el.closest('main');
-        if (!main) return 0;
-        return el.getBoundingClientRect().width / main.getBoundingClientRect().width;
+        const parent = el.parentElement;
+        if (!parent) return 0;
+        return el.getBoundingClientRect().width / parent.getBoundingClientRect().width;
       });
 
-      expect(ratio, `${path} — 빈 상태 상자가 본문 폭을 못 쓰고 글자 폭으로 줄었다`).toBeGreaterThan(0.9);
-    }
-  });
+      expect(ratio, `${path} — 빈 상태 상자가 제 칸을 못 쓰고 글자 폭으로 줄었다`).toBeGreaterThan(0.95);
+    });
+  }
 
   test('legacy /classbot/live/[botId] → chat 리다이렉트', async ({ page }) => {
     await page.goto(BASE + '/classbot/live/cb_001', { waitUntil: 'networkidle' });

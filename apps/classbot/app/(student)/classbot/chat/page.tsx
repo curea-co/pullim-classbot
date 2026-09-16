@@ -51,7 +51,7 @@ import {
   ChatBubbleFrame, ChatComposer, ChatDateDivider, ChatPendingBubble, ChatTypingDots,
   chatBubbleClass,
 } from '@/components/classbot/chat-transcript';
-import { CenteredState, EmptyState } from '@/components/classbot/empty-state';
+import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { useLessonProgressStore, type LessonPhase } from '@/lib/store/lesson-progress';
 import { useSessionGoalStore, useSessionProgressLive, type SessionStep } from '@/lib/store/session-goal';
@@ -225,6 +225,8 @@ function ClassbotChatPageInner() {
   }
 
   // persist(참여·담기) hydration 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  // 이 분기의 `justify-center` 는 남겨 둔다 — 여기 든 것은 상자가 아니라 **한 줄 글자**라
+  // 가로 가운데가 맞다. 아래 빈 상태에서 같은 클래스를 걷어낸 것과 어긋나 보이지만 다른 경우다.
   if (!classHydrated || botsLoading) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
@@ -242,38 +244,37 @@ function ClassbotChatPageInner() {
   // 반 목록을 **못 읽었으면** 「봇이 없다」로 확정하지 않는다 — 실제로 반 봇이 있는 학생에게
   // 참여·마켓 안내를 내밀면 「내 봇이 사라졌다」로 읽힌다. 다시 시도를 준다.
   if (!current && botsError) {
-    return (
-      <CenteredState>
-        <ReadErrorState onRetry={retryBots} />
-      </CenteredState>
-    );
+    return <ReadErrorState onRetry={retryBots} />;
   }
 
   if (!current) {
     return (
-      <CenteredState>
-        {/* 열에 `items-center` 를 주지 않는다 — 세로 열에서 그건 다시 「글자 폭」이라
-            상자가 좁아진다(`CenteredState` 주석). 안내문만 `text-center` 로 가운데. */}
-        <div className="flex flex-col gap-2">
-          <EmptyState
-            icon={Compass}
-            title="아직 대화할 봇이 없어요"
-            description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
-            action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
-          />
-          <p className="text-pullim-slate-500 text-2xs text-center">
-            선생님께 참여 코드를 받았다면{' '}
-            <Link
-              href="/classbot"
-              aria-label="참여 코드 입력하러 가기"
-              className="text-pullim-blue-700 font-bold underline underline-offset-2"
-            >
-              {/* 보이는 글자는 명사 두 어절(07 § 6.6) — 잃은 뜻은 위 aria-label 이 든다. */}
-              참여 코드
-            </Link>
-          </p>
-        </div>
-      </CenteredState>
+      /* 감싸는 껍데기가 없다. 여기 `flex h-full min-h-0 items-center justify-center` 가
+         있었는데, 두 가지가 다 거짓이었다 — 세로 가운데는 `h-full` 이 기댈 확정 높이가
+         위에 없어(`body` 는 `min-h-full`, 셸 본문은 높이 무지정) **처음부터 돌지 않았고**
+         (실측: 바깥 높이 224px = 내용 높이, 상자 top 이 바깥 top 과 같다), 가로 가운데는
+         flex 아이템을 **글자 폭으로 줄여** 상자를 봇 마켓보다 좁게 만들고 있었다.
+         걷어내면 블록 흐름으로 돌아가 제 폭을 쓴다 — 봇 마켓의 빈 상태가 늘 옳았던 이유가
+         그것이다. 다시 감싸지 마라. */
+      <div className="flex flex-col gap-2">
+        <EmptyState
+          icon={Compass}
+          title="아직 대화할 봇이 없어요"
+          description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
+          action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
+        />
+        <p className="text-pullim-slate-500 text-2xs text-center">
+          선생님께 참여 코드를 받았다면{' '}
+          <Link
+            href="/classbot"
+            aria-label="참여 코드 입력하러 가기"
+            className="text-pullim-blue-700 font-bold underline underline-offset-2"
+          >
+            {/* 보이는 글자는 명사 두 어절(07 § 6.6) — 잃은 뜻은 위 aria-label 이 든다. */}
+            참여 코드
+          </Link>
+        </p>
+      </div>
     );
   }
 
