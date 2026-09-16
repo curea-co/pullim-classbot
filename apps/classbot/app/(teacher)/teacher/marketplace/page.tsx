@@ -23,7 +23,7 @@ export default function TeacherMarketplacePage() {
       header={{
         eyebrow: { icon: Store, text: '둘러보기' },
         title: '봇 마켓',
-        description: '선생님들이 공유한 봇을 둘러보고, 내가 공유한 봇이 어떻게 보이는지 확인해요.',
+        description: '봇을 공유하거나 공유된 봇을 둘러볼 수 있어요.',
       }}
     >
       <MarketplaceWorkspace />

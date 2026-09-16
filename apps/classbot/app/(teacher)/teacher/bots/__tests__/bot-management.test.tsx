@@ -77,12 +77,13 @@ describe('봇 관리 목록', () => {
     expect(within(list).queryAllByText(/낸 과제/)).toHaveLength(0);
   });
 
-  // 07 § 6.6 「버튼은 단어로」 — 「새 봇 만들기」가 아니라 「새 봇」
-  it('봇 만들러 가는 길이 헤더에 있고 이름은 한 단어다', async () => {
+  // 07 § 6.6 「버튼은 단어로」의 두 단어 한도 — 「새 클래스봇 만들기」가 아니라 「새 클래스봇」.
+  // 교사 홈·운영 화면이 이미 부르는 이름이라 봇 만들러 가는 세 화면이 한 이름이다.
+  it('봇 만들러 가는 길이 헤더에 있고 이름은 두 단어다', async () => {
     await renderList();
     const cta = screen.getByTestId('bots-new-cta');
     expect(cta).toHaveAttribute('href', '/teacher/builder');
-    expect(cta).toHaveTextContent('새 봇');
+    expect(cta).toHaveTextContent('새 클래스봇');
   });
 
   it('옛 경로가 실어 보낸 탭을 봇 링크까지 이어 붙인다', async () => {

@@ -51,8 +51,11 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
           봇 만들러 가는 길은 화면에 **하나만** 둔다 — 봇이 있으면 헤더 CTA,
           없으면 아래 빈 상태. 둘이 같이 뜨면 같은 화면에 같은 일을 하는 버튼이 둘이다
           (`07 § 6.6.2(2)`).
-          이름은 「새 봇」 — `07 § 6.6.3` 이 빌더 만든 뒤 화면의 「봇 하나 더 만들기」에
-          준 이름과 같다. 같은 뜻은 같은 이름으로 부른다.
+          이름은 「새 클래스봇」 — 교사 홈(`teacher/page.tsx`)과 운영 화면(`teacher/classbot/page.tsx`)이
+          이미 그렇게 부르고 있어, 이 자리까지 맞추면 **빌더로 보내는 세 화면이 한 이름**이 된다.
+          빌더를 다시 시작하는 만든 뒤 화면(`components/builder/done-view.tsx`)도 같은 PR 이 맞춰,
+          **새 봇을 만드는 버튼은 앱 안에서 넷 다 같은 글자**다.
+          두 단어라 `07 § 6.6` 「버튼은 단어로」의 두 단어 한도 안이다.
 
           TODO(봇 빌더 이식): 다음 작업에서 [봇 빌더]를 이 화면 하위(`/teacher/bots/new`)로 옮긴다.
           그때 이 버튼과 아래 빈 상태의 href 만 `/teacher/bots/new` 로 바꾸면 되도록
@@ -62,8 +65,7 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
           2026-09-15 에 내렸다(사용자 직접 지시). **경로 이동은 아직이다** — 라우트
           `/teacher/builder` 는 살아 있고 앱 안 여러 진입점이 계속 쓴다. 미뤄 둔 것이지
           접은 것이 아니다 (`proc/spec/03 § 4.4.7`).
-          그래서 이 버튼과 아래 빈 상태의 href 도 아직 `/teacher/builder` 그대로다 —
-          함께 고칠 곳으로 남은 것은 운영 화면(`/teacher/classbot`)의 「새 클래스봇」.
+          그래서 이 버튼과 아래 빈 상태의 href 도 아직 `/teacher/builder` 그대로다.
         */
         action: bots.length > 0 ? (
           <Link
@@ -72,7 +74,7 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
             className="bg-pullim-slate-900 hover:bg-pullim-slate-800 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold text-white"
           >
             <Plus className="h-4 w-4" />
-            새 봇
+            새 클래스봇
           </Link>
         ) : undefined,
       }}

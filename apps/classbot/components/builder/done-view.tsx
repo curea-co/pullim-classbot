@@ -112,7 +112,7 @@ export function DoneView({ draft, onPick, onRefine, onRestart }: Props) {
             고치기
           </Button>
           <Button type="button" variant="ghost" size="lg" onClick={onRestart} aria-label="봇 하나 더 만들기">
-            새 봇
+            새 클래스봇
           </Button>
         </footer>
       </section>

@@ -744,7 +744,7 @@ describe('만든 뒤 화면', () => {
     expect(classAssignments(emptyDraft, 'cb_new')).toEqual([]);
   });
 
-  it('「새 봇」은 앞 봇의 값을 데려오지 않는다', () => {
+  it('「새 클래스봇」은 앞 봇의 값을 데려오지 않는다', () => {
     render(<BotBuilderPage />);
     fireEvent.click(screen.getByRole('radio', { name: /과학/ }));
     fireEvent.click(screen.getByRole('radio', { name: '중3' }));
