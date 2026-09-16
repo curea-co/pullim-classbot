@@ -112,7 +112,7 @@ function toClassBot(item: MarketplaceBotItem): ClassBot {
     enrolledCount: item.enrolledCount,
     // 「풀림 공식 봇인가」는 마켓만 안다(소유자 유무에서 파생된다 — spec `03 § 4.13.1`).
     // 담은 봇 카드·채팅 헤더가 사람 이름을 적지 않으려면 여기까지 값이 닿아야 한다
-    // (`§ 4.13.3`). 그리는 쪽은 뒤따르는 PR 이다.
+    // (`§ 4.13.3`) — 그리는 쪽은 그 두 화면이다.
     isOfficial: item.isOfficial,
   };
 }
