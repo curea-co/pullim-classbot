@@ -19,16 +19,19 @@ const DEFAULT_OS_URL = 'http://os.pullim.local:3001';
 const DEFAULT_API_BASE = 'http://api.pullim.local:3000';
 
 /**
- * 풀림 OS base URL. Next 가 클라이언트 번들에 인라인하려면 **정적** 참조여야 한다
- * (api-client 의 NEXT_PUBLIC_API_URL 주석과 동일 이유 — 동적 우회는 치환 안 됨).
+ * 풀림 OS base URL. Next 가 클라이언트 번들에 인라인하려면 **정적** 참조여야 한다 —
+ * `globalThis.process` 같은 동적 우회는 치환 대상이 아니라 브라우저에서 늘 undefined 가 되고,
+ * 그러면 아래 로컬 기본값으로 굳어 배포에서 로그인 진입이 통째로 깨진다.
  */
 export const OS_URL = process.env.NEXT_PUBLIC_OS_URL || DEFAULT_OS_URL;
 
 /**
- * pullim-api base URL(OS SSO 모드). `/me`·`/auth/csrf`·`/auth/logout`·`/classbot/*` 호출 대상.
- * api-client 의 `NEXT_PUBLIC_API_URL`(= classbot BE base) 과는 **별개 변수**다. 둘이 충돌하지
- * 않도록 OS SSO/pullim-api base 는 전용 `NEXT_PUBLIC_OS_API_URL` 로 읽는다
- * (글로벌 envelope·`/api` 프리픽스 없음 — 경로는 `/me` 처럼 루트 기준).
+ * pullim-api base URL. `/me`·`/auth/csrf`·`/auth/logout`·`/classbot/*` 호출 대상.
+ * 경로는 `/me` 처럼 **루트 기준**이다 — 글로벌 envelope 도 `/api` 프리픽스도 없다.
+ *
+ * *(종전에는 api-client 의 `NEXT_PUBLIC_API_URL`(classbot 자체 BE base)과 헷갈리지 않게
+ * 전용 변수를 쓴다고 적어 두었다. 그 변수는 자체 인증과 함께 걷혔고, 지금 BE base 는 이
+ * 하나뿐이다.)*
  */
 export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
 
