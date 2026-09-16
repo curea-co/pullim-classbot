@@ -166,10 +166,15 @@ export default function TeacherHomePage() {
   );
 }
 
-/** 처리 대기 항목이 실제로 끝나는 자리 — mock 의 href 는 아직 앵커라 여기서 라우트로 잇는다. */
+/**
+ * 처리 대기 항목이 **실제로 끝나는 자리** — mock 의 href 는 아직 앵커라 여기서 라우트로 잇는다.
+ *
+ * 이 표에 줄을 더하려면 **그 일이 끝나는 화면**이 있어야 한다. `approval` 행(`/teacher/bots`)을
+ * 걷은 것이 그 까닭이다 — 봇 관리에는 승인할 것이 없어 「루브릭 수정 요청」이 닿는 곳에서
+ * 아무 일도 할 수 없었다 (`lib/mock/classbot.ts` 의 `PendingItem` 주석).
+ */
 const pendingHref: Record<PendingItem['type'], string> = {
   // 「나를 기다리는 일」은 검수할 것만 가리킨다 — 채점 허브 기본 화면(학생 전체)이 아니라 큐로 보낸다.
   grading: '/teacher/grading?view=queue',
   report: '/teacher/reports',
-  approval: '/teacher/bots',
 };

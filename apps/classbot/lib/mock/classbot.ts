@@ -439,10 +439,27 @@ export const upcomingLessons: UpcomingLesson[] = [
   },
 ];
 
-/** 교사 홈 — 처리 대기 항목 */
+/**
+ * 교사 홈 — 처리 대기 항목.
+ *
+ * 이 목록의 계약은 **「교사가 지금 처리할 수 있는 일」**이다. 그래서 줄 하나가 서려면
+ * **그 일이 끝나는 화면**이 있어야 한다 — 누르면 닿는 곳에서 실제로 처리가 된다.
+ *
+ * 그 계약 때문에 **「루브릭 수정 요청」(`p3`, `type: 'approval'`)을 걷었다**(2026-09-16 소유자 지시).
+ * 그 줄이 가리키던 일이 앱 어디에도 없었다 —
+ *  - 누르면 봇 관리 목록(`/teacher/bots`)으로 갔는데 그 화면에는 루브릭도 승인 대기도 없다.
+ *  - 루브릭을 고치는 자리는 봇별 설정의 「평가 규칙」 탭인데 **준비 중**이다
+ *    (`lib/mock/classbot-bot-policy.ts` 의 `botPolicyTabs`).
+ *  - 루브릭이 어긋났다는 신호(재학습 제안)는 채점 쪽에 있고, 그것도 누적 변경률이 임계를
+ *    넘어야 뜬다 — 지금 mock 은 `avgOverrideRate` 8 < `rubricLearningThreshold` 20 이라 **떠 있지 않다.**
+ *  - 「요청」은 요청한 주체를 전제하는데 그런 주체도 없다.
+ *
+ * **「평가 규칙」 탭이 실제로 오는 날 되살린다.** 그때는 그 탭으로 바로 보내면 된다.
+ */
 export type PendingItem = {
   id: string;
-  type: 'grading' | 'approval' | 'report';
+  /** 'approval' 은 걷혔다 — 위 주석 참고. 되살릴 때 union 에 다시 넣는다. */
+  type: 'grading' | 'report';
   label: string;
   count: number;
   href: string;
@@ -451,7 +468,6 @@ export type PendingItem = {
 export const pendingItems: PendingItem[] = [
   { id: 'p1', type: 'grading',  label: '서술형 채점 대기',  count: 12, href: '#grading' },
   { id: 'p2', type: 'report',   label: '학부모 리포트 승인', count: 5,  href: '#reports' },
-  { id: 'p3', type: 'approval', label: '루브릭 수정 요청',   count: 2,  href: '#settings' },
 ];
 
 /** 교사 프로필 */
