@@ -52,6 +52,8 @@ export default function MyProgressPage() {
   const hydrated = useStoresHydrated(useClassEnrollmentStore) && !roomsLoading;
 
   // persist hydration 전에는 참여 여부를 신뢰할 수 없다 → 빈 상태 플래시 방지.
+  // 이 분기의 `justify-center` 는 남겨 둔다 — 여기 든 것은 상자가 아니라 **한 줄 글자**라
+  // 가로 가운데가 맞다. 아래 빈 상태에서 같은 클래스를 걷어낸 것과 어긋나 보이지만 다른 경우다.
   if (!hydrated) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
@@ -62,23 +64,21 @@ export default function MyProgressPage() {
 
   // 못 읽은 것과 없는 것을 가른다 — 실패를 빈 상태로 적으면 「내 기록이 사라졌다」로 읽힌다.
   if (roomsError) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        <ReadErrorState onRetry={retryRooms} />
-      </div>
-    );
+    return <ReadErrorState onRetry={retryRooms} />;
   }
 
+  // 감싸는 껍데기가 없다. 여기 `flex h-full min-h-0 items-center justify-center` 가 있었는데
+  // 세로 가운데는 기댈 확정 높이가 위에 없어 처음부터 돌지 않았고, 가로 가운데는 flex 아이템을
+  // 글자 폭으로 줄여 상자를 봇 마켓보다 좁게 만들고 있었다. 블록으로 두면 제 폭을 쓴다
+  // (봇 대화 쪽 같은 자리의 주석에 실측값). 다시 감싸지 마라.
   if (myBots.length === 0) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        <EmptyState
-          icon={GraduationCap}
-          title="아직 쌓인 학습 기록이 없어요"
-          description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
-          action={{ href: '/classbot/classroom', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
-        />
-      </div>
+      <EmptyState
+        icon={GraduationCap}
+        title="아직 쌓인 학습 기록이 없어요"
+        description="선생님께 받은 참여 코드로 클래스에 참여하고 과제를 풀면 여기에 기록이 쌓여요."
+        action={{ href: '/classbot/classroom', label: '참여 코드', ariaLabel: '참여 코드 입력하러 가기' }}
+      />
     );
   }
 

@@ -96,7 +96,7 @@ export function EmptyState({
 
   if (isPlain) {
     return (
-      <div className={wrapperClass}>
+      <div className={wrapperClass} data-testid="empty-state">
         <p className="text-pullim-slate-500 text-sm font-bold">{title}</p>
         {description && (
           <p className="text-pullim-slate-500 text-2xs">{description}</p>
@@ -107,7 +107,7 @@ export function EmptyState({
   }
 
   return (
-    <section className={wrapperClass}>
+    <section className={wrapperClass} data-testid="empty-state">
       {Icon && (
         <span className={chipClass}>
           <Icon className={iconSize[size]} aria-hidden />
