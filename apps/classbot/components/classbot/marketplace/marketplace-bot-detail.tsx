@@ -89,11 +89,17 @@ export function MarketplaceBotDetail({
         <PageHeader
           eyebrow={{ icon: Store, text: '봇 소개' }}
           title={bot?.name ?? '봇 상세'}
+          /*
+            한 줄 소개가 없을 때 대신 적는 말에서도 **「선생님이 만들어」라는 한정을 걷었다.**
+            지금 시드로는 공식 봇이 `blurb` 를 갖고 있어 이 자리에 닿지 않지만, 닿기만 하면
+            바로 위 배지가 「풀림 공식」이라 말하는 옆에서 「선생님이 만들어 공유한 봇」이
+            된다 — 같은 파일 안에서 같은 종류의 거짓이다(spec `03 § 4.13.3`). 한정을 걷으면
+            공식 봇이든 교사 봇이든 참이고, 이 화면이 아는 것(마켓에 올라와 있다)까지만
+            말한다. `blurb` 가 null 인 길은 교사가 소개를 안 적었을 때에도 열려 있다.
+          */
           description={
-            bot?.blurb ??
-            (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '선생님이 만들어 공유한 봇이에요.')
+            bot?.blurb ?? (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '마켓에 공유된 봇이에요.')
           }
-
         />
       </div>
 
@@ -102,7 +108,14 @@ export function MarketplaceBotDetail({
           <EmptyState
             icon={LogIn}
             title="로그인하면 이 봇을 볼 수 있어요"
-            description="선생님들이 공유한 봇은 로그인한 뒤에 둘러볼 수 있어요."
+            /*
+              「선생님들이」라는 한정을 걷었다 — 마켓에는 풀림이 만든 기본 봇도 함께
+              선다(spec `03 § 4.13.1` · `§ 4.13.3`). **목록 쪽 같은 문장은 #331 이 이미
+              고쳤고, 상세에 한 벌이 더 있었다** — 두 화면이 같은 상태를 다른 말로
+              설명하지 않도록 `marketplace-bot-list.tsx` 와 **같은 문자열**로 맞춘다.
+              되돌리지 마라.
+            */
+            description="공유된 봇은 로그인한 뒤에 둘러볼 수 있어요."
           />
         </div>
       ) : isUnavailable ? (

@@ -88,10 +88,26 @@ export function BotIdentityCard({
           {/* 봇 이름 */}
           <NameTag className="block text-lg font-bold tracking-tight">{bot.name}</NameTag>
 
-          {/* 선생님 디지털 분신 suffix */}
+          {/*
+            봇이 무엇인지 한 줄.
+
+            교사 봇은 **「…의 디지털 분신」 그대로다.** 그 말은 선생님의 복제라는 뜻이고
+            (`07 § 1`), 교사 봇에서는 지금도 참이다 — 틀린 것은 그 말이 아니라 **주인이
+            없는 봇에 붙은 것**이었다(spec `03 § 4.13.3`).
+
+            풀림이 낸 봇에는 복제할 사람이 없으니 그 줄을 쓰지 않고, 대신 무엇인지만
+            말한다. 「풀림 공식」 배지를 여기 붙이지 않은 까닭은 이 패널이 **어두운 바탕**
+            이라서다 — 마켓 카드가 쓰는 `tone="info"`(연한 파랑 바탕)는 여기서 읽히지 않는다.
+            (이 바탕에 맞는 `tone="invert"` 가 이미 있고 이 파일도 아래에서 쓴다. 그걸 쓰면
+            **같은 표시가 화면마다 다른 색**이 되므로 고르지 않았다 — 없어서가 아니다.)
+            줄 하나로 말하는 편이 원래 자리(사람을 가리키던 그 줄)에도 맞다.
+
+            `isOfficial` 은 **참일 때만** 갈라 본다(`ClassBot.isOfficial?` 주석) — 마켓
+            밖에서 세운 봇은 그 값을 모르고, 모르는 봇의 겉모습을 조용히 바꾸지 않는다.
+          */}
           {!collapsed && (
             <p className="text-pullim-blue-100/80 text-xs">
-              {bot.teacherName}의 디지털 분신
+              {bot.isOfficial ? '풀림이 만든 봇' : `${bot.teacherName}의 디지털 분신`}
             </p>
           )}
 

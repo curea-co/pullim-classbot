@@ -12,11 +12,13 @@ import { render, screen } from '@testing-library/react';
 
 import { MarketplaceBotDetail } from '../marketplace-bot-detail';
 import { ApiClientError } from '@/lib/api/client-fetch';
+import type { MarketplaceBotItem } from '@/hooks/api/types';
 
 let queryError: ApiClientError | null = null;
+let queryBot: MarketplaceBotItem | null = null;
 jest.mock('@/hooks/api/marketplace', () => ({
   useMarketplaceBot: () => ({
-    data: undefined,
+    data: queryBot ? { bot: queryBot } : undefined,
     error: queryError,
     isError: Boolean(queryError),
     isPending: false,
@@ -30,7 +32,25 @@ jest.mock('../self-add-button', () => ({
 
 beforeEach(() => {
   queryError = null;
+  queryBot = null;
 });
+
+const teacherBot: MarketplaceBotItem = {
+  botId: 'cb_001',
+  name: '수학 도우미',
+  avatarEmoji: '📐',
+  subject: '수학',
+  grade: '중2',
+  tone: '친근',
+  greeting: '안녕! 오늘도 같이 풀어 보자.',
+  scope: 3,
+  blurb: '개념부터 차근차근 짚어 주는 봇이에요.',
+  teacherName: '김수학 선생님',
+  organization: '대치프리미엄 수학학원',
+  publishedAt: '2026-09-02T00:00:00.000Z',
+  enrolledCount: 12,
+  isOfficial: false,
+};
 
 const renderDetail = (viewer: 'student' | 'teacher') =>
   render(
@@ -95,4 +115,39 @@ it('401 은 로그인 안내 — 404 분기가 그 자리를 가로채지 않는
 
   expect(screen.getByTestId('marketplace-detail-signin')).toBeInTheDocument();
   expect(screen.queryByTestId('marketplace-detail-unavailable')).not.toBeInTheDocument();
+});
+
+/*
+  아래 둘은 **한정을 걷은 문장**을 잠근다(spec `03 § 4.13.3`). 마켓에는 풀림이 만든 기본 봇도
+  같이 서므로 「선생님들이 공유한 봇」·「선생님이 만들어 공유한 봇」은 이제 참이 아니다.
+  목록 쪽 같은 문장은 #331 이 고쳤고, **상세에 한 벌씩 더 있었다.**
+*/
+it('로그인 안내는 「선생님들이」로 한정하지 않는다 — 목록과 같은 말로 맞춘다', () => {
+  queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
+
+  renderDetail('student');
+
+  const box = screen.getByTestId('marketplace-detail-signin');
+  expect(box.textContent).not.toContain('선생님들이');
+  // `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 한 화면이 두 말로 설명하지 않는다.
+  expect(box.textContent).toContain('공유된 봇은 로그인한 뒤에 둘러볼 수 있어요.');
+});
+
+it('한 줄 소개가 없으면 만든 사람을 단정하지 않는 말로 대신한다', () => {
+  // 교사가 소개를 안 적었거나, 공식 봇이 이 길에 닿았을 때 — 둘 다 같은 자리다.
+  queryBot = { ...teacherBot, blurb: null };
+
+  renderDetail('student');
+
+  expect(screen.queryByText('선생님이 만들어 공유한 봇이에요.')).not.toBeInTheDocument();
+  expect(screen.getByText('마켓에 공유된 봇이에요.')).toBeInTheDocument();
+});
+
+it('한 줄 소개가 있으면 그대로 쓴다 — 폴백이 소개를 덮지 않는다', () => {
+  queryBot = teacherBot;
+
+  renderDetail('student');
+
+  expect(screen.getByText(teacherBot.blurb as string)).toBeInTheDocument();
+  expect(screen.queryByText('마켓에 공유된 봇이에요.')).not.toBeInTheDocument();
 });
