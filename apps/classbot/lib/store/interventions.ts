@@ -5,18 +5,14 @@
  * 결과 "선생님 한마디"는 전부 이 스토어를 **읽는** 단방향 흐름. localStorage persist —
  * 기존 스토어 문법(assignments·class-enrollment)과 동일. 소비 컴포넌트는 `useStoresHydrated` 게이트.
  *
- * `USE_REAL_CORE_BE`(정본 배선): 쓰기(send/markRead/markAllRead)는 스토어 선반영 후 pullim-api
- * 정본 라우트(OS 쿠키 + CSRF)로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기
- * (useMyInterventions/useUnreadCount)는 `GET /classbot/interventions?audience=student` 를 스토어
- * 캐시로 병합한다. send=`POST /classbot/classes/:classId/interventions {events}`,
- * read/read-all=`PATCH /classbot/interventions/:id/read`·`/read-all`. 플래그 OFF 면 mock 100% 불변.
+ * **로컬 전용 캐시다 — 은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 7·PR 8).** 종전에는 `USE_REAL_CORE_BE`
+ * 플래그가 켜지면 이 스토어가 pullim-api 정본(`/classbot/interventions*`)과 동기화했다. 그 플래그는
+ * 계획 PR 4 에서 걷었고, 배포에서 켜진 적 없던 그 레인도 함께 걷었다. 교사 개입·신호는 반 상세
+ * 「대화」 탭과 함께 PR 7 이 서버로 잇는다(계획 §07·§08).
  */
-import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useCurrentUser, resolveRosterMe } from '@/lib/current-user';
-import { USE_REAL_CORE_BE } from '@/lib/features';
-import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 
 export type InterventionType = 'remind' | 'requiz' | 'comment' | 'crisis';
 
@@ -64,8 +60,6 @@ export const useInterventionStore = create<InterventionStore>()(
             },
           ],
         }));
-        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지, M2 단방향 신뢰)
-        if (USE_REAL_CORE_BE) void sendToBackend(input, localId);
       },
       markRead: (id) => {
         set((s) => ({
@@ -73,7 +67,6 @@ export const useInterventionStore = create<InterventionStore>()(
             e.id === id && e.readAt === null ? { ...e, readAt: new Date().toISOString() } : e,
           ),
         }));
-        if (USE_REAL_CORE_BE) void markReadOnBackend(id);
       },
       markAllRead: (studentId) => {
         set((s) => ({
@@ -83,161 +76,20 @@ export const useInterventionStore = create<InterventionStore>()(
               : e,
           ),
         }));
-        if (USE_REAL_CORE_BE) void markAllReadOnBackend();
       },
     }),
     { name: 'pullim-interventions' },
   ),
 );
 
-/* ─────────────────────────────────────────────────────────────
- * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
- * ───────────────────────────────────────────────────────────── */
-
-/** 정본 개입 응답 — `InterventionResponseDto`(botId=classId, camelCase 1:1, 시각 ISO-8601). */
-interface InterventionResponse {
-  id: string;
-  type: InterventionType;
-  botId: string;
-  studentId: string;
-  assignmentId: string | null;
-  message: string;
-  createdAt: string;
-  readAt: string | null;
-}
-
-/** 정본 응답 행 → 스토어 이벤트(정본 서버는 raw user id 를 쓰므로 roster 브리지 없음). */
-function toEvent(row: InterventionResponse): InterventionEvent {
-  return {
-    id: row.id,
-    type: row.type,
-    botId: row.botId,
-    studentId: row.studentId,
-    ...(row.assignmentId ? { assignmentId: row.assignmentId } : {}),
-    message: row.message,
-    createdAt: row.createdAt,
-    readAt: row.readAt,
-  };
-}
-
-/**
- * 교사 발신 → `POST /classbot/classes/:classId/interventions`(classId = bot==class 의 botId).
- * bulk `{ events: [...] }` 계약. 성공 시 낙관 이벤트를 서버 생성 행(id/createdAt)으로 재키잉 —
- * 이후 markRead 가 BE 와 같은 id 를 쓰게 한다. 실패 시 콘솔 경고 + 로컬 유지 (graceful degrade).
- */
-async function sendToBackend(input: InterventionInput, localId: string): Promise<void> {
-  const body = {
-    events: [
-      {
-        type: input.type,
-        studentId: input.studentId,
-        ...(input.assignmentId ? { assignmentId: input.assignmentId } : {}),
-        message: input.message ?? '',
-      },
-    ],
-  };
-  try {
-    // 정본 라우트는 생성된 개입 목록을 bare array(`InterventionResponseDto[]`)로 반환한다.
-    const created = await domainFetch<InterventionResponse[]>(
-      `/classes/${encodeURIComponent(input.botId)}/interventions`,
-      { method: 'POST', body },
-    );
-    const first = created[0];
-    if (first) {
-      useInterventionStore.setState((s) => ({
-        events: s.events.map((e) => (e.id === localId ? toEvent(first) : e)),
-      }));
-    }
-  } catch (e) {
-    console.warn('[interventions] BE 개입 발신 실패 — 로컬 유지:', e);
-  }
-}
-
-/** 읽음 처리 → `PATCH /classbot/interventions/:id/read`(CSRF). 실패 시 경고 + 로컬 유지. */
-async function markReadOnBackend(id: string): Promise<void> {
-  try {
-    await domainFetch<unknown>(`/interventions/${encodeURIComponent(id)}/read`, {
-      method: 'PATCH',
-    });
-  } catch (e) {
-    console.warn('[interventions] BE 읽음 처리 실패 — 로컬 유지:', e);
-  }
-}
-
-/** 전체 읽음 → `PATCH /classbot/interventions/read-all`(CSRF, 수신 본인 스코프). 실패 시 경고 + 로컬 유지. */
-async function markAllReadOnBackend(): Promise<void> {
-  try {
-    await domainFetch<{ updated: number }>('/interventions/read-all', { method: 'PATCH' });
-  } catch (e) {
-    console.warn('[interventions] BE 전체 읽음 처리 실패 — 로컬 유지:', e);
-  }
-}
-
-// 사용자당 1회 fetch 단일 비행 — 벨/배지 등 여러 마운트에서 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
-let backendInterventionSync: {
-  key: string;
-  promise: Promise<InterventionEvent[] | null>;
-} | null = null;
-
-/** 테스트 전용 — 단일 비행 캐시 리셋. */
-export function resetBackendInterventionSyncForTests(): void {
-  backendInterventionSync = null;
-}
-
-async function fetchBackendInterventions(): Promise<InterventionEvent[] | null> {
-  try {
-    // 정본 라우트는 bare array(`InterventionResponseDto[]`)를 반환한다 — 래핑 객체 아님.
-    const rows = await domainFetch<InterventionResponse[]>('/interventions?audience=student');
-    return rows.map(toEvent);
-  } catch (e) {
-    console.warn('[interventions] BE 인박스 동기화 실패 — 로컬 유지:', e);
-    return null;
-  }
-}
-
-/**
- * 플래그 ON 읽기 동기화 — 학생 인박스를 스토어 캐시에 병합한다.
- * 같은 id 는 로컬 행 유지(낙관 readAt 보존), BE-only 행은 추가 후 createdAt 순 정렬.
- * 플래그 OFF 면 완전 no-op.
- */
-function useBackendInterventionSync(): void {
-  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
-  const syncUserId = useSyncUserId();
-  useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
-    let cancelled = false;
-    if (backendInterventionSync?.key !== syncUserId) {
-      backendInterventionSync = {
-        key: syncUserId,
-        promise: fetchBackendInterventions(),
-      };
-    }
-    void backendInterventionSync.promise.then((rows) => {
-      if (cancelled || !rows) return;
-      useInterventionStore.setState((s) => {
-        const localIds = new Set(s.events.map((e) => e.id));
-        const merged = [...s.events, ...rows.filter((r) => !localIds.has(r.id))];
-        merged.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-        return { events: merged };
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [syncUserId]);
-}
-
 /** 내 개입 이벤트 — 최신순 (reactive). */
 export function useMyInterventions(studentId: string): InterventionEvent[] {
-  useBackendInterventionSync(); // Ph7 — 플래그 OFF 면 no-op
   const events = useInterventionStore((s) => s.events);
   return events.filter((e) => e.studentId === studentId).slice().reverse();
 }
 
 /** 미읽음 수 — 벨 배지용 (reactive). */
 export function useUnreadCount(studentId: string): number {
-  useBackendInterventionSync(); // Ph7 — 벨 배지도 BE 인박스와 동기화
   return useInterventionStore(
     (s) => s.events.filter((e) => e.studentId === studentId && e.readAt === null).length,
   );
@@ -248,7 +100,6 @@ export function useAssignmentComment(
   assignmentId: string,
   studentId: string,
 ): InterventionEvent | null {
-  useBackendInterventionSync(); // Ph7 — 결과 페이지 직링크 진입에서도 인박스 동기화 (Codex #196 R1)
   const events = useInterventionStore((s) => s.events);
   const comments = events.filter(
     (e) => e.type === 'comment' && e.assignmentId === assignmentId && e.studentId === studentId,
@@ -277,12 +128,11 @@ export function useRemindedStudentIds(assignmentId: string): Set<string> {
  * "mock 단계라면 읽기/쓰기 모두 동일한 도메인 학생 키" 허용안 채택). UUID↔roster 실신원 매핑은
  * auth 통합(Phase β/SSO) 소관 — 이 훅이 그때의 단일 교체 지점이다.
  *
- * Ph7(`USE_REAL_CORE_BE` ON) + 인증: BE 가 JWT 신원(raw user id) 행을 반환하므로
- * roster 브리지로 붕괴시키지 않고 raw id 를 그대로 쓴다 (Codex #196 R2 ②).
- * 플래그 OFF 는 기존 mock 규약(브리지) 그대로 — 회귀 0.
+ * 이 스토어는 로컬 전용이라(파일 머리주석) 읽기·쓰기가 모두 roster 키다 — 늘 브리지를 지난다.
+ * 종전의 「플래그 ON + 인증이면 raw id」 분기는 정본 동기화 레인과 함께 걷었다. 서버 인박스가
+ * 붙는 PR 7 에서 이 훅이 raw sub 를 돌려주는 단일 교체 지점이다.
  */
 export function useInterventionRecipientId(): string {
-  const { id, isAuthenticated } = useCurrentUser();
-  if (USE_REAL_CORE_BE && isAuthenticated) return id;
+  const { id } = useCurrentUser();
   return resolveRosterMe(id).id;
 }

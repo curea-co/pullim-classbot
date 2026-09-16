@@ -14,6 +14,14 @@ jest.mock('../domain-fetch', () => ({
   domainFetch: (...args: unknown[]) => domainFetchMock(...args),
 }));
 
+// 401 → OS 로그인 — 실제 `window.location.assign` 대신 호출만 센다.
+const redirectToOsLoginMock = jest.fn();
+jest.mock('@/lib/auth/os-sso', () => ({
+  ...jest.requireActual('@/lib/auth/os-sso'),
+  redirectToOsLogin: () => redirectToOsLoginMock(),
+}));
+
+import { ApiError } from '@pullim-classbot/api-client';
 import { API_BASE } from '@/lib/auth/os-sso';
 import {
   streamChat,
@@ -31,6 +39,7 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch;
   fetchMock.mockReset();
   domainFetchMock.mockReset();
+  redirectToOsLoginMock.mockReset();
 });
 
 /** CSRF 발급 응답(json 파싱). */
@@ -273,6 +282,19 @@ describe('streamChat — 개시 전 실패(실 HTTP 상태 → 사용자향 카�
     expect(cb.onError).toHaveBeenCalledWith({ code, message: CHAT_ERROR_COPY[code] });
     expect(cb.onToken).not.toHaveBeenCalled();
     expect(cb.onDone).not.toHaveBeenCalled();
+    expect(redirectToOsLoginMock).not.toHaveBeenCalled();
+  });
+
+  it('401 → 세션이 끊긴 것이다: OS 로그인으로 보내고 unauthorized 카피(「연결할 수 없어요」가 아니다)', async () => {
+    fetchMock.mockResolvedValueOnce(csrfRes('t')).mockResolvedValueOnce(errorStatusRes(401));
+    const cb = spies();
+
+    await streamChat('cb_001', 'hi', 'turn-1', cb);
+
+    expect(redirectToOsLoginMock).toHaveBeenCalledTimes(1);
+    expect(cb.onError).toHaveBeenCalledWith({ code: 'unauthorized', message: CHAT_ERROR_COPY.unauthorized });
+    expect(cb.onToken).not.toHaveBeenCalled();
+    expect(cb.onDone).not.toHaveBeenCalled();
   });
 });
 
@@ -324,5 +346,20 @@ describe('fetchChatHistory — 완결 turn seed(domainFetch GET 위임)', () => 
 
     expect(domainFetchMock).toHaveBeenCalledWith('/classes/cb_001/chat');
     expect(result).toEqual(msgs);
+    expect(redirectToOsLoginMock).not.toHaveBeenCalled();
+  });
+
+  it('401 이면 다른 훅과 같은 규칙 — OS 로그인으로 보낸 뒤 그대로 던진다', async () => {
+    domainFetchMock.mockRejectedValueOnce(new ApiError('Unauthorized', 401));
+
+    await expect(fetchChatHistory('cb_001')).rejects.toMatchObject({ status: 401 });
+    expect(redirectToOsLoginMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('403·5xx 는 던지기만 한다 — 로그인으로 보내지 않는다', async () => {
+    domainFetchMock.mockRejectedValueOnce(new ApiError('Forbidden', 403));
+
+    await expect(fetchChatHistory('cb_001')).rejects.toMatchObject({ status: 403 });
+    expect(redirectToOsLoginMock).not.toHaveBeenCalled();
   });
 });

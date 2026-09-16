@@ -1,61 +1,36 @@
 /**
- * 교사 클래스 참여(enrollment) 상태 — 참여 코드로 join, 나가기로 leave.
+ * 교사 클래스 참여(enrollment) 상태 — 예전 데모 코드로 들어온 로컬 방의 목록과 나가기.
  * localStorage persist로 세션 간 유지. self-learning 스토어 패턴을 그대로 따른다.
  *
- * 출시 기준 mock `studentEnrollments`는 빈 배열이므로, 학생의 교사 배정은 이 스토어가 권위.
- * `getMyBots()`(static)의 reactive 대체로 `useMyClassBots()`를 쓴다.
+ * **로컬 전용 캐시다 — 은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 5).** 학생의 반 참여·내 반 목록은
+ * 이제 pullim-api 정본이 진실이고 화면은 react-query 훅으로 읽는다(`hooks/api/classroom.ts` 의
+ * `useJoinByCode`·`useMyClassrooms` → `components/classbot/home/my-rooms.ts`).
  *
- * `USE_REAL_CORE_BE`(정본 배선): 쓰기(join)는 `joinClass()` 가 pullim-api 정본 라우트
- * `POST /classbot/enrollments`(OS 쿠키 + CSRF)로 보내고, 읽기(`useMyClassBots`)는
- * `GET /classbot/bots?role=student` 를 스토어로 동기화한다 — "BE 가 진실, 스토어는 캐시" 최소 배선.
- * 플래그 OFF/BE 실패(5xx·네트워크) 시 기존 mock 경로 그대로.
+ * 계획 PR 4 가 이 스토어에서 걷은 것: 데모 코드 `join`(`resolveClassCode`)과 그 결과 타입, 카탈로그
+ * 브리지 `useMyClassBots` — 호출부(`join-code-form.tsx` 목 폴백 · `my-rooms.ts` 로컬 폴백)를 그 PR 이
+ * 지웠기 때문이다. `USE_REAL_CORE_BE` 플래그로 켜던 정본 동기화 레인도 같은 이유로 없다.
+ *
+ * 남은 것과 남은 이유:
+ *  - `enrollments` — 하이드레이션 게이트(`useStoresHydrated(useClassEnrollmentStore)`) 여섯 곳과
+ *    받은 과제 목록의 데모 필터(`app/(student)/classbot/assignment/page.tsx`)가 읽는다.
+ *  - `leave` — 내 수업방의 「나가기」(`app/(student)/classbot/classroom/page.tsx`). 로컬 방(`source='local'`)
+ *    에만 붙는데 그 방은 더 만들어지지 않는다 — 서버 탈퇴 문과 함께 PR 5 가 정리한다.
+ * 이 persist 의 은퇴는 챗이 반을 고르게 되는 PR 5 다(계획 §07 「class-enrollment persist」).
  */
-import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ApiError } from '@pullim-classbot/api-client';
-import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
-import { resolveClassCode } from '@/lib/mock/class-codes';
-import { USE_REAL_CORE_BE } from '@/lib/features';
-import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
-
-export type JoinResult =
-  | { ok: true; enrollment: StudentEnrollment }
-  | { ok: false; error: string };
-
-/** 무효 코드 에러 카피 — mock/BE(404) 공용. */
-const INVALID_CODE_ERROR =
-  '참여할 수 없는 코드예요. 선생님께 받은 참여 코드를 다시 확인해 주세요.';
-
-/** 일반 join 실패 카피 — BE 4xx(401/403 등, 404 제외) 거부용. */
-const JOIN_FAILED_ERROR = '클래스 참여에 실패했어요. 잠시 후 다시 시도해 주세요.';
+import type { StudentEnrollment } from '@/lib/mock/classbot';
 
 interface ClassEnrollmentStore {
   enrollments: StudentEnrollment[];
-  /** 참여 코드로 join. 유효하면 enrollment 추가(중복 무시), 아니면 error. */
-  join: (code: string) => JoinResult;
   /** 클래스 나가기 — botId의 enrollment 제거. */
   leave: (botId: string) => void;
 }
 
 export const useClassEnrollmentStore = create<ClassEnrollmentStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       enrollments: [],
-      join: (code) => {
-        const enrollment = resolveClassCode(code);
-        if (!enrollment) {
-          return {
-            ok: false,
-            error: INVALID_CODE_ERROR,
-          };
-        }
-        const already = get().enrollments.some((e) => e.botId === enrollment.botId);
-        if (!already) {
-          set((s) => ({ enrollments: [enrollment, ...s.enrollments] }));
-        }
-        return { ok: true, enrollment };
-      },
       leave: (botId) =>
         set((s) => ({ enrollments: s.enrollments.filter((e) => e.botId !== botId) })),
     }),
@@ -63,182 +38,7 @@ export const useClassEnrollmentStore = create<ClassEnrollmentStore>()(
   ),
 );
 
-/* ─────────────────────────────────────────────────────────────
- * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
- * ───────────────────────────────────────────────────────────── */
-
-/** 정본 `POST /classbot/enrollments` 응답 — membership 뷰(bot==class 이므로 classId==botId). */
-interface EnrollmentResponse {
-  membershipId: string;
-  classId: string;
-  memberId: string;
-  enrolledAt: string;
-}
-
-/** 정본 `GET /classbot/bots` 한 행 — `BotCardResponseDto`(class 코어 + profile). 소비 필드만. */
-interface BotCardResponse {
-  id: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  role: 'teacher' | 'student';
-}
-
-/**
- * classId → StudentEnrollment 브리지. 봇 **카탈로그**(라벨·교사명·학원)는 여전히 mock `classBots` 가
- * 권위이므로(봇 생성 API 미배선 — M3 경계), classId 로 카탈로그를 조회해 표시 필드를 채운다.
- * 카탈로그 미스면 서버가 준 name(있으면)·빈 값으로 폴백한다.
- */
-function enrollmentFromClass(
-  classId: string,
-  opts: { enrolledAt?: string; name?: string } = {},
-): StudentEnrollment {
-  const bot = classBots.find((b) => b.id === classId);
-  return {
-    botId: classId,
-    classroomId: classId,
-    classroomLabel: bot?.name ?? opts.name ?? '',
-    assignedBy: bot?.teacherName ?? '',
-    assignedAt: opts.enrolledAt ?? '',
-    via: bot?.organization ?? '',
-  };
-}
-
-/**
- * 참여 코드 join — 플래그 스위치 진입점 (컴포넌트는 이것만 호출).
- *
- * OFF: 기존 스토어 join(mock resolveClassCode) 그대로.
- * ON : `POST /classbot/enrollments`(OS 쿠키 + CSRF) — 신규 201·이미 멤버 멱등 200 모두
- *      membership 뷰를 반환한다. classId(=botId)로 StudentEnrollment 를 구성해 스토어에도 반영해
- *      기존 파생 로직(useMyClassBots 등)을 유지한다.
- *      **BE 의 거부(4xx)는 실패로 전파한다** — 404(무효 코드)는 기존 에러 카피,
- *      401/403 등은 일반 실패 카피. mock join 폴백(graceful degrade)은
- *      **네트워크 실패/5xx(BE 다운)** 에만 좁혀 적용한다 — BE 가 명시적으로 거부한
- *      join 을 mock 성공으로 가장하지 않는다.
- * @param code - 참여 코드
- * @returns JoinResult (기존 계약 그대로)
- */
-export async function joinClass(code: string): Promise<JoinResult> {
-  if (!USE_REAL_CORE_BE) {
-    return useClassEnrollmentStore.getState().join(code);
-  }
-  try {
-    const res = await domainFetch<EnrollmentResponse>('/enrollments', {
-      method: 'POST',
-      body: { code },
-    });
-    const enrollment = enrollmentFromClass(res.classId, { enrolledAt: res.enrolledAt });
-    useClassEnrollmentStore.setState((s) => {
-      const already = s.enrollments.some((e) => e.botId === enrollment.botId);
-      return {
-        enrollments: already
-          ? s.enrollments.map((e) => (e.botId === enrollment.botId ? enrollment : e))
-          : [enrollment, ...s.enrollments],
-      };
-    });
-    return { ok: true, enrollment };
-  } catch (e) {
-    // 4xx = BE 의 명시적 거부 — mock 폴백 없이 실패로 전파.
-    if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
-      return {
-        ok: false,
-        error: e.status === 404 ? INVALID_CODE_ERROR : JOIN_FAILED_ERROR,
-      };
-    }
-    // 네트워크 실패/5xx — BE 다운이 UX 를 깨지 않게 mock join 으로 degrade.
-    console.warn('[class-enrollment] BE 코드 참여 실패 — mock 폴백:', e);
-    return useClassEnrollmentStore.getState().join(code);
-  }
-}
-
-// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
-let backendEnrollmentSync: {
-  key: string;
-  promise: Promise<StudentEnrollment[] | null>;
-} | null = null;
-
-/** 테스트 전용 — 단일 비행 캐시 리셋. */
-export function resetBackendEnrollmentSyncForTests(): void {
-  backendEnrollmentSync = null;
-}
-
-async function fetchBackendEnrollments(): Promise<StudentEnrollment[] | null> {
-  try {
-    // 정본 라우트는 bare array(`BotCardResponseDto[]`)를 반환한다 — 래핑 객체 아님.
-    const bots = await domainFetch<BotCardResponse[]>('/bots?role=student');
-    return bots.map((row) => enrollmentFromClass(row.id, { name: row.name }));
-  } catch (e) {
-    console.warn('[class-enrollment] BE 봇 목록 동기화 실패 — 로컬 유지:', e);
-    return null;
-  }
-}
-
-/**
- * 플래그 ON 읽기 동기화 — BE enrollment 를 스토어 캐시에 병합한다.
- * 같은 botId 는 BE 행이 진실, BE 에 없는 로컬 행은 유지(graceful — 쓰기 실패분 보존).
- * 플래그 OFF 면 완전 no-op.
- */
-function useBackendEnrollmentSync(): void {
-  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
-  const syncUserId = useSyncUserId();
-  useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
-    let cancelled = false;
-    if (backendEnrollmentSync?.key !== syncUserId) {
-      backendEnrollmentSync = {
-        key: syncUserId,
-        promise: fetchBackendEnrollments(),
-      };
-    }
-    void backendEnrollmentSync.promise.then((rows) => {
-      if (cancelled || !rows) return;
-      useClassEnrollmentStore.setState((s) => ({
-        enrollments: [
-          ...s.enrollments.filter((e) => !rows.some((r) => r.botId === e.botId)),
-          ...rows,
-        ],
-      }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [syncUserId]);
-}
-
 /** 참여 중인 enrollment 목록 (reactive). */
 export function useClassEnrollments(): StudentEnrollment[] {
   return useClassEnrollmentStore((s) => s.enrollments);
-}
-
-/** enrollment[] → classBots 카탈로그 브릿지 (순수). */
-/**
- * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 봇 **카탈로그**(이름·성격·커리큘럼)는 여전히
- * mock `classBots` 가 권위다 — M2 는 봇 생성 API 를 배선하지 않으므로 BE 에는 시드(=mock)
- * 밖의 봇이 존재할 수 없다. 봇 카탈로그의 BE 이관은 M3(봇 빌더 실전화)와 함께.
- */
-function bridge(
-  enrollments: StudentEnrollment[],
-): { bot: ClassBot; enrollment: StudentEnrollment }[] {
-  return enrollments
-    .map((enrollment) => {
-      const bot = classBots.find((b) => b.id === enrollment.botId);
-      return bot ? { bot, enrollment } : null;
-    })
-    .filter((x): x is { bot: ClassBot; enrollment: StudentEnrollment } => x !== null);
-}
-
-/**
- * enrollment → classBots 카탈로그 브릿지 (reactive).
- * 정적 `getMyBots()`의 store 기반 대체 — join/leave 시 소비 컴포넌트가 re-render된다.
- *
- * `bridge()` 결과를 `useMemo` 로 눌러 둔다 — 매 렌더 새 배열을 돌려주면 이 값을 deps 에
- * 두는 아래 훅들(`useMyRooms` → `useStudentBots`)의 memo 가 전부 무의미해지고, 그걸
- * 피하려고 id 문자열 같은 대체 키를 쓰면 **id 는 같은데 이름·아바타만 바뀐 갱신을 놓친다.**
- * `enrollments` 는 스토어 셀렉터가 주는 안정 참조라 여기서 누르는 것이 맞다.
- */
-export function useMyClassBots(): { bot: ClassBot; enrollment: StudentEnrollment }[] {
-  useBackendEnrollmentSync(); // Ph7 — 플래그 OFF 면 no-op
-  const enrollments = useClassEnrollmentStore((s) => s.enrollments);
-  return useMemo(() => bridge(enrollments), [enrollments]);
 }

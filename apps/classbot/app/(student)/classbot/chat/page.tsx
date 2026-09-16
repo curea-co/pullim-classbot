@@ -6,12 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  pickClassbotReply, type ReplyKey,
-  type QuickReplyKey, type LessonFlowKey,
-  type ClassBot,
-  LESSON_FLOW_KEYS,
-} from '@/lib/mock';
+import { type QuickReplyKey, type ClassBot } from '@/lib/mock';
 import { useStudentBots, type StudentBotSlot, type StudentBotSource } from '@/lib/store/mode-bots';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
@@ -27,8 +22,6 @@ import {
 import { RichText } from '@/components/classbot/rich-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
-import { tokenManager } from '@pullim-classbot/api-client/token-manager';
-import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
 import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, historySummaryGoalKey, rebindHistorySummaryGoalKeys, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { adaptCardToTurn, type AdaptedCardTurn, type CardAdaptContext } from '@/lib/api/chat-cards';
@@ -60,6 +53,7 @@ import { useMisconceptionStore } from '@/lib/store/misconception';
 import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
 import { cn } from '@/lib/utils';
+import { chatLaneFor, SELF_BOT_CHAT_LOCKED_NOTICE, SELF_BOT_CHAT_LOCKED_PLACEHOLDER } from './chat-lane';
 
 /**
  * 메시지 타입 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
@@ -84,15 +78,15 @@ type Turn = {
   /** epoch ms — 메시지 그루핑/디바이더 계산용 ([04 § 9.8]) */
   at: number;
   /**
-   * 실챗(flag-ON) SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
+   * SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
    * 제외(토큰마다 중복 announce 방지) → done/error 에서 false 로 바뀌며 1회 announce.
-   * flag-OFF mock 턴은 미설정(undefined).
+   * 오프너·히스토리·카드 턴은 미설정(undefined).
    */
   streaming?: boolean;
   /**
    * 진입 시 이미 존재하던 턴(초기 오프너 인사/lesson-intro + 서버 히스토리 seed) 표식.
    * a11y announce 게이트에서 제외 — 과거 메시지를 "새 메시지"처럼 재announce 하지 않는다.
-   * 신규 도착(mock 신규 봇 턴·실챗 done)은 미설정(undefined) → announce 대상.
+   * 신규 도착(SSE done)은 미설정(undefined) → announce 대상.
    */
   seeded?: boolean;
   /** 메시지 타입 (기본 text) */
@@ -189,8 +183,9 @@ function ClassbotChatPageInner() {
   // 반 봇과 담은 봇을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
   // 걷었다 — 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
   const { slots, isLoading: botsLoading, isError: botsError, retry: retryBots } = useStudentBots();
-  // 반 참여는 localStorage persist 라 하이드레이션 전에는 빈 목록으로 평가된다.
-  // (담은 봇 쪽 대기 구간은 `useStudentBots().isLoading` 이 이미 들고 있다.)
+  // `classHydrated` — 반은 이제 서버(`useMyRooms` → `useStudentBots().isLoading`)에서 오므로 이 게이트가
+  // 기다리는 로컬 방은 더 없다. persist 와 함께 PR 5 가 걷는다(2026-09-16 계획 §07 「class-enrollment
+  // persist」) — 여기서는 표기만 하고 그대로 둔다.
   const classHydrated = useStoresHydrated(useClassEnrollmentStore);
   const initialBotId = botParam && slots.some(s => s.bot.id === botParam) ? botParam : (slots[0]?.bot.id ?? 'cb_001');
   const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
@@ -260,7 +255,7 @@ function ClassbotChatPageInner() {
         <EmptyState
           icon={Compass}
           title="아직 대화할 봇이 없어요"
-          description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
+          description="선생님 반에 들어오면 그 반의 봇과 이야기할 수 있어요. 봇 마켓에서 마음에 드는 봇을 담아 둘 수도 있어요."
           action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
         />
         <p className="text-pullim-slate-500 text-2xs text-center">
@@ -358,7 +353,7 @@ function ClassbotChatPageInner() {
         </section>
       )}
 
-      {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇/플래그 무관 항상. */}
+      {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇 무관 항상. */}
       <AiDisclosureNotice />
 
       {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
@@ -374,6 +369,9 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
+  // 담은 봇(source='self')은 지금 **닫힌 레인**이다 — 이유와 기한은 `./chat-lane.ts`. 잠기면 기록도
+  // 전송도 부르지 않고 composer 와 빠른 칩을 잠근 채 안내 한 줄을 세운다.
+  const locked = chatLaneFor(source) === 'locked';
   // A5: prefers-reduced-motion → 칩 stagger 무력화
   const reduced = useReducedMotion();
   // A5: 스크린리더 announce 텍스트는 격리된 SrLiveRegion 이 자체 state 로 들고,
@@ -424,11 +422,12 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     setValue(initialAsk ?? '');
   }, [initialAsk]);
 
-  // 플래그 ON — 진입 시 서버 완결 히스토리를 **초기 오프너(인사+lesson-intro) 뒤에 이어붙인다**
-  // (base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면 오프너만
-  // 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
+  // 진입 시 서버 완결 히스토리(`GET /classbot/classes/:id/chat`)를 **초기 오프너(인사+lesson-intro) 뒤에
+  // 이어붙인다**(base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면
+  // 오프너만 유지(graceful). 종전의 `USE_REAL_CORE_BE` 게이트는 걷혔다 — 기록은 서버 하나에서 온다
+  // (2026-09-16 계획 §07 학생·봇 대화 줄). 반이 아니라 봇을 고르는 선택기는 PR 5 가 바꾼다(해소 3).
   useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
+    if (locked) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
     // summary 히스토리 배너 goalKey — **오늘 메시지에만**(로컬 store 는 과거 권위 아님, Codex #210:
@@ -452,7 +451,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     return () => {
       cancelled = true;
     };
-  }, [bot.id, me.id]);
+  }, [bot.id, me.id, locked]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -501,7 +500,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
 
   // A5: aria-live 미러링 — 단일 소스. 마지막 bot turn 만 감지해 1회 announce(중복 방지).
   // pending(타이핑 점)은 announce 안 함. send()/lessonRequest 양쪽에서 부르지 않고 여기로 통합.
-  // 실챗(flag-ON) 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
+  // SSE 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
   // done/error 에서 streaming=false 로 바뀔 때 최종 content 로 1회만 announce.
   useEffect(() => {
     const last = turns[turns.length - 1];
@@ -535,66 +534,32 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
 
   function send(text: string, forcedKey?: QuickReplyKey) {
     const trimmed = text.trim();
-    if (!trimmed || pending) return;
+    if (!trimmed || pending || locked) return;
     const now = Date.now();
     // 학생 발화 = 입력 텍스트(빠른칩이면 칩 라벨). 표시·전송·영속이 모두 동일 텍스트라 서버
     // 히스토리도 화면과 일치한다(내부 프롬프트로 치환하지 않는다).
     setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
     setPending(true);
 
-    // 플래그 ON — pullim-api SSE 실챗(ADR-064 · v2 ADR-065). 서버가 user/assistant turn 을 영속하므로
-    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지).
+    // pullim-api SSE 실챗(ADR-064 · v2 ADR-065) — 챗의 **유일한 레인**. 서버가 user/assistant turn 을
+    // 영속하므로 FE 는 따로 저장하지 않는다(이중 영속 금지).
     //
-    // ✅ v2(ADR-065) — flag-ON 도 리치 카드를 렌더한다(tool-calling):
-    //   LLM 이 per-kind tool 로 방출하는 구조화 카드가 SSE `event: card`(cardType/payload)로 도착하면
-    //   adaptCardToTurn 이 FE Turn payload 로 적응해 flag-OFF 와 **동일한 MessageBody 렌더러를 재사용**한다
-    //   (concept/example/quiz/summary/self-explain/problem-card/lesson-intro). 자유 텍스트는 token 프레임으로
-    //   스트리밍되며 카드와 도착 순서대로 인터리브된다(sendReal). 빠른칩은 여전히 **칩 라벨(이미 자연어)을
-    //   그대로 message 로** 전송해 "칩 누르면 그 주제로 학습 진행" 계약을 보존한다(forcedKey 는 후속 칩 추천
-    //   상태로 스레딩). flag-OFF 는 리치 mock 을 그대로 둔다(불변).
+    // 종전에는 `USE_REAL_CORE_BE` 가 꺼져 있으면 `pickClassbotReply` 목 응답을 900ms 가짜 지연 뒤에 붙이고
+    // 같은 오리진 `/api/chat` 에 학생 발화만 저장했다. 그 레인은 2026-09-16 계획 §07(학생·봇 대화 줄 —
+    // 「걷는 것: pickClassbotReply · 900ms 가짜 지연 · USE_REAL_CORE_BE 분기」)로 걷었다.
+    //
+    // ✅ v2(ADR-065) 리치 카드(tool-calling): LLM 이 per-kind tool 로 방출하는 구조화 카드가 SSE
+    //   `event: card`(cardType/payload)로 도착하면 adaptCardToTurn 이 FE Turn payload 로 적응해 MessageBody
+    //   렌더러가 그대로 그린다(concept/example/quiz/summary/self-explain/problem-card/lesson-intro). 자유 텍스트는
+    //   token 프레임으로 스트리밍되며 카드와 도착 순서대로 인터리브된다(sendReal). 빠른칩은 **칩 라벨(이미
+    //   자연어)을 그대로 message 로** 전송해 "칩 누르면 그 주제로 학습 진행" 계약을 보존한다(forcedKey 는
+    //   후속 칩 추천 상태로 스레딩).
     //   계약 SoT: pullim-api api.md §3.8(SSE card/done) + data-model §1.6(카드 payload) + ADR-065.
     //   스펙 정합: proc/spec/2026-06-23_chat-guided-lesson.md [2026-07-06 개정].
-    if (USE_REAL_CORE_BE) {
-      void sendReal(trimmed, forcedKey);
-      return;
-    }
-
-    // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
-    // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
-    if (me.isAuthenticated) {
-      void persistChatMessage(bot.id, trimmed);
-    }
-
-    setTimeout(() => {
-      const at = Date.now();
-      const richTurn = isLessonFlowKey(forcedKey)
-        // 봇 주도 수업 흐름 — getBotLesson 데이터로 구조화 메시지 생성
-        ? buildLessonTurn(`b${at}`, at, forcedKey, lesson, conceptIdxRef)
-        // 일반 응답 — 톤별 문자열 + 레거시 메시지 타입 매핑
-        : buildRichBotTurn(`b${at}`, pickClassbotReply(text, bot.tone, forcedKey), at, forcedKey, bot.id);
-
-      // 진행 마킹(A1·B7) + 컨텍스트 앵커 갱신(A6).
-      const phase = kindToLessonPhase(richTurn.kind);
-      if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
-      const step = kindToSessionStep(richTurn.kind);
-      if (step) useSessionGoalStore.getState().mark(goalKey, step);
-      if ((richTurn.kind === 'concept' || richTurn.kind === 'concept-detail') && richTurn.payload && 'concept' in richTurn.payload) {
-        setActiveConceptId(richTurn.payload.concept.id);
-      }
-      // summary 버블: freeze 된 pre-hydration snapshot 대신 goalKey 만 실어 보낸다(B7 finding#2).
-      // 렌더 시 MessageBody summary 분기가 hydration-게이트 라이브 store 를 읽어 배너와 항상 일치.
-      if (richTurn.kind === 'summary') {
-        richTurn.payload = { goalKey, nextLine: lesson.nextLine } satisfies SummaryPayload;
-      }
-
-      setTurns(t => [...t, richTurn]);
-      // [04 § 9.6] forcedKey가 있을 때만 후속 칩 추천 가능 (free text는 키 미지정)
-      setLastBotReplyKey(forcedKey);
-      setPending(false);
-    }, 900);
+    void sendReal(trimmed, forcedKey);
   }
 
-  // 플래그 ON — pullim-api SSE 실챗(ADR-064 · v2 ADR-065 리치 카드). 빈 assistant 버블(streaming=true)을
+  // pullim-api SSE 실챗(ADR-064 · v2 ADR-065 리치 카드). 빈 assistant 버블(streaming=true)을
   // 먼저 붙여 첫 토큰/카드 도착 전 타이핑 인디케이터를 보이고, 토큰은 현재 텍스트 세그먼트에 증분 append
   // (streaming 유지 → announce 제외), **card 프레임은 원자적 리치 카드 turn 으로 삽입**(카드 앞 텍스트는
   // finalize·카드 뒤 텍스트는 새 세그먼트로 lazy 생성 → 도착 순서대로 인터리브), done 에서 마지막 세그먼트
@@ -604,7 +569,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   async function sendReal(text: string, forcedKey?: QuickReplyKey) {
     // 스트리밍 세그먼트/카드 turn 제어는 모듈 스코프 컨트롤러(createRealChatTurnController)에 위임한다
     // — 컴포넌트 내부에서 커서(let)를 재대입하면 React Compiler 가 immutable 위반으로 막으므로
-    // (buildLessonTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
+    // (buildLessonActionTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
     const controller = createRealChatTurnController(
       setTurns,
       Date.now(),
@@ -768,9 +733,9 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
             */}
             <MisconceptionCoaching botId={bot.id} userId={me.id} onAppear={handleCardReveal} />
             {/*
-              로딩 표시 단일화 — 실챗(flag-ON)은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
-              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). flag-OFF mock 은 스트리밍 턴이
-              없어 기존처럼 pending → PendingBubble.
+              로딩 표시 단일화 — SSE 실챗은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
+              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). 스트리밍 턴이 아직 안 붙은
+              찰나(요청 개시 전)에만 pending → PendingBubble.
             */}
             {pending && !turns.some(t => t.streaming) && <PendingBubble bot={bot} />}
           </div>
@@ -809,47 +774,59 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
             동적 빠른 칩 — M7 stagger(60ms, A5 reduced-motion 시 0ms).
             A7: 모든 칩은 좌측 라이너를 가진다(DS). guide(수업 단계 — 시그니처색 라이너) vs ask(자유 질문 — 중립 slate 라이너) 색으로 구분.
           */}
-          <div className="flex flex-wrap gap-1.5">
-            {dynamicQuickReplies.map((p, i) => {
-              const kind = quickReplyChipKind(p.expectedReplyKey);
-              const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
-              const animationDelay = reduced ? '0ms' : `${i * 60}ms`;
-              const commonClass =
-                'pullim-anim-message-mount disabled:opacity-50 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1';
-              return (
-                <button
-                  key={p.text}
-                  type="button"
-                  onClick={() => send(p.text, p.expectedReplyKey)}
-                  disabled={pending}
-                  title={kind === 'guide' ? '수업 단계' : '자유 질문'}
-                  style={
-                    kind === 'guide'
-                      ? { borderLeftColor: botSig.hex, animationDelay }
-                      : { animationDelay }
-                  }
-                  className={cn(
-                    commonClass,
-                    // DS: 모든 빠른 칩은 좌측 라이너를 가진다. guide=시그니처색, ask=중립 slate 로 색 구분.
-                    kind === 'guide'
-                      ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
-                      : 'border border-l-2 border-pullim-slate-200 border-l-pullim-slate-300 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-r-full rounded-l',
-                  )}
-                >
-                  <Icon aria-hidden className="h-3.5 w-3.5" />
-                  <span>{p.text}</span>
-                </button>
-              );
-            })}
-          </div>
+          {locked ? (
+            /* 잠긴 레인 — 빠른 칩 자리에 안내 한 줄. 칩을 눌러도 갈 곳이 없어서 칩 자체를 내지 않는다. */
+            <p
+              role="note"
+              data-slot="chat-locked-notice"
+              className="text-pullim-slate-600 bg-pullim-slate-50 rounded-xl px-3 py-2 text-xs font-semibold"
+            >
+              {SELF_BOT_CHAT_LOCKED_NOTICE}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {dynamicQuickReplies.map((p, i) => {
+                const kind = quickReplyChipKind(p.expectedReplyKey);
+                const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
+                const animationDelay = reduced ? '0ms' : `${i * 60}ms`;
+                const commonClass =
+                  'pullim-anim-message-mount disabled:opacity-50 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1';
+                return (
+                  <button
+                    key={p.text}
+                    type="button"
+                    onClick={() => send(p.text, p.expectedReplyKey)}
+                    disabled={pending}
+                    title={kind === 'guide' ? '수업 단계' : '자유 질문'}
+                    style={
+                      kind === 'guide'
+                        ? { borderLeftColor: botSig.hex, animationDelay }
+                        : { animationDelay }
+                    }
+                    className={cn(
+                      commonClass,
+                      // DS: 모든 빠른 칩은 좌측 라이너를 가진다. guide=시그니처색, ask=중립 slate 로 색 구분.
+                      kind === 'guide'
+                        ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
+                        : 'border border-l-2 border-pullim-slate-200 border-l-pullim-slate-300 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-r-full rounded-l',
+                    )}
+                  >
+                    <Icon aria-hidden className="h-3.5 w-3.5" />
+                    <span>{p.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <ChatComposer
             value={value}
             onValueChange={setValue}
             onSubmit={handleSubmit}
             onKeyDown={handleKeyDown}
-            placeholder={`${bot.name}에게 물어보세요…`}
-            disabled={isSendDisabled}
+            placeholder={locked ? SELF_BOT_CHAT_LOCKED_PLACEHOLDER : `${bot.name}에게 물어보세요…`}
+            disabled={locked || isSendDisabled}
+            inputDisabled={locked}
             textareaRef={textareaRef}
             leading={
               <>
@@ -873,33 +850,8 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   );
 }
 
-/* ─── 채팅 영속화 (plan Phase 3 쓰기 thin-slice) ─── */
-
 /**
- * 학생 메시지를 본인 명의로 서버에 저장한다(fire-and-forget).
- * 명의는 서버가 JWT claim 에서 결정 — 클라이언트는 botId/text 만 보낸다.
- * @param botId - 대상 봇 id
- * @param text - 메시지 본문
- */
-async function persistChatMessage(botId: string, text: string): Promise<void> {
-  try {
-    const accessToken = tokenManager.getAccessToken();
-    if (!accessToken) return;
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ botId, text }),
-    });
-  } catch {
-    // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
-  }
-}
-
-/**
- * 서버 히스토리 메시지(role/content/createdAt·v2 cardType/cardPayload) → 챗 Turn(플래그 ON seed).
+ * 서버 히스토리 메시지(role/content/createdAt·v2 cardType/cardPayload) → 챗 Turn(진입 seed).
  * role: user→student, assistant→bot.
  * **v2(ADR-065)**: assistant 카드 블록(cardType 有)은 `adaptCardToTurn` 으로 리치 카드 turn 을 재구성해
  * `MessageBody` 가 그대로 재렌더한다(평문으로 뭉개지 않음). cardType 없거나 payload 형식 불일치면
@@ -935,8 +887,8 @@ function historyMessageToTurn(m: ChatHistoryMessage, i: number, goalKeyForDay?: 
 }
 
 /**
- * flag-ON 실챗(sendReal)의 스트리밍 세그먼트/카드 turn 컨트롤러 — **모듈 스코프**(React Compiler 의
- * immutable 위반을 피해 커서 상태를 컴포넌트 밖에서 변형; buildLessonTurn 의 idxRef 변형 선례와 동형).
+ * SSE 실챗(sendReal)의 스트리밍 세그먼트/카드 turn 컨트롤러 — **모듈 스코프**(React Compiler 의
+ * immutable 위반을 피해 커서 상태를 컴포넌트 밖에서 변형; buildLessonActionTurn 의 idxRef 변형 선례와 동형).
  *
  * 계약:
  *  - 첫 버블(타이핑 인디케이터·streaming=true·빈 텍스트) 을 즉시 선주입한다.
@@ -1007,57 +959,6 @@ function createRealChatTurnController(
   return { setStreamingText, finalizeText, appendCard };
 }
 
-/* ─── 메시지 타입 dispatch ([08 § 15.1.3]) ─── */
-
-function buildRichBotTurn(id: string, text: string, at: number, forcedKey: ReplyKey | undefined, botId: string): Turn {
-  // 시연용 — forcedKey 기반으로 다른 타입 매핑. v2에서 LLM tool-calling으로 대체.
-  if (forcedKey === 'slope') {
-    return {
-      id, role: 'bot', at, text,
-      kind: 'explain-step',
-      payload: {
-        steps: [
-          { num: 1, label: '두 점 잡기', body: '그래프나 식에서 지나는 점 두 개를 먼저 잡아.', formula: '(x₁, y₁), (x₂, y₂)' },
-          { num: 2, label: '변화량 적기', body: 'y가 얼마나 변했는지, x가 얼마나 변했는지 각각 적어.' },
-          { num: 3, label: '나누기', body: '(y의 변화량) ÷ (x의 변화량) — 순서 뒤집지 않게 조심해.' },
-        ],
-      } satisfies ExplainStepPayload,
-    };
-  }
-  if (forcedKey === 'exam_prep') {
-    // 봇 과목에 맞는 연습 문제로 안내 (하드코딩 X — 레슨 데이터에서)
-    const pq = getBotLesson(botId).practiceQuizzes[0];
-    return {
-      id, role: 'bot', at, text,
-      kind: 'problem-card',
-      payload: {
-        problemNumber: pq.problemNumber,
-        title: pq.title,
-        // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
-        ctaLabel: '학습',
-        // 보이는 글자는 「학습」 하나뿐이라 낭독기에는 무엇을 여는지 실어 보낸다
-        ctaAriaLabel: `${pq.title} 학습하러 가기`,
-        ctaHref: `/classbot/learn/${botId}`,
-      } satisfies ProblemCardPayload,
-    };
-  }
-  // 오늘 정리 — 레슨 summary 카드
-  if (forcedKey === 'today_summary') {
-    return { id, role: 'bot', at, text: getBotLesson(botId).summary, kind: 'summary' };
-  }
-  // 기본 — text 버블
-  return { id, role: 'bot', at, text, kind: 'text' };
-}
-
-/* ─── 봇 주도 가이드 수업 — 흐름키 → 구조화 메시지 ─── */
-
-// A7: 흐름키 런타임 목록은 chat.ts 의 LESSON_FLOW_KEYS 단일 출처에서 파생(중복 Set 제거).
-const LESSON_FLOW_KEY_SET: ReadonlySet<string> = new Set(LESSON_FLOW_KEYS);
-
-function isLessonFlowKey(k?: QuickReplyKey): k is LessonFlowKey {
-  return k !== undefined && LESSON_FLOW_KEY_SET.has(k);
-}
-
 /* ─── 진행 마킹 매핑(A1·B7) — turn.kind → 레슨 위상 / 세션 단계 ─── */
 
 /** turn.kind → A1 LessonPhase(없으면 undefined — 마킹 안 함). */
@@ -1090,48 +991,6 @@ function kindToSessionStep(kind?: MessageKind): SessionStep | undefined {
     default:
       return undefined;
   }
-}
-
-/** 흐름키로 getBotLesson 데이터를 구조화 메시지로 변환. "다음 개념"은 idxRef 순환. */
-function buildLessonTurn(
-  id: string,
-  at: number,
-  key: LessonFlowKey,
-  lesson: BotLesson,
-  idxRef: { current: number },
-): Turn {
-  const concepts = lesson.concepts;
-  if (key === 'lesson_next') {
-    idxRef.current = (idxRef.current + 1) % Math.max(1, concepts.length);
-  }
-  if (key === 'lesson_concept' || key === 'lesson_next') {
-    const c = concepts[idxRef.current] ?? concepts[0];
-    const lead = key === 'lesson_next' ? '다음 개념 가보자' : '이 개념부터 보자';
-    return {
-      id, role: 'bot', at,
-      text: `${lead} — **${c.title}**`,
-      kind: 'concept',
-      payload: { concept: c } satisfies ConceptPayload,
-    };
-  }
-  if (key === 'lesson_example') {
-    return {
-      id, role: 'bot', at,
-      text: '예제야. 처음 단계는 내가, 뒷 단계는 네가 직접 채워봐 👇',
-      kind: 'example',
-      payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
-    };
-  }
-  // lesson_quiz
-  return {
-    id, role: 'bot', at,
-    text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
-    kind: 'quiz',
-    payload: {
-      quiz: lesson.quiz,
-      conceptId: lesson.quiz.relatedConceptId ?? concepts[idxRef.current]?.id,
-    } satisfies QuizPayload,
-  };
 }
 
 function conceptTurn(id: string, at: number, c: LessonConcept, lead: string): Turn {
@@ -1283,7 +1142,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // 봇 기본 텍스트 — 리치 텍스트 렌더
   if (!turn.kind || turn.kind === 'text') {
-    // 실챗(flag-ON) 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
+    // SSE 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
     // (점 애니메이션)를 렌더해 로딩 표시가 끊기지 않게 한다. 첫 토큰부터는 아래 텍스트 렌더로 전환.
     if (turn.streaming && turn.text === '') {
       return (

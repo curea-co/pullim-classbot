@@ -1,9 +1,14 @@
 /**
  * 도메인 fetch — pullim-api classbot **정본 라우트**(`api.pullim.ai/classbot/*`)를 친다.
  *
- * 코어 스토어 전환(`USE_REAL_CORE_BE`)용 얇은 헬퍼. `lib/api/read-fetch.ts` 는 같은 오리진 Next
- * route handler(`/api/*`) 전용이라 별도 헬퍼가 필요하다 — 이쪽은 **OS API 호스트**(`NEXT_PUBLIC_OS_API_URL`,
- * `lib/auth/os-sso.ts` `API_BASE`)의 `/classbot/*` 서비스 경계 프리픽스로 간다(글로벌 `/api` 프리픽스 없음).
+ * `lib/api/read-fetch.ts`·`lib/api/client-fetch.ts` 는 같은 오리진 Next route handler(`/api/*`) 전용이라
+ * 별도 헬퍼가 필요하다 — 이쪽은 **OS API 호스트**(`NEXT_PUBLIC_OS_API_URL`, `lib/auth/os-sso.ts`
+ * `API_BASE`)의 `/classbot/*` 서비스 경계 프리픽스로 간다(글로벌 `/api` 프리픽스 없음).
+ *
+ * *(종전에는 `USE_REAL_CORE_BE` 플래그가 이 경로를 켰다. 2026-09-16 계획 PR 4 에서 그 플래그를
+ * 걷었다 — 정본은 이 하나이고 켜고 끄는 것이 아니다. 화면 훅은 `lib/api/classbot-client.ts` 를
+ * 지나 이 함수를 부른다(401 로그인 유도·재시도 규칙은 그쪽 소유).
+ * `output/2026-09-16_classbot-completion-plan.html` §07 데이터층 · §09 PR 4.)*
  *
  * 신원 계약 (정본 — 표준화된 OS 쿠키 세션):
  *  - **OS access 쿠키 세션이 신원이다.** OS 로그인이 set 한 access 쿠키(`Domain=.pullim.ai`, HttpOnly)가
@@ -19,16 +24,10 @@
  *   전량 폐기됐다 — 정본 서버는 사용자 프로비저닝이 없고 OS 세션 쿠키의 `sub` 로 신원을 파생한다.
  */
 
-import { useSyncExternalStore } from 'react';
-
 import { ApiError } from '@pullim-classbot/api-client';
 
-import {
-  peekDomainIdentitySnapshot,
-  subscribeDomainIdentity,
-} from '@/lib/api/identity-snapshot';
+import { peekDomainIdentitySnapshot } from '@/lib/api/identity-snapshot';
 import { API_BASE } from '@/lib/auth/os-sso';
-import { USE_REAL_CORE_BE } from '@/lib/features';
 import { fetchWithOsCsrfRecovery } from '@/lib/api/csrf-fetch';
 
 // 스냅샷 publish/타입은 leaf(identity-snapshot)가 소유 — 호출부 편의로 재수출한다.
@@ -65,14 +64,20 @@ interface DomainErrorBody {
 }
 
 /**
- * classbot 정본 라우트를 OS 쿠키 세션으로 호출한다.
+ * classbot 정본 라우트를 OS 쿠키 세션으로 호출하고 **상태 코드와 본문을 함께** 돌려준다.
+ *
+ * 상태 코드가 뜻을 갖는 문이 있어서다 — 참여(`POST /enrollments`)와 제출(`POST /assignments/:id/submit`)은
+ * 같은 본문을 새로 만들었으면 201, 이미 있었으면 200 으로 준다(pullim-api 컨트롤러 `created` 분기).
  *
  * @param path - `/enrollments` 같은 `/classbot` 상대 경로 (base 는 `${API_BASE}/classbot`)
  * @param options - method/body. 쓰기면 CSRF 토큰을 자동 첨부한다.
- * @returns 파싱된 JSON 본문
+ * @returns `{ status, body }` — body 는 파싱된 JSON(비어 있으면 null)
  * @throws {ApiError} 비정상 응답 (status + 도메인 봉투 message/code)
  */
-export async function domainFetch<T>(path: string, options: DomainFetchOptions = {}): Promise<T> {
+export async function domainFetchWithStatus<T>(
+  path: string,
+  options: DomainFetchOptions = {},
+): Promise<{ status: number; body: T }> {
   const { method = 'GET', body } = options;
 
   const init: RequestInit = {
@@ -108,19 +113,18 @@ export async function domainFetch<T>(path: string, options: DomainFetchOptions =
     throw new ApiError(message, res.status, err.code ?? err.error?.code);
   }
 
-  return json as T;
+  return { status: res.status, body: json as T };
 }
 
 /**
- * 코어 스토어 sync 훅용 reactive 세션 사용자 id — 신원 변경(OS 세션 확립/로그아웃)에 반응해
- * **같은 마운트에서도** effect 재실행(재동기화)을 트리거하고, 단일 비행 캐시 키가 된다.
- * 플래그 OFF 면 상수('') — 신원 해석·재렌더 비용 0. 플래그 ON·미인증은 'anon'.
- * @returns 세션 사용자 id (인증: raw sub, 미인증: 'anon', 플래그 OFF: '')
+ * classbot 정본 라우트를 OS 쿠키 세션으로 호출한다(본문만).
+ *
+ * @param path - `/enrollments` 같은 `/classbot` 상대 경로 (base 는 `${API_BASE}/classbot`)
+ * @param options - method/body. 쓰기면 CSRF 토큰을 자동 첨부한다.
+ * @returns 파싱된 JSON 본문
+ * @throws {ApiError} 비정상 응답 (status + 도메인 봉투 message/code)
  */
-export function useSyncUserId(): string {
-  return useSyncExternalStore(
-    subscribeDomainIdentity,
-    () => (USE_REAL_CORE_BE ? (currentSessionUserId() ?? 'anon') : ''),
-    () => '',
-  );
+export async function domainFetch<T>(path: string, options: DomainFetchOptions = {}): Promise<T> {
+  const { body } = await domainFetchWithStatus<T>(path, options);
+  return body;
 }

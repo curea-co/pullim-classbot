@@ -2,10 +2,13 @@ import type { StudentEnrollment } from '@/lib/mock/classbot';
 
 /**
  * 참여 코드 → 교사 클래스 매핑 (mock).
- * 실제로는 BE가 코드/링크/QR을 enrollment로 해석한다. 데모에서는 소수의 고정 코드만 인정.
+ *
+ * 화면은 더 이상 이 표로 코드를 풀지 않는다 — 참여는 pullim-api 정본(`POST /classbot/enrollments`,
+ * `hooks/api/classroom.ts`) 하나다(2026-09-16 계획 PR 4). 종전의 `resolveClassCode`(스토어 `join` 이 쓰던
+ * 해석기)는 호출부가 사라져 함께 걷었다. 남은 쓰임은 로컬 DB 시드(`scripts/seed.ts` — `join_codes` 표의
+ * 실전판)와 문서용 코드 목록뿐이다.
  * assignedBy는 대응 봇(classBots)의 teacherName과 일치시킨다.
  */
-// export — DB seed(join_codes 테이블)가 이 맵을 실전판으로 옮긴다 (실출시 M2).
 export const CODE_MAP: Record<string, StudentEnrollment> = {
   'MATH-2024': {
     botId: 'cb_001',
@@ -32,19 +35,6 @@ export const CODE_MAP: Record<string, StudentEnrollment> = {
     via: '대치프리미엄 과학학원',
   },
 };
-
-function normalize(code: string): string {
-  return code.trim().toUpperCase();
-}
-
-/**
- * 코드를 enrollment로 해석. 알 수 없으면 null.
- * 새 객체를 반환해 store 변경이 원본 map을 오염시키지 않도록 한다.
- */
-export function resolveClassCode(code: string): StudentEnrollment | null {
-  const hit = CODE_MAP[normalize(code)];
-  return hit ? { ...hit } : null;
-}
 
 /** 데모용 — 인정되는 참여 코드 목록 (안내·문서용). */
 export const DEMO_CLASS_CODES = Object.keys(CODE_MAP);

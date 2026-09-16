@@ -1,6 +1,13 @@
 /**
  * 현재 사용자 해석기 — 도메인 신원의 단일 진입점.
  *
+ * ⚠️ **은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 8).** 정본 서버는 pullim-api 이고 화면 훅은
+ * `useAuth()`(OS 세션)로 신원을 읽는다 — 계획 PR 4 가 과제·참여·내 반·챗을 그쪽으로 옮겼다.
+ * 이 파일의 서버 해석기(`getCurrentUserIdFromRequest`)와 개발용 신원 쿠키(`lib/dev-identity.ts`)는
+ * **아직 옮기지 않은 같은 오리진 `/api/*` 라우트**(교사 반 만들기·명단·과제 내기·학부모·담은 봇·
+ * 자기주도·마켓)가 쓰므로 남겨 둔다. 겹치는 라우트를 지운 뒤 남는 참조가 0 인 것만 걷는다 —
+ * 그 순서가 PR 8 이다. 새 코드는 이 파일을 신원 출처로 삼지 마라.
+ *
  * 신원 단일화 원칙:
  *  - 도메인 코드는 "현재 사용자"를 mock `currentPersona`(student_001)로 하드코딩하지 않고
  *    이 해석기를 통해 얻는다.
@@ -14,10 +21,9 @@
  * `getCurrentUserIdFromRequest` 주석에 적어 뒀다.
  */
 
-import type { UserRole } from '@pullim-classbot/types';
-
+import type { AppUserRole } from '@/lib/auth/app-user-role';
 import { useAuth } from '@/lib/auth/auth-context';
-import { findDevIdentity, resolveDevIdentity } from '@/lib/dev-identity';
+import { findDevIdentity, resolveDevIdentity, type DevIdentityRole } from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
 import { classRoster, type ClassroomStudent } from '@/lib/mock/classbot';
 import { currentPersona } from '@/lib/mock/persona';
@@ -26,15 +32,12 @@ import { currentPersona } from '@/lib/mock/persona';
 export const DEMO_FALLBACK_USER_ID = currentPersona.id;
 
 /**
- * 이 앱 안에서만 쓰는 역할 union — `UserRole` 에 'parent' 를 더한 것.
- *
- * `packages/types` 의 `UserRole` 은 'student' | 'teacher' | 'admin' 이라 학부모가 없다.
- * 학부모 화면은 **이 앱에만** 있고 공유 claim union 에도 'parent' 가 없으므로,
- * BE 와 공유하는 계약(`packages/*`)을 이 앱 사정으로 넓히지 않는다 —
- * 대신 여기서 넓힌 별칭을 두고 앱 경계 안에서만 쓴다.
- * ('parent' 는 개발용 신원 쿠키에서만 온다.)
+ * 이 앱 안에서만 쓰는 역할 union — 정의는 leaf `lib/auth/app-user-role.ts` 로 옮겼고 여기서는
+ * 재수출한다(호출부 경로 유지). 'parent' 에 'institution' 이 더해졌다 — 둘 다 이제 OS `/me` 에서
+ * 그대로 온다(`lib/auth/os-sso-provider.ts` `mapRole`). 종전 「'parent' 는 개발용 신원 쿠키에서만
+ * 온다」는 더는 사실이 아니다.
  */
-export type AppUserRole = UserRole | 'parent';
+export type { AppUserRole };
 
 /** 도메인 "현재 사용자" 모델 — 세션 또는 데모 폴백. */
 export interface CurrentUser {
@@ -128,7 +131,13 @@ export function useCurrentUserId(): string {
  */
 export function getCurrentUserIdFromRequest(req: Request): {
   id: string;
-  role: AppUserRole;
+  /**
+   * 이 경로가 세울 수 있는 역할은 개발용 신원 쿠키의 셋(student·teacher·parent)뿐이다 — OS 의
+   * institution 은 여기로 오지 않는다(OS 세션은 이 서버가 풀 수 없다, 위 주석). 그래서 client 훅의
+   * `AppUserRole` 이 아니라 쿠키의 union 을 그대로 쓴다. 라우트 가드(`app/api/_lib/guards.ts`)의
+   * `ActorRole` 이 그 셋을 받는다.
+   */
+  role: DevIdentityRole;
   /** 실제 로그인 세션인가 — **늘 false**(위 주석). 이 값으로 분기하지 마라. */
   isAuthenticated: boolean;
   /** 그 사용자 명의로 처리해도 되는가 — 개발용 신원. 가드는 이 값을 본다. */

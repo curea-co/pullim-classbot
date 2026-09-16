@@ -7,14 +7,14 @@
  * - mock 시드 + dispatched 합산은 lib/mock/classbot.ts의 getMyAssignments() 헬퍼에서
  * - 새 과제 id 패턴: `as_user_${Date.now()}` (시드 id와 충돌 회피)
  *
- * `USE_REAL_CORE_BE`(정본 배선): 쓰기(dispatch/recordSubmission)는 스토어 선반영 후 pullim-api
- * 정본 라우트(OS 쿠키 + CSRF)로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMergedAssignments
- * 등)는 `GET /classbot/assignments?audience=student` 를 스토어 캐시로 동기화한다.
- * dispatch=`POST /classbot/classes/:classId/assignments`, submit=`POST /classbot/assignments/:id/submit`
- * (**`{ answers }` 만** — scorePercent 는 서버 권위 채점값). 플래그 OFF 면 기존 mock/localStorage 100% 불변.
+ * **로컬 전용 캐시다 — 은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 6).** 종전에는 `USE_REAL_CORE_BE`
+ * 플래그가 켜지면 이 스토어가 pullim-api 정본과 동기화했다(dispatch·submit·목록 병합). 그 플래그는
+ * 계획 PR 4 에서 걷었고, 배포에서 켜진 적 없던 그 레인도 함께 걷었다 — 정본 읽기는 이제 react-query
+ * 훅이 한다(`app/(student)/classbot/assignment/use-assignment-reads.ts` · `hooks/api/assignment-dispatch.ts`).
+ * 문항까지 실어 내는 발사·풀이·제출·결과의 서버 전환과 이 persist 의 은퇴는 PR 6 다
+ * (계획 §07 학생·받은 과제 줄 「걷는 것: pullim-assignments persist · useMergedAssignments」).
  */
 
-import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
@@ -22,9 +22,6 @@ import {
   studentAssignments, getAssignmentById as getSeedAssignmentById,
   getQuestionsByAssignment, getQuestionsByIds, gradingModeOf,
 } from '@/lib/mock';
-import { classBots } from '@/lib/mock/classbot';
-import { USE_REAL_CORE_BE } from '@/lib/features';
-import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
 
 type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
 
@@ -96,12 +93,9 @@ type AssignmentStore = {
   /**
    * 회수 — 학생 목록에서 내린다. 제출·채점은 남는다(§ 5.3).
    *
-   * ⚠️ **`USE_REAL_CORE_BE` 경로는 아직 없다.** `dispatch`·`recordSubmission` 과 달리 이 셋
-   * (`withdraw`·`restore`·`updateDispatched`)은 서버로 보내지 않는다. 플래그가 켜지면
-   * `useBackendAssignmentSync` 의 병합이 「같은 id 는 서버 행이 이긴다」라서, 교사가 고친
-   * 제목·마감이 학생 쪽 동기화 한 번에 **조용히 되돌아간다**. 회수는 서버가 학생 목록에서
-   * 그 행을 빼 주는 덕에 우연히 살아남을 뿐 다른 기기에는 안 간다.
-   * 플래그를 켜기 전에 이 셋의 서버 경로를 먼저 낸다(`proc/spec/14 § 10.2`).
+   * ⚠️ **정본 경로는 아직 없다.** 이 셋(`withdraw`·`restore`·`updateDispatched`)은 서버로 보내지
+   * 않는다 — pullim-api 에 고치기·회수 문이 없어서다. 그 문과 함께 PR 6 이 옮긴다
+   * (`proc/spec/14 § 10.2`). 그때까지 회수는 이 기기의 로컬 사본에서만 사라진다.
    */
   withdraw: (id: string) => void;
   /** 회수 되돌리기 — 마감 전에만 화면이 연다(§ 3.3.6). */
@@ -133,8 +127,6 @@ export const useAssignmentStore = create<AssignmentStore>()(
             },
           };
         });
-        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지, M2 단방향 신뢰)
-        if (USE_REAL_CORE_BE) void dispatchToBackend(a);
       },
 
       saveDraft: (a) =>
@@ -188,8 +180,6 @@ export const useAssignmentStore = create<AssignmentStore>()(
           );
           return { submissions: [submission, ...filtered] };
         });
-        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지)
-        if (USE_REAL_CORE_BE) void submitToBackend(submission);
         return submission;
       },
 
@@ -200,230 +190,6 @@ export const useAssignmentStore = create<AssignmentStore>()(
     },
   ),
 );
-
-/* ─────────────────────────────────────────────────────────────
- * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
- * ───────────────────────────────────────────────────────────── */
-
-/**
- * 정본 과제 요약 응답 — `AssignmentSummaryResponseDto`(문항·answerKey 미포함, bot==class → classId).
- * 시각 필드는 ISO-8601 문자열, dDay 는 정수.
- */
-interface AssignmentSummaryResponse {
-  id: string;
-  classId: string;
-  title: string;
-  scope: string;
-  subject: string;
-  grade: string;
-  mode: Assignment['mode'];
-  questionCount: number;
-  difficulty: Assignment['difficulty'];
-  dueLabel: string;
-  dDay: number;
-  dispatchStatus: DispatchStatus;
-  dispatchedAt: string | null;
-  examTimeLimitMin: number | null;
-  state: Assignment['state'];
-  chapterFrom: string | null;
-  chapterTo: string | null;
-  achievementCodes: string[] | null;
-}
-
-/** 정본 제출 응답 — `SubmissionResponseDto`(서버 권위 채점값). */
-interface SubmissionResponse {
-  submissionId: string;
-  assignmentId: string;
-  studentId: string;
-  /** 🔒 서버가 answers↔answer_key 대조로 재계산한 점수(essay 포함 시 null=미채점). */
-  scorePercent: number | null;
-  gradedAt: string | null;
-  submittedAt: string;
-}
-
-/** dDay 정수 → 학생 UI 라벨("D-1"·"오늘"). 서버는 정수, FE 표시는 문자열. */
-function dDayLabel(dDay: number): string {
-  return dDay <= 0 ? '오늘' : `D-${dDay}`;
-}
-
-/** "D-1"·"오늘" 라벨 → dDay 정수(서버 계약). 파싱 실패는 0. */
-function parseDDay(label: string): number {
-  const m = /(\d+)/.exec(label);
-  return m ? Number(m[1]) : 0;
-}
-
-/**
- * 문항 → 서버 전용 채점 정답키. mc=정답 인덱스(number), short/numeric=정답값(string),
- * essay=미지정(자동채점 불가). 서버가 이 값으로 채점하므로 요청에만 싣고 학생 조회 응답엔 미노출.
- */
-function answerKeyOf(q: AssignmentQuestion): number | string | undefined {
-  if (q.type === 'mc') return q.answerIndex;
-  if (q.type === 'short' || q.type === 'numeric') return q.answerKey;
-  return undefined;
-}
-
-/**
- * 정본 요약 응답 → 스토어 UserAssignment. 서버가 소유하는 필드는 그대로, 봇 카탈로그·워크스페이스
- * 링크 등 **FE 표시 전용 필드**(assignedBy·source·solveHref)는 mock 카탈로그·파생으로 채운다
- * (봇 카탈로그·문항 본문 = mock 권위, M3 경계). targetStudentIds 는 요약 응답에 없다 — 접근 술어는
- * 서버가 집행하므로 표시상 반 전체(빈 배열)로 둔다.
- */
-function toUserAssignment(row: AssignmentSummaryResponse): UserAssignment {
-  const bot = classBots.find((b) => b.id === row.classId);
-  return {
-    id: row.id,
-    botId: row.classId,
-    title: row.title,
-    scope: row.scope,
-    subject: row.subject,
-    grade: row.grade,
-    chapterFrom: row.chapterFrom ?? '',
-    chapterTo: row.chapterTo ?? '',
-    achievementCodes: row.achievementCodes ?? [],
-    questionCount: row.questionCount,
-    difficulty: row.difficulty,
-    mode: row.mode,
-    source: 'teacher-assigned',
-    assignedBy: bot?.name ?? '',
-    assignedAt: row.dispatchedAt ?? '',
-    dueLabel: row.dueLabel,
-    dDay: dDayLabel(row.dDay),
-    completedCount: 0,
-    state: row.state,
-    solveHref: `/classbot/assignment/${row.id}/solve?step=1`,
-    dispatchStatus: row.dispatchStatus,
-    targetStudentIds: [],
-    ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
-    ...(row.examTimeLimitMin != null ? { examTimeLimitMin: row.examTimeLimitMin } : {}),
-  };
-}
-
-/**
- * 교사가 과제를 냄 → `POST /classbot/classes/:classId/assignments`(classId = bot==class 의 botId).
- * body 는 정본 `DispatchAssignmentDto` — 문항은 answerKey 를 동봉(서버 전용 채점 소스),
- * targetStudentIds 빈 배열 = 반 전체. 성공 시 낙관 항목을 서버 생성 행으로 재키잉한다. 실패 시 경고 + 로컬 유지.
- */
-async function dispatchToBackend(a: UserAssignment): Promise<void> {
-  const body = {
-    title: a.title,
-    scope: a.scope,
-    subject: a.subject,
-    grade: a.grade,
-    mode: a.mode,
-    questionCount: a.questionCount,
-    difficulty: a.difficulty,
-    dueLabel: a.dueLabel,
-    dDay: parseDDay(a.dDay),
-    state: a.state,
-    chapterFrom: a.chapterFrom,
-    chapterTo: a.chapterTo,
-    achievementCodes: a.achievementCodes,
-    examTimeLimitMin: a.examTimeLimitMin ?? null,
-    // 빈 배열 = 반 전체(assignment_targets 0행). 서버가 각 id 를 :classId 멤버로 검증.
-    targetStudentIds: a.targetStudentIds,
-    questions: getQuestionsForAssignment(a).map((q, i) => {
-      const key = answerKeyOf(q);
-      return {
-        order: q.order ?? i,
-        type: q.type,
-        prompt: q.prompt,
-        ...(q.options ? { options: q.options } : {}),
-        ...(key !== undefined ? { answerKey: key } : {}),
-      };
-    }),
-  };
-  try {
-    const created = await domainFetch<AssignmentSummaryResponse>(
-      `/classes/${encodeURIComponent(a.botId)}/assignments`,
-      { method: 'POST', body },
-    );
-    useAssignmentStore.setState((s) => ({
-      dispatched: s.dispatched.map((d) =>
-        d.id === a.id ? { ...d, ...toUserAssignment(created) } : d,
-      ),
-    }));
-  } catch (e) {
-    console.warn('[assignments] BE 과제 내기 실패 — 로컬 유지:', e);
-  }
-}
-
-/**
- * 학생 제출 → `POST /classbot/assignments/:id/submit`. **body 는 `{ answers }` 만** — 점수는 보내지
- * 않는다(서버가 answer_key 대조로 재계산). 응답의 서버 권위 scorePercent 로 로컬 제출 점수를 갱신한다.
- * 실패 시 경고 + 로컬 유지(낙관 mock 점수 보존).
- */
-async function submitToBackend(submission: Submission): Promise<void> {
-  try {
-    const res = await domainFetch<SubmissionResponse>(
-      `/assignments/${encodeURIComponent(submission.assignmentId)}/submit`,
-      { method: 'POST', body: { answers: submission.answers } },
-    );
-    // 서버 권위 점수 소비(essay 미채점=null 은 낙관값 유지).
-    if (typeof res.scorePercent === 'number') {
-      const serverScore = res.scorePercent;
-      useAssignmentStore.setState((s) => ({
-        submissions: s.submissions.map((sub) =>
-          sub.id === submission.id ? { ...sub, scorePercent: serverScore } : sub,
-        ),
-      }));
-    }
-  } catch (e) {
-    console.warn('[assignments] BE 제출 기록 실패 — 로컬 유지:', e);
-  }
-}
-
-// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
-let backendAssignmentSync: {
-  key: string;
-  promise: Promise<UserAssignment[] | null>;
-} | null = null;
-
-/** 테스트 전용 — 단일 비행 캐시 리셋. */
-export function resetBackendAssignmentSyncForTests(): void {
-  backendAssignmentSync = null;
-}
-
-async function fetchBackendAssignments(): Promise<UserAssignment[] | null> {
-  try {
-    // 정본 라우트는 bare array(`AssignmentSummaryResponseDto[]`)를 반환한다 — 래핑 객체 아님.
-    const rows = await domainFetch<AssignmentSummaryResponse[]>('/assignments?audience=student');
-    return rows.map(toUserAssignment);
-  } catch (e) {
-    console.warn('[assignments] BE 과제 목록 동기화 실패 — 로컬 유지:', e);
-    return null;
-  }
-}
-
-/**
- * 플래그 ON 읽기 동기화 — `GET /classbot/assignments?audience=student` 를 dispatched
- * 캐시에 병합한다. 같은 id 는 BE 행이 진실, BE 에 없는 로컬 행은 유지(쓰기 실패분 보존).
- * 플래그 OFF 면 완전 no-op.
- */
-function useBackendAssignmentSync(): void {
-  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
-  const syncUserId = useSyncUserId();
-  useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
-    let cancelled = false;
-    if (backendAssignmentSync?.key !== syncUserId) {
-      backendAssignmentSync = {
-        key: syncUserId,
-        promise: fetchBackendAssignments(),
-      };
-    }
-    void backendAssignmentSync.promise.then((rows) => {
-      if (cancelled || !rows) return;
-      useAssignmentStore.setState((s) => {
-        const beIds = new Set(rows.map((r) => r.id));
-        return { dispatched: [...s.dispatched.filter((d) => !beIds.has(d.id)), ...rows] };
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [syncUserId]);
-}
 
 /** SSR 안전 hydration — 서버에서는 빈 배열, 클라이언트에서만 store 반영 */
 export function useDispatchedAssignments(): UserAssignment[] {
@@ -443,7 +209,6 @@ export function nextAssignmentId(): string {
  * 그렇지 않으면 해당 학생만 포함.
  */
 export function useMergedAssignments(studentId?: string): Assignment[] {
-  useBackendAssignmentSync(); // Ph7 — 플래그 OFF 면 no-op
   const dispatched = useAssignmentStore((s) => s.dispatched);
   const visible = dispatched.filter(isStudentVisible);
   const filteredDispatched = studentId
@@ -480,7 +245,6 @@ export function isStudentVisible(a: UserAssignment): boolean {
 
 /** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
 export function useAssignmentLookup(id: string): Assignment | undefined {
-  useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
   const dispatched = useAssignmentStore((s) => s.dispatched);
   // 목록에서 감추면서 딥링크는 열어 두면 회수가 반만 된다 — 풀이·제출이 그대로 가능하다.
   return dispatched.find((d) => d.id === id && isStudentVisible(d)) ?? getSeedAssignmentById(id);
@@ -498,8 +262,8 @@ const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
  *   ① 오답 다시 내기 문항 → ② 교사가 출제 때 직접 작성한 문항 → ③ 같은 id 의 시드 문항 → ④ mode 시드 폴백.
  *
  * ④ 는 남겨 둔다: (a) 교사가 발문을 비워 두면 "단원 RAG 자동 추출" 규약이고(출제 폼이
- * 전부 작성됐을 때만 ② 를 싣는다), (b) `USE_REAL_CORE_BE` ON 경로에서 서버 요약 응답에는
- * 문항이 없어(M2 경계) 동기화된 과제가 문항 0개가 되며, (c) 이 변경 전 localStorage 에
+ * 전부 작성됐을 때만 ② 를 싣는다), (b) 정본에서 온 과제는 `readRowToAssignment` 를 지나며 문항이
+ * 비어 있고(서버 상세의 `questions` 를 풀이 화면이 쓰는 것은 PR 6), (c) 이 변경 전 localStorage 에
  * 남아 있는 과제도 문항을 갖고 있지 않다. 셋 다 ④ 가 없으면 풀이 화면이 빈 화면이 된다.
  */
 /*

@@ -3,8 +3,9 @@ import { AppShell } from '@/components/shell/app-shell';
 import { RoleGuard } from '@/components/features/auth/role-guard';
 
 export default function StudentLayout({ children }: { children: ReactNode }) {
-  // RBAC: 로그인 세션의 role 이 student 가 아니면(예: 교사) 본인 홈으로 리다이렉트.
-  // (비로그인 데모는 통과.)
+  // 문은 풀림 OS 하나다(05 § 11.2 · 2026-09-16 계획 결정 ②): 비로그인은 OS 로그인으로,
+  // 교사는 교사 홈으로, 학부모·기관은 안내 한 장으로. 공개 경로(소개)만 그대로 연다 —
+  // 목록은 `lib/auth/public-paths.ts`. 데이터 자물쇠는 서버(pullim-api)다.
   return (
     <RoleGuard requiredRole="student">
       <AppShell role="student">{children}</AppShell>
