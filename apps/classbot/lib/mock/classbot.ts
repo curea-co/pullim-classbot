@@ -34,6 +34,18 @@ export type ClassBot = {
     studentCount: number;
   };
   enrolledCount: number;
+  /**
+   * 풀림이 제공하는 기본 봇인가 (spec `03 § 4.13.1` · `§ 4.13.3`).
+   *
+   * **optional 이다.** 이 카탈로그에 든 봇은 전부 **교사 봇**이라 그 칸이 아예 없고,
+   * 마켓 응답(`MarketplaceBotItem.isOfficial`)으로 온 봇만 값을 갖는다. 카탈로그 쪽에
+   * `false` 를 손으로 박아 두면 「아직 모른다」와 「공식 봇이 아니다」가 같은 값이 되는데,
+   * 봇을 **마켓 밖에서** 세우는 자리(`fallbackBot()` 등)는 실제로 그걸 모른다.
+   *
+   * 읽는 쪽은 **참일 때만** 갈라 그린다 — 없으면 종전(교사 봇) 그대로다.
+   * 그래야 이 칸이 안 닿는 화면이 조용히 모양을 바꾸지 않는다.
+   */
+  isOfficial?: boolean;
 };
 
 /**

@@ -69,8 +69,14 @@ jest.mock('@/hooks/api/marketplace', () => ({
   }),
 }));
 
-/** cb_001 = 데모 코드 MATH-2024 가 데려오는 봇. 마켓에도 같은 봇이 걸려 있을 수 있다. */
-const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
+/**
+ * cb_001 = 데모 코드 MATH-2024 가 데려오는 봇. 마켓에도 같은 봇이 걸려 있을 수 있다.
+ * @param botId - 마켓 봇 id
+ * @param name - 마켓이 적어 보내는 이름
+ * @param scope - 안전 등급. 기본 4 — 카탈로그의 `cb_001`(L3)·기본값(L3)과 **다른 값**이라
+ *   「마켓 값이 이긴다」를 재는 자리에서 어느 쪽이 나왔는지 갈린다
+ */
+const marketBot = (botId: string, name: string, scope = 4): MarketplaceBotItem => ({
   botId,
   name,
   avatarEmoji: '🤖',
@@ -78,6 +84,7 @@ const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
   grade: '중2',
   tone: '친근',
   greeting: '안녕!',
+  scope,
   blurb: null,
   teacherName: '박마켓 선생님',
   organization: '풀림 마켓',
@@ -287,6 +294,57 @@ it('마켓이 아직 안 온 구간에는 자리표시자를 만들지 않는다
   const { result } = render();
   expect(result.current.isLoading).toBe(true);
   expect(result.current.slots).toHaveLength(0);
+});
+
+/* ── 마켓이 주는 칸은 마켓이 이긴다 ────────────────────────────────────────
+ * 담은 봇의 **안전 등급**은 오래 화면의 추측이었다. 계약에 `scope` 가 없어서 카탈로그에
+ * 없는 봇(= 풀림 공식 봇)이 기본값 L3 를 뒤집어썼고, 시드가 L4 로 넣은 봇이 학생 화면에는
+ * L3 로 떠 있었다(spec `03 § 4.13.4`). 계약이 그 칸을 실은 뒤로 규칙은 하나다 —
+ * **마켓이 준 칸은 마켓이 이기고, 마켓이 안 주는 칸만 카탈로그가 채운다.**
+ * ------------------------------------------------------------------------ */
+
+it('담은 봇의 안전 등급은 마켓 값이다 — 카탈로그에 없어도 기본값으로 떨어지지 않는다', async () => {
+  marketBots = [marketBot('cb_official_math', '수학 마스터', 4)];
+  selfRows = [{ botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(4);
+});
+
+it('카탈로그에 있는 봇도 마켓 등급이 이긴다 — 데모 고정값이 지금 규칙을 덮지 않게', async () => {
+  // 카탈로그의 `cb_001` 은 L3 다. 교사가 등급을 올려 뒀다면 화면도 그 값이어야 한다.
+  marketBots = [marketBot('cb_001', '마켓에 걸린 수학봇', 5)];
+  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(5);
+  // 빠른 질문은 여전히 카탈로그 것이다 — 마켓이 **안 주는** 칸이라 규칙이 갈린다.
+  expect(result.current.slots[0].bot.quickPrompts.length).toBeGreaterThan(0);
+});
+
+it('다섯 등급 밖이면 기본값 L3 — 없는 등급을 화면에 적지 않는다', async () => {
+  // 컬럼이 CHECK 없는 `integer` 라 이런 값이 올 수 있다(`class_bots.scope`).
+  marketBots = [marketBot('cb_009', '망가진 등급의 봇', 9)];
+  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(3);
+});
+
+// 그리는 쪽(담은 봇 카드 · 채팅 헤더)은 뒤따르는 PR 이다(spec `03 § 4.13.3`).
+// 여기서 잠그는 것은 **값이 거기까지 닿는가** 하나다.
+it('공식 봇 표시가 그대로 넘어간다', async () => {
+  marketBots = [
+    { ...marketBot('cb_official_math', '수학 마스터'), isOfficial: true },
+    marketBot('cb_009', '선생님이 올린 봇'),
+  ];
+  selfRows = [
+    { botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' },
+    { botId: 'cb_009', addedAt: '2026-09-01T10:00:00.000Z' },
+  ];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(2));
+  expect(result.current.slots.map((s) => s.bot.isOfficial)).toEqual([true, false]);
 });
 
 /* ── 못 읽은 것을 「없다」로 그리지 않는다 ──────────────────────────────────

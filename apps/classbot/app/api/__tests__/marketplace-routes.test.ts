@@ -118,6 +118,9 @@ const MARKET_ROW = {
   grade: '고2',
   tone: '친근',
   greeting: '안녕!',
+  // L3(기본값)이 아니라 L4 다 — 기본값을 그대로 둔 픽스처는 「라우트가 컬럼을 실어 보냈다」와
+  // 「아무도 안 실어서 기본값이 남았다」를 못 가른다.
+  scope: 4,
   blurb: null,
   teacherName: '김수학 선생님',
   organization: '풀림',
@@ -454,6 +457,36 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
   });
 
   /*
+    안전 등급은 **실어 보내는 칸**이다(spec `03 § 4.13.4`). 재는 것이 둘인 이유는 위
+    `teacherId` 와 같다 — 픽스처가 값을 갖고 있어서, 라우트가 그 열을 안 골라도 응답만
+    보는 테스트는 조용히 통과한다. 고르는 열과 나가는 값을 **둘 다** 본다.
+  */
+  it('안전 등급을 고르고 그대로 내보낸다 — 담은 뒤 화면이 등급을 추측하지 않게', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ botId: 'cb_001', count: 3 }]];
+
+    const res = await getMarketplaceBots(cookieReq('student_001'));
+    const body = (await res.json()) as { bots: Array<{ scope: number }> };
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('scope');
+    expect(body.bots[0].scope).toBe(4);
+  });
+
+  /*
+    `scope` 를 열면서 **옆칸까지 같이 열리는 것**이 이 변경에서 제일 쉬운 실수다.
+    빠른 질문·라이브 상태는 「참여자 것」이라 빼 둔 판단이 그대로다(계약 머리주석) —
+    갈리는 기준은 「`class_bots` 의 칸인가」가 아니라 「참여자의 기록인가」다.
+  */
+  it('빠른 질문·라이브 상태는 여전히 안 고른다', async () => {
+    mockSelectQueue = [[]];
+
+    await getMarketplaceBots(cookieReq('student_001'));
+
+    const columns = Object.keys(selectSpy.mock.calls[0][0] as object);
+    expect(columns).not.toContain('quickPrompts');
+    expect(columns).not.toContain('isLive');
+  });
+
+  /*
     풀림 공식 봇은 **컬럼이 아니라 소유자 유무로 갈린다**(spec `03 § 4.13.1`).
     그래서 여기서 재는 것은 둘이다 — 파생이 맞게 도는가, 그리고 판별에 쓴 `teacherId` 가
     응답에 새지 않는가. 뒤엣것을 안 재면 「파생만 더하고 select 는 그대로 흘리는」 판이
@@ -533,5 +566,34 @@ describe('GET /api/marketplace/bots/[botId] — 안 걸린 봇은 없는 봇과 
 
     expect(body.bot.isOfficial).toBe(false);
     expect(body.bot).not.toHaveProperty('teacherId');
+  });
+
+  it('안전 등급을 고르고 그대로 내보낸다 — 목록과 같은 값이어야 한다', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ count: 3 }]];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { scope: number } };
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('scope');
+    expect(body.bot.scope).toBe(4);
+  });
+
+  /*
+    두 라우트의 **열 집합이 대칭**인 것이 이 파일들의 규약이다. 한쪽에만 칸이 늘면 목록에서
+    본 봇이 상세로 들어가는 순간 다른 모양이 되고, 그 차이는 화면에서만 드러난다.
+    칸 이름을 여기 다시 적지 않고 **두 select 를 맞대어** 본다 — 목록을 적어 두면 칸이
+    늘 때마다 이 테스트도 같이 고쳐야 해서, 고치는 김에 대칭이 깨진 것을 지나치게 된다.
+  */
+  it('목록과 같은 열 묶음을 고른다 — 상세로 들어가며 모양이 달라지지 않게', async () => {
+    mockSelectQueue = [[]];
+    await getMarketplaceBots(cookieReq('student_001'));
+    const listColumns = Object.keys(selectSpy.mock.calls[0][0] as object).sort();
+
+    selectSpy.mockClear();
+    mockSelectQueue = [[]];
+    await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const detailColumns = Object.keys(selectSpy.mock.calls[0][0] as object).sort();
+
+    expect(detailColumns).toEqual(listColumns);
   });
 });

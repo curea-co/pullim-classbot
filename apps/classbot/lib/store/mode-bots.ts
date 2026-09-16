@@ -7,6 +7,7 @@ import { useMarketplaceBots } from '@/hooks/api/marketplace';
 import { selfBotKeys, useMySelfBots } from '@/hooks/api/self-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import { classBots as botCatalog, type ClassBot } from '@/lib/mock/classbot';
+import { isScopeLevel } from '@/lib/mock/tutor';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 
 /**
@@ -59,7 +60,13 @@ export interface StudentBotsResult {
   retry: () => void;
 }
 
-/** 봇 성격 기본값 — 마켓 행이 알려주지 않는 칸. `components/classbot/home/my-rooms.ts` 와 같은 규약. */
+/**
+ * 봇 성격 기본값 — **아무도 알려주지 않는** 칸. `components/classbot/home/my-rooms.ts` 와 같은 규약.
+ *
+ * ⚠ 「마켓 행이 알려주지 않는 칸」이 아니다 — 마켓은 이제 `scope` 를 준다
+ * (spec `03 § 4.13.4`). 여기 남은 `scope: 3` 은 **마켓 행 자체가 없는** 길만 쓴다
+ * (`fallbackBot()`). `toClassBot()` 에서 다시 쓰지 마라.
+ */
 const UNKNOWN_BOT_DEFAULTS = {
   quickPrompts: [],
   scope: 3,
@@ -72,12 +79,23 @@ const UNKNOWN_BOT_DEFAULTS = {
  * 시드 봇(`cb_001`…)은 카탈로그 쪽이 빠른 질문·커리큘럼까지 갖고 있어 그 위에 덮는다.
  * 다만 **과목·학년·선생님·소속·인삿말은 마켓 값이 이긴다** — 카탈로그는 데모 고정값이고
  * 마켓 행이 지금 게시된 사실이라서다(`my-rooms.ts` 의 `toSlot` 과 같은 판단).
+ *
+ * ## 안전 등급(`scope`)도 마켓 쪽이다 — 가르는 선은 「봇의 지금 규칙인가」다
+ *
+ * 카탈로그가 이기는 칸(`quickPrompts` · `isLive` · `currentLesson`)은 **서버가 안 주는**
+ * 대화용 보조값이다. `scope` 는 다르다 — 마켓 계약이 그 칸을 싣기 시작했고
+ * (spec `03 § 4.13.4`), 그 값은 `class_bots` 행에 지금 적혀 있는 **그 봇의 규칙**이다.
+ * 카탈로그 값은 데모 고정값이라, 둘이 어긋나면 화면이 말하는 등급과 봇이 실제로 지키는
+ * 등급이 갈린다. 그래서 **마켓 값이 이긴다** — 이름·과목을 마켓에 맡긴 것과 같은 까닭이다.
+ *
+ * 값이 다섯 등급 밖이면 기본값(L3)으로 떨어뜨린다. 컬럼에 CHECK 가 없어 그런 값이 올 수
+ * 있고, 없는 등급을 화면에 적는 것보다 「기본값」이라고 말하는 편이 낫다.
  * @param item - `GET /api/marketplace/bots` 한 칸
  * @returns 챗·웰빙이 그대로 그릴 수 있는 봇
  */
 function toClassBot(item: MarketplaceBotItem): ClassBot {
   const seeded = botCatalog.find((b) => b.id === item.botId);
-  const character: Pick<ClassBot, 'quickPrompts' | 'scope' | 'isLive' | 'currentLesson'> =
+  const character: Pick<ClassBot, 'quickPrompts' | 'isLive' | 'currentLesson'> =
     seeded ?? UNKNOWN_BOT_DEFAULTS;
   return {
     ...character,
@@ -90,7 +108,12 @@ function toClassBot(item: MarketplaceBotItem): ClassBot {
     grade: item.grade,
     tone: item.tone,
     greeting: item.greeting,
+    scope: isScopeLevel(item.scope) ? item.scope : UNKNOWN_BOT_DEFAULTS.scope,
     enrolledCount: item.enrolledCount,
+    // 「풀림 공식 봇인가」는 마켓만 안다(소유자 유무에서 파생된다 — spec `03 § 4.13.1`).
+    // 담은 봇 카드·채팅 헤더가 사람 이름을 적지 않으려면 여기까지 값이 닿아야 한다
+    // (`§ 4.13.3`). 그리는 쪽은 뒤따르는 PR 이다.
+    isOfficial: item.isOfficial,
   };
 }
 

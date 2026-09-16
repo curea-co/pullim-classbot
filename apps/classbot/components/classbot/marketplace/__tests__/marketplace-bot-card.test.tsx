@@ -27,6 +27,7 @@ const teacherBot: MarketplaceBotItem = {
   grade: '중2',
   tone: '친근',
   greeting: '안녕! 오늘도 같이 풀어 보자.',
+  scope: 3,
   blurb: '개념부터 차근차근 짚어 주는 봇이에요.',
   teacherName: '김수학 선생님',
   organization: '대치프리미엄 수학학원',
@@ -45,6 +46,7 @@ const officialBot: MarketplaceBotItem = {
   name: '수학 마스터',
   teacherName: '풀림 공식',
   organization: '풀림',
+  scope: 4, // 시드가 공식 봇 셋에 넣는 등급(`03 § 4.13.1`). 카드가 안 그릴 뿐 값은 있다
   enrolledCount: 0,
   isOfficial: true,
 };

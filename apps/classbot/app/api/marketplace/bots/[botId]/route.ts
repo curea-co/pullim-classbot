@@ -35,6 +35,9 @@ export async function GET(
   const { botId } = await ctx.params;
   const db = getDb();
 
+  // 고르는 열은 **목록과 같은 묶음**이다 — 한쪽에만 칸이 늘면 목록에서 본 봇이 상세로
+  // 들어가는 순간 다른 모양이 된다. 무엇을 싣고 무엇을 빼는지(그리고 `scope` 는 왜
+  // 참여자 필드와 갈리는지)의 근거는 목록 라우트의 같은 자리에 적어 뒀다.
   const [row] = await db
     .select({
       botId: classBots.id,
@@ -44,6 +47,7 @@ export async function GET(
       grade: classBots.grade,
       tone: classBots.tone,
       greeting: classBots.greeting,
+      scope: classBots.scope,
       blurb: classBots.publishBlurb,
       teacherName: classBots.teacherName,
       organization: classBots.organization,
