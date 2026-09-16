@@ -33,7 +33,7 @@ const listeners = new Set<() => void>();
 /**
  * auth-context → domain-fetch 세션 사용자 publish (얇은 배선).
  * 로그인/세션 복원 시 AuthUser, 로그아웃 시 null. publish 자체는 인증 모드와 무관하게
- * 항상 안전하다 — SSO 분기는 소비 측(domain-fetch)이 `OS_SSO_ENABLED` 로 게이트한다.
+ * 항상 안전하다 — 소비 측(domain-fetch)이 `USE_REAL_CORE_BE` 로 게이트한다.
  * @param user - 세션 사용자 (미로그인 null)
  */
 export function setDomainIdentitySnapshot(user: SsoIdentityUser | null): void {
