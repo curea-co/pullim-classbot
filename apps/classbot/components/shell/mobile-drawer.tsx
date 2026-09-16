@@ -12,6 +12,10 @@ import type { Role } from './nav-config';
 /**
  * 모바일 햄버거 → 사이드바 drawer.
  * 역할 전환은 여기에도 없다 — `role` 은 어느 nav 를 그릴지 고르는 입력일 뿐이다(AppHeader 주석 참고).
+ *
+ * 학생 레일의 중첩(「내 수업방 ▾ 봇 대화」 · 결정 ④ 2026-09-16 · `apps/classbot/CLAUDE.md § 5` ㉠)은
+ * 여기서 따로 그리지 않는다 — 이 drawer 가 그리는 것은 `AppSidebar` 그 자체라, 들여쓰기도 그 컴포넌트가
+ * 들고 온다(`SubNavRow depth`). 두 표면에서 층이 다르게 보이면 고칠 곳은 이 파일이 아니라 그쪽이다.
  */
 export function MobileDrawer({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);

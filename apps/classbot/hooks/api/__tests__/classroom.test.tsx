@@ -23,7 +23,9 @@ jest.mock('@/lib/auth/os-sso', () => ({
 
 import { API_BASE } from '@/lib/auth/os-sso';
 import type { BotCardDto } from '@/lib/api/classbot-dto';
-import { joinFailureMessage, useJoinByCode, useMyClassrooms } from '../classroom';
+import {
+  joinFailureMessage, useIssueJoinCode, useJoinByCode, useMyClassrooms, useOperatorClass, useOperatorClasses,
+} from '../classroom';
 
 const BASE = `${API_BASE}/classbot`;
 
@@ -40,6 +42,13 @@ let enrollStatus: number;
 /** 내 반 목록 응답 코드. */
 let botsStatus: number;
 let bots: BotCardDto[];
+/** 교사 — 내가 operator 인 반 목록 응답 코드와 본문. */
+let teacherStatus: number;
+let teacherBots: BotCardDto[];
+/** 교사 — 반 하나(`GET /bots/:id`) 응답 코드. */
+let detailStatus: number;
+/** 교사 — 코드 발급 응답 코드. */
+let issueStatus: number;
 
 function res(status: number, body: unknown): Response {
   return {
@@ -73,6 +82,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
     );
   }
   if (url === `${BASE}/bots/cls_1` && method === 'GET') {
+    if (detailStatus >= 400) return Promise.resolve(res(detailStatus, { statusCode: detailStatus, message: 'nope' }));
     return Promise.resolve(
       res(200, { id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, operatorId: 't1', profile: null }),
     );
@@ -81,10 +91,22 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
     if (botsStatus >= 400) return Promise.resolve(res(botsStatus, { statusCode: botsStatus, message: 'nope' }));
     return Promise.resolve(res(200, bots));
   }
+  if (url === `${BASE}/bots?role=teacher` && method === 'GET') {
+    if (teacherStatus >= 400) return Promise.resolve(res(teacherStatus, { statusCode: teacherStatus, message: 'nope' }));
+    return Promise.resolve(res(200, teacherBots));
+  }
+  if (url === `${BASE}/classes/cls_1/join-codes` && method === 'POST') {
+    if (issueStatus >= 400) return Promise.resolve(res(issueStatus, { statusCode: issueStatus, message: 'nope' }));
+    return Promise.resolve(
+      res(201, { id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z' }),
+    );
+  }
   return Promise.resolve(res(404, { statusCode: 404, message: 'not found' }));
 }
 
 const botsCalls = () => calls.filter((c) => c.url === `${BASE}/bots?role=student`);
+const teacherCalls = () => calls.filter((c) => c.url === `${BASE}/bots?role=teacher`);
+const issueCalls = () => calls.filter((c) => c.method === 'POST' && c.url === `${BASE}/classes/cls_1/join-codes`);
 
 let queryClient: QueryClient;
 function Wrapper({ children }: { children: ReactNode }) {
@@ -98,6 +120,10 @@ beforeEach(() => {
   enrollStatus = 201;
   botsStatus = 200;
   bots = [{ id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'student', profile: null }];
+  teacherStatus = 200;
+  teacherBots = [{ id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null }];
+  detailStatus = 200;
+  issueStatus = 201;
   redirectToOsLogin.mockReset();
   queryClient = new QueryClient({
     defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity }, mutations: { retry: false } },
@@ -260,5 +286,105 @@ describe('useMyClassrooms — GET /classbot/bots?role=student', () => {
     rerender();
     await waitFor(() => expect(result.current.data).toEqual([]));
     expect(botsCalls()).toHaveLength(2);
+  });
+});
+
+/*
+  교사 셋 — 계획 PR 5a 가 정본으로 옮긴 문(해소 7). 같은 오리진 `/api/teacher/classrooms*` 를 더는
+  두드리지 않는 것을 URL 로 못박는다 — 화면 훅이 두 세계의 반 id 를 섞으면 코드는 나오는데 학생이 못 들어온다.
+*/
+describe('useOperatorClasses — GET /classbot/bots?role=teacher', () => {
+  it('OS 쿠키로 읽고 CSRF 는 붙이지 않는다 · 응답은 봉투 없는 카드 배열', async () => {
+    const { result } = renderHook(() => useOperatorClasses(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(teacherBots));
+
+    const get = teacherCalls()[0];
+    expect(get.method).toBe('GET');
+    expect(get.credentials).toBe('include');
+    expect(get.headers['X-CSRF-Token']).toBeUndefined();
+    // 같은 오리진 교사 라우트는 두드리지 않았다.
+    expect(calls.some((c) => c.url.includes('/api/teacher/classrooms'))).toBe(false);
+  });
+
+  it('세션 복원 전·비로그인에는 묻지 않는다', async () => {
+    authReady = false;
+    authUser = null;
+    renderHook(() => useOperatorClasses(), { wrapper: Wrapper });
+    await act(async () => Promise.resolve());
+    expect(teacherCalls()).toHaveLength(0);
+  });
+
+  it('401 은 다시 보내지 않고 로그인으로 보낸다', async () => {
+    teacherStatus = 401;
+    const { result } = renderHook(() => useOperatorClasses(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(teacherCalls()).toHaveLength(1);
+    expect(redirectToOsLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useOperatorClass — GET /classbot/bots/:id', () => {
+  it('반 하나를 읽는다 — 상세 머리가 목록 없이 선다', async () => {
+    const { result } = renderHook(() => useOperatorClass('cls_1'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data?.name).toBe('고2 미적분 A반'));
+    expect(calls.filter((c) => c.url === `${BASE}/bots/cls_1`)).toHaveLength(1);
+  });
+
+  it('id 가 비면 묻지 않는다', async () => {
+    renderHook(() => useOperatorClass(null), { wrapper: Wrapper });
+    await act(async () => Promise.resolve());
+    expect(calls.filter((c) => c.url.startsWith(`${BASE}/bots/`))).toHaveLength(0);
+  });
+
+  it('남의 반(403)은 재시도 없이 실패로 끝난다 — 로그인으로 보내지 않는다', async () => {
+    detailStatus = 403;
+    const { result } = renderHook(() => useOperatorClass('cls_1'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.status).toBe(403);
+    expect(calls.filter((c) => c.url === `${BASE}/bots/cls_1`)).toHaveLength(1);
+    expect(redirectToOsLogin).not.toHaveBeenCalled();
+  });
+});
+
+describe('useIssueJoinCode — POST /classbot/classes/:classId/join-codes', () => {
+  it('빈 본문을 CSRF double-submit 으로 보내고 새 코드를 돌려준다', async () => {
+    const { result } = renderHook(() => useIssueJoinCode(), { wrapper: Wrapper });
+
+    let issued: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined;
+    await act(async () => {
+      issued = await result.current.mutateAsync({ classId: 'cls_1' });
+    });
+
+    const post = issueCalls()[0];
+    expect(post).toBeDefined();
+    expect(post.body).toEqual({});
+    expect(post.credentials).toBe('include');
+    expect(post.headers['X-CSRF-Token']).toBe('csrf-1');
+    expect(issued).toEqual({ id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z' });
+    expect(calls.some((c) => c.url.includes('/api/teacher/classrooms'))).toBe(false);
+  });
+
+  it('남의 반(403)은 실패로 끝난다 — 코드를 지어내지 않는다', async () => {
+    issueStatus = 403;
+    const { result } = renderHook(() => useIssueJoinCode(), { wrapper: Wrapper });
+    let error: unknown;
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ classId: 'cls_1' });
+      } catch (e) {
+        error = e;
+      }
+    });
+    expect((error as { status?: number }).status).toBe(403);
+    expect(redirectToOsLogin).not.toHaveBeenCalled();
+  });
+
+  it('401 이면 OS 로그인으로 보낸다', async () => {
+    issueStatus = 401;
+    const { result } = renderHook(() => useIssueJoinCode(), { wrapper: Wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ classId: 'cls_1' }).catch(() => undefined);
+    });
+    expect(redirectToOsLogin).toHaveBeenCalledTimes(1);
   });
 });

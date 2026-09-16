@@ -24,10 +24,18 @@ type Props = {
  * 통합 사이드바 — 단일 nav 진실원 (Layer 1 §14.1: nav 이중화 금지).
  *
  * - 학생: 홈 + 6 도메인 (top-level) + 활성 도메인 children (인덴트로 펼침)
+ *   — children 의 `children`(항목 아래 한 단계 · 결정 ④ 2026-09-16 · `nav-config.ts` `NavSubItem.children`)은
+ *   **한 칸 더 들여쓴 행**으로 부모 바로 아래에 선다. 풀 모드는 왼쪽 선과 여백으로, compact 모드는
+ *   아이콘을 한 단계 작게 그려 층을 보인다. 지금 그 층에 있는 항목은 「내 수업방 ▾ 봇 대화」 하나다.
  * - 교사: 그룹별 nav (기존 동작 유지)
  *
  * Compact (≥768 <1024): 아이콘 전용. 활성 도메인 children도 아이콘.
  * Comfortable (≥1024): 풀 라벨.
+ *
+ * ⚠ 배포 셸은 PUDS `DashboardShell` + `OsRail`(`app-shell.tsx` → `nav-adapter.ts`)이고 이 컴포넌트는
+ * `MobileDrawer` 가 그린다(`app-sidebar-rail.tsx` 래퍼도 이것을 감싸지만 지금 그 래퍼를 import 하는 곳은 0 이다).
+ * 두 표면이 같은 `nav-config` 를 읽으므로 중첩도 같은 곳에서 온다 — 어느 한쪽만 고치면 한 표면에서
+ * 「봇 대화」가 사라진다.
  */
 export function AppSidebar({ role, onNavigate, className, compact }: Props) {
   const pathname = usePathname();
@@ -101,9 +109,10 @@ function StudentSidebar({
                     <SubNavRow
                       key={sub.href}
                       sub={sub}
-                      isActive={sub.href === activeSubHref}
+                      activeSubHref={activeSubHref}
                       onNavigate={onNavigate}
                       compact={compact}
+                      depth={0}
                     />
                   ))}
                 </ul>
@@ -225,33 +234,46 @@ function NavRow({
   );
 }
 
-/** 도메인 children 중 현재 pathname에 가장 잘 맞는 sub.href 반환 (가장 긴 prefix 우선) */
-function findActiveSubHref(pathname: string, children: NavSubItem[] | undefined): string | undefined {
+/**
+ * 도메인 children(과 그 아래 한 단계) 중 현재 pathname 에 가장 잘 맞는 sub.href.
+ *
+ * 경로 일치·경로 경계 접두사는 긴 href 가 이기고, `matchPrefix`(`/classbot/learn/*` → 봇 대화)도
+ * 읽는다 — 배포 레일(`nav-adapter.ts` `isActive`)이 그 값을 읽으므로 두 표면이 같은 행을 켠다.
+ * 중첩 항목은 부모와 같은 자격으로 후보에 든다(결정 ④).
+ */
+export function findActiveSubHref(pathname: string, children: NavSubItem[] | undefined): string | undefined {
   if (!children) return undefined;
   let best: string | undefined;
-  for (const sub of children) {
-    if (pathname === sub.href || pathname.startsWith(sub.href + '/')) {
-      if (!best || sub.href.length > best.length) {
-        best = sub.href;
-      }
+  const visit = (items: NavSubItem[]) => {
+    for (const sub of items) {
+      const owns =
+        pathname === sub.href ||
+        pathname.startsWith(sub.href + '/') ||
+        (sub.matchPrefix?.some(p => pathname === p || pathname.startsWith(p + '/')) ?? false);
+      if (owns && (!best || sub.href.length > best.length)) best = sub.href;
+      if (sub.children?.length) visit(sub.children);
     }
-  }
+  };
+  visit(children);
   return best;
 }
 
 function SubNavRow({
-  sub, isActive, onNavigate, compact,
+  sub, activeSubHref, onNavigate, compact, depth,
 }: {
   sub: NavSubItem;
-  isActive: boolean;
+  activeSubHref: string | undefined;
   onNavigate?: () => void;
   compact?: boolean;
+  /** 0 = 도메인 바로 아래 · 1 = 항목 아래 한 단계(결정 ④). 두 층뿐이다. */
+  depth: 0 | 1;
 }) {
   const Icon = sub.icon;
-  const active = isActive;
+  const active = sub.href === activeSubHref;
+  const nested = depth === 1;
 
   return (
-    <li>
+    <li data-depth={depth}>
       <Link
         href={sub.locked ? '#' : sub.href}
         onClick={sub.locked ? e => e.preventDefault() : onNavigate}
@@ -272,7 +294,8 @@ function SubNavRow({
             : 'text-pullim-slate-600 hover:bg-pullim-slate-100 hover:text-pullim-slate-900 active:bg-pullim-slate-200/60',
         )}
       >
-        {Icon && <Icon className={cn('h-3.5 w-3.5 shrink-0', active && 'stroke-[2.4]')} />}
+        {/* 들여쓴 행은 compact 에서 아이콘 한 단계 작게 — 여백을 줄 수 없는 아이콘 전용 모드의 층 표시 */}
+        {Icon && <Icon className={cn(nested && compact ? 'h-3 w-3' : 'h-3.5 w-3.5', 'shrink-0', active && 'stroke-[2.4]')} />}
         {!compact && (
           <>
             <span className={cn('flex-1 truncate', active && 'font-semibold')}>{sub.label}</span>
@@ -290,6 +313,26 @@ function SubNavRow({
           </>
         )}
       </Link>
+      {/* 항목 아래 한 단계 — 부모 바로 아래, 한 칸 더 들여쓴다. 더 깊이는 없다(NavSubItem.children 주석). */}
+      {depth === 0 && sub.children && sub.children.length > 0 && (
+        <ul
+          className={cn(
+            'mt-0.5 space-y-0.5',
+            compact ? 'ml-0' : 'ml-3 border-l border-pullim-slate-200 pl-2.5',
+          )}
+        >
+          {sub.children.map(child => (
+            <SubNavRow
+              key={child.href}
+              sub={child}
+              activeSubHref={activeSubHref}
+              onNavigate={onNavigate}
+              compact={compact}
+              depth={1}
+            />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

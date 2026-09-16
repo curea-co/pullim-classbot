@@ -98,6 +98,26 @@ export interface BotDetailDto {
   profile: BotProfileDto | null;
 }
 
+/**
+ * `JoinCodeResponseDto` — `POST /classbot/classes/:classId/join-codes`(201 · operator 만 · 남의 반 403).
+ *
+ * 정본 응답은 넷(`id`·`code`·`classId`·`createdAt`)이다. `expiresAt` 은 **아직 서버가 보내지 않는다** —
+ * 「`expires_at` 채우기 + 재발급 시 옛 코드 삭제」는 완성 설계 § 5 R1 이 pullim-api PR 2 에 맡긴 일이다.
+ * 여기 선택 칸으로 미리 적어 두는 이유는 화면(`join-code-block.tsx`)이 값이 오면 남은 시간을 그리고,
+ * 없으면 아무 말도 안 하게 **한 분기**로 서 있게 하려는 것이다 — 그 문이 열리는 날 이 파일만 `string` 으로 좁힌다.
+ */
+export interface JoinCodeDto {
+  id: string;
+  /** 하이픈 없는 코드(예: `AB3K9M`). 표기는 `lib/join-code-format.ts` 가 한다. */
+  code: string;
+  /** 대상 반(=bot) id. */
+  classId: string;
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601 · 서버가 아직 보내지 않는다(pullim-api PR 2). */
+  expiresAt?: string | null;
+}
+
 /** `EnrollmentResponseDto` — `POST /classbot/enrollments`. 신규 201 · 이미 멤버 200, 본문은 같다. */
 export interface EnrollmentDto {
   membershipId: string;
