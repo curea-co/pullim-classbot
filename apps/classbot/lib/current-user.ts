@@ -38,7 +38,7 @@ export type AppUserRole = UserRole | 'parent';
 
 /** 도메인 "현재 사용자" 모델 — 세션 또는 데모 폴백. */
 export interface CurrentUser {
-  /** 도메인 users.id (= auth_users.id). 세션 없으면 student_001. */
+  /** 도메인 users.id — OS 세션이면 그 sub, 아니면 데모 폴백 student_001. */
   id: string;
   /** student/teacher/admin/parent. 폴백은 student. */
   role: AppUserRole;
