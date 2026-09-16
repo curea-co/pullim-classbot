@@ -52,7 +52,9 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
           없으면 아래 빈 상태. 둘이 같이 뜨면 같은 화면에 같은 일을 하는 버튼이 둘이다
           (`07 § 6.6.2(2)`).
           이름은 「새 클래스봇」 — 교사 홈(`teacher/page.tsx`)과 운영 화면(`teacher/classbot/page.tsx`)이
-          이미 그렇게 부르고 있어, 이 자리까지 맞추면 봇 만들러 가는 **세 화면이 한 이름**이 된다.
+          이미 그렇게 부르고 있어, 이 자리까지 맞추면 **빌더로 보내는 세 화면이 한 이름**이 된다.
+          빌더를 다시 시작하는 만든 뒤 화면(`components/builder/done-view.tsx`)도 같은 PR 이 맞춰,
+          **새 봇을 만드는 버튼은 앱 안에서 넷 다 같은 글자**다.
           두 단어라 `07 § 6.6` 「버튼은 단어로」의 두 단어 한도 안이다.
 
           TODO(봇 빌더 이식): 다음 작업에서 [봇 빌더]를 이 화면 하위(`/teacher/bots/new`)로 옮긴다.
