@@ -1,7 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, KeyRound, LogIn, MessageCircle, Store, UserRound, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  KeyRound,
+  LogIn,
+  MessageCircle,
+  Sparkles,
+  Store,
+  UserRound,
+  Users,
+} from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
@@ -125,6 +134,17 @@ export function MarketplaceBotDetail({
                 한 화면에 같은 글자가 두 번 서면 둘 중 무엇이 제목인지 안 읽힌다.
               */}
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                {/*
+                  **카드와 같은 규칙**(spec `03 § 4.13.1`) — 공식 봇은 사람 이름 자리를
+                  「풀림 공식」 배지로 대신한다. 아래 `dl` 의 「만든 선생님」 줄이 빠지므로
+                  그 뜻을 이 배지가 든다. 배지 모양·색은 카드와 한 벌이다(`tone="info"`).
+                */}
+                {bot.isOfficial && (
+                  <Chip tone="info">
+                    <Sparkles aria-hidden />
+                    풀림 공식<span className="sr-only"> — 풀림이 제공하는 공식 봇이에요</span>
+                  </Chip>
+                )}
                 <Chip tone="neutral">{bot.subject}</Chip>
                 <Chip tone="outline">{bot.grade}</Chip>
                 <Chip tone="outline">{bot.tone} 말투</Chip>
@@ -132,11 +152,18 @@ export function MarketplaceBotDetail({
             </div>
 
             <dl className="mt-4 space-y-2">
-              {/* 호칭은 `teacherName` 에 이미 들어 있다 — 목록 카드와 같은 이유로 덧붙이지 않는다. */}
-              <Fact icon={UserRound} label="만든 선생님">
-                {bot.teacherName}
-                {bot.organization ? ` · ${bot.organization}` : ''}
-              </Fact>
+              {/*
+                **카드와 같은 규칙** — 공식 봇에는 만든 선생님이 없으니(소유자를 비운 행이다)
+                이 줄을 아예 내린다. 값이 비어서가 아니라 값이 사람이 아니어서다 —
+                「풀림 공식 · 풀림」을 여기 적으면 회사가 선생님 행세를 한다.
+                호칭은 `teacherName` 에 이미 들어 있다 — 목록 카드와 같은 이유로 덧붙이지 않는다.
+              */}
+              {!bot.isOfficial && (
+                <Fact icon={UserRound} label="만든 선생님">
+                  {bot.teacherName}
+                  {bot.organization ? ` · ${bot.organization}` : ''}
+                </Fact>
+              )}
               <Fact icon={Store} label="공유한 날">
                 {publishedLabel ?? '알 수 없어요'}
               </Fact>
