@@ -15,9 +15,6 @@
  *
  * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다.
  */
-import { createHmac } from 'node:crypto';
-
-import type { AccessTokenPayload } from '@pullim-classbot/types';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 // ── getDb mock — select/update 체인을 가짜로 대체 ──
@@ -91,8 +88,6 @@ import {
 import { GET as getMarketplaceBot } from '@/app/api/marketplace/bots/[botId]/route';
 import { GET as getMarketplaceBots } from '@/app/api/marketplace/bots/route';
 
-const SECRET = 'test-jwt-secret';
-
 /** 게시된 봇 한 행 — `update ... returning` 이 돌려주는 모양. */
 const PUBLISHED_ROW = {
   id: 'cb_001',
@@ -128,10 +123,6 @@ const MARKET_ROW = {
   teacherId: 'teacher_001',
 };
 
-beforeAll(() => {
-  process.env.JWT_SECRET = SECRET;
-});
-
 beforeEach(() => {
   whereSpy.mockClear();
   setSpy.mockClear();
@@ -140,38 +131,26 @@ beforeEach(() => {
   mockUpdateQueue = [];
 });
 
-function base64Url(input: string | Buffer): string {
-  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-function signToken(payload: Partial<AccessTokenPayload>): string {
-  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const p = base64Url(JSON.stringify(payload));
-  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
-  return `${h}.${p}.${sig}`;
-}
-
-/** 서명된 토큰을 실은 요청 — role 은 도메인 users 행이 다시 판정한다. */
+/**
+ * 개발용 신원 쿠키를 실은 요청.
+ *
+ * 역할은 **인자로 받지 않는다** — 쿠키 값(= allowlist 의 id)이 역할을 정하고, 그 위에서
+ * `resolveActor` 가 도메인 `users.role` 로 다시 판정한다. 종전 픽스처는 JWT claim 에
+ * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
+ * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
+ */
 function req(
   sub: string,
-  role: 'student' | 'teacher',
   init: RequestInit = {},
+  host: string | null = DEV_HOST,
 ): Request {
-  const token = signToken({
-    sub,
-    email: `${sub}@example.com`,
-    role,
-    type: 'access',
-    jti: 'j1',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  });
   return new Request('http://localhost/api/x', {
     ...init,
-    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+    headers: {
+      cookie: `pullim_dev_identity=${sub}`,
+      ...(host === null ? {} : { host }),
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -186,17 +165,11 @@ function req(
 const DEV_HOST = 'localhost:3032';
 
 /**
- * 개발용 신원 쿠키를 실은 요청.
- * 학부모는 JWT claim 에 없는 역할(`UserRole` 은 student/teacher/admin)이라
- * 토큰으로는 만들 수 없다 — 마켓의 「역할 무관」을 학부모로 확인하려면 이 경로뿐이다.
+ * 호스트를 바꿔 가며 보는 GET 픽스처 — 신원 판정이 **호스트에 걸린다**는 것을 확인한다
+ * (`host: null` = Host 헤더 없음 · prod 호스트 = 닫힘). 본문이 필요하면 `req` 를 쓴다.
  */
 function cookieReq(identity: string, host: string | null = DEV_HOST): Request {
-  return new Request('http://localhost/api/x', {
-    headers: {
-      cookie: `pullim_dev_identity=${identity}`,
-      ...(host === null ? {} : { host }),
-    },
-  });
+  return req(identity, {}, host);
 }
 
 /** 신원이 아예 없는 요청. */
@@ -220,7 +193,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockUpdateQueue = [[]]; // 명의를 where 에 넣었으므로 남의 봇은 0행
 
     const res = await publishBot(
-      req('teacher_002', 'teacher', { method: 'POST', body: '{}' }),
+      req('teacher_002', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -236,7 +209,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
     await publishBot(
-      req('teacher_001', 'teacher', { method: 'POST', body: '{}' }),
+      req('teacher_001', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -250,7 +223,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockSelectQueue = [[{ role: 'student' }]];
 
     const res = await publishBot(
-      req('student_001', 'student', { method: 'POST', body: '{}' }),
+      req('student_001', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -276,7 +249,7 @@ describe('POST /publish — 한 줄 소개', () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
     mockUpdateQueue = [[PUBLISHED_ROW]];
     return publishBot(
-      req('teacher_001', 'teacher', { method: 'POST', body: JSON.stringify(body) }),
+      req('teacher_001', { method: 'POST', body: JSON.stringify(body) }),
       botCtx,
     );
   }
@@ -317,7 +290,7 @@ describe('POST /publish — 한 줄 소개', () => {
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
     const res = await publishBot(
-      req('teacher_001', 'teacher', { method: 'POST' }),
+      req('teacher_001', { method: 'POST' }),
       botCtx,
     );
 
@@ -348,7 +321,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockUpdateQueue = [[{ ...PUBLISHED_ROW, isPublished: false, publishedAt: null }]];
 
     const res = await unpublishBot(
-      req('teacher_001', 'teacher', { method: 'DELETE' }),
+      req('teacher_001', { method: 'DELETE' }),
       botCtx,
     );
 
@@ -360,7 +333,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
-    await unpublishBot(req('teacher_001', 'teacher', { method: 'DELETE' }), botCtx);
+    await unpublishBot(req('teacher_001', { method: 'DELETE' }), botCtx);
 
     expect(setSpy.mock.calls[0][0]).not.toHaveProperty('publishBlurb');
   });
@@ -370,7 +343,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockUpdateQueue = [[]];
 
     const res = await unpublishBot(
-      req('teacher_002', 'teacher', { method: 'DELETE' }),
+      req('teacher_002', { method: 'DELETE' }),
       botCtx,
     );
 

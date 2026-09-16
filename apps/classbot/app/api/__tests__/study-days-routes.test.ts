@@ -17,9 +17,6 @@
  * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다. 실제 왕복(멱등·백필·
  * origin 보존)은 dev 서버에 curl 로 따로 확인했다.
  */
-import { createHmac } from 'node:crypto';
-
-import type { AccessTokenPayload } from '@pullim-classbot/types';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 // ── getDb mock — 담은 봇 테스트와 같은 thenable 체인 ──
@@ -87,10 +84,7 @@ import {
   kstToday,
 } from '@/app/api/_lib/study-date';
 
-const SECRET = 'test-jwt-secret';
-
 beforeAll(() => {
-  process.env.JWT_SECRET = SECRET;
   // 위 FIXED_NOW 주석 — 라우트의 `kstToday()` 와 아래 상수가 같은 하루를 가리키게 한다.
   jest.useFakeTimers({
     now: FIXED_NOW,
@@ -112,44 +106,30 @@ beforeEach(() => {
   mockInsertError = null;
 });
 
-function base64Url(input: string | Buffer): string {
-  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-function signToken(payload: Partial<AccessTokenPayload>): string {
-  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const p = base64Url(JSON.stringify(payload));
-  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
-  return `${h}.${p}.${sig}`;
-}
+/**
+ * 개발용 신원이 인정되는 호스트 — `lib/dev-identity.ts` 허용 목록 안의 이름이다.
+ *
+ * **명시해야 한다.** `new Request(url)` 은 `Host` 헤더를 만들어 주지 않아
+ * `req.headers.get('host')` 가 `null` 이고, 신원 판정은 **모르면 닫는다**(fail-closed).
+ */
+const DEV_HOST = 'localhost:3032';
 
 /**
- * 서명된 토큰을 실은 요청.
+ * 개발용 신원 쿠키를 실은 요청.
  *
- * 토큰 claim 의 role 은 공유 `UserRole` 이라 'parent' 가 없다 — 학부모는 claim 이 아니라
- * **도메인 `users.role`** 로만 식별된다(`app/api/_lib/guards.ts` 머리주석). 그래서 학부모
- * 사례는 토큰이 아니라 아래 `actorRow('parent')` 로 만든다.
+ * 역할은 **인자로 받지 않는다** — 쿠키 값(= allowlist 의 id)이 역할을 정하고, 그 위에서
+ * `resolveActor` 가 도메인 `users.role` 로 다시 판정한다. 종전 픽스처는 JWT claim 에
+ * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
+ * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
  */
-function req(
-  sub: string,
-  role: 'student' | 'teacher',
-  init: RequestInit = {},
-): Request {
-  const token = signToken({
-    sub,
-    email: `${sub}@example.com`,
-    role,
-    type: 'access',
-    jti: 'j1',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  });
+function req(sub: string, init: RequestInit = {}): Request {
   return new Request('http://localhost/api/me/study-days', {
     ...init,
-    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+    headers: {
+      cookie: `pullim_dev_identity=${sub}`,
+      host: DEV_HOST,
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -162,7 +142,7 @@ function anonReq(init: RequestInit = {}): Request {
  * `resolveActor` 가 읽는 도메인 `users.role` 한 줄 — **select 큐의 맨 앞**이다.
  * 역할 게이트가 붙으면서 세 경로 전부 이 조회를 먼저 한다.
  *
- * 큐를 비워 두면 `resolveActor` 는 **토큰 claim 의 role 로 떨어진다**(도메인 행이 아직
+ * 큐를 비워 두면 `resolveActor` 는 **쿠키 신원의 role 로 떨어진다**(도메인 행이 아직
  * 없는 가입 직후 — `app/api/_lib/guards.ts`). 아래 테스트 중 이 줄을 안 넣은 것들은
  * `req(..., 'student')` 의 claim 으로 통과하는, 그 폴백 경로를 함께 지나간다.
  */
@@ -321,12 +301,12 @@ describe('미인증은 401 — 세 경로 모두', () => {
 });
 
 describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
-  it('POST 는 토큰 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
+  it('POST 는 신원 주인으로 쓴다(본문의 studentId 를 무시)', async () => {
     mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
     const res = await recordStudyDay(
-      req('s2', 'student', {
+      req('s2', {
         method: 'POST',
         body: JSON.stringify({ date: YESTERDAY, studentId: 'student_001' }),
       }),
@@ -340,12 +320,12 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
     });
   });
 
-  it('백필도 토큰 주인으로 쓴다', async () => {
+  it('백필도 신원 주인으로 쓴다', async () => {
     mockSelectQueue = [actorRow('student')];
     mockInsertQueue = [[{ studentId: 's2' }]];
 
     await backfillStudyDays(
-      req('s2', 'student', {
+      req('s2', {
         method: 'POST',
         body: JSON.stringify({ days: [YESTERDAY], studentId: 'student_001' }),
       }),
@@ -356,10 +336,10 @@ describe('명의는 신원에서만 — 본문은 믿지 않는다', () => {
     ]);
   });
 
-  it('GET 은 내 행만 — 조회 술어에 토큰 주인이 들어간다', async () => {
+  it('GET 은 내 행만 — 조회 술어에 신원 주인이 들어간다', async () => {
     mockSelectQueue = [actorRow('student'), []];
 
-    await getStudyDays(req('s2', 'student'));
+    await getStudyDays(req('s2'));
 
     // 0번째는 `resolveActor` 의 users 조회다. 공부한 날의 술어는 그다음.
     const { params } = render(whereSpy.mock.calls[1][0]);
@@ -374,7 +354,7 @@ describe('GET /api/me/study-days', () => {
       [{ day: '2026-08-28' }, { day: '2026-09-01' }],
     ];
 
-    const res = await getStudyDays(req('student_001', 'student'));
+    const res = await getStudyDays(req('student_001'));
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ days: ['2026-08-28', '2026-09-01'] });
@@ -383,7 +363,7 @@ describe('GET /api/me/study-days', () => {
   it('날짜를 **캐스팅해서** 읽는다 — 이 to_char 가 빠지면 런타임이 Date 로 돌아온다', () => {
     mockSelectQueue = [actorRow('student'), []];
 
-    return getStudyDays(req('student_001', 'student')).then(() => {
+    return getStudyDays(req('student_001')).then(() => {
       // 0번째는 `resolveActor` 의 users 조회다. 공부한 날의 칸은 그다음.
       const fields = selectFieldsSpy.mock.calls[1][0] as { day: unknown };
       const { text } = render(fields.day);
@@ -397,7 +377,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
   it('본문이 아예 없으면 **서버의 오늘(KST)** 로 기록한다', async () => {
     mockInsertQueue = [[{ studentId: 'student_001' }]];
 
-    const res = await recordStudyDay(req('student_001', 'student', { method: 'POST' }));
+    const res = await recordStudyDay(req('student_001', { method: 'POST' }));
 
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ recorded: true, date: TODAY });
@@ -412,7 +392,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
     mockInsertQueue = [[{ studentId: 'student_001' }]];
 
     const res = await recordStudyDay(
-      req('student_001', 'student', { method: 'POST', body: '{}' }),
+      req('student_001', { method: 'POST', body: '{}' }),
     );
 
     expect(res.status).toBe(201);
@@ -423,7 +403,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
     mockInsertQueue = [[]]; // onConflictDoNothing 이 흡수
 
     const res = await recordStudyDay(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ date: YESTERDAY }),
       }),
@@ -436,7 +416,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
   it('충돌 대상은 (student_id, study_date) 짝 — 하루 한 줄', async () => {
     mockInsertQueue = [[{ studentId: 'student_001' }]];
 
-    await recordStudyDay(req('student_001', 'student', { method: 'POST' }));
+    await recordStudyDay(req('student_001', { method: 'POST' }));
 
     const cfg = conflictSpy.mock.calls[0][0] as { target: unknown[] };
     expect(cfg.target).toHaveLength(2);
@@ -449,7 +429,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
     ['형식이 어긋난 값', () => '20260903'],
   ])('%s → 400 (쓰지 않는다)', async (_label, dateOf) => {
     const res = await recordStudyDay(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ date: dateOf() }),
       }),
@@ -464,7 +444,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
 
   it('본문이 JSON 이 아니면 400 — 「못 읽었으니 오늘」로 뭉개지 않는다', async () => {
     const res = await recordStudyDay(
-      req('student_001', 'student', { method: 'POST', body: 'not json' }),
+      req('student_001', { method: 'POST', body: 'not json' }),
     );
 
     expect(res.status).toBe(400);
@@ -474,7 +454,7 @@ describe('POST /api/me/study-days — 멱등 기록', () => {
   it('쓰기가 실패해도 500 을 흘리지 않는다(없는 신원 등 FK 위반)', async () => {
     mockInsertError = new Error('violates foreign key constraint');
 
-    const res = await recordStudyDay(req('student_001', 'student', { method: 'POST' }));
+    const res = await recordStudyDay(req('student_001', { method: 'POST' }));
 
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code?: string }).code).toBe('INVALID_INPUT');
@@ -486,7 +466,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
     mockInsertQueue = [[{ studentId: 'student_001' }, { studentId: 'student_001' }]];
 
     const res = await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({
           days: [
@@ -516,7 +496,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
     mockInsertQueue = [[{ studentId: 'student_001' }]];
 
     await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ days: [YESTERDAY] }),
       }),
@@ -535,7 +515,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
 
     mockInsertQueue = [[]];
     const ok = await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ days: many(MAX_BACKFILL_DAYS) }),
       }),
@@ -544,7 +524,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
 
     insertValuesSpy.mockClear();
     const tooMany = await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ days: many(MAX_BACKFILL_DAYS + 1) }),
       }),
@@ -557,7 +537,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
 
   it('빈 배열은 200 { 0, 0 } — 문장을 만들지 않는다(빈 VALUES 는 SQL 오류다)', async () => {
     const res = await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ days: [] }),
       }),
@@ -570,7 +550,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
 
   it('전부 걸러지는 배치도 200 — 보낸 만큼 skipped', async () => {
     const res = await backfillStudyDays(
-      req('student_001', 'student', {
+      req('student_001', {
         method: 'POST',
         body: JSON.stringify({ days: [TOMORROW, '2019-01-01', 'nope', 42, null] }),
       }),
@@ -587,7 +567,7 @@ describe('POST /api/me/study-days/backfill — 학생 기기의 주장에 테두
     ['본문이 JSON 이 아님', 'not json'],
   ])('%s → 400', async (_label, body) => {
     const res = await backfillStudyDays(
-      req('student_001', 'student', { method: 'POST', body }),
+      req('student_001', { method: 'POST', body }),
     );
 
     expect(res.status).toBe(400);
@@ -599,7 +579,7 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
   it('교사 신원의 GET 은 403 — 기록을 읽으러 가지도 않는다', async () => {
     mockSelectQueue = [actorRow('teacher')];
 
-    const res = await getStudyDays(req('teacher_001', 'teacher'));
+    const res = await getStudyDays(req('teacher_001'));
 
     expect(res.status).toBe(403);
     expect(((await res.json()) as { code?: string }).code).toBe('FORBIDDEN_ROLE');
@@ -611,7 +591,7 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     mockSelectQueue = [actorRow('teacher')];
 
     const res = await recordStudyDay(
-      req('teacher_001', 'teacher', { method: 'POST' }),
+      req('teacher_001', { method: 'POST' }),
     );
 
     expect(res.status).toBe(403);
@@ -622,7 +602,7 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     mockSelectQueue = [actorRow('teacher')];
 
     const res = await backfillStudyDays(
-      req('teacher_001', 'teacher', {
+      req('teacher_001', {
         method: 'POST',
         body: JSON.stringify({ days: [YESTERDAY] }),
       }),
@@ -632,23 +612,25 @@ describe('학생만 — 자기주도는 역할이 아니라 학생의 하위 컨
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
-  it('학부모 신원도 403 — 토큰에 없는 역할이라 도메인 users 행으로만 갈린다', async () => {
+  it('학부모 행은 403 — 쿠키 신원이 student 여도 도메인 users 행이 갈린다', async () => {
     mockSelectQueue = [actorRow('parent')];
 
-    // 토큰 claim 은 student 다(공유 UserRole 에 parent 가 없다).
+    // 쿠키 신원은 **student** 다. 행만 parent — 둘이 갈려야 「행이 권위」가 증명된다.
     const res = await recordStudyDay(
-      req('parent_001', 'student', { method: 'POST' }),
+      req('student_001', { method: 'POST' }),
     );
 
     expect(res.status).toBe(403);
     expect(insertValuesSpy).not.toHaveBeenCalled();
   });
 
-  it('역할의 권위는 **도메인 users.role** — 토큰이 student 라도 그 행이 teacher 면 막힌다', async () => {
+  it('역할의 권위는 **도메인 users.role** — 쿠키 신원이 student 라도 그 행이 teacher 면 막힌다', async () => {
     mockSelectQueue = [actorRow('teacher')];
 
+    // 쿠키 신원은 student_001(역할 student) — 통과해야 할 역할이다.
+    // 그런데 users 행이 teacher 라 막힌다. 쿠키 쪽을 믿으면 이 단정이 깨진다.
     const res = await recordStudyDay(
-      req('teacher_001', 'student', { method: 'POST' }),
+      req('student_001', { method: 'POST' }),
     );
 
     expect(res.status).toBe(403);

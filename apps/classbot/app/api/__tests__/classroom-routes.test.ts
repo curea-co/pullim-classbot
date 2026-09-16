@@ -13,9 +13,6 @@
  *
  * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다.
  */
-import { createHmac } from 'node:crypto';
-
-import type { AccessTokenPayload } from '@pullim-classbot/types';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 // ── getDb mock — select/insert/update/delete/transaction 체인을 가짜로 대체 ──
@@ -121,12 +118,6 @@ import { GET as getMyClassrooms } from '@/app/api/me/classrooms/route';
 import { visibleAssignmentsWhere } from '@/app/api/_lib/assignment-visibility';
 import type { TeacherClassroomItem } from '@/app/api/_lib/contract-types';
 
-const SECRET = 'test-jwt-secret';
-
-beforeAll(() => {
-  process.env.JWT_SECRET = SECRET;
-});
-
 beforeEach(() => {
   whereSpy.mockClear();
   setSpy.mockClear();
@@ -138,38 +129,30 @@ beforeEach(() => {
   mockUpdateQueue = [];
 });
 
-function base64Url(input: string | Buffer): string {
-  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
+/**
+ * 개발용 신원이 인정되는 호스트 — `lib/dev-identity.ts` 허용 목록 안의 이름이다.
+ *
+ * **명시해야 한다.** `new Request(url)` 은 `Host` 헤더를 만들어 주지 않아
+ * `req.headers.get('host')` 가 `null` 이고, 신원 판정은 **모르면 닫는다**(fail-closed).
+ */
+const DEV_HOST = 'localhost:3032';
 
-function signToken(payload: Partial<AccessTokenPayload>): string {
-  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const p = base64Url(JSON.stringify(payload));
-  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
-  return `${h}.${p}.${sig}`;
-}
-
-/** 서명된 토큰을 실은 요청 — role 은 도메인 users 행이 다시 판정한다. */
-function req(
-  sub: string,
-  role: 'student' | 'teacher',
-  init: RequestInit = {},
-): Request {
-  const token = signToken({
-    sub,
-    email: `${sub}@example.com`,
-    role,
-    type: 'access',
-    jti: 'j1',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  });
+/**
+ * 개발용 신원 쿠키를 실은 요청.
+ *
+ * 역할은 **인자로 받지 않는다** — 쿠키 값(= allowlist 의 id)이 역할을 정하고, 그 위에서
+ * `resolveActor` 가 도메인 `users.role` 로 다시 판정한다. 종전 픽스처는 JWT claim 에
+ * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
+ * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
+ */
+function req(sub: string, init: RequestInit = {}): Request {
   return new Request('http://localhost/api/x', {
     ...init,
-    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+    headers: {
+      cookie: `pullim_dev_identity=${sub}`,
+      host: DEV_HOST,
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -190,7 +173,7 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
       [], // 명의를 조회 조건에 넣었으므로 남의 반은 0행으로 떨어진다
     ];
 
-    const res = await issueCode(req('teacher_001', 'teacher', { method: 'POST' }), ctx);
+    const res = await issueCode(req('teacher_001', { method: 'POST' }), ctx);
 
     expect(res.status).toBe(404);
     const body = (await res.json()) as { code?: string };
@@ -203,7 +186,7 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
   it('소유권을 조회 조건에 넣는다 — 읽고 나서 비교하지 않는다', async () => {
     mockSelectQueue = [[{ role: 'teacher' }], []];
 
-    await getStudents(req('teacher_001', 'teacher'), ctx);
+    await getStudents(req('teacher_001'), ctx);
 
     // 반 조회 술어에 반 id 와 **명의**가 함께 들어가야 한다.
     const { params } = render(whereSpy.mock.calls[1][0]);
@@ -222,7 +205,7 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
     ];
     mockInsertQueue = [[{ code: 'NEWCODE' }]];
 
-    await issueCode(req('teacher_001', 'teacher', { method: 'POST' }), {
+    await issueCode(req('teacher_001', { method: 'POST' }), {
       params: Promise.resolve({ id: 'cr_math_a' }),
     });
 
@@ -242,7 +225,7 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
   it('GET /api/teacher/classrooms/[id]/students — 남의 반이면 404 (명단 유출 차단)', async () => {
     mockSelectQueue = [[{ role: 'teacher' }], []];
 
-    const res = await getStudents(req('teacher_001', 'teacher'), ctx);
+    const res = await getStudents(req('teacher_001'), ctx);
 
     expect(res.status).toBe(404);
     const body = (await res.json()) as { students?: unknown; code?: string };
@@ -254,7 +237,7 @@ describe('교사 소유권 — 남의 반은 404 (존재도 알리지 않는다)
   it('학생이 교사 라우트를 치면 403 FORBIDDEN_ROLE (역할 불일치만 403)', async () => {
     mockSelectQueue = [[{ role: 'student' }]];
 
-    const res = await getStudents(req('student_001', 'student'), ctx);
+    const res = await getStudents(req('student_001'), ctx);
 
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code?: string };
@@ -275,7 +258,7 @@ describe('POST /api/teacher/classrooms — 반 + 봇 + 코드를 한 트랜잭�
     ];
 
     const res = await createClassroom(
-      req('teacher_001', 'teacher', {
+      req('teacher_001', {
         method: 'POST',
         body: JSON.stringify({
           label: '고2 미적분 B반',
@@ -323,7 +306,7 @@ describe('POST /api/teacher/classrooms — 반 + 봇 + 코드를 한 트랜잭�
     mockSelectQueue = [[{ role: 'teacher' }]];
 
     const res = await createClassroom(
-      req('teacher_001', 'teacher', {
+      req('teacher_001', {
         method: 'POST',
         body: JSON.stringify({ label: '  ', subject: '수학', grade: '고2' }),
       }),
@@ -348,7 +331,7 @@ describe('POST /api/teacher/assignments — 반 단위 발사', () => {
   };
 
   function dispatchReq(patch: Record<string, unknown> = {}): Request {
-    return req('teacher_001', 'teacher', {
+    return req('teacher_001', {
       method: 'POST',
       body: JSON.stringify({ ...body, ...patch }),
     });
@@ -722,7 +705,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
   const roomRow = { id: 'cr_math_a', label: '고2 미적분 A반' };
 
   function joinReq(code: string): Request {
-    return req('s2', 'student', { method: 'POST', body: JSON.stringify({ code }) });
+    return req('s2', { method: 'POST', body: JSON.stringify({ code }) });
   }
 
   it('없는 코드는 404 NOT_FOUND', async () => {
@@ -920,7 +903,7 @@ describe('POST /api/enrollments — 코드로 참여', () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
 
     const res = await joinByCode(
-      req('teacher_001', 'teacher', {
+      req('teacher_001', {
         method: 'POST',
         body: JSON.stringify({ code: 'ABC123' }),
       }),
@@ -955,7 +938,7 @@ describe('학생 과제 술어 — 반 단위 발사까지 본다', () => {
   it('GET /api/assignments 가 그 술어로 조회한다', async () => {
     mockSelectQueue = [[]];
 
-    const res = await getAssignments(req('s2', 'student'));
+    const res = await getAssignments(req('s2'));
 
     expect(res.status).toBe(200);
     expect(whereSpy).toHaveBeenCalledTimes(1);
@@ -1033,7 +1016,7 @@ describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동
       ...CLOSED_CHILD, // 지호 — 마찬가지
     ];
 
-    const res = await getParentChildren(req('parent_001', 'student'));
+    const res = await getParentChildren(req('parent_001'));
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
@@ -1058,7 +1041,7 @@ describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동
       ...CLOSED_CHILD,
     ];
 
-    await getParentChildren(req('parent_001', 'student'));
+    await getParentChildren(req('parent_001'));
 
     const wheres = whereSpy.mock.calls.map((call) => render(call[0]));
     // 과제를 읽는 술어와 수업방(참여)을 읽는 술어를 각각 집는다.
@@ -1104,7 +1087,7 @@ describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동
       ...CLOSED_CHILD, // 지호 — 동의가 없어 두 질의 모두 0행
     ];
 
-    const res = await getParentChildren(req('parent_001', 'student'));
+    const res = await getParentChildren(req('parent_001'));
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
@@ -1133,7 +1116,7 @@ describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동
       ...CLOSED_CHILD,
     ];
 
-    await getParentChildren(req('parent_001', 'student'));
+    await getParentChildren(req('parent_001'));
 
     const assignmentWhere = whereSpy.mock.calls
       .map((call) => render(call[0]))
@@ -1145,7 +1128,7 @@ describe('학부모 자녀 조회 — 반·과제는 학생의 살아 있는 동
 
   it('보호자가 아니면 403, 미인증은 401', async () => {
     mockSelectQueue = [[{ role: 'student' }]];
-    const forbiddenRes = await getParentChildren(req('s2', 'student'));
+    const forbiddenRes = await getParentChildren(req('s2'));
     expect(forbiddenRes.status).toBe(403);
 
     const unauthRes = await getParentChildren(
@@ -1159,7 +1142,7 @@ describe('GET /api/me/classrooms — 학생 표면은 학생만', () => {
   it('학생이면 200', async () => {
     mockSelectQueue = [[{ role: 'student' }], []];
 
-    const res = await getMyClassrooms(req('s2', 'student'));
+    const res = await getMyClassrooms(req('s2'));
 
     expect(res.status).toBe(200);
   });
@@ -1167,7 +1150,7 @@ describe('GET /api/me/classrooms — 학생 표면은 학생만', () => {
   it.each(['teacher', 'parent', 'admin'])('%s 는 403 FORBIDDEN_ROLE', async (role) => {
     mockSelectQueue = [[{ role }]];
 
-    const res = await getMyClassrooms(req('u1', 'student'));
+    const res = await getMyClassrooms(req('student_001'));
 
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code?: string };
@@ -1212,7 +1195,7 @@ describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들�
       [{ classroomId: ROOM.id, count: 1 }], // 참여 인원
     ];
 
-    const res = await getClassrooms(req('teacher_001', 'teacher'));
+    const res = await getClassrooms(req('teacher_001'));
     const body = (await res.json()) as { classrooms: TeacherClassroomItem[] };
 
     expect(res.status).toBe(200);
@@ -1235,7 +1218,7 @@ describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들�
       [],
     ];
 
-    const res = await getClassrooms(req('teacher_001', 'teacher'));
+    const res = await getClassrooms(req('teacher_001'));
     const body = (await res.json()) as { classrooms: TeacherClassroomItem[] };
 
     expect(res.status).toBe(200);
@@ -1251,7 +1234,7 @@ describe('GET /api/teacher/classrooms — 카드가 게시 상태를 함께 들�
 describe('PATCH /api/teacher/assignments/[id] — 낸 과제 고치기·회수', () => {
   const ctx = { params: Promise.resolve({ id: 'as_1' }) };
   const patchReq = (body: unknown, role: 'student' | 'teacher' = 'teacher') =>
-    req(role === 'teacher' ? 'teacher_001' : 's2', role, { method: 'PATCH', body: JSON.stringify(body) });
+    req(role === 'teacher' ? 'teacher_001' : 's2', { method: 'PATCH', body: JSON.stringify(body) });
 
   it('회수는 dispatch_status 를 뒤집는다 — 학생 술어가 그 칸을 읽는다', () => {
     /*
