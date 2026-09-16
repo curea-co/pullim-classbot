@@ -18,8 +18,6 @@ export type {
   ClassroomStudentsResponse,
   CreateClassroomInput,
   CreateClassroomResponse,
-  DispatchAssignmentInput,
-  DispatchAssignmentResponse,
   EnrollmentRow,
   IssueJoinCodeResponse,
   JoinByCodeInput,

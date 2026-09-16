@@ -1,62 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Send, Save, MessageCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowLeft, ArrowRight, Send, MessageCircle } from 'lucide-react';
 import { BotHintPanel } from '@/components/classbot/bot-hint-panel';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ExamCountdown } from '@/components/classbot/exam-countdown';
-import { type Assignment, type AssignmentQuestion } from '@/lib/mock';
-import { useRosterMe } from '@/lib/current-user';
-import { useAssignmentStore, computeMockScore } from '@/lib/store/assignments';
+import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import type { AssignmentQuestion } from '@/lib/mock';
+import { useSubmissionResultStore } from '@/lib/store/submission-result';
 import { questionTypeMeta } from '@/lib/question-type';
+import { useSubmitAssignment } from '../../use-assignment-submit';
+import { toSubmitPayload } from '../../submit-payload';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 type Answers = Record<string, string>;
 
+/**
+ * 풀이 워크스페이스 — 답은 **컴포넌트 안에만** 있고, 제출은 정본 `POST /assignments/:id/submit` 로 간다
+ * (2026-09-16 계획 §06 R9 · FE PR 6).
+ *
+ * 종전에는 쓰는 중인 답을 `localStorage['assignment-<id>']` 에 임시저장했고, 제출하면 브라우저가 점수를 매겨
+ * (`computeMockScore`) `pullim-assignments` persist 에 썼다. 둘 다 걷었다 — 제출의 정본은 서버이고, 점수도 서버가
+ * 센다(서술형이 있으면 미채점 null). 쓰는 중인 답을 저장하지 않게 된 것은 상세 화면의 안내(「중간에 나가면 쓴 답은
+ * 남지 않아요」)가 말한다.
+ *
+ * 답의 모양: 화면은 전부 문자열로 든다. 보낼 때의 변환은 `../../submit-payload.ts` 가 한다 — 객관식은 인덱스(number),
+ * 수치는 교사 정답키와 **같은 파서**로 number(`"33,400"` → `33400`). 서버 대조가 문자열 같음이라 그 정규화가 정오를 가른다.
+ */
 export function SolveWorkspace({
   assignment, questions, botName, initialStep,
 }: {
-  assignment: Assignment;
+  assignment: AssignmentReadRow;
   questions: AssignmentQuestion[];
   botName: string;
   initialStep: number;
 }) {
   const router = useRouter();
-  const me = useRosterMe();
-  const storageKey = `assignment-${assignment.id}`;
+  const submit = useSubmitAssignment();
+  const record = useSubmissionResultStore((s) => s.record);
   const [step, setStep] = useState(initialStep);
   const [answers, setAnswers] = useState<Answers>({});
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [showBotPanel, setShowBotPanel] = useState(false);
-
-  // localStorage 복원
-  useEffect(() => {
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : null;
-    if (stored) {
-      try {
-        const data = JSON.parse(stored) as { answers: Answers; step: number };
-        setAnswers(data.answers ?? {});
-        if (data.step) setStep(prev => prev || data.step);
-      } catch {
-        // ignore parse errors
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 임시저장 (디바운스 효과: state 변경 시 5초 후 1회)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = window.setTimeout(() => {
-      window.localStorage.setItem(storageKey, JSON.stringify({ answers, step }));
-      setSavedAt('방금 전');
-    }, 800);
-    return () => window.clearTimeout(id);
-  }, [answers, step, storageKey]);
 
   // Guard: zero-question assignment
   if (questions.length === 0) {
@@ -64,7 +53,7 @@ export function SolveWorkspace({
       <div className="max-w-2xl py-16">
         <EmptyState
           title="문항을 준비 중이에요"
-          description="선생님이 아직 문항을 추가하지 않았어요. 잠시 후 다시 확인해 주세요."
+          description="선생님이 아직 문항을 넣지 않았어요. 잠시 후 다시 확인해 주세요."
           action={{ href: `/classbot/assignment/${assignment.id}`, label: '과제', ariaLabel: '과제로 돌아가기' }}
         />
       </div>
@@ -89,21 +78,19 @@ export function SolveWorkspace({
     setShowBotPanel(false);
   }
 
-  function submit() {
-    // 점수 mock 계산 + store 에 submission 기록 (교사 측 진행률 반영)
-    // 명의 = 현재 사용자(해석기). per-student mock 키는 roster id.
-    const scorePercent = computeMockScore(questions, answers);
-    useAssignmentStore.getState().recordSubmission({
-      assignmentId: assignment.id,
-      studentId: me.id,
-      answers,
-      scorePercent,
-    });
-
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(storageKey);
+  async function handleSubmit() {
+    if (submit.isPending) return;
+    const payload = toSubmitPayload(questions, answers);
+    try {
+      const { submission } = await submit.mutateAsync({ assignmentId: assignment.id, answers: payload });
+      // 결과 화면·과제 대화가 읽는다 — 저장하지 않는 스토어라 새로고침하면 비고, 결과 화면이 그때를 말한다.
+      record(assignment.id, { submission, answers: payload });
+      router.push(`/classbot/assignment/${assignment.id}/result`);
+    } catch (error) {
+      toast.error('답을 보내지 못했어요', {
+        description: error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+      });
     }
-    router.push(`/classbot/assignment/${assignment.id}/result`);
   }
 
   return (
@@ -122,12 +109,6 @@ export function SolveWorkspace({
         <span className="text-pullim-slate-500">·</span>
         <span className="font-mono font-bold text-white">{safeStep}/{questions.length}</span>
         <div className="ml-auto flex items-center gap-2">
-          {savedAt && (
-            <span className="text-pullim-slate-400 inline-flex items-center gap-0.5 font-mono">
-              <Save className="h-2.5 w-2.5" />
-              {savedAt} 저장
-            </span>
-          )}
           {isExam && <ExamCountdown />}
         </div>
       </div>
@@ -148,13 +129,13 @@ export function SolveWorkspace({
           </span>
           <div className="flex items-center gap-1">
             {(() => {
-              const meta = questionTypeMeta[q.type as keyof typeof questionTypeMeta];
-              const Icon = meta?.icon;
+              const meta = questionTypeMeta[q.type];
+              const Icon = meta.icon;
               return (
                 <>
-                  {Icon && <Icon className="h-3 w-3 text-pullim-slate-400" />}
+                  <Icon className="h-3 w-3 text-pullim-slate-400" />
                   <span className="text-pullim-slate-400 text-2xs font-bold tracking-wider">
-                    {meta?.label ?? q.type}
+                    {meta.label}
                   </span>
                 </>
               );
@@ -199,7 +180,7 @@ export function SolveWorkspace({
             value={current}
             onChange={(e) => setAnswer(e.target.value)}
             rows={q.type === 'essay' ? 6 : 2}
-            placeholder={q.type === 'short' ? '답을 한 줄로 적어주세요.' : '풀이 과정과 답을 자유롭게 적어주세요.'}
+            placeholder={q.type === 'short' || q.type === 'numeric' ? '답을 한 줄로 적어주세요.' : '풀이 과정과 답을 자유롭게 적어주세요.'}
             aria-label="답안"
             className="mt-2 rounded-xl text-sm leading-relaxed"
           />
@@ -263,11 +244,13 @@ export function SolveWorkspace({
             type="button"
             variant="pullim"
             size="lg"
-            onClick={submit}
+            onClick={() => void handleSubmit()}
+            disabled={submit.isPending}
+            data-testid="solve-submit"
             className="ml-auto"
           >
             <Send />
-            제출
+            {submit.isPending ? '보내는 중…' : '제출'}
           </Button>
         )}
       </div>

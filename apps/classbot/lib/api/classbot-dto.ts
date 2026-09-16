@@ -128,3 +128,84 @@ export interface EnrollmentDto {
   /** ISO 8601. */
   enrolledAt: string;
 }
+
+/* ─── 과제 쓰기·제출 — 2026-09-16 계획 §05 R6·R9·R10 (FE PR 6) ─── */
+
+/**
+ * `DispatchAssignmentQuestionDto` — `POST /classbot/classes/:classId/assignments` 본문의 문항 한 개.
+ *
+ * 서버 검증(`assignment.service.ts` `assertAnswerKeyValid`)이 정한 모양:
+ *  - `mc`: `options` 비어 있지 않은 배열 + `answerKey` 는 `[0, options.length)` 정수 인덱스
+ *  - `numeric`: `answerKey` 는 유한한 **number**(문자열이면 400)
+ *  - `short`: `answerKey` 는 공백 아닌 문자열
+ *  - `essay`: `answerKey` 없음(서버가 `autoGradable=false` 로 도출)
+ * `autoGradable` 은 보내지 않는다 — 서버가 `type` 으로 도출한다. **배점·루브릭·힌트를 실을 칸은 없다.**
+ */
+export interface DispatchAssignmentQuestionBody {
+  /** 0 이상 정수. 이 앱은 0부터 순서대로 보낸다. */
+  order: number;
+  type: 'mc' | 'short' | 'essay' | 'numeric';
+  prompt: string;
+  /** 객관식 보기(문자열 배열) · 그 외 생략. */
+  options?: string[];
+  /** 🔒 정답키 — mc 인덱스(number) · numeric(number) · short(string). essay 는 생략. */
+  answerKey?: number | string;
+}
+
+/**
+ * `DispatchAssignmentDto` — 과제 내기 본문. `questionCount` 는 서버가 `questions.length` 로 덮어 쓴다.
+ * `targetStudentIds` 를 비우거나 빼면 **반 전체**다. `dispatchStatus`·`createdBy`·`dispatchedAt` 은 서버가 정한다.
+ * 마감 **시각**(`dueAt`)·봇 한 마디(`reasonHint`)·`scopeOverride` 는 정본에 칸이 없다.
+ */
+export interface DispatchAssignmentBody {
+  title: string;
+  scope: string;
+  subject: string;
+  grade: string;
+  mode: 'practice' | 'exam' | 'wrong-conquest';
+  questionCount: number;
+  difficulty: string;
+  dueLabel: string;
+  /** 정수 D-day — 서버는 이 값을 그대로 저장한다(다시 세지 않는다). */
+  dDay: number;
+  state: string;
+  chapterFrom?: string | null;
+  chapterTo?: string | null;
+  achievementCodes?: string[] | null;
+  examTimeLimitMin?: number | null;
+  targetStudentIds?: string[];
+  /** 최소 1개. */
+  questions: DispatchAssignmentQuestionBody[];
+}
+
+/** `SubmitAssignmentDto` — `POST /classbot/assignments/:id/submit`. 점수는 받지 않는다(서버가 센다). */
+export interface SubmitAssignmentBody {
+  /** 문항 id → 답(mc 는 선택 인덱스, short/numeric 은 값). */
+  answers: Record<string, unknown>;
+}
+
+/**
+ * `SubmissionResponseDto` — 제출 응답(본인 관점). 최초 201 · 재제출 200, 본문 같음.
+ * `scorePercent` 는 서버 권위값 — 서술형이 하나라도 있으면 null(미채점). **문항별 정오는 오지 않는다.**
+ */
+export interface SubmissionDto {
+  submissionId: string;
+  assignmentId: string;
+  studentId: string;
+  scorePercent: number | null;
+  /** ISO 8601 · 미채점 null. */
+  gradedAt: string | null;
+  /** ISO 8601. */
+  submittedAt: string;
+}
+
+/** `SubmissionsViewResponseDto` — `GET /classbot/assignments/:id/submissions`(operator) 한 행. 답안이 함께 온다. */
+export interface SubmissionsViewDto {
+  submissionId: string;
+  /** 제출 학생 sub — 표시명은 없다(반 명단 조인은 pullim-api PR 2 `members`). */
+  studentId: string;
+  scorePercent: number | null;
+  gradedAt: string | null;
+  submittedAt: string;
+  answers: Record<string, unknown>;
+}

@@ -5,6 +5,12 @@ import {
 import { pickAttentionStudents } from '@/lib/mock/classbot-teacher-home';
 import TeacherHomePage from '../page';
 
+// 홈의 「낸 과제 N건」 한 줄은 정본 훅(`GET /classbot/assignments?audience=teacher`)을 읽는다(FE PR 6) —
+// 이 파일은 상단 카드·먼저 볼 학생 표만 보므로 빈 목록으로 세운다(0건이면 그 줄은 그려지지 않는다).
+jest.mock('@/hooks/api/assignment-dispatch', () => ({
+  useTeacherAssignments: () => ({ data: [], isPending: false, isError: false, error: null }),
+}));
+
 /**
  * 교사 홈 — 상단 카드 넉 장과 「먼저 볼 학생」 줄이 **같은 판정**을 읽는지 본다.
  * 홈은 몇 명만 보여주므로 전체 집계가 카드와 맞는지는 관제소 명단 쪽(monitor-roster.test)에서 못박는다.

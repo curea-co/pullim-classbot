@@ -7,9 +7,9 @@
  * 줄어드는지**가 이 파일의 핵심이다 — 카드만 사라지고 상단 통계가 그대로면,
  * 교사는 지워지지 않았다고 읽는다.
  */
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TeacherClassbotPage from '../page';
-import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
+import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
 import {
   getTeacherBotRows, getTeacherBotSummary,
 } from '@/lib/mock/classbot-teacher-ops';
@@ -23,26 +23,28 @@ const REST = ROWS.filter(r => r.bot.id !== TARGET.bot.id);
 const WARNING =
   '현재 이 봇으로 학습 중인 학생들이 있어요. 봇을 삭제하면 해당 학생은 봇을 이용할 수 없어요.';
 
-const dispatchedFor = (botId: string, id: string): UserAssignment => ({
-  id, botId, title: `${id} 과제`, mode: 'practice', questionCount: 2,
-  subject: '국어', grade: '중3', scope: '문법', chapterFrom: '', chapterTo: '',
-  achievementCodes: [], difficulty: 3, source: 'teacher-assigned', assignedBy: '국어봇',
-  assignedAt: '방금 냈어요', dueLabel: '오늘 23:59', dDay: '오늘', completedCount: 0,
-  state: 'todo',
-} as unknown as UserAssignment);
-
 /**
- * 임시저장 — `saveDraft` 가 만들 모양 그대로(`dispatchStatus: 'draft'`).
- * 지금 UI 로는 이 길이 닫혀 있다(출제 화면의 「임시저장」이 `disabled` · 준비 중 v2).
- * 그래서 이 테스트는 store 에 직접 넣어 잰다 — 막는 것은 잠재 결함이다.
+ * 낸 과제는 정본(`GET /classbot/assignments?audience=teacher`)에서 온다(FE PR 6) — 테스트마다 갈아 끼운다.
+ * bot == class 라 `classId` 에 봇 id 를 넣으면 그 봇의 과제다.
  */
-const draftFor = (botId: string, id: string): UserAssignment => ({
-  ...dispatchedFor(botId, id), dispatchStatus: 'draft',
+let teacherAssignments: AssignmentSummaryDto[] = [];
+jest.mock('@/hooks/api/assignment-dispatch', () => ({
+  useTeacherAssignments: () => ({ data: teacherAssignments, isPending: false, isError: false, error: null }),
+}));
+jest.mock('@/hooks/api/classroom', () => ({
+  ...jest.requireActual('@/hooks/api/classroom'),
+  useOperatorClasses: () => ({ data: [], isPending: false, isError: false, error: null }),
+}));
+
+const dispatchedFor = (classId: string, id: string): AssignmentSummaryDto => ({
+  id, classId, title: `${id} 과제`, mode: 'practice', questionCount: 2,
+  subject: '국어', grade: '중3', scope: '문법', chapterFrom: null, chapterTo: null,
+  achievementCodes: null, difficulty: '중', dueLabel: '오늘 23:59', dDay: 0,
+  dispatchStatus: 'sent', dispatchedAt: '2026-09-16T08:00:00.000Z', examTimeLimitMin: null, state: 'todo',
 });
 
 beforeEach(() => {
-  // 초안도 함께 비운다 — 이 store 는 localStorage 에 굳으므로 테스트끼리 샌다.
-  act(() => useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [] }));
+  teacherAssignments = [];
 });
 
 /**
@@ -187,14 +189,10 @@ it('「삭제」를 누르면 카드와 상단 통계 넉 칸이 함께 줄어�
 });
 
 it('「낸 과제」도 함께 줄어든다 — 지운 봇의 과제 묶음이 남지 않는다', () => {
-  act(() =>
-    useAssignmentStore.setState({
-      dispatched: [
-        dispatchedFor(TARGET.bot.id, 'as_del_1'),
-        dispatchedFor(REST[0].bot.id, 'as_keep_1'),
-      ],
-    }),
-  );
+  teacherAssignments = [
+    dispatchedFor(TARGET.bot.id, 'as_del_1'),
+    dispatchedFor(REST[0].bot.id, 'as_keep_1'),
+  ];
   render(<TeacherClassbotPage />);
   expectKpi('낸 과제', '2건');
   expect(screen.getByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeInTheDocument();
@@ -203,7 +201,7 @@ it('「낸 과제」도 함께 줄어든다 — 지운 봇의 과제 묶음이 �
   fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
 
   expectKpi('낸 과제', '1건');
-  // 「봇 목록에 없는 봇」 묶음으로 되살아나서도 안 된다
+  // 「반 목록에 없는 반」 묶음으로 되살아나서도 안 된다
   expect(screen.queryByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeNull();
   expect(screen.queryByText('as_del_1 과제')).toBeNull();
   expect(screen.getByTestId(`dispatched-group-${REST[0].bot.id}`)).toBeInTheDocument();
@@ -292,26 +290,4 @@ it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 �
   );
 });
 
-it('「낸 과제」는 초안도 함께 거른다 — 지운 봇의 임시저장이 숫자에만 남지 않는다', () => {
-  /*
-    이 칸의 값은 `assignments + drafts` 인데 초안 쪽 필터가 빠져 있었다. 아래 「낸 과제」
-    묶음은 초안을 안 그리므로, 이 누수는 **상단 숫자에서만** 드러난다 — 카드는 사라졌는데
-    「1건」이 그대로 남는 모양이다.
-    (지금 UI 로는 초안을 만들 길이 없다 — 위 `draftFor` 주석. 그래도 식에 `drafts.length`
-    가 있는 한 걸러야 하고, 그 「넷이 같은 필터를 지난다」를 이 줄이 지킨다.)
-  */
-  act(() =>
-    useAssignmentStore.setState({
-      dispatched: [],
-      drafts: [draftFor(TARGET.bot.id, 'dr_del_1'), draftFor(REST[0].bot.id, 'dr_keep_1')],
-    }),
-  );
-  render(<TeacherClassbotPage />);
-  expectKpi('낸 과제', '2건');
-
-  openDeleteDialog(TARGET.bot.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
-
-  expect(screen.queryByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeNull();
-  expectKpi('낸 과제', '1건');
-});
+// 「낸 과제」의 초안 필터 테스트는 걷었다 — 정본 목록에는 초안이 없고(내는 순간 `sent`), 이 화면은 초안 스토어를 더 읽지 않는다(FE PR 6).

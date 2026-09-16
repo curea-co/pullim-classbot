@@ -20,11 +20,15 @@ jest.mock('@/lib/auth/os-sso', () => ({
 }));
 
 import { API_BASE } from '@/lib/auth/os-sso';
+import { remainingDDay } from '@/lib/assignment-due';
 import type { AssignmentDetailDto, AssignmentSummaryDto } from '@/lib/api/classbot-dto';
 import {
   dDayLabel,
   dispatchedAtLabel,
+  studentQuestionsOf,
   toAssignmentReadRow,
+  toStudentQuestion,
+  toVisibleAssignmentRow,
   useVisibleAssignment,
   useVisibleAssignments,
 } from '../use-assignment-reads';
@@ -119,9 +123,13 @@ afterEach(() => {
   queryClient.clear();
 });
 
+/** SUMMARY 를 낸 그날 — 그날 보면 굳힌 dDay 가 그대로 남은 날수다. */
+const DISPATCH_DAY = Date.parse(SUMMARY.dispatchedAt ?? '');
+const DAY = 86_400_000;
+
 describe('toAssignmentReadRow — 정본 DTO → 화면 행', () => {
   it('서버가 준 칸은 그대로, 없는 칸은 규칙대로 채운다', () => {
-    const row = toAssignmentReadRow(SUMMARY);
+    const row = toAssignmentReadRow(SUMMARY, DISPATCH_DAY);
     expect(row).toMatchObject({
       id: 'asg_1',
       botId: 'cls_1', // bot == class
@@ -171,6 +179,12 @@ describe('toAssignmentReadRow — 정본 DTO → 화면 행', () => {
     expect(unknown).toMatchObject({ mode: 'practice', difficulty: '중', state: 'todo' });
   });
 
+  it('dDay 는 낼 때 굳힌 정수를 지금 기준으로 다시 센다 — D-3 으로 낸 과제가 이틀 뒤엔 「내일」, 닷새 뒤엔 「지난 2일」', () => {
+    expect(toAssignmentReadRow(SUMMARY, DISPATCH_DAY + 2 * DAY).dDay).toBe('내일');
+    expect(toAssignmentReadRow(SUMMARY, DISPATCH_DAY + 3 * DAY).dDay).toBe('오늘');
+    expect(toAssignmentReadRow(SUMMARY, DISPATCH_DAY + 5 * DAY).dDay).toBe('지난 2일');
+  });
+
   it('dDay 라벨은 assignment-state 의 parseDDay 가 읽는 네 형태만 낸다', () => {
     expect(dDayLabel(3)).toBe('D-3');
     expect(dDayLabel(1)).toBe('내일');
@@ -184,13 +198,50 @@ describe('toAssignmentReadRow — 정본 DTO → 화면 행', () => {
   });
 });
 
+describe('toStudentQuestion · studentQuestionsOf — 정본 문항 → 풀이 화면 문항', () => {
+  it('유형을 좁히고 보기는 문자열만 남긴다 · 배점 0 은 「모른다」 · 정답·힌트는 없다', () => {
+    const q = toStudentQuestion(
+      { id: 'q_1', order: 0, type: 'mc', prompt: '다음 중 옳은 것은?', options: ['a', 3, 'b'], autoGradable: true },
+      'asg_1',
+      1,
+    );
+    expect(q).toEqual({ id: 'q_1', assignmentId: 'asg_1', order: 1, type: 'mc', prompt: '다음 중 옳은 것은?', points: 0, options: ['a', 'b'] });
+    expect(q).not.toHaveProperty('answerKey');
+    expect(q).not.toHaveProperty('answerIndex');
+    expect(q).not.toHaveProperty('hints');
+  });
+
+  it('객관식이 아니면 options 를 싣지 않고, 낯선 유형은 단답으로 접는다', () => {
+    const short = toStudentQuestion({ id: 'q', order: 0, type: 'short', prompt: 'p', options: null, autoGradable: true }, 'a', 1);
+    expect(short).not.toHaveProperty('options');
+    const weird = toStudentQuestion({ id: 'q', order: 0, type: 'weird', prompt: 'p', options: null, autoGradable: true }, 'a', 1);
+    expect(weird.type).toBe('short');
+  });
+
+  it('서버 order 로 정렬해 1번부터 다시 매긴다', () => {
+    const row = toVisibleAssignmentRow({
+      ...DETAIL,
+      questions: [
+        { id: 'q_b', order: 5, type: 'short', prompt: 'b', options: null, autoGradable: true },
+        { id: 'q_a', order: 2, type: 'essay', prompt: 'a', options: null, autoGradable: false },
+      ],
+    });
+    expect(studentQuestionsOf(row).map((q) => [q.id, q.order])).toEqual([['q_a', 1], ['q_b', 2]]);
+  });
+});
+
 describe('useVisibleAssignments — GET /classbot/assignments?audience=student', () => {
   it('OS 쿠키로 읽어 { assignments } 봉투로 돌려준다 · CSRF 없음', async () => {
     const { result } = renderHook(() => useVisibleAssignments(), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.data?.assignments).toHaveLength(1);
-    expect(result.current.data?.assignments[0]).toMatchObject({ id: 'asg_1', botId: 'cls_1', dDay: 'D-3' });
+    // dDay 는 훅이 **지금** 기준으로 다시 센다 — 굳힌 'D-3' 이 아니라 낸 날부터 지난 날수를 뺀 라벨이다.
+    expect(result.current.data?.assignments[0]).toMatchObject({
+      id: 'asg_1',
+      botId: 'cls_1',
+      dDay: dDayLabel(remainingDDay(SUMMARY.dDay, SUMMARY.dispatchedAt)),
+    });
     expect(result.current.isUnauthenticated).toBe(false);
     expect(result.current.isError).toBe(false);
 

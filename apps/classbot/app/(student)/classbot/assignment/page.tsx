@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Clock, Sparkles, Target, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
@@ -14,11 +13,6 @@ import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { useVisibleAssignments } from './use-assignment-reads';
-import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
-import { useStoresHydrated } from '@/lib/store/use-hydrated';
-import { useRosterMe } from '@/lib/current-user';
-import { assignmentToReadRow } from '@/lib/assignment-demo';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { getAssignmentVisual, assignmentModeBadge, type AssignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
@@ -45,59 +39,42 @@ export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: str
  */
 const dDayIcon = { overdue: AlertTriangle, complete: CheckCircle2 } as const;
 
-/** 그룹 표시용 봇 메타 — `/api/bots` 봇 행 + 과제 행 메타를 합쳐 파생. */
+/** 그룹 표시용 봇 메타 — 참여 반 카드 + 과제 행 메타를 합쳐 파생. */
 interface GroupBot {
   id: string;
   subject: string;
-  /** 그룹 헤더 표시 이름 — 봇 이름(있으면) 또는 과제 발송자. */
+  /** 그룹 헤더 표시 이름 — 반 봇 이름(있으면) 또는 「선생님」. */
   label: string;
 }
 
 /**
- * 학생 받은 과제 목록 — `GET /api/assignments`(실DB·신원 스코프) 배선.
+ * 학생 받은 과제 목록 — 정본 `GET /classbot/assignments?audience=student` **하나만** 읽는다
+ * (2026-09-16 계획 §06 R7 · FE PR 6).
  *
- * **개인 배정과 반 단위 발사를 함께 본다.** 선생님이 반 전체에 쏜 과제는 학생 1인 행을
- * 만들지 않고 `student_id IS NULL` + `target_student_ids = []` 로 한 행만 남는다 —
- * 서버의 술어(`app/api/_lib/assignment-visibility.ts`)가 그것을 펼쳐 주고, 여기서는
- * 개인 과제와 똑같이 그린다(카드가 `student_id` 를 읽는 자리는 없다).
+ * **개인 배정과 반 단위 발사를 함께 본다.** 선생님이 반 전체에 쏜 과제는 학생 1인 행을 만들지 않고
+ * 대상 표가 비어 있는 한 행으로 남는다 — 서버의 술어(「현재 멤버 AND (타겟 없음 OR 본인 타겟)」)가 그것을
+ * 펼쳐 주고, 여기서는 개인 과제와 똑같이 그린다.
  *
- * 읽기는 `useVisibleAssignments()` 로 간다 — JWT 세션으로 잠그지 않고 **서버가 준 401**
- * 로 데모 폴백을 세우는 훅이다. 개발용 신원 쿠키로 보는 동안에도 실제로 요청이 나간다.
- * 미로그인(401)이면 로컬 스토어(교사 발사분 포함)를 보여 준다 — 데모/e2e 의 발사→수령
- * 흐름이 그대로 동작한다.
- * 봇별 그룹핑은 과제 행의 `botId` 로 묶고, 헤더 페르소나(봇 배지·이름)는 참여 중인
- * 수업방 목록을 `botId` 로 조인해 표시한다([08 § 15.6] `[봇 · N개]` 패턴 유지 — 그 조항이
- * 예시로 든 `🧑‍🏫` 는 [08 § 14.1.1] 예외 2 가 좁혀지며 **과목 이니셜 배지**(`BotAvatar`)로
- * 바뀌었다. 요구되는 것은 「머리줄이 어느 봇인지 말한다」이고 글리프의 종류가 아니다).
+ * 종전의 데모 폴백(비로그인이면 localStorage 의 교사 발사분을 합쳐 보이던 `useMergedAssignments`)은 걷었다 —
+ * 비로그인은 이 화면에 오지 않고(PR 4 RoleGuard), 세션이 끊긴 401 은 로그인 안내로 선다.
+ * 봇별 그룹핑은 과제 행의 `botId`(=반 id)로 묶고, 헤더 페르소나(봇 배지·이름)는 참여 중인 반 목록을 조인해
+ * 표시한다([08 § 15.6] `[봇 · N개]` 패턴).
  */
 export default function StudentAssignmentListPage() {
-  const me = useRosterMe();
   const { data, isLoading, isUnauthenticated, isError, refetch } = useVisibleAssignments();
-  // 그룹 헤더 페르소나 조인용 — 참여 중인 수업방(서버 + 데모 스토어). 미도착이어도 과제는 렌더.
+  // 그룹 헤더 페르소나 조인용 — 참여 중인 반. 늦게 와도 과제는 먼저 그린다(`my-rooms.ts` `isError` 주석).
   const { rooms } = useMyRooms();
-
-  // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)를 보여준다.
-  // 인증 사용자는 Phase7 실API 경로 그대로 유지. 데모/e2e 의 발사→수령 흐름이 동작.
-  // 데모 경로도 참여 중인 클래스(봇)로 스코프 — 반을 나가면 그 반 과제가 목록에서도 사라진다(홈과 일관).
-  const merged = useMergedAssignments(me.id);
-  const enrollments = useClassEnrollmentStore((s) => s.enrollments);
-  // persist(class-enrollment·assignments) rehydrate 전에는 demo 목록이 빈/미필터 상태 → 스켈레톤 유지.
-  const demoHydrated = useStoresHydrated(useClassEnrollmentStore, useAssignmentStore);
-  const demoData = useMemo(() => {
-    const enrolledBotIds = new Set(enrollments.map((e) => e.botId));
-    return { assignments: merged.filter((a) => enrolledBotIds.has(a.botId)).map(assignmentToReadRow) };
-  }, [merged, enrollments]);
 
   return (
     <div className="space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
       <AssignmentListBody
-        data={isUnauthenticated ? demoData : data}
+        data={data}
         rooms={rooms}
-        isLoading={isUnauthenticated ? !demoHydrated : isLoading}
-        isUnauthenticated={false}
-        isError={isUnauthenticated ? false : isError}
+        isLoading={isLoading}
+        isUnauthenticated={isUnauthenticated}
+        isError={isError}
         onRetry={() => void refetch()}
       />
     </div>
@@ -124,7 +101,7 @@ function AssignmentListBody({
   const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
   const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
 
-  // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 수업방에서 온다.
+  // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 반에서 온다.
   const botById = new Map(rooms.map(r => [r.bot.id, r.bot]));
 
   // 봇별 그룹핑 — 과제 행에 등장하는 botId 순서를 유지.

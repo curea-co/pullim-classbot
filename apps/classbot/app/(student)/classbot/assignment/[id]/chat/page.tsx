@@ -6,32 +6,23 @@ import { ArrowLeft, Inbox, Lock } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { classBots, getQuestionsByAssignment } from '@/lib/mock';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
-import { useVisibleAssignment } from '../../use-assignment-reads';
-import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
-import { assignmentToReadRow } from '@/lib/assignment-demo';
+import { studentQuestionsOf, useVisibleAssignment } from '../../use-assignment-reads';
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { AssignmentChatWorkspace } from './assignment-chat-workspace';
 
 /**
  * 과제 대화 라우트 — SCR-C-37 / FR-C-39.
  *
- * 과제 행·문항을 푸는 방식은 **과제 상세(`../page.tsx`)와 똑같다** — 같은 과제를 두 화면이
- * 다르게 읽어 split-brain 이 생기지 않게 하기 위해서다(실API 우선 · 미로그인은 로컬 스토어 폴백).
- * 대화 자체는 워크스페이스가 맡는다.
+ * 과제 행·문항을 푸는 방식은 **과제 상세(`../page.tsx`)와 똑같다** — 정본 상세 하나(`useVisibleAssignment`)를
+ * 읽고 문항도 그 응답에서 온다. 같은 과제를 두 화면이 다르게 읽어 split-brain 이 생기지 않게 하기 위해서다.
+ * 종전의 로컬 스토어 폴백은 PR 6 에서 걷었다. 대화 자체는 워크스페이스가 맡는다.
  */
 export default function AssignmentChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const api = useVisibleAssignment(id);
   const { rooms } = useMyRooms();
-  const localA = useAssignmentLookup(id);
-
-  const demo = api.isUnauthenticated;
-  const a = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
-  const isLoading = demo ? false : api.isLoading;
-  const isNotFound = demo ? !localA : api.isNotFound;
-  const isError = demo ? false : api.isError;
+  const a = api.data;
 
   const back = (
     <Link
@@ -43,7 +34,7 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
     </Link>
   );
 
-  if (isNotFound) {
+  if (api.isNotFound) {
     return (
       <div className="space-y-4">
         {back}
@@ -56,10 +47,10 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
       </div>
     );
   }
-  if (isError) {
+  if (api.isError) {
     return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void api.refetch()} /></div>;
   }
-  if (isLoading || !a) {
+  if (api.isLoading || !a) {
     return (
       <div className="space-y-4" aria-busy="true">
         {back}
@@ -85,14 +76,13 @@ export default function AssignmentChatPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  // 문항 — 개요·풀이와 같은 해석기를 쓴다(오답 재발사 계약 포함).
-  const questions = localA ? getQuestionsForAssignment(localA) : getQuestionsByAssignment(id);
+  // 문항 — 개요·풀이와 같은 어댑터를 쓴다.
+  const questions = studentQuestionsOf(a);
 
-  // 봇 얼굴 — 참여 중인 수업방 행 우선, 없으면 카탈로그, 그것도 없으면 과제 행 메타로 폴백.
+  // 봇 얼굴 — 참여 중인 반 카드 우선, 없으면 과제 행 메타로 폴백.
   const botRow = rooms.find(r => r.bot.id === a.botId)?.bot;
-  const catalogBot = classBots.find(b => b.id === a.botId);
   const bot = {
-    name: botRow?.name ?? catalogBot?.name ?? a.assignedBy,
+    name: botRow?.name || a.assignedBy || '선생님',
     subject: botRow?.subject ?? a.subject,
     hex: botSignature({ id: a.botId, subject: botRow?.subject ?? a.subject }).hex,
   };

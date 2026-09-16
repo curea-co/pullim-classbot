@@ -1,7 +1,8 @@
 'use client';
 
 import { useRosterMe } from '@/lib/current-user';
-import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
+import { useVisibleAssignments } from '@/app/(student)/classbot/assignment/use-assignment-reads';
+import { readRowToAssignment } from '@/lib/assignment-demo';
 import { useLiveStore } from '@/lib/store/live';
 import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
 import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
@@ -60,8 +61,9 @@ export default function StudentClassbotPage() {
   const hydrated = useStoresHydrated(useClassEnrollmentStore);
   const me = useRosterMe();                               // hook 2
   const activeLive = useLiveStore(s => s.active);         // hook 3
-  const allAssignments = useMergedAssignments(me.id);     // hook 4
-  const submissions = useAssignmentStore(s => s.submissions); // hook 5
+  // hook 4 — 받은 과제. 정본(`GET /classbot/assignments?audience=student`) 하나다 — 종전의 localStorage 병합
+  // (`useMergedAssignments`)은 PR 6 에서 걷었다. 서버 술어가 이미 참여 반으로 좁혀 주므로 여기서 반으로 다시 거르지 않는다.
+  const assignmentsQuery = useVisibleAssignments();
   // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
   // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
   // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
@@ -117,21 +119,16 @@ export default function StudentClassbotPage() {
   }
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
-  // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
-  // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
-  const enrolledBotIds = new Set(myBots.map(b => b.bot.id));
-
-  // Incomplete assignments — enrolled 범위 + sorted urgent first
-  const incompleteAssignments = allAssignments
-    .filter(a => enrolledBotIds.has(a.botId))
+  // 아직 안 끝낸 과제 — 급한 것이 앞. 히어로·할 일 패널이 mock 시절의 `Assignment` 모양을 읽어 어댑터를 지난다.
+  // 서버 행의 `completedCount` 는 늘 0 이다(학생 본인의 제출을 되읽는 문이 정본에 없다) — 그래서 받은 과제는 전부
+  // 「안 끝낸 것」으로 선다. 목록이 아직 안 왔으면 빈 배열이고, 패널은 그때 빈 상태를 잠깐 보인다.
+  const incompleteAssignments = (assignmentsQuery.data?.assignments ?? [])
+    .map(readRowToAssignment)
     .filter(a => a.completedCount < a.questionCount)
     .sort((a, b) => {
-      const order = (d: string) => d === '오늘' ? 0 : d === 'D-1' ? 1 : 2;
+      const order = (d: string) => d === '오늘' ? 0 : d === 'D-1' || d === '내일' ? 1 : 2;
       return order(a.dDay) - order(b.dDay);
     });
-
-  // suppress unused var lint — submissions hook is retained for hook ordering
-  void submissions;
 
   // ── 참여한 방이 있는 홈 ─────────────────────────────────────────────────────
   return (
