@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { Bookmark, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 
 import BackLink from '@/components/classbot/back-link';
 import { MarketplaceBotList } from '@/components/classbot/marketplace';
@@ -39,26 +38,12 @@ export default function ClassbotDiscoverPage() {
         emptyDescription="선생님이 봇을 올리면 여기에 보여요. 지금 듣는 수업은 내 수업방에서 볼 수 있어요."
         showSelfAdd
         /*
-          담은 봇으로 가는 길을 페이지 헤더가 아니라 목록 제목 옆에 둔다.
-          헤더에 두면 좁은 화면에서 버튼이 제목 옆 자리를 먹어 설명문이 서너 글자씩
-          끊긴다(`PageHeader` 는 안 접히고 글자 쪽이 줄어든다). 목록 제목은 좁아지면
-          위아래로 접히므로 설명문이 제 폭을 쓴다. 교사 셸이 「내 수업방」 링크를
-          같은 자리에 두는 것도 같은 이유다.
-          모바일 하단 탭은 셋뿐이라(홈·과제·대화) 이 링크가 폰에서 담은 봇으로 가는
-          유일한 지름길이다 — 없애지 마라.
+          목록 제목 옆에 「담은 봇」 링크가 있었다. **사용자 지시로 내렸다**(2026-09-16).
+          내렸어도 담은 봇으로 가는 길은 남는다 — `/classbot/my-bots` 는 학생 레일
+          항목이고(`components/shell/nav-config.ts`), 폰에서는 헤더 햄버거 →
+          `MobileDrawer` 가 같은 레일을 통째로 그린다. 없어진 것은 이 화면에서의
+          한 탭 지름길이지 경로 자체가 아니다.
         */
-        headingAction={
-          <Link
-            href="/classbot/my-bots"
-            aria-label="내가 담은 봇으로 가기"
-            className="bg-card hover:bg-pullim-slate-50/50 text-pullim-slate-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
-          >
-            <Bookmark className="h-3.5 w-3.5" aria-hidden />
-            {/* 보이는 글자는 두 어절(07 § 6.6). 「내 봇」으로 더 줄이지 않는다 —
-                반 봇까지 포함하는 말로 읽혀 「선생님 반의 봇」과 갈리지 않는다(§ 6.6.2(1)(2)). */}
-            담은 봇
-          </Link>
-        }
       />
     </div>
   );

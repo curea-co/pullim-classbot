@@ -252,8 +252,12 @@ function ClassbotChatPageInner() {
   if (!current) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
+        {/* 가운데 정렬은 **세로만** 한다. `w-full` 이 없으면 flex 아이템이 글자 폭으로 줄어,
+            같은 `EmptyState` 인데도 봇 마켓의 빈 상태(블록으로 놓여 제 폭을 쓴다)보다
+            눈에 띄게 좁은 상자가 된다. 아래 안내문은 `items-center` 로 계속 가운데다. */}
+        <div className="flex w-full flex-col items-center gap-2">
           <EmptyState
+            className="w-full"
             icon={Compass}
             title="아직 대화할 봇이 없어요"
             description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."

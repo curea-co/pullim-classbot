@@ -68,7 +68,6 @@ export function MarketplaceBotList({
     <section>
       <SectionHeading
         title={query.isPending || isSignedOut ? '공유된 봇' : `공유된 봇 ${bots.length}개`}
-        description="선생님들이 직접 만들어 공유한 봇이에요."
         action={headingAction}
       />
 
