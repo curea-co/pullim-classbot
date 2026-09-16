@@ -7,10 +7,10 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { BotNote } from '@/components/classbot/bot-note';
 import { Chip } from '@/components/ui/chip';
-import { scopeMeta } from '@/lib/mock/tutor';
+import { scopeMeta, type ScopeLevel } from '@/lib/mock/tutor';
 import {
   botPolicyTabs, currentDriftLevel, driftAlertThreshold, driftLevels,
-  examOverride, getManagedBot, safetySchedule, type ManagedBot,
+  examOverride, getManagedBot, getSafetySchedule, type ManagedBot,
 } from '@/lib/mock/classbot-bot-policy';
 import { cn } from '@/lib/utils';
 
@@ -31,9 +31,12 @@ type SearchParams = Promise<{ tab?: string }>;
  * 저장은 아직 없다 — 각 탭의 저장 버튼은 ComingSoonButton 이고,
  * BE 가 붙을 자리는 각 섹션 주석에 표시해 뒀다.
  *
- * ⚠ 봇마다 다른 스케줄·이탈 강도는 아직 없다. 데모 기본값 한 벌을 모든 봇이 같이 본다
- * (`lib/mock/classbot-bot-policy.ts` 주석). **봇마다 다른 것은 헤더가 읽는 정체와 지금 안전 등급**이고,
- * 그건 카탈로그가 실제로 갖고 있는 값이다.
+ * ⚠ 무엇이 봇마다 갈리고 무엇이 아직 한 벌인지 갈라 둔다.
+ *  - **갈린다**: 헤더가 읽는 정체와 기본 안전 등급, 그리고 **안전 등급 시간대 스케줄** —
+ *    가운데 두 칸(방과 후·저녁)이 이 봇의 기본 등급을 따라간다(`getSafetySchedule`).
+ *    한 벌짜리 상수였을 때 L4 봇의 머리 배지와 아래 L1~L5 표가 서로 다른 말을 했다.
+ *  - **아직 한 벌이다**: 시험 기간 덮어쓰기 · 이탈 대응 강도 · 알림 기준. 데모 기본값을 모든 봇이 같이 본다
+ *    (`lib/mock/classbot-bot-policy.ts` 주석).
  */
 export default async function TeacherBotSettingsPage({
   params,
@@ -59,7 +62,7 @@ export default async function TeacherBotSettingsPage({
         eyebrow: { icon: Settings, text: '봇 관리' },
         title: `${bot.botName} 운영 규칙`,
         description: describeBot(bot),
-        // 지금 이 봇에 걸려 있는 등급 — 목록·운영 화면의 배지와 같은 출처(scopeMeta)를 읽는다
+        // 이 봇의 기본 등급 — 목록·운영 화면의 배지와 같은 출처(scopeMeta)를 읽는다
         action: (
           <Chip tone="outline" data-testid="bot-scope-chip" className="py-1">
             <Shield className="text-pullim-blue-600" aria-hidden />
@@ -83,7 +86,7 @@ export default async function TeacherBotSettingsPage({
         />
       </section>
 
-      {active.value === 'safety' && <SafetyTab />}
+      {active.value === 'safety' && <SafetyTab botScope={bot.scope} />}
       {active.value === 'drift' && <DriftTab />}
       {!active.ready && (
         <EmptyState
@@ -107,21 +110,29 @@ function describeBot(bot: ManagedBot) {
 
 /* ── ① 안전 등급 시간대 스케줄 ─────────────────────────────── */
 
-function SafetyTab() {
+/**
+ * 스케줄은 **이 봇의 기본 등급**을 읽는다. 상수 한 벌을 모든 봇이 같이 보던 때는
+ * 머리 배지가 「L4」인데 아래 표에서 L4 가 안 쓰이는 것으로 그려져 같은 화면이 부딪쳤다.
+ * 지금 몇 시인지는 여전히 보지 않는다 — 시계를 타면 서버 렌더가 흔들린다.
+ */
+function SafetyTab({ botScope }: { botScope: ScopeLevel }) {
+  const schedule = getSafetySchedule(botScope);
+
   return (
     <>
       <section className="bg-card rounded-2xl border p-5">
         <SectionHeading
           title="안전 등급 시간대 스케줄"
-          description="시간대마다 봇이 답할 수 있는 범위를 다르게 둘 수 있어요. 수업 중에는 좁게, 밤에는 넓게 두는 것이 기본이에요."
+          description="시간대마다 봇이 답할 수 있는 범위를 다르게 둘 수 있어요. 수업 중에는 좁게, 밤에는 넓게 두는 것이 기본이에요. 나머지 시간은 이 봇의 기본 등급을 그대로 써요."
         />
 
         <ul className="space-y-2">
-          {safetySchedule.map(slot => {
+          {schedule.map(slot => {
             const meta = scopeMeta[slot.scope];
             return (
               <li
                 key={slot.id}
+                data-testid={`safety-slot-${slot.id}`}
                 className="bg-pullim-slate-50 grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-xl p-3"
               >
                 <span className="text-pullim-slate-700 font-mono text-xs font-bold">
@@ -160,10 +171,12 @@ function SafetyTab() {
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {([1, 2, 3, 4, 5] as const).map(level => {
             const meta = scopeMeta[level];
-            const inUse = safetySchedule.some(s => s.scope === level);
+            // 「쓰는 중」은 이 봇의 스케줄이 정한다 — 머리 배지와 어긋나지 않게
+            const inUse = schedule.some(s => s.scope === level);
             return (
               <li
                 key={level}
+                data-testid={`safety-level-${level}`}
                 className={cn(
                   'rounded-xl border p-3',
                   inUse ? 'border-pullim-blue-200 bg-pullim-blue-50/60' : 'border-pullim-slate-200',
