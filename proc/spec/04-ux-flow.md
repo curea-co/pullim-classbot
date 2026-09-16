@@ -607,7 +607,7 @@ const keyboardOpen = vv && vv.height < window.innerHeight - 100;
 
 ### 9.11 온보딩 (소개) — 인터랙티브 데모 + sticky 진척 바
 
-> 나브 라벨을 「소개하기」 → **「소개」** 로 줄이면서 이 절 제목도 같이 맞췄다 (나브 항목은 링크라 [07 § 6.6](07-branding.md) 대상 — § 6.6.3 권위 표). **라벨 변경은 아직 구현 전이다** — 현행 `nav-config.ts` 는 「소개하기」이고 뒤따르는 FE PR 이 맞춘다.
+> 나브 라벨을 「소개하기」 → **「소개」** 로 줄이면서 이 절 제목도 같이 맞췄다 (나브 항목은 링크라 [07 § 6.6](07-branding.md) 대상 — § 6.6.3 권위 표). **`(#242 · dev)`** — `nav-config.ts` 의 라벨이 「소개」다.
 
 #### 9.11.1 sticky 진척 바
 
@@ -625,7 +625,7 @@ const keyboardOpen = vv && vv.height < window.innerHeight - 100;
 
 마지막 단계 후 dead-end 금지:
 - 큰 CTA "대화 시작" — 어느 봇인지는 버튼 위 제목이 말하고, `aria-label` 이 봇 이름을 싣는다 ([07 § 4.10.1](07-branding.md) · [§ 6.6](07-branding.md))
-  - **아직 구현 전이다** — 현행 화면은 "수학봇과 대화 시작하기" 를 그대로 쓴다. 뒤따르는 FE PR 이 맞춘다 ([07 § 6.6.3](07-branding.md))
+  - **`(#242 · dev)`** — 보이는 글자는 "대화 시작" 이고 "수학봇과 대화 시작하기" 는 `ariaLabel` 로 남는다 ([07 § 6.6.3](07-branding.md))
 
 ### 9.12 브레드크럼 자동 dedupe
 
