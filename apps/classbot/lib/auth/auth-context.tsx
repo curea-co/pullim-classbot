@@ -15,8 +15,9 @@ import { setDomainIdentitySnapshot } from '@/lib/api/identity-snapshot';
 import { OsSsoAuthProvider } from '@/lib/auth/os-sso-provider';
 
 // 인증 Provider 는 하나다 — 세션을 pullim-api `/me`(OS 쿠키)에서 파생한다.
-// `authService` 싱글톤을 거치지 않고 직접 인스턴스화하는 이유: 싱글톤 `setProvider` 스왑은
-// 워크스페이스 패키지 번들 경계에서 인스턴스가 갈릴 수 있어(스왑 미반영) 단일 진실이 깨진다.
+// **여기서 직접 인스턴스화한다 — 패키지 쪽 싱글톤에 다시 맡기지 마라.** 싱글톤을 두고
+// `setProvider` 로 갈아 끼우는 꼴은 워크스페이스 패키지 번들 경계에서 인스턴스가 갈릴 수
+// 있고(스왑 미반영), 그러면 단일 진실이 깨진다. 종전 `authService` 가 그 꼴이었다.
 //
 // 종전에는 `OS_SSO_ENABLED` 플래그로 이 자리에서 자체 인증(ApiAuthProvider, JWT/tokenManager)과
 // 갈랐다. 그 분기는 걷혔다 — 클래스봇은 인증을 갖지 않고 인가는 pullim-os·pullim-api 소관이다.
