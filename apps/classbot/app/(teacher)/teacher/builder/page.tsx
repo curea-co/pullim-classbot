@@ -136,7 +136,7 @@ export default function BotBuilderPage() {
       **그 자리를 여기서 메운다.** 다른 교사 화면이 쓰는 관용구 그대로 `TeacherPageShell` 의
       `backHref` 다. 도착지는 [봇 관리](`/teacher/bots`) — 지어낸 자리가 아니라
       `proc/spec/03 § 4.4.7` 이 빌더의 종착지로 못박아 둔 부모다(빌더는 `/teacher/bots/new`
-      로 들어가고 [봇 관리]의 「새 봇」이 유일한 진입점이 된다). 경로 이동이 오는 날
+      로 들어가고 [봇 관리]의 「새 클래스봇」이 유일한 진입점이 된다). 경로 이동이 오는 날
       이 링크는 **고칠 것이 없다** — 이미 그 부모를 가리키고 있다.
 
       레일을 되살리거나 `buildBreadcrumb` 이 `matchPrefix` 를 읽게 넓히는 쪽은 택하지 않았다.
