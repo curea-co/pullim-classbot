@@ -1,5 +1,16 @@
 # CUDS PR-6 Auth (login / signup) Implementation Plan
 
+> ## ⚠️ ARCHIVED (2026-09-16) — 클래스봇 자체 인증 은퇴
+>
+> 본 문서가 계획·기록한 **클래스봇 자체 이메일/비밀번호 + JWT 인증**은 **전량 걷혔다.**
+> 인증·인가는 **pullim-os·pullim-api 가 소유**하고, 클래스봇은 OS 로그인으로 위임한다
+> (`osLoginUrl()` · `Domain=.pullim.ai` HttpOnly access 쿠키). `/login`·`/signup` 화면,
+> `auth_*` 테이블, bcrypt, refresh 회전, 토큰 블랙리스트는 더 이상 존재하지 않는다.
+> 아래는 **이력 보존용**이며 현재 동작 설명이 아니다.
+>
+> - 현재 세션 규약: [`../spec/05-business-rules.md` §11.1](../spec/05-business-rules.md)
+> - 은퇴 배너: [`../spec/2026-05-18_be-api-design.md` §6.1](../spec/2026-05-18_be-api-design.md)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Final CUDS pass on the auth surfaces (login + signup) — a skeleton Suspense fallback (no blank flash), an AlertCard error region, the signup role picker on the shared RadioCard primitive, and a slightly roomier card — building on already-clean shadcn forms.

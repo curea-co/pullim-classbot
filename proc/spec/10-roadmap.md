@@ -127,7 +127,7 @@ AI 코칭  (2): 풀림 AI 대화 · 풀림 클래스봇 ▾
 ## 5. 다음 마일스톤 (제안)
 
 ### 5.1 Phase 1.5 (Mock → 실 백엔드 연동)
-- ⬜ Auth 시스템 (NextAuth or 자체)
+- ✅ ~~Auth 시스템 (NextAuth or 자체)~~ — **클래스봇 범위 밖.** 인증·인가는 pullim-os·pullim-api 가 소유하고 클래스봇은 OS SSO 로 위임한다([`05-business-rules.md` §11.1](05-business-rules.md))
 - ⬜ DB 스키마 마이그레이션 (PostgreSQL + Prisma)
 - ⬜ AI API 실제 연동 (Anthropic/OpenAI)
 - ⬜ Socket.IO 라이브 모니터링 실 연결

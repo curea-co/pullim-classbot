@@ -315,14 +315,16 @@ pnpm dev   # → http://localhost:3030
 
 ## 14. 데이터 저장 (계획)
 
-⚠️ 도메인 데이터는 여전히 mock 시연(Drizzle 스키마는 인프라만). **단, 인증 백엔드는 인도됨** — `apps/backend`(NestJS + TypeORM) + PostgreSQL `auth_*` 테이블. 운영 시 후보:
+⚠️ 도메인 데이터는 여전히 mock 시연(Drizzle 스키마는 인프라만). 운영 시 후보:
+
+*(`[2026-09-16 정정]` 종전 「단, 인증 백엔드는 인도됨 — `apps/backend`(NestJS + TypeORM) + PostgreSQL `auth_*` 테이블」은 폐기됐다 — 클래스봇 자체 인증과 `auth_*` 테이블은 걷혔고, 인증은 pullim-os·pullim-api 소관이다.)*
 
 | 영역 | 후보 |
 |------|------|
-| RDB | PostgreSQL (RDS, Supabase) — auth 백엔드 인도 시점에 실 사용 |
-| ORM/마이그레이션 | **도메인: Drizzle(`drizzle-kit migrate`) · auth: TypeORM 마이그레이션 — 공존**. [be-api-design §6.2](2026-05-18_be-api-design.md) 정합 노트 참조 (후속 통합 플래그 있음) |
+| RDB | PostgreSQL (RDS, Supabase) — 실 사용은 코어 루프 BE(M2) 시점 |
+| ORM/마이그레이션 | **도메인: Drizzle(`drizzle-kit migrate`) — 단일**. 종전의 auth TypeORM 공존은 `auth_*` 가 걷히며 해소됐다 |
 | 벡터 DB | pgvector, Pinecone |
-| 캐시 | Redis — *단, auth 토큰 블랙리스트는 Redis 대신 Postgres `auth_revoked_tokens` 테이블로 인도됨* |
+| 캐시 | Redis |
 | 파일 | S3, Cloudflare R2 |
 
 ---

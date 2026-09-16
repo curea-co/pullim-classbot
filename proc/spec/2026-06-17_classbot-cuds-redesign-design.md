@@ -132,9 +132,11 @@ audit: 현재 채팅 컬럼은 봇 메타 헤더+scope 시간표+teacher-watch �
 - 다크 action slab(`bg-pullim-slate-900`) 완화. `ComingSoonButton` 통합. 모달 scrim 토큰 1종(`bg-pullim-slate-900/60`).
 - `reports/[id]` 비-parent 시 좌측 컬럼 공백 → 본문/요약을 좌측에 항상 렌더.
 
-### 6.5 auth (셸 외부 유지)
-- **셸 미적용 명시**(향후 셸 롤아웃이 auth 를 감싸지 않도록 spec 에 carve-out).
-- `Suspense fallback` 스켈레톤 AuthCard(블랭크 첫 페인트 제거, CLS 안정). `max-w-sm`→`md`. 에러 = 고정 높이 alert 영역(`role="alert"`). 비밀번호 토글 + "비밀번호 찾기"(gated). `min-h-screen`→`min-h-dvh`. 역할 픽커 selected = 색+체크/링(색 단독 금지). 공유 field/Alert 프리미티브 추출. placeholder `teacher@`→`name@pullim.com`.
+### 6.5 auth (셸 외부 유지) — `[2026-09-16 폐기]`
+**이 절의 대상 화면이 없어졌다.** 클래스봇 자체 로그인·회원가입(`/login`·`/signup`)과 그 AuthCard·
+비밀번호 필드·역할 픽커는 전량 걷혔다 — 인증·인가는 pullim-os·pullim-api 소관이고 클래스봇은
+OS 로그인으로 위임한다([`05-business-rules.md` §11.1](05-business-rules.md)). 셸 carve-out 도
+함께 무효다 — 감쌀 화면이 없다.
 
 ## 7. Phasing — 구현 PR 분할 (리뷰 수렴 위해)
 

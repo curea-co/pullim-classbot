@@ -1,5 +1,16 @@
 # 풀림 클래스봇 — auth ↔ 도메인 통합 plan
 
+> ## ⚠️ ARCHIVED (2026-09-16) — 클래스봇 자체 인증 은퇴
+>
+> 본 문서가 계획·기록한 **클래스봇 자체 이메일/비밀번호 + JWT 인증**은 **전량 걷혔다.**
+> 인증·인가는 **pullim-os·pullim-api 가 소유**하고, 클래스봇은 OS 로그인으로 위임한다
+> (`osLoginUrl()` · `Domain=.pullim.ai` HttpOnly access 쿠키). `/login`·`/signup` 화면,
+> `auth_*` 테이블, bcrypt, refresh 회전, 토큰 블랙리스트는 더 이상 존재하지 않는다.
+> 아래는 **이력 보존용**이며 현재 동작 설명이 아니다.
+>
+> - 현재 세션 규약: [`../spec/05-business-rules.md` §11.1](../spec/05-business-rules.md)
+> - 은퇴 배너: [`../spec/2026-05-18_be-api-design.md` §6.1](../spec/2026-05-18_be-api-design.md)
+
 - 작성일: 2026-06-01
 - 브랜치: `feat/auth-login-signup` (워크트리 `/private/tmp/pullim-classbot-auth`)
 - 목표: **로그인한 사용자가 도메인의 주체가 되고 그 명의로 기록**되게 배선. 하드코딩 `student_001` 의존 제거.
