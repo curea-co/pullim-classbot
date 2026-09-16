@@ -538,7 +538,7 @@ export const plannerSection: NavSubItem[] = [
 |---|---|
 | 아바타 · 이름 | 아바타 = `classBots[].subject` 첫 글자 → 없으면 `name` 첫 글자 → 둘 다 없으면 lucide `Bot` — **이 세 단계가 통째로 `[예정]` #308** · 이름 = `classBots[].name` |
 | 과목 · 학년 | `classBots[].subject` · `grade` |
-| 기본 등급(안전 등급) | `classBots[].scope` → `scopeMeta` (L1~L5). **봇별 설정의 시간대 스케줄도 이 값을 읽는다** — 아래 § 4.4.3.1 |
+| 기본 등급(안전 등급) | `classBots[].scope` → `scopeMeta` (L1~L5). **봇별 설정의 시간대 스케줄도 이 값을 읽는다** — **`[예정]`**, 아래 § 4.4.3.1 |
 | 말투 | `classBots[].tone` |
 
 > **아바타의 값 출처** *(`[2026-09-15]`)* — 목록의 아바타 면은 **emoji 를 읽지 않는다.** `subject`·`name` 도 카탈로그가 **이미 갖고 있는 값**이라 위 원칙은 그대로다 — 읽는 필드를 바꾼 것이지 없는 값을 새로 지어낸 것이 아니다. **`avatarEmoji` 는 데이터 계약으로 남는다** — 목록이 읽지 않을 뿐 계약에서 지우지 않는다([`08 § 14.1.1 예외 2`](08-design-system.md)). **지금 `dev` 의 코드는 아직 emoji 를 그린다**(`app/(teacher)/teacher/bots/page.tsx:108`) — 위 행은 통과 기준이고, #308 이 `dev` 에 들어오면 `[예정]` 표기를 지운다.
@@ -676,7 +676,7 @@ L3 인 나머지 셋은 **맞아서가 아니라 스케줄의 한 칸과 우연�
 |---|---|---|
 | `components/shell/nav-config.ts` 사이드바 | `/teacher/settings` 「봇 설정」 | `/teacher/bots` 「봇 관리」 |
 | `app/(teacher)/teacher/classbot/page.tsx` 봇 카드 「더보기」 | `/teacher/settings` · `?tab=safety` | `/teacher/bots/[botId]` · `?tab=safety` — 어느 봇의 더보기였는지가 링크에 실린다 |
-| ~~`app/(teacher)/teacher/page.tsx` 처리 대기(승인)~~ | `/teacher/settings` | ~~`/teacher/bots`~~ — **`[2026-09-16]` 그 줄 자체가 화면에서 걷혔다** (§ 4.4.6.1) |
+| ~~`app/(teacher)/teacher/page.tsx` 처리 대기(승인)~~ | ~~`/teacher/settings`~~ | ~~`/teacher/bots`~~ — **`[2026-09-16]` 그 줄 자체가 화면에서 걷혔다** (§ 4.4.6.1). 행을 지우지 않는 것은 **이관 이력**이라서다 |
 | `app/(teacher)/teacher/students/[id]/page.tsx` 「이탈 대응 강도」 | `/teacher/settings?tab=drift` | `/teacher/bots?tab=drift` |
 | `app/(teacher)/teacher/monitor/monitor-roster.tsx` 「봇 관리」 | `/teacher/settings?tab=drift` | `/teacher/bots?tab=drift` |
 | `components/builder/build-yards.tsx` 「봇 관리 › 안전 등급」 | `/teacher/settings?tab=safety` | `/teacher/bots?tab=safety` |
@@ -730,7 +730,7 @@ L3 인 나머지 셋은 **맞아서가 아니라 스케줄의 한 칸과 우연�
 | 운영 화면 봇 카드 메뉴 「수정하기」 — `/teacher/builder/[botId]`. **새로 만드는 길이 아니라 봇별 수정이라, 세는 기준에 따라 뺄 수도 있다** | 〃 `:217` | `botMenuLinks()` |
 | 운영 화면 「학급에 붙이기」 빈 상태 | 〃 `:322` | `BotOpsCard()` → 「붙어 있는 학급」 `EmptyState` |
 | 봇 관리 헤더 CTA — **`dev` 는 「새 봇」**, **`[예정]`** 「새 클래스봇」 *(§ 4.4.5 개정)* | `app/(teacher)/teacher/bots/page.tsx` | `PageHeader` 의 `action`(`data-testid="bots-new-cta"`) |
-| 봇 관리 빈 상태 「봇 만들기」 | 〃 `:79` | `EmptyState` 의 `action` |
+| 봇 관리 빈 상태 「봇 만들기」 | 〃 *(줄 번호 없이 — 바로 위 행과 같은 까닭)* | `EmptyState` 의 `action` |
 | 학생 기록 「과제 문항 손보기」 | `app/(teacher)/teacher/students/[id]/page.tsx:108` | 「지름길 시도」 `KpiStat` 의 `action` |
 | 학급 관제소 「봇 설명」 | `components/classbot/reteach-concepts.tsx:29` | `SectionHeading` 의 `action`(`aria-label="봇 설명 손보러 가기"`) |
 
@@ -746,7 +746,7 @@ L3 인 나머지 셋은 **맞아서가 아니라 스케줄의 한 칸과 우연�
 
 #319 뒤의 상태는 **레일에서는 내렸는데 경로는 그대로**다. 그래서 빌더가 **어느 화면 소속인지가 IA 상 붕 뜬다** — `/teacher/builder` 는 아무 화면의 하위도 아닌 채 위 표의 자리들에서 불려 다니고, 「봇을 만드는 일」이 [봇 관리] 안에서 벌어지는 일인지 그 바깥의 독립 화면인지를 IA 가 말하지 못한다. 항목만 내리는 것은 **감추는 것이지 자리를 정하는 것이 아니다.**
 
-**[봇 관리] 하위(`/teacher/bots/new`)로 들어가야** 이 절의 원래 결론 — 「[봇 관리] 안의 「새 봇」이 유일한 진입점이 된다」 — 이 완성된다. 소유자도 **「범위 밖으로 두되 꼭 해소해야 하는 부분」**으로 못박았다(2026-09-15). 「언젠가」가 아니다.
+**[봇 관리] 하위(`/teacher/bots/new`)로 들어가야** 이 절의 원래 결론 — 「[봇 관리] 안의 그 버튼이 유일한 진입점이 된다」 — 이 완성된다. *(그 버튼의 이름은 `[2026-09-16]` 개정으로 「새 봇」에서 **「새 클래스봇」**이 됐다 — § 4.4.5. 결론은 이름과 무관하게 그대로다.)* 소유자도 **「범위 밖으로 두되 꼭 해소해야 하는 부분」**으로 못박았다(2026-09-15). 「언젠가」가 아니다.
 
 **같이 고칠 곳 — 레일 내리기 몫과 경로 이동 몫을 가른다**
 
