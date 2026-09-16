@@ -15,8 +15,12 @@ export interface AuthUser {
 
 /**
  * Auth Provider 계약.
- * 현재 구현체: ApiAuthProvider(classbot BE 연동).
- * classbot BE 에는 `/user/me` 가 없어 세션 사용자는 access token claim 에서 파생한다.
+ *
+ * 구현체는 이 패키지에 없다 — 현재 유일한 구현은 `apps/classbot` 의
+ * `OsSsoAuthProvider` 이고, 세션 사용자는 pullim-api `/me`(OS 쿠키)에서 파생한다.
+ *
+ * *(종전 구현체 `ApiAuthProvider`(classbot 자체 BE 이메일/비번 + JWT claim 파생)는
+ * 자체 인증과 함께 걷혔다.)*
  */
 export interface IAuthProvider {
   /** 이메일/비밀번호 로그인. 실패 시 AuthError throw. */
