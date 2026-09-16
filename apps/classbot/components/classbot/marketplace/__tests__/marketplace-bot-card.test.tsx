@@ -11,6 +11,7 @@
 import { render, screen } from '@testing-library/react';
 
 import type { MarketplaceBotItem } from '@/hooks/api/types';
+import { formatPublishedAt } from '../format';
 import { MarketplaceBotCard } from '../marketplace-bot-card';
 
 // 담기 버튼은 저장소를 물고 있어 이 테스트의 관심사가 아니다 — 카드가 적는 값만 본다.
@@ -113,7 +114,15 @@ it('교사 봇 카드는 종전 그대로 — 이름·소속·올린 날·참여
   renderCard(teacherBot);
 
   expect(screen.getByText('김수학 선생님 · 대치프리미엄 수학학원')).toBeInTheDocument();
-  expect(screen.getByText(/에 올림/).textContent).toBe('2026년 9월 2일에 올림');
+  /*
+    날짜 글자를 `2026년 9월 2일` 로 **박아 쓰지 않는다.** `formatPublishedAt` 은 로컬 시간대로
+    끊는데(`getFullYear`/`getMonth`/`getDate`) 이 리포는 테스트 TZ 를 고정하지 않는다 —
+    UTC 자정 값을 박아 두면 한국에서는 통과하고 UTC 서쪽에서는 하루 밀려 깨진다.
+    여기서 볼 것은 「무슨 날짜냐」가 아니라 **그 줄을 그리느냐**다.
+  */
+  expect(screen.getByText(/에 올림/).textContent).toBe(
+    `${formatPublishedAt(teacherBot.publishedAt)}에 올림`,
+  );
   expect(screen.getByText('참여 학생')).toBeInTheDocument();
   expect(screen.getByText('12명')).toBeInTheDocument();
   expect(screen.queryByTestId('marketplace-card-official')).not.toBeInTheDocument();
