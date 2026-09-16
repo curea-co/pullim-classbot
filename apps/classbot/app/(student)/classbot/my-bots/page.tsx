@@ -37,6 +37,8 @@ function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
     grade: seeded.grade,
     tone: seeded.tone,
     greeting: seeded.greeting,
+    // 카탈로그가 가진 등급 그대로 — 기본값을 새로 고르지 않는다(마켓이 막힌 길이다).
+    scope: seeded.scope,
     blurb: null,
     teacherName: seeded.teacherName,
     organization: seeded.organization,

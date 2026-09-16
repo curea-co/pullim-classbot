@@ -34,6 +34,11 @@ export async function GET(req: Request): Promise<NextResponse> {
   const db = getDb();
 
   // 마켓이 보여줄 칸만 고른다 — 라이브 상태·빠른 질문은 참여자 것이라 내보내지 않는다.
+  //
+  // **`scope` 는 그 줄에 걸리지 않아 싣는다**(spec `03 § 4.13.4`). 「지금 수업이 도는가」·
+  // 「그 반에서 무엇을 묻게 해 뒀는가」는 남의 수업방 운영 상황이지만, 안전 등급은
+  // **봇의 규칙**이라 둘러보는 사람이 먼저 알아야 할 값이다. 빼 두면 담은 뒤 화면이
+  // 등급을 추측하게 되고(기본값 L3), 시드가 L4 로 넣은 공식 봇이 L3 로 떠 있었다.
   const rows = await db
     .select({
       botId: classBots.id,
@@ -43,6 +48,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       grade: classBots.grade,
       tone: classBots.tone,
       greeting: classBots.greeting,
+      scope: classBots.scope,
       blurb: classBots.publishBlurb,
       teacherName: classBots.teacherName,
       organization: classBots.organization,

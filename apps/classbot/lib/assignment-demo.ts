@@ -1,4 +1,4 @@
-import type { Assignment, ScopeLevel } from '@/lib/mock';
+import { isScopeLevel, type Assignment } from '@/lib/mock';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 
 /**
@@ -46,9 +46,4 @@ export function readRowToAssignment(row: AssignmentReadRow): Assignment {
     recentAccuracy: recentAccuracy ?? undefined,
     reasonHint: reasonHint ?? undefined,
   };
-}
-
-/** 1..5 인가 — 서버가 주는 number 를 `ScopeLevel` 로 좁힌다. */
-function isScopeLevel(value: number | null): value is ScopeLevel {
-  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
 }

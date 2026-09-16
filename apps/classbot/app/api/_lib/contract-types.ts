@@ -315,6 +315,9 @@ export interface ParentChildrenResponse {
  * `class_bots` 행을 그대로 흘리지 않고 **마켓이 보여줄 것만** 추린 모양이다.
  * 라이브 상태·빠른 질문·현재 수업 같은 운영 필드는 참여자에게나 쓸모가 있고,
  * 둘러보는 사람에게 내보내면 남의 수업방 운영 상황이 새 나간다.
+ *
+ * **그 선은 「참여자의 기록인가」이지 「`class_bots` 의 칸인가」가 아니다** — `scope` 는
+ * 같은 테이블에 있어도 **봇의 규칙**이라 실린다(아래 그 칸의 주석 · spec `03 § 4.13.4`).
  */
 export interface MarketplaceBotItem {
   botId: string;
@@ -324,6 +327,25 @@ export interface MarketplaceBotItem {
   grade: string;
   tone: '정중' | '친근' | '스파르타' | '차분' | '열정';
   greeting: string;
+  /**
+   * 안전 등급 — 「이 봇이 어디까지 답하나」 (spec `03 § 4.13.4`).
+   *
+   * **왜 이건 싣고 빠른 질문(`quickPrompts`)·라이브 상태(`isLive`)는 안 싣나.**
+   * 저 둘은 **참여자 것**이다 — 지금 수업이 도는지, 그 반에서 무엇을 묻게 해 뒀는지는
+   * 남의 수업방 운영 상황이라 둘러보는 사람에게 내보내지 않는다(위 머리주석). 그 판단은
+   * 그대로 둔다. `scope` 는 그 줄에 걸리지 않는다 — **봇의 규칙**이지 참여자의 기록이
+   * 아니고, 둘러보는 사람이 먼저 알아야 할 값이다.
+   *
+   * 실으니 고쳐지는 것: 담은 봇의 등급을 화면이 **추측하지 않는다.** 계약에 이 칸이
+   * 없던 동안 카탈로그에 없는 봇(= 풀림 공식 봇)은 `lib/store/mode-bots.ts` 의
+   * 기본값 L3 를 뒤집어썼고, 시드가 L4 로 넣은 봇이 학생 화면에서 L3 로 떠 있었다.
+   *
+   * **`number` 다 — 1~5 union 이 아니다.** 컬럼이 `integer NOT NULL DEFAULT 3` 이고
+   * CHECK 가 없어 DB 가 다섯 값을 강제하지 않는다(`ClassBotRow.scope` 와 같은 이유로
+   * 같은 타입이다). 화면 타입(`ScopeLevel` = 1|2|3|4|5)으로 좁히는 것은 **읽는 쪽**의
+   * 일이고, 계약이 미리 좁히면 범위 밖 값이 왔을 때 거짓말이 된다.
+   */
+  scope: number;
   /** 교사가 적은 한 줄 소개. 안 적었으면 null — 카드가 대체 문구를 고른다. */
   blurb: string | null;
   teacherName: string;
