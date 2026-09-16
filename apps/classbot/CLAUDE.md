@@ -768,6 +768,27 @@ bun --filter @pullim-classbot/classbot build
     교사 홈 · 운영 화면 헤더 CTA 와 빈 상태 둘 · 봇 카드 「수정하기」 · [봇 관리] 헤더 CTA 와 빈 상태 ·
     학생 상세 · 학급 관제소).
     → **인도**: `[예정]` #319(교사 레일).
+  - **이미 승인된 것(2026-09-16 · 완성 설계 PR 0)**: 넷을 한 지시로 승인했다 — 근거는
+    [`proc/spec/2026-09-16_classbot-completion-design.md`](../../proc/spec/2026-09-16_classbot-completion-design.md)
+    (결정 ②·④ · 해소 1·4).
+    **㉠ 학생 레일 중첩** — 「봇 대화」(`/classbot/chat`)를 「내 수업방」 **아래 한 단계**로 들여쓰고, 「받은 과제」를
+    수업방 바로 뒤로 올린다. 앞의 승인 넷이 항목을 **더하거나 빼는** 것이었던 것과 달리 이번은 **층을 하나 더 여는**
+    것이다 — `NavSubItem` 에 `children` 을 더하고 `app-sidebar.tsx`·`mobile-drawer.tsx` 가 들여쓰기로 그린다.
+    경로·라벨·아이콘은 그대로, 활성 판정은 `matchPrefix`. 나머지 항목의 라벨·경로·아이콘, `Role` union,
+    헤더 `Record<Role,…>` 표 셋, `studentBottomTabs`, 교사·학부모 레일은 **건드리지 않는다.**
+    `nav-config.test.ts:47` 의 「레일의 모든 항목에 대응 page 가 있다」는 flatMap 이 한 단계만 훑으므로
+    **중첩 항목까지 훑도록 넓힌다.** 「화면과 nav 는 같은 PR」 조항은 이번엔 경로가 그대로라 걸리지 않는다.
+    등재는 `proc/spec/03 § 2.1` 메모.
+    **㉡ 비로그인 코어 차단** — `role-guard.tsx` 의 「비로그인(데모 폴백)이면 통과」를 **공개 경로 목록**으로 바꾼다
+    (소개 `/classbot/onboarding` · 랜딩만 공개, 나머지는 `redirectToOsLogin()`). role/nav 의 **동작**이 바뀌는
+    셸 변경이라 여기 적는다. 정책은 `proc/spec/05 § 11.2`.
+    **㉢ `.github/workflows/prod-verify.yml` 두 레인** — 익명 레인(공개 화면 + 코어 화면이 로그인 안내로 서는지)과
+    로그인 레인(OS 테스트 계정 시크릿이 있을 때만 · `sso-login-roundtrip.spec.ts` 골격). 워크플로 편집은 루트
+    가이드 § 4 의 글로벌 작업이다 — 승인이 이 지시로 났다.
+    **㉣ 루트 가이드 BE 절** — 루트 `CLAUDE.md` § 1 구조도·§ 2 「apps/backend」 절을 「BE 정본은 pullim-api,
+    `apps/backend` 는 `GET /api/health` 스켈레톤」으로 고친다. 가이드 편집은 글로벌 작업이다 — 승인이 이 지시로 났고,
+    PR 0(문서만 · 코드 0)이 그 분리된 글로벌 작업 PR 이다.
+    → **인도**: ㉠ `[예정]` FE PR 5 · ㉡ `[예정]` FE PR 4 · ㉢ `[예정]` PR 4-ci · ㉣ PR 0(이 기록과 같은 PR).
 - 사라진 다른 도메인의 mock/페이지 복원 — 원본을 다시 가져와야 하는 경우 사용자에게 보고
 - `packages/{api-client,auth,types}` 편집 — backend 와 양쪽 영향 (현재는 빈 placeholder)
 - **PUDS 버전 업그레이드** — `components.json` 의 레지스트리 URL 변경 + 레인 1 재설치. 전 화면 시각 회귀 범위라 보고 후 진행 ([§ 3.1](#31-puds-디자인-시스템--3레인-판별표))
