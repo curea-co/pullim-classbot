@@ -3,22 +3,21 @@
 import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ChevronRight, ClipboardList, Plus, Users } from 'lucide-react';
+import { ChevronRight, ClipboardList, Plus } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { Chip } from '@/components/ui/chip';
+import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
+import { useOperatorClasses } from '@/hooks/api/classroom';
 import { gradingStats } from '@/lib/mock';
-import { useAssignmentStore } from '@/lib/store/assignments';
-import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import {
   assignmentListHref,
-  buildBotIndex,
-  dueDisplay,
   buildRows,
   filterRows,
   modeFilterOptions,
@@ -28,21 +27,24 @@ import {
   summarize,
   toModeFilter,
   toStatusFilter,
+  toTeacherClass,
   type AssignmentListFilter,
   type AssignmentRow,
+  type TeacherClass,
 } from './assignment-filters';
 
 /**
- * 낸 과제 목록 (`proc/spec/14 § 3.3.3`).
+ * 낸 과제 목록 (`proc/spec/14 § 3.3.3` · 2026-09-16 계획 §06 R11).
  *
- * **이 화면이 없어서 생긴 일**: 내기(`new`)까지만 있고 낸 뒤를 볼 자리가 없어서, 이미 만들어 둔
- * 교사 개입 셋(리마인드·제출 현황 시트·오답 다시 내기)이 갈 곳을 못 찾고 봇 운영 화면
- * (`/teacher/classbot`)에 얹혀 있었다. 「봇이 잘 돌고 있나」와 「이 과제가 어떻게 되고 있나」는
- * 다른 질문이다. 그 개입들은 과제 상세(`[id]`)로 옮겨 간다.
+ * **정본을 읽는다** — `useTeacherAssignments`(`GET /classbot/assignments?audience=teacher`, 계획 §05 「있음, 소비자 0」이던
+ * 문)와 `useOperatorClasses`(`hooks/api/classroom.ts` · 반 이름 조인). 종전의 localStorage 스토어 + mock 봇 색인은 PR 6 에서 걷었다.
  *
  * 이 화면이 하지 않는 것:
- *  - 과제 하나의 진행률·제출 현황 → 과제 상세(`[id]`). 여기서는 「N/M 냈다」 한 칸만 읽어 준다.
+ *  - 과제 하나의 제출 현황 → 과제 상세(`[id]`). 목록 DTO 에 제출 집계가 없어 여기서는 세지 않는다(N+1 을 피한다).
  *  - 채점 → 채점 허브(`/teacher/grading`). 요약 띠에서 길만 열어 둔다.
+ *  - 고치기·회수 — 정본에 그 문이 없다. 상세가 그 사실을 말한다. 그래서 「회수됨」 칩·빈 상태도 없다.
+ *
+ * 마감은 지금 기준이다 — 정본 `dDay` 는 낼 때 굳힌 정수라 `dispatchedAt` 로 다시 센다(`assignment-filters.ts`).
  */
 export default function TeacherAssignmentListPage() {
   // `useSearchParams` 는 Suspense 경계가 필요하다 — 봇 운영 화면의 `CreatedBanner` 와 같은 처리.
@@ -55,52 +57,26 @@ export default function TeacherAssignmentListPage() {
 
 function AssignmentList() {
   const params = useSearchParams();
-  const dispatched = useAssignmentStore((s) => s.dispatched);
-  const drafts = useAssignmentStore((s) => s.drafts);
-  const submissions = useAssignmentStore((s) => s.submissions);
-  // persist 스토어라 첫 렌더에는 비어 있다. 게이트 없이 그리면 「아직 낸 과제가 없어요」가
-  // 한 번 번쩍인 뒤 목록이 나타난다 — 다른 화면들과 같은 처리.
-  const hydrated = useStoresHydrated(useAssignmentStore);
+  const assignmentsQuery = useTeacherAssignments();
+  const classesQuery = useOperatorClasses();
 
   const status = toStatusFilter(params.get('status'));
   const mode = toModeFilter(params.get('mode'));
-  const roomId = params.get('room') ?? undefined;
-  const botId = params.get('bot') ?? undefined;
-  // 거르개를 **객체 하나로 굳힌 뒤** 아래 memo 들이 그것 하나만 본다. 매 렌더 새 객체를 만들면
-  // 의존성이 늘 달라져 memo 가 의미를 잃고, 값으로 펴서 적으면 칸이 늘 때마다 빠뜨리기 쉽다.
-  const filter: AssignmentListFilter = useMemo(
-    () => ({ status, mode, roomId, botId }),
-    [status, mode, roomId, botId],
-  );
+  // `class` 가 정본 이름이고 `bot` 은 봇 운영 화면이 아직 보내는 옛 이름이다(bot == class).
+  const classId = params.get('class') ?? params.get('bot') ?? undefined;
+  const filter: AssignmentListFilter = useMemo(() => ({ status, mode, classId }), [status, mode, classId]);
 
-  const botIndex = useMemo(() => buildBotIndex(), []);
+  const classIndex = useMemo(
+    () => new Map<string, TeacherClass>((classesQuery.data ?? []).map(toTeacherClass).map((c) => [c.id, c])),
+    [classesQuery.data],
+  );
   const allRows = useMemo(
-    () => buildRows([...dispatched, ...drafts], submissions, botIndex),
-    [dispatched, drafts, submissions, botIndex],
+    () => buildRows(assignmentsQuery.data ?? [], classIndex),
+    [assignmentsQuery.data, classIndex],
   );
-  const rows = useMemo(
-    () => sortRows(filterRows(allRows, filter, botIndex)),
-    [allRows, botIndex, filter],
-  );
+  const rows = useMemo(() => sortRows(filterRows(allRows, filter)), [allRows, filter]);
   const summary = useMemo(() => summarize(allRows), [allRows]);
-  // 「전체」인데 빈 목록의 두 뜻을 가른다 — 거르개가 좁아서인가, 다 회수해서인가.
-  const allWithdrawn = useMemo(
-    () => allRows.length > 0 && allRows.every((r) => r.status === 'withdrawn'),
-    [allRows],
-  );
-
-  /*
-    걸려 있는 반·봇 — 봇 조건은 봇 운영 KPI 가 실어 보낸다(진입점 2). **반 조건은 아직
-    보내는 쪽이 없다**(`proc/spec/14 § 3.2` 진입점 4 = `[예정]`) — 수업방 화면은 실DB 반
-    (`cr_<uuid>`)을 쓰는데 과제 스토어는 mock 반 id(`cr_math_a`)를 써서 두 축이 안 만난다.
-    받는 쪽을 먼저 열어 두는 이유는, 축이 만나는 날 이 파일을 다시 안 고쳐도 되게 하려는 것이다.
-  */
-  const carriedBot = filter.botId ? botIndex.get(filter.botId) : undefined;
-  const carriedRoom = filter.roomId
-    ? [...botIndex.values()]
-        .flatMap((b) => b.classrooms)
-        .find((c) => c.classroomId === filter.roomId)
-    : undefined;
+  const carriedClass = filter.classId ? classIndex.get(filter.classId) : undefined;
 
   return (
     <TeacherPageShell
@@ -109,7 +85,7 @@ function AssignmentList() {
       header={{
         eyebrow: { icon: ClipboardList, text: '평가' },
         title: '낸 과제',
-        description: '낸 과제가 어떻게 되고 있는지 한 자리에서 봐요. 과제를 누르면 학생별 진행과 제출로 가요.',
+        description: '낸 과제가 어떻게 되고 있는지 한 자리에서 봐요. 과제를 누르면 학생별 제출로 가요.',
         action: (
           <Link
             href="/teacher/assignment/new"
@@ -131,19 +107,17 @@ function AssignmentList() {
         <KpiStat label="진행 중" value={`${summary.live}건`} />
         <KpiStat label="마감 임박" value={`${summary.dueSoon}건`} tone={summary.dueSoon > 0 ? 'alert' : 'default'} />
         <KpiStatLink label="채점 대기" value={`${gradingStats.totalQueue}건`} href="/teacher/grading?view=queue" />
-        <KpiStat label="초안" value={`${summary.draft}건`} />
+        <KpiStat label="마감" value={`${summary.closed}건`} />
       </KpiStatBar>
 
-      <FilterBar
-        filter={filter}
-        carriedBotName={carriedBot?.botName}
-        carriedRoomLabel={carriedRoom?.label}
-      />
+      <FilterBar filter={filter} carriedClassName={carriedClass?.name ?? (filter.classId ? '반 하나' : undefined)} />
 
-      {!hydrated ? (
+      {assignmentsQuery.isPending ? (
         <div data-testid="assignment-list-loading" className="text-pullim-slate-500 py-10 text-center text-sm">
           불러오는 중이에요…
         </div>
+      ) : assignmentsQuery.isError ? (
+        <ReadErrorState onRetry={() => void assignmentsQuery.refetch()} />
       ) : allRows.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
@@ -152,30 +126,14 @@ function AssignmentList() {
           action={{ href: '/teacher/assignment/new', label: '과제 내기' }}
         />
       ) : rows.length === 0 ? (
-        /*
-          「전체」인데도 비는 경우가 있다 — 낸 과제가 **전부 회수된** 상태다(기본 목록은 회수된 것을
-          내린다). 그때 「거르개 지우기」를 주면 지금 있는 화면으로 되돌아와 같은 빈 화면이 뜬다.
-          그래서 어디에 있는지 알려 주고 그리로 보낸다.
-        */
-        allWithdrawn ? (
-          <EmptyState
-            icon={ClipboardList}
-            tone="plain"
-            size="sm"
-            title="낸 과제를 모두 회수했어요"
-            description="회수한 과제는 「회수됨」에서 볼 수 있어요."
-            action={{ href: '/teacher/assignment?status=withdrawn', label: '회수됨 보기' }}
-          />
-        ) : (
-          <EmptyState
-            icon={ClipboardList}
-            tone="plain"
-            size="sm"
-            title="이 조건에 맞는 과제가 없어요"
-            description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
-            action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
-          />
-        )
+        <EmptyState
+          icon={ClipboardList}
+          tone="plain"
+          size="sm"
+          title="이 조건에 맞는 과제가 없어요"
+          description="거르개를 지우면 낸 과제를 모두 볼 수 있어요."
+          action={{ href: '/teacher/assignment', label: '거르개 지우기' }}
+        />
       ) : (
         <ul data-testid="assignment-list" className="space-y-2">
           {rows.map((row) => (
@@ -191,48 +149,31 @@ function AssignmentList() {
  * 거르개 — URL 이 1차다(채점 허브 § 10 과 같은 결). 새로고침·링크 공유·뒤로 가기에서
  * 보던 조건이 유지돼야 한다. 그래서 상태를 컴포넌트에 담지 않고 링크로만 바꾼다.
  */
-function FilterBar({
-  filter,
-  carriedBotName,
-  carriedRoomLabel,
-}: {
-  filter: AssignmentListFilter;
-  carriedBotName?: string;
-  carriedRoomLabel?: string;
-}) {
-  const carried = carriedBotName ?? carriedRoomLabel;
+function FilterBar({ filter, carriedClassName }: { filter: AssignmentListFilter; carriedClassName?: string }) {
   return (
     <section data-testid="assignment-filters" className="bg-card space-y-3 rounded-2xl border p-4">
       <FilterRow label="상태">
         {statusFilterOptions.map((o) => (
-          <FilterChip
-            key={o.value}
-            href={assignmentListHref({ ...filter, status: o.value })}
-            active={filter.status === o.value}
-          >
+          <FilterChip key={o.value} href={assignmentListHref({ ...filter, status: o.value })} active={filter.status === o.value}>
             {o.label}
           </FilterChip>
         ))}
       </FilterRow>
       <FilterRow label="모드">
         {modeFilterOptions.map((o) => (
-          <FilterChip
-            key={o.value}
-            href={assignmentListHref({ ...filter, mode: o.value })}
-            active={filter.mode === o.value}
-          >
+          <FilterChip key={o.value} href={assignmentListHref({ ...filter, mode: o.value })} active={filter.mode === o.value}>
             {o.label}
           </FilterChip>
         ))}
       </FilterRow>
-      {carried && (
+      {carriedClassName && (
         /*
-          반·봇은 고르는 칸이 아니라 **실려 온 조건**이다 — 봇 운영 KPI·반 카드가 보낸다.
+          반은 고르는 칸이 아니라 **실려 온 조건**이다 — 봇 운영 화면·반 상세가 보낸다.
           드롭다운을 하나 더 세우는 대신 「무엇이 걸려 있는지」와 「푸는 길」만 보인다.
         */
         <FilterRow label="걸린 조건">
           <span data-testid="assignment-filter-carried" className="text-pullim-slate-900 text-xs font-bold">
-            {carried}
+            {carriedClassName}
           </span>
           <Link
             href={assignmentListHref({ status: filter.status, mode: filter.mode })}
@@ -276,11 +217,12 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
 
 /**
  * 과제 한 줄 — 줄째 누르는 자리다. 줄 안에 링크를 또 깔지 않는다(봇 관리 카드와 같은 규칙).
+ * 제출 칸은 없다 — 목록 DTO 에 없는 것을 세는 척하지 않는다(머리주석).
  */
 function AssignmentListRow({ row }: { row: AssignmentRow }) {
   const { assignment: a } = row;
-  const mode = assignmentModeBadge[a.mode];
-  const isDraft = row.status === 'draft';
+  const mode = assignmentModeBadge[row.mode];
+  const className = row.className || '반 이름 없음';
 
   return (
     <li data-testid={`assignment-row-${a.id}`}>
@@ -288,12 +230,8 @@ function AssignmentListRow({ row }: { row: AssignmentRow }) {
         href={`/teacher/assignment/${a.id}`}
         className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-center gap-4 rounded-2xl border p-4 transition-colors outline-none focus-visible:ring-2"
       >
-        {/*
-          봇 아바타 — 교사가 보는 얼굴도 학생·학부모가 보는 그 얼굴이다([08 § 14.1.1] 예외 2).
-          예외가 허락하는 것은 데이터 자리뿐이라 `row.avatarEmoji` 는 뷰 타입에 그대로 남고,
-          화면에 그리는 면은 `BotAvatar` 한 곳이 정한다.
-        */}
-        <BotAvatar subject={row.subject} name={row.botName} size="md" />
+        {/* 반의 얼굴 — 교사가 보는 얼굴도 학생이 보는 그 얼굴이다([08 § 14.1.1] 예외 2). `BotAvatar` 한 곳이 그린다. */}
+        <BotAvatar subject={row.subject} name={className} size="md" />
 
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
@@ -303,29 +241,19 @@ function AssignmentListRow({ row }: { row: AssignmentRow }) {
             <span className="text-pullim-slate-900 truncate text-sm font-bold">{a.title}</span>
           </span>
           <span className="text-pullim-slate-500 mt-0.5 block truncate text-2xs">
-            {row.botName}
-            {row.classroomLabels.length > 0 && ` · ${row.classroomLabels.join(' · ')}`}
+            {className}
             {` · ${a.questionCount}문항`}
+            {a.scope && ` · ${a.scope}`}
           </span>
         </span>
 
-        {/* 대상·제출 — 목록이 답하는 질문은 「누가 아직 안 냈나」 하나다 */}
-        <span className="hidden w-24 shrink-0 text-right sm:block">
-          <span className="text-pullim-slate-500 block text-micro font-semibold tracking-wider uppercase">
-            <Users className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" aria-hidden />
-            제출
-          </span>
-          <span data-testid={`assignment-submitted-${a.id}`} className="text-pullim-slate-900 font-mono text-sm font-bold">
-            {isDraft ? '—' : `${row.submittedCount}/${row.targetCount}`}
-          </span>
-        </span>
-
-        {/* 마감 — 초안은 아직 마감이 뜻을 갖지 않는다 */}
-        <span className="hidden w-24 shrink-0 text-right md:block">
+        {/* 마감 — D-day 는 지금 기준으로 다시 센 것, 아래 작은 글자는 낼 때 굳힌 라벨(`assignment-filters.ts` 머리주석). */}
+        <span className="hidden w-28 shrink-0 text-right md:block">
           <span className="text-pullim-slate-500 block text-micro font-semibold tracking-wider uppercase">마감</span>
           <span className={cn('font-mono text-sm font-bold', row.dueSoon ? 'text-pullim-danger' : 'text-pullim-slate-900')}>
-            {isDraft ? '—' : dueDisplay(a).dDay}
+            {row.dDayLabel}
           </span>
+          <span className="text-pullim-slate-500 block text-2xs">{row.dueLabel}</span>
         </span>
 
         <Chip tone="outline" className="hidden shrink-0 py-1 lg:inline-flex">

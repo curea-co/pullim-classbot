@@ -123,7 +123,8 @@ export function useRemindedStudentIds(assignmentId: string): Set<string> {
 
 /**
  * 개입 수신자 id — **읽기(벨·코멘트)와 쓰기(리마인드가 저장하는 roster id)가 같은 도메인 학생 키**
- * 를 쓰도록 roster 브리지(resolveRosterMe)로 해석한다. 제출/결과(useStudentSubmission)와 동일 조인 규약.
+ * 를 쓰도록 roster 브리지(resolveRosterMe)로 해석한다. (같은 조인 규약이던 제출/결과 쪽 `useStudentSubmission` 은
+ * FE PR 6 에서 제출이 정본으로 가며 은퇴했다 — 이 스토어의 리마인드 쓰기 표면도 그때 함께 걷혔다.)
  * 인증 사용자 raw id 를 쓰면 쓰기 측(s1..)과 영원히 매칭되지 않아 알림이 도착하지 않는다(Codex #184 R3 —
  * "mock 단계라면 읽기/쓰기 모두 동일한 도메인 학생 키" 허용안 채택). UUID↔roster 실신원 매핑은
  * auth 통합(Phase β/SSO) 소관 — 이 훅이 그때의 단일 교체 지점이다.

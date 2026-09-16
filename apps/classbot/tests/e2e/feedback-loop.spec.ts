@@ -18,6 +18,8 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     // localStorage 초기화
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => {
+      // TODO(PR 6 e2e 트랙): `pullim-assignments` persist 는 은퇴했다(FE PR 6 — 제출은 `POST /classbot/assignments/:id/submit`,
+      // 교사 진행률은 `GET …/submissions`). 이 스펙은 로그인 픽스처 + 실API 시드로 다시 쓴다(계획 §08 PR 6).
       window.localStorage.removeItem('pullim-assignments');
       // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
       // 과제를 내는 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 내기→학생 목록 노출이 동작한다.
@@ -97,7 +99,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     await solveAllAndSubmit(page);
     await page.waitForURL(/\/result/);
 
-    // 새로고침 후 store 의 submissions 가 있어야 함
+    // TODO(PR 6 e2e 트랙): 제출은 서버에 산다 — 새로고침 뒤 확인할 곳은 localStorage 가 아니라 교사 상세의 제출 현황이다.
     await page.reload();
     const stored = await page.evaluate(() => window.localStorage.getItem('pullim-assignments'));
     expect(stored).toBeTruthy();
@@ -141,7 +143,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 진행률', () => {
     await solveAllAndSubmit(page);
     await page.waitForURL(/\/result/, { timeout: 10000 });
 
-    // store 에 as_today submission 기록되었는지
+    // TODO(PR 6 e2e 트랙): `as_today` 시드 과제와 로컬 submission 기록은 둘 다 걷혔다 — 실API 시드 과제로 다시 쓴다.
     const stored = await page.evaluate(() => window.localStorage.getItem('pullim-assignments'));
     expect(stored).toContain('as_today');
   });

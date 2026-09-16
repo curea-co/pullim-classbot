@@ -67,14 +67,14 @@ import { josa } from '@/lib/mock';
  *    이 판에는 나가는 길이 이미 「그만두기」로 또렷하다. 그 「그만두기」가 `Dialog.Close`라
  *    터치 낭독기가 판에서 빠져나갈 길도 그대로 남는다.
  *
- * ── 이 도메인에 되묻는 판이 둘이다 — 왜 골격이 다른가 ────────────────────────
- * 먼저 선 것은 `app/(teacher)/teacher/assignment/[id]/withdraw-controls.tsx`(회수)이고
- * 그쪽은 `DialogHeader`/`DialogFooter` 를 쓴다. 여기는 안 쓴다 — 억지로 맞추지 않는다.
+ * ── 이 도메인에 되묻는 판이 둘이었다 — 왜 골격이 다른가 ──────────────────────
+ * 먼저 섰던 것은 과제 회수 판(`withdraw-controls.tsx` — 정본에 회수 문이 없어 FE PR 6 에서 지웠다)이고
+ * 그쪽은 `DialogHeader`/`DialogFooter` 를 썼다. 여기는 안 쓴다 — 억지로 맞추지 않는다.
  *  - `DialogHeader` 는 `sticky flex-col` 이다. 이 판은 경고 아이콘이 제목과 **한 줄**에
  *    서야 해서(alertdialog — 「위험」이 제목보다 먼저 읽힌다) 쓰려면 `className` 으로
  *    그 둘을 다시 뒤집어야 한다. 기본값을 지우려고 감싸는 껍데기는 껍데기 값이 없다.
  *  - `DialogFooter` 는 `-mx-4 -mb-4 border-t bg-muted p-4` 짜리 sticky 회색 바다. 두 줄
- *    짜리 이 판에서는 본문보다 푸터가 더 무겁다. 회수 판은 설명이 여섯 줄이라 맞는 옷이다.
+ *    짜리 이 판에서는 본문보다 푸터가 더 무겁다. 회수 판은 설명이 여섯 줄이라 맞는 옷이었다.
  * 대신 버튼 배치(`flex-col-reverse … sm:flex-row sm:justify-end`)는 `DialogFooter` 와
  * 같은 값으로 맞춰 뒀다 — 다른 것은 껍데기이고, 손이 닿는 순서는 리포 전체가 같다.
  */

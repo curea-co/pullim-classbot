@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import {
   gradingModeOf,
-  type AssignmentMode, type AssignmentQuestion, type GradingMode, type QuestionType,
+  type AssignmentMode, type GradingMode, type QuestionType,
 } from '@/lib/mock';
 import { cn } from '@/lib/utils';
 
@@ -119,7 +119,10 @@ export function makeQuestion(type: QuestionType, points: number): DraftQuestion 
   };
 }
 
-/** 첫 진입 기본 문항 — 합 100점. 발문은 비어 있고, 비운 채 내면 단원 RAG 자동 추출 규약이다. */
+/**
+ * 첫 진입 기본 문항 — 합 100점. 발문은 비어 있다 — **전부 써야 낼 수 있다**(정본이 문항마다 `prompt` 를 요구한다 —
+ * `dispatch-body.ts`). 종전의 「비운 채 내면 단원 RAG 자동 추출」 규약은 정본에 없어 PR 6 에서 걷었다.
+ */
 export function createDefaultQuestions(): DraftQuestion[] {
   return [
     makeQuestion('mc', 20),
@@ -145,18 +148,9 @@ export function gradingTally(questions: DraftQuestion[]): Record<GradingMode, { 
   return tally;
 }
 
-/** 발문을 채운 문항 수 — 전부 채웠을 때만 과제에 문항을 실어 보낸다. */
+/** 발문을 채운 문항 수 — 전부 채워야 낼 수 있다(폼의 `questionBlockedReason`). */
 export function authoredCount(questions: DraftQuestion[]): number {
   return questions.filter((q) => q.prompt.trim().length > 0).length;
-}
-
-/**
- * 발문을 일부만 쓴 상태. 전부 채우거나(직접 출제) 전부 비우거나(단원 RAG 자동 추출) 둘 중 하나여야 한다 —
- * 중간 상태로 내면 `toAssignmentQuestions` 가 `null` 을 돌려 **선생님이 쓴 발문이 조용히 버려진다.**
- */
-export function isPartiallyAuthored(questions: DraftQuestion[]): boolean {
-  const authored = authoredCount(questions);
-  return authored > 0 && authored < questions.length;
 }
 
 /**
@@ -177,8 +171,8 @@ export function hasGradableAnswer(q: DraftQuestion): boolean {
  * 채점 기준이 빈 서술형 문항 번호(1-based).
  *
  * 서술형은 `gradingModeOf` 가 `teacher` 라 `hasGradableAnswer` 가 언제나 true 다 — 즉
- * **기존 정답 검사가 서술형을 전혀 안 본다.** 기준을 한 글자도 안 쓴 채로 나가면
- * `toAssignmentQuestions` 가 빈 기준을 걸러 루브릭 없이 나간다. 여기서 막는다.
+ * **기존 정답 검사가 서술형을 전혀 안 본다.** 기준을 한 글자도 안 쓴 채로 나가면 편집기의 빨간 글씨에
+ * 아무 결과가 없는 채로 내기가 열린다. 여기서 막는다(정본에 기준을 실을 칸은 아직 없다 — `dispatch-body.ts`).
  * 정답 검사와 같은 전제를 쓴다 — 발문을 전부 쓴 과제에만 따진다.
  */
 export function missingRubricNumbers(questions: DraftQuestion[]): number[] {
@@ -206,9 +200,9 @@ export function rubricWeightMismatchNumbers(questions: DraftQuestion[]): number[
 }
 
 /**
- * 정답이 빠진 자동 채점 문항 번호(1-based) — 내기를 막는 근거.
- * 발문을 전부 쓴 과제에만 따진다. 발문을 비워 두면 문항 자체를 싣지 않고 단원 RAG 로
- * 넘기는 기존 규약이라 정답도 따질 게 없다.
+ * 정답이 빠진 자동 채점 문항 번호(1-based) — 내기를 막는 근거. 서버도 같은 것을 400 으로 거절한다
+ * (`ASSIGNMENT_ANSWER_KEY_REQUIRED`) — 여기서 먼저 말한다.
+ * 발문을 전부 쓴 과제에만 따진다 — 발문이 비어 있으면 폼이 그 이유를 먼저 말하므로 두 문구가 겹치지 않는다.
  */
 export function missingAnswerNumbers(questions: DraftQuestion[]): number[] {
   if (questions.length === 0 || authoredCount(questions) < questions.length) return [];
@@ -231,50 +225,6 @@ export function withPoints(q: DraftQuestion, points: number): DraftQuestion {
   const remainder = points - base * q.rubric.length;
   next.rubric = q.rubric.map((c, i) => ({ ...c, weight: base + (i < remainder ? 1 : 0) }));
   return next;
-}
-
-/**
- * 편집 중 문항 → 저장 문항. **발문을 전부 채웠을 때만** 과제에 싣는다.
- * 하나라도 비어 있으면 `null` — 그 과제는 기존 규약대로 단원 RAG(=mock 시드)에서 문항을 해석한다.
- */
-export function toAssignmentQuestions(
-  assignmentId: string,
-  questions: DraftQuestion[],
-): AssignmentQuestion[] | null {
-  if (questions.length === 0 || authoredCount(questions) < questions.length) return null;
-  return questions.map((q, i) => {
-    const base: AssignmentQuestion = {
-      id: `${assignmentId}_q${i + 1}`,
-      assignmentId,
-      order: i + 1,
-      type: q.type,
-      prompt: q.prompt.trim(),
-      points: q.points,
-    };
-    if (q.type === 'mc') {
-      // 빈 보기는 버리되 정답은 텍스트로 따라간다 — 인덱스가 밀려 오답이 되지 않게.
-      const trimmed = q.options.map((o) => o.trim());
-      const answerText = trimmed[q.answerIndex] ?? '';
-      const options = trimmed.filter((o) => o.length > 0);
-      base.options = options;
-      // 고른 보기가 비었거나 정리하다 사라졌으면 정답을 아예 싣지 않는다.
-      // 0번으로 되돌리면 선생님이 고르지 않은 보기가 정답으로 굳어 자동 채점의 진실값이 뒤바뀐다.
-      // (내기 검증에서 먼저 막지만, 직렬화 단계에서도 엉뚱한 정답을 만들지 않는다.)
-      const answerIndex = answerText.length > 0 ? options.indexOf(answerText) : -1;
-      if (answerIndex >= 0) base.answerIndex = answerIndex;
-      return base;
-    }
-    if (q.type === 'short' || q.type === 'numeric') {
-      const key = q.answerKey.trim();
-      if (key) base.answerKey = key;
-      return base;
-    }
-    const rubric = q.rubric
-      .map((c) => ({ criterion: c.criterion.trim(), weight: c.weight }))
-      .filter((c) => c.criterion.length > 0);
-    if (rubric.length > 0) base.rubric = rubric;
-    return base;
-  });
 }
 
 /**

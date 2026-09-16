@@ -11,29 +11,31 @@ import { ScoreDisplay } from '@/components/classbot/score-display';
 import { TeacherCommentCard } from '@/components/classbot/teacher-comment-card';
 import { useInterventionRecipientId } from '@/lib/store/interventions';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { classBots } from '@/lib/mock';
-import { useRosterMe } from '@/lib/current-user';
-import { useAssignmentLookup, getQuestionsForAssignment, useStudentSubmission } from '@/lib/store/assignments';
-import { useVisibleAssignment } from '../../use-assignment-reads';
-import { assignmentToReadRow } from '@/lib/assignment-demo';
-import { questionTypeMeta } from '@/lib/question-type';
-import type { QuestionType } from '@/lib/question-type';
+import { useMyRooms } from '@/components/classbot/home/my-rooms';
+import { useSubmissionResult } from '@/lib/store/submission-result';
+import { shortTimeLabel } from '@/lib/assignment-labels';
+import { studentQuestionsOf, useVisibleAssignment } from '../../use-assignment-reads';
 import { cn } from '@/lib/utils';
 
+/**
+ * 결과 화면 — 점수는 **서버가 센 것**이다(2026-09-16 계획 §06 「결과는 `submissions` 의 점수」 · FE PR 6).
+ *
+ * 과제 메타·문항은 정본 상세(`useVisibleAssignment`)에서, 점수·제출 시각은 제출 직후 응답을 든
+ * `lib/store/submission-result.ts`(저장하지 않는다)에서 읽는다. 종전의 로컬 스토어 폴백(`useAssignmentLookup`·
+ * `useStudentSubmission`)과 브라우저 채점은 걷었다.
+ *
+ * 서버가 주는 것과 안 주는 것:
+ *  - `scorePercent` — 자동 채점 문항만 있으면 0~100, 서술형이 하나라도 있으면 **null(미채점)**.
+ *  - **문항별 정오는 오지 않는다.** 그래서 「오답 한눈에」 카드는 걷었다 — 정답도 기준 응답도 학생 응답에 없다(🔒).
+ *  - 학생 본인의 제출을 되읽는 문이 없다 — 새로고침하면 점수가 비고, 그 사실을 말한다.
+ */
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-
-  // 상세 페이지와 같은 dual-source 해석 — 인증 사용자는 실API, 미인증은 로컬 스토어 폴백.
   const api = useVisibleAssignment(id);
-  const localA = useAssignmentLookup(id);
-  const demo = api.isUnauthenticated;
-  const apiRow = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
-  const isLoading = demo ? false : api.isLoading;
-  const isNotFound = demo ? !localA : api.isNotFound;
-
-  const me = useRosterMe();
-  const submission = useStudentSubmission(id, me.id);
+  const result = useSubmissionResult(id);
+  const { rooms } = useMyRooms();
   const interventionRecipientId = useInterventionRecipientId();
 
   const back = (
@@ -46,17 +48,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     </Link>
   );
 
-  if (isLoading || (!apiRow && !isNotFound)) {
-    return (
-      <div className="space-y-4">
-        {back}
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
-        <Skeleton className="h-14 w-full rounded-2xl" />
-      </div>
-    );
-  }
-  if (isNotFound || !apiRow) {
+  if (api.isNotFound) {
     return (
       <div className="space-y-4">
         {back}
@@ -69,14 +61,28 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       </div>
     );
   }
+  if (api.isError) {
+    return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void api.refetch()} /></div>;
+  }
+  const a = api.data;
+  if (api.isLoading || !a) {
+    return (
+      <div className="space-y-4">
+        {back}
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-14 w-full rounded-2xl" />
+      </div>
+    );
+  }
 
-  // 문항은 로컬 스토어(mock 레이어) — localA 가 있으면 그대로, 없으면 빈 배열.
-  const questions = localA ? getQuestionsForAssignment(localA) : [];
-  const bot = classBots.find(b => b.id === apiRow.botId);
+  const questions = studentQuestionsOf(a);
+  const botName = rooms.find(r => r.bot.id === a.botId)?.bot.name || a.assignedBy || '선생님';
 
-  const isExam = apiRow.mode === 'exam';
-  const autoGraded = questions.filter(q => q.type === 'mc' || q.type === 'short' || q.type === 'numeric').length;
+  const isExam = a.mode === 'exam';
+  const autoGraded = questions.filter(q => q.type !== 'essay').length;
   const essayCount = questions.filter(q => q.type === 'essay').length;
+  const submission = result?.submission;
 
   const scoreCard = isExam ? (
     <section className="bg-pullim-slate-900 text-white rounded-2xl p-5">
@@ -95,25 +101,35 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         <div>
           <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">자동 채점</div>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
-          <p className="text-pullim-slate-500 mt-0.5 text-2xs">객관식·단답·수치는 즉시</p>
+          <p className="text-pullim-slate-500 mt-0.5 text-2xs">객관식·단답·수치는 바로</p>
         </div>
-        {submission ? (
+        {submission === undefined ? (
+          <div data-testid="result-missing">
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
+            <div className="text-pullim-slate-400 mt-1 font-mono text-2xl font-bold">—</div>
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">
+              점수는 제출하고 바로 그때만 여기서 보여요. 낸 답은 선생님께 가 있어요.
+            </p>
+          </div>
+        ) : submission.scorePercent === null ? (
+          <div data-testid="result-ungraded">
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">선생님 채점 기다리는 중</div>
+            <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
+              {essayCount}<span className="text-pullim-slate-400 text-base">문항</span>
+            </div>
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">서술형이 있어 선생님이 보고 점수를 매겨요</p>
+          </div>
+        ) : (
           <div>
             <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
             <div data-testid="result-score" className="mt-1">
               <ScoreDisplay score={submission.scorePercent} max={100} size="xl" tone="threshold" />
             </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-2xs">자동 채점 mock 추정</p>
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">
+              {shortTimeLabel(submission.gradedAt ?? submission.submittedAt)} 채점 · 선생님 쪽에서 매긴 점수
+            </p>
           </div>
-        ) : essayCount > 0 ? (
-          <div>
-            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">검수 대기</div>
-            <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
-              {essayCount}<span className="text-pullim-slate-400 text-base">문항</span>
-            </div>
-            <p className="text-pullim-slate-500 mt-0.5 text-2xs">선생님이 곧 봐줄 거예요</p>
-          </div>
-        ) : null}
+        )}
       </div>
     </section>
   );
@@ -124,11 +140,11 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       <div className="grid grid-cols-2 gap-2">
         <Link
           href="/classbot/assignment"
-          aria-label="비슷한 패턴 문제 더 보기"
+          aria-label="받은 과제로 가기"
           className="bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 inline-flex items-center justify-center gap-1 rounded-2xl py-3 text-xs font-bold"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          비슷한 패턴
+          다른 과제
         </Link>
         <Link
           href="/classbot/chat"
@@ -144,7 +160,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         </Link>
       </div>
       <FlywheelNote>
-        자주 막힌 패턴은 다음 과제에 자동으로 들어가요. 풀이 데이터는 선생님 리포트로 흘러갑니다.
+        낸 답과 점수는 선생님 화면으로 가요. 자주 막힌 곳은 다음 과제에 들어갈 수 있어요.
       </FlywheelNote>
     </>
   );
@@ -156,69 +172,48 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       <PageHeader
         eyebrow={{ icon: Sparkles, text: '제출 완료', tone: 'blue' }}
         title={<>수고했어요 <Heart className="text-pullim-blue-500 inline h-5 w-5" /></>}
-        description={`${apiRow.title} · ${bot?.name ?? apiRow.assignedBy}`}
+        description={`${a.title} · ${botName}`}
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더).
-            시험 모드는 결과 피드백 비공개 정책(봇 피드백·오답 카드와 동일 게이트)을 따른다 (Codex #184).
-            수신자 키는 개입 규약(데모=roster 폴백, 인증=본인 id)을 따라 남의 코멘트 노출을 방지(R2). */}
+            시험 모드는 결과 피드백 비공개 정책을 따른다. */}
         {!isExam && <TeacherCommentCard assignmentId={id} studentId={interventionRecipientId} />}
 
-        {/* 봇 피드백 — 시험 외 */}
-        {!isExam && (
+        {/* 낸 답 — 정오는 서버가 주지 않으니(🔒 정답 비노출) 「무엇을 냈나」만 보여 준다. */}
+        {!isExam && submission !== undefined && questions.length > 0 && (
           <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="봇 한 마디" description={bot?.name ?? apiRow.assignedBy} />
-            <div className="space-y-2">
-              <div className="bg-pullim-blue-50 rounded-lg p-3">
-                <div className="text-pullim-blue-700 text-2xs font-bold tracking-wider uppercase">오늘 잘한 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
-                  중간에 막혔을 때 힌트 1단계만 보고 다시 풀어낸 점 — 그게 진짜 실력이에요.
-                </p>
-              </div>
-              <div className="bg-pullim-slate-50 rounded-lg p-3">
-                <div className="text-pullim-slate-700 text-2xs font-bold tracking-wider uppercase">다음에 신경 쓸 점</div>
-                <p className="text-pullim-slate-700 mt-1 text-xs leading-relaxed">
-                  부호 변화 표를 그리는 단계에서 자주 막혔어요. 같은 패턴 5문항이 자동으로 처방됐어요.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* 오답 카드 — 시험은 발표 후 */}
-        {!isExam && questions.length > 0 && (
-          <section className="bg-card rounded-2xl border p-4">
-            <SectionHeading title="오답 한눈에" />
+            <SectionHeading title="내가 낸 답" description="맞았는지는 선생님 화면에서 매겨져요." />
             <ul className="space-y-2">
-              {questions.slice(0, 3).map(q => {
-                const meta = questionTypeMeta[q.type as QuestionType];
-                return (
-                  <li key={q.id} className="bg-pullim-slate-50/50 rounded-lg p-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
-                        {q.order}
-                      </span>
-                      <span className="text-pullim-slate-700 truncate text-xs font-bold">{q.prompt}</span>
-                      {meta && (
-                        <span className="text-pullim-slate-500 ml-auto shrink-0 text-2xs">
-                          {meta.label}
-                        </span>
-                      )}
-                    </div>
-                    {q.modelAnswer && (
-                      <p className="text-pullim-slate-500 mt-1.5 text-2xs leading-relaxed">
-                        <span className="text-pullim-slate-400 font-bold">기준 응답: </span>
-                        {q.modelAnswer}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
+              {questions.map(q => (
+                <li key={q.id} className="bg-pullim-slate-50/50 rounded-lg p-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="bg-pullim-slate-200 text-pullim-slate-600 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
+                      {q.order}
+                    </span>
+                    <span className="text-pullim-slate-700 truncate text-xs font-bold">{q.prompt}</span>
+                  </div>
+                  <p className="text-pullim-slate-600 mt-1.5 text-2xs leading-relaxed">
+                    <span className="text-pullim-slate-400 font-bold">내 답: </span>
+                    {answerText(q, result?.answers[q.id])}
+                  </p>
+                </li>
+              ))}
             </ul>
           </section>
         )}
       </ContextRail>
     </div>
   );
+}
+
+/** 낸 답을 글자로 — 객관식은 고른 보기, 나머지는 값. 비었으면 「안 썼어요」. */
+function answerText(q: { type: string; options?: string[] }, raw: unknown): string {
+  if (raw === undefined || raw === null || raw === '') return '안 썼어요';
+  if (q.type === 'mc' && q.options) {
+    const idx = Number(raw);
+    const picked = Number.isInteger(idx) ? q.options[idx] : undefined;
+    if (picked !== undefined) return `${['①', '②', '③', '④', '⑤'][idx] ?? idx + 1} ${picked}`;
+  }
+  return typeof raw === 'string' ? raw : String(raw);
 }

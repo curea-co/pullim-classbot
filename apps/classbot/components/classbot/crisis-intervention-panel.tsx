@@ -214,8 +214,8 @@ export function CrisisEncourageForm({
   student: ClassroomStudent;
   botId: string;
 }) {
-  // 쓰기 표면 hydration 게이트 — RemindButton·SubmissionStatusSheet 와 동일 패턴
-  // (persist rehydration 전 쓰기 유실 방지, Codex #187 R2)
+  // 쓰기 표면 hydration 게이트 — persist rehydration 전 쓰기 유실 방지(Codex #187 R2).
+  // (같은 패턴이던 리마인드 버튼·제출 현황 시트는 FE PR 6 에서 은퇴했다.)
   const hydrated = useStoresHydrated(useInterventionStore);
   const send = useInterventionStore((s) => s.send);
   const [draft, setDraft] = useState('');

@@ -7,9 +7,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
-  evenlySplitPoints, sumPoints, gradingTally, toAssignmentQuestions, withPoints,
+  evenlySplitPoints, sumPoints, gradingTally, withPoints,
   missingAnswerNumbers, missingRubricNumbers, rubricWeightMismatchNumbers,
-  hasGradableAnswer, isPartiallyAuthored, maxQuestionsFor,
+  hasGradableAnswer, maxQuestionsFor,
   MAX_QUESTIONS_EXAM, MAX_QUESTIONS_DEFAULT, TOTAL_POINTS, type DraftQuestion,
 } from '../question-editor';
 
@@ -143,53 +143,10 @@ describe('서술형 채점 기준 — 빈 채로 나가지 못한다', () => {
   });
 });
 
-describe('toAssignmentQuestions', () => {
-  it('발문이 하나라도 비면 null — 단원 RAG 자동 추출 규약을 유지한다', () => {
-    const drafts = createDefaultQuestions();
-    expect(toAssignmentQuestions('as_user_1', drafts)).toBeNull();
-
-    const partly = drafts.map((q, i) => (i === 0 ? { ...q, prompt: '첫 문항' } : q));
-    expect(toAssignmentQuestions('as_user_1', partly)).toBeNull();
-  });
-
-  it('전부 채우면 배점·정답·채점 기준을 그대로 실어 보낸다', () => {
-    const drafts: DraftQuestion[] = [
-      { ...makeQuestion('mc', 40), prompt: '객관식', options: ['가', '', '나', '다'], answerIndex: 2 },
-      { ...makeQuestion('numeric', 30), prompt: '수치', answerKey: ' 33400 ' },
-      {
-        ...makeQuestion('essay', 30),
-        prompt: '서술',
-        rubric: [{ criterion: '근거를 썼어요', weight: 20 }, { criterion: '', weight: 10 }],
-      },
-    ];
-    const questions = toAssignmentQuestions('as_user_1', drafts)!;
-
-    expect(questions).toHaveLength(3);
-    expect(questions.map((q) => q.points)).toEqual([40, 30, 30]);
-    expect(questions[0].id).toBe('as_user_1_q1');
-    // 빈 보기는 버리고 정답은 텍스트를 따라간다 ('나' = 새 인덱스 1)
-    expect(questions[0].options).toEqual(['가', '나', '다']);
-    expect(questions[0].answerIndex).toBe(1);
-    expect(questions[1].answerKey).toBe('33400');
-    // 문구를 비운 기준은 저장하지 않는다
-    expect(questions[2].rubric).toEqual([{ criterion: '근거를 썼어요', weight: 20 }]);
-  });
-
-  it('고른 정답 보기가 비어 있으면 정답을 싣지 않는다 — 0번으로 되돌리지 않는다', () => {
-    const drafts: DraftQuestion[] = [
-      // 3번 보기(비어 있음)를 정답으로 골라 둔 상태
-      { ...makeQuestion('mc', 100), prompt: '객관식', options: ['가', '나', '', ''], answerIndex: 2 },
-    ];
-    const questions = toAssignmentQuestions('as_user_1', drafts)!;
-
-    expect(questions[0].options).toEqual(['가', '나']);
-    // '가'가 정답으로 둔갑하면 안 된다 — 자동 채점 진실값이 조용히 뒤바뀐다
-    expect(questions[0].answerIndex).toBeUndefined();
-  });
-});
+// 저장 변환(정본 본문 모양)은 `dispatch-body.test.ts` 가 본다 — 종전 `toAssignmentQuestions`(로컬 사본 변환)는 PR 6 에서 걷었다.
 
 describe('missingAnswerNumbers', () => {
-  it('발문을 안 채운 과제는 따지지 않는다 — 단원 RAG 자동 추출 규약', () => {
+  it('발문을 안 채운 과제는 따지지 않는다 — 발문이 비면 폼이 그 이유를 먼저 말한다', () => {
     expect(missingAnswerNumbers(createDefaultQuestions())).toEqual([]);
     expect(missingAnswerNumbers([])).toEqual([]);
   });
@@ -231,22 +188,5 @@ describe('문항 수 상한 (spec 14 §5.1)', () => {
     expect(maxQuestionsFor('wrong-conquest')).toBe(MAX_QUESTIONS_DEFAULT);
     expect(MAX_QUESTIONS_EXAM).toBe(60);
     expect(MAX_QUESTIONS_DEFAULT).toBe(50);
-  });
-});
-
-describe('발문 부분 작성', () => {
-  const authored = { ...makeQuestion('mc', 50), prompt: '쓴 발문' };
-  const blank = makeQuestion('short', 50);
-
-  it('일부만 쓴 상태를 잡아낸다 — 이 상태로 내면 쓴 발문이 버려진다', () => {
-    expect(isPartiallyAuthored([authored, blank])).toBe(true);
-    // 실제로 버려지는지도 함께 고정한다
-    expect(toAssignmentQuestions('a1', [authored, blank])).toBeNull();
-  });
-
-  it('전부 쓰거나 전부 비운 상태는 부분 작성이 아니다', () => {
-    expect(isPartiallyAuthored([authored, { ...blank, prompt: '이것도 씀' }])).toBe(false);
-    expect(isPartiallyAuthored([blank, blank])).toBe(false);
-    expect(isPartiallyAuthored([])).toBe(false);
   });
 });

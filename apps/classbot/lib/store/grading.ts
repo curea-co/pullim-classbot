@@ -6,7 +6,7 @@
  * - 확정 방식 2종을 구분해 저장: `approved`(AI 초안 그대로) / `overridden`(교사가 고쳐서 승인).
  *   수정 후 승인은 교사가 고친 점수·의견·루브릭을 함께 남겨 다시 열었을 때 그대로 복원한다.
  * - mock 시드(`GradingItem.status`) 위에 확정 결과를 **덮어쓰는** 병합은 mergeGradingItems /
- *   useMergedGradingItems 가 맡는다 — assignments.ts 의 useMergedAssignments 와 같은 결
+ *   useMergedGradingItems 가 맡는다 — 종전 assignments.ts 의 useMergedAssignments(FE PR 6 에서 은퇴)와 같은 결이었다
  * - 소비 화면은 `useStoresHydrated(useGradingStore)` 로 rehydrate 를 기다린다
  *
  * 서버 전송은 아직 없다 — 정본 라우트가 생기면 decide() 안 TODO 자리에서 낙관 전송한다.

@@ -1,77 +1,93 @@
 /**
- * 풀이 화면의 진입 판정 — 「기다린다 / 푼다 / 없다」 셋 중 어디로 가는가.
+ * 풀이 화면의 진입 판정 — 「기다린다 / 푼다 / 없다 / 못 읽었다」 넷 중 어디로 가는가.
  *
- * 과제는 두 곳에서 온다(서버 단건 조회 · 로컬 데모 스토어). 그래서 없다고 단정하려면 **둘 다**
- * 끝나 있어야 하고, 반대로 둘 중 하나라도 진행 중이면 기다려야 한다. 예전에는 id 가
- * `as_user_` 로 시작하는지로 기다렸는데, 로컬에 없는 옛 링크가 바로 그 모양이라 404 로
- * 정리되지 못하고 스피너에 갇혔다 — 그 회귀를 여기서 잡는다.
+ * 과제는 **정본 상세 하나**에서 온다(FE PR 6). 종전에는 로컬 데모 스토어가 두 번째 출처였고, 서버 행에 문항이 없어
+ * 같은 id 의 로컬 사본에서 문항을 빌렸다(`[M2 한계]`). 이제 문항도 같은 응답에 실려 오므로 그 빌리기가 없다 —
+ * 어느 기기의 학생이든 교사가 쓴 그 문항을 받는다. 여기서는 그 사실을 못박는다.
  */
 
 import { Component, Suspense, type ReactNode } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import SolvePage from '../page';
-import { assignmentToReadRow } from '@/lib/assignment-demo';
-import { useAssignmentStore, type UserAssignment } from '@/lib/store/assignments';
-import type { AssignmentReadRow } from '@/hooks/api/read/types';
+import type { VisibleAssignmentRow } from '../../../use-assignment-reads';
 
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND');
 });
 jest.mock('next/navigation', () => ({ notFound: () => notFound() }));
 
-/* 어느 문항 집합이 실렸는지까지 봐야 「본문만 로컬에서 빌린다」를 확인할 수 있다. */
+/* 어느 문항 집합이 실렸는지까지 봐야 「서버 문항을 그대로 쓴다」를 확인할 수 있다. */
 jest.mock('../solve-workspace', () => ({
-  SolveWorkspace: ({ questions }: { questions: { id: string }[] }) => (
-    <div data-testid="solve-workspace" data-questions={questions.map((q) => q.id).join(',')} />
+  SolveWorkspace: ({ questions, botName }: { questions: { id: string; order: number }[]; botName: string }) => (
+    <div
+      data-testid="solve-workspace"
+      data-questions={questions.map((q) => q.id).join(',')}
+      data-orders={questions.map((q) => q.order).join(',')}
+      data-bot={botName}
+    />
   ),
 }));
 
-/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음 · 실패 · 비로그인). */
+jest.mock('@/components/classbot/home/my-rooms', () => ({
+  useMyRooms: () => ({
+    rooms: [{ bot: { id: 'cls_1', name: '수학이 형' }, enrollment: {}, source: 'api' }],
+    isLoading: false,
+    isError: false,
+    retry: jest.fn(),
+  }),
+}));
+
+/** 서버 단건 조회 — 테스트마다 갈아 끼운다(도는 중 · 못 찾음 · 찾음 · 실패). */
 let apiResult: {
-  data: AssignmentReadRow | undefined;
+  data: VisibleAssignmentRow | undefined;
   isLoading: boolean;
   isError?: boolean;
+  isNotFound?: boolean;
   isUnauthenticated?: boolean;
-} = {
-  data: undefined,
-  isLoading: false,
-};
+} = { data: undefined, isLoading: false };
 jest.mock('../../../use-assignment-reads', () => ({
+  ...jest.requireActual('../../../use-assignment-reads'),
   useVisibleAssignment: () => ({
     data: apiResult.data,
     isLoading: apiResult.isLoading,
     isError: apiResult.isError ?? false,
     isUnauthenticated: apiResult.isUnauthenticated ?? false,
-    isNotFound: false,
+    isNotFound: apiResult.isNotFound ?? false,
     refetch: jest.fn(),
   }),
 }));
 
-/** 로컬에서 발사된 과제 한 건 — `as_user_` 접두사는 스토어가 붙이는 그 모양 그대로. */
-function dispatchedFixture(id: string): UserAssignment {
+/** 정본 상세가 준 행 — 문항은 서버 순서(0부터)로, 화면은 1번부터 부른다. */
+function serverRow(id: string): VisibleAssignmentRow {
   return {
     id,
-    botId: 'cb_001',
+    botId: 'cls_1',
+    studentId: null,
     title: '일차함수 연습',
     scope: '중2 수학 · 일차함수',
     subject: '수학',
     grade: '중2',
-    chapterFrom: '일차함수',
-    chapterTo: '일차함수',
+    chapterFrom: '',
+    chapterTo: '',
     achievementCodes: [],
-    questionCount: 3,
+    questionCount: 2,
     difficulty: '중',
     mode: 'practice',
+    scopeOverride: null,
     source: 'teacher-assigned',
-    assignedBy: '수학봇',
-    assignedAt: '오늘 19:50',
+    assignedBy: '',
+    assignedAtLabel: '2026-09-16 17:30',
     dueLabel: '내일 22:00',
-    dDay: 'D-1',
+    dDay: '내일',
     completedCount: 0,
+    recentAccuracy: null,
     state: 'todo',
-    solveHref: `/classbot/assignment/${id}/solve`,
-    dispatchStatus: 'sent',
-    targetStudentIds: [],
+    reasonHint: null,
+    solveHref: `/classbot/assignment/${id}/solve?step=1`,
+    questions: [
+      { id: 'q_b', order: 1, type: 'short', prompt: '두 번째', options: null, autoGradable: true },
+      { id: 'q_a', order: 0, type: 'mc', prompt: '첫 번째', options: ['가', '나'], autoGradable: true },
+    ],
   };
 }
 
@@ -101,7 +117,6 @@ async function renderSolve(id: string) {
 let consoleError: jest.SpyInstance;
 
 beforeEach(() => {
-  useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [], lastDispatched: null });
   apiResult = { data: undefined, isLoading: false };
   notFound.mockClear();
   // 에러 경계가 잡은 throw 를 React 가 콘솔에 다시 찍는다 — 테스트 출력만 조용히 시킨다.
@@ -113,50 +128,31 @@ afterEach(() => {
 });
 
 describe('풀이 화면 진입', () => {
-  it('서버도 로컬도 모르는 as_user_ 링크는 404 로 정리된다 — 스피너에 갇히지 않는다', async () => {
-    await renderSolve('as_user_1700000000000');
-
-    expect(screen.getByTestId('not-found')).toBeInTheDocument();
-    expect(screen.queryByText('과제를 불러오는 중…')).not.toBeInTheDocument();
-    expect(notFound).toHaveBeenCalled();
-  });
-
   it('서버 조회가 도는 동안에는 없다고 단정하지 않는다', async () => {
     apiResult = { data: undefined, isLoading: true };
 
-    await renderSolve('as_user_1700000000000');
+    await renderSolve('asg_1');
 
     expect(screen.getByText('과제를 불러오는 중…')).toBeInTheDocument();
     expect(notFound).not.toHaveBeenCalled();
   });
 
-  it('비로그인 데모에서는 로컬 스토어의 과제가 그대로 풀린다', async () => {
-    const a = dispatchedFixture('as_user_1700000000000');
-    useAssignmentStore.setState({ dispatched: [a] });
-    // 서버가 401 — prod 는 공개·비로그인이라 이쪽이 기본 경로다.
-    apiResult = { data: undefined, isLoading: false, isUnauthenticated: true };
+  it('401 로 로그인으로 가는 중에도 기다린다 — 오류 카드도 404 도 아니다', async () => {
+    apiResult = { data: undefined, isLoading: true, isUnauthenticated: true };
 
-    await renderSolve(a.id);
+    await renderSolve('asg_1');
 
-    expect(screen.getByTestId('solve-workspace')).toBeInTheDocument();
+    expect(screen.getByText('과제를 불러오는 중…')).toBeInTheDocument();
     expect(notFound).not.toHaveBeenCalled();
   });
 
-  /*
-    접근 판정을 로컬이 하면, 서버가 안 보여 주는 과제라도 같은 브라우저에 사본만 남아 있으면
-    열린다 — 남의 반 과제, 대상이 아닌 과제, 지워진 과제가 그렇다. 개요·대화·결과는 서버
-    visibility 를 따르는데 풀이만 안 따르면 그게 구멍이다.
-  */
-  it('로그인한 학생은 서버가 안 주는 과제를 로컬 사본만으로 열 수 없다', async () => {
-    const a = dispatchedFixture('as_user_1700000000000');
-    useAssignmentStore.setState({ dispatched: [a] });
-    // 로그인은 돼 있고(401 아님) 서버는 이 과제를 안 준다.
-    apiResult = { data: undefined, isLoading: false };
+  it('서버가 404 를 주면 진짜 없는 것이다 — 남의 반 과제도 여기다', async () => {
+    apiResult = { data: undefined, isLoading: false, isNotFound: true };
 
-    await renderSolve(a.id);
+    await renderSolve('asg_nope');
 
     expect(screen.getByTestId('not-found')).toBeInTheDocument();
-    expect(screen.queryByTestId('solve-workspace')).not.toBeInTheDocument();
+    expect(notFound).toHaveBeenCalled();
   });
 
   /*
@@ -166,7 +162,7 @@ describe('풀이 화면 진입', () => {
   it('서버 조회가 실패하면 404 가 아니라 다시 시도할 수 있는 오류로 그린다', async () => {
     apiResult = { data: undefined, isLoading: false, isError: true };
 
-    await renderSolve('as_9a1c4e2f');
+    await renderSolve('asg_1');
 
     expect(screen.getByText('불러오지 못했어요')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
@@ -174,83 +170,16 @@ describe('풀이 화면 진입', () => {
     expect(notFound).not.toHaveBeenCalled();
   });
 
-  it('서버가 준 과제는 로컬에 사본이 없어도 풀린다', async () => {
-    const row = assignmentToReadRow(dispatchedFixture('as_9a1c4e2f'));
-    apiResult = { data: row, isLoading: false };
+  it('서버가 준 과제는 서버 문항 그대로 풀린다 — 순서를 정렬해 1번부터 매기고, 로컬 사본은 보지 않는다', async () => {
+    apiResult = { data: serverRow('asg_1'), isLoading: false };
 
-    await renderSolve(row.id);
+    await renderSolve('asg_1');
 
-    expect(screen.getByTestId('solve-workspace')).toBeInTheDocument();
+    const ws = screen.getByTestId('solve-workspace');
+    expect(ws).toHaveAttribute('data-questions', 'q_a,q_b');
+    expect(ws).toHaveAttribute('data-orders', '1,2');
+    // 봇 얼굴은 참여 반 카드에서 — 정본 행에 교사 표시명이 없어도 「선생님」 폴백이 아니라 반 봇 이름이다.
+    expect(ws).toHaveAttribute('data-bot', '수학이 형');
     expect(notFound).not.toHaveBeenCalled();
-  });
-
-  /*
-    판정은 서버가 하되 문항 **본문**은 로컬에서 빌린다 — 서버 행에는 문항이 없어서(M2 경계)
-    안 빌리면 교사가 직접 쓴 문항 대신 mode 시드가 실린다.
-  */
-  it('서버로 연 과제도 교사가 직접 쓴 문항을 그대로 쓴다', async () => {
-    const id = 'as_9a1c4e2f';
-    const authored = {
-      id: 'q_authored_1',
-      assignmentId: id,
-      order: 1,
-      type: 'short' as const,
-      prompt: '기울기를 구하시오',
-      points: 100,
-      answerKey: '2',
-    };
-    useAssignmentStore.setState({
-      dispatched: [{ ...dispatchedFixture(id), questions: [authored] }],
-    });
-    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
-
-    await renderSolve(id);
-
-    expect(screen.getByTestId('solve-workspace')).toHaveAttribute(
-      'data-questions',
-      'q_authored_1',
-    );
-  });
-
-  /*
-    ⚠ **M2 경계를 그대로 못박는 테스트다 — 통과한다고 좋은 상태가 아니다.**
-
-    위 테스트는 교사 **자기 기기**를 그린다(서버 행과 로컬 사본이 같이 있다). 다른 기기의
-    학생에게는 로컬 사본이 없고, 서버 행에는 문항 본문이 없다 — `assignment_questions`
-    테이블은 스키마에 있지만 읽기·쓰기 경로가 어디에도 없다. 그래서 교사가 쓴 발문 대신
-    mode 시드가 실린다.
-
-    이건 이 화면이 만든 구멍이 아니라 M2 의 알려진 경계다(`lib/store/assignments.ts` 412행).
-    여기 적어 두는 이유는 **문항이 서버로 영속되는 순간 이 테스트가 깨져서** 다음 사람이
-    이 자리를 반드시 다시 보게 하려는 것이다.
-  */
-  it('[M2 한계] 다른 기기 학생은 교사가 쓴 문항 대신 mode 시드를 받는다', async () => {
-    const id = 'as_9a1c4e2f';
-    // 로컬 사본 없음 — 발사한 교사가 아닌 다른 기기다.
-    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
-
-    await renderSolve(id);
-
-    const served = screen.getByTestId('solve-workspace').getAttribute('data-questions');
-    expect(served).not.toBe('');
-    // 교사가 쓴 문항이 아니라 practice 시드다.
-    expect(served).not.toContain('q_authored');
-    expect(served).toContain('q_today');
-  });
-
-  /*
-    「문항 경로가 마련되기 전에는 직접 출제를 서버로 발사하지 마라」가 학생 쪽을 고치지
-    못한다는 근거 — 교사가 발문을 안 썼을 때도 결과가 **똑같다.** 즉 출제를 막아도 학생이
-    받는 문항은 달라지지 않고, 교사 기능만 사라진다.
-  */
-  it('교사가 발문을 안 쓴 과제도 같은 mode 시드로 떨어진다 — 출제 여부가 학생 쪽을 가르지 않는다', async () => {
-    const id = 'as_no_authored';
-    apiResult = { data: assignmentToReadRow(dispatchedFixture(id)), isLoading: false };
-
-    await renderSolve(id);
-
-    expect(screen.getByTestId('solve-workspace').getAttribute('data-questions')).toContain(
-      'q_today',
-    );
   });
 });

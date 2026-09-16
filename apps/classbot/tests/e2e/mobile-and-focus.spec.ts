@@ -130,6 +130,7 @@ test.describe('키보드 Tab 포커스 가시성', () => {
 test.describe('회귀 — 기존 E2E 정합성', () => {
   test('PR #4 → #5 → #6 통합 — 한국어 줄바꿈 + 빈 상태 + 폼 a11y 동시 통과', async ({ page }) => {
     // 빈 상태 확인 (localStorage 비움)
+    // TODO(PR 6 e2e 트랙): `pullim-assignments` 는 은퇴한 키다(FE PR 6) — 빈 상태는 이제 정본 목록이 비어 있을 때다.
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => window.localStorage.removeItem('pullim-assignments'));
 

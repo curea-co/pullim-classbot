@@ -18,6 +18,8 @@ test.describe('과제 내기 → 학생 수령 → 풀이 → 결과 E2E', () =>
     // localStorage 초기화 — 깨끗한 상태로 시작
     await page.goto(BASE + '/teacher');
     await page.evaluate(() => {
+      // TODO(PR 6 e2e 트랙): `pullim-assignments` persist 는 은퇴했다(FE PR 6 — 과제·제출은 pullim-api 정본).
+      // 이 스펙의 내기→수령→풀이 흐름은 로그인 픽스처 + 실API 시드로 다시 쓴다(계획 §08 PR 6 「별도 스펙 트랙」).
       window.localStorage.removeItem('pullim-assignments');
       // 학생 데모 과제 목록은 참여(enrollment) 클래스로 스코프된다(class-enrollment 스토어, assignment/page.tsx).
       // 과제를 내는 봇 cb_001 의 클래스(class-codes.ts MATH-2024)에 미리 참여시켜야 내기→학생 목록 노출이 동작한다.
@@ -65,7 +67,7 @@ test.describe('과제 내기 → 학생 수령 → 풀이 → 결과 E2E', () =>
     // [5] 낸 뒤 /teacher/classbot 로 리다이렉트
     await expect(page).toHaveURL(BASE + '/teacher/classbot');
 
-    // localStorage 확인 — store에 저장됨
+    // TODO(PR 6 e2e 트랙): 낸 과제는 더는 localStorage 에 쓰이지 않는다 — 확인 지점은 `GET /classbot/assignments?audience=teacher` 다.
     const stored = await page.evaluate(() => window.localStorage.getItem('pullim-assignments'));
     expect(stored).toBeTruthy();
     expect(stored).toContain('E2E 테스트 과제');

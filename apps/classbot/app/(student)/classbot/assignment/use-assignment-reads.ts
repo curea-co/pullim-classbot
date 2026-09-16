@@ -9,25 +9,30 @@
  *
  * 종전에는 같은 오리진 `/api/assignments*` 를 개발용 신원 쿠키로 쳤고, 401 이면 화면이 데모 스토어로
  * 갈아탔다. 이제 신원은 OS 세션(`useAuth`)이고 401 은 로그인으로 간다(`lib/api/classbot-client.ts`).
- * `isUnauthenticated` 는 그 리다이렉트가 도는 사이 화면이 오류 카드를 띄우지 않게 남겨 둔 값이다 —
- * 호출부의 데모 폴백 분기(`assignmentToReadRow(localA)`)는 그래서 실제로는 더 닿지 않으며, 로컬
- * 스토어와 함께 PR 6 이 걷는다(계획 §07 학생·받은 과제 줄 「pullim-assignments persist · useMergedAssignments」).
+ * `isUnauthenticated` 는 그 리다이렉트가 도는 사이 화면이 오류 카드 대신 로그인 안내를 그리게 남겨 둔 값이다.
+ * 데모 폴백(`useMergedAssignments`·`useAssignmentLookup`·`pullim-assignments` persist)은 PR 6 에서 걷었다 —
+ * 목록·상세·풀이·결과·대화 **다섯 화면이 이 파일 하나만** 읽는다.
  *
- * queryKey 접두사는 `['student-read', …]` 그대로 둔다 — `useJoinByCode()` 가 참여 성공 후 그 접두사로
- * 무효화하므로, 새 반의 과제가 목록에 바로 따라 들어온다.
+ * queryKey 접두사는 `['student-read', …]` 그대로 둔다 — `useJoinByCode()`·`useSubmitAssignment()`·
+ * `useDispatchAssignment()` 가 그 접두사로 무효화하므로, 새 반·새 제출·새 과제가 목록에 바로 따라 들어온다.
  *
  * 화면은 종전 행 모양(`AssignmentReadRow`)을 그대로 읽는다 — 서버 DTO 를 그 모양으로 옮기는 것이
  * 아래 `toAssignmentReadRow` 다. 서버에 **없는 칸**은 이렇게 채운다(줄마다 이유):
  *  - `botId` ← `classId` — bot == class(ADR-063). 화면의 봇 조인 키가 그대로 선다.
  *  - `studentId: null` — 서버는 대상 표(`assignment_targets`)를 학생 응답에 싣지 않는다. 술어는 서버가 집행.
- *  - `completedCount: 0` · `recentAccuracy: null` — 제출 진행은 `/submit`·`/submissions` 에 있고 PR 6 이 잇는다.
+ *  - `completedCount: 0` · `recentAccuracy: null` — 학생 본인의 제출을 되읽는 문이 정본에 없다(`/submissions` 는
+ *    operator 전용). 제출 직후의 점수는 `lib/store/submission-result.ts` 가 세션 안에서만 든다.
  *  - `assignedBy: ''` — 교사 표시명이 응답에 없다(계획 §10 해소 5 · pullim-api PR 2 members 조인). 모르는 것을
  *    지어내지 않는다 — 화면이 반 봇 이름을 먼저 쓰고, 그것도 없을 때의 「선생님」은 화면의 폴백이다
- *    (`assignment/page.tsx`). 이 행을 `Assignment` 로 되돌리는 풀이·결과 화면은 PR 6 이 정본 문항·제출과 함께 본다.
+ *    (`assignment/page.tsx`).
  *  - `source: 'teacher-assigned'` · `reasonHint: null` · `scopeOverride: null` — 정본에 그 개념이 없다.
- *  - `dDay` 라벨은 정수에서 만든다(`lib/tokens/assignment-state.ts` `parseDDay` 가 읽는 형태).
+ *  - `dDay` 는 서버가 **낼 때 굳힌 정수**다(`due_at` 컬럼이 없어 다시 세지 않는다). `dispatchedAt` 부터 지난 날수를 빼
+ *    지금 기준으로 다시 센 뒤(`remainingDDay`) 라벨로 만든다(`lib/assignment-labels.ts` — `parseDDay` 가 읽는 형태).
  *  - `mode`·`difficulty`·`state` 는 서버가 string 으로 열어 둔 칸이다 — 교사가 낼 때 이 앱의 union 값을
  *    보내므로 그대로 좁히고, 낯선 값은 가장 보수적인 쪽(연습·중·todo)으로 접는다.
+ *
+ * 문항은 `toStudentQuestion` 이 옮긴다 — 정본 문항에는 **배점·정답·힌트·기준 응답이 없다**(🔒 answerKey 는 서버
+ * 전용, 나머지는 칸 자체가 없다). 풀이·대화 화면이 읽는 `AssignmentQuestion` 모양으로 맞추되 그 칸들은 비운다.
  */
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
@@ -48,9 +53,15 @@ import type {
   AssignmentQuestionDto,
   AssignmentSummaryDto,
 } from '@/lib/api/classbot-dto';
+import { remainingDDay } from '@/lib/assignment-due';
+import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
 import { useAuth } from '@/lib/auth/auth-context';
+import type { AssignmentQuestion, QuestionType } from '@/lib/mock';
 
-/** 상세 한 건 — 목록 행에 문항이 붙는다. 🔒 answerKey 없음. 풀이 화면이 서버 문항을 쓰는 것은 PR 6. */
+// 라벨 둘은 `lib/assignment-labels.ts` 로 옮겼다(교사 화면도 읽는다) — 호출부·테스트 경로 유지용 재수출.
+export { dDayLabel, dispatchedAtLabel };
+
+/** 상세 한 건 — 목록 행에 문항이 붙는다. 🔒 answerKey 없음. */
 export type VisibleAssignmentRow = AssignmentReadRow & {
   questions: AssignmentQuestionDto[];
 };
@@ -58,6 +69,7 @@ export type VisibleAssignmentRow = AssignmentReadRow & {
 const MODES = ['practice', 'exam', 'wrong-conquest'] as const satisfies readonly AssignmentReadRow['mode'][];
 const DIFFICULTIES = ['하', '중', '상'] as const satisfies readonly AssignmentReadRow['difficulty'][];
 const STATES = ['todo', 'in-progress', 'submitted', 'overdue'] as const satisfies readonly AssignmentReadRow['state'][];
+const QUESTION_TYPES = ['mc', 'short', 'essay', 'numeric'] as const satisfies readonly QuestionType[];
 
 /** 서버가 string 으로 준 값을 화면 union 으로 좁힌다 — 목록에 없으면 폴백. 캐스팅 없이 `find` 로. */
 function narrow<T extends string>(raw: string, allowed: readonly T[], fallback: T): T {
@@ -65,39 +77,52 @@ function narrow<T extends string>(raw: string, allowed: readonly T[], fallback: 
 }
 
 /**
- * 정수 D-day → 화면 라벨. `lib/tokens/assignment-state.ts` 의 `parseDDay` 가 읽는 네 형태
- * (`오늘`·`내일`·`D-n`·`지난 n일`)만 만든다 — 다른 모양을 내면 그쪽이 999 로 읽어 「진행 중」으로 뭉갠다.
- * @param dDay - 서버 정수(음수 = 마감 지남)
- * @returns 라벨
+ * 정본 문항 → 풀이·대화 화면이 읽는 `AssignmentQuestion`.
+ *
+ * `order` 는 정렬한 자리(1부터)로 다시 매긴다 — 서버 값은 0부터고 화면은 「n번」으로 부른다. `options` 는 blob 이라
+ * 문자열만 남긴다(교사가 이 앱에서 낸 값은 문자열 배열이다). **`points: 0` 은 「모른다」다** — 정본에 배점 칸이
+ * 없고, 학생 화면은 배점을 그리지 않는다. 힌트·기준 응답·정답도 없다 — 힌트 패널은 「힌트 없이 풀어봐요」로 선다.
+ * @param dto - 정본 문항
+ * @param assignmentId - 소속 과제
+ * @param order - 정렬한 자리(1-based)
  */
-export function dDayLabel(dDay: number): string {
-  if (dDay === 0) return '오늘';
-  if (dDay === 1) return '내일';
-  if (dDay > 1) return `D-${dDay}`;
-  return `지난 ${-dDay}일`;
+export function toStudentQuestion(
+  dto: AssignmentQuestionDto,
+  assignmentId: string,
+  order: number,
+): AssignmentQuestion {
+  const type = narrow(dto.type, QUESTION_TYPES, 'short');
+  const options = Array.isArray(dto.options)
+    ? dto.options.filter((o): o is string => typeof o === 'string')
+    : [];
+  return {
+    id: dto.id,
+    assignmentId,
+    order,
+    type,
+    prompt: dto.prompt,
+    points: 0,
+    ...(type === 'mc' && options.length > 0 ? { options } : {}),
+  };
 }
 
 /**
- * ISO 8601 → 「YYYY-MM-DD HH:mm」(브라우저 시간대). 목록 카드가 그대로 찍는 문자열이라
- * mock `Assignment.assignedAt` 과 같은 모양을 낸다. 배포 전(null)·깨진 값은 빈 문자열.
- * @param iso - `dispatchedAt`
- * @returns 표시 문자열
+ * 상세 한 건의 문항 전부 — 서버 순서(`order`)로 정렬해 1번부터 매긴다.
+ * @param row - `useVisibleAssignment` 가 준 행
  */
-export function dispatchedAtLabel(iso: string | null): string {
-  if (!iso) return '';
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '';
-  const d = new Date(t);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+export function studentQuestionsOf(row: VisibleAssignmentRow): AssignmentQuestion[] {
+  return [...row.questions]
+    .sort((a, b) => a.order - b.order)
+    .map((q, i) => toStudentQuestion(q, row.id, i + 1));
 }
 
 /**
  * 정본 요약 DTO → 화면 행. 서버에 없는 칸의 채움 규칙은 파일 머리주석.
  * @param dto - `AssignmentSummaryResponseDto` 한 행
+ * @param now - 기준 시각(D-day 를 지금 기준으로 다시 세는 데 쓴다 · 테스트 주입용)
  * @returns 목록 카드·상세가 읽는 행
  */
-export function toAssignmentReadRow(dto: AssignmentSummaryDto): AssignmentReadRow {
+export function toAssignmentReadRow(dto: AssignmentSummaryDto, now: number = Date.now()): AssignmentReadRow {
   return {
     id: dto.id,
     botId: dto.classId,
@@ -117,7 +142,7 @@ export function toAssignmentReadRow(dto: AssignmentSummaryDto): AssignmentReadRo
     assignedBy: '',
     assignedAtLabel: dispatchedAtLabel(dto.dispatchedAt),
     dueLabel: dto.dueLabel,
-    dDay: dDayLabel(dto.dDay),
+    dDay: dDayLabel(remainingDDay(dto.dDay, dto.dispatchedAt, now)),
     completedCount: 0,
     recentAccuracy: null,
     state: narrow(dto.state, STATES, 'todo'),
@@ -129,10 +154,11 @@ export function toAssignmentReadRow(dto: AssignmentSummaryDto): AssignmentReadRo
 /**
  * 정본 상세 DTO → 화면 행 + 문항.
  * @param dto - `AssignmentDetailResponseDto`
+ * @param now - 기준 시각(테스트 주입용)
  * @returns 상세가 읽는 행
  */
-export function toVisibleAssignmentRow(dto: AssignmentDetailDto): VisibleAssignmentRow {
-  return { ...toAssignmentReadRow(dto), questions: dto.questions };
+export function toVisibleAssignmentRow(dto: AssignmentDetailDto, now: number = Date.now()): VisibleAssignmentRow {
+  return { ...toAssignmentReadRow(dto, now), questions: dto.questions };
 }
 
 /** 목록 읽기 결과 — 인증 게이트가 반영된 모양(`StudentReadResult` 와 같은 계약). */
@@ -158,7 +184,10 @@ export function useVisibleAssignments(): VisibleAssignmentsResult {
     queryKey: ['student-read', 'assignments', user?.id ?? null],
     queryFn: async () => {
       const rows = await classbotRead<AssignmentSummaryDto[]>('/assignments?audience=student');
-      return { assignments: rows.map(toAssignmentReadRow) };
+      // `.map(toAssignmentReadRow)` 로 넘기면 안 된다 — 두 번째 인자 `now` 자리에 배열 인덱스(0,1,…)가 들어가
+      // 모든 행의 D-day 가 1970 년 기준으로 세어진다(테스트가 「D-20715」로 잡았다). 한 번 잰 `now` 를 명시해 넘긴다.
+      const now = Date.now();
+      return { assignments: rows.map((row) => toAssignmentReadRow(row, now)) };
     },
     enabled: isReady && user !== null,
     retry: retryUnlessClientError,

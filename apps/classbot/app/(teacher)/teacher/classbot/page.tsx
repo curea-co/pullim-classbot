@@ -17,12 +17,18 @@ import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, studentAssignments, scopeMeta, josa, type Assignment,
+  currentTeacher, scopeMeta, josa,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
 } from '@/lib/mock/classbot-teacher-ops';
-import { useAssignmentStore, useAssignmentProgress } from '@/lib/store/assignments';
+import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
+import { useOperatorClasses } from '@/hooks/api/classroom';
+import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
+import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
+import {
+  isDueSoon, modeOf, remainingOf, toTeacherClass, type TeacherClass,
+} from '@/app/(teacher)/teacher/assignment/assignment-filters';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut,
@@ -58,21 +64,21 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *  components/classbot/{live-broadcast-controls,live-feed-panel,quiz-launcher,class-kpi-bar,student-roster}.tsx
  */
 export default function TeacherClassbotPage() {
-  const dispatched = useAssignmentStore((s) => s.dispatched);
-  const drafts = useAssignmentStore((s) => s.drafts);
   /*
-    회수한 과제는 이 화면에서도 내린다. 이 섹션이 답하는 질문은 「이 봇이 지금 뭘 돌리고 있나」라
-    회수된 것이 섞이면 봇이 더 바빠 보인다. 교사가 회수한 것을 다시 볼 자리는 낸 과제 목록이고,
-    거기서는 「회수됨」으로 갈라 보인다(`/teacher/assignment?status=withdrawn`).
-    KPI 도 같은 셈을 읽어야 링크를 눌러 도착한 목록과 안 어긋난다.
+    낸 과제는 **정본**에서 읽는다 — `GET /classbot/assignments?audience=teacher`(2026-09-16 계획 §06 R11 · FE PR 6).
+    종전의 localStorage 스토어 + mock 시드(`studentAssignments`) 합산은 걷었다. 반 이름은 정본 반 목록에서 조인한다.
+    정본에는 회수·초안이 없어(내는 순간 `sent`) 여기서 거를 것도 없다 — 목록 전부가 「낸 과제」다.
+    KPI 도 같은 셈을 읽어야 링크를 눌러 도착한 목록(「전체」)과 안 어긋난다.
   */
-  const live = useMemo(
-    () => dispatched.filter((a) => a.dispatchStatus !== 'withdrawn'),
-    [dispatched],
-  );
+  const teacherAssignments = useTeacherAssignments();
+  const teacherClasses = useOperatorClasses();
   const allAssignments = useMemo<AssignmentRow[]>(
-    () => [...live, ...studentAssignments],
-    [live],
+    () => teacherAssignments.data ?? [],
+    [teacherAssignments.data],
+  );
+  const classIndex = useMemo(
+    () => new Map<string, TeacherClass>((teacherClasses.data ?? []).map(toTeacherClass).map((c) => [c.id, c])),
+    [teacherClasses.data],
   );
 
   /*
@@ -145,33 +151,13 @@ export default function TeacherClassbotPage() {
   const summary = getTeacherBotSummary(botRows);
 
   /*
-    지운 봇의 과제도 함께 내린다. 목록에서만 빼면 `groupByBot` 이 그 과제들을
-    「봇 목록에 없는 봇」 묶음으로 되살려, 지운 봇의 과제가 이름만 바뀐 채 남는다.
+    지운 봇의 과제도 함께 내린다. 목록에서만 빼면 `groupByClass` 가 그 과제들을
+    「반 목록에 없는 반」 묶음으로 되살려, 지운 봇의 과제가 이름만 바뀐 채 남는다.
+    (bot == class 라 `classId` 를 봇 id 와 견준다. 초안은 이 화면이 더 세지 않는다 — 정본 목록에 초안이 없다.)
   */
   const assignments = useMemo(
-    () => allAssignments.filter(a => !deletedBotIds.has(a.botId)),
+    () => allAssignments.filter(a => !deletedBotIds.has(a.classId)),
     [allAssignments, deletedBotIds],
-  );
-
-  /*
-    초안도 같은 필터를 지난다. 「낸 과제」 칸이 세는 값은 `assignments + drafts` 인데
-    초안을 안 거르면 **카드 없는 봇의 초안이 상단 숫자에만 남는다.**
-
-    ⚠️ **지금 당장 나는 일은 아니다 — 초안을 만들 길이 닫혀 있다.** 출제 화면의
-    「임시저장」 버튼은 `disabled` + `aria-disabled="true"` + `title="준비 중 (v2)"` 이고
-    `onClick` 도 없다(`assignment/new/assignment-form.tsx`). 앱 전체에서 `saveDraft`
-    호출자는 **0개**다(직접 세었다 — store 의 정의와 주석뿐이다). 그러니 이 필터가 막는
-    것은 실재 결함이 아니라 **잠재** 결함이다.
-    그래도 거른다 — 식에 `drafts.length` 가 남아 있는 한 「봇을 세는 목록 넷이 모두 같은
-    필터를 지난다」가 참이어야 하고, 「임시저장」이 열리는 날 이 자리를 다시 찾아낼
-    사람은 없다. **도달 불가 코드로 읽고 걷어내지도, 급한 버그로 쫓지도 말라는 뜻이다.**
-
-    아래 「낸 과제」 묶음(`DispatchedAssignments`)은 초안을 안 그린다 — 그래서 이 누수는
-    목록에서는 안 보이고 KPI 숫자에서만 보인다.
-  */
-  const visibleDrafts = useMemo(
-    () => drafts.filter(d => !deletedBotIds.has(d.botId)),
-    [drafts, deletedBotIds],
   );
 
   const handleDelete = useCallback((botId: string, botName: string) => {
@@ -260,31 +246,16 @@ export default function TeacherClassbotPage() {
         />
         {/*
           낸 과제는 이제 갈 곳이 있다 — 숫자만 보여 주고 끊던 자리였다 (`proc/spec/14 § 3.2` 진입점 2).
-          **회수한 과제는 세지 않는다**(위 `live`) — 「낸 과제」라는 말이 가리키는 것이 아니다.
-          도착한 목록은 초안도 함께 그리므로 그 수를 더한다. 이 둘이 어긋나면 「2건」을 눌러
-          5줄짜리 목록에 도착한다.
+          정본 목록 전부를 센다(위 `allAssignments`) — 도착한 목록의 「전체」와 같아야 「2건」을 눌러 2줄짜리 목록에 도착한다.
 
           ⚠️ **봇 삭제에 대해서는 그 불변식이 지금 깨져 있다 — 알고 두는 것이다.**
-          여기 세는 두 목록은 지운 봇을 걸렀지만, 도착지 `/teacher/assignment` 는 안 거른다:
-          그 화면은 `buildRows([...dispatched, ...drafts], …)` 로 **봇 존재 여부를 아예 보지
-          않고**, 봇을 못 찾으면 `assignedBy` 로 이름만 대신 채운다(`assignment-filters.ts`).
-          그래서 봇 하나를 지운 직후 이 칸은 N-1, 눌러 도착한 목록은 N 줄이다.
-
-          고치지 않는 까닭은 **삭제가 이 화면 안 상태(`deletedBotIds`)이기 때문**이다 —
-          저 화면은 그 사실을 알 길이 없다. 걸러 주려면 지운 봇 목록을 화면 밖으로 내보내야
-          하는데, 그건 이 PR 이 안 하기로 한 일(store·mock·BE 건드리기)이다. 이 어긋남은
-          「삭제가 화면 안 데모」라는 이 PR 의 성격에서 그대로 따라온다(`03 § 4.2.1`).
-
-          ⚠️ **BE 가 붙어도 저절로 맞지는 않는다.** 과제 가시성 술어는 `class_bots` 를
-          **직접 읽지 않고** `enrollments.bot_id` 로 건다(`app/api/_lib/assignment-visibility.ts`
-          의 `visibleAssignmentsWhere()` — `classBots` 를 import 조차 안 한다. 직접 확인했다).
-          그래서 `03 § 4.4.8 (e-1)` 이 그 파일을 「봇만 거르면 **거둔 봇의 과제가 그대로 뜬다**
-          … grep 바깥에서 손으로 더한 유일한 원소」로 이름 대고 든다. 즉 이 어긋남이 닫히는
-          것은 소프트 삭제가 붙는 날이 아니라 **그 술어까지 함께 고치는 날**이다.
+          여기 세는 목록은 지운 봇을 걸렀지만, 도착지 `/teacher/assignment` 는 정본을 그대로 그린다 —
+          삭제가 이 화면 안 상태(`deletedBotIds`)라 저 화면은 그 사실을 알 길이 없다. 이 어긋남은
+          「삭제가 화면 안 데모」라는 성격에서 그대로 따라오고(`03 § 4.2.1`), 봇 삭제가 정본으로 가는 날 닫힌다.
         */}
         <KpiStatLink
           label="낸 과제"
-          value={`${assignments.length + visibleDrafts.length}건`}
+          value={`${assignments.length}건`}
           href="/teacher/assignment"
         />
       </KpiStatBar>
@@ -298,16 +269,21 @@ export default function TeacherClassbotPage() {
         notice={deleteNotice}
       />
 
-      {/* 낸 과제 — 봇별로 묶어서 본다 */}
-      <DispatchedAssignments assignments={assignments} rows={botRows} />
+      {/* 낸 과제 — 반(=봇)별로 묶어서 본다 */}
+      <DispatchedAssignments
+        assignments={assignments}
+        classes={classIndex}
+        isPending={teacherAssignments.isPending}
+        isError={teacherAssignments.isError}
+      />
     </div>
   );
 }
 
 /* ─── 봇 목록 — 봇마다 학급 배정·안전 등급·낸 과제·동선 ─── */
 
-// 행 데이터 = store dispatched(UserAssignment) + mock 시드(Assignment) 혼합 — targetStudentIds 는 발송분만 보유.
-type AssignmentRow = Assignment & { targetStudentIds?: string[] };
+// 행 데이터 = 정본 요약 한 행. 봇 카드와의 조인 키는 `classId`(bot == class).
+type AssignmentRow = AssignmentSummaryDto;
 
 function BotOpsList({
   ref,
@@ -342,7 +318,7 @@ function BotOpsList({
         키보드 사용자가 아무 표시 없는 자리로 옮겨진다(크롬은 키보드 상호작용 직후의
         프로그램적 포커스에도 `:focus-visible` 을 준다). 마우스로 눌렀을 때는 링이 뜨지
         않게 `focus-visible:` 로 좁힌다 — 이 리포의 다른 포커스 대상과 같은 관용구다
-        (같은 파일 `DropdownMenuTrigger`, `my-bot-card.tsx`, `withdraw-controls.tsx`).
+        (같은 파일 `DropdownMenuTrigger`, `my-bot-card.tsx`).
       */
       aria-label="내 봇"
       tabIndex={-1}
@@ -384,7 +360,7 @@ function BotOpsList({
             <BotOpsCard
               key={row.bot.id}
               row={row}
-              assignmentCount={assignments.filter(a => a.botId === row.bot.id).length}
+              assignmentCount={assignments.filter(a => a.classId === row.bot.id).length}
               onDelete={onDelete}
             />
           ))}
@@ -472,9 +448,9 @@ function BotCardMenu({
 
             **그 사실을 `aria-haspopup="dialog"` 로 낭독기에도 싣는다.** 옆의 두 항목
             (`수정하기`·`과제 내기`)은 링크라 저절로 구별되지만 이 항목만 겉보기가 같고
-            하는 일이 다르다. `withdraw-controls.tsx` 가 같은 문제를 이름 대고 적어 뒀다 —
-            「평범한 button 을 쓰면 base-ui 가 `aria-haspopup`·`aria-expanded` 를 안 달고 …
-            키보드·스크린리더 사용자가 화면에서 제 자리를 잃는다」. 여기서는 메뉴 항목이라
+            하는 일이 다르다. 종전 회수 판(`withdraw-controls.tsx` — 정본에 회수 문이 없어 FE PR 6 에서 지웠다)이
+            같은 문제를 이름 대고 적어 뒀었다 — 「평범한 button 을 쓰면 base-ui 가 `aria-haspopup`·`aria-expanded` 를
+            안 달고 … 키보드·스크린리더 사용자가 화면에서 제 자리를 잃는다」. 여기서는 메뉴 항목이라
             `DialogTrigger` 를 쓸 수 없다 — 트리거 노릇을 하려면 판이 열려 있는 동안 붙어
             있어야 하는데, 이 항목은 누르는 순간 메뉴와 함께 언마운트된다. 그래서 그 주석이
             걱정한 둘을 나눠 푼다 — 포커스 복귀는 `finalFocus` 로, 힌트는 이 한 줄로.
@@ -629,32 +605,26 @@ export const modeMeta = {
   'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
 } as const;
 
-/** 봇 순서(카탈로그)대로 묶는다. 카탈로그에 없는 봇의 과제는 맨 뒤에 따로 둔다. */
-function groupByBot(assignments: AssignmentRow[], rows: TeacherBotRow[]) {
-  const byBot = new Map<string, AssignmentRow[]>();
+/**
+ * 반(=봇)별로 묶는다 — 조인 키는 정본 행의 `classId`(bot == class). 이름은 정본 반 목록(`useOperatorClasses`)에서,
+ * 거기 없는 반의 과제는 맨 뒤에 「반 목록에 없는 반」으로 따로 둔다(지어낸 이름을 붙이지 않는다).
+ */
+function groupByClass(assignments: AssignmentRow[], classes: ReadonlyMap<string, TeacherClass>) {
+  const byClass = new Map<string, AssignmentRow[]>();
   for (const a of assignments) {
-    const list = byBot.get(a.botId);
+    const list = byClass.get(a.classId);
     if (list) list.push(a);
-    else byBot.set(a.botId, [a]);
+    else byClass.set(a.classId, [a]);
   }
-
-  const groups: { botId: string; botName: string; classLabel: string; items: AssignmentRow[] }[] = [];
-  for (const r of rows) {
-    const items = byBot.get(r.bot.id);
-    if (!items) continue;
-    byBot.delete(r.bot.id);
+  const groups: { classId: string; name: string; meta: string; items: AssignmentRow[] }[] = [];
+  for (const [classId, items] of byClass) {
+    const klass = classes.get(classId);
     groups.push({
-      botId: r.bot.id,
-      botName: r.bot.name,
-      classLabel: r.ops.classrooms.map(c => c.label).join(' · ') || '붙은 학급 없음',
-      items,
-    });
-  }
-  for (const [botId, items] of byBot) {
-    groups.push({
-      botId,
-      botName: items[0]?.assignedBy || '봇 미지정',
-      classLabel: '봇 목록에 없는 봇',
+      classId,
+      name: klass?.name ?? '반 이름 없음',
+      meta: klass
+        ? [klass.subject, klass.grade].filter(Boolean).join(' ') || '반 목록에 있는 반'
+        : '반 목록에 없는 반',
       items,
     });
   }
@@ -663,44 +633,28 @@ function groupByBot(assignments: AssignmentRow[], rows: TeacherBotRow[]) {
 
 function DispatchedAssignments({
   assignments,
-  rows,
+  classes,
+  isPending,
+  isError,
 }: {
   assignments: AssignmentRow[];
-  rows: TeacherBotRow[];
+  classes: ReadonlyMap<string, TeacherClass>;
+  isPending: boolean;
+  isError: boolean;
 }) {
-  const submissions = useAssignmentStore((s) => s.submissions);
-  // 진행률 합산은 store submission 기준 — 실시간 반영
-  const totalCompleted = assignments.reduce((s, a) => {
-    const mine = submissions.filter((sub) => sub.assignmentId === a.id);
-    const submittedStudentCount = new Set(mine.map((sub) => sub.studentId)).size;
-    return s + Math.min(a.completedCount + submittedStudentCount, a.questionCount);
-  }, 0);
   const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
-  const totalPending = totalQuestions - totalCompleted;
-  const groups = groupByBot(assignments, rows);
+  const groups = groupByClass(assignments, classes);
 
   return (
     <section id="dispatched" data-testid="dispatched-section" className="bg-card scroll-mt-20 rounded-2xl border p-5">
       <SectionHeading
         title="낸 과제"
         /*
-          「오늘 N건」은 걷어냈다. 그 값은 날짜를 본 것이 아니라 `assignedAt` 라벨에 '오늘'·'방금'이
-          들어 있는지를 센 것이라, **두 방향 모두 틀려 있었다**:
-
-           - **과다 계수(로컬 경로)** — 출제 화면이 `assignedAt: '방금 냈어요'` 를 박고
-             (`teacher/assignment/new/assignment-form.tsx` · `components/classbot/submission-status-sheet.tsx`)
-             store 가 그것을 localStorage 로 굳힌다(`pullim-assignments`).
-             그래서 **닷새 전에 낸 과제도 영원히 「오늘」로 세어졌다.**
-           - **과소 계수(BE 경로)** — BE 동기화 행은 `assignedAt = row.dispatchedAt ?? ''` 로 ISO 가
-             들어온다(`lib/store/assignments.ts`). '오늘'·'방금'이 있을 리 없어 **영영 0** 이었다.
-
-          **고칠 수 있는 값이기는 하다** — `UserAssignment.dispatchedAt` 이 로컬 발송과 BE 동기화
-          양쪽에 ISO 로 실리므로, KST 날짜로 견주면 두 경로 모두에서 맞는 「오늘 N건」이 나온다.
-          **그 길을 닫는 게 아니라 지금은 안 하는 것**이다 — 사용자가 이 자리를 걷으라고 정했고
-          (2026-09-15), 걷는 시점의 값은 위 두 방향으로 다 틀려 있었다.
-          되살릴 때는 문자열 매칭이 아니라 `dispatchedAt` 의 KST 날짜로 센다.
+          부제는 정본 목록이 실제로 세는 값만 말한다 — 건수와 문항 수. 종전의 「학생 풀이 진행 N/M문항」은
+          localStorage 제출 기록을 합산한 값이라 정본과 함께 걷었다. 학생 풀이 진행은 과제 상세(`/submissions`)가 답한다.
+          「오늘 N건」도 두지 않는다(2026-09-15 결정 — 라벨 문자열로 세던 값이 두 방향으로 틀려 있었다).
         */
-        description={`학생 풀이 진행 ${totalCompleted}/${totalCompleted + totalPending}문항`}
+        description={`${assignments.length}건 · ${totalQuestions}문항`}
         action={
           <Link
             href="/teacher/assignment/new"
@@ -712,21 +666,22 @@ function DispatchedAssignments({
           </Link>
         }
       />
-      {groups.length === 0 ? (
+      {isPending ? (
+        <p className="text-pullim-slate-500 py-6 text-center text-sm">불러오는 중이에요…</p>
+      ) : isError ? (
+        <p role="alert" className="text-pullim-danger py-6 text-center text-sm">낸 과제를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+      ) : groups.length === 0 ? (
         <EmptyState icon={Inbox} title="아직 낸 과제가 없어요" action={{ href: '/teacher/assignment/new', label: '과제 내기' }} />
       ) : (
         <div className="space-y-4">
           {groups.map(g => (
-            <div key={g.botId} data-testid={`dispatched-group-${g.botId}`}>
+            <div key={g.classId} data-testid={`dispatched-group-${g.classId}`}>
               <div className="mb-1.5 flex items-baseline gap-1.5">
-                <h3 className="text-pullim-slate-900 text-xs font-bold">{g.botName}</h3>
-                <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">{g.classLabel}</span>
-                {/*
-                  이 봇으로 걸러진 목록으로 — 목록 쪽은 `?bot=` 를 받는 자리를 열어 두었는데
-                  **보내는 쪽이 없었다**(`assignment-filters.ts` 의 `filterRows`).
-                */}
+                <h3 className="text-pullim-slate-900 text-xs font-bold">{g.name}</h3>
+                <span className="text-pullim-slate-500 min-w-0 truncate text-2xs">{g.meta}</span>
+                {/* 이 반으로 걸러진 목록으로 — 목록 쪽은 `?class=` 를 받는다(`assignment-filters.ts`). */}
                 <Link
-                  href={`/teacher/assignment?bot=${encodeURIComponent(g.botId)}`}
+                  href={`/teacher/assignment?class=${encodeURIComponent(g.classId)}`}
                   className="text-pullim-slate-500 hover:text-pullim-blue-700 ml-auto shrink-0 font-mono text-2xs font-bold"
                 >
                   {g.items.length}건
@@ -743,18 +698,16 @@ function DispatchedAssignments({
   );
 }
 
+/**
+ * 과제 한 줄 — 정본 요약 행이 아는 것만 그린다. 진행 바·정답률은 두지 않는다(목록 DTO 에 제출 집계가 없고,
+ * 줄마다 `/submissions` 를 부르면 N+1 이다) — 「학생별 현황」 링크가 그 답이 있는 상세로 보낸다.
+ */
 function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
-  const mode = modeMeta[a.mode];
+  const mode = modeMeta[modeOf(a)];
   const Icon = mode.icon;
-  const { completedCount, avgScore, latestSubmittedAt } = useAssignmentProgress(a);
-  const progress = a.questionCount === 0 ? 0 : (completedCount / a.questionCount) * 100;
-  const isUrgent = a.dDay === '오늘' || a.dDay === 'D-1';
-  // 최근 제출 인디케이터 — 최근 30초 내 제출
-  const isFresh = latestSubmittedAt
-    ? Date.now() - new Date(latestSubmittedAt).getTime() < 30_000
-    : false;
-  // 표시 정답률 — 시드의 recentAccuracy 우선, 없으면 store avgScore
-  const displayAccuracy = a.recentAccuracy ?? avgScore;
+  // 마감은 지금 기준 — 정본 `dDay` 는 낼 때 굳힌 정수라 `dispatchedAt` 로 다시 센다(`assignment-filters.ts`).
+  const remaining = remainingOf(a);
+  const isUrgent = isDueSoon(a);
 
   return (
     <li data-testid={`dispatched-row-${a.id}`} className="bg-pullim-slate-50/50 hover:bg-pullim-slate-50 rounded-xl p-3 transition-colors">
@@ -764,21 +717,14 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-2xs">
-            {/* 보낸 때 — 라벨 문구는 발송한 쪽(과제 폼·BE)이 갖는다. 여기서 말꼬리를 덧붙이지 않는다. */}
             <span className="text-pullim-slate-500 font-bold">
               <Clock className="-mt-0.5 mr-0.5 inline h-2.5 w-2.5" />
-              {a.assignedAt}
+              {dispatchedAtLabel(a.dispatchedAt) || '낸 시각 없음'}
             </span>
             <span className="text-pullim-slate-300">·</span>
             <span className={cn('font-mono font-bold', isUrgent ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
-              {a.dDay} ({a.dueLabel})
+              {dDayLabel(remaining)} ({a.dueLabel})
             </span>
-            {isFresh && (
-              <span className="bg-pullim-blue-50 text-pullim-blue-700 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-bold">
-                <span className="bg-pullim-blue-600 inline-block h-1 w-1 animate-pulse rounded-full" />
-                방금 제출
-              </span>
-            )}
             <span className={cn('ml-auto rounded-full px-1.5 py-0.5 font-bold', mode.color, mode.fg)}>
               {mode.label}
             </span>
@@ -788,29 +734,11 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
             {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
           </div>
 
-          {/* 진행 바 + 학생 정답률 */}
-          <div className="mt-2 flex items-center gap-2">
-            <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
-              <div
-                className={cn('h-full rounded-full transition-all', displayAccuracy && displayAccuracy >= 70 ? 'bg-pullim-blue-600' : 'bg-pullim-blue-400')}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <span data-testid={`progress-${a.id}`} className="text-pullim-slate-500 font-mono text-micro font-bold">
-              {completedCount}/{a.questionCount}
-            </span>
-            {displayAccuracy != null && (
-              <span className={cn('font-mono text-micro font-bold', displayAccuracy >= 70 ? 'text-pullim-blue-700' : 'text-pullim-slate-500')}>
-                {displayAccuracy}%
-              </span>
-            )}
-          </div>
-
           {/*
-            개입 셋(리마인드 · 코멘트 · 오답 다시 내기)은 **과제 상세로 옮겼다**
-            (`proc/spec/14 § 3.3.4`). 여기 있던 이유는 갈 자리가 없어서였다 — 이 화면의 질문은
-            「봇이 잘 돌고 있나」이고, 「이 과제가 어떻게 되고 있나」는 다른 질문이다.
-            그래서 남기는 것은 그리로 가는 길 하나뿐이다.
+            개입 셋(리마인드 · 코멘트 · 오답 다시 내기)은 이 화면에 없다 — 이 화면의 질문은 「봇이 잘 돌고 있나」이고,
+            「이 과제가 어떻게 되고 있나」는 과제 상세가 답한다. 종전 리마인드 버튼·제출 현황 시트는 은퇴한 로컬 제출
+            레인·목 명단 위에 서 있어 FE PR 6 에서 걷었고, 명단 문이 pullim-api 에 열린 뒤(5b) 별건으로 되살린다.
+            그리로 가는 길 하나만 남긴다.
           */}
           <div className="mt-2">
             <Link

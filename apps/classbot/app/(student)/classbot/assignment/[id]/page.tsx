@@ -10,35 +10,25 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getQuestionsByAssignment } from '@/lib/mock';
-import { useVisibleAssignment } from '../use-assignment-reads';
-import { useAssignmentLookup, getQuestionsForAssignment } from '@/lib/store/assignments';
-import { assignmentToReadRow } from '@/lib/assignment-demo';
+import { studentQuestionsOf, useVisibleAssignment } from '../use-assignment-reads';
+import { useSubmissionResult } from '@/lib/store/submission-result';
 import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
 
 /**
- * 학생 과제 상세 — Phase 7 Stage 2: `GET /api/assignments/[id]`(실DB·인증) 배선.
+ * 학생 과제 상세 — 정본 `GET /classbot/assignments/:id` **하나만** 읽는다(2026-09-16 계획 §06 R8 · FE PR 6).
  *
- * 목록(`/api/assignments`)과 **같은 실DB 소스**를 본다 — 목록=실DB / 상세=mock 의
- * split-brain(목록의 실DB 과제를 클릭하면 상세에서 404)을 제거한다. 미로그인은
- * 로그인 게이트(D1 로그인월), 본인 명의 과제가 없으면 not-found 카드.
+ * 문항도 같은 응답에서 온다(🔒 answerKey 없음). 종전의 「목록=서버 / 문항=mock 시드 / 데모=로컬 스토어」
+ * 세 갈래는 걷었다 — 목록·상세·풀이·결과·대화가 같은 행과 같은 문항을 본다.
  *
- * 범위 밖(더 깊은 레이어): 문항(`getQuestionsByAssignment`)은 여전히 mock,
- * 풀이 진행(solve/submit) 상태는 store. 교사 발사 과제의 실DB 반영(write)도 후속 슬라이스.
+ * **제출 여부는 이 세션 안에서만 안다.** 정본에 학생 본인의 제출을 되읽는 문이 없어(`/submissions` 는 operator 전용)
+ * 새로고침하면 서버 행의 `state`(교사가 낼 때 굳힌 값)로 돌아간다 — 그때 CTA 는 다시 「시작」이다.
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const api = useVisibleAssignment(id);
-  // 데모 폴백 — 미로그인(BE 세션 없음)이면 로컬 스토어(교사 발사분 포함)에서 lookup.
-  // 인증 사용자는 Phase7 실API 경로 그대로. 목록의 데모 폴백과 짝을 이룬다.
-  const localA = useAssignmentLookup(id);
-  const demo = api.isUnauthenticated;
-  const a = demo ? (localA ? assignmentToReadRow(localA) : undefined) : api.data;
-  const isLoading = demo ? false : api.isLoading;
-  const isNotFound = demo ? !localA : api.isNotFound;
-  const isError = demo ? false : api.isError;
-  const refetch = api.refetch;
+  const submitted = useSubmissionResult(id);
+  const a = api.data;
 
   const back = (
     <Link
@@ -50,7 +40,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     </Link>
   );
 
-  if (isNotFound) {
+  if (api.isNotFound) {
     return (
       <div className="space-y-4">
         {back}
@@ -63,20 +53,18 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       </div>
     );
   }
-  if (isError) {
-    return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void refetch()} /></div>;
+  if (api.isError) {
+    return <div className="space-y-4">{back}<ReadErrorState onRetry={() => void api.refetch()} /></div>;
   }
-  if (isLoading || !a) {
+  // 401(로그인으로 가는 중)도 여기 — 오류 카드 대신 자리를 지킨다.
+  if (api.isLoading || !a) {
     return <div className="space-y-4">{back}<AssignmentDetailSkeleton /></div>;
   }
 
-  // 문항은 더 깊은 레이어(mock) — 시드 과제는 존재, 신규 DB 과제는 빈 배열로 안내.
-  // 로컬 발사분은 getQuestionsForAssignment 로 해석 — 오답 재발사(requizQuestionIds) 계약을
-  // 개요도 solve/result 와 동일하게 읽어 재발사 과제가 잘못 표시되지 않게 한다 (Codex #186 R4).
-  const questions = localA ? getQuestionsForAssignment(localA) : getQuestionsByAssignment(id);
+  const questions = studentQuestionsOf(a);
 
-  const isInProgress = a.state === 'in-progress';
-  const isSubmitted = a.state === 'submitted';
+  const isSubmitted = a.state === 'submitted' || submitted !== undefined;
+  const isInProgress = !isSubmitted && a.state === 'in-progress';
   const isExam = a.mode === 'exam';
 
   const ctaHref =
@@ -88,7 +76,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
     : '시작';
   // 보이는 글자는 단어, 잃은 뜻은 낭독기 이름에 ([07 § 6.6.2(3)])
   const ctaAria =
-    isSubmitted ? '채점 결과 보기'
+    isSubmitted ? '제출한 결과 보기'
     : isInProgress ? `이어서 풀기 — ${a.completedCount + 1}번째 문항부터`
     : '지금 시작하기';
 
@@ -131,7 +119,7 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
       )}
 
       <FlywheelNote>
-        쓰는 동안 자동으로 저장돼요. 마음 편히 풀어요. 제출하면 선생님 채점 큐로 흘러가요.
+        답은 제출할 때 한 번에 선생님께 가요. 중간에 나가면 쓴 답은 남지 않으니 한 번에 끝까지 풀어요.
       </FlywheelNote>
     </div>
   );
@@ -154,27 +142,27 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
           </AlertCard>
         )}
 
-        {/* 문항 미리보기 */}
+        {/* 문항 미리보기 — 선생님이 낸 문항 그대로. 정답은 서버에만 있다. */}
         <section className="bg-card rounded-2xl border p-4">
           <h3 className="text-pullim-slate-900 text-sm font-bold">문항 구성</h3>
           <p className="text-pullim-slate-500 mt-0.5 text-2xs">
-            {questions.length}개 시드 문항 — 실제 풀이는 워크스페이스에서 진행해요.
+            {questions.length}문항 — 풀이는 풀이 화면에서 해요.
           </p>
           {questions.length === 0 ? (
-            <p className="text-pullim-slate-400 mt-3 text-2xs">새 과제는 문항이 풀이 워크스페이스에서 자동 생성돼요.</p>
+            <p className="text-pullim-slate-400 mt-3 text-2xs">아직 문항이 없어요. 선생님이 문항을 넣으면 여기 보여요.</p>
           ) : (
             <ul className="mt-3 space-y-1">
               {questions.map(q => {
-                const meta = questionTypeMeta[q.type as keyof typeof questionTypeMeta];
-                const TypeIcon = meta?.icon;
+                const meta = questionTypeMeta[q.type];
+                const TypeIcon = meta.icon;
                 return (
                   <li key={q.id} className="text-pullim-slate-600 flex items-center gap-2 text-2xs">
                     <span className="bg-pullim-slate-100 text-pullim-slate-500 font-mono inline-flex h-5 w-5 items-center justify-center rounded text-micro font-bold">
                       {q.order}
                     </span>
                     <span className="text-pullim-slate-400 font-mono text-2xs inline-flex items-center gap-0.5">
-                      {TypeIcon && <TypeIcon className="h-3 w-3" aria-hidden />}
-                      {meta?.label ?? q.type}
+                      <TypeIcon className="h-3 w-3" aria-hidden />
+                      {meta.label}
                     </span>
                     <span className="truncate">{q.prompt}</span>
                   </li>

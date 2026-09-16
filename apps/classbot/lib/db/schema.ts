@@ -565,7 +565,8 @@ export const assignments = pgTable(
 );
 
 /**
- * 학생 제출 — FE `recordSubmission`(동일 assignment+student upsert) 의미의 실전판.
+ * 학생 제출 — 종전 FE `recordSubmission`(동일 assignment+student upsert · FE PR 6 에서 은퇴) 의미의 실전판.
+ * 제출의 정본은 이제 pullim-api `assignment_submissions` 다 — 이 표는 은퇴 대상(계획 PR 8).
  * (BE assignment 모듈이 소비 — DDL 제안: proc/spec/2026-07-03_be-assignment-submissions-ddl.md §2)
  *
  * 계약 범위: 이 테이블은 **최종 제출 스냅샷**이다(FE Submission 1:1). 풀이 진행 라이프사이클
@@ -584,11 +585,11 @@ export const submissions = pgTable(
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
     /** { [questionId]: answer } — FE Submission.answers 그대로 */
     answers: jsonb('answers').$type<Record<string, string>>().notNull().default({}),
-    /** 0~100 정수 (FE computeMockScore 산출) */
+    /** 0~100 정수 (종전 FE computeMockScore 산출 — FE PR 6 부터 점수는 정본 서버가 센다) */
     scorePercent: integer('score_percent').notNull(),
   },
   (t) => ({
-    // 멱등 invariant — recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
+    // 멱등 invariant — 종전 recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
     byAssignmentStudent: uniqueIndex('submissions_assignment_student_uq')
       .on(t.assignmentId, t.studentId),
     byAssignment: index('submissions_assignment_idx').on(t.assignmentId),

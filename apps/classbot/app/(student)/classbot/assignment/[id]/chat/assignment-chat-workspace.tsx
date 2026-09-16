@@ -29,7 +29,7 @@ import {
   useAssignmentChatTurns,
   type AssignmentChatTurn,
 } from '@/lib/store/assignment-chat';
-import { useAssignmentStore } from '@/lib/store/assignments';
+import { useSubmissionResult } from '@/lib/store/submission-result';
 import { useRosterMe } from '@/lib/current-user';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { cn } from '@/lib/utils';
@@ -150,7 +150,7 @@ export function AssignmentChatWorkspace({
       <ContextRail
         railWidth="md"
         stickyRail
-        rail={<AssignmentTracker assignment={assignment} questions={questions} gradingMode={gradingMode} studentId={me.id} />}
+        rail={<AssignmentTracker assignment={assignment} questions={questions} gradingMode={gradingMode} />}
       >
         <section className="bg-card flex min-h-0 flex-col rounded-2xl border">
           <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
@@ -265,19 +265,19 @@ function ProgressStrip({ assignment: a, gradingMode }: { assignment: AssignmentR
 
 /* ─── 곁의 진행 트래커 — 과제 유형에 따라 다르다 ─── */
 function AssignmentTracker({
-  assignment: a, questions, gradingMode, studentId,
+  assignment: a, questions, gradingMode,
 }: {
   assignment: AssignmentReadRow;
   questions: AssignmentQuestion[];
   gradingMode: GradingMode;
-  studentId: string;
 }) {
-  // 낸 답 — 풀이 화면이 남긴 제출 기록. 대화 화면은 읽기만 한다.
-  const submissions = useAssignmentStore(s => s.submissions);
-  const answers = useMemo(
-    () => submissions.find(s => s.assignmentId === a.id && s.studentId === studentId)?.answers ?? {},
-    [submissions, a.id, studentId],
-  );
+  // 낸 답 — 이 세션에서 제출한 결과(`lib/store/submission-result.ts`). 대화 화면은 읽기만 한다.
+  // 새로고침하면 비는데, 그때는 「아직 안 냈어요」로 보인다 — 학생 본인의 제출을 되읽는 문이 정본에 없어서다.
+  const result = useSubmissionResult(a.id);
+  const answers = useMemo<Record<string, string>>(() => {
+    const raw = result?.answers ?? {};
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+  }, [result]);
 
   if (questions.length === 0) {
     return (

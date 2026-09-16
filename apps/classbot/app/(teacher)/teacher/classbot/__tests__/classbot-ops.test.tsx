@@ -17,6 +17,15 @@ import { render, screen, within } from '@testing-library/react';
 import * as teacherOps from '@/lib/mock/classbot-teacher-ops';
 import TeacherClassbotPage from '../page';
 
+// 낸 과제·반은 정본 훅에서 온다(FE PR 6) — 이 파일은 봇 목록 규칙만 보므로 둘 다 빈 목록으로 세운다.
+jest.mock('@/hooks/api/assignment-dispatch', () => ({
+  useTeacherAssignments: () => ({ data: [], isPending: false, isError: false, error: null }),
+}));
+jest.mock('@/hooks/api/classroom', () => ({
+  ...jest.requireActual('@/hooks/api/classroom'),
+  useOperatorClasses: () => ({ data: [], isPending: false, isError: false, error: null }),
+}));
+
 /** 「봇이 하나도 없을 때」를 보려고 운영 조인을 비우는 스위치 */
 const mockNoBots = { on: false };
 jest.mock('@/lib/mock/classbot-teacher-ops', () => {
@@ -90,8 +99,8 @@ describe('걷어낸 자리', () => {
 
     const dispatched = screen.getByTestId('dispatched-section');
     expect(within(dispatched).queryByText(/오늘\s*\d+\s*건/)).not.toBeInTheDocument();
-    // 남은 부제는 store 가 실제로 세는 값이다
-    expect(within(dispatched).getByText(/학생 풀이 진행 \d+\/\d+문항/)).toBeInTheDocument();
+    // 남은 부제는 정본 목록이 실제로 세는 값이다 — 건수와 문항 수. 학생 풀이 진행은 상세(`/submissions`)가 답한다.
+    expect(within(dispatched).getByText(/\d+건 · \d+문항/)).toBeInTheDocument();
   });
 
   it('「등록 학생 관리」 섹션은 없다', () => {
