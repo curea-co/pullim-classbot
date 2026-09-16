@@ -32,7 +32,7 @@ RUN bun run build
 # ============================================================
 # Stage 2: prod-install
 #   bun install --production --frozen-lockfile 로 bun.lock 에 고정된 런타임 의존성만 취득.
-#   bcrypt 의 native addon 빌드 툴은 본 스테이지에서 완결 (runtime 에는 반입하지 않음).
+#   런타임 의존성은 전부 순수 JS 다 — native addon 빌드 툴이 필요 없다(bcrypt 폐기).
 #   bun 의 symlink 화된 node_modules (.bun 내용주소 스토어 + 상대 symlink) 를
 #   그대로 runtime 에 넘긴다. 스토어는 한 번만 저장되어 dedup 된다.
 # ============================================================
@@ -48,18 +48,13 @@ COPY packages/api-client/package.json  ./packages/api-client/package.json
 COPY apps/backend/package.json         ./apps/backend/package.json
 COPY apps/classbot/package.json        ./apps/classbot/package.json
 
-# bcrypt native addon 빌드 툴 (본 스테이지에서 완결)
-RUN apt-get update -qq && apt-get install -y --no-install-recommends \
-      python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
-
 # bun.lock 에 고정된 production 의존성만, 그것도 backend workspace 범위로만 취득.
 # --filter 없으면 FE(classbot) 의존(next/@next-swc 등 ~700MB)까지 .bun 스토어에 깔린다.
 RUN bun install --production --frozen-lockfile --filter @pullim-classbot/backend
 
 # ============================================================
 # Stage 3: runtime
-#   oven/bun:1-slim — prod-install 과 동일 ABI 라 bcrypt native addon 이 동작
+#   oven/bun:1-slim — prod-install 과 같은 베이스로 node_modules 레이아웃을 그대로 쓴다
 # ============================================================
 FROM oven/bun:1-slim AS runtime
 
@@ -87,7 +82,7 @@ USER appuser
 
 EXPOSE 4032
 
-# /api/health 헬스체크 — DB 연결 후 Nest 가 응답을 시작하는 시점까지 여유를 둔다
+# /api/health 헬스체크 — Nest 부팅 완료까지 여유를 둔다(DB 연결은 더 이상 없다)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://localhost:' + (process.env.PORT||4032) + '/api/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
