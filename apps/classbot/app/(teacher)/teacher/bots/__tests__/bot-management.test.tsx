@@ -160,3 +160,64 @@ describe('봇별 설정', () => {
     await expect(renderDetail('cb_없는봇')).rejects.toThrow('NEXT_NOT_FOUND');
   });
 });
+
+/**
+ * 안전 등급 시간대 스케줄 — **같은 화면이 제 말을 뒤집지 않는지.**
+ *
+ * 스케줄이 상수 한 벌이던 때(`08:00 L1 / 15:00 L3 / 19:00 L3 / 22:00 L5`) L4 봇에서
+ * 머리 배지는 「L4」인데 바로 아래 L1~L5 표에서 L4 에 「쓰는 중」이 안 붙었다 —
+ * 스케줄 어디에도 L4 가 없어서다. 가운데 두 칸이 그 봇의 등급을 읽게 고친 자리를 여기서 잡는다.
+ */
+describe('봇별 설정 — 안전 등급 스케줄은 그 봇의 등급을 따라간다', () => {
+  /** L4 봇(영어봇 `cb_002`) — 부딪치던 자리. 등급의 권위는 카탈로그라 여기서 집어 온다 */
+  function l4Bot() {
+    const bot = getManagedBots().find(b => b.scope === 4);
+    if (!bot) throw new Error('카탈로그에 L4 봇이 없다 — 이 회귀 테스트의 전제가 깨졌다');
+    return bot;
+  }
+
+  /** 스케줄 한 칸이 그린 등급 (`L1`~`L5`) */
+  function slotShort(slotId: string) {
+    return within(screen.getByTestId(`safety-slot-${slotId}`)).getByText(/^L[1-5]$/).textContent;
+  }
+
+  /** L1~L5 표에서 그 등급에 「쓰는 중」이 붙었나 */
+  function isInUse(level: number) {
+    return within(screen.getByTestId(`safety-level-${level}`)).queryByText('쓰는 중') !== null;
+  }
+
+  it('L4 봇이면 방과 후·저녁 두 칸이 L4 로 그려진다', async () => {
+    const bot = l4Bot();
+    await renderDetail(bot.botId);
+
+    expect(slotShort('slot-after')).toBe('L4');
+    expect(slotShort('slot-evening')).toBe('L4');
+  });
+
+  it('L4 봇의 L1~L5 표에서 L4 가 「쓰는 중」이다 — 머리 배지와 어긋나지 않는다', async () => {
+    const bot = l4Bot();
+    await renderDetail(bot.botId);
+
+    expect(within(screen.getByTestId('bot-scope-chip')).getByText('L4')).toBeInTheDocument();
+    expect(isInUse(4)).toBe(true);
+  });
+
+  it('양 끝 칸은 고정이다 — 수업 시간 L1, 밤 L5', async () => {
+    const bot = l4Bot();
+    await renderDetail(bot.botId);
+
+    expect(slotShort('slot-class')).toBe('L1');
+    expect(slotShort('slot-night')).toBe('L5');
+    expect(isInUse(1)).toBe(true);
+    expect(isInUse(5)).toBe(true);
+  });
+
+  // 봇 하나가 우연히 맞는 것으로는 부족하다 — 카탈로그의 모든 봇에 같은 말이 서야 한다
+  it.each(getManagedBots().map(b => [b.botId, b.scope] as [string, number]))(
+    '%s — 머리 배지가 읽은 등급이 L1~L5 표에서도 「쓰는 중」이다',
+    async (botId, scope) => {
+      await renderDetail(botId);
+      expect(isInUse(scope)).toBe(true);
+    },
+  );
+});
