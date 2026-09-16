@@ -1,0 +1,2 @@
+# Playwright 로그인 레인이 남기는 풀림 OS 세션(storageState) — 절대 커밋하지 않는다 (playwright.config.ts STORAGE_STATE)
+tests/e2e/.auth/
