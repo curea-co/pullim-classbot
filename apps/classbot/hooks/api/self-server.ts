@@ -66,7 +66,7 @@ export type ServerIdentityState = 'pending' | 'server' | 'demo';
  *
  * 그 플래그로 갈랐다면 개발 쿠키를 쓴 로컬·dev preview 전체가 데모로 떨어져 **서버에 한 번도
  * 안 가고**, 그러면서 prod 만 서버를 부르는 정반대 동작이 된다. 그래서 여기서는 서버의
- * 판정 조건을 그대로 다시 적는다 — **JWT 세션이거나, 유효한 개발 신원 쿠키이거나.**
+ * 판정 조건을 그대로 다시 적는다 — **유효한 개발 신원 쿠키인가.**
  *
  * `useDevIdentityId()` 는 prod 호스트에서 **항상 빈 문자열**이다(`resolveDevIdentity` 가
  * 호스트로 먼저 거른다). 그래서 prod 에 낡은 쿠키가 남아 있어도 데모로 떨어진다 —
@@ -83,7 +83,7 @@ export type ServerIdentityState = 'pending' | 'server' | 'demo';
  * 같은 함정을 이미 따로 막고 있었고(`useRecordSelfStudyDay` 의 ⛔ ②), 읽기 쪽에는
  * 그 방어가 없었다. 그래서 판정을 boolean 이 아니라 **셋**으로 돌려준다:
  *
- *  - `'server'` — 서버에 물어봐도 되는 명의다(JWT 세션이거나 개발 신원 쿠키).
+ *  - `'server'` — 서버에 물어봐도 되는 명의다(개발 신원 쿠키).
  *  - `'demo'`   — 정말 아무도 아니다(복원이 끝났는데 세션이 없다). 정본은 localStorage.
  *  - `'pending'`— **아직 모른다.** 어느 쪽 데이터도 보여 주지 않는다(로딩으로 그린다).
  *

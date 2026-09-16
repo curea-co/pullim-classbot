@@ -5,13 +5,20 @@
  * mock 폴백 없이 **인증 + 실DB** 로 소비하기 위한 client fetch.
  *
  * 왜 별도 헬퍼인가:
- *  - `@pullim-classbot/api-client` 의 `authRequest` 는 base URL 이 NestJS BE(:4032)라
- *    그쪽으로 보낸다. 그러나 위 읽기 라우트는 **classbot 앱 자신의 route handler**
- *    (같은 오리진, `/api/*`)다. 따라서 base 를 붙이지 않고 상대 경로로 친다.
- *  - 라우트 핸들러는 `Authorization: Bearer <access>` 의 JWT 를 서명 검증해 명의를
- *    판정한다(`getCurrentUserIdFromRequest`). 토큰은 `tokenManager`(쿠키)에서 읽는다.
- *  - 미로그인(토큰 없음)·만료 시 라우트가 401 을 준다 → `UnauthorizedReadError` 로
- *    변환해 호출부가 "로그인 필요" 상태로 게이트한다(mock 누수 없음 — D1 로그인월).
+ *  - 이 읽기 라우트는 **classbot 앱 자신의 route handler**(같은 오리진, `/api/*`)다.
+ *    따라서 base URL 을 붙이지 않고 상대 경로로 친다. (종전에는 base 가 classbot 자체
+ *    BE(:4032)를 가리키던 `authRequest` 와 갈라야 해서 이 헬퍼가 따로 있었는데, 그
+ *    래퍼는 걷혔다.)
+ *  - 라우트 핸들러의 명의 판정은 `getCurrentUserIdFromRequest` 다.
+ *  - 신원이 없으면 라우트가 401 을 준다 → `UnauthorizedReadError` 로 변환해 호출부가
+ *    "로그인 필요" 상태로 게이트한다(mock 누수 없음 — D1 로그인월).
+ *
+ * ⚠️ **이 헬퍼는 지금 늘 게이트를 세운다.** `tokenManager` 에 값을 넣던 유일한 주체가
+ * 걷힌 클래스봇 자체 로그인 폼이었고, OS SSO 세션은 HttpOnly 쿠키라 이 스토어를 쓰지
+ * 않는다. 그래서 `getAccessToken()` 은 항상 null 이고 아래 선차단에 걸려 **서버에 가지
+ * 않는다.** 라우트도 더는 `Authorization` 헤더를 보지 않는다(`lib/current-user.ts`).
+ * 이 세 면(`/api/bots`·`/api/assignments`·`/api/grades`)을 실제로 열려면 읽기 경로를
+ * 신원 쿠키 모델로 재배선해야 하고, 그건 **동작 변경**이라 별건이다.
  */
 
 import { tokenManager } from '@pullim-classbot/api-client/token-manager';

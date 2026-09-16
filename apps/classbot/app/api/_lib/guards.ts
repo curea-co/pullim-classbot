@@ -11,10 +11,10 @@
  * `app/api/assignments/[id]/route.ts` 가 학생 쪽에서 쓰는 것과 같은 규약이다.
  *
  * 역할을 왜 도메인 `users.role` 로 다시 확인하나:
- *  - 공유 `UserRole` 타입에는 아직 `parent` 가 없다(student/teacher/admin). 그래서 JWT claim
- *    만으로는 학부모를 식별할 수 없고, 학부모 라우트가 영영 열리지 않는다.
- *  - `users` 는 이 앱 도메인의 역할 권위다. 행이 있으면 그 값을 쓰고, 없으면(가입 직후 등)
- *    토큰 claim 으로 떨어진다. 토큰이 teacher 라 해도 도메인 행이 student 면 막힌다 —
+ *  - 공유 `UserRole` 타입에는 아직 `parent` 가 없다(student/teacher/admin). 그래서 공유
+ *    claim union 만으로는 학부모를 식별할 수 없고, 학부모 라우트가 영영 열리지 않는다.
+ *  - `users` 는 이 앱 도메인의 역할 권위다. 행이 있으면 그 값을 쓰고, 없으면 신원 쿠키의
+ *    role 로 떨어진다. 쿠키가 teacher 라 해도 도메인 행이 student 면 막힌다 —
  *    느슨해지는 방향이 아니라 조여지는 방향이라 안전하다.
  *
  * ⚠️ 이 디렉터리는 `_` 로 시작해 Next.js App Router 의 라우트 세그먼트에서 제외된다
@@ -37,8 +37,8 @@ export interface Actor {
   id: string;
   role: ActorRole;
   /**
-   * 그 사용자 **명의로** 처리해도 되는가 — JWT 세션이거나, prod 가 아닌 곳의 allowlist
-   * 개발 신원(`lib/dev-identity.ts`). 「인증됐나」(`isAuthenticated`)와 이름을 가른 이유는
+   * 그 사용자 **명의로** 처리해도 되는가 — prod 가 아닌 곳의 allowlist 개발 신원
+   * (`lib/dev-identity.ts`). 「인증됐나」(`isAuthenticated`)와 이름을 가른 이유는
    * `lib/current-user.ts` 머리주석에 있다 — 개발 쿠키는 인증이 아니라 명의다.
    */
   isIdentified: boolean;
@@ -133,8 +133,8 @@ export function readTrimmed(value: unknown): string {
 /*
   ── 역할 가드 (1/6 이 세운 것) ──────────────────────────────────────────────
   가드는 **두 질문을 순서대로** 묻는다.
-   1. **누구인지 아는가**(`isIdentified`) — JWT 세션이거나, prod 가 아닌 곳의 allowlist
-      개발 신원(`lib/dev-identity.ts`). 모르면 401.
+   1. **누구인지 아는가**(`isIdentified`) — prod 가 아닌 곳의 allowlist 개발 신원
+      (`lib/dev-identity.ts`). 모르면 401. prod 에는 이 경로의 신원이 없다.
    2. **그 역할이 이 표면을 쓸 수 있는가** — 아니면 403.
 
   둘을 갈라 두는 이유: 개발용 신원이 생기면서 서버가 돌려주는 role 이 셋(학생·교사·학부모)이
