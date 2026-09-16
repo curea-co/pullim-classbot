@@ -1,7 +1,8 @@
 // ============================================================================
 // OsSsoAuthProvider — 풀림 OS SSO 인증 Provider (쿠키 기반).
 //
-// 기존 ApiAuthProvider(classbot BE 이메일/비번 + Bearer)를 대체한다. 세션은 토큰을
+// 종전 ApiAuthProvider(classbot BE 이메일/비번 + Bearer)를 대체했고, 그쪽은 걷혔다.
+// 이제 이 앱의 유일한 `IAuthProvider` 구현체다. 세션은 토큰을
 // JS 가 들고 있지 않고, OS 로그인이 set 한 **HttpOnly 세션 쿠키**를 pullim-api `/me`
 // 호출(credentials:'include')로 확인한다. 로그인 진입은 redirect(`osLoginUrl`)로 처리하므로
 // signInWithEmail 은 사용하지 않는다.
