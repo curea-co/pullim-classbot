@@ -42,6 +42,8 @@ function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
     organization: seeded.organization,
     publishedAt: null,
     enrolledCount: seeded.enrolledCount,
+    // 이 카탈로그는 교사 봇(`cb_001`…)뿐이다 — 풀림 공식 봇은 마켓 응답으로만 온다.
+    isOfficial: false,
   };
 }
 

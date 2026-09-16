@@ -91,6 +91,28 @@ const PUBLISHED_ROW = {
   publishBlurb: '같이 미적분 뜯어봐요',
 };
 
+/**
+ * 마켓 라우트의 select 가 돌려주는 한 행.
+ *
+ * **`teacherId` 가 들어 있다** — 실제 select 는 그 칸을 늘 읽어 온다(값이 null 이거나
+ * 아니거나). 픽스처에서 빼면 「소유자가 없는 봇 = 공식 봇」 판별이 `undefined` 를 보게 돼
+ * 테스트가 라우트와 다른 것을 재게 된다.
+ */
+const MARKET_ROW = {
+  botId: 'cb_001',
+  name: '수학이 형',
+  avatarEmoji: '🧑‍🏫',
+  subject: '수학Ⅱ',
+  grade: '고2',
+  tone: '친근',
+  greeting: '안녕!',
+  blurb: null,
+  teacherName: '김수학 선생님',
+  organization: '풀림',
+  publishedAt: new Date('2026-09-01T00:00:00Z'),
+  teacherId: 'teacher_001',
+};
+
 beforeAll(() => {
   process.env.JWT_SECRET = SECRET;
 });
@@ -385,24 +407,7 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
   it('역할을 읽지 않는다 — users 조회 자체가 없다', async () => {
     // 큐에 넣어 둔 한 묶음은 **게시 봇 조회**가 가져가야 한다. 역할을 물으러 갔다면
     // 그걸 먼저 삼켜 목록이 비고, 아래 기대가 깨진다.
-    mockSelectQueue = [
-      [
-        {
-          botId: 'cb_001',
-          name: '수학이 형',
-          avatarEmoji: '🧑‍🏫',
-          subject: '수학Ⅱ',
-          grade: '고2',
-          tone: '친근',
-          greeting: '안녕!',
-          blurb: null,
-          teacherName: '김수학 선생님',
-          organization: '풀림',
-          publishedAt: new Date('2026-09-01T00:00:00Z'),
-        },
-      ],
-      [{ botId: 'cb_001', count: 3 }],
-    ];
+    mockSelectQueue = [[MARKET_ROW], [{ botId: 'cb_001', count: 3 }]];
 
     const res = await getMarketplaceBots(cookieReq('student_001'));
     const body = (await res.json()) as {
@@ -423,6 +428,34 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
     const { text, params } = render(whereSpy.mock.calls[0][0]);
     expect(text).toContain('is_published');
     expect(params).toContain(true);
+  });
+
+  /*
+    풀림 공식 봇은 **컬럼이 아니라 소유자 유무로 갈린다**(spec `03 § 4.13.1`).
+    그래서 여기서 재는 것은 둘이다 — 파생이 맞게 도는가, 그리고 판별에 쓴 `teacherId` 가
+    응답에 새지 않는가. 뒤엣것을 안 재면 「파생만 더하고 select 는 그대로 흘리는」 판이
+    조용히 통과한다.
+  */
+  it('소유자가 없는 행은 공식 봇이고, 소유자 id 는 응답에 없다', async () => {
+    mockSelectQueue = [
+      [
+        { ...MARKET_ROW, botId: 'cb_official_math', teacherId: null },
+        { ...MARKET_ROW, botId: 'cb_001', teacherId: 'teacher_001' },
+      ],
+      [],
+    ];
+
+    const res = await getMarketplaceBots(cookieReq('student_001'));
+    const body = (await res.json()) as {
+      bots: Array<{ botId: string; isOfficial: boolean }>;
+    };
+
+    expect(body.bots.map((b) => [b.botId, b.isOfficial])).toEqual([
+      ['cb_official_math', true],
+      ['cb_001', false],
+    ]);
+    expect(body.bots[0]).not.toHaveProperty('teacherId');
+    expect(body.bots[1]).not.toHaveProperty('teacherId');
   });
 });
 
@@ -451,5 +484,31 @@ describe('GET /api/marketplace/bots/[botId] — 안 걸린 봇은 없는 봇과 
     const res = await getMarketplaceBot(anonReq(), botCtx);
 
     expect(res.status).toBe(401);
+  });
+
+  // 단건도 목록과 **같은 판별**이어야 한다. 한쪽만 고치면 목록에서 공식이던 봇이
+  // 상세로 들어가는 순간 남의 봇이 된다.
+  it('소유자가 없으면 공식 봇이고, 소유자 id 는 응답에 없다', async () => {
+    mockSelectQueue = [
+      [{ ...MARKET_ROW, botId: 'cb_official_math', teacherId: null }],
+      [{ count: 0 }],
+    ];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { isOfficial: boolean } };
+
+    expect(res.status).toBe(200);
+    expect(body.bot.isOfficial).toBe(true);
+    expect(body.bot).not.toHaveProperty('teacherId');
+  });
+
+  it('소유자가 있으면 공식 봇이 아니다', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ count: 3 }]];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { isOfficial: boolean } };
+
+    expect(body.bot.isOfficial).toBe(false);
+    expect(body.bot).not.toHaveProperty('teacherId');
   });
 });

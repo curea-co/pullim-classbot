@@ -349,7 +349,9 @@ async function main(): Promise<void> {
     console.log(`    ${room.label}   ${formatJoinCode(code)}   빈 방`);
   }
   console.log('');
-  console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
+  // 풀림 공식 봇 셋은 `seed.ts` 가 깔고 이 스크립트는 건드리지 않는다 — 소유자가 없어
+  // 위의 내리기(`cb_demo_%` · `cb_001`)에 잡히지 않는다. 그래서 마켓에 늘 넷이 서 있다.
+  console.log('  봇 마켓   교사가 공유한 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요) · 풀림 공식 봇 3개');
   console.log('');
   const minjun =
     demoStudentEnrollments === 0
