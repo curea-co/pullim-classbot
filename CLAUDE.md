@@ -10,7 +10,7 @@
 
 > **이 항목은 본 리포의 최상위 규칙이다. 작업 편의·속도보다 우선하며 반드시 준수한다.**
 
-- **FE 변경과 BE 변경을 하나의 PR에 함께 담지 않는다.** PR은 변경 단위로 분리한다 — 예: `apps/classbot`(FE) PR / `apps/backend`(BE) PR / `packages/*`(공유) PR 을 각각 따로 올린다.
+- **FE 변경과 BE 변경을 하나의 PR에 함께 담지 않는다.** PR은 변경 단위로 분리한다 — 예: `apps/classbot`(FE) PR / `packages/*`(공유) PR 을 각각 따로 올린다. **BE PR 은 이 리포가 아니라 형제 리포 `pullim-api` 에** 올라간다(§ 2 「apps/backend」 절) — 리포가 갈려 있으니 FE/BE 는 자연히 섞이지 않는다.
 - **이유**: FE+BE를 한꺼번에 올리면 PR diff가 **리뷰어(사람·AI 에이전트)가 한 번에 탐지·수렴할 수 있는 depth를 초과**한다. 그 결과 매 라운드 새 지적이 나오며 리뷰가 무한 반복되어 머지가 끝나지 않는다. 단위를 쪼개면 각 PR diff가 작아져 리뷰가 수렴한다. (PR 자동 AI 리뷰 봇(Codex 워크플로)은 2026-09-15 폐지.)
 - **한 PR = 한 계층/한 단위.** 공유 타입·패키지 변경은 그것을 쓰는 FE/BE PR보다 **먼저** 별도 PR로 올린다.
 - 부득이 FE/BE를 한 PR에 묶어야 하는 예외는 **사용자 명시 승인 후에만** 허용한다.
@@ -32,7 +32,7 @@
 pullim-classbot/
 ├── apps/
 │   ├── classbot/       # Next.js 16 (App Router) — 클래스봇 추출본 FE (port 3032)
-│   └── backend/        # NestJS 11 — Phase β 이후 본격 (port 4032, 현재 health endpoint만)
+│   └── backend/        # NestJS 11 스켈레톤 — GET /api/health 만 (port 4032). BE 정본은 형제 리포 pullim-api 의 src/classbot (ADR-063)
 ├── packages/
 │   ├── types/          # BE↔FE 공유 타입 (현재 빈 placeholder)
 │   ├── api-client/     # FE → BE fetch 래퍼 (현재 빈 placeholder)
@@ -67,12 +67,14 @@ pullim-classbot/
   — [apps/classbot/CLAUDE.md § 3.1](apps/classbot/CLAUDE.md#31-puds-디자인-시스템--3레인-판별표)
 - **alias**: `@/*` → `apps/classbot/*` (모노레포 root 아님)
 
-### apps/backend — NestJS skeleton
+### apps/backend — NestJS skeleton (BE 정본이 아니다)
 
-- 현재 `app.controller.ts` 의 `GET /api/health` 만 존재
-- Phase β 부터 classbot 도메인 모듈(`apps/backend/src/modules/classbot/`) 추가 예정
-- pullim 패턴 그대로 차용: controller / use-cases / service / interface / infrastructure
-- 새 도메인 모듈 추가는 **사용자 명시 확인 필요**
+- **클래스봇 BE·DB 정본은 형제 리포 `pullim-api` 의 `src/classbot`** 이다 — ADR-063(2026-07-04 결정 · 봇 분리는 ADR-091 `[예정]` — pullim-api 브랜치 `docs/classbot-classroom-spine`, PR 승인 대기), 표면 `api.pullim.ai/classbot/*`,
+  OS 쿠키를 서버가 검증(`JwtVerifyGuard` + `EntitlementGuard('classbot')`). 설계 문서는 그 리포 `docs/design/services/classbot/{api,authz,data-model}.md`.
+  이 리포 쪽 설계 정본은 [`proc/spec/2026-09-16_classbot-completion-design.md`](proc/spec/2026-09-16_classbot-completion-design.md).
+- `apps/backend` 는 `app.controller.ts` 의 `GET /api/health` 스켈레톤만이다. **도메인 모듈을 여기 세우지 않는다** — BE 작업은 pullim-api 리포에 PR 로 올린다(그 리포의 `dev` 로).
+- *(`[2026-09-16 정정]` 종전 「Phase β 부터 classbot 도메인 모듈(`apps/backend/src/modules/classbot/`) 추가 예정 · pullim 패턴 차용 · 새 도메인 모듈 추가는 사용자 명시 확인 필요」는 낡았다 — 2026-07-04 ADR-063 이 정본을 pullim-api 로 정했고, 2026-09-16 완성 설계가 이 리포의 `app/api/**` 까지 「정본과 겹치는 것은 은퇴」로 못박았다. 이 절이 그 결정을 두 달 넘게 반영하지 않고 있었다.)*
+- `apps/classbot/app/api/**`(Next route handler + Drizzle)도 BE 정본이 아니다 — 로컬 전용이고, 정본과 겹치는 계열(반·봇·챗·과제)은 은퇴 대상이다([`proc/spec/05 § 11.1`](proc/spec/05-business-rules.md)).
 
 ### packages/* — 공유 패키지
 
@@ -116,7 +118,7 @@ bun --filter @pullim-classbot/backend <script>
 
 ### 해도 되는 것 (편집)
 - `apps/classbot/` 내 페이지·컴포넌트·mock·lib 수정·신규 (단일 도메인 범위)
-- `apps/backend/src/modules/classbot/` 내 BE 작업 (Phase β 이후)
+- ~~`apps/backend/src/modules/classbot/` 내 BE 작업 (Phase β 이후)~~ *(`[2026-09-16 정정]` BE 작업은 pullim-api 리포 — § 2 「apps/backend」 절)*
 
 ### 사용자 명시 확인 필요 (글로벌 작업)
 - root 파일(`package.json`, `turbo.json`, `tsconfig.base.json`, `docker-compose.yml`) 편집
