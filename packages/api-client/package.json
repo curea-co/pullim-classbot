@@ -13,18 +13,6 @@
     "./token-manager": {
       "types": "./src/token-manager.ts",
       "default": "./src/token-manager.ts"
-    },
-    "./auth-api": {
-      "types": "./src/auth-api.ts",
-      "default": "./src/auth-api.ts"
-    },
-    "./jwt": {
-      "types": "./src/jwt.ts",
-      "default": "./src/jwt.ts"
-    },
-    "./jwt-verify": {
-      "types": "./src/jwt-verify.ts",
-      "default": "./src/jwt-verify.ts"
     }
   },
   "type": "module",
