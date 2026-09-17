@@ -19,6 +19,7 @@ import { dDayLabel, shortTimeLabel } from '@/lib/assignment-labels';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import { isDueSoon, modeOf, remainingOf, statusLabels, statusOf, toTeacherClass } from '../assignment-filters';
+import { RemindUnsubmitted } from './remind-unsubmitted';
 
 type Params = Promise<{ id: string }>;
 
@@ -29,12 +30,14 @@ type Params = Promise<{ id: string }>;
  * `GET /classbot/assignments/:id/submissions`(operator 전용). 종전의 localStorage 스토어 + mock 명단(`classRoster`)은
  * PR 6 에서 걷었다. 마감은 지금 기준이다 — 정본 `dDay` 는 낼 때 굳힌 정수라 `dispatchedAt` 로 다시 센다(`remainingOf`).
  *
+ * **미제출 리마인드는 섰다**(계획 PR 5c) — 대상은 `GET /classes/:classId/members`(5b 가 연 문) 빼기 제출자이고,
+ * 발송은 `POST /classes/:classId/interventions` 다(`./remind-unsubmitted.tsx`). 명단을 못 읽으면 버튼이 없다.
+ *
  * 그래서 이 화면이 **아직 못 하는 것**을 버튼 대신 말로 둔다:
  *  - **고치기·회수** — 정본에 PATCH·회수 문이 없다(계획 §05 표에 그 줄이 없다). 죽은 버튼을 두지 않고 안내 한 줄.
- *  - **학생 이름** — 제출 행에는 sub 만 온다. 반 명단(`GET /classes/:id/members`)은 pullim-api PR 2·FE PR 5b 몫.
- *  - **미제출 명단·리마인드·코멘트·오답 다시 내기** — 종전의 리마인드 버튼·제출 현황 시트는 은퇴한 로컬 제출 레인
- *    (`pullim-assignments`)과 목 명단(`classRoster`) 위에 서 있었다. 실제 제출·실제 명단으로 다시 세우려면 명단 문이
- *    pullim-api 에 열려야 하고(5b), 그 뒤 **별건**으로 되살린다. 여기서는 낸 학생만 보인다.
+ *  - **학생 이름** — 제출 행에는 sub 만 온다. 명단 문이 열렸으니 조인할 수는 있지만 그 일은 이 PR 밖이다.
+ *  - **코멘트** — 학생 하나를 골라 보내는 자리라 반 상세 「명단」 탭의 줄 끝에 있다(`classroom-roster.tsx`).
+ *  - **오답 다시 내기(requiz)** — 그 문이 정본에 없다.
  */
 export default function TeacherAssignmentDetailPage({ params }: { params: Params }) {
   const { id } = use(params);
@@ -143,9 +146,18 @@ function AssignmentDetail({ id }: { id: string }) {
           description="낸 학생과 서버가 매긴 점수예요. 서술형이 있는 과제는 점수가 비어 있고, 채점 허브에서 봐요."
         />
         <SubmissionsPanel query={submissions} detail={a} />
+        {/* 미제출 리마인드 — 명단을 읽을 수 있을 때만 선다(`remind-unsubmitted.tsx`). */}
+        {submissions.isSuccess && (
+          <RemindUnsubmitted
+            classId={a.classId}
+            assignmentId={a.id}
+            assignmentTitle={a.title}
+            submissions={rows}
+          />
+        )}
         <p className="text-pullim-slate-500 text-2xs">
-          학생 이름은 반 명단이 정본에 붙으면 보여요 — 지금은 학생 식별자예요. 미제출 명단·리마인드·코멘트·오답 다시 내기는
-          반 명단 문이 정본에 열린 뒤 따로 다시 세워요.
+          학생 이름은 지금 학생 식별자로 보여요 — 반 명단과 이어 붙이는 일은 다음 차례예요. 한 학생에게 보내는 코멘트는
+          반 상세 「명단」 탭에서, 오답 다시 내기는 그 문이 정본에 생기면 여기에 붙여요.
         </p>
       </section>
 

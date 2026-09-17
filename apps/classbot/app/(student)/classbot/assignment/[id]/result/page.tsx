@@ -9,7 +9,6 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ScoreDisplay } from '@/components/classbot/score-display';
 import { TeacherCommentCard } from '@/components/classbot/teacher-comment-card';
-import { useInterventionRecipientId } from '@/lib/store/interventions';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,7 +35,6 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
   const api = useVisibleAssignment(id);
   const result = useSubmissionResult(id);
   const { rooms } = useMyRooms();
-  const interventionRecipientId = useInterventionRecipientId();
 
   const back = (
     <Link
@@ -176,9 +174,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
       />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
-        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단 (개입 스토어 파생, 없으면 미렌더).
+        {/* 선생님 한마디 — 교사 comment 개입이 있으면 최상단(정본 인박스 파생 · 없으면 미렌더).
             시험 모드는 결과 피드백 비공개 정책을 따른다. */}
-        {!isExam && <TeacherCommentCard assignmentId={id} studentId={interventionRecipientId} />}
+        {!isExam && <TeacherCommentCard assignmentId={id} />}
 
         {/* 낸 답 — 정오는 서버가 주지 않으니(🔒 정답 비노출) 「무엇을 냈나」만 보여 준다. */}
         {!isExam && submission !== undefined && questions.length > 0 && (

@@ -1,7 +1,8 @@
 /**
  * 반 상세 「명단」 탭 — 정본 명단(`GET /classes/:classId/members`)을 표로 그린다(계획 PR 5b).
  *
- * 못박는 것: 머리글 넷(이름 · 들어온 날 · 마지막 활동 · 활성) · 이름이 비면 지어내지 않는 것 · 마지막 활동을 분·시간·일로
+ * 못박는 것: 머리글 다섯(이름 · 들어온 날 · 마지막 활동 · 활성 · 보내기 — 다섯째는 계획 PR 5c 의 개입 버튼 자리로,
+ * 그 판의 동작은 `./intervention-dialog.test.tsx` 가 본다) · 이름이 비면 지어내지 않는 것 · 마지막 활동을 분·시간·일로
  * 끊고 그보다 오래면 들어온 날과 같은 시간대(Asia/Seoul)의 날짜인 것 · 비었을 때/남의 반(403)/없는 반(404)/장애 를
  * 갈라 말하는 것.
  */
@@ -67,7 +68,7 @@ describe('formatEnrolledAt', () => {
 });
 
 describe('ClassroomRoster', () => {
-  it('머리글 넷을 가진 표에 줄마다 이름 · 들어온 날 · 마지막 활동 · 활성을 그린다', () => {
+  it('머리글 다섯을 가진 표에 줄마다 이름 · 들어온 날 · 마지막 활동 · 활성 · 보내기를 그린다', () => {
     members = [
       member({ memberId: 'stu_1', displayName: '김학생', lastActiveAt: new Date(Date.now() - 5 * 60_000).toISOString() }),
       member({ memberId: 'stu_2', displayName: '이학생', isActive: false }),
@@ -75,7 +76,9 @@ describe('ClassroomRoster', () => {
     render(<ClassroomRoster classId="cls_1" classroomName="고2 미적분 A반" />);
 
     expect(screen.getByRole('table', { name: '고2 미적분 A반 명단 2명' })).toBeInTheDocument();
-    expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['이름', '들어온 날', '마지막 활동', '활성']);
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
+      '이름', '들어온 날', '마지막 활동', '활성', '보내기',
+    ]);
     expect(screen.getByRole('heading', { level: 2, name: '명단 2명' })).toBeInTheDocument();
 
     const a = screen.getByTestId('classroom-member-stu_1');

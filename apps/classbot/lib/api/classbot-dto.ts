@@ -419,3 +419,61 @@ export interface ClassSignalsDto {
   summary: StudentSignalSummaryDto[];
   signals: RiskSignalDto[];
 }
+
+/* ─── 교사 개입 — pullim-api intervention 모듈(api.md § 3.7 · authz.md § 1.5 (A)·(B) · FE PR 5c) ─── */
+
+/** 개입 유형 넷 — 정본 `INTERVENTION_TYPES`(`send-interventions.dto.ts`) 그대로. */
+export const INTERVENTION_TYPES = ['remind', 'requiz', 'comment', 'crisis'] as const;
+
+export type InterventionType = (typeof INTERVENTION_TYPES)[number];
+
+/**
+ * `InterventionResponseDto` — 발송 201 한 건 · 학생 인박스 한 줄 · 읽음 200. 🔒 발송 교사(`createdBy`)는 오지 않는다
+ * (감사 전용). `botId` 는 **반 id** 다(bot == class · ADR-063) — 그대로 챗 딥링크의 `?classId=` 로 쓴다.
+ * `type` 은 서버가 string 으로 연다 — 화면 union 으로 좁히는 일은 `lib/interventions.ts` 의 `interventionMeta` 가 한다.
+ */
+export interface InterventionDto {
+  id: string;
+  type: string;
+  /** 대상 봇(=반) id. */
+  botId: string;
+  /** 수신 학생 sub. */
+  studentId: string;
+  /** 연계 과제 id — **crisis 만 null 이 될 수 있다**(아래 `InterventionEventBody`). */
+  assignmentId: string | null;
+  message: string;
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601 · 미읽음 null. */
+  readAt: string | null;
+}
+
+/**
+ * `InterventionEventDto` — 발송 본문의 이벤트 한 개.
+ *
+ * ⚠ **`assignmentId` 는 비-crisis 에서 필수다.** DTO 상으로는 선택이지만 Service 불변식
+ * (`intervention.service.ts` `assertEventShape` · data-model § 1.5)이 `type != 'crisis'` 면 누락을 **400** 으로 막고,
+ * 실린 과제가 그 반 소속이 아니어도 400 이다. 그래서 이 앱의 교사 표면(리마인드·코멘트)은 **늘 과제를 하나 고른다.**
+ * `crisis` 는 서버가 위험 신호에서 자동으로 만든다(`05 § 3`) — 교사 UI 는 내지 않는다.
+ */
+export interface InterventionEventBody {
+  type: InterventionType;
+  /** 수신 학생 sub — `:classId` 의 **활성 멤버**여야 한다(아니면 400). */
+  studentId: string;
+  assignmentId?: string | null;
+  /** 공백만이면 400. */
+  message: string;
+}
+
+/**
+ * `SendInterventionsDto` — `POST /classbot/classes/:classId/interventions`(201 · `InterventionDto[]`).
+ * 정본은 단건 객체도 받지만 이 앱은 **늘 `events` 배열**로 보낸다 — 문 하나에 모양 하나가 읽기 쉽다.
+ */
+export interface SendInterventionsBody {
+  events: InterventionEventBody[];
+}
+
+/** `MarkAllReadResponseDto` — `PATCH /classbot/interventions/read-all`. 새로 읽음 처리된 건수. */
+export interface MarkAllReadDto {
+  updated: number;
+}
