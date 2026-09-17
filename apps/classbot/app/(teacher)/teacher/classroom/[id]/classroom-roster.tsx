@@ -1,14 +1,18 @@
 'use client';
 
-import { Lock, SearchX, Users } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ClipboardList, Lock, MessageCircle, SearchX, Users } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
+import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClassMembers } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { ClassMemberDto } from '@/lib/api/classbot-dto';
+import { memberLabel } from '@/lib/interventions';
+import { InterventionDialog, type InterventionKind } from './intervention-dialog';
 
 /**
  * 반 상세 「명단」 탭 — `GET /classbot/classes/:classId/members`(`useClassMembers` · 계획 PR 5b · 완성 설계 § 5 R3 ·
@@ -28,6 +32,10 @@ import type { ClassMemberDto } from '@/lib/api/classbot-dto';
  *
  * 남의 반은 정본이 **403**, 없는 반은 404 — 머리(`class-detail.tsx`)가 이미 갈라 말했겠지만 이 탭도 제 상태로
  * 선다(탭은 머리와 다른 문을 두드린다 — 머리가 열렸는데 명단만 닫힐 수 있다).
+ *
+ * **줄 끝의 「리마인드」·「코멘트」**(계획 PR 5c)는 `POST /classbot/classes/:classId/interventions` 로 가는 문이다 —
+ * 판은 `./intervention-dialog.tsx` 하나를 돌려 쓴다(줄마다 한 벌씩 두면 명단만큼 폼이 선다). 비활성 멤버에게는
+ * 버튼을 내지 않는다 — 서버가 비멤버·비활성 대상을 400 으로 막는다(`intervention.service.ts` `send`).
  */
 
 /** 표의 시간대 — 저장은 UTC ISO, 보여줄 때는 한국 시각. 두 열이 같은 기준을 쓴다. */
@@ -91,6 +99,10 @@ export function ClassroomRoster({
   classroomName: string;
 }) {
   const query = useClassMembers(classId);
+  /** 열려 있는 개입 판 — 명단 전체가 판 하나를 돌려 쓴다. */
+  const [target, setTarget] = useState<{ member: ClassMemberDto; kind: InterventionKind } | null>(null);
+  /** 판이 닫힐 때 포커스를 돌려줄 자리 — 방금 누른 줄의 버튼. */
+  const openerRef = useRef<HTMLButtonElement>(null);
 
   const heading = (
     <SectionHeading
@@ -166,7 +178,7 @@ export function ClassroomRoster({
       <div className="overflow-x-auto">
         <table
           aria-label={`${classroomName} 명단 ${members.length}명`}
-          style={{ minWidth: '28rem' }}
+          style={{ minWidth: '38rem' }}
           className="w-full border-separate border-spacing-0"
           data-testid="classroom-roster"
         >
@@ -176,21 +188,48 @@ export function ClassroomRoster({
               <th scope="col" className={headCell}>들어온 날</th>
               <th scope="col" className={headCell}>마지막 활동</th>
               <th scope="col" className={headCell}>활성</th>
+              <th scope="col" className={headCell}>보내기</th>
             </tr>
           </thead>
           <tbody>
             {members.map((m) => (
-              <MemberRow key={m.membershipId} member={m} />
+              <MemberRow
+                key={m.membershipId}
+                member={m}
+                onSend={(kind, button) => {
+                  openerRef.current = button;
+                  setTarget({ member: m, kind });
+                }}
+              />
             ))}
           </tbody>
         </table>
       </div>
+
+      {target && (
+        <InterventionDialog
+          classId={classId}
+          kind={target.kind}
+          member={target.member}
+          open
+          onOpenChange={(next) => {
+            if (!next) setTarget(null);
+          }}
+          finalFocus={openerRef}
+        />
+      )}
     </>
   );
 }
 
 /** 명단 한 줄. 이름이 비면 지어내지 않는다 — 「이름 없음」과 sub 앞 여덟 자. */
-function MemberRow({ member: m }: { member: ClassMemberDto }) {
+function MemberRow({
+  member: m,
+  onSend,
+}: {
+  member: ClassMemberDto;
+  onSend: (kind: InterventionKind, button: HTMLButtonElement) => void;
+}) {
   const name = m.displayName?.trim() || null;
   return (
     <tr data-testid={`classroom-member-${m.memberId}`}>
@@ -215,6 +254,49 @@ function MemberRow({ member: m }: { member: ClassMemberDto }) {
       <td className={cell}>
         {m.isActive ? <Chip tone="info">활성</Chip> : <Chip tone="neutral">비활성</Chip>}
       </td>
+      <td className={cell}>
+        {m.isActive ? (
+          <span className="flex items-center gap-1">
+            <RowAction member={m} kind="remind" icon={ClipboardList} label="리마인드" onSend={onSend} />
+            <RowAction member={m} kind="comment" icon={MessageCircle} label="코멘트" onSend={onSend} />
+          </span>
+        ) : (
+          <span className="text-pullim-slate-400 text-2xs">—</span>
+        )}
+      </td>
     </tr>
+  );
+}
+
+/**
+ * 줄 끝 버튼 하나 — 글자는 단어 하나라 어느 학생인지가 빠진다. 낭독기에는 이름을 실어 준다.
+ * 버튼 자신을 콜백에 넘겨 판이 닫힐 때 여기로 포커스가 돌아오게 한다.
+ */
+function RowAction({
+  member,
+  kind,
+  icon: Icon,
+  label,
+  onSend,
+}: {
+  member: ClassMemberDto;
+  kind: InterventionKind;
+  icon: typeof ClipboardList;
+  label: string;
+  onSend: (kind: InterventionKind, button: HTMLButtonElement) => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-9 px-2.5"
+      aria-label={`${memberLabel(member)} 학생에게 ${label}`}
+      data-testid={`intervention-${kind}-${member.memberId}`}
+      onClick={(event) => onSend(kind, event.currentTarget)}
+    >
+      <Icon aria-hidden className="h-3.5 w-3.5" />
+      {label}
+    </Button>
   );
 }
