@@ -1,8 +1,8 @@
 /**
  * pullim-api classbot 응답 DTO — FE 쪽 거울.
  *
- * 정본은 pullim-api `src/classbot/modules/{assignment,classroom}/controller/dto/*.ts` 와
- * `service/{assignment,classroom}.types.ts` 다(2026-09-16 · dev). 필드를 하나씩 옮겨 적었고,
+ * 정본은 pullim-api `src/classbot/modules/{assignment,classroom,chat,signal}/controller/dto/*.ts` 와
+ * `service/*.types.ts` 다(2026-09-17 · dev `324f36fc`). 필드를 하나씩 옮겨 적었고,
  * 서버가 `string` 으로 열어 둔 칸(mode·difficulty·state·tone·dispatchStatus)은 여기서도 string 이다 —
  * 화면 union 으로 좁히는 일은 어댑터(`app/(student)/classbot/assignment/use-assignment-reads.ts` 의
  * `toAssignmentReadRow`, `components/classbot/home/my-rooms.ts` 의 `toSlot`)가 한다.
@@ -208,4 +208,88 @@ export interface SubmissionsViewDto {
   gradedAt: string | null;
   submittedAt: string;
   answers: Record<string, unknown>;
+}
+
+/* ─── 명단 · 교사 대화 열람 · 위험 신호 — pullim-api PR 2·PR 3(ADR-092) · FE PR 7 ─── */
+
+/**
+ * `ClassMemberResponseDto` — `GET /classbot/classes/:classId/members`(operator · 남의 반 403 · 없는 반 404) 한 행.
+ * 응답은 봉투 없는 배열이고 **활성 멤버십만** 온다(api.md § 2). `displayName` 은 auth 프로필 투영이라 비어 있을 수
+ * 있다(탈퇴·부재 → null). `lastActiveAt` 은 그 학생의 대화·제출 중 최신 시각 — 「최근 활동」 칸과 무활동 판정의 원천이다
+ * (`risk-signal-rules.ts` 의 `idle` 은 행을 만들지 않고 이 값에서 파생한다).
+ */
+export interface ClassMemberDto {
+  membershipId: string;
+  /** 학생 sub. */
+  memberId: string;
+  displayName: string | null;
+  /** ISO 8601. */
+  enrolledAt: string;
+  isActive: boolean;
+  /** ISO 8601 · 활동이 없으면 null. */
+  lastActiveAt: string | null;
+}
+
+/**
+ * `MemberMessageResponseDto` — `GET /classbot/classes/:classId/chat?studentId=`(operator 열람 · api.md § 3.8) 한 행.
+ * 학생 self 히스토리(`lib/api/chat-stream.ts` `ChatHistoryMessage`)와 같은 모양에 **`id`** 가 더 있다 — 위험 신호의
+ * `messageId` 가 이 값을 가리켜 원문 자리로 뛴다. 교사 열람은 **미완결 user turn 도** 돌려준다(응답이 실패한 위기 발화도
+ * 운영자에게 보여야 해서다). 판정 순서는 없는 반 404 → 남의 반 403 → 비멤버 404(`CLASS_MEMBER_NOT_FOUND`).
+ */
+export interface MemberMessageDto {
+  id: string;
+  /** 서버는 string — 화면 union(user·assistant)으로는 어댑터(`lib/risk-signals.ts`)가 좁힌다. */
+  role: string;
+  /** 텍스트 블록·user turn 의 본문. 카드 블록은 null. */
+  content: string | null;
+  /** ISO 8601. */
+  createdAt: string;
+  /** 보낸 시점의 봇 id · 옛 행·봇 없는 반은 null. */
+  botId: string | null;
+  cardType: string | null;
+  cardPayload: Record<string, unknown> | null;
+  blockIndex: number | null;
+}
+
+/**
+ * `RiskSignalResponseDto` — `GET …/signals` 의 `signals[]` 원소 · `PATCH /signals/:id/ack` 응답(api.md § 3.9).
+ * 🔒 원문 전문은 없다 — `messageId` 로 위 열람 응답에서 자리를 찾는다(원문이 지워졌으면 null). `detail` 은 규칙 매칭 근거
+ * (rule·category·tier·occurrences·`context:'academic'`·`downgradedFrom`·`auto`)만이다.
+ */
+export interface RiskSignalDto {
+  id: string;
+  studentId: string;
+  /** 서버는 string — `answer_seeking·inappropriate·crisis_keyword·repeat_bypass·nonsense·idle`. 화면 union 은 어댑터가 좁힌다. */
+  kind: string;
+  /** 1~5. crisis_keyword 4 이상은 서버가 crisis 개입을 자동으로 만든다. */
+  severity: number;
+  messageId: string | null;
+  detail: Record<string, unknown>;
+  /** ISO 8601. */
+  createdAt: string;
+  /** 확인한 교사 sub · 미확인 null. */
+  ackedBy: string | null;
+  /** ISO 8601 · 미확인 null. */
+  ackedAt: string | null;
+}
+
+/** `StudentSignalSummaryResponseDto` — `summary[]` 원소. 명단 배지·정렬용 집계(확인 여부 무관 · 미확인 수는 `unacked`). */
+export interface StudentSignalSummaryDto {
+  studentId: string;
+  /** kind → 건수(있는 kind 만). */
+  counts: Record<string, number>;
+  maxSeverity: number;
+  /** ISO 8601 — 가장 최근 신호. */
+  lastAt: string;
+  unacked: number;
+}
+
+/**
+ * `ClassSignalsResponseDto` — `GET /classbot/classes/:classId/signals?studentId?&acked?&limit?`(operator · 없는 반 404 ·
+ * 남의 반 403). `signals` 는 최근순(`created_at DESC`) 상한 목록(기본 50 · 최대 200), `summary` 는 학생별 집계
+ * (미확인 많은 순 → 최근순). `studentId` 는 양쪽에, `acked` 는 목록에만 걸린다.
+ */
+export interface ClassSignalsDto {
+  summary: StudentSignalSummaryDto[];
+  signals: RiskSignalDto[];
 }

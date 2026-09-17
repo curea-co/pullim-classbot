@@ -3,14 +3,14 @@ import type { MonitoredStudent } from '@/lib/mock/classbot-monitoring';
 import {
   filterLabels, matchesFilter, sortOptions, sortRoster,
   type RosterSort,
-} from '../monitor/roster-filters';
+} from '../students/roster-filters';
 
 /**
  * 리포트 센터 명단의 거르기·정렬 규칙 — **판정은 하나도 새로 만들지 않는다.**
  *
  * 교사가 「미도달」·「목표 수준 미달」이 무슨 뜻인지 화면마다 다시 배우면 안 된다.
  * 그래서 여기서는 이미 있는 두 곳을 **읽기만** 한다.
- *   - 학급 관제소 `../monitor/roster-filters` — 거르개(`matchesFilter`)와 정렬(`sortRoster`)
+ *   - 학생 목록의 목 명단 `../students/roster-filters`(옛 관제소 몫 · 계획 PR 8 은퇴 대상) — 거르개(`matchesFilter`)와 정렬(`sortRoster`)
  *   - 교사 홈 `@/lib/mock/classbot-teacher-home` — 「먼저 볼 학생」 판정(`attentionReason`)과
  *     그 순서(`pickAttentionStudents`)
  *

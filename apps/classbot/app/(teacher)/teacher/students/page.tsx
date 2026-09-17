@@ -1,13 +1,14 @@
 import { Users } from 'lucide-react';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { monitoredClass, monitoredRoster, monitoringSummary } from '@/lib/mock/classbot-monitoring';
-import { MonitorRoster } from '../monitor/monitor-roster';
+import { MonitorRoster } from './monitor-roster';
 
 /**
  * 학생 목록 — `/teacher/students/[id]` 의 부모 경로가 빈 화면이 되지 않도록 둔 얇은 화면.
  *
- * 관제소(`/teacher/monitor`)와 같은 명단·같은 컴포넌트를 쓴다.
- * 학급 단위 요약(다시 가르칠 개념 등)은 관제소에만 두고 여기서는 명단만 보여준다.
+ * 명단은 목이다(`./monitor-roster.tsx` · `lib/mock/classbot-monitoring` 20명 스냅샷 · 계획 PR 8 은퇴 대상). 종전에는
+ * 학급 관제소(`/teacher/monitor`)가 같은 명단을 썼지만, 계획 PR 7 이 관제소를 정본 신호 표로 바꿔 이제 이 목 명단을
+ * 읽는 화면은 여기 하나다. 학급 단위 요약은 두지 않고 명단만 보여준다.
  */
 export default function TeacherStudentsPage() {
   return (

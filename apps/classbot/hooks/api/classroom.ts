@@ -8,11 +8,13 @@
  *    학생 둘 `useJoinByCode`(`POST /enrollments`) · `useMyClassrooms`(`GET /bots?role=student`),
  *    교사 셋 `useOperatorClasses`(`GET /bots?role=teacher`) · `useOperatorClass`(`GET /bots/:id`) ·
  *    `useIssueJoinCode`(`POST /classes/:classId/join-codes`). 교사 셋은 계획 PR 5a(해소 7)가 옮겼다.
- *  - **같은 오리진** `/api/teacher/classrooms*` — 정본에 아직 문이 없는 둘.
- *    `useCreateClassroom`(`POST /classes` 는 pullim-api PR 2) · `useClassroomStudents`
- *    (`GET /classes/:id/members` 도 PR 2). 그리고 `useTeacherClassrooms` — 내 수업방 화면은 더 안 읽지만
- *    과제 내기 폼(`app/(teacher)/teacher/assignment/new/*` · 계획 PR 6 영역)과 봇 마켓의 「내 봇 공유」
- *    (`app/(teacher)/teacher/marketplace/*` · 결정 ① 범위 밖)가 아직 읽는다. 그 둘이 옮겨 가는 날 함께 걷는다.
+ *    그리고 `useClassMembersForMonitor`(`GET /classes/:classId/members` — pullim-api PR 2 가 연 문 · FE PR 7 이
+ *    대화 탭·관제소용으로 붙였다. 명단 탭 몫은 5b).
+ *  - **같은 오리진** `/api/teacher/classrooms*` — 정본으로 아직 안 옮긴 셋(옮기고 지우는 것은 계획 PR 5b).
+ *    `useCreateClassroom`(정본 `POST /classes` 는 pullim-api PR 2 가 열었다 · 소비자 `create-classroom-form.tsx`) ·
+ *    `useClassroomStudents`(**소비자 0** — 정본 명단 문 `GET /classes/:id/members` 는 아래 `useClassMembersForMonitor`
+ *    가 이미 친다. 삭제는 5b 와 같은 파일에서 부딪히지 않게 그쪽에 맡긴다) · `useTeacherClassrooms`(봇 마켓 「내 봇 공유」
+ *    `app/(teacher)/teacher/marketplace/*` 만 읽는다 · 결정 ① 범위 밖).
  *
  * 정본 훅의 신원·캐시 규약:
  *  - 신원은 OS 세션(`useAuth`)이다. 세션 복원 전(`isReady=false`)에는 묻지 않는다 — 그 구간의
@@ -40,7 +42,13 @@ import {
   retryUnlessClientError,
   statusOf,
 } from '@/lib/api/classbot-client';
-import type { BotCardDto, BotDetailDto, EnrollmentDto, JoinCodeDto } from '@/lib/api/classbot-dto';
+import type {
+  BotCardDto,
+  BotDetailDto,
+  ClassMemberDto,
+  EnrollmentDto,
+  JoinCodeDto,
+} from '@/lib/api/classbot-dto';
 import { ApiClientError, apiGet, apiPost } from '@/lib/api/client-fetch';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCurrentUserId } from '@/lib/current-user';
@@ -64,6 +72,8 @@ export const classroomKeys = {
   operatorClasses: ['operator-classes'] as const,
   /** 정본 — 반 하나(`GET /bots/:id`). 목록과 키를 따로 두는 이유는 반 상세가 목록 없이 열려서다. */
   operatorClass: (classId: string) => ['operator-class', classId] as const,
+  /** 정본 — 반 명단(`GET /classes/:id/members`) · 모니터링(대화 탭·관제소)이 읽는 키. */
+  classMembersForMonitor: (classId: string) => ['class-members-monitor', classId] as const,
 };
 
 /** 같은 오리진 교사 라우트용 — 401 은 재시도해도 같은 답이다. 그 밖에는 1회만 다시. */
@@ -78,7 +88,7 @@ function retryUnlessGuarded(failureCount: number, error: unknown): boolean {
  * `GET /api/teacher/classrooms` — 내가 연 수업방 목록(같은 오리진).
  *
  * 내 수업방 화면(`/teacher/classroom`)은 더 이상 이것을 읽지 않는다 — `useOperatorClasses` 가 정본이다.
- * 남아 있는 소비자는 과제 내기 폼과 봇 마켓 「내 봇 공유」(머리주석). 새 소비자를 붙이지 마라.
+ * 남아 있는 소비자는 봇 마켓 「내 봇 공유」 하나(머리주석). 새 소비자를 붙이지 마라.
  * @returns react-query 결과(`data.classrooms`)
  */
 export function useTeacherClassrooms(): UseQueryResult<
@@ -115,9 +125,9 @@ export function useCreateClassroom(): UseMutationResult<
 /**
  * `GET /api/teacher/classrooms/[id]/students` — 참여 학생 명단(같은 오리진).
  *
- * 내 수업방 카드의 명단은 내렸다(계획 PR 5a) — 정본에 명단 문이 없어(`GET /classes/:id/members` · PR 2)
- * 정본 카드에 같은 오리진 명단을 붙이면 반 id 가 서로 다른 세계의 것이 된다. 5b 가 정본 문으로 되살린다.
- * 남은 소비자는 과제 내기 폼(대상 학생 고르기)이다.
+ * 내 수업방 카드의 명단은 내렸다(계획 PR 5a) — 정본 카드에 같은 오리진 명단을 붙이면 반 id 가 서로 다른 세계의
+ * 것이 된다. 정본 명단 문(`GET /classes/:id/members`)은 `useClassMembersForMonitor` 가 친다(FE PR 7) · 명단 탭은 5b.
+ * **소비자 0** — 과제 내기 폼도 더는 읽지 않는다(#352). 지우는 것은 5b 몫(같은 파일 충돌 회피).
  * @param classroomId - 반 id. 비어 있으면 조회하지 않는다(선택 전 상태).
  * @returns react-query 결과(`data.students`)
  */
@@ -170,6 +180,27 @@ export function useOperatorClass(classId: string | null | undefined): UseQueryRe
   return useQuery<BotDetailDto, ApiError>({
     queryKey: [...classroomKeys.operatorClass(classId ?? ''), user?.id ?? null],
     queryFn: () => classbotRead<BotDetailDto>(`/bots/${encodeURIComponent(classId ?? '')}`),
+    enabled: isReady && user !== null && Boolean(classId),
+    retry: retryUnlessClientError,
+  });
+}
+
+/**
+ * `GET /classbot/classes/:classId/members` — 반 명단(정본 · 활성 멤버십만 · operator 만 · 남의 반 403 · 없는 반 404).
+ *
+ * **모니터링 전용 이름**이다(FE PR 7) — 반 상세 「명단」 탭은 계획 PR 5b 가 같은 문을 제 훅으로 붙인다. 두 PR 이
+ * 같은 파일에 같은 이름을 더하면 머지가 충돌하므로 이쪽은 `…ForMonitor` 로 갈라 두었다. 5b 의 훅이 들어오면 둘 중
+ * 하나로 합친다(응답은 같은 `ClassMemberDto[]`).
+ * @param classId - 반 id. 비어 있으면 묻지 않는다.
+ * @returns react-query 결과(`data` = 명단 배열 · `displayName` 은 비어 있을 수 있다)
+ */
+export function useClassMembersForMonitor(
+  classId: string | null | undefined,
+): UseQueryResult<ClassMemberDto[], ApiError> {
+  const { user, isReady } = useAuth();
+  return useQuery<ClassMemberDto[], ApiError>({
+    queryKey: [...classroomKeys.classMembersForMonitor(classId ?? ''), user?.id ?? null],
+    queryFn: () => classbotRead<ClassMemberDto[]>(`/classes/${encodeURIComponent(classId ?? '')}/members`),
     enabled: isReady && user !== null && Boolean(classId),
     retry: retryUnlessClientError,
   });

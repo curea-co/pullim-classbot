@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { X } from 'lucide-react';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { FilterPillButtons } from '@/components/classbot/filter-pills';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -15,17 +14,18 @@ import {
 } from '@/lib/mock/classbot-monitoring';
 import { scopeExits } from '@/lib/mock/classbot-student-report';
 import {
-  ROSTER_ANCHOR, countByFilter, filterCards, filterLabels, sortOptions, visibleRoster,
+  countByFilter, filterCards, filterLabels, sortOptions, visibleRoster,
   type RosterFilter, type RosterSort,
 } from './roster-filters';
 
 /**
- * 관제소 학생 명단 — 한 줄에 한 학생.
+ * 학생 목록 명단 — 한 줄에 한 학생.
  *
- * 거르개는 두 벌 두지 않는다. 같은 거르개가 두 군데 있으면 어느 쪽이 진짜인지 알 수 없다.
- *   - 관제소(`/teacher/monitor`)  = 위 요약 카드가 거르개다. 여기서는 **지금 뭘 거르고 있는지**만
- *     보여주고 푸는 버튼 하나를 둔다 (`filter` 를 받는 쪽).
- *   - 학생 목록(`/teacher/students`) = 위에 카드가 없다. 그때만 이 안에서 알약 줄로 거른다.
+ * ⚠ **목 명단이다 — 은퇴 대상(계획 PR 8).** 원천은 `lib/mock/classbot-monitoring`(20명 스냅샷)이고, 읽는 화면은
+ * 학생 목록(`/teacher/students`) 하나다. 종전에는 학급 관제소(`/teacher/monitor`)가 위 요약 카드를 거르개로 쥐고 이
+ * 표에 넘겼는데, 계획 PR 7 이 관제소를 정본 신호 표(`monitor/monitor-console.tsx`)로 바꾸며 그 소비자가 사라졌다 —
+ * 파일을 `monitor/` 에서 여기로 옮기고 밖에서 거르개를 넘기던 props 는 걷었다. 거르개·정렬은 이 안의 알약 줄이 쥔다.
+ * 학생 상세(`students/[id]`)가 같은 목을 읽는 동안만 산다.
  *
  * 담는 것: 이름 / 학년 / 도달 배지 3값 / 요구 수준 대비 깊이 / 지름길 시도 / 범위 이탈 / 최근 접속 배지.
  * 담지 않는 것: 감정·집중도·체류시간, 오늘 대화 수 같은 총량 지표.
@@ -51,15 +51,15 @@ import {
  */
 
 /**
- * 관제소가 담는 열 — 이름·학년 다음, 꺾쇠 앞.
+ * 이 명단이 담는 열 — 이름·학년 다음, 꺾쇠 앞.
  *
  * 넷은 리포트 센터 명단과 **같은 열**이라 `roster-columns` 에서 한 벌만 가져다 쓴다.
- * 관제소에만 있는 것은 진단 열 「목표 · 닿음」 하나다 — 「누구를 먼저 볼까」만 고르는
+ * 여기에만 있는 것은 진단 열 「목표 · 닿음」 하나다 — 「누구를 먼저 볼까」만 고르는
  * 리포트 센터에는 필요 없어서 거기서는 빠진다.
  */
 const monitorColumns: RosterColumn<MonitoredStudent>[] = [
   reachColumn,
-  // 요구 수준 대비 깊이 — 머리글이 「목표 · 닿음」이라 칸에는 숫자만 남긴다. 관제소 몫.
+  // 요구 수준 대비 깊이 — 머리글이 「목표 · 닿음」이라 칸에는 숫자만 남긴다.
   { head: '목표 · 닿음', cell: s => <DepthCell student={s} /> },
   shortcutColumn,
   exitColumn,
@@ -69,27 +69,12 @@ const monitorColumns: RosterColumn<MonitoredStudent>[] = [
 export function MonitorRoster({
   students,
   context,
-  filter: filterProp,
-  sort: sortProp,
-  onSortChange,
-  onClearFilter,
 }: {
   students: MonitoredStudent[];
   context?: string;
-  /** 밖(요약 카드)에서 거르개를 쥐고 있을 때만 넘긴다. 안 넘기면 이 안에서 알약 줄로 거른다. */
-  filter?: RosterFilter;
-  sort?: RosterSort;
-  onSortChange?: (sort: RosterSort) => void;
-  onClearFilter?: () => void;
 }) {
-  const [innerFilter, setInnerFilter] = useState<RosterFilter>('all');
-  const [innerSort, setInnerSort] = useState<RosterSort>('name');
-
-  const ownsFilter = filterProp === undefined;
-  const filter = filterProp ?? innerFilter;
-  const sort = sortProp ?? innerSort;
-  const selectSort = onSortChange ?? setInnerSort;
-  const clearFilter = ownsFilter ? () => setInnerFilter('all') : (onClearFilter ?? (() => {}));
+  const [filter, setFilter] = useState<RosterFilter>('all');
+  const [sort, setSort] = useState<RosterSort>('name');
 
   const visible = useMemo(() => visibleRoster(students, filter, sort), [students, filter, sort]);
 
@@ -105,48 +90,24 @@ export function MonitorRoster({
   );
 
   return (
-    <section id={ROSTER_ANCHOR} className="bg-card scroll-mt-20 rounded-2xl border p-5">
-      {/* 어떤 값을 담는지는 화면 아래 안내(관제소)·헤더(학생 목록)가 이미 말한다 — 여기서 또 세지 않는다. */}
+    <section className="bg-card rounded-2xl border p-5">
+      {/* 어떤 값을 담는지는 화면 헤더(학생 목록)가 이미 말한다 — 여기서 또 세지 않는다. */}
       <SectionHeading title="학생 한 줄 보기" />
 
       <div className="mb-4 space-y-2">
         {context && <p className="text-pullim-slate-500 text-2xs font-semibold">{context}</p>}
 
-        {ownsFilter ? (
-          <FilterPillButtons
-            options={filterCards.map(c => ({
-              value: c.value,
-              label: filterLabels[c.value],
-              count: counts[c.value],
-            }))}
-            current={filter}
-            onSelect={setInnerFilter}
-          />
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {filter === 'all' ? (
-              <span className="text-pullim-slate-500 text-2xs font-semibold">
-                {`학생 ${students.length}명 전체`}
-              </span>
-            ) : (
-              <>
-                <span className="text-pullim-slate-500 text-2xs font-semibold">
-                  {`${filterLabels[filter]} ${visible.length}명만 보는 중`}
-                </span>
-                <button
-                  type="button"
-                  onClick={clearFilter}
-                  className="text-pullim-slate-600 hover:bg-pullim-slate-100 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2"
-                >
-                  <X className="h-3 w-3" aria-hidden />
-                  전체 보기
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        <FilterPillButtons
+          options={filterCards.map(c => ({
+            value: c.value,
+            label: filterLabels[c.value],
+            count: counts[c.value],
+          }))}
+          current={filter}
+          onSelect={setFilter}
+        />
 
-        <FilterPillButtons options={sortOptions} current={sort} onSelect={selectSort} shape="tab" />
+        <FilterPillButtons options={sortOptions} current={sort} onSelect={setSort} shape="tab" />
       </div>
 
       {visible.length === 0 ? (
@@ -154,7 +115,7 @@ export function MonitorRoster({
           tone="plain"
           size="sm"
           title="이 조건에 해당하는 학생이 없어요"
-          action={{ onClick: clearFilter, label: '전체 보기' }}
+          action={{ onClick: () => setFilter('all'), label: '전체 보기' }}
         />
       ) : (
         <RosterTable
@@ -171,7 +132,7 @@ export function MonitorRoster({
 
       {/*
         지름길·이탈은 학생을 고르는 조건이 아니라 과제·봇 규칙을 손볼 신호라
-        상단 카드에서 내려 학급 합계로만 읽는다 (카드는 학생 수만 담는다).
+        거르개에서 내려 학급 합계로만 읽는다 (거르개는 학생 수만 담는다).
       */}
       <p className="text-pullim-slate-500 mt-3 text-2xs leading-relaxed">
         이번 과제에서 학급 전체 지름길 <b className="text-pullim-slate-700 font-mono">{`${classShortcuts}회`}</b>
@@ -180,7 +141,7 @@ export function MonitorRoster({
         지름길 시도는 답을 바로 요구했거나 직접 쓰지 않고 붙여넣은 횟수, 이탈은 봇이 수업 범위 밖 요청을 되돌린 횟수예요.
         학생을 나무랄 숫자가 아니라 <b className="text-pullim-slate-700">과제 문항과 봇 규칙을 손볼 자리</b>를 알려주는 신호로 읽어주세요.
         {' '}
-        {/* 관제소 mock 은 이 학급의 봇 id 를 모른다 — 봇 관리 목록으로 보내고 탭만 실어 나른다 */}
+        {/* 이 목은 학급의 봇 id 를 모른다 — 봇 관리 목록으로 보내고 탭만 실어 나른다 */}
         <Link
           href="/teacher/bots?tab=drift"
           aria-label="봇 관리에서 이탈 대응 강도 보기"
