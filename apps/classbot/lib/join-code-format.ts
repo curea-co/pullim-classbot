@@ -40,7 +40,7 @@ export function formatJoinCode(code: string): string {
 
 /** 코드의 수명 상태 — 화면이 셋 중 하나로 그린다. */
 export type JoinCodeLife =
-  /** 닫힐 시각이 적혀 있지 않다 — 만료가 생기기 전 발급된 코드. */
+  /** 닫힐 시각이 없다 — 안 닫히게 낸 코드(`expiresInHours: null` · pullim-api PR 2 부터 `expiresAt` 은 늘 실리고 null 이 그 뜻). */
   | { state: 'open-forever' }
   | { state: 'open'; label: string }
   | { state: 'closed' };

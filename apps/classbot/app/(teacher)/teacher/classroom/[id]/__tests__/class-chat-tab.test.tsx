@@ -43,7 +43,7 @@ const chatCalls: string[] = [];
 const mutate = jest.fn();
 
 jest.mock('@/hooks/api/classroom', () => ({
-  useClassMembersForMonitor: () => ({ data: MEMBERS, isPending: false, isError: false, error: null, refetch: jest.fn(), dataUpdatedAt: 1 }),
+  useClassMembers: () => ({ data: MEMBERS, isPending: false, isError: false, error: null, refetch: jest.fn(), dataUpdatedAt: 1 }),
 }));
 jest.mock('@/hooks/api/monitoring', () => ({
   useClassSignals: () => ({ data: CLASS_VIEW, isPending: false, isError: false, error: null, refetch: jest.fn(), dataUpdatedAt: 1 }),

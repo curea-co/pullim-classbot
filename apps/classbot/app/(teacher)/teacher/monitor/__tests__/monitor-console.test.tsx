@@ -42,7 +42,7 @@ jest.mock('@/hooks/api/classroom', () => ({
     error: classesError,
     refetch: jest.fn(),
   }),
-  useClassMembersForMonitor: (classId: string) => {
+  useClassMembers: (classId: string) => {
     boardCalls.push(classId);
     return { data: MEMBERS[classId] ?? [], isPending: false, isError: false, error: null, refetch: jest.fn() };
   },

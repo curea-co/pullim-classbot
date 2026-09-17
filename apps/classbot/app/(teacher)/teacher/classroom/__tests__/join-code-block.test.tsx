@@ -1,9 +1,9 @@
 /**
  * 참여 코드 상자 — **낸 코드가 그 자리에 서고, 수명이 제대로 읽히는지.**
  *
- * 정본 카드에는 코드가 없어 이 상자는 「새로 내기」로만 채워진다. 이 칸이 틀리면 교사가 없는 코드를 부르거나
- * 죽은 코드를 학생에게 불러 준다. 옛 코드가 죽는다는 말은 **하지 않는다** — 정본이 그렇게 하지 않기 때문이다
- * (`join-code-block.tsx` 머리주석 · 완성 설계 § 5 R1).
+ * 정본 카드에는 코드가 없어 이 상자는 「새로 내기」나 이 세션이 아는 활성 코드(`initial` — 반 생성·봇 할당 응답)로만
+ * 채워진다. 이 칸이 틀리면 교사가 없는 코드를 부르거나 죽은 코드를 학생에게 불러 준다. 재발급이 갈아 끼우기가 됐으므로
+ * (pullim-api PR 2) 「새로 내면 지금 코드는 닫혀요」를 살아 있는 코드 옆에서만 말한다(`join-code-block.tsx` 머리주석).
  */
 
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -31,11 +31,8 @@ jest.mock('sonner', () => ({
   },
 }));
 
-function issued(expiresAt?: string | null): JoinCodeDto {
-  return {
-    id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z',
-    ...(expiresAt === undefined ? {} : { expiresAt }),
-  };
+function issued(expiresAt: string | null = null, code = 'AB3K9M'): JoinCodeDto {
+  return { id: 'jc_1', code, classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z', expiresAt };
 }
 
 const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
@@ -49,13 +46,13 @@ beforeEach(() => {
 });
 
 describe('JoinCodeBlock — 새로 내기', () => {
-  it('처음에는 코드가 없고 안내 한 줄과 「참여 코드 새로 내기」만 있다 — 옛 코드의 운명은 말하지 않는다', () => {
+  it('처음에는 코드가 없고 안내 한 줄과 「참여 코드 새로 내기」만 있다 — 닫힌다는 말은 코드가 있을 때만', () => {
     render(<JoinCodeBlock classId="cls_1" />);
 
     expect(screen.getByTestId('join-code-hint')).toBeInTheDocument();
     expect(screen.queryByTestId('join-code')).toBeNull();
     expect(issueButton()).toHaveTextContent('참여 코드 새로 내기');
-    expect(screen.queryByText(/못 써요/)).toBeNull();
+    expect(screen.queryByTestId('join-code-replace-note')).toBeNull();
   });
 
   it('누르면 그 반 id 로 내고, 돌아온 코드를 하이픈 표기로 크게 보이며 복사를 연다', () => {
@@ -71,7 +68,7 @@ describe('JoinCodeBlock — 새로 내기', () => {
     expect(toastSuccess).toHaveBeenCalledWith('새 참여 코드를 냈어요', { description: 'AB3-K9M' });
   });
 
-  it('정본이 만료를 보내지 않는 지금은 수명을 말하지 않는다', () => {
+  it('expiresAt 이 null 인 코드(안 닫히게 낸 것)에는 수명을 말하지 않는다', () => {
     render(<JoinCodeBlock classId="cls_1" />);
     fireEvent.click(issueButton());
 
@@ -79,16 +76,17 @@ describe('JoinCodeBlock — 새로 내기', () => {
     expect(screen.getByTestId('join-code')).not.toHaveClass('line-through');
   });
 
-  it('만료(expiresAt)가 오면 언제까지 쓸 수 있는지 말한다', () => {
+  it('만료(expiresAt)가 오면 언제까지 쓸 수 있는지, 그리고 새로 내면 지금 코드가 닫힌다고 말한다', () => {
     outcome = { dto: issued(hoursFromNow(5)) };
     render(<JoinCodeBlock classId="cls_1" />);
     fireEvent.click(issueButton());
 
     expect(screen.getByTestId('join-code-life')).toHaveTextContent('쓸 수 있어요');
     expect(screen.getByTestId('join-code-copy')).toBeInTheDocument();
+    expect(screen.getByTestId('join-code-replace-note')).toHaveTextContent('새로 내면 지금 코드는 닫혀요.');
   });
 
-  it('이미 닫힌 코드는 물리고 복사를 닫는다 — 지우지는 않는다', () => {
+  it('이미 닫힌 코드는 물리고 복사를 닫는다 — 지우지는 않는다 · 닫힌 코드가 또 닫힌다고는 안 한다', () => {
     outcome = { dto: issued(hoursFromNow(-1)) };
     render(<JoinCodeBlock classId="cls_1" />);
     fireEvent.click(issueButton());
@@ -97,6 +95,7 @@ describe('JoinCodeBlock — 새로 내기', () => {
     expect(screen.queryByTestId('join-code-copy')).toBeNull();
     expect(screen.getByTestId('join-code')).toHaveClass('line-through');
     expect(screen.getByTestId('join-code')).toHaveTextContent('AB3-K9M');
+    expect(screen.queryByTestId('join-code-replace-note')).toBeNull();
   });
 
   it('남의 반(403)은 코드를 지어내지 않고 그 뜻을 말한다', () => {
@@ -106,6 +105,25 @@ describe('JoinCodeBlock — 새로 내기', () => {
 
     expect(screen.queryByTestId('join-code')).toBeNull();
     expect(toastError).toHaveBeenCalledWith('이 반의 운영 교사만 코드를 낼 수 있어요.');
+  });
+});
+
+describe('JoinCodeBlock — 이 세션이 아는 코드(initial)', () => {
+  it('반 생성·봇 할당 응답의 활성 코드가 있으면 내지 않아도 그 코드로 선다', () => {
+    render(<JoinCodeBlock classId="cls_1" initial={issued(hoursFromNow(40), 'ZZ9Q2R')} />);
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByTestId('join-code')).toHaveTextContent('ZZ9-Q2R');
+    expect(screen.getByTestId('join-code-life')).toHaveTextContent('쓸 수 있어요');
+    expect(screen.queryByTestId('join-code-hint')).toBeNull();
+  });
+
+  it('아는 코드가 뒤늦게 오면 그 코드로 바뀐다', () => {
+    const { rerender } = render(<JoinCodeBlock classId="cls_1" initial={null} />);
+    expect(screen.getByTestId('join-code-hint')).toBeInTheDocument();
+
+    rerender(<JoinCodeBlock classId="cls_1" initial={issued(null, 'ZZ9Q2R')} />);
+    expect(screen.getByTestId('join-code')).toHaveTextContent('ZZ9-Q2R');
   });
 });
 

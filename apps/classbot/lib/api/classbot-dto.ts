@@ -10,8 +10,14 @@
  * 목록 응답은 **봉투 없는 배열**이다 — `GET /classbot/assignments` 는 `AssignmentSummaryDto[]`,
  * `GET /classbot/bots` 는 `BotCardDto[]`. 같은 오리진 `/api/*` 의 `{ assignments: [...] }` 봉투와 다르다.
  *
- * bot == class(ADR-063): 카드·상세의 `id` 와 참여 응답의 `classId` 는 같은 행이다. 봇을 반에서
- * 떼는 `bots` 표(계획 §05 · pullim-api PR 1)가 오면 이 파일의 `BotCardDto` 가 먼저 갈린다.
+ * **봇은 이제 두 뜻이다(ADR-092 · pullim-api PR 1·2, 2026-09-17 `origin/dev`)** — 이 파일이 둘을 갈라 적는다.
+ *  - `GET /classbot/bots?role=`·`GET /classbot/bots/:id` 는 **아직 bot == class(ADR-063)** 다 — `id` 가 반 id 고
+ *    `profile` 은 옛 `class_bot_profiles` 다(api.md § 3.5 「뜻 개정은 후속 PR」). `BotCardDto`·`BotDetailDto` 가 그것.
+ *  - `POST/PATCH /classbot/bots`·`PUT /classbot/classes/:classId/bot` 은 **1급 `bots` 표**를 만지고 `BotDto` 로
+ *    답한다. 반이 어느 봇을 가리키는지(`classes.bot_id`)는 `ClassDto.bot` 으로만 온다 — 그 `ClassDto` 를 주는 문은
+ *    반 생성(`POST /classes`)과 봇 할당(`PUT …/bot`) 둘뿐이고 **읽기 문(`GET /classes/:id`)은 아직 없다**
+ *    (api.md § 1 「후속 구현」). 화면이 「지금 붙은 봇」을 어떻게 다루는지는 `hooks/api/classroom.ts`
+ *    `useKnownClassSummary` 머리주석.
  */
 
 /** `AssignmentSummaryResponseDto` — 목록 한 행·배포 201 응답. 문항·answerKey 없음. */
@@ -99,23 +105,143 @@ export interface BotDetailDto {
 }
 
 /**
- * `JoinCodeResponseDto` — `POST /classbot/classes/:classId/join-codes`(201 · operator 만 · 남의 반 403).
+ * `JoinCodeResponseDto` — `POST /classbot/classes/:classId/join-codes`(201 · operator 만 · 남의 반 403) ·
+ * `ClassDto.joinCode` · 반 생성 동반 발급.
  *
- * 정본 응답은 넷(`id`·`code`·`classId`·`createdAt`)이다. `expiresAt` 은 **아직 서버가 보내지 않는다** —
- * 「`expires_at` 채우기 + 재발급 시 옛 코드 삭제」는 완성 설계 § 5 R1 이 pullim-api PR 2 에 맡긴 일이다.
- * 여기 선택 칸으로 미리 적어 두는 이유는 화면(`join-code-block.tsx`)이 값이 오면 남은 시간을 그리고,
- * 없으면 아무 말도 안 하게 **한 분기**로 서 있게 하려는 것이다 — 그 문이 열리는 날 이 파일만 `string` 으로 좁힌다.
+ * `expiresAt` 은 pullim-api PR 2(ADR-092)부터 **항상 실린다** — 기본 발급 +48h, `null` 이면 안 닫히는 코드
+ * (`expiresInHours: null` 로 낸 것). 재발급은 **갈아 끼우기**다 — 그 반의 옛 코드를 전부 지우고 새 코드 하나
+ * (api.md § 3.5 「재발급 = 갈아 끼우기」). 학생이 닫힌 코드를 넣으면 `POST /enrollments` 가 410 으로 가른다.
  */
 export interface JoinCodeDto {
   id: string;
   /** 하이픈 없는 코드(예: `AB3K9M`). 표기는 `lib/join-code-format.ts` 가 한다. */
   code: string;
-  /** 대상 반(=bot) id. */
+  /** 대상 반 id. */
   classId: string;
   /** ISO 8601. */
   createdAt: string;
-  /** ISO 8601 · 서버가 아직 보내지 않는다(pullim-api PR 2). */
-  expiresAt?: string | null;
+  /** ISO 8601 닫히는 시각 · `null` = 안 닫힘. */
+  expiresAt: string | null;
+}
+
+/** `IssueJoinCodeDto` — 재발급 본문. 둘 다 선택: 비우면 서버가 코드를 짓고 48시간 뒤 닫는다. */
+export interface IssueJoinCodeBody {
+  code?: string;
+  /** 1~8760(시) · `null` = 안 닫힘 · 미지정 = 48. */
+  expiresInHours?: number | null;
+}
+
+/* ─── 반 척추 — ADR-092 · pullim-api PR 2 (계획 PR 5b) ─── */
+
+/** `ClassBotSummaryDto` — `ClassDto.bot`. `classes.bot_id` 로 합성한 요약 셋. */
+export interface ClassBotSummaryDto {
+  id: string;
+  name: string;
+  avatarEmoji: string | null;
+}
+
+/**
+ * `ClassResponseDto` — 반 한 행 + 합성 `bot`(없으면 null — 봇 없는 반도 유효) + 활성 `joinCode`(미만료 최신 코드,
+ * 없으면 null). `POST /classbot/classes` 의 `class` 칸과 `PUT /classbot/classes/:classId/bot` 응답.
+ * **읽기 문은 아직 없다** — `GET /classbot/classes/:id` 는 api.md § 1 「후속 구현」.
+ */
+export interface ClassDto {
+  id: string;
+  /** 운영 교사 sub. */
+  operatorId: string;
+  orgId: string | null;
+  name: string;
+  description: string | null;
+  subject: string | null;
+  grade: string | null;
+  isActive: boolean;
+  bot: ClassBotSummaryDto | null;
+  joinCode: JoinCodeDto | null;
+  /** ISO 8601. */
+  createdAt: string;
+  /** ISO 8601. */
+  updatedAt: string;
+}
+
+/**
+ * `CreateClassDto` — `POST /classbot/classes` 본문. `name` 만 필수(≤100자). `subject`·`grade` ≤50자.
+ * `botId` 는 **이미 있는 내 봇을 붙이는 것**이지 여기서 봇을 만들지 않는다(남의 봇·없는 봇 404). `orgId` 는 받지 않는다.
+ */
+export interface CreateClassBody {
+  name: string;
+  description?: string | null;
+  subject?: string | null;
+  grade?: string | null;
+  botId?: string | null;
+}
+
+/** `CreateClassResponseDto` — 201. 반과 같은 트랜잭션에서 발급된 첫 코드(`expiresAt` 기본 +48h). */
+export interface CreateClassResponse {
+  class: ClassDto;
+  joinCode: JoinCodeDto;
+}
+
+/* 명단 한 줄(`ClassMemberDto` · `GET /classes/:classId/members`)은 아래 「명단 · 교사 대화 열람 · 위험 신호」 절 — 명단 탭(5b)과
+   대화 탭·관제소(PR 7)가 같은 행을 읽는다(`useClassMembers`). */
+
+/** `AssignClassBotDto` — `PUT /classbot/classes/:classId/bot`. 칸은 필수 — `null` 이 「떼기」다(누락 = 400). */
+export interface AssignClassBotBody {
+  botId: string | null;
+}
+
+/**
+ * `BotResponseDto` — 1급 `bots` 행 + 이 봇을 쓰는 반 id 목록. `POST /classbot/bots`(201)·`PATCH /classbot/bots/:id`(200).
+ * `scope` 는 ScopeLevel 1~5(서버 기본 3) — 다섯으로 좁히는 일은 읽는 쪽(`lib/mock/tutor.ts` 규칙과 같다).
+ */
+export interface BotDto {
+  id: string;
+  /** 봇 owner 교사 sub. */
+  operatorId: string;
+  name: string;
+  subject: string | null;
+  grade: string | null;
+  tone: string | null;
+  greeting: string | null;
+  scope: number;
+  avatarEmoji: string | null;
+  quickPrompts: string[];
+  /** 마켓 공개 — 후속 표면. 이 앱은 아직 읽지 않는다. */
+  isPublished: boolean;
+  publishedAt: string | null;
+  /** `classes.bot_id == id` 인 반 id 목록. */
+  classIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `CreateBotDto` — `POST /classbot/bots`. `name` 필수(≤100자). 나머지는 선택(null 허용) — `subject`·`grade` ≤50,
+ * `tone` ≤100, `greeting` ≤1000, `avatarEmoji` ≤16, `scope` 1~5(미지정 3), `quickPrompts` ≤10개·항목 ≤200자.
+ */
+export interface CreateBotBody {
+  name: string;
+  subject?: string | null;
+  grade?: string | null;
+  tone?: string | null;
+  greeting?: string | null;
+  scope?: number | null;
+  avatarEmoji?: string | null;
+  quickPrompts?: string[] | null;
+}
+
+/**
+ * `UpdateBotDto` — `PATCH /classbot/bots/:id`(owner 만 · 남의 봇 404). **`undefined` = 그대로, 텍스트 칸 `null` = 비움.**
+ * `name`·`scope`·`quickPrompts` 는 null 불허(이름 없는 봇·범위 밖 등급·비배열 프롬프트 차단).
+ */
+export interface UpdateBotBody {
+  name?: string;
+  subject?: string | null;
+  grade?: string | null;
+  tone?: string | null;
+  greeting?: string | null;
+  scope?: number;
+  avatarEmoji?: string | null;
+  quickPrompts?: string[];
 }
 
 /** `EnrollmentResponseDto` — `POST /classbot/enrollments`. 신규 201 · 이미 멤버 200, 본문은 같다. */
