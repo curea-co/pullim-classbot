@@ -9,6 +9,8 @@
  *    `next` 로 실어 복귀시킨다. 오류는 그대로 다시 던져 호출부의 `isUnauthenticated` 판정도 선다.
  *  - **4xx 는 다시 보내도 같은 답이다.** 5xx·네트워크만 한 번 더.
  *
+ * 문은 셋이다 — `classbotRead`(GET) · `classbotWrite`(POST) · `classbotPatch`(PATCH · FE PR 7 의 신호 확인이 첫 소비자).
+ *
  * 같은 오리진 `/api/*` 를 치는 `lib/api/client-fetch.ts` 와 짝이 되는 자리다 — 그쪽 오류는
  * `ApiClientError`, 이쪽은 `@pullim-classbot/api-client` 의 `ApiError` 다. 두 타입을 섞어 판정하지 마라.
  */
@@ -79,6 +81,26 @@ export async function classbotWrite<T>(
 ): Promise<{ status: number; body: T }> {
   try {
     return await domainFetchWithStatus<T>(path, { method: 'POST', body });
+  } catch (error) {
+    return rethrowAfterLoginRedirect(error);
+  }
+}
+
+/**
+ * 정본 부분 갱신(PATCH) — CSRF 는 `domainFetch` 가 붙인다. 본문이 없는 문(`PATCH /signals/:id/ack` — 확인 사실만
+ * 기록하고 서버가 시각·주체를 정한다)이 있어 `body` 는 선택이다. 멱등한 문의 「이미 그 상태」는 200 으로 같은 본문이
+ * 돌아오므로 상태 코드를 함께 돌려준다.
+ * @param path - `/signals/:id/ack` 같은 `/classbot` 상대 경로
+ * @param body - JSON 본문(없으면 보내지 않는다)
+ * @returns `{ status, body }`
+ * @throws {ApiError} 비정상 응답(401 이면 리다이렉트를 건 뒤에 던진다)
+ */
+export async function classbotPatch<T>(
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; body: T }> {
+  try {
+    return await domainFetchWithStatus<T>(path, { method: 'PATCH', body });
   } catch (error) {
     return rethrowAfterLoginRedirect(error);
   }

@@ -13,7 +13,7 @@ import type { GradingRosterRow } from '@/lib/mock/classbot-grading-roster';
  * 그래서 순수 규칙만 여기로 뺐다. 이 파일에는 `'use client'` 를 붙이지 않는다 —
  * 붙이는 순간 같은 결함이 돌아온다.
  *
- * 관제소(`../monitor/roster-filters`)·리포트 센터(`../reports/report-roster-filters`)가
+ * 학생 목록(`../students/roster-filters` · 옛 관제소 몫)·리포트 센터(`../reports/report-roster-filters`)가
  * 이미 쓰던 것과 같은 모양이다.
  */
 

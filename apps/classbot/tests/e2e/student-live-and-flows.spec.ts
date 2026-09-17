@@ -224,7 +224,7 @@ test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
     await expect(page.getByText('안전 등급 시간대 스케줄')).toBeVisible();
   });
 
-  // 봇을 가리키지 못하는 링크(학급 관제소·봇 빌더)는 ?tab= 만 실어 목록으로 온다.
+  // 봇을 가리키지 못하는 링크(학생 목록·학생 상세·봇 빌더)는 ?tab= 만 실어 목록으로 온다.
   test('?tab= 를 실은 채 들어오면 고른 봇의 그 탭으로 바로 들어간다', async ({ page }) => {
     await page.goto(BASE + '/teacher/bots?tab=drift', { waitUntil: 'networkidle' });
 
@@ -233,8 +233,10 @@ test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
     await expect(page.getByText('이탈 대응 강도')).toBeVisible();
   });
 
-  test('학급 관제소의 「봇 관리」는 이탈 대응을 실은 채 목록으로 온다', async ({ page }) => {
-    await page.goto(BASE + '/teacher/monitor', { waitUntil: 'networkidle' });
+  // 이 링크는 학급 관제소에 달려 있었다 — 계획 PR 7 이 관제소를 정본 신호 표로 바꾸며 목 명단(`monitor-roster.tsx`)이
+  // 학생 목록(`/teacher/students`)으로 옮겨 갔고, 링크도 그 명단 아래에 그대로 산다.
+  test('학생 목록의 「봇 관리」는 이탈 대응을 실은 채 목록으로 온다', async ({ page }) => {
+    await page.goto(BASE + '/teacher/students', { waitUntil: 'networkidle' });
 
     await page.getByRole('link', { name: /봇 관리에서 이탈 대응 강도/ }).click();
     await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');

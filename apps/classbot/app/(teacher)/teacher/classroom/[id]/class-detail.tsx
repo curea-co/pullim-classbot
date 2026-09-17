@@ -13,12 +13,14 @@ import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClass } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
+import { cn } from '@/lib/utils';
 import { JoinCodeBlock } from '../join-code-block';
 import { toOperatorClass, type OperatorClass } from '../operator-class';
+import { ClassChatTab } from './class-chat-tab';
+import { CLASS_TABS, classTabHref, type ClassTabId } from './class-tabs';
 
 /**
- * 반 상세 본문 — 머리(반 이름 · 과목·학년 · 봇 · 참여 코드) + 탭 「과제」 하나(`./page.tsx` 머리주석 — 나머지 탭은
- * 5b·PR 7).
+ * 반 상세 본문 — 머리(반 이름 · 과목·학년 · 봇 · 참여 코드) + 탭(`./class-tabs.ts` — 지금은 과제 · 대화).
  *
  * 머리는 `GET /bots/:id`(`useOperatorClass`)에서 온다 — 목록 캐시에 기대지 않는다. 남의 반은 정본이 **403** 으로
  * 가르고(`authz.md § 1.5` · `CLASS_OPERATOR_FORBIDDEN`), 없는 반은 404 다. 둘을 한 카드로 뭉개지 않는다 —
@@ -27,10 +29,19 @@ import { toOperatorClass, type OperatorClass } from '../operator-class';
  * 과제 탭은 `useTeacherAssignments()`(`GET /assignments?audience=teacher` — 내가 operator 인 모든 반)를 받아
  * **화면에서 `classId` 로 거른다.** 반 필터 `&classId=` 는 pullim-api PR 2 가 DTO 에 더한다(완성 설계 § 5 R11) —
  * 그 문이 열리면 거르는 자리가 서버로 옮겨 갈 뿐 이 화면은 그대로다. 줄을 누르면 과제 상세(`/teacher/assignment/[id]`),
- * 「새 과제 내기」는 `/teacher/assignment/new?classId=` 로 **이 반을 들고** 간다 — 그 폼이 `classId` 를 읽는 것은
- * 계획 PR 6(과제 내기 정본화)의 몫이다.
+ * 「새 과제 내기」는 `/teacher/assignment/new?classId=` 로 **이 반을 들고** 간다.
+ *
+ * 대화 탭(`./class-chat-tab.tsx` · 계획 PR 7)은 학생별 기록과 신호 배지·확인이다 — 고른 학생은 그 탭이 `?student=` 로
+ * 직접 읽는다(관제소가 `?tab=chat&student=` 로 곧장 보낸다).
  */
-export function ClassDetail({ classId }: { classId: string }) {
+export function ClassDetail({
+  classId,
+  tab,
+}: {
+  classId: string;
+  /** 지금 열린 탭 — `page.tsx` 가 `?tab=` 에서 읽어 넘긴다. */
+  tab: ClassTabId;
+}) {
   const query = useOperatorClass(classId);
 
   if (query.isPending) {
@@ -94,31 +105,40 @@ export function ClassDetail({ classId }: { classId: string }) {
       </section>
 
       {/*
-        탭 — 지금은 「과제」 하나다(`./page.tsx`). 로컬 `Tabs` 프리미티브(`components/ui/tabs.tsx`)를 쓰지 않는
-        이유는 탭이 하나인 동안 전환이 없어서다 — 5b 가 명단·봇 탭을 더하는 날 그 프리미티브로 갈아탄다.
-        그래도 역할(tablist·tab·tabpanel)은 지금부터 붙인다 — 낭독기에 「탭 하나짜리 화면」이라고 정확히 말하려고.
+        탭 — 목록은 `./class-tabs.ts`. 탭은 **링크**다(`?tab=` · replace · 스크롤 유지): 로컬 `Tabs` 프리미티브
+        (`components/ui/tabs.tsx`)는 상태 기반이라 관제소가 「이 반 대화 탭, 이 학생」으로 곧장 보내는 주소를 못 받는다.
+        링크라서 ARIA tabs 역할은 붙이지 않는다 — `role="tab"` 은 방향키 이동·비활성 탭 `tabIndex=-1` 을 약속하는데
+        링크는 그 약속을 못 지킨다. 대신 `<nav>` + `aria-current="page"` 로 「지금 어느 탭인가」를 정직하게 말한다.
       */}
       <div>
-        <div role="tablist" aria-label="반 상세" className="border-pullim-slate-200 flex gap-1 border-b">
-          <button
-            type="button"
-            role="tab"
-            id="class-tab-assignments"
-            aria-selected="true"
-            aria-controls="class-panel-assignments"
-            className="text-pullim-blue-700 border-pullim-blue-600 -mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-bold"
-          >
-            <ClipboardList aria-hidden className="h-4 w-4" />
-            과제
-          </button>
-        </div>
-        <section
-          role="tabpanel"
-          id="class-panel-assignments"
-          aria-labelledby="class-tab-assignments"
-          className="pt-5"
-        >
-          <ClassAssignments classId={room.id} />
+        <nav aria-label="반 상세" className="border-pullim-slate-200 flex gap-1 border-b">
+          {CLASS_TABS.map((t) => {
+            const active = t.id === tab;
+            const Icon = t.icon;
+            return (
+              <Link
+                key={t.id}
+                href={classTabHref(room.id, t.id)}
+                replace
+                scroll={false}
+                aria-current={active ? 'page' : undefined}
+                data-testid={`class-tab-${t.id}`}
+                className={cn(
+                  '-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-bold transition-colors',
+                  'focus-visible:ring-pullim-blue-400/50 focus-visible:ring-2 focus-visible:outline-none',
+                  active
+                    ? 'text-pullim-blue-700 border-pullim-blue-600'
+                    : 'text-pullim-slate-500 hover:text-pullim-slate-900 border-transparent',
+                )}
+              >
+                <Icon aria-hidden className="h-4 w-4" />
+                {t.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <section className="pt-5" data-testid={`class-panel-${tab}`}>
+          {tab === 'chat' ? <ClassChatTab classId={room.id} /> : <ClassAssignments classId={room.id} />}
         </section>
       </div>
     </Shell>
