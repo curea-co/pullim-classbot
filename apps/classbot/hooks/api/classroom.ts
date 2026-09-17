@@ -12,8 +12,9 @@
  *    `useAssignClassBot`(`PUT /classes/:classId/bot`) — 계획 PR 5b 가 pullim-api PR 2 의 새 문에 붙였다.
  *  - 같은 오리진 `/api/teacher/classrooms` 는 **`useTeacherClassrooms` 하나만** 남는다 — 내 수업방 화면은 더 안 읽고,
  *    봇 마켓의 「내 봇 공유」(`app/(teacher)/teacher/marketplace/*` · 결정 ① 범위 밖)가 게시 상태를 여기서 읽는다.
- *    그 절이 옮겨 가는 날(계획 PR 8) 함께 걷는다. 같은 오리진 `useCreateClassroom`·`useClassroomStudents` 는
- *    5b 가 걷었다(라우트 핸들러는 PR 8 의 「B 세계 은퇴」 몫으로 남는다).
+ *    **계획 PR 8 이 그 라우트를 남겨 둔 이유가 이 훅이다** — 마켓 축이 정본으로 옮겨 가는 날 함께 걷는다.
+ *    같은 오리진 `useCreateClassroom`·`useClassroomStudents` 는 5b 가 걷었고, 그 라우트 핸들러도 같은 트리라
+ *    이번에는 남았다(소비자 0 · 「마켓 축과 함께 후속 은퇴」).
  *
  * 정본 훅의 신원·캐시 규약:
  *  - 신원은 OS 세션(`useAuth`)이다. 세션 복원 전(`isReady=false`)에는 묻지 않는다 — 그 구간의

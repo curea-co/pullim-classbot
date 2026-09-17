@@ -1,7 +1,7 @@
 /**
  * 도메인 fetch — pullim-api classbot **정본 라우트**(`api.pullim.ai/classbot/*`)를 친다.
  *
- * `lib/api/read-fetch.ts`·`lib/api/client-fetch.ts` 는 같은 오리진 Next route handler(`/api/*`) 전용이라
+ * `lib/api/client-fetch.ts` 는 같은 오리진 Next route handler(`/api/*`) 전용이라
  * 별도 헬퍼가 필요하다 — 이쪽은 **OS API 호스트**(`NEXT_PUBLIC_OS_API_URL`, `lib/auth/os-sso.ts`
  * `API_BASE`)의 `/classbot/*` 서비스 경계 프리픽스로 간다(글로벌 `/api` 프리픽스 없음).
  *

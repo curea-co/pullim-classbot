@@ -45,7 +45,8 @@ import { assignments, enrollments } from '@/lib/db/schema';
 /**
  * 이 읽기가 어느 동의 축인가 — 05 § 11.4 의 표가 가른 그 축이다.
  *
- * - `'student-own'` — 학생 본인 화면(`/api/assignments`). 자기 것은 출처를 가르지 않고 다 본다.
+ * - `'student-own'` — 학생 본인 축. 자기 것은 출처를 가르지 않고 다 본다.
+ *   *(이 축을 쓰던 `/api/assignments` 는 계획 PR 8 에서 걷혔다 — 술어는 남아 테스트가 지킨다.)*
  * - `'class-summary'` — 학부모의 `class_assignment_summary` 축. **반·과제만** 나간다.
  *
  * 인자를 선택이 아니라 **필수**로 둔 이유: 기본값을 주면 새 호출부가 아무것도 안 적고

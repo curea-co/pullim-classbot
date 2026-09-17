@@ -5,7 +5,9 @@
  * 지우는 술어에 **내 명의**가 함께 들어가므로 경로에 남의 봇 id 를 넣어도 남의 행에는
  * 닿지 않는다. 근거는 `app/api/me/self-bots/route.ts` 머리주석.
  *
- * 대화 기록(`chat_messages`)과 공부한 날은 남는다 — 뺀 것은 목록에서지 지난 일에서가 아니다.
+ * 공부한 날(`self_study_days`)은 남는다 — 뺀 것은 목록에서지 지난 일에서가 아니다.
+ * *(종전에는 대화 기록 `chat_messages` 도 함께 적었다. 그 표와 `POST /api/chat` 은 계획
+ * PR 8 에서 걷혔고, 대화 정본은 pullim-api 다 — 이 라우트가 그쪽을 지우지 않는 것은 같다.)*
  */
 
 import { NextResponse } from 'next/server';

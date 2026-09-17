@@ -28,15 +28,12 @@ import {
   botCurriculumUnits,
   botQuestions,
   botSettings,
-  chatMessages,
   classBots,
   classrooms,
   consentLogs,
   crisisAlerts,
-  emotionCheckIns,
   enrollments,
   joinCodes,
-  gradingHistory,
   gradingItems,
   lessons,
   liveQuizzes,
@@ -49,7 +46,6 @@ import {
   reports,
   templates,
   users,
-  wellbeingSnapshots,
 } from '../lib/db/schema';
 
 import { currentPersona } from '../lib/mock/persona';
@@ -62,8 +58,6 @@ import {
   classRoster,
   crisisAlerts as mockCrisisAlerts,
   currentTeacher,
-  emotionCheckIns as mockEmotionCheckIns,
-  gradingHistory as mockGradingHistory,
   gradingQueue,
   liveFeed,
   liveSessions as mockLiveSessions,
@@ -80,18 +74,13 @@ import {
   studentReplays,
   templates as mockTemplates,
   upcomingLessons,
-  wellbeingSnapshots as mockWellbeingSnapshots,
   type ClassroomStudent,
 } from '../lib/mock/classbot';
 
 const ALL_TABLES = [
   // 부모 순서로 — TRUNCATE RESTART IDENTITY CASCADE는 의존관계 자동 처리하지만 순서 명시로 가독성 확보
-  'chat_messages',
-  'grading_history',
   'grading_items',
   'crisis_alerts',
-  'wellbeing_snapshots',
-  'emotion_checkins',
   'reports',
   'templates',
   'interventions',
@@ -714,7 +703,7 @@ async function main() {
     `[seed] assignments: ${studentAssignments.length}, assignment_questions: ${validQuestionRows.length}`,
   );
 
-  /* 16. grading_items (+ overriddenSample) + grading_history */
+  /* 16. grading_items (+ overriddenSample) — `grading_history` 는 표가 걷혔다(계획 PR 8) */
   await db.insert(gradingItems).values(
     [...gradingQueue, overriddenSample].map((g) => ({
       id: g.id,
@@ -736,58 +725,13 @@ async function main() {
     })),
   );
 
-  if (mockGradingHistory.length > 0) {
-    await db.insert(gradingHistory).values(
-      mockGradingHistory.map((h) => ({
-        studentId: mapStudentId(h.studentId),
-        assignmentTitle: h.assignmentTitle,
-        gradedAtLabel: h.gradedAt,
-        score: h.score,
-        maxScore: h.maxScore,
-      })),
-    );
-  }
-  console.log(
-    `[seed] grading_items: ${gradingQueue.length + 1}, grading_history: ${mockGradingHistory.length}`,
-  );
+  console.log(`[seed] grading_items: ${gradingQueue.length + 1}`);
 
-  /* 17. emotion_checkins */
-  if (mockEmotionCheckIns.length > 0) {
-    await db.insert(emotionCheckIns).values(
-      mockEmotionCheckIns.map((e) => ({
-        id: e.id,
-        studentId: mapStudentId(e.studentId),
-        date: e.date,
-        mood: e.mood,
-        intensity: e.intensity ?? null,
-        intensityRange: e.intensityRange ?? null,
-        freeText: e.freeText ?? null,
-        keywordFlag: e.keywordFlag ?? null,
-      })),
-    );
-  }
-  console.log(`[seed] emotion_checkins: ${mockEmotionCheckIns.length}`);
-
-  /* 18. wellbeing_snapshots — date 컬럼이 PK라 daysAgo→date 변환. mock 기준일 today */
-  const today = new Date('2026-05-11'); // mock의 daysAgo=0 기준일 (emotionCheckIns date='2026-05-11')
-  const wellbeingRows = mockWellbeingSnapshots.map((w) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - w.daysAgo);
-    return {
-      studentId: mapStudentId(w.studentId),
-      date: d.toISOString().slice(0, 10),
-      score: w.score,
-      flag: w.flag ?? null,
-    };
-  });
-
-  // 같은 (studentId, date) 중복 제거 — wellbeing은 일자별 1개만
-  const wellbeingDedup = new Map<string, typeof wellbeingRows[number]>();
-  for (const r of wellbeingRows) {
-    wellbeingDedup.set(`${r.studentId}|${r.date}`, r);
-  }
-  await db.insert(wellbeingSnapshots).values(Array.from(wellbeingDedup.values()));
-  console.log(`[seed] wellbeing_snapshots: ${wellbeingDedup.size}`);
+  /*
+   * 17·18 이 있던 자리 — `emotion_checkins` · `wellbeing_snapshots` 는 표가 걷혔다(계획 PR 8).
+   * 그 둘을 읽던 `GET /api/wellness` 가 함께 걷혔고, 웰빙 화면은 `lib/mock` 을 직접 읽으므로
+   * 시드가 채워 줄 곳이 없다. 목 배열(`emotionCheckIns` · `wellbeingSnapshots`)은 그대로 산다.
+   */
 
   /* 19. crisis_alerts */
   if (mockCrisisAlerts.length > 0) {
@@ -876,9 +820,10 @@ async function main() {
   await db.insert(templates).values([...baseRows, ...extraMyRows]);
   console.log(`[seed] templates: ${baseRows.length + extraMyRows.length}`);
 
-  /* 22. chat_messages — 1차에서는 비워둠 (런타임 영속화 시작 전) */
-  void chatMessages; // 명시적 미사용 표시
-  console.log('[seed] chat_messages: 0 (Ph1에서는 비어 있음)');
+  /*
+   * 22 가 있던 자리 — `chat_messages` 는 표가 걷혔다(계획 PR 8). 시드가 채운 적은 없고
+   * (「Ph1 에서는 비어 있음」), 대화 정본은 pullim-api 다.
+   */
 
   // unused but imported — quiet linter for unused vars
   void _pendingItems;

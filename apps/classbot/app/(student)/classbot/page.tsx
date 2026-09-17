@@ -64,7 +64,8 @@ export default function StudentClassbotPage() {
   // hook 4 — 받은 과제. 정본(`GET /classbot/assignments?audience=student`) 하나다 — 종전의 localStorage 병합
   // (`useMergedAssignments`)은 PR 6 에서 걷었다. 서버 술어가 이미 참여 반으로 좁혀 주므로 여기서 반으로 다시 거르지 않는다.
   const assignmentsQuery = useVisibleAssignments();
-  // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
+  // hook 6 — 참여 중인 수업방. 정본(`GET /classbot/bots?role=student`) + 데모 스토어를 합친다.
+  // (종전의 같은 오리진 `/api/me/classrooms` 는 계획 PR 8 에서 걷혔다.)
   // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
   // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
   const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();

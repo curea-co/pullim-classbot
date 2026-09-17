@@ -1,36 +1,16 @@
 /**
- * 학생 읽기 3면 API 응답 행 타입 — Phase 7 Stage 2 (bots / assignments / grades).
+ * 학생 과제 읽기 행 타입 — 화면 다섯이 읽는 모양.
  *
- * Stage 1(#92) 라우트 핸들러가 Drizzle 컬럼을 그대로 select 해 반환하므로,
- * 행 형태는 `lib/db/schema.ts` 의 컬럼과 1:1 이다(타임스탬프는 JSON 직렬화로 string).
- * mock 타입(`lib/mock`)과 컬럼명은 대체로 일치한다.
+ * 원래는 같은 오리진 읽기 3면(`/api/bots` · `/api/assignments` · `/api/grades`)의 응답 모양을
+ * 담던 파일이고, 그래서 행 형태가 `lib/db/schema.ts` 의 컬럼과 1:1 이었다. **그 세 라우트는
+ * 계획 PR 8 에서 걷혔다** — 지금 남은 둘은 정본(pullim-api) DTO 를 이 모양으로 옮겨 담는
+ * 화면 계약이다(`app/(student)/classbot/assignment/use-assignment-reads.ts` 의 `toAssignmentReadRow`).
+ * 그래서 이름만 「Read」로 남았지, 이제 이 모양을 내는 것은 route handler 가 아니라 그 변환기다.
  *
- * (웰빙 읽기 타입은 신원-소스 단일화·5지표 API 확장과 함께 후속 슬라이스에서 추가.)
+ * 봇·채점 이력 행 타입(`BotReadRow` · `GradeReadRow`)과 봉투 셋은 소비자가 0 이 되어 함께 걷었다.
  */
 
-/** `GET /api/bots` — enrollments ⋈ class_bots 한 행(봇 카드 + 반 메타). */
-export interface BotReadRow {
-  id: string;
-  name: string;
-  avatarEmoji: string;
-  teacherName: string;
-  organization: string;
-  subject: string;
-  grade: string;
-  tone: '정중' | '친근' | '스파르타' | '차분' | '열정';
-  greeting: string;
-  scope: number;
-  isLive: boolean;
-  currentLesson: Record<string, unknown> | null;
-  quickPrompts: Array<{ text: string; expectedReplyKey: string }>;
-  enrolledCount: number;
-  classroomId: string;
-  classroomLabel: string;
-  assignedBy: string;
-  via: string;
-}
-
-/** `GET /api/assignments` — 내게 배정된 과제 한 행. */
+/** 내게 배정된 과제 한 행. */
 export interface AssignmentReadRow {
   id: string;
   botId: string;
@@ -58,32 +38,7 @@ export interface AssignmentReadRow {
   solveHref: string;
 }
 
-/** `GET /api/grades` — 내 채점 이력 한 행. */
-export interface GradeReadRow {
-  id: number;
-  studentId: string;
-  assignmentTitle: string;
-  gradedAtLabel: string;
-  score: number;
-  maxScore: number;
-}
-
-/** `GET /api/bots` 응답 봉투. */
-export interface BotsReadResponse {
-  bots: BotReadRow[];
-}
-
-/** `GET /api/assignments` 응답 봉투. */
+/** 과제 목록 응답 봉투 — `useVisibleAssignments()` 가 이 모양으로 돌려준다. */
 export interface AssignmentsReadResponse {
   assignments: AssignmentReadRow[];
-}
-
-/** `GET /api/assignments/[id]` 단건 응답 봉투. */
-export interface AssignmentReadResponse {
-  assignment: AssignmentReadRow;
-}
-
-/** `GET /api/grades` 응답 봉투. */
-export interface GradesReadResponse {
-  grades: GradeReadRow[];
 }

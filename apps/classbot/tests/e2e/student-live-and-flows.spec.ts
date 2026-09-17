@@ -43,8 +43,11 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
     //  · `대치프리미엄 수학학원` = `joined-classes-data.ts` 의 `orgOf()` — `enrollment.via` 우선,
     //    없으면 `bot.organization`. MATH-2024 는 둘 다 같은 값이라 가장 덜 흔들린다.
     //
-    // 첫 단언에 넉넉한 timeout 을 주는 이유: 익명으로 열면 `/api/me/classrooms` 가 401 이라
-    // 홈이 한 RTT 동안 스켈레톤을 그린다(`page.tsx` 의 `roomsLoading` 가드).
+    // 첫 단언에 넉넉한 timeout 을 주는 이유: 홈이 한 RTT 동안 스켈레톤을 그린다
+    // (`page.tsx` 의 `roomsLoading` 가드).
+    // TODO(e2e 트랙): 여기 적힌 `/api/me/classrooms` 401 은 계획 PR 8 이 그 라우트를 걷으며
+    // 사라졌다 — 지금 홈이 기다리는 것은 정본 `GET /classbot/bots?role=student` 다.
+    // 이 스펙은 `mixed-role-pending` 이라 다시 쓰지 않고 사실만 적어 둔다.
     const main = page.getByRole('main');
     await expect(main.getByText('김보람 선생님')).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('대치프리미엄 수학학원')).toBeVisible();

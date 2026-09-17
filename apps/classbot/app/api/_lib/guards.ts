@@ -8,7 +8,8 @@
  * ⚠️ **403 은 역할 불일치에만 쓴다.** "남의 반" 은 403 이 아니라 **404** 다 —
  * 403 은 "그 id 는 있는데 네 것이 아니다" 를 알려 줘서 남의 반이 존재한다는 사실이 새 나간다.
  * 소유권은 조회 조건에 넣어(`and(eq(id), eq(teacherId, 나))`) 0행이면 404 로 답한다.
- * `app/api/assignments/[id]/route.ts` 가 학생 쪽에서 쓰는 것과 같은 규약이다.
+ * (학생 쪽에서 같은 규약을 쓰던 `app/api/assignments/[id]/route.ts` 는 계획 PR 8 에서 걷혔다 —
+ * 규약은 교사 반 라우트에 그대로 선다.)
  *
  * 역할을 왜 도메인 `users.role` 로 다시 확인하나:
  *  - 공유 `UserRole` 타입에는 아직 `parent` 가 없다(student/teacher/admin). 그래서 공유
@@ -138,8 +139,10 @@ export function readTrimmed(value: unknown): string {
    2. **그 역할이 이 표면을 쓸 수 있는가** — 아니면 403.
 
   둘을 갈라 두는 이유: 개발용 신원이 생기면서 서버가 돌려주는 role 이 셋(학생·교사·학부모)이
-  됐다. 1번만 물으면 **학부모 명의로 학생 본인 표면**(`/api/assignments` · `/api/grades` ·
-  `/api/wellness` …)에 들어와 200 이나 빈 목록을 받는다. 「데이터가 없어서 비어 있다」와
+  됐다. 1번만 물으면 **학부모 명의로 학생 본인 표면**(`/api/me/self-bots` ·
+  `/api/me/study-days` · `/api/me/consents`)에 들어와 200 이나 빈 목록을 받는다.
+  *(예시로 들던 `/api/assignments` · `/api/grades` · `/api/wellness` 는 계획 PR 8 에서
+  걷혔다 — 가드 자체는 남은 표면에 그대로 선다.)* 「데이터가 없어서 비어 있다」와
   「그 역할은 볼 수 없다」는 전혀 다른 계약이라, 후자는 403 으로 말해야 한다.
   학부모의 자녀 열람은 별도 표면(`/parent/*`)에서 자녀 매칭·동의를 거쳐 온다
   (`proc/spec/05 § 11.2` · `§ 11.4`).
