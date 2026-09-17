@@ -11,7 +11,7 @@ import { ReadErrorState } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClassMembersForMonitor } from '@/hooks/api/classroom';
+import { useClassMembers } from '@/hooks/api/classroom';
 import { useAckSignal, useClassSignals, useMemberChat, useStudentSignals } from '@/hooks/api/monitoring';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import {
@@ -41,7 +41,7 @@ import { classTabHref } from './class-tabs';
  * 머리가 먼저 가른다(남의 반 · 없는 반). 그래서 이 탭의 오류는 대개 일시 장애다 — 다시 시도 하나로 답한다.
  */
 export function ClassChatTab({ classId }: { classId: string }) {
-  const members = useClassMembersForMonitor(classId);
+  const members = useClassMembers(classId);
   const signals = useClassSignals(classId);
   const router = useRouter();
   const searchParams = useSearchParams();

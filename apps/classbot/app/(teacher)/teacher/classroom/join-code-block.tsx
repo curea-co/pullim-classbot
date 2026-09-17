@@ -19,14 +19,16 @@ import { cn } from '@/lib/utils';
  * 교사가 여기서 하는 일은 셋뿐이다: **새로 내기 · 읽어서 부르기 · 복사하기**.
  * 그래서 코드는 카드 안 다른 어떤 글자보다 크고, 복사 버튼은 코드 바로 옆에 붙는다.
  *
- * **정본 카드에는 코드가 실리지 않는다**(`GET /bots?role=teacher` · `operator-class.ts`). 코드는 낼 때만
- * 돌아오므로(`POST /classes/:classId/join-codes` · `useIssueJoinCode`) 이 상자는 **이 화면에서 마지막으로 낸
- * 코드**만 든다 — 새로 고치면 비고, 그건 잃은 것이 아니라 「다시 내면 된다」다. 옛 코드는 학생 손에 있다.
+ * 코드가 어디서 오나 — 둘이다.
+ *  - **낼 때**(`POST /classes/:classId/join-codes` · `useIssueJoinCode`): 정본 카드·상세(`GET /bots*`)에는 코드가
+ *    실리지 않으므로(옛 bot == class 문 · `operator-class.ts`) 이 상자는 기본적으로 **이 화면에서 마지막으로 낸
+ *    코드**만 든다 — 새로 고치면 비고, 그건 잃은 것이 아니라 「다시 내면 된다」다. 옛 코드는 학생 손에 있다.
+ *  - **`initial`**: 반을 막 만들었거나(`POST /classes` 의 첫 코드) 봇을 붙이고 뗀 뒤(`PUT …/bot` 응답의 활성 코드)
+ *    이 세션이 아는 `ClassDto.joinCode` — `useKnownClassSummary`. 있으면 새로 고쳐도 그 코드로 선다.
  *
- * 종전(같은 오리진) 판은 「새 코드를 내면 지금 코드는 그 자리에서 못 써요」라고 한 번 더 물었다. **그 말은 정본에
- * 맞지 않아 걷었다** — pullim-api `createJoinCode()` 는 저장만 하고 옛 코드를 지우지 않는다(완성 설계 § 5 R1 ·
- * 「반 하나에 살아 있는 코드는 하나」와 `expires_at` 은 pullim-api PR 2). 그래서 여기서는 옛 코드의 운명을
- * 말하지 않는다 — 사실이 아닌 안내가 더 나쁘다. 만료가 오면(`JoinCodeDto.expiresAt`) 남은 시간을 그린다.
+ * **재발급은 갈아 끼우기다**(pullim-api PR 2 · api.md § 3.5): 새 코드를 내면 그 반의 옛 코드는 전부 지워진다.
+ * 계획 PR 5a 때는 정본이 저장만 해서 그 말을 걷었는데, 이제 사실이라 다시 말한다 — 「새로 내면 지금 코드는 닫혀요」.
+ * 만료(`expiresAt` — 기본 +48h · `null` 은 안 닫힘)는 남은 시간으로 그리고, 닫히는 순간 화면이 스스로 바뀐다.
  *
  * 저장된 코드는 하이픈이 없는 대문자이고 하이픈은 **표시할 때만** 붙는다(`lib/join-code-format.ts`).
  * 복사도 보이는 그대로(`ABC-123`)를 담는다 — 학생 입력이 대문자화·하이픈 제거로 정규화되므로 어느 쪽을
@@ -53,17 +55,24 @@ export function issueFailureMessage(error: unknown): string {
 
 export function JoinCodeBlock({
   classId,
+  initial = null,
   size = 'md',
 }: {
   /** 반 id(pullim-api). */
   classId: string;
+  /** 이 세션이 이미 아는 활성 코드(반 생성·봇 할당 응답). 없으면 낼 때까지 비어 있다. @default null */
+  initial?: JoinCodeDto | null;
   /** 반 상세 머리에서는 한 칸 더 크게. @default 'md' */
   size?: 'md' | 'lg';
 }) {
   const [issued, setIssued] = useState<JoinCodeDto | null>(null);
+  // 아는 코드(`initial`)가 있으면 그것이 선다 — 요약 캐시는 정본이 마지막으로 돌려준 활성 코드라 여기서 낸 코드보다
+  // 오래될 수 없다(`useIssueJoinCode` 가 새 코드를 요약에도 써 둔다). 모르면 이 상자가 낸 코드.
+  const current = initial ?? issued;
+
   const issue = useIssueJoinCode();
-  const code = issued?.code ?? null;
-  const expiresAt = issued?.expiresAt ?? null;
+  const code = current?.code ?? null;
+  const expiresAt = current?.expiresAt ?? null;
 
   async function handleCopy() {
     if (!code) return;
@@ -101,7 +110,6 @@ export function JoinCodeBlock({
     만료가 지나도 「…까지 쓸 수 있어요」와 복사 버튼이 살아 있다 — 죽은 코드를 불러 준다.
     초 단위로 돌리지 않는다. 필요한 순간은 **딱 하나**(닫히는 시각)라, 거기까지 한 번만 잰다.
     `setTimeout` 의 상한(약 24.8일)을 넘기면 즉시 발화하므로 넘는 길이는 걸지 않는다.
-    지금 정본은 `expiresAt` 을 보내지 않아 이 효과는 돌지 않는다 — PR 2 가 값을 실으면 그대로 산다.
   */
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -153,7 +161,7 @@ export function JoinCodeBlock({
 
       {/*
         언제까지 사는지 — 교사가 이 값으로 하는 결정은 하나다: 「지금 불러 줘도 되나」.
-        닫힐 시각이 없는 코드에는 아무 말도 붙이지 않는다 — 지금 정본이 그렇다(PR 2 전).
+        `expiresAt` 이 null 인 코드(안 닫히게 낸 것)에는 아무 말도 붙이지 않는다.
       */}
       {code && life.state === 'open' && (
         <p data-testid="join-code-life" className="text-pullim-slate-500 mt-1 text-2xs">
@@ -179,6 +187,12 @@ export function JoinCodeBlock({
           <RefreshCw />
           {issue.isPending ? '내는 중…' : '참여 코드 새로 내기'}
         </Button>
+        {/* 살아 있는 코드가 있을 때만 — 없는 코드가 닫힌다고 말할 일은 없다. */}
+        {code && !closed && (
+          <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="join-code-replace-note">
+            새로 내면 지금 코드는 닫혀요.
+          </p>
+        )}
       </div>
     </div>
   );

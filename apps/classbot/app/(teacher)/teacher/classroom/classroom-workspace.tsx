@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Bot, KeyRound, School } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, CheckCircle2, KeyRound, School, X } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadLoginGate } from '@/components/classbot/read-state';
@@ -9,43 +10,36 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useOperatorClasses } from '@/hooks/api/classroom';
+import { useKnownClassSummary, useOperatorClasses } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
-import { CreateClassroomForm } from './create-classroom-form';
+import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
+import { classTabHref } from './[id]/class-tabs';
+import { CreateClassroomForm, type CreatedClassroom } from './create-classroom-form';
 import { JoinCodeBlock } from './join-code-block';
+import { KnownBotChip } from './known-bot-chip';
 import { toOperatorClass, type OperatorClass } from './operator-class';
 
 /**
- * 반 만들기가 열려 있는가 — **지금은 닫혀 있다.**
+ * 내 수업방 — 내가 operator 인 반을 정본에서 읽고, 반을 만들고, 반마다 참여 코드를 낸다.
  *
- * 정본(pullim-api)에 `POST /classes` 가 아직 없다(완성 설계 § 5 R1 「가장 큰 구멍」 · pullim-api PR 2). 같은 오리진
- * `useCreateClassroom` 이 만드는 반은 이 화면이 읽는 정본 목록에 나타나지 않으므로, 폼을 그대로 두면 교사는
- * 「만들었는데 목록에 없다」를 본다. 그래서 폼(`create-classroom-form.tsx`)은 코드에 남기고 이 상수 하나로 가린다 —
- * 계획 **PR 5b** 가 정본 문으로 폼을 옮기고 이 값을 지운다(상수를 `true` 로 켜는 것이 아니라 상수 자체를 걷는다).
- */
-export const CLASS_CREATE_AVAILABLE = false as boolean;
-
-/** 교사에게 그 사실을 말하는 한 줄 — 버튼이 있던 자리에 선다. */
-export const CLASS_CREATE_PENDING_NOTICE = '반 만들기는 다음 업데이트에서 열려요';
-
-/**
- * 내 수업방 — 내가 operator 인 반을 정본에서 읽고, 반마다 참여 코드를 새로 낸다.
+ * 읽는 곳은 pullim-api `GET /classbot/bots?role=teacher`(`useOperatorClasses`), 만드는 곳은 `POST /classbot/classes`
+ * (`useCreateClassroom` · 계획 PR 5b — 5a 때 `CLASS_CREATE_AVAILABLE=false` 뒤에 가려 뒀던 폼을 정본 문으로 옮기고
+ * 그 상수를 걷었다). 두 세계의 반 id 를 한 화면에 섞지 않는다: 코드는 정본 반에만 붙고, 학생의 참여도 정본
+ * `POST /enrollments` 다.
  *
- * 이 화면이 하는 일은 **참여 코드를 손에 쥐여 주는 것** 하나다(종전과 같다). 달라진 것은 읽는 곳이다 —
- * 같은 오리진 `/api/teacher/classrooms` 가 아니라 pullim-api `GET /classbot/bots?role=teacher`(`useOperatorClasses`).
- * 두 세계의 반 id 를 한 화면에 섞지 않는다: 코드는 정본 반에만 붙고, 같은 오리진 반에 붙은 코드는 학생이
- * 넣어도 안 열린다(학생의 참여도 정본 `POST /enrollments` 다).
+ * 반을 만들면 **첫 코드가 함께 온다**(한 트랜잭션). 배너가 그 코드와 닫히는 시각을 크게 들고, 「봇 붙이러 가기」가
+ * 새 반 상세의 「봇」 탭(`?tab=bot`)으로 간다 — 교사가 지금 할 일은 코드를 건네는 것이고 다음 할 일은 봇을 붙이는
+ * 것이다. 목록이 다시 그려지면 그 반의 카드도 같은 코드로 선다(`useKnownClassSummary` → `JoinCodeBlock.initial`).
  *
- * 카드에서 **내린 것 둘**(계획 PR 5a):
- *  - 학생 명단 — 정본에 `GET /classes/:id/members` 가 없다(PR 2). 같은 오리진 명단을 정본 카드에 붙이면 반 id 가
- *    다른 세계의 것이 된다. 5b 가 정본 문으로 되살린다(반 상세 「명단」 탭).
- *  - 봇 마켓 공유 칸 — 같은 오리진 봇 id 와 게시 상태(`TeacherClassroomItem.isPublished`)를 전제했고 정본 카드에는
- *    둘 다 없다. 마켓 계열은 범위 밖(결정 ①)이라 축을 바꾸지 않고 **`/teacher/marketplace` 「내 봇 공유」로
- *    옮겼다**(`app/(teacher)/teacher/marketplace/publish-bot-block.tsx` · #351 리뷰 S1).
- * 카드에 **더한 것**: 「자세히」 → 반 상세(`/teacher/classroom/[id]`).
+ * 카드의 봇 칩은 **이 세션이 아는 `ClassDto`** 로만 그린다(`known-bot-chip.tsx` — 모른다 · 없다 · 이 봇). 옛 `profile`
+ * (bot == class)로 「봇 없음」을 단정하지 않는다 — 정본에 `classes.bot_id` 를 읽는 문이 아직 없어(pullim-api 후속)
+ * 링크로 바로 연 반은 칩이 비고, 이 세션에서 만들었거나 봇을 붙이고 뗀 반은 사실이 선다. 붙이고 떼는 자리는 반 상세
+ * 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) · 봇 마켓 공유 칸(`/teacher/marketplace`
+ * 「내 봇 공유」 · 결정 ①).
  */
 export function ClassroomWorkspace() {
   const query = useOperatorClasses();
+  const [created, setCreated] = useState<CreatedClassroom | null>(null);
 
   /*
     401 은 **고장이 아니다** — `classbotRead` 가 이미 OS 로그인으로 보내는 중이고(`lib/api/classbot-client.ts`),
@@ -73,17 +67,12 @@ export function ClassroomWorkspace() {
 
   return (
     <>
+      {created && <CreatedBanner created={created} onDismiss={() => setCreated(null)} />}
+
       <section>
         <SectionHeading
           title={query.isPending ? '내 수업방' : `내 수업방 ${rooms.length}개`}
           description="참여 코드를 새로 내어 학생에게 알려주면 그 반으로 들어와요."
-          action={
-            CLASS_CREATE_AVAILABLE ? undefined : (
-              <p className="text-pullim-slate-500 text-2xs" data-testid="classroom-create-pending">
-                {CLASS_CREATE_PENDING_NOTICE}
-              </p>
-            )
-          }
         />
 
         {query.isPending ? (
@@ -95,7 +84,7 @@ export function ClassroomWorkspace() {
           <EmptyState
             icon={School}
             title="아직 연 수업방이 없어요"
-            description={`${CLASS_CREATE_PENDING_NOTICE}. 반이 생기면 여기서 참여 코드를 내어 학생을 들일 수 있어요.`}
+            description="아래에서 반을 만들면 참여 코드가 나와요. 그 코드를 학생에게 알려 주면 반으로 들어와요."
           />
         ) : (
           <ul className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="classroom-list">
@@ -106,9 +95,49 @@ export function ClassroomWorkspace() {
         )}
       </section>
 
-      {/* 반 만들기 — 정본 문이 열릴 때까지 가린다(`CLASS_CREATE_AVAILABLE`). 참조는 남긴다 — 5b 가 이 폼을 옮긴다. */}
-      {CLASS_CREATE_AVAILABLE && <CreateClassroomForm onCreated={() => void query.refetch()} />}
+      <CreateClassroomForm onCreated={setCreated} />
     </>
+  );
+}
+
+/**
+ * 막 만든 반 — 코드가 주인공이다. 목록이 다시 읽히기 전 한 박자를 이 배너가 잇고, 다시 읽힌 뒤에도 교사가 닫을 때까지
+ * 남는다(카드로 눈을 옮기지 않고 여기서 바로 부르게). 다음 할 일(봇 붙이기)로 가는 길은 새 반의 「봇」 탭이다.
+ */
+function CreatedBanner({ created, onDismiss }: { created: CreatedClassroom; onDismiss: () => void }) {
+  const life = joinCodeLife(created.joinCode.expiresAt);
+  return (
+    <AlertCard tone="info" icon={CheckCircle2} title={`「${created.name}」 반을 만들었어요`}>
+      <div className="flex flex-wrap items-end justify-between gap-3" data-testid="classroom-created">
+        <div>
+          <p className="text-pullim-slate-500 text-2xs font-bold">첫 참여 코드</p>
+          <p
+            className="text-pullim-slate-900 mt-0.5 font-mono text-3xl font-bold tracking-widest"
+            data-testid="classroom-created-code"
+          >
+            {formatJoinCode(created.joinCode.code)}
+          </p>
+          {life.state === 'open' && (
+            <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="classroom-created-life">
+              {life.label} 쓸 수 있어요
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={classTabHref(created.classId, 'bot')}
+            data-testid="classroom-created-detail"
+            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-white transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            봇 붙이러 가기
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Button type="button" variant="ghost" size="sm" onClick={onDismiss} aria-label="배너 닫기">
+            <X />
+          </Button>
+        </div>
+      </div>
+    </AlertCard>
   );
 }
 
@@ -117,6 +146,8 @@ export function ClassroomWorkspace() {
  * 코드는 카드 안에서 제 상자를 갖는다. 다른 값과 같은 줄에 두면 그냥 또 하나의 값이 된다.
  */
 function RoomCard({ room }: { room: OperatorClass }) {
+  // 이 세션이 아는 반 요약(막 만든 반의 첫 코드 · 붙인 봇) — 없으면 코드 상자는 「새로 내기」로만 채워지고 봇 칩은 빈다.
+  const known = useKnownClassSummary(room.id);
   return (
     <li className="bg-card rounded-2xl border p-5" data-testid={`classroom-card-${room.id}`}>
       <div className="flex items-start justify-between gap-3">
@@ -127,31 +158,16 @@ function RoomCard({ room }: { room: OperatorClass }) {
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {room.subject && <Chip tone="info">{room.subject}</Chip>}
         {room.grade && <Chip tone="outline">{room.grade}</Chip>}
-        {/* 봇 — bot == class 라 이름이 반 이름과 같다(`operator-class.ts`). 프로필이 없으면 「봇 없음」이 사실이다. */}
-        {room.botName ? (
-          <Chip tone="outline" data-testid={`classroom-bot-${room.id}`}>
-            <Bot aria-hidden />
-            <span>
-              <span className="sr-only">봇 </span>
-              {room.botAvatar ? `${room.botAvatar} ` : ''}
-              {room.botName}
-            </span>
-          </Chip>
-        ) : (
-          <Chip tone="neutral" data-testid={`classroom-bot-${room.id}`}>
-            <Bot aria-hidden />
-            봇 없음
-          </Chip>
-        )}
+        <KnownBotChip known={known} data-testid={`classroom-bot-${room.id}`} />
       </div>
 
       <div className="border-pullim-blue-200 bg-pullim-blue-50 mt-4 rounded-xl border p-4">
-        <JoinCodeBlock classId={room.id} />
+        <JoinCodeBlock classId={room.id} initial={known?.joinCode ?? null} />
       </div>
 
       <div className="mt-4 flex justify-end">
         <Link
-          href={`/teacher/classroom/${encodeURIComponent(room.id)}`}
+          href={classTabHref(room.id, 'members')}
           aria-label={`${room.name} 자세히`}
           data-testid={`classroom-detail-${room.id}`}
           className="text-pullim-blue-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"

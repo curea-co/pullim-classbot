@@ -29,7 +29,7 @@ import {
 } from '@tanstack/react-query';
 import { ApiError } from '@pullim-classbot/api-client';
 
-import { classbotPatch, classbotRead, retryUnlessClientError } from '@/lib/api/classbot-client';
+import { classbotRead, classbotWrite, retryUnlessClientError } from '@/lib/api/classbot-client';
 import type { ClassSignalsDto, MemberMessageDto, RiskSignalDto } from '@/lib/api/classbot-dto';
 import { useAuth } from '@/lib/auth/auth-context';
 import { ackSignalInView } from '@/lib/risk-signals';
@@ -134,7 +134,7 @@ export function useAckSignal(classId: string): UseMutationResult<RiskSignalDto, 
   const prefix = monitoringKeys.signalsPrefix(classId);
   return useMutation<RiskSignalDto, ApiError, AckSignalInput, AckContext>({
     mutationFn: async ({ signalId }) =>
-      (await classbotPatch<RiskSignalDto>(`/signals/${encodeURIComponent(signalId)}/ack`)).body,
+      (await classbotWrite<RiskSignalDto>(`/signals/${encodeURIComponent(signalId)}/ack`, undefined, 'PATCH')).body,
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: prefix });
       const snapshot = queryClient.getQueriesData<ClassSignalsDto>({ queryKey: prefix });

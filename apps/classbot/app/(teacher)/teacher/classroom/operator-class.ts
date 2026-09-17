@@ -3,13 +3,15 @@ import type { BotCardDto, BotDetailDto } from '@/lib/api/classbot-dto';
 /**
  * 교사가 보는 반 한 칸 — 정본 카드(`GET /classbot/bots?role=teacher` · `GET /bots/:id`)를 화면 모양으로.
  *
- * bot == class(ADR-063)라 카드 `id` 가 반 id 이자 봇 id 고, `name` 은 반 이름이다. **봇 이름은 따로 오지 않는다** —
- * 봇 성격(`profile`)에는 과목·학년·아바타·말투가 있지만 이름 칸이 없어, 지금 봇의 표시 이름은 반 이름과 같다.
- * `bots` 표가 서는 날(pullim-api PR 1 · 완성 설계 § 4) 이 어댑터의 `botName` 이 먼저 갈린다 — 화면은 이 칸만 읽는다.
+ * 이 두 문은 아직 bot == class(ADR-063)다 — 카드 `id` 가 반 id 고 `name` 은 반 이름, `profile` 은 옛 `class_bot_profiles`
+ * (과목·학년·아바타·말투 · 생성 전 null)다. **봇은 여기서 옮기지 않는다** — 반이 지금 가리키는 봇(`classes.bot_id`)은
+ * 이 문에 실리지 않고, `profile` 유무로 「봇 없음」을 단정하면 `POST /classes` 로 만든 반(profile 행이 영영 없다)이 봇을
+ * 붙인 뒤에도 늘 「봇 없음」이 된다. 봇 칩은 이 세션이 아는 `ClassDto`(`useKnownClassSummary`)로 `known-bot-chip.tsx` 가
+ * 그린다. 여기서 옮기는 것은 과목·학년(profile 에서 — 반 자체의 `subject`·`grade` 를 읽는 문이 열리면 그쪽으로)과
+ * 활성 여부뿐이다.
  *
- * 카드에 **없는 것**도 여기서 못박는다: 참여 코드(낼 때만 돌아온다 · `useIssueJoinCode`) · 참여 인원의 명단
- * (`GET /classes/:id/members` 는 PR 2) · 소속(organization). 같은 오리진 `TeacherClassroomItem` 이 들고 있던
- * 게시(마켓) 상태도 없다 — 마켓 계열은 범위 밖이다(결정 ①).
+ * 카드에 **없는 것**도 여기서 못박는다: 참여 코드(낼 때만 돌아온다 · `useIssueJoinCode`) · 명단(반 상세 「명단」 탭) ·
+ * 소속(organization) · 게시(마켓) 상태(범위 밖 · 결정 ①).
  */
 export interface OperatorClass {
   id: string;
@@ -17,9 +19,6 @@ export interface OperatorClass {
   name: string;
   subject: string | null;
   grade: string | null;
-  /** 봇 이름 — `profile` 이 있으면 반 이름과 같다(머리주석). 봇 프로필이 아직 없으면 null. */
-  botName: string | null;
-  botAvatar: string | null;
   isActive: boolean;
 }
 
@@ -35,8 +34,6 @@ export function toOperatorClass(card: BotCardDto | BotDetailDto): OperatorClass 
     name: card.name,
     subject: profile?.subject ? profile.subject : null,
     grade: profile?.grade ? profile.grade : null,
-    botName: profile ? card.name : null,
-    botAvatar: profile?.avatarEmoji ? profile.avatarEmoji : null,
     isActive: card.isActive,
   };
 }

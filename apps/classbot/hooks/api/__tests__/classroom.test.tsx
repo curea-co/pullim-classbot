@@ -1,9 +1,12 @@
 /**
- * 학생 수업방 훅 — pullim-api 정본을 OS 쿠키로 친다(2026-09-16 계획 PR 4).
+ * 수업방 훅 — pullim-api 정본을 OS 쿠키로 친다(2026-09-16 계획 PR 4 · 5a · 5b).
  *
  * `fetch` 를 통째로 가로채 **HTTP 를 상대로** 본다 — URL·메서드·본문·CSRF·credentials 가 정본 계약
- * (`POST /classbot/enrollments`·`GET /classbot/bots?role=student`)과 어긋나면 여기서 걸린다.
- * 목 폴백이 없다는 것도 여기서 못박는다 — 404 는 「없는 코드」로 끝나고 다른 문을 두드리지 않는다.
+ * (`POST /classbot/enrollments`·`GET /classbot/bots?role=`·`POST /classbot/classes`·`GET …/members`·`PUT …/bot`)과
+ * 어긋나면 여기서 걸린다. 목 폴백이 없다는 것도 여기서 못박는다 — 404 는 「없는 코드」로 끝나고 다른 문을 두드리지 않는다.
+ *
+ * 5b 가 더한 것: 반 만들기 응답의 `class` 가 요약 캐시(`useKnownClassSummary`)에 서는 것 · 명단 읽기 · 봇 할당이
+ * `PUT` 으로 가고 `null` 이 떼기인 것 · 새 코드가 요약의 `joinCode` 를 갈아 끼우는 것.
  */
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -22,9 +25,19 @@ jest.mock('@/lib/auth/os-sso', () => ({
 }));
 
 import { API_BASE } from '@/lib/auth/os-sso';
-import type { BotCardDto } from '@/lib/api/classbot-dto';
+import type { BotCardDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
 import {
-  joinFailureMessage, useIssueJoinCode, useJoinByCode, useMyClassrooms, useOperatorClass, useOperatorClasses,
+  classroomKeys,
+  joinFailureMessage,
+  useAssignClassBot,
+  useClassMembers,
+  useCreateClassroom,
+  useIssueJoinCode,
+  useJoinByCode,
+  useKnownClassSummary,
+  useMyClassrooms,
+  useOperatorClass,
+  useOperatorClasses,
 } from '../classroom';
 
 const BASE = `${API_BASE}/classbot`;
@@ -49,6 +62,22 @@ let teacherBots: BotCardDto[];
 let detailStatus: number;
 /** 교사 — 코드 발급 응답 코드. */
 let issueStatus: number;
+/** 교사 — 반 만들기 응답 코드. */
+let createStatus: number;
+/** 교사 — 명단 응답 코드와 본문. */
+let membersStatus: number;
+let members: ClassMemberDto[];
+/** 교사 — 봇 할당 응답 코드. */
+let assignStatus: number;
+
+const JOIN_CODE: JoinCodeDto = {
+  id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z', expiresAt: '2026-09-18T00:00:00.000Z',
+};
+const CLASS_DTO: ClassDto = {
+  id: 'cls_1', operatorId: 'sub-1', orgId: null, name: '고2 미적분 A반', description: null, subject: '수학Ⅱ', grade: '고2',
+  isActive: true, bot: null, joinCode: JOIN_CODE, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
+};
+const BOT_SUMMARY = { id: 'bot_1', name: '문학 도우미', avatarEmoji: '📚' };
 
 function res(status: number, body: unknown): Response {
   return {
@@ -97,9 +126,26 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   }
   if (url === `${BASE}/classes/cls_1/join-codes` && method === 'POST') {
     if (issueStatus >= 400) return Promise.resolve(res(issueStatus, { statusCode: issueStatus, message: 'nope' }));
+    return Promise.resolve(res(201, { ...JOIN_CODE, id: 'jc_2', code: 'ZZ9Q2R' }));
+  }
+  if (url === `${BASE}/classes` && method === 'POST') {
+    if (createStatus >= 400) return Promise.resolve(res(createStatus, { statusCode: createStatus, message: 'nope' }));
+    const input = body as { name: string; subject?: string; grade?: string };
     return Promise.resolve(
-      res(201, { id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z' }),
+      res(201, {
+        class: { ...CLASS_DTO, name: input.name, subject: input.subject ?? null, grade: input.grade ?? null },
+        joinCode: JOIN_CODE,
+      }),
     );
+  }
+  if (url === `${BASE}/classes/cls_1/members` && method === 'GET') {
+    if (membersStatus >= 400) return Promise.resolve(res(membersStatus, { statusCode: membersStatus, message: 'nope' }));
+    return Promise.resolve(res(200, members));
+  }
+  if (url === `${BASE}/classes/cls_1/bot` && method === 'PUT') {
+    if (assignStatus >= 400) return Promise.resolve(res(assignStatus, { statusCode: assignStatus, message: 'nope' }));
+    const input = body as { botId: string | null };
+    return Promise.resolve(res(200, { ...CLASS_DTO, bot: input.botId ? { ...BOT_SUMMARY, id: input.botId } : null }));
   }
   return Promise.resolve(res(404, { statusCode: 404, message: 'not found' }));
 }
@@ -107,6 +153,9 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 const botsCalls = () => calls.filter((c) => c.url === `${BASE}/bots?role=student`);
 const teacherCalls = () => calls.filter((c) => c.url === `${BASE}/bots?role=teacher`);
 const issueCalls = () => calls.filter((c) => c.method === 'POST' && c.url === `${BASE}/classes/cls_1/join-codes`);
+const createCalls = () => calls.filter((c) => c.method === 'POST' && c.url === `${BASE}/classes`);
+const memberCalls = () => calls.filter((c) => c.url === `${BASE}/classes/cls_1/members`);
+const assignCalls = () => calls.filter((c) => c.method === 'PUT' && c.url === `${BASE}/classes/cls_1/bot`);
 
 let queryClient: QueryClient;
 function Wrapper({ children }: { children: ReactNode }) {
@@ -124,6 +173,12 @@ beforeEach(() => {
   teacherBots = [{ id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null }];
   detailStatus = 200;
   issueStatus = 201;
+  createStatus = 201;
+  membersStatus = 200;
+  members = [
+    { membershipId: 'mem_1', memberId: 'stu_1', displayName: '김학생', enrolledAt: '2026-09-10T00:00:00.000Z', isActive: true, lastActiveAt: null },
+  ];
+  assignStatus = 200;
   redirectToOsLogin.mockReset();
   queryClient = new QueryClient({
     defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity }, mutations: { retry: false } },
@@ -290,8 +345,9 @@ describe('useMyClassrooms — GET /classbot/bots?role=student', () => {
 });
 
 /*
-  교사 셋 — 계획 PR 5a 가 정본으로 옮긴 문(해소 7). 같은 오리진 `/api/teacher/classrooms*` 를 더는
-  두드리지 않는 것을 URL 로 못박는다 — 화면 훅이 두 세계의 반 id 를 섞으면 코드는 나오는데 학생이 못 들어온다.
+  교사 — 계획 PR 5a 가 정본으로 옮긴 셋 + 5b 가 pullim-api PR 2 의 새 문에 붙인 셋. 같은 오리진
+  `/api/teacher/classrooms*` 를 더는 두드리지 않는 것을 URL 로 못박는다 — 화면 훅이 두 세계의 반 id 를 섞으면
+  코드는 나오는데 학생이 못 들어온다.
 */
 describe('useOperatorClasses — GET /classbot/bots?role=teacher', () => {
   it('OS 쿠키로 읽고 CSRF 는 붙이지 않는다 · 응답은 봉투 없는 카드 배열', async () => {
@@ -347,7 +403,7 @@ describe('useOperatorClass — GET /classbot/bots/:id', () => {
 });
 
 describe('useIssueJoinCode — POST /classbot/classes/:classId/join-codes', () => {
-  it('빈 본문을 CSRF double-submit 으로 보내고 새 코드를 돌려준다', async () => {
+  it('빈 본문을 CSRF double-submit 으로 보내고 새 코드(만료 포함)를 돌려준다', async () => {
     const { result } = renderHook(() => useIssueJoinCode(), { wrapper: Wrapper });
 
     let issued: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined;
@@ -360,8 +416,24 @@ describe('useIssueJoinCode — POST /classbot/classes/:classId/join-codes', () =
     expect(post.body).toEqual({});
     expect(post.credentials).toBe('include');
     expect(post.headers['X-CSRF-Token']).toBe('csrf-1');
-    expect(issued).toEqual({ id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z' });
+    expect(issued).toEqual({ ...JOIN_CODE, id: 'jc_2', code: 'ZZ9Q2R' });
     expect(calls.some((c) => c.url.includes('/api/teacher/classrooms'))).toBe(false);
+  });
+
+  it('요약 캐시가 이 반을 알면 그 joinCode 도 새 코드로 갈아 끼운다 — 모르면 만들지 않는다', async () => {
+    queryClient.setQueryData(classroomKeys.classSummary('cls_1'), CLASS_DTO);
+    const { result } = renderHook(
+      () => ({ issue: useIssueJoinCode(), known: useKnownClassSummary('cls_1'), other: useKnownClassSummary('cls_2') }),
+      { wrapper: Wrapper },
+    );
+    expect(result.current.known?.joinCode?.code).toBe('AB3K9M');
+
+    await act(async () => {
+      await result.current.issue.mutateAsync({ classId: 'cls_1' });
+    });
+    await waitFor(() => expect(result.current.known?.joinCode?.code).toBe('ZZ9Q2R'));
+    expect(result.current.known?.name).toBe('고2 미적분 A반');
+    expect(result.current.other).toBeUndefined();
   });
 
   it('남의 반(403)은 실패로 끝난다 — 코드를 지어내지 않는다', async () => {
@@ -386,5 +458,182 @@ describe('useIssueJoinCode — POST /classbot/classes/:classId/join-codes', () =
       await result.current.mutateAsync({ classId: 'cls_1' }).catch(() => undefined);
     });
     expect(redirectToOsLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useCreateClassroom — POST /classbot/classes', () => {
+  it('이름만 필수 — 본문을 그대로 CSRF 로 보내고 201 { class, joinCode } 를 돌려준다', async () => {
+    const { result } = renderHook(() => useCreateClassroom(), { wrapper: Wrapper });
+
+    let created: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined;
+    await act(async () => {
+      created = await result.current.mutateAsync({ name: '고1 국어 B반', subject: '국어' });
+    });
+
+    const post = createCalls()[0];
+    expect(post.body).toEqual({ name: '고1 국어 B반', subject: '국어' });
+    expect(post.credentials).toBe('include');
+    expect(post.headers['X-CSRF-Token']).toBe('csrf-1');
+    expect(created?.class.name).toBe('고1 국어 B반');
+    expect(created?.class.grade).toBeNull();
+    expect(created?.joinCode).toEqual(JOIN_CODE);
+    // 같은 오리진 `POST /api/teacher/classrooms` 는 두드리지 않는다.
+    expect(calls.some((c) => c.url.includes('/api/teacher/classrooms'))).toBe(false);
+  });
+
+  it('성공하면 정본 반 목록을 다시 읽고, 돌아온 class 가 요약 캐시에 선다(첫 코드가 거기 있다)', async () => {
+    const { result } = renderHook(
+      () => ({ rooms: useOperatorClasses(), create: useCreateClassroom(), known: useKnownClassSummary('cls_1') }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.rooms.data).toHaveLength(1));
+    expect(result.current.known).toBeUndefined();
+    const before = teacherCalls().length;
+
+    await act(async () => {
+      await result.current.create.mutateAsync({ name: '새 반' });
+    });
+    await waitFor(() => expect(teacherCalls().length).toBeGreaterThan(before));
+    await waitFor(() => expect(result.current.known?.joinCode?.code).toBe('AB3K9M'));
+    expect(result.current.known?.bot).toBeNull();
+  });
+
+  it('403(교사 아님) 은 실패로 끝난다 · 401 은 로그인으로', async () => {
+    createStatus = 403;
+    const { result } = renderHook(() => useCreateClassroom(), { wrapper: Wrapper });
+    let error: unknown;
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ name: 'x' });
+      } catch (e) {
+        error = e;
+      }
+    });
+    expect((error as { status?: number }).status).toBe(403);
+    expect(redirectToOsLogin).not.toHaveBeenCalled();
+
+    createStatus = 401;
+    await act(async () => {
+      await result.current.mutateAsync({ name: 'x' }).catch(() => undefined);
+    });
+    expect(redirectToOsLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useClassMembers — GET /classbot/classes/:classId/members', () => {
+  it('OS 쿠키로 읽는다 · 응답은 봉투 없는 명단 배열', async () => {
+    const { result } = renderHook(() => useClassMembers('cls_1'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(members));
+    const get = memberCalls()[0];
+    expect(get.method).toBe('GET');
+    expect(get.credentials).toBe('include');
+    expect(get.headers['X-CSRF-Token']).toBeUndefined();
+  });
+
+  it('id 가 비거나 세션 복원 전이면 묻지 않는다', async () => {
+    renderHook(() => useClassMembers(null), { wrapper: Wrapper });
+    authReady = false;
+    authUser = null;
+    renderHook(() => useClassMembers('cls_1'), { wrapper: Wrapper });
+    await act(async () => Promise.resolve());
+    expect(memberCalls()).toHaveLength(0);
+  });
+
+  it('남의 반(403)·없는 반(404)은 재시도 없이 그 코드로 끝난다', async () => {
+    membersStatus = 403;
+    const { result } = renderHook(() => useClassMembers('cls_1'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.status).toBe(403);
+    expect(memberCalls()).toHaveLength(1);
+    expect(redirectToOsLogin).not.toHaveBeenCalled();
+  });
+});
+
+describe('useAssignClassBot — PUT /classbot/classes/:classId/bot', () => {
+  it('PUT { botId } 를 CSRF 로 보내고 돌아온 반(합성 bot)이 요약 캐시에 선다', async () => {
+    const { result } = renderHook(
+      () => ({ assign: useAssignClassBot(), known: useKnownClassSummary('cls_1') }),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current.assign.mutateAsync({ classId: 'cls_1', botId: 'bot_1' });
+    });
+
+    const put = assignCalls()[0];
+    expect(put.method).toBe('PUT');
+    expect(put.body).toEqual({ botId: 'bot_1' });
+    expect(put.headers['X-CSRF-Token']).toBe('csrf-1');
+    await waitFor(() => expect(result.current.known?.bot).toEqual({ id: 'bot_1', name: '문학 도우미', avatarEmoji: '📚' }));
+  });
+
+  it('{ botId: null } 이 떼기다 — 요약의 bot 이 null 로 선다', async () => {
+    queryClient.setQueryData(classroomKeys.classSummary('cls_1'), { ...CLASS_DTO, bot: BOT_SUMMARY });
+    const { result } = renderHook(
+      () => ({ assign: useAssignClassBot(), known: useKnownClassSummary('cls_1') }),
+      { wrapper: Wrapper },
+    );
+    expect(result.current.known?.bot?.id).toBe('bot_1');
+
+    await act(async () => {
+      await result.current.assign.mutateAsync({ classId: 'cls_1', botId: null });
+    });
+    expect(assignCalls()[0].body).toEqual({ botId: null });
+    await waitFor(() => expect(result.current.known?.bot).toBeNull());
+  });
+
+  it('성공하면 반 목록·반 상세를 다시 읽는다', async () => {
+    const { result } = renderHook(
+      () => ({ rooms: useOperatorClasses(), detail: useOperatorClass('cls_1'), assign: useAssignClassBot() }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.detail.data).toBeDefined());
+    const listBefore = teacherCalls().length;
+    const detailBefore = calls.filter((c) => c.url === `${BASE}/bots/cls_1`).length;
+
+    await act(async () => {
+      await result.current.assign.mutateAsync({ classId: 'cls_1', botId: 'bot_1' });
+    });
+    await waitFor(() => expect(teacherCalls().length).toBeGreaterThan(listBefore));
+    await waitFor(() => expect(calls.filter((c) => c.url === `${BASE}/bots/cls_1`).length).toBeGreaterThan(detailBefore));
+  });
+
+  it('남의 봇(404)·남의 반(403)은 실패로 끝난다 — 요약은 건드리지 않는다', async () => {
+    assignStatus = 404;
+    const { result } = renderHook(
+      () => ({ assign: useAssignClassBot(), known: useKnownClassSummary('cls_1') }),
+      { wrapper: Wrapper },
+    );
+    let error: unknown;
+    await act(async () => {
+      try {
+        await result.current.assign.mutateAsync({ classId: 'cls_1', botId: 'bot_x' });
+      } catch (e) {
+        error = e;
+      }
+    });
+    expect((error as { status?: number }).status).toBe(404);
+    expect(result.current.known).toBeUndefined();
+    expect(redirectToOsLogin).not.toHaveBeenCalled();
+  });
+});
+
+describe('useKnownClassSummary — 캐시만 읽는다', () => {
+  it('서버에 묻지 않는다 — 모르면 undefined, id 가 비어도 undefined', async () => {
+    const { result } = renderHook(
+      () => ({ a: useKnownClassSummary('cls_1'), b: useKnownClassSummary(null) }),
+      { wrapper: Wrapper },
+    );
+    await act(async () => Promise.resolve());
+    expect(result.current.a).toBeUndefined();
+    expect(result.current.b).toBeUndefined();
+    expect(calls.filter((c) => c.url.startsWith(`${BASE}/classes`))).toHaveLength(0);
+  });
+
+  it('세션이 끝날 때까지 안다 — 관찰자가 붙으면 gcTime 이 무한이라 5분 뒤 증발하지 않는다', async () => {
+    queryClient.setQueryData(classroomKeys.classSummary('cls_1'), CLASS_DTO);
+    renderHook(() => useKnownClassSummary('cls_1'), { wrapper: Wrapper });
+    await act(async () => Promise.resolve());
+    expect(queryClient.getQueryCache().find({ queryKey: classroomKeys.classSummary('cls_1') })?.gcTime).toBe(Infinity);
   });
 });

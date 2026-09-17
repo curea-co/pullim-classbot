@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Bot, ClipboardList, Lock, Plus, School, SearchX } from 'lucide-react';
+import { ClipboardList, Lock, Plus, School, SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
@@ -10,26 +10,37 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
-import { useOperatorClass } from '@/hooks/api/classroom';
+import { useKnownClassSummary, useOperatorClass } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
-import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
+import type { AssignmentSummaryDto, ClassDto } from '@/lib/api/classbot-dto';
 import { cn } from '@/lib/utils';
 import { JoinCodeBlock } from '../join-code-block';
+import { KnownBotChip } from '../known-bot-chip';
 import { toOperatorClass, type OperatorClass } from '../operator-class';
+import { ClassBotTab } from './class-bot-tab';
 import { ClassChatTab } from './class-chat-tab';
 import { CLASS_TABS, classTabHref, type ClassTabId } from './class-tabs';
+import { ClassroomRoster } from './classroom-roster';
 
 /**
- * 반 상세 본문 — 머리(반 이름 · 과목·학년 · 봇 · 참여 코드) + 탭(`./class-tabs.ts` — 지금은 과제 · 대화).
+ * 반 상세 본문 — 머리(반 이름 · 과목·학년 · 봇 · 참여 코드) + 탭 넷(`./class-tabs.ts` — 명단 · 봇 · 과제 · 대화).
  *
  * 머리는 `GET /bots/:id`(`useOperatorClass`)에서 온다 — 목록 캐시에 기대지 않는다. 남의 반은 정본이 **403** 으로
  * 가르고(`authz.md § 1.5` · `CLASS_OPERATOR_FORBIDDEN`), 없는 반은 404 다. 둘을 한 카드로 뭉개지 않는다 —
- * 「볼 수 없다」와 「없다」는 교사가 다음에 할 일이 다르다.
+ * 「볼 수 없다」와 「없다」는 교사가 다음에 할 일이 다르다. 머리의 **봇 칩과 참여 코드 상자**는 이 세션이 아는
+ * `ClassDto`(반 생성·봇 할당·코드 재발급 응답 · `useKnownClassSummary`)에서 온다 — 옛 `profile` 로 「봇 없음」을
+ * 단정하지 않는다(`known-bot-chip.tsx` · 「봇」 탭과 같은 원천이라 같은 화면에서 반대 말을 하지 않는다).
+ *
+ * 탭은 **링크**다(`?tab=` · replace · 스크롤 유지 — `./class-tabs.ts`): 로컬 `Tabs` 프리미티브(`components/ui/tabs.tsx`)는
+ * 상태 기반이라 밖에서 특정 탭으로 보내는 주소(배너의 `?tab=bot` · 관제소의 `?tab=chat&student=`)를 못 받는다.
+ * 링크라서 ARIA tabs 역할은 붙이지 않는다 — `role="tab"` 은 방향키 이동·비활성 탭 `tabIndex=-1` 을 약속하는데 링크는
+ * 그 약속을 못 지킨다. 대신 `<nav>` + `aria-current="page"` 로 「지금 어느 탭인가」를 정직하게 말한다. 안 보이는 탭의
+ * 판은 그리지 않으므로 각 탭의 문은 **그 탭을 열 때** 두드린다.
  *
  * 과제 탭은 `useTeacherAssignments()`(`GET /assignments?audience=teacher` — 내가 operator 인 모든 반)를 받아
- * **화면에서 `classId` 로 거른다.** 반 필터 `&classId=` 는 pullim-api PR 2 가 DTO 에 더한다(완성 설계 § 5 R11) —
- * 그 문이 열리면 거르는 자리가 서버로 옮겨 갈 뿐 이 화면은 그대로다. 줄을 누르면 과제 상세(`/teacher/assignment/[id]`),
- * 「새 과제 내기」는 `/teacher/assignment/new?classId=` 로 **이 반을 들고** 간다.
+ * **화면에서 `classId` 로 거른다.** 반 필터 `&classId=` 는 정본에 이미 있다(pullim-api PR 2) — 옮기는 일은 별건이고
+ * 이 화면은 그대로다. 줄을 누르면 과제 상세(`/teacher/assignment/[id]`), 「새 과제 내기」는
+ * `/teacher/assignment/new?classId=` 로 **이 반을 들고** 간다.
  *
  * 대화 탭(`./class-chat-tab.tsx` · 계획 PR 7)은 학생별 기록과 신호 배지·확인이다 — 고른 학생은 그 탭이 `?student=` 로
  * 직접 읽는다(관제소가 `?tab=chat&student=` 로 곧장 보낸다).
@@ -43,6 +54,7 @@ export function ClassDetail({
   tab: ClassTabId;
 }) {
   const query = useOperatorClass(classId);
+  const known = useKnownClassSummary(classId);
 
   if (query.isPending) {
     return (
@@ -98,18 +110,12 @@ export function ClassDetail({
   const room = toOperatorClass(query.data);
 
   return (
-    <Shell title={room.name} description={<RoomFacts room={room} />}>
+    <Shell title={room.name} description={<RoomFacts room={room} known={known} />}>
       {/* 참여 코드 — 머리 바로 아래 제 상자. 카드에서와 같은 상자라 교사가 같은 자리에서 같은 일을 한다. */}
       <section className="border-pullim-blue-200 bg-pullim-blue-50 rounded-2xl border p-5">
-        <JoinCodeBlock classId={room.id} size="lg" />
+        <JoinCodeBlock classId={room.id} initial={known?.joinCode ?? null} size="lg" />
       </section>
 
-      {/*
-        탭 — 목록은 `./class-tabs.ts`. 탭은 **링크**다(`?tab=` · replace · 스크롤 유지): 로컬 `Tabs` 프리미티브
-        (`components/ui/tabs.tsx`)는 상태 기반이라 관제소가 「이 반 대화 탭, 이 학생」으로 곧장 보내는 주소를 못 받는다.
-        링크라서 ARIA tabs 역할은 붙이지 않는다 — `role="tab"` 은 방향키 이동·비활성 탭 `tabIndex=-1` 을 약속하는데
-        링크는 그 약속을 못 지킨다. 대신 `<nav>` + `aria-current="page"` 로 「지금 어느 탭인가」를 정직하게 말한다.
-      */}
       <div>
         <nav aria-label="반 상세" className="border-pullim-slate-200 flex gap-1 border-b">
           {CLASS_TABS.map((t) => {
@@ -138,7 +144,15 @@ export function ClassDetail({
           })}
         </nav>
         <section className="pt-5" data-testid={`class-panel-${tab}`}>
-          {tab === 'chat' ? <ClassChatTab classId={room.id} /> : <ClassAssignments classId={room.id} />}
+          {tab === 'members' ? (
+            <ClassroomRoster classId={room.id} classroomName={room.name} />
+          ) : tab === 'bot' ? (
+            <ClassBotTab classId={room.id} classroomName={room.name} />
+          ) : tab === 'chat' ? (
+            <ClassChatTab classId={room.id} />
+          ) : (
+            <ClassAssignments classId={room.id} />
+          )}
         </section>
       </div>
     </Shell>
@@ -158,27 +172,16 @@ function Shell({ title, description, children }: { title: ReactNode; description
   );
 }
 
-/** 머리의 사실 줄 — 과목·학년·봇. 없는 칸은 그리지 않는다(빈 칩은 「값이 비었다」가 아니라 「모른다」로 읽힌다). */
-function RoomFacts({ room }: { room: OperatorClass }) {
+/**
+ * 머리의 사실 줄 — 과목·학년(옛 profile)·봇(아는 `ClassDto`)·비활성. 없는 칸은 그리지 않는다(빈 칩은 「값이 비었다」가
+ * 아니라 「모른다」로 읽힌다) — 봇도 모르면 칩이 없다.
+ */
+function RoomFacts({ room, known }: { room: OperatorClass; known: ClassDto | undefined }) {
   return (
     <span className="mt-1 flex flex-wrap items-center gap-1.5" data-testid="class-facts">
       {room.subject && <Chip tone="info">{room.subject}</Chip>}
       {room.grade && <Chip tone="outline">{room.grade}</Chip>}
-      {room.botName ? (
-        <Chip tone="outline">
-          <Bot aria-hidden />
-          <span>
-            <span className="sr-only">봇 </span>
-            {room.botAvatar ? `${room.botAvatar} ` : ''}
-            {room.botName}
-          </span>
-        </Chip>
-      ) : (
-        <Chip tone="neutral">
-          <Bot aria-hidden />
-          봇 없음
-        </Chip>
-      )}
+      <KnownBotChip known={known} data-testid="class-bot-chip" />
       {!room.isActive && <Chip tone="neutral">비활성</Chip>}
     </span>
   );

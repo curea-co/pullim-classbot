@@ -9,7 +9,7 @@ import { SignalStudentTable } from '@/components/classbot/monitoring/signal-stud
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClassMembersForMonitor, useOperatorClasses } from '@/hooks/api/classroom';
+import { useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
 import { useClassSignals } from '@/hooks/api/monitoring';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { buildMonitorRows } from '@/lib/risk-signals';
@@ -75,7 +75,7 @@ export function MonitorConsole({ initialClassId }: { initialClassId: string | nu
 
 /** 고른 반의 명단 ∪ 신호 집계 — 요약 넉 칸 + 학생 줄 표. `key={classId}` 로 반이 바뀌면 통째로 다시 선다. */
 function ClassSignalsBoard({ classId }: { classId: string }) {
-  const members = useClassMembersForMonitor(classId);
+  const members = useClassMembers(classId);
   const signals = useClassSignals(classId);
 
   const rows = useMemo(
