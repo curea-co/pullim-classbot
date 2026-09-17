@@ -545,7 +545,9 @@ export const plannerSection: NavSubItem[] = [
 
 카탈로그에 없는 `botId` 로 들어오면 **404** 다.
 
-봇별 설정의 탭 여섯(안전 등급 · 이탈 대응 · 봇 이름·말투 · 수업 자료 · 평가 규칙 · 알림)과 그 안의 내용은 **종전 한 화면에 있던 것 그대로**다. 달라진 것은 앞에 목록이 한 겹 생기고, 설정이 봇 하나에 매인다는 것뿐이다.
+봇별 설정의 탭 **다섯**(안전 등급 · 이탈 대응 · 수업 자료 · 평가 규칙 · 알림)과 그 안의 내용은 **종전 한 화면에 있던 것 그대로**다. 달라진 것은 앞에 목록이 한 겹 생기고, 설정이 봇 하나에 매인다는 것뿐이다.
+
+> *(정정 2026-09-18)* — 종전 「탭 여섯(안전 등급 · 이탈 대응 · **봇 이름·말투** · 수업 자료 · 평가 규칙 · 알림)」이라 적었다. **#360(계획 PR 5d)이 「봇 이름·말투」 탭(`identity`)을 걷었다** — 그 탭이 「준비 중」이라 적어 둔 일을 **화면이 실제로 하게 됐기 때문**이다. 탭 바 **위** 「이 봇」 칸이 `PATCH /classbot/bots/:id` 로 **이름 · 인사말 · 말투 · 안전 등급 넷**을 고친다(`app/(teacher)/teacher/bots/[botId]/bot-settings-workspace.tsx` 의 `BotIdentityCard`·`EditBotForm`). 탭을 그대로 두면 한 화면이 위에서는 고치면서 아래에서는 「준비 중」이라 말한다. **옛 주소는 끊기지 않는다** — `isBotPolicyTab('identity')` 이 이제 false 를 내고, 옛 주소 둘은 **각자 다른 자리로 떨어진다** — `/teacher/settings?tab=identity` 는 탭을 버리고 **목록**(`/teacher/bots`)으로 넘어가고(`settings/page.tsx` 의 `redirect`), 봇별 설정 `/teacher/bots/:botId?tab=identity` 는 **첫 탭(안전 등급)**으로 연다(`app/(teacher)/teacher/bots/[botId]/page.tsx` — `isBotPolicyTab` 이 false 라 `botPolicyTabs[0]`). 둘 다 404 로 끊기지 않는다.
 
 #### 4.4.3 목록에 무엇을 올리나 — 값의 출처
 
