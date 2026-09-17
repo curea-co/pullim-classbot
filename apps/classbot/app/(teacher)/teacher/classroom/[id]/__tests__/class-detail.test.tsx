@@ -48,7 +48,7 @@ jest.mock('@/hooks/api/classroom', () => ({
     error: detailError,
     refetch: jest.fn(),
   }),
-  useKnownClassSummary: () => known,
+  useClassDetail: () => ({ data: known }),
 }));
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: assignments, isPending: false, isError: false, error: null, refetch: jest.fn() }),

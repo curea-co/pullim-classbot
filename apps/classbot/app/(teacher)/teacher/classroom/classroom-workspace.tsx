@@ -10,7 +10,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useKnownClassSummary, useOperatorClasses } from '@/hooks/api/classroom';
+import { useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
 import { classTabHref } from './[id]/class-tabs';
@@ -29,13 +29,17 @@ import { toOperatorClass, type OperatorClass } from './operator-class';
  *
  * 반을 만들면 **첫 코드가 함께 온다**(한 트랜잭션). 배너가 그 코드와 닫히는 시각을 크게 들고, 「봇 붙이러 가기」가
  * 새 반 상세의 「봇」 탭(`?tab=bot`)으로 간다 — 교사가 지금 할 일은 코드를 건네는 것이고 다음 할 일은 봇을 붙이는
- * 것이다. 목록이 다시 그려지면 그 반의 카드도 같은 코드로 선다(`useKnownClassSummary` → `JoinCodeBlock.initial`).
+ * 것이다. 목록이 다시 그려지면 그 반의 카드도 같은 코드로 선다(`useClassDetail` → `JoinCodeBlock.initial`).
  *
- * 카드의 봇 칩은 **이 세션이 아는 `ClassDto`** 로만 그린다(`known-bot-chip.tsx` — 모른다 · 없다 · 이 봇). 옛 `profile`
- * (bot == class)로 「봇 없음」을 단정하지 않는다 — 정본에 `classes.bot_id` 를 읽는 문이 아직 없어(pullim-api 후속)
- * 링크로 바로 연 반은 칩이 비고, 이 세션에서 만들었거나 봇을 붙이고 뗀 반은 사실이 선다. 붙이고 떼는 자리는 반 상세
- * 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) · 봇 마켓 공유 칸(`/teacher/marketplace`
- * 「내 봇 공유」 · 결정 ①).
+ * 카드의 봇 칩은 **반 상세 문이 준 `ClassDto`** 로 그린다(`useClassDetail` · `known-bot-chip.tsx` — 모른다 · 없다 ·
+ * 이 봇). 옛 `profile`(bot == class)로 「봇 없음」을 단정하지 않는다 — 그 문에는 `classes.bot_id` 가 실리지 않아
+ * `POST /classes` 로 만든 반이 봇을 붙인 뒤에도 늘 「봇 없음」이 된다. 계획 PR 5d 전에는 이 자리가 **이 세션이
+ * 만들거나 고친 반만 아는** 캐시라 새로고침하면 칩이 다시 비었다 — 이제 묻는다(pullim-api #672).
+ *
+ * 그래서 카드마다 반 상세를 한 번씩 읽는다(목록 한 번 + 반 N 번). 목록 문이 `classes.bot_id` 를 싣게 되는 날
+ * 이 N 번은 없어진다 — 그전까지는 **칩이 틀린 말을 하는 것보다 요청이 느는 쪽**을 고른다. 붙이고 떼는 자리는
+ * 반 상세 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) · 봇 마켓 공유 칸
+ * (`/teacher/marketplace` 「내 봇 공유」 · 결정 ①).
  */
 export function ClassroomWorkspace() {
   const query = useOperatorClasses();
@@ -146,8 +150,9 @@ function CreatedBanner({ created, onDismiss }: { created: CreatedClassroom; onDi
  * 코드는 카드 안에서 제 상자를 갖는다. 다른 값과 같은 줄에 두면 그냥 또 하나의 값이 된다.
  */
 function RoomCard({ room }: { room: OperatorClass }) {
-  // 이 세션이 아는 반 요약(막 만든 반의 첫 코드 · 붙인 봇) — 없으면 코드 상자는 「새로 내기」로만 채워지고 봇 칩은 빈다.
-  const known = useKnownClassSummary(room.id);
+  // 이 반의 지금(붙은 봇 · 살아 있는 참여 코드). 읽기 전·실패면 `undefined` = 모른다 — 코드 상자는 「새로 내기」로만
+  // 채워지고 봇 칩은 빈다(빈 칩은 「봇 없음」이 아니다 · `known-bot-chip.tsx`).
+  const known = useClassDetail(room.id).data;
   return (
     <li className="bg-card rounded-2xl border p-5" data-testid={`classroom-card-${room.id}`}>
       <div className="flex items-start justify-between gap-3">

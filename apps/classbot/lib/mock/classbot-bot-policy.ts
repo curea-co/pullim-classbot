@@ -22,15 +22,19 @@ export type BotPolicyTab = {
   placeholder?: string;
 };
 
+/**
+ * 봇별 설정의 탭.
+ *
+ * **「봇 이름·말투」 탭(`identity`)은 2026-09-17 에 걷었다**(계획 PR 5d). 그 탭이 「준비 중」이라 적어 둔 일
+ * — 봇 이름과 말투, 첫 인사말 고치기 — 을 **봇별 설정 화면이 실제로 하게 됐다**(`PATCH /classbot/bots/:id` ·
+ * 탭 바 위 「이 봇」 칸). 탭을 그대로 두면 같은 화면이 위에서는 고치면서 아래에서는 「준비 중」이라 말한다.
+ *
+ * 옛 주소(`/teacher/settings?tab=identity`)는 끊기지 않는다 — `isBotPolicyTab` 이 이제 false 를 내므로
+ * 리다이렉트가 탭 없이 목록으로 떨어진다(`app/(teacher)/teacher/settings/page.tsx`).
+ */
 export const botPolicyTabs: BotPolicyTab[] = [
   { value: 'safety', label: '안전 등급', ready: true },
   { value: 'drift', label: '이탈 대응', ready: true },
-  {
-    value: 'identity',
-    label: '봇 이름·말투',
-    ready: false,
-    placeholder: '봇 이름과 말투, 첫 인사말을 고치는 자리예요.',
-  },
   {
     value: 'material',
     label: '수업 자료',

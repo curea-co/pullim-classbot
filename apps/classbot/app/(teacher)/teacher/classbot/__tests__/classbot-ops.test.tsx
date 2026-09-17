@@ -15,16 +15,36 @@
 
 import { render, screen, within } from '@testing-library/react';
 import * as teacherOps from '@/lib/mock/classbot-teacher-ops';
+import type { BotCardDto } from '@/lib/api/classbot-dto';
 import TeacherClassbotPage from '../page';
 
 // 낸 과제·반은 정본 훅에서 온다(FE PR 6) — 이 파일은 봇 목록 규칙만 보므로 둘 다 빈 목록으로 세운다.
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: [], isPending: false, isError: false, error: null }),
 }));
+
+/** 내가 운영하는 반 — 아래 「만든 직후 배너」가 반 id 를 이름으로 푸는 원천이다. 기본은 빈 목록. */
+let opsClasses: BotCardDto[] = [];
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
-  useOperatorClasses: () => ({ data: [], isPending: false, isError: false, error: null }),
+  useOperatorClasses: () => ({ data: opsClasses, isPending: false, isError: false, error: null }),
 }));
+
+/**
+ * 주소의 물음표 뒤 — 배너는 `?created=`·`?rooms=` 로만 선다.
+ * 공용 setup(`config/jest.setup.ts`)의 stub 은 늘 빈 값이라 이 파일에서 갈아 끼운다.
+ */
+let searchParams = new URLSearchParams();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn() }),
+  usePathname: () => '/teacher/classbot',
+  useSearchParams: () => searchParams,
+}));
+
+beforeEach(() => {
+  opsClasses = [];
+  searchParams = new URLSearchParams();
+});
 
 /** 「봇이 하나도 없을 때」를 보려고 운영 조인을 비우는 스위치 */
 const mockNoBots = { on: false };

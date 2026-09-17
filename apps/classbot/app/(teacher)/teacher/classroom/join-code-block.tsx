@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
  *    실리지 않으므로(옛 bot == class 문 · `operator-class.ts`) 이 상자는 기본적으로 **이 화면에서 마지막으로 낸
  *    코드**만 든다 — 새로 고치면 비고, 그건 잃은 것이 아니라 「다시 내면 된다」다. 옛 코드는 학생 손에 있다.
  *  - **`initial`**: 반을 막 만들었거나(`POST /classes` 의 첫 코드) 봇을 붙이고 뗀 뒤(`PUT …/bot` 응답의 활성 코드)
- *    이 세션이 아는 `ClassDto.joinCode` — `useKnownClassSummary`. 있으면 새로 고쳐도 그 코드로 선다.
+ *    반 상세가 준 `ClassDto.joinCode` — `useClassDetail`. 있으면 새로 고쳐도 그 코드로 선다.
  *
  * **재발급은 갈아 끼우기다**(pullim-api PR 2 · api.md § 3.5): 새 코드를 내면 그 반의 옛 코드는 전부 지워진다.
  * 계획 PR 5a 때는 정본이 저장만 해서 그 말을 걷었는데, 이제 사실이라 다시 말한다 — 「새로 내면 지금 코드는 닫혀요」.
