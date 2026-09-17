@@ -7,8 +7,9 @@ import { JoinCodeForm } from '@/components/classbot/home/join-code-form';
 /**
  * 교사수업 모드 신규 사용자 hero — "선생님이 이끄는 구조화된 수업".
  *
- * 참여 코드 입력은 `JoinCodeForm` 한 벌이 맡는다 — 실 API(`POST /api/enrollments`)가
- * 먼저고, 서버가 모르는 코드면 예전 데모 경로로 한 번 더 간다. 유효 코드면 홈이
+ * 참여 코드 입력은 `JoinCodeForm` 한 벌이 맡는다 — 정본(`POST /classbot/enrollments`)이
+ * 먼저고, 서버가 모르는 코드면 예전 데모 경로로 한 번 더 간다. *(종전에는 같은 오리진
+ * `POST /api/enrollments` 였다 — 계획 PR 5a 가 훅을 옮겼고 PR 8 이 라우트를 걷었다.)* 유효 코드면 홈이
  * 일반 교사수업 홈으로 전환된다(상위 page 가 참여 목록을 다시 읽는다).
  *
  * 이 hero 는 **참여가 하나도 없을 때만** 뜬다. 그래서 여기가 유일한 입구면 한 번

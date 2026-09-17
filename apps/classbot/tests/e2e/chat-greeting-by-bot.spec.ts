@@ -16,7 +16,9 @@ import { joinDemoClass } from './helpers';
 test.describe('신규 사용자 챗 진입', () => {
   test('봇이 하나도 없을 때 — 빈 가드에 마켓·참여 코드 두 길이 다 있다', async ({ page }) => {
     await page.goto('/classbot/chat', { waitUntil: 'networkidle' });
-    // 빈 가드는 조회 **둘**(`/api/me/classrooms` · `/api/marketplace/bots`)이 끝난 뒤에야 그려진다
+    // 빈 가드는 조회 **둘**(정본 `GET /classbot/bots?role=student` · 같은 오리진
+    // `/api/marketplace/bots`)이 끝난 뒤에야 그려진다 — 앞의 것은 계획 PR 8 이전에는
+    // 같은 오리진 `/api/me/classrooms` 였다
     // (`lib/store/mode-bots.ts` 의 `isLoading` → chat `page.tsx` 의 `!classHydrated || botsLoading` 가드).
     // 그 전에는 「불러오는 중…」이고, 그 문구는 **SSR HTML 에 이미 들어 있다.**
     //

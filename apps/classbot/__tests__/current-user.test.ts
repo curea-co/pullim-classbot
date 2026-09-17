@@ -15,7 +15,7 @@
  * 않는다. 다시 들이려면 **이 테스트를 지워야** 하므로, 지우는 사람이 그것을 보게 된다.
  *
  * 그래서 **모든 케이스가 쿠키·호스트 상태를 명시**한다.
- * RBAC 쓰기 가드(/api/chat, /api/teacher/bots)의 신원 토대다.
+ * RBAC 쓰기 가드(/api/teacher/bots 등)의 신원 토대다.
  */
 import { createHmac } from "node:crypto";
 

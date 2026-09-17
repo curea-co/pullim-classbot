@@ -73,8 +73,9 @@
  *  - `studyDays` 의 한 칸 = 미래 `self_study_days` 한 행. **카운터가 아니라 날짜 배열**이라
  *    나중에 서버로 백필할 수 있다(카운터는 과거 달력을 복원할 수 없다).
  *  - 봇 id 는 마켓이 주는 **`class_bots.id`** 다. 은퇴하는 mock 카탈로그 id(`ot_*`)는
- *    이 파일에 없다 — `chat_messages.bot_id` 가 `class_bots` 를 FK 로 물기 때문에
- *    `ot_*` 봇과의 대화는 애초에 저장될 수 없었다.
+ *    이 파일에 없다 — 같은 오리진 `chat_messages.bot_id` 가 `class_bots` 를 FK 로 물었기
+ *    때문에 `ot_*` 봇과의 대화는 애초에 저장될 수 없었다. *(그 표는 계획 PR 8 에서 걷혔고
+ *    대화 정본은 pullim-api 다 — 봇 id 를 마켓에서 받는다는 결론은 그대로다.)*
  *
  * ## 아직 사용자별로 나누지 않은 것 — `goals` · `unitProgress`
  * 아래 P5 슬라이스는 은퇴 예정인 `ot_*` 커리큘럼(`/classbot/learn/*`) 전용이고,
@@ -470,9 +471,9 @@ export const useSelfLearningStore = create<SelfLearningStore>()(
        * **옮길 정보가 없다**는 뜻이다:
        *
        *  ① `enrollments[].tutorId` 는 은퇴하는 mock 카탈로그 id(`ot_*`)다. v1 이 요구하는
-       *     `class_bots.id` 로 번역할 대응표가 없고, `chat_messages.bot_id` 가 `class_bots` 를
-       *     FK 로 물어 **그 봇과의 대화는 애초에 저장될 수 없었다** — 옮겨 봤자 말이 안 통하는
-       *     봇을 담아 둔 상태가 된다.
+       *     `class_bots.id` 로 번역할 대응표가 없고, 당시 `chat_messages.bot_id` 가 `class_bots`
+       *     를 FK 로 물어 **그 봇과의 대화는 애초에 저장될 수 없었다** — 옮겨 봤자 말이 안 통하는
+       *     봇을 담아 둔 상태가 된다. (그 표는 계획 PR 8 에서 걷혔다. 대응표가 없다는 근거는 그대로다.)
        *  ② `streak` 는 `{count, lastStudyDate}` 카운터라 **어느 날 공부했는지 복원할 수 없다.**
        *     v1 이 요구하는 날짜 배열로 펼칠 정보가 그 안에 없다(마지막 하루뿐이다).
        *  ③ v0 는 전역 한 통이라 **그 기록이 누구 것인지 자체를 모른다.** 아무 사용자에게

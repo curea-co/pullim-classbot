@@ -1,12 +1,21 @@
 /**
- * 수업방·참여 코드·과제 API 응답 계약 — 타입만 있는 파일(런타임 코드 없음).
+ * 같은 오리진 `/api/*` 응답 계약 — 타입만 있는 파일(런타임 코드 없음).
+ *
+ * *(`[계획 PR 8 정정]` 종전 제목은 「수업방·참여 코드·과제」였다. 과제 발사·참여·내 수업방
+ * 라우트가 정본과 겹쳐 걷히면서 그 계약들(`DispatchAssignment*` · `TeacherAssignmentsResponse` ·
+ * `MyClassroomsResponse` · `JoinByCode*` · `EnrollmentRow`)도 함께 걷었다. 남은 것은 교사 반
+ * 목록·코드·명단(마켓 축) · 마켓 · 동의 · 담은 봇 · 자기주도 · 학부모다.)*
  *
  * 서버(라우트)와 클라이언트(훅)가 **같은 타입**을 보게 하려고 계약을 여기 한 곳에 둔다.
  * `import type` 으로만 쓰이므로 이 파일은 번들에 남지 않는다 — 클라이언트가 읽어도
  * 서버 모듈이 딸려 오지 않는다.
  */
 
-/** 과제 행 — `assignments` 테이블 컬럼 그대로(타임스탬프는 JSON 직렬화로 문자열). */
+/**
+ * 과제 행 — `assignments` 테이블 컬럼 그대로(타임스탬프는 JSON 직렬화로 문자열).
+ * 이 모양을 **응답으로 내는 라우트는 이제 없다**(계획 PR 8) — 남은 쓰임은 화면 쪽 표시 타입이고,
+ * 학부모가 보는 축은 칸을 손으로 고른 `ParentAssignmentItem` 이다(아래).
+ */
 export interface AssignmentRow {
   id: string;
   botId: string;
@@ -153,57 +162,14 @@ export interface ClassroomStudentsResponse {
   students: ClassroomStudentItem[];
 }
 
-/** `POST /api/teacher/assignments` 본문. */
-export interface DispatchAssignmentInput {
-  botId: string;
-  title: string;
-  dueLabel: string;
-  questionCount: number;
-  difficulty: '하' | '중' | '상';
-  mode: 'practice' | 'exam' | 'wrong-conquest';
-  /** 교사가 고른 단원(표시 문자열). 생략하면 '단원 미정'·''·'' 로 떨어진다. */
-  scope?: string;
-  chapterFrom?: string;
-  chapterTo?: string;
-  /**
-   * 단원을 고르면 자동으로 따라오는 성취기준 코드(spec 14 § 5.4). 생략하면 빈 배열 —
-   * 컬럼이 `NOT NULL DEFAULT '[]'` 라 「없음」의 표현이 하나뿐이다(null 이중표현 금지).
-   */
-  achievementCodes?: string[];
-  /**
-   * 교사가 적어 보내는 한 줄. 학생 개요 화면이 `reasonHint` 로 읽는다
-   * (spec 12 § 3.3.2 · 14 § 3.3.1). 생략·공백이면 `null`.
-   */
-  reasonHint?: string;
-  /**
-   * 시험 모드 제한 시간(분, 10~180). **`mode === 'exam'` 에서만 뜻이 있다** — 다른 모드로
-   * 오면 서버가 `null` 로 떨어뜨린다(`scopeOverride` 가 시험에서만 1 인 것과 같은 결).
-   * 생략하면 `null`.
-   */
-  examTimeLimitMin?: number;
-  /**
-   * 진짜 마감 시각(ISO 8601). `dueLabel` 은 표시용이라 검증할 수 없어서 이 값을 함께 받는다 —
-   * spec 14 § 5.1 의 「마감은 미래」를 서버가 지키는 자리다. 오면 **반드시 미래**여야 하고,
-   * `dDay` 도 라벨 파싱 대신 이 값에서 센다. (보내는 쪽이 실으면 필수로 좁힌다.)
-   */
-  dueAt?: string;
-  /** 생략·빈 배열이면 반 전체. */
-  targetStudentIds?: string[];
-}
-
-/** `POST /api/teacher/assignments` 응답. */
-export interface DispatchAssignmentResponse {
-  assignment: AssignmentRow;
-}
-
-/** `GET /api/teacher/assignments` 응답. */
-export interface TeacherAssignmentsResponse {
-  assignments: AssignmentRow[];
-}
-
 /* ── 학생 ─────────────────────────────────────────────── */
 
-/** 학생이 보는 수업방 한 칸(`GET /api/me/classrooms`, 학부모 자녀 요약 공용). */
+/**
+ * 학생이 보는 수업방 한 칸 — 지금 쓰는 곳은 **학부모 자녀 요약**(`GET /api/parent/children`)이다.
+ * *(`[계획 PR 8 정정]` 종전에는 학생 본인 `GET /api/me/classrooms` 와 공용이었다. 그 라우트는
+ * 정본 `GET /classbot/bots?role=student` 와 겹쳐 걷혔고, 모양은 `app/api/_lib/student-views.ts`
+ * 의 질의가 그대로 낸다.)*
+ */
 export interface StudentClassroomItem {
   classroomId: string;
   label: string;
@@ -218,33 +184,6 @@ export interface StudentClassroomItem {
   joinedAt: string;
   /** 참여 경로 표기(학원·학교 이름). */
   via: string;
-}
-
-/** `GET /api/me/classrooms` 응답. */
-export interface MyClassroomsResponse {
-  classrooms: StudentClassroomItem[];
-}
-
-/** `enrollments` 테이블 한 행. */
-export interface EnrollmentRow {
-  botId: string;
-  studentId: string;
-  classroomId: string;
-  classroomLabel: string;
-  assignedBy: string;
-  assignedAt: string;
-  via: string;
-}
-
-/** `POST /api/enrollments` 본문. */
-export interface JoinByCodeInput {
-  code: string;
-}
-
-/** `POST /api/enrollments` 응답 — 이미 참여 중이었으면 `alreadyJoined:true` + 200. */
-export interface JoinByCodeResponse {
-  enrollment: EnrollmentRow;
-  alreadyJoined: boolean;
 }
 
 /* ── 학부모 ───────────────────────────────────────────── */

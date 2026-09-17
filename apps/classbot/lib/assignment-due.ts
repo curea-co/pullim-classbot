@@ -25,7 +25,7 @@ export function formatDueLabel(iso: string, now: number = Date.now()): string {
  *
  * 규칙이 여기 하나뿐이어야 한다. 종전에는 두 벌이었다:
  *   · 클라이언트는 경과 시간(`Math.ceil(diff / 24h)`) — 오늘 22시 마감을 아침에 보면 `D-1`,
- *   · 서버(`POST /api/teacher/assignments`)는 날짜 경계 — 같은 마감을 `'오늘'`.
+ *   · 서버(당시 같은 오리진 `POST /api/teacher/assignments` · 지금은 정본)는 날짜 경계 — 같은 마감을 `'오늘'`.
  * 한 컬럼(`d_day`)에 두 규칙이 앉으니 **같은 과제가 교사 화면과 학생 화면에서 다르게** 읽혔다.
  * 사람이 마감을 세는 방식은 날짜 경계다(「오늘까지」·「내일까지」), 그래서 그쪽으로 모은다.
  *

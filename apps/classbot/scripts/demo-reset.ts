@@ -142,7 +142,8 @@ async function main(): Promise<void> {
   //
   // 예전에는 `created_by IS NOT NULL` 로 골랐다. 그건 「교사가 낸 과제」를 고르는 조건이
   // 아니라 **API 로 발사된 모든 과제**를 고르는 조건이다 —
-  // `POST /api/teacher/assignments` 는 발사 교사를 항상 `created_by` 에 적는다
+  // 당시 `POST /api/teacher/assignments`(계획 PR 8 에서 걷혔다 · 정본은 pullim-api
+  // `POST /classes/:classId/assignments`)는 발사 교사를 항상 `created_by` 에 적었다
   // (제출 현황 접근 검증의 권위라서 비워 둘 수가 없다). 그래서 데모를 한 번 확인하려고
   // 이 스크립트를 돌리면 **사람이 화면에서 낸 과제가 통째로 사라졌다.**
   //

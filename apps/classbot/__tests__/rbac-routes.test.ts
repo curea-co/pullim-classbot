@@ -3,9 +3,10 @@
  *
  * RBAC 쓰기 가드 라우트 단위 테스트.
  *
- * - POST /api/chat: 미로그인 401. 로그인 시 본문 studentId 를 무시하고
- *   세션 claim(sub) 명의로 저장(위조 방지).
  * - POST /api/teacher/bots: 미로그인 401, 학생 403, 교사 201(teacherId=세션 id).
+ *
+ * 종전에는 `POST /api/chat` 도 같이 봤다 — 그 라우트와 `chat_messages` 표는 계획 PR 8 에서
+ * 걷혔다(대화 정본은 pullim-api). 남은 것은 교사 봇 쓰기 하나다.
  *
  * 실DB(pg) 의존을 끊기 위해 @/lib/db 를 mock 하고, 신원은 @/lib/current-user 를
  * mock 해 가드 분기만 격리 검증한다.
@@ -27,7 +28,6 @@ jest.mock("@/lib/db", () => ({
 }));
 
 jest.mock("@/lib/db/schema", () => ({
-  chatMessages: {},
   classBots: {},
   users: { id: "id", name: "name" },
 }));
@@ -40,7 +40,6 @@ jest.mock("@/lib/current-user", () => ({
   getCurrentUserIdFromRequest: (req: Request) => getCurrentUserIdFromRequest(req),
 }));
 
-import { POST as chatPOST } from "@/app/api/chat/route";
 import { POST as botsPOST } from "@/app/api/teacher/bots/route";
 
 function jsonRequest(body: unknown): Request {
@@ -55,49 +54,6 @@ beforeEach(() => {
   jest.clearAllMocks();
   insert.mockImplementation(() => ({ values: insertValues }));
   insertValues.mockResolvedValue(undefined);
-});
-
-describe("POST /api/chat (쓰기 가드 + 명의)", () => {
-  it("미로그인이면 401 이고 저장하지 않는다", async () => {
-    getCurrentUserIdFromRequest.mockReturnValue({
-      id: "student_001",
-      role: "student",
-      isAuthenticated: false,
-      isIdentified: false,
-    });
-
-    const res = await chatPOST(jsonRequest({ botId: "cb_1", text: "안녕" }));
-    expect(res.status).toBe(401);
-    expect(insert).not.toHaveBeenCalled();
-  });
-
-  it("로그인 시 본문 studentId 를 무시하고 세션 claim 명의로 저장한다", async () => {
-    getCurrentUserIdFromRequest.mockReturnValue({
-      id: "uuid-session-A",
-      role: "student",
-      isAuthenticated: true,
-      isIdentified: true,
-    });
-
-    const res = await chatPOST(
-      jsonRequest({ botId: "cb_1", text: "안녕", studentId: "victim-id" }),
-    );
-    expect(res.status).toBe(201);
-    const saved = insertValues.mock.calls[0][0] as { studentId: string };
-    // 본문의 victim-id 가 아니라 세션 id 로 저장돼야 한다(위조 방지).
-    expect(saved.studentId).toBe("uuid-session-A");
-  });
-
-  it("botId/text 누락 시 400", async () => {
-    getCurrentUserIdFromRequest.mockReturnValue({
-      id: "uuid-A",
-      role: "student",
-      isAuthenticated: true,
-      isIdentified: true,
-    });
-    const res = await chatPOST(jsonRequest({ botId: "", text: "" }));
-    expect(res.status).toBe(400);
-  });
 });
 
 describe("POST /api/teacher/bots (교사 전용 RBAC)", () => {
