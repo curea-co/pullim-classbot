@@ -1,8 +1,8 @@
 /**
  * pullim-api classbot 응답 DTO — FE 쪽 거울.
  *
- * 정본은 pullim-api `src/classbot/modules/{assignment,classroom,chat,signal}/controller/dto/*.ts` 와
- * `service/*.types.ts` 다(2026-09-17 · dev `324f36fc`). 필드를 하나씩 옮겨 적었고,
+ * 정본은 pullim-api `src/classbot/modules/{assignment,classroom,bot,chat,signal}/controller/dto/*.ts` 와
+ * `service/*.types.ts` 다(2026-09-17 · dev `2d24f323`). 필드를 하나씩 옮겨 적었고,
  * 서버가 `string` 으로 열어 둔 칸(mode·difficulty·state·tone·dispatchStatus)은 여기서도 string 이다 —
  * 화면 union 으로 좁히는 일은 어댑터(`app/(student)/classbot/assignment/use-assignment-reads.ts` 의
  * `toAssignmentReadRow`, `components/classbot/home/my-rooms.ts` 의 `toSlot`)가 한다.
@@ -13,11 +13,11 @@
  * **봇은 이제 두 뜻이다(ADR-092 · pullim-api PR 1·2, 2026-09-17 `origin/dev`)** — 이 파일이 둘을 갈라 적는다.
  *  - `GET /classbot/bots?role=`·`GET /classbot/bots/:id` 는 **아직 bot == class(ADR-063)** 다 — `id` 가 반 id 고
  *    `profile` 은 옛 `class_bot_profiles` 다(api.md § 3.5 「뜻 개정은 후속 PR」). `BotCardDto`·`BotDetailDto` 가 그것.
- *  - `POST/PATCH /classbot/bots`·`PUT /classbot/classes/:classId/bot` 은 **1급 `bots` 표**를 만지고 `BotDto` 로
- *    답한다. 반이 어느 봇을 가리키는지(`classes.bot_id`)는 `ClassDto.bot` 으로만 온다 — 그 `ClassDto` 를 주는 문은
- *    반 생성(`POST /classes`)과 봇 할당(`PUT …/bot`) 둘뿐이고 **읽기 문(`GET /classes/:id`)은 아직 없다**
- *    (api.md § 1 「후속 구현」). 화면이 「지금 붙은 봇」을 어떻게 다루는지는 `hooks/api/classroom.ts`
- *    `useKnownClassSummary` 머리주석.
+ *  - `GET /classbot/me/bots`·`POST/PATCH /classbot/bots`·`PUT /classbot/classes/:classId/bot` 은 **1급 `bots` 표**를
+ *    읽고 만지고 `BotDto` 로 답한다. 반이 어느 봇을 가리키는지(`classes.bot_id`)는 `ClassDto.bot` 으로 오고,
+ *    그 `ClassDto` 를 주는 문은 이제 셋이다 — 반 생성(`POST /classes`) · 봇 할당(`PUT …/bot`) · **읽기
+ *    `GET /classes/:classId`**(pullim-api #672 · api.md § 1). 화면이 「지금 붙은 봇」을 어떻게 다루는지는
+ *    `hooks/api/classroom.ts` `useClassDetail` 머리주석.
  */
 
 /** `AssignmentSummaryResponseDto` — 목록 한 행·배포 201 응답. 문항·answerKey 없음. */
@@ -142,8 +142,9 @@ export interface ClassBotSummaryDto {
 
 /**
  * `ClassResponseDto` — 반 한 행 + 합성 `bot`(없으면 null — 봇 없는 반도 유효) + 활성 `joinCode`(미만료 최신 코드,
- * 없으면 null). `POST /classbot/classes` 의 `class` 칸과 `PUT /classbot/classes/:classId/bot` 응답.
- * **읽기 문은 아직 없다** — `GET /classbot/classes/:id` 는 api.md § 1 「후속 구현」.
+ * 없으면 null). `GET /classbot/classes/:classId`(읽기 — operator 또는 활성 멤버) · `POST /classbot/classes` 의
+ * `class` 칸 · `PUT /classbot/classes/:classId/bot` 응답이 모두 이 모양이다.
+ * `joinCode` 는 **operator 응답에만** 실린다 — 멤버가 반 상세를 읽으면 늘 null 이다(코드는 운영자 몫).
  */
 export interface ClassDto {
   id: string;
@@ -190,7 +191,8 @@ export interface AssignClassBotBody {
 }
 
 /**
- * `BotResponseDto` — 1급 `bots` 행 + 이 봇을 쓰는 반 id 목록. `POST /classbot/bots`(201)·`PATCH /classbot/bots/:id`(200).
+ * `BotResponseDto` — 1급 `bots` 행 + 이 봇을 쓰는 반 id 목록. `GET /classbot/me/bots`(봉투 없는 배열 · 최신순 ·
+ * 없으면 `[]`)·`POST /classbot/bots`(201)·`PATCH /classbot/bots/:id`(200).
  * `scope` 는 ScopeLevel 1~5(서버 기본 3) — 다섯으로 좁히는 일은 읽는 쪽(`lib/mock/tutor.ts` 규칙과 같다).
  */
 export interface BotDto {
@@ -205,7 +207,11 @@ export interface BotDto {
   scope: number;
   avatarEmoji: string | null;
   quickPrompts: string[];
-  /** 마켓 공개 — 후속 표면. 이 앱은 아직 읽지 않는다. */
+  /**
+   * 마켓 공개 — 칸은 있는데 **여는 문이 없다.** pullim-api classbot 에 게시·해제 라우트가 하나도 없어
+   * (2026-09-17 `origin/dev` 전수 확인) 이 앱의 봇 마켓은 여전히 같은 오리진 `/api/teacher/bots/:id/publish` 를
+   * 쓴다(`hooks/api/marketplace.ts`). 이 칸을 읽어 마켓 상태라고 말하지 마라 — 늘 `false` 다.
+   */
   isPublished: boolean;
   publishedAt: string | null;
   /** `classes.bot_id == id` 인 반 id 목록. */

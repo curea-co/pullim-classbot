@@ -14,7 +14,6 @@ import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
-import { classroomLabel } from '@/components/builder/builder-types';
 import { Chip } from '@/components/ui/chip';
 import {
   currentTeacher, scopeMeta, josa,
@@ -762,14 +761,26 @@ function DispatchedRow({ assignment: a }: { assignment: AssignmentRow }) {
 /* ─── 봇 만든 직후 banner — ?created=<name>&rooms=<id,id> ─── */
 function CreatedBanner() {
   const params = useSearchParams();
+  const classes = useOperatorClasses();
   const created = params.get('created');
-  if (!created) return null;
 
-  // 두 분기 모두 데모 제약을 드러낸다. 빌더는 화면 안 상태로만 움직이고 저장하지 않아서
-  // (핸드오프 § 4.1), 이 페이지로 넘어오면 새 봇은 이 배너 말고 아무 데도 남지 않는다.
-  // 「넣었어요」·「봇은 남아 있고」처럼 쓰면 교사가 봇이 계속 있다고 믿고 나간다.
+  /*
+    **이 배너의 말이 계획 PR 5d 에서 뒤집혔다.** 종전 주석은 「빌더는 화면 안 상태로만 움직이고 저장하지
+    않아서(핸드오프 § 4.1) 새 봇은 이 배너 말고 아무 데도 남지 않는다」였고, 그래서 두 분기 모두 「데모라
+    저장되지 않아요」로 끝났다. 이제 빌더는 `POST /classbot/bots` 로 **진짜 만들고** 고른 반마다
+    `PUT /classbot/classes/:classId/bot` 으로 붙인 뒤에야 여기로 온다.
+
+    그 문장을 그대로 두면 **없어졌다고 말하는 봇이 실제로는 서버에 있다.** 교사는 봇이 날아간 줄 알고
+    같은 봇을 또 만든다 — 지우는 문이 없어서 그 중복은 남는다. 그래서 문장을 지운 것이지 다듬은 것이 아니다.
+  */
   const rooms = (params.get('rooms') ?? '').split(',').filter(Boolean);
-  const roomNames = rooms.map(classroomLabel).join(' · ');
+  // 반 이름은 **정본 목록**에서 찾는다. 종전의 `classroomLabel` 은 목 학급 표라(`builder-types.ts`)
+  // 정본 반 id 를 모르고 **그 id 를 그대로 돌려준다** — 교사가 uuid 를 읽게 된다.
+  const names = rooms
+    .map((id) => classes.data?.find((room) => room.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
+
+  if (!created) return null;
 
   return (
     <section className="bg-pullim-blue-50 border-pullim-blue-200 text-pullim-blue-900 rounded-2xl border p-5">
@@ -777,10 +788,12 @@ function CreatedBanner() {
         <Rocket className="h-4 w-4" />
         <strong className="text-sm">방금 만든 봇: {created}</strong>
       </div>
-      <p className="text-pullim-blue-700 mt-1 text-2xs">
-        {rooms.length
-          ? `${roomNames}에 넣기로 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남고 학생에게도 보여요.`
-          : '반은 아직 안 골랐어요. 다만 이건 데모라 이 봇은 저장되지 않아요 — v1 backend 연결 뒤에 실제로 남아요.'}
+      <p className="text-pullim-blue-700 mt-1 text-2xs" data-testid="created-banner-note">
+        {rooms.length === 0
+          ? '봇을 만들었어요. 아직 반에는 안 넣었어요 — 반 상세의 「봇」 탭에서 넣을 수 있어요.'
+          : names.length === rooms.length
+            ? `봇을 만들어 ${names.join(' · ')}에 넣었어요.`
+            : `봇을 만들어 ${rooms.length}개 반에 넣었어요.`}
       </p>
     </section>
   );

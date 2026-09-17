@@ -1,18 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bot, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bot, ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { AlertCard } from '@/components/classbot/alert-card';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { Button } from '@/components/ui/button';
 import { Yard1Intro, Yard2Answers, Yard3Teaching } from '@/components/builder/build-yards';
-import { DoneView } from '@/components/builder/done-view';
+import { createBodyFromDraft } from '@/components/builder/bot-contract';
+import { DoneView, type ClassChoice } from '@/components/builder/done-view';
 import { FilledSummary } from '@/components/builder/filled-summary';
 import { YardSteps } from '@/components/builder/yard-steps';
 import {
   emptyDraft, faultAnchorId, faultBefore, firstFault,
   type BotDraft, type Fault, type FieldKey, type YardNo,
 } from '@/components/builder/builder-types';
+import { botFailureMessage } from '@/lib/bot-failure-message';
+import { useCreateBot } from '@/hooks/api/bot';
+import { useOperatorClasses } from '@/hooks/api/classroom';
+import type { BotDto } from '@/lib/api/classbot-dto';
 
 /**
  * 봇 빌더 — 한 길 · 세 마당.
@@ -30,14 +36,32 @@ import {
  * **뒤로 가는 길은 막지 않는다** — 「이전」도 「단계」로 되돌아가는 것도. 이미 지나온 마당은
  * 필수가 차 있고, 고치러 돌아가는 길을 막으면 교사가 갇힌다.
  *
- * 봇을 굳히는 자리는 아직 데모다. 현행 빌더와 마찬가지로 화면 안 상태로만 움직이고
- * DB 에 쓰지 않는다 (`lib/db/schema.ts` 무관).
+ * **「생성」은 정본에 봇을 만든다** — `POST /classbot/bots`(api.md § 3.5b · `useCreateBot`). 드래프트를 본문으로
+ * 옮기는 일은 `components/builder/bot-contract.ts` 의 `createBodyFromDraft` 하나가 한다. 성공해야 만든 뒤 화면으로
+ * 넘어가고, 그때부터 그 화면은 **진짜 봇 id** 를 들고 반에 붙인다. 실패하면 마당에 그대로 서서 까닭을 말한다 —
+ * 넘어가 놓고 「만들어졌어요」라고 하지 않는다.
+ *
+ * **이 화면 안에서만 사는 값 셋**: 수업 자료(`files`) · 평소에(`style`) · 틀렸을 때(`wrong`). 정본 `bots` 에
+ * 그 칸이 없어 본문에 실리지 않는다(`bot-contract.ts` 머리주석 표) — 교사가 고른 그대로 화면이 보여주지만
+ * 새로고침하면 사라진다. **걷어내지 않고 그대로 묻는다**: 칸이 생기는 날 그대로 실어 보내면 되고, 지금 지우면
+ * 교사가 정할 수 있던 것이 먼저 사라진다. 반대로 빌더가 **아예 묻지 않는** 인사말·아바타·빠른 프롬프트는
+ * 본문에도 싣지 않는다 — 서버가 null 로 둔다.
  */
 export default function BotBuilderPage() {
   const [draft, setDraft] = useState<BotDraft>(emptyDraft);
   const [yard, setYard] = useState<YardNo>(1);
-  const [view, setView] = useState<'build' | 'done'>('build');
+  /** 정본에 생긴 봇 — 이것이 있으면 만든 뒤 화면이다. 화면 전환과 「만들어졌나」를 두 상태로 두지 않는다. */
+  const [created, setCreated] = useState<BotDto | null>(null);
   const [fault, setFault] = useState<Fault | null>(null);
+
+  const create = useCreateBot();
+  /*
+    만든 뒤 화면에서 반에 붙일 때 고를 목록 — **한 행이 반 하나**다(`GET /bots?role=teacher` · 이 문은 아직
+    bot == class 라 `name` 이 반 이름이다). 마당에 있는 동안에도 미리 읽는다: 봇이 만들어지는 순간 칩이 서 있어야
+    「만들었는데 붙일 반이 없는」 한 박자가 안 생긴다. 목록 하나라 값싸고, 반을 안 고르고 나가도 손해가 없다.
+  */
+  const classesQuery = useOperatorClasses();
+  const classChoices: ClassChoice[] = (classesQuery.data ?? []).map((c) => ({ id: c.id, name: c.name }));
 
   /**
    * 막힌 자리로 초점을 옮긴다 — 오류만 띄우고 어디인지 안 알려주면 교사가 찾아 헤맨다.
@@ -56,7 +80,6 @@ export default function BotBuilderPage() {
   }
 
   function goYard(next: YardNo) {
-    setView('build');
     setYard(next);
   }
 
@@ -101,22 +124,35 @@ export default function BotBuilderPage() {
     goYard(next);
   }
 
-  /** 어느 마당에서나 누를 수 있다. 남은 항목은 기본값으로 들어간다. */
+  /**
+   * 어느 마당에서나 누를 수 있다. 남은 항목은 기본값으로 들어간다.
+   *
+   * 막는 판정(`firstFault`)이 **먼저**다 — 서버가 400 으로 되돌려 보내기 전에 화면이 어디가 빈지 말한다.
+   * 통과하면 `POST /classbot/bots` 를 보내고, **201 이 와야** 만든 뒤 화면으로 넘어간다. 실패하면 마당에
+   * 그대로 서고 까닭은 아래 카드가 든다(`create.isError`).
+   */
   function make() {
+    if (create.isPending) return;
     const blocked = firstFault(draft);
     if (blocked) {
       block(blocked);
       return;
     }
-    setView('done');
-    toast.success('봇이 만들어졌어요 (데모)');
+    create.mutate(createBodyFromDraft(draft), {
+      onSuccess: (bot) => {
+        setCreated(bot);
+        toast.success(`「${bot.name}」 봇을 만들었어요`);
+      },
+    });
   }
 
+  /** 하나 더 만들기 — 앞 봇의 값도, 앞 봇 자신도 데려오지 않는다(지난 실패 문구까지 걷는다). */
   function restart() {
     setDraft(emptyDraft);
     setFault(null);
-    setView('build');
+    setCreated(null);
     setYard(1);
+    create.reset();
   }
 
   return (
@@ -152,33 +188,60 @@ export default function BotBuilderPage() {
         eyebrow: { icon: Bot, text: '봇 빌더' },
         title: '새 클래스봇 만들기',
         // 「고르지 않으면 어떻게 되는지」는 `(선택)` 만으로는 알 수 없다 — 한 줄로 여기서만 말한다
-        description: view === 'build' ? '과목만 고르면 나머지는 기본값으로 채워져요.' : undefined,
+        description: created ? undefined : '과목만 고르면 나머지는 기본값으로 채워져요.',
         // 마당마다 반복하던 「생성」을 여기 한 자리로 올렸다 — 어느 마당에서 눌러도 같다
-        action:
-          view === 'build' ? (
-            <Button type="button" variant="pullim" size="lg" onClick={make} aria-label="채운 그대로 봇 생성하기">
-              생성
-            </Button>
-          ) : undefined,
+        action: created ? undefined : (
+          <Button
+            type="button"
+            variant="pullim"
+            size="lg"
+            onClick={make}
+            disabled={create.isPending}
+            aria-label="채운 그대로 봇 생성하기"
+          >
+            {create.isPending ? '만드는 중' : '생성'}
+          </Button>
+        ),
       }}
     >
-      {view === 'done' ? (
+      {created ? (
         <DoneView
           draft={draft}
+          created={created}
+          classes={classChoices}
+          classesPending={classesQuery.isPending}
+          classesFailed={classesQuery.isError}
           onPick={onPick}
-          onRefine={() => goYard(1)}
           onRestart={restart}
         />
       ) : (
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="space-y-6">
+            {/*
+              만들기가 실패한 자리. 토스트로만 알리면 스크롤 밖에서 사라져 「눌렀는데 아무 일도 없다」가 된다 —
+              문구는 화면 넷이 함께 읽는 표(`lib/bot-failure-message.ts`)에서 가져와 같은 실패를 두 말로 하지 않는다.
+            */}
+            {create.isError && (
+              <AlertCard tone="danger" icon={TriangleAlert} title="봇을 만들지 못했어요">
+                <p className="text-pullim-slate-700 text-sm" data-testid="builder-create-error">
+                  {botFailureMessage(create.error, 'create')}
+                </p>
+              </AlertCard>
+            )}
+
             <YardSteps current={yard} onJump={jumpYard} />
 
             {yard === 1 && <Yard1Intro draft={draft} onPick={onPick} fault={fault} />}
             {yard === 2 && <Yard2Answers draft={draft} onPick={onPick} />}
             {yard === 3 && <Yard3Teaching draft={draft} onPick={onPick} />}
 
-            <YardNav yard={yard} onPrev={() => goYard((yard - 1) as YardNo)} onNext={goNext} onMake={make} />
+            <YardNav
+              yard={yard}
+              making={create.isPending}
+              onPrev={() => goYard((yard - 1) as YardNo)}
+              onNext={goNext}
+              onMake={make}
+            />
           </div>
 
           <aside className="xl:sticky xl:top-[76px]">
@@ -199,9 +262,11 @@ export default function BotBuilderPage() {
  * 자리다). 뒤로 가는 「이전」은 막지 않는다(채운 것을 되짚는 길이라 막을 까닭이 없다).
  */
 function YardNav({
-  yard, onPrev, onNext, onMake,
+  yard, making, onPrev, onNext, onMake,
 }: {
   yard: YardNo;
+  /** `POST /classbot/bots` 가 가 있는 중 — 두 번 눌러 봇이 둘 생기지 않게 막는다. */
+  making: boolean;
   onPrev: () => void;
   onNext: () => void;
   onMake: () => void;
@@ -223,8 +288,15 @@ function YardNav({
           <ChevronRight aria-hidden />
         </Button>
       ) : (
-        <Button type="button" variant="pullim" size="lg" onClick={onMake} aria-label="채운 그대로 봇 생성하기">
-          생성
+        <Button
+          type="button"
+          variant="pullim"
+          size="lg"
+          onClick={onMake}
+          disabled={making}
+          aria-label="채운 그대로 봇 생성하기"
+        >
+          {making ? '만드는 중' : '생성'}
         </Button>
       )}
     </div>

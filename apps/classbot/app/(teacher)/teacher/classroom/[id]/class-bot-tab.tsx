@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { toast } from 'sonner';
-import { Bot, CircleHelp, Link2, Pencil, Plus, TriangleAlert, Unplug } from 'lucide-react';
+import { ArrowLeftRight, Bot, CircleHelp, Link2, Pencil, Plus, TriangleAlert, Unplug } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -14,9 +14,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { BotAttachError, useCreateBotForClass, useKnownBot, useUpdateBot } from '@/hooks/api/bot';
-import { useAssignClassBot, useKnownClassSummary } from '@/hooks/api/classroom';
-import { statusOf } from '@/lib/api/classbot-client';
+import { BotAttachError, useCreateBotForClass, useMyBot, useMyBots, useUpdateBot } from '@/hooks/api/bot';
+import { useAssignClassBot, useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
+import { isUnauthorized } from '@/lib/api/classbot-client';
+import { botFailureMessage } from '@/lib/bot-failure-message';
 import type { BotDto, ClassBotSummaryDto, CreateBotBody, UpdateBotBody } from '@/lib/api/classbot-dto';
 import { GRADES } from '@/lib/grades';
 import { josa, scopeMeta, type ScopeLevel } from '@/lib/mock';
@@ -25,64 +26,28 @@ import { josa, scopeMeta, type ScopeLevel } from '@/lib/mock';
  * 반 상세 「봇」 탭 — 이 반이 가리키는 봇(`classes.bot_id`)을 보고, 새 봇을 만들어 붙이고, 고치고, 뗀다
  * (계획 PR 5b · 완성 설계 § 5 R4 · § 6.2 「반 상세」 · api.md § 3.5b).
  *
- * 문은 셋이다: `POST /bots` → `PUT /classes/:classId/bot {botId}`(`useCreateBotForClass`) · `PATCH /bots/:id`
- * (`useUpdateBot` — 이 탭은 이름·인사말·말투·등급만 고친다, 전체 빌더는 별건 5d) · `PUT … {botId:null}`(`useAssignClassBot` —
- * 떼기, 되묻는다).
+ * 문은 넷이다: `GET /classes/:classId`(지금 붙은 봇 — `useClassDetail`) · `GET /me/bots`(내 봇 목록 — `useMyBots`) ·
+ * `POST /bots` → `PUT /classes/:classId/bot {botId}`(`useCreateBotForClass`) · `PATCH /bots/:id`(`useUpdateBot` —
+ * 이 탭은 이름·인사말·말투·등급만 고친다, 전체 빌더는 `/teacher/builder`) · 그리고 같은 `PUT` 이 바꾸기
+ * (`{botId}`)와 떼기(`{botId:null}` — 되묻는다)를 겸한다.
  *
- * **「지금 붙은 봇」은 셋으로 갈라 그린다 — 모른다 · 없다 · 이 봇.** 정본에 반 하나를 `ClassDto` 로 읽는 문이 없고
- * (`GET /classes/:id` 후속 · `GET /bots/:id` 는 옛 class+profile), 내 봇 목록을 읽는 문도 옛 뜻 그대로라
- * (`GET /bots?role=teacher` = 반 목록) 링크로 바로 연 반은 **모른다**가 사실이다(`useKnownClassSummary` 머리주석).
- * 「모른다」를 「없다」로 그리면 교사가 멀쩡한 봇 위에 새 봇을 만든다 — 그래서 첫 상태는 안내 카드이고 「새 봇 만들어
- * 붙이기」도 **없다고 알 때만** 으뜸 버튼이다. 같은 이유로 **「다른 봇으로 바꾸기」 고르개는 없다** — 목록을 화면에서
- * 지어내지 않는다(PR 본문 「pullim-api 후속」).
+ * **「지금 붙은 봇」은 여전히 셋으로 갈라 그린다 — 모른다 · 없다 · 이 봇.** 다만 계획 PR 5d 부터 「모른다」의 뜻이
+ * 바뀌었다: 종전에는 「이 세션에서 손대지 않은 반은 영영 모른다」였고(읽기 문이 없었다), 이제는 **읽는 중이거나
+ * 읽기가 실패했다**뿐이다(pullim-api #672). 「모른다」를 「없다」로 그리면 교사가 멀쩡한 봇 위에 새 봇을 만드므로
+ * 그 갈래는 그대로 둔다 — 첫 상태는 안내 카드이고 「새 봇 만들어 붙이기」도 **없다고 알 때만** 으뜸 버튼이다.
+ *
+ * **「다른 봇으로 바꾸기」가 생긴 것이 이 탭의 큰 변화다.** 내 봇 목록을 읽는 문이 열려(`GET /me/bots`) 고르개를
+ * 화면에서 지어내지 않고 세울 수 있다. 고르개는 지금 붙은 봇을 빼고 보여 주고, 봇마다 **이미 붙어 있는 반**을
+ * 함께 적는다(`BotDto.classIds`) — 반 하나에 봇 하나라 남의 반에서 옮겨 오는 것이 아니라 **같은 봇이 여러 반을
+ * 겸하는** 것이고, 그 사실을 고르기 전에 보여야 한다.
  *
  * 「만들어 붙이기」가 **붙이는 쪽에서만** 실패하면(`BotAttachError`) 봇은 이미 내 것으로 생겼다. 그때 폼을 다시 보내면
- * `POST /bots` 가 또 가서 보이지도 지워지지도 않는 고아 봇이 는다(봇 목록·삭제 문이 없다) — 그래서 폼을 닫고 만든 봇을
- * 들고 **「다시 붙이기」(`PUT` 만)** 로 바꾼다(#355 리뷰 S2).
+ * `POST /bots` 가 또 가서 같은 이름의 봇이 는다 — 그래서 폼을 닫고 만든 봇을 들고 **「다시 붙이기」(`PUT` 만)** 로
+ * 바꾼다(#355 리뷰 S2). 봇을 지우는 문은 여전히 없다(목록에는 이제 보인다 — `/teacher/bots`).
  *
- * 봇 카드의 과목·학년·말투·등급은 이 세션이 만들거나 고친 봇(`useKnownBot`)일 때만 보인다 — 붙인 직후 요약에는
- * id·이름·아바타뿐이다(`ClassBotSummaryDto`).
+ * 실패 문구 표(`botFailureMessage`)는 이 파일에 있었는데 `lib/bot-failure-message.ts` 로 옮겼다 — 같은 문 넷을
+ * 두드리는 화면이 넷이 돼서다(이 탭 · 봇 관리 상세 · 빌더 만들기 · 빌더 수정). 문구는 그대로다.
  */
-
-/** 이 탭이 두드리는 문 넷 — 실패 문구가 갈린다. */
-export type BotAction = 'create' | 'attach' | 'detach' | 'update';
-
-/**
- * 실패 → 교사가 읽는 한 줄. 서버가 가른 뜻을 뭉개지 않는다(`authz.md § 1.5 (A′)` — 남의 반 403 · 남의 봇 404).
- *  - 「만들어 붙이기」가 **붙이는 쪽에서** 실패하면(`BotAttachError`) 봇은 이미 내 것으로 생겼다 — 그 사실을 말한다.
- * @param error - 훅이 던진 오류
- * @param action - 어느 문이었나
- * @returns 폼 아래·토스트 한 줄
- */
-export function botFailureMessage(error: unknown, action: BotAction): string {
-  if (error instanceof BotAttachError) {
-    return `「${error.bot.name}」 봇은 만들어졌는데 이 반에 붙이지 못했어요 — ${botFailureMessage(error.cause, 'attach')}`;
-  }
-  switch (statusOf(error)) {
-    case 400:
-      return '입력을 다시 확인해 주세요. 이름은 100자까지, 등급은 1~5예요.';
-    case 401:
-      return '로그인이 필요해요.';
-    case 403:
-      return action === 'create' || action === 'update'
-        ? '선생님 계정만 봇을 만들거나 고칠 수 있어요.'
-        : '이 반의 운영 교사만 봇을 붙이거나 뗄 수 있어요.';
-    case 404:
-      return action === 'update'
-        ? '고치려던 봇을 찾을 수 없어요. 내 봇이어야 해요.'
-        : action === 'attach'
-          ? '붙이려던 봇을 찾을 수 없어요. 내 봇이어야 해요.'
-          : '반을 찾을 수 없어요.';
-    default:
-      return action === 'detach'
-        ? '봇을 떼지 못했어요. 잠시 후 다시 시도해 주세요.'
-        : action === 'update'
-          ? '봇을 고치지 못했어요. 잠시 후 다시 시도해 주세요.'
-          : action === 'attach'
-            ? '봇을 붙이지 못했어요. 잠시 후 다시 시도해 주세요.'
-            : '봇을 만들지 못했어요. 잠시 후 다시 시도해 주세요.';
-  }
-}
 
 /** 등급 고르개 한 줄 — `L3 · 교과 범위`. */
 function scopeOptionLabel(level: ScopeLevel): string {
@@ -104,12 +69,13 @@ export function ClassBotTab({
   /** 반 이름 — 떼기 판의 문장에 들어간다. */
   classroomName: string;
 }) {
-  const known = useKnownClassSummary(classId);
-  /** `undefined` 모른다 · `null` 없다 · 요약 = 이 봇. */
+  const known = useClassDetail(classId).data;
+  /** `undefined` 모른다(읽는 중·실패) · `null` 없다 · 요약 = 이 봇. */
   const summary: ClassBotSummaryDto | null | undefined = known === undefined ? undefined : known.bot;
-  const knownBot = useKnownBot(summary?.id);
+  // 붙은 봇의 과목·학년·말투·등급은 내 봇 목록에서 온다 — 반 상세가 주는 요약에는 id·이름·아바타뿐이다.
+  const currentBot = useMyBot(summary?.id).bot;
 
-  const [mode, setMode] = useState<'idle' | 'create' | 'edit'>('idle');
+  const [mode, setMode] = useState<'idle' | 'create' | 'edit' | 'swap'>('idle');
   const [detachOpen, setDetachOpen] = useState(false);
   const detachRef = useRef<HTMLButtonElement>(null);
   const assign = useAssignClassBot();
@@ -134,7 +100,7 @@ export function ClassBotTab({
         description="이 반의 학생이 대화하는 봇이에요. 봇이 없으면 학생은 대화를 보낼 수 없어요."
       />
 
-      <CurrentBot summary={summary} bot={knownBot} />
+      <CurrentBot summary={summary} bot={currentBot} />
 
       <div className="mt-4 flex flex-wrap gap-2" data-testid="class-bot-actions">
         {/* 으뜸 버튼은 「없다」고 알 때만 — 모르는 반에서 새 봇으로 미는 모양이면 멀쩡한 봇 위에 새 봇을 만든다(머리주석). */}
@@ -148,6 +114,21 @@ export function ClassBotTab({
         >
           <Plus />
           새 봇 만들어 붙이기
+        </Button>
+        {/*
+          「바꾸기」는 **모를 때도** 낸다. 고르개가 여는 것은 내 봇 목록이고 그 목록은 지금 붙은 봇을 몰라도 읽힌다 —
+          여기서 고른 봇은 어차피 `PUT` 으로 덮어쓰므로, 모른다고 길을 막을 이유가 없다.
+        */}
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => setMode(mode === 'swap' ? 'idle' : 'swap')}
+          aria-expanded={mode === 'swap'}
+          data-testid="class-bot-swap-toggle"
+        >
+          <ArrowLeftRight />
+          다른 봇으로 바꾸기
         </Button>
         {summary && (
           <Button
@@ -182,8 +163,16 @@ export function ClassBotTab({
       {mode === 'create' && (
         <NewBotForm classId={classId} replacing={summary !== null} onDone={() => setMode('idle')} />
       )}
+      {mode === 'swap' && (
+        <SwapBotForm
+          classId={classId}
+          classroomName={classroomName}
+          currentBotId={summary?.id ?? null}
+          onDone={() => setMode('idle')}
+        />
+      )}
       {mode === 'edit' && summary && (
-        <EditBotForm key={summary.id} summary={summary} bot={knownBot} onDone={() => setMode('idle')} />
+        <EditBotForm key={summary.id} summary={summary} bot={currentBot} onDone={() => setMode('idle')} />
       )}
 
       {summary && (
@@ -239,12 +228,7 @@ function CurrentBot({ summary, bot }: { summary: ClassBotSummaryDto | null | und
           </h3>
           {bot ? (
             <>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="class-bot-facts">
-                {bot.subject && <Chip tone="info">{bot.subject}</Chip>}
-                {bot.grade && <Chip tone="outline">{bot.grade}</Chip>}
-                {bot.tone && <Chip tone="outline">말투 · {bot.tone}</Chip>}
-                <Chip tone="neutral">{isScopeLevel(bot.scope) ? scopeOptionLabel(bot.scope) : `등급 ${bot.scope}`}</Chip>
-              </div>
+              <BotFactChips bot={bot} className="mt-2" data-testid="class-bot-facts" />
               {bot.greeting && (
                 <p className="text-pullim-slate-700 mt-2 text-sm break-keep" data-testid="class-bot-greeting">
                   “{bot.greeting}”
@@ -253,7 +237,7 @@ function CurrentBot({ summary, bot }: { summary: ClassBotSummaryDto | null | und
             </>
           ) : (
             <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="class-bot-facts-unknown">
-              과목·말투·등급은 여기서 고치거나 새로 만들면 보여요.
+              과목·말투·등급을 불러오는 중이에요.
             </p>
           )}
         </div>
@@ -265,6 +249,173 @@ function CurrentBot({ summary, bot }: { summary: ClassBotSummaryDto | null | und
 /** 1~5 인가 — 서버 `number` 를 화면 라벨표의 키로 좁힌다(`lib/mock/tutor.ts` 규칙). */
 function isScopeLevel(n: number): n is ScopeLevel {
   return Number.isInteger(n) && n >= 1 && n <= 5;
+}
+
+/**
+ * 봇 한 줄이 드는 사실들 — 과목·학년·말투·등급. 없는 칸은 칩을 내지 않는다(빈 칩이 「비었다」로 읽히지 않게).
+ * 지금 붙은 봇 카드와 바꾸기 고르개가 같은 칩을 쓴다 — 한 화면에서 같은 봇이 두 모양으로 보이면 안 된다.
+ * @param bot - 정본 봇 한 행
+ * @param className - 바깥 여백만 조정한다
+ * @param data-testid - 테스트 손잡이
+ * @returns 칩 줄
+ */
+function BotFactChips({
+  bot,
+  className = 'mt-1.5',
+  'data-testid': testId,
+}: {
+  bot: BotDto;
+  className?: string;
+  'data-testid'?: string;
+}) {
+  return (
+    <div className={`${className} flex flex-wrap items-center gap-1.5`} data-testid={testId}>
+      {bot.subject && <Chip tone="info">{bot.subject}</Chip>}
+      {bot.grade && <Chip tone="outline">{bot.grade}</Chip>}
+      {bot.tone && <Chip tone="outline">말투 · {bot.tone}</Chip>}
+      <Chip tone="neutral">{isScopeLevel(bot.scope) ? scopeOptionLabel(bot.scope) : `등급 ${bot.scope}`}</Chip>
+    </div>
+  );
+}
+
+/**
+ * 「다른 봇으로 바꾸기」 — 내 봇 목록(`GET /me/bots`)에서 하나 골라 `PUT /classes/:classId/bot {botId}`.
+ *
+ * 지금 붙은 봇은 목록에서 뺀다 — 같은 값을 다시 보내는 것은 서버가 멱등 200 으로 받지만, 교사에게는 「바꾸기」로
+ * 보이면서 아무 일도 안 일어나는 자리라 아예 고를 수 없게 한다.
+ *
+ * 봇마다 **이미 붙어 있는 반**을 함께 적는다(`BotDto.classIds` → `GET /bots?role=teacher` 의 반 이름으로 옮긴다).
+ * 반 하나가 드는 봇은 하나라(`classes.bot_id`) 이 고르개로 봇을 붙이면 그 반의 **옛 봇은 떨어진다** — 반대로
+ * 한 봇이 여러 반을 겸하는 것은 정상이다. 그 비대칭을 고르기 전에 말해야 교사가 놀라지 않는다.
+ * @param classId - 이 반 id
+ * @param classroomName - 이 반 이름 — 성공 토스트에 들어간다
+ * @param currentBotId - 지금 붙은 봇 id · 없거나 모르면 null
+ * @param onDone - 닫기
+ */
+function SwapBotForm({
+  classId,
+  classroomName,
+  currentBotId,
+  onDone,
+}: {
+  classId: string;
+  classroomName: string;
+  currentBotId: string | null;
+  onDone: () => void;
+}) {
+  const bots = useMyBots();
+  const classes = useOperatorClasses();
+  const assign = useAssignClassBot();
+  const [picked, setPicked] = useState<string | null>(null);
+
+  /** 반 id → 반 이름. 목록을 아직 못 읽었으면 비어 있고, 그때는 id 대신 개수만 말한다. */
+  const classNames = new Map((classes.data ?? []).map((room) => [room.id, room.name] as const));
+
+  /*
+    지금 붙은 봇을 빼는 잣대가 **둘**이다.
+
+    ① `currentBotId` — 반 상세(`useClassDetail`)가 준다. 그런데 그 문이 **읽는 중이거나 실패하면 `null`** 이라
+       (호출부 `summary?.id ?? null`) 이 잣대 하나로는 그 사이 지금 붙은 봇이 목록에 그대로 선다. 교사가 그것을
+       고르면 서버는 **멱등 200** 으로 받고 화면은 「봇을 바꿨어요」라고 한다 — 아무것도 안 바뀌었는데.
+    ② `bot.classIds` — **내 봇 목록이 직접 들고 온다**(`GET /me/bots` 한 행 = `classes.bot_id` 가 이 봇을
+       가리키는 반). 반 상세와 **다른 문**이라 그쪽이 아직이어도 서 있다.
+
+    그래서 ② 를 더해 「모를 때도 고르개는 연다」는 결정(위 [바꾸기] 버튼 주석)을 그대로 지키면서 헛걸음만 막는다 —
+    길을 막는 쪽(고르개를 잠그는 쪽)을 고르지 않은 이유가 이것이다.
+  */
+  const choices = (bots.data ?? []).filter(
+    (bot) => bot.id !== currentBotId && !bot.classIds.includes(classId),
+  );
+
+  function handleAttach(bot: BotDto) {
+    if (assign.isPending) return;
+    setPicked(bot.id);
+    assign.mutate(
+      { classId, botId: bot.id },
+      {
+        onSuccess: () => {
+          toast.success('봇을 바꿨어요', { description: `「${classroomName}」의 봇이 ${bot.name} 이에요.` });
+          onDone();
+        },
+        onError: (error) => toast.error(botFailureMessage(error, 'attach')),
+      },
+    );
+  }
+
+  return (
+    <section className="bg-card mt-4 rounded-2xl border p-5" aria-label="다른 봇으로 바꾸기" data-testid="class-bot-swap-form">
+      <h3 className="text-pullim-slate-900 text-sm font-bold">내 봇 중에서 고르기</h3>
+      <p className="text-pullim-slate-500 mt-1 text-2xs">
+        고른 봇이 이 반의 봇이 돼요. 한 반에는 봇 하나만 붙어요 — 지금 붙은 봇은 떨어져요.
+      </p>
+
+      {bots.isPending ? (
+        <p className="text-pullim-slate-500 mt-3 text-sm" data-testid="class-bot-swap-pending">
+          내 봇을 불러오는 중이에요.
+        </p>
+      ) : bots.isError ? (
+        <p className="text-pullim-slate-700 mt-3 text-sm" data-testid="class-bot-swap-error">
+          {isUnauthorized(bots.error) ? '로그인이 필요해요.' : '내 봇을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'}
+        </p>
+      ) : choices.length === 0 ? (
+        <p className="text-pullim-slate-700 mt-3 text-sm" data-testid="class-bot-swap-empty">
+          바꿀 만한 다른 봇이 아직 없어요. 「새 봇 만들어 붙이기」로 하나 만들어 주세요.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-2" data-testid="class-bot-swap-list">
+          {choices.map((bot) => {
+            const rooms = bot.classIds.map((id) => classNames.get(id)).filter((name): name is string => Boolean(name));
+            const busy = assign.isPending && picked === bot.id;
+            return (
+              <li
+                key={bot.id}
+                className="border-pullim-slate-200 flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3"
+                data-testid={`class-bot-swap-${bot.id}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-pullim-slate-900 truncate text-sm font-bold">
+                    {bot.avatarEmoji ? `${bot.avatarEmoji} ` : ''}
+                    {bot.name}
+                  </p>
+                  <BotFactChips bot={bot} />
+                  {/*
+                    **이름은 전부 찾았을 때만 잇는다 — 아니면 개수로 물러선다.**
+                    일부만 찾아 그것만 이으면 못 찾은 반이 **말없이 사라져**, 두 반에 붙은 봇이 한 반에만 붙은 것처럼
+                    보인다. 「방금 만든 봇」 배너(`app/(teacher)/teacher/classbot/page.tsx`)가 쓰는 규칙과 같다.
+                  */}
+                  <p className="text-pullim-slate-500 mt-1.5 text-2xs" data-testid={`class-bot-swap-rooms-${bot.id}`}>
+                    {bot.classIds.length === 0
+                      ? '아직 어느 반에도 안 붙어 있어요'
+                      : rooms.length === bot.classIds.length
+                        ? `지금 붙어 있는 반 · ${rooms.join(' · ')}`
+                        : `지금 붙어 있는 반 ${bot.classIds.length}개`}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={assign.isPending}
+                  aria-label={`${bot.name} 붙이기`}
+                  data-testid={`class-bot-swap-pick-${bot.id}`}
+                  onClick={() => handleAttach(bot)}
+                >
+                  {busy ? '붙이는 중…' : '이 봇으로'}
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <Button type="button" variant="ghost" size="lg" onClick={onDone}>
+          그만두기
+        </Button>
+      </div>
+    </section>
+  );
 }
 
 /**

@@ -10,7 +10,7 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
-import { useKnownClassSummary, useOperatorClass } from '@/hooks/api/classroom';
+import { useClassDetail, useOperatorClass } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { AssignmentSummaryDto, ClassDto } from '@/lib/api/classbot-dto';
 import { cn } from '@/lib/utils';
@@ -27,9 +27,12 @@ import { ClassroomRoster } from './classroom-roster';
  *
  * 머리는 `GET /bots/:id`(`useOperatorClass`)에서 온다 — 목록 캐시에 기대지 않는다. 남의 반은 정본이 **403** 으로
  * 가르고(`authz.md § 1.5` · `CLASS_OPERATOR_FORBIDDEN`), 없는 반은 404 다. 둘을 한 카드로 뭉개지 않는다 —
- * 「볼 수 없다」와 「없다」는 교사가 다음에 할 일이 다르다. 머리의 **봇 칩과 참여 코드 상자**는 이 세션이 아는
- * `ClassDto`(반 생성·봇 할당·코드 재발급 응답 · `useKnownClassSummary`)에서 온다 — 옛 `profile` 로 「봇 없음」을
- * 단정하지 않는다(`known-bot-chip.tsx` · 「봇」 탭과 같은 원천이라 같은 화면에서 반대 말을 하지 않는다).
+ * 「볼 수 없다」와 「없다」는 교사가 다음에 할 일이 다르다. 머리의 **봇 칩과 참여 코드 상자**는 반 상세 문
+ * (`GET /classes/:classId` · `useClassDetail` · pullim-api #672)이 주는 `ClassDto` 에서 온다 — 옛 `profile` 로
+ * 「봇 없음」을 단정하지 않는다(`known-bot-chip.tsx` · 「봇」 탭과 같은 원천이라 같은 화면에서 반대 말을 하지 않는다).
+ * 두 문을 함께 두드리는 이유는 뜻이 갈려서다: `GET /bots/:id` 는 반의 정체(이름·과목·학년)를, `GET /classes/:id` 는
+ * 반이 **지금 가리키는 것**(봇 · 살아 있는 코드)을 준다. 계획 PR 5d 전에는 뒤쪽이 이 세션의 캐시뿐이라 새로고침하면
+ * 칩이 다시 비었다.
  *
  * 탭은 **링크**다(`?tab=` · replace · 스크롤 유지 — `./class-tabs.ts`): 로컬 `Tabs` 프리미티브(`components/ui/tabs.tsx`)는
  * 상태 기반이라 밖에서 특정 탭으로 보내는 주소(배너의 `?tab=bot` · 관제소의 `?tab=chat&student=`)를 못 받는다.
@@ -54,7 +57,7 @@ export function ClassDetail({
   tab: ClassTabId;
 }) {
   const query = useOperatorClass(classId);
-  const known = useKnownClassSummary(classId);
+  const known = useClassDetail(classId).data;
 
   if (query.isPending) {
     return (

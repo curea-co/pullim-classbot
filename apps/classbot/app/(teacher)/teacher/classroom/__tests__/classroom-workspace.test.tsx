@@ -46,7 +46,7 @@ jest.mock('@/hooks/api/classroom', () => ({
     error: queryError,
     refetch,
   }),
-  useKnownClassSummary: (id: string) => knownById[id],
+  useClassDetail: (id: string) => ({ data: knownById[id] }),
 }));
 
 /* 코드 상자는 어느 반 id 와 어느 초기 코드를 받는지만 비춘다 — 발급 자체는 `join-code-block.test.tsx`. */
