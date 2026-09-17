@@ -69,7 +69,7 @@ pullim-classbot/
 
 ### apps/backend — NestJS skeleton (BE 정본이 아니다)
 
-- **클래스봇 BE·DB 정본은 형제 리포 `pullim-api` 의 `src/classbot`** 이다 — ADR-063(2026-07-04 결정 · 봇 분리는 ADR-091 `[예정]` — pullim-api 브랜치 `docs/classbot-classroom-spine`, PR 승인 대기), 표면 `api.pullim.ai/classbot/*`,
+- **클래스봇 BE·DB 정본은 형제 리포 `pullim-api` 의 `src/classbot`** 이다 — ADR-063(2026-07-04 결정 · 봇 분리는 ADR-092 `[예정]` — pullim-api 브랜치 `docs/classbot-classroom-spine`, PR 승인 대기), 표면 `api.pullim.ai/classbot/*`,
   OS 쿠키를 서버가 검증(`JwtVerifyGuard` + `EntitlementGuard('classbot')`). 설계 문서는 그 리포 `docs/design/services/classbot/{api,authz,data-model}.md`.
   이 리포 쪽 설계 정본은 [`proc/spec/2026-09-16_classbot-completion-design.md`](proc/spec/2026-09-16_classbot-completion-design.md).
 - `apps/backend` 는 `app.controller.ts` 의 `GET /api/health` 스켈레톤만이다. **도메인 모듈을 여기 세우지 않는다** — BE 작업은 pullim-api 리포에 PR 로 올린다(그 리포의 `dev` 로).
