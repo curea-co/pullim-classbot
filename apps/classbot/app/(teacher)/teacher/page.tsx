@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { LayoutDashboard, Plus, Send } from 'lucide-react';
-import { DispatchedAssignmentsLink } from '@/components/classbot/dispatched-assignments-link';
+import { ArrowRight, LayoutDashboard, Plus, Send } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClasses } from '@/hooks/api/classroom';
 import { useCurrentUser } from '@/lib/current-user';
+import { isDueSoon } from './assignment/assignment-filters';
 
 /**
  * 교사 홈 (대시보드) — 「지금 뭐부터 손대지」 한 화면.
@@ -18,7 +19,9 @@ import { useCurrentUser } from '@/lib/current-user';
  *
  * 걷은 것과 그 자리에 세운 것:
  *  - **인사말 이름** — `lib/mock` 의 `currentTeacher.name`(김보람) → **세션**(`useCurrentUser()`).
- *    셸 우상단 아바타가 읽던 그 이름이다 — 한 화면에서 두 이름이 서던 것도 함께 끝난다.
+ *    셸 프로필 메뉴가 읽는 것과 **같은 이름**이다(`components/shell/app-header.tsx` 의 `ProfileMenu`) —
+ *    이 화면이 「김보람」이라 부르는 동안 그 메뉴는 「psh 선생님」이라 부르고 있었다. 이제 한 이름이다.
+ *    *(우상단에 늘 보이는 것은 이름이 아니라 그 이름의 **첫 글자 하나**다 — 전체 이름은 메뉴를 열어야 나온다.)*
  *  - **소속(학원·학교)** — `currentTeacher.organization`(대치프리미엄 수학학원) → **걷었다.**
  *    세션 claim(id·email·role)에도, 정본 반 카드(`BotCardDto`)에도 소속 칸이 없다
  *    (`app/(teacher)/teacher/classroom/operator-class.ts` 가 「카드에 없는 것」으로 못박아 뒀다).
@@ -110,12 +113,7 @@ export default function TeacherHomePage() {
         }
       />
 
-      {/*
-        낸 과제로 가는 길 (`proc/spec/14 § 3.2` 진입점 3). 헤더 버튼은 「새로 내기」이고
-        이 줄은 「이미 낸 것 보기」다 — 같은 트리인데 하는 일이 반대라 버튼 옆에 세우지 않는다.
-        낸 과제가 없으면 이 줄 자체가 뜨지 않는다(그 컴포넌트 머리주석).
-      */}
-      <DispatchedAssignmentsLink />
+      <DispatchedAssignmentsLine />
 
       {/*
         이 화면의 본체. 지금은 빈 상태 하나다 — 「먼저 볼 학생」을 고르려면 학생이 어디서 막혔는지가
@@ -135,5 +133,47 @@ export default function TeacherHomePage() {
         />
       </section>
     </div>
+  );
+}
+
+/**
+ * 낸 과제로 가는 한 줄 (`proc/spec/14 § 3.2` 진입점 3). 헤더 버튼은 「새로 내기」이고
+ * 이 줄은 「이미 낸 것 보기」다 — 같은 트리인데 하는 일이 반대라 버튼 옆에 세우지 않는다.
+ *
+ * **낸 과제가 없으면(또는 아직 모르면) 아무것도 그리지 않는다.** 0건 링크는 누를 이유가 없는데 자리만
+ * 차지하고, 홈 헤더 바로 아래라 그 자리가 비싸다. 과제를 내는 길은 바로 위 [과제 내기] 버튼이 이미 연다.
+ * 「낸 과제」는 정본 목록 전부다(진행 중·마감) — 도착지 목록의 「전체」와 같은 셈이다. 마감 임박은
+ * 지금 기준이다(`isDueSoon` — 굳힌 `dDay` 를 `dispatchedAt` 로 다시 센다).
+ *
+ * **2026-09-18 까지 `components/classbot/dispatched-assignments-link.tsx` 로 떨어져 있었다.**
+ * 그 파일이 따로 있던 이유는 하나였고 머리주석이 그것만 적고 있었다 — 「교사 홈은 서버 컴포넌트이고
+ * 낸 과제는 정본에서 온다, 그래서 숫자를 읽는 이 한 조각만 클라이언트로 떼어 둔다」. 같은 PR 이
+ * 홈을 클라이언트로 내리면서 **그 문장이 거짓이 됐고, 동시에 떼어 둘 이유도 사라졌다**(소비처는
+ * 이 홈 하나뿐이었다). 주석만 고쳐 「이유가 없지만 파일은 있다」로 두느니 제자리로 접었다.
+ */
+function DispatchedAssignmentsLine() {
+  const { data } = useTeacherAssignments();
+  const rows = data ?? [];
+  const dueSoon = rows.filter((a) => isDueSoon(a)).length;
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Link
+      href="/teacher/assignment"
+      data-testid="teacher-home-assignments-link"
+      className="text-pullim-slate-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex items-center gap-1.5 rounded-lg px-1 text-2xs font-semibold outline-none focus-visible:ring-2"
+    >
+      <span>
+        낸 과제 <span className="text-pullim-slate-900 font-mono font-bold">{rows.length}</span>건
+        {dueSoon > 0 && (
+          <>
+            {' · 마감 임박 '}
+            <span className="text-pullim-danger font-mono font-bold">{dueSoon}</span>건
+          </>
+        )}
+      </span>
+      <ArrowRight className="h-3 w-3" aria-hidden />
+    </Link>
   );
 }
