@@ -1,33 +1,61 @@
 import { type Page, expect } from '@playwright/test';
 
 /**
- * 학생 홈(`/classbot`)이 **참여 중인 반을 든 채로** 서는 것을 확인한다 — 뒤따르는 대화 스펙의 전제.
+ * 학생 홈(`/classbot`)이 **정착해서 서는지**만 확인한다. **반에 들어가지는 않는다** — 이름만 옛것이다.
  *
- * **이 헬퍼는 반에 들어가지 않는다.** 이름만 옛것이다(아래 참조).
+ * ## 걷어낸 것 — `MATH-2024`
  *
  * 종전에는 참여 코드 칸에 `MATH-2024` 를 넣고 「참여」를 눌렀다. 그 코드는 옛 mock 표
- * (`lib/mock/class-codes.ts`)의 것이고, 계획 PR 8 이 같은 오리진 route handler 와 mock 폴백을 함께
- * 걷은 뒤로 정본(`POST /classbot/enrollments`)에는 **없는 코드다 — 404**. 즉 그 두 줄은 참여를
- * 성사시킨 적이 없고 실패 토스트만 띄웠다.
+ * (`lib/mock/class-codes.ts`)의 것이고 **정본(`POST /classbot/enrollments`)에는 없다 — 404**
+ * (실측 2026-09-18 dev). 계획 PR 8 이 그 코드를 풀어 주던 같은 오리진 route handler 와 mock 폴백을
+ * 함께 걷었기 때문이다(`components/classbot/home/join-code-form.tsx` 머리주석).
  *
- * **그런데도 단언은 통과했다.** `login-student` 레인의 OS 계정이 이미 실제 반에 들어가 있어
- * 「참여 중인 클래스」가 참여와 무관하게 원래부터 보였기 때문이다. 세 대화 스펙
- * (`chat-greeting-by-bot` · `chat-quick-prompts-by-bot` · `chat-scroll-and-input`)이 그렇게
- * **엉뚱한 이유로** green 이었다. 그 사실을 알고 나면 참여를 흉내 내는 두 줄은 거짓 안심일 뿐이라
- * 걷고, 실제로 확인하던 것 하나만 남긴다 — **계정이 이미 든 반을 전제로 홈이 서는가.**
+ * **그 두 줄이 이 레인에서 무엇을 했는지는 관측된 바 없다 — 레인이 아직 한 번도 돌지 않았다.**
+ * 두 레인 워크플로는 `dev` 에만 있고(`origin/main` 의 `.github/workflows/prod-verify.yml:93` 은
+ * 프로젝트 구분 없는 단일 `bun x playwright test` 한 줄이다), `login-student` 스텝은
+ * `prod-verify.yml:118` 의 `if: env.HAS_E2E_STUDENT == 'true'` 에 걸려 있는데 그 값(`:64`)이 보는
+ * `E2E_OS_STUDENT_EMAIL`·`_PASSWORD` 가 **이 리포에 없다**(`gh secret list`, 2026-09-18:
+ * `REVIEW_BOT_APP_ID`·`REVIEW_BOT_PRIVATE_KEY` 둘뿐). 검증한 바가 없으니 남길 이유도 없다.
  *
- * ⚠ 그래서 전제가 계정에 있다: `E2E_OS_STUDENT_*` 계정이 최소 한 반의 학생이어야 한다. 어느 반에도
- * 없으면 홈은 빈 가드(「아직 대화할 봇이 없어요」)로 서고 여기서 죽는다 — 화면이 깨진 것이 아니라
- * **계정 상태**가 원인이라는 뜻이다.
+ * ## 남긴 것 — 홈은 둘 중 하나로 선다
  *
- * 이름을 `joinDemoClass` 로 남겨 둔 것은 세 스펙의 호출 일곱 자리를 건드리지 않으려는 것뿐이다.
- * e2e 를 역할별로 다시 쓰는 트랙(`playwright.config.ts` 의 `MIXED_ROLE_SPECS` TODO)에서 이름도 함께 고친다.
+ * 정착한 학생 홈의 모양은 **둘뿐**이고 `useMyRooms()` 의 반 수가 가른다
+ * (`app/(student)/classbot/page.tsx:71`·`:107`):
+ *
+ * | 반 | 화면 | 잡는 글자 |
+ * |---|---|---|
+ * | 0곳 | `TeacherClassHome` — 참여 코드 hero | 「아직 받은 과제가 없어요」(`components/classbot/teacher-class-home.tsx:48`) |
+ * | 1곳 이상 | 히어로·패널 + `JoinedClasses` | 「참여 중인 클래스」(`components/classbot/home/joined-classes.tsx:48` — `:34` 가 0곳이면 null) |
+ *
+ * **어느 쪽이든 홈이 선 것이고, 둘 다 아니면 안 선 것이다**(조회 실패는 `page.tsx:96` 의 오류
+ * 갈래라 둘 다 안 나온다). 그래서 계정 상태를 전제하지 않고 둘 중 하나만 본다 —
+ * `public-and-gates.spec.ts` 가 코어 화면을 「셋 중 하나」로 보는 것과 같은 결이다.
+ *
+ * ## ⚠ 이 헬퍼는 「봇이 있다」를 보장하지 않는다 — 그리고 레인 안에서 요구가 갈린다
+ *
+ * 호출하는 대화 스펙들은 봇을 전제하는데 그 전제를 **세울 수단이 지금은 없다**(참여 코드가 정본에서
+ * 404 이므로). 게다가 **같은 `login-student` 레인**이 한 계정에 서로 반대를 요구한다:
+ *
+ *  - `chat-greeting-by-bot.spec.ts:17` — 봇이 **하나도 없을 것**(「아직 대화할 봇이 없어요」.
+ *    그건 홈이 아니라 **챗 화면**의 글자다 — `app/(student)/classbot/chat/page.tsx:289`).
+ *  - 같은 파일 `:38` 부터 · `chat-quick-prompts-by-bot` · `chat-scroll-and-input` — 봇이 **있을 것**.
+ *
+ * 챗의 반 봇은 홈과 **같은 `useMyRooms()`** 에서 온다(`lib/store/mode-bots.ts`) — 한 계정이 둘을
+ * 동시에 만족할 수 없다. **시크릿을 붙이는 PR 이 그 결정을 해야 한다**: 계정을 둘로 가르든(빈 계정 /
+ * 반 있는 계정), 스펙을 상태별로 다시 쓰든(`playwright.config.ts` 의 `MIXED_ROLE_SPECS` TODO).
+ * 이 헬퍼는 그 결정을 앞질러 한쪽을 못 박지 않으려고 **계정 상태를 전제하지 않는다.**
+ *
+ * 이름을 `joinDemoClass` 로 남겨 둔 것은 세 스펙의 호출 일곱 자리를 건드리지 않으려는 것뿐이다 —
+ * 위 결정이 날 때 이름도 함께 고친다.
  * @param page - 학생 세션(`login-student` 레인)의 페이지
  */
 export async function joinDemoClass(page: Page): Promise<void> {
   await page.goto('/classbot', { waitUntil: 'networkidle' });
-  // 홈은 한 RTT 동안 스켈레톤을 그린다 — `toBeVisible` 이 그동안 다시 본다.
-  await expect(page.getByText('참여 중인 클래스')).toBeVisible({ timeout: 10_000 });
+  // 홈은 한 RTT 동안 스켈레톤(`page.tsx:92`)을 그린다 — `toBeVisible` 이 그동안 다시 본다.
+  // 두 글자는 배타적이라(위 표) strict mode 에 걸리지 않는다.
+  await expect(
+    page.getByText('참여 중인 클래스').or(page.getByText('아직 받은 과제가 없어요')),
+  ).toBeVisible({ timeout: 10_000 });
 }
 
 /**

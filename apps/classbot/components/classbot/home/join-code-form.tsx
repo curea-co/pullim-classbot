@@ -21,8 +21,9 @@ import { cn } from '@/lib/utils';
  * 풀어 성공처럼 보였다 — 2026-09-16 계획 §01 R2 가 「서버가 401·404 를 주면 목 참여로 조용히 갈아탄다.
  * 실패가 성공처럼 보인다」로 짚은 자리다. 그 폴백을 걷었고(결정 ②·§07), 서버가 가른 뜻은
  * `joinFailureMessage` 가 그대로 말한다 — 없는 코드 · 닫힌 코드 · 이미 들어와 있음.
- * 데모 코드로 반에 들어가던 prod 회귀 자동화(`tests/e2e/helpers.ts` `joinDemoClass`)는 로그인 레인으로
- * 옮겨 간다(계획 PR 4-ci).
+ * 데모 코드로 반에 들어가던 prod 회귀 자동화는 **이미 옮겨졌다** — 대화 스펙 셋은
+ * `playwright.config.ts` 의 `STUDENT_SPECS`(로그인 레인)에 있고, `tests/e2e/helpers.ts` 의
+ * `joinDemoClass` 는 데모 코드를 넣던 두 줄을 걷었다(그 코드는 정본에서 404 다).
  *
  * **보내는 값은 정규화한다 — 그 책임이 여기 있다.** 교사 화면은 코드를 `WXP-M7U` 로 보여 주고
  * 「복사」도 붙임표째 담는다(`app/(teacher)/teacher/classroom/join-code-block.tsx`). 그런데 저장된 코드에는
