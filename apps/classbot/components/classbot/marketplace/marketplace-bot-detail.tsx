@@ -4,7 +4,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   KeyRound,
-  LogIn,
   MessageCircle,
   Sparkles,
   Store,
@@ -59,7 +58,8 @@ export function MarketplaceBotDetail({
 }) {
   const query = useMarketplaceBot(botId);
   const bot = query.data?.bot ?? null;
-  // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
+  // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 아직 열리지 않은 문이다.
+  // **로그인해도 401 이 온다**는 사실과 그 근거는 `marketplace-bot-list.tsx` 의 같은 자리에 있다.
   const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
   /*
     404 도 고장이 아니다 — 이 라우트의 404 는 「없는 주소」가 아니라 **「지금은 공개돼 있지
@@ -106,16 +106,15 @@ export function MarketplaceBotDetail({
       {isSignedOut ? (
         <div data-testid="marketplace-detail-signin">
           <EmptyState
-            icon={LogIn}
-            title="로그인하면 이 봇을 볼 수 있어요"
+            icon={Store}
             /*
-              「선생님들이」라는 한정을 걷었다 — 마켓에는 풀림이 만든 기본 봇도 함께
-              선다(spec `03 § 4.13.1` · `§ 4.13.3`). **목록 쪽 같은 문장은 #331 이 이미
-              고쳤고, 상세에 한 벌이 더 있었다** — 두 화면이 같은 상태를 다른 말로
-              설명하지 않도록 `marketplace-bot-list.tsx` 와 **같은 문자열**로 맞춘다.
-              되돌리지 마라.
+              제목·설명 둘 다 `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 두 화면이
+              같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
+              「선생님들이」라는 한정도 그대로 걷어 둔다 — 마켓에는 풀림이 만든 기본 봇도
+              함께 선다(spec `03 § 4.13.1` · `§ 4.13.3`).
             */
-            description="공유된 봇은 로그인한 뒤에 둘러볼 수 있어요."
+            title="봇 마켓은 아직 준비 중이에요"
+            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
           />
         </div>
       ) : isUnavailable ? (

@@ -108,7 +108,7 @@ it('5xx 는 그대로 장애 카드 — 이건 진짜 고장이다', () => {
   expect(screen.queryByTestId('marketplace-detail-unavailable')).not.toBeInTheDocument();
 });
 
-it('401 은 로그인 안내 — 404 분기가 그 자리를 가로채지 않는다', () => {
+it('401 은 「아직 준비 중」 안내 — 404 분기가 그 자리를 가로채지 않는다', () => {
   queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   renderDetail('student');
@@ -118,19 +118,33 @@ it('401 은 로그인 안내 — 404 분기가 그 자리를 가로채지 않는
 });
 
 /*
-  아래 둘은 **한정을 걷은 문장**을 잠근다(spec `03 § 4.13.3`). 마켓에는 풀림이 만든 기본 봇도
-  같이 서므로 「선생님들이 공유한 봇」·「선생님이 만들어 공유한 봇」은 이제 참이 아니다.
-  목록 쪽 같은 문장은 #331 이 고쳤고, **상세에 한 벌씩 더 있었다.**
+  아래 둘이 이 갈래의 문구를 잠근다.
+
+  ⑴ **로그인을 시키지 않는다.** 마켓은 같은 오리진 route handler 가 답하는데 그 핸들러에
+     OS 세션을 풀 열쇠가 없어(`lib/current-user.ts`) 배포본에서는 **로그인해도 401** 이다.
+     「로그인하면 이 봇을 볼 수 있어요」는 로그인한 사람에게도 떠서, 로그인 화면으로 보내 놓고
+     아무 일도 일어나지 않게 만들었다.
+  ⑵ **한정을 걷은 문장**을 그대로 지킨다(spec `03 § 4.13.3`). 마켓에는 풀림이 만든 기본 봇도
+     같이 서므로 「선생님들이 공유한 봇」은 참이 아니다.
 */
-it('로그인 안내는 「선생님들이」로 한정하지 않는다 — 목록과 같은 말로 맞춘다', () => {
+it('401 안내는 로그인을 시키지 않는다 — 로그인해도 안 풀리는 401 이다', () => {
+  queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
+
+  renderDetail('student');
+
+  expect(screen.getByTestId('marketplace-detail-signin').textContent).not.toContain('로그인');
+});
+
+it('401 안내는 「선생님들이」로 한정하지 않는다 — 목록과 같은 말로 맞춘다', () => {
   queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   renderDetail('student');
 
   const box = screen.getByTestId('marketplace-detail-signin');
   expect(box.textContent).not.toContain('선생님들이');
-  // `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 한 화면이 두 말로 설명하지 않는다.
-  expect(box.textContent).toContain('공유된 봇은 로그인한 뒤에 둘러볼 수 있어요.');
+  // `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 한 상태를 두 말로 설명하지 않는다.
+  expect(box.textContent).toContain('봇 마켓은 아직 준비 중이에요');
+  expect(box.textContent).toContain('준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요.');
 });
 
 it('한 줄 소개가 없으면 만든 사람을 단정하지 않는 말로 대신한다', () => {
