@@ -30,7 +30,9 @@ export default function WellnessPage() {
   /* ── RAIL ──────────────────────────────────────────────── */
   const rail = (
     <>
-      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3]. enrollment 권위는 client에서만 읽히므로 분리 렌더. */}
+      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3].
+          카드가 참여 스토어의 localStorage 복원을 스스로 기다린다 — 그동안 이 자리만 비고
+          나머지 칸은 그대로 선다. (이 페이지도 이제 client 다 — 분리 이유는 그 경계가 아니다.) */}
       <WellnessBotCommentCard studentId={demoKey} />
 
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}

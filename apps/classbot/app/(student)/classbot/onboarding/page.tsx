@@ -16,6 +16,18 @@ function scrollToNextStep() {
   nextCta?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/**
+ * 클래스봇 소개 — 공개 경로(`lib/auth/public-paths.ts`).
+ *
+ * **`MockBrowser` 안의 이름은 그대로 두고, 보는 사람을 부르는 자리에서는 이름을 걷는다.**
+ * 두 자리가 다르기 때문이다:
+ *  - `MockBrowser` 안(선생님 실시간 피드의 서연·하윤·도현 · 봇 머리말의 「김보람 선생님의
+ *    디지털 분신」)은 **남의 화면을 그려 보이는 그림**이다. 라벨이 그렇게 말하고 있고,
+ *    예시 학급 없이는 무엇을 설명하는지 보이지 않는다.
+ *  - 보는 사람을 향한 말은 이름을 뺐다 — 데모 대화의 첫 인사(`demo-chat.tsx`)와 「‘수학봇’은
+ *    **우리** 선생님 수업 그대로 답해요」. 이 화면은 신원을 읽지 않으므로(공개 경로) 누구를
+ *    부르든 지어낸 이름이 된다.
+ */
 export default function ClassbotOnboardingPage() {
   return (
     <OnboardingTemplate
@@ -30,7 +42,7 @@ export default function ClassbotOnboardingPage() {
           Icon: UserCircle,
           title: '내가 받은 봇은 진짜 우리 선생님이 만든 거예요',
           description:
-            "‘수학봇’은 김보람 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요. 다른 반 봇이랑 달라요.",
+            "‘수학봇’은 우리 선생님 수업 그대로 답해요. 우리 반 진도, 우리 학원 자료를 알고 있어요. 다른 반 봇이랑 달라요.",
           bullets: [
             '선생님이 직접 말투(친근·정중·엄격)도 미리 정해 둬요',
             '선생님 PPT·PDF·수업 녹화를 봇이 미리 읽어 뒀어요',
