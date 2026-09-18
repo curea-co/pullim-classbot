@@ -3,9 +3,9 @@
  *
  * 2026-09-18 에 운영 메인(`/teacher/classbot`)이 봇 목록·요약을 정본으로 옮기며
  * (`GET /classbot/me/bots` · `hooks/api/bot.ts` `useMyBots`) 이 파일의 화면 쪽 소비처가 사라졌다.
- * 그때 함께 걷은 것 넷: `getTeacherBotRows()` · `getTeacherBotSummary()` · `TeacherBotSummary` ·
- * `runStateLabels`. 운영 중/멈춤을 말하는 칸이 정본(`BotDto`)에 없어서, 그 값을 화면에 그대로
- * 되살릴 자리도 없다.
+ * 그때 함께 걷은 것 다섯: `getTeacherBotRows()` · `getTeacherBotSummary()` · `TeacherBotRow` ·
+ * `TeacherBotSummary` · `runStateLabels`. 운영 중/멈춤을 말하는 칸이 정본(`BotDto`)에 없어서,
+ * 그 값을 화면에 그대로 되살릴 자리도 없다.
  *
  * **남은 것은 `teacherBotOps` 하나다.** 지우지 않는 까닭은 다른 소비처가 있어서다 —
  * 봇 관리 mock(`./classbot-bot-policy.ts` 의 `toManagedBot`)이 「이 봇이 어느 학급에 붙어 있나」를

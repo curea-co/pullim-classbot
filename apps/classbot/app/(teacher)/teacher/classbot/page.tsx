@@ -66,11 +66,17 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *    반 하나짜리라 반 수만큼 부르는 일이 된다. 교사 홈이 같은 이유로 총원 합산을 거부했다
  *    (`app/(teacher)/teacher/page.tsx` 의 `classCount` 주석). 반 **하나**의 인원은 그 반 줄에 적는다 —
  *    그건 카드가 스스로 아는 값이다.
- *    그 칸이 유일한 학급 관제소(`/teacher/monitor`) 진입점이었는데 함께 사라졌다. **되살리지 않는다** —
- *    그 화면은 아직 목이고, 목으로 가는 길을 정본 화면에 남기지 않는다(교사 홈이 같은 판단을 적어 뒀다).
+ *    그 칸은 **이 화면**에서 학급 관제소(`/teacher/monitor`)로 가던 하나뿐인 길이기도 했다.
+ *    **되살리지 않는다** — 그 화면은 아직 목이고, 이 화면에서 목으로 가는 길을 새로 내지 않는다
+ *    (교사 홈이 같은 판단을 적어 뒀다 — `app/(teacher)/teacher/page.tsx` 의 「먼저 볼 학생」 빈 상태).
+ *    ⚠ **관제소가 앱에서 닫힌 것은 아니다** — 교사 레일에 상설 항목이 있고
+ *    (`components/shell/nav-config.ts` 의 `/teacher/monitor` 「학급 관제소」),
+ *    학생 화면(`app/(teacher)/teacher/students/page.tsx`)의 되돌아갈 곳도 거기다.
+ *    레일은 이 화면의 범위 밖이고 종전부터 그랬다.
  *
  * 이 화면이 하지 않는 것:
- *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 위 까닭으로 지금은 길이 없다.
+ *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 위 까닭으로 **이 화면에서** 가는 길은 없다
+ *    (레일에는 있다).
  *  - 등록 학생 관리(명단 활성/비활성) — **지금 이 기능은 어디에도 없다.** 넘겨 줄 화면이 있어서
  *    걷은 게 아니다. 학급(/teacher/classroom)·학생(/teacher/students)·관제소(/teacher/monitor)는
  *    다 읽기 전용 명단이고(classroom 은 이름·들어온 날 두 칸짜리 표, students 는 관제소 명단을
@@ -270,10 +276,15 @@ export default function TeacherClassbotPage() {
         또 하나의 거짓이 된다(교사 홈이 반 개수 줄에 같은 판단을 적어 뒀다). 그래서 「낸 과제」 칸도
         정본 목록을 실제로 읽은 뒤에만 선다 — 그 칸만 다른 문에서 오기 때문이다.
 
+        **`isError` 를 따로 보는 까닭**: react-query 는 한 번 성공한 뒤 백그라운드 갱신이 깨져도
+        마지막 `data` 를 들고 있는다. `data` 만 보면 아래 목록이 「로그인이 필요해요」라 말하는
+        동안 이 바가 「내 봇 1개」라고 말한다 — 지어낸 값은 아니지만(마지막으로 참이었던 값)
+        같은 화면의 두 자리가 서로 다른 말을 한다. 바를 함께 내려 그 어긋남을 닫는다.
+
         카드 안에 텍스트 링크를 또 넣지 않는다. 나가는 길이 있는 카드는 카드째 링크(KpiStatLink),
         없는 카드는 숫자만(KpiStat).
       */}
-      {myBots.data !== undefined && (
+      {myBots.data !== undefined && !myBots.isError && (
         <KpiStatBar cols={assignments === null ? 2 : 3} size="lg">
           <KpiStat label="내 봇" value={`${bots.length}개`} tone="accent" />
           <KpiStat label="붙은 학급" value={`${attachedClassCount}개`} />

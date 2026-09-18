@@ -58,11 +58,16 @@ const assignmentFor = (classId: string, id: string): AssignmentSummaryDto => ({
 let bots: BotDto[] = [];
 let botsPending = false;
 let botsError: ApiError | null = null;
+/**
+ * 「한 번 읽은 뒤 갱신이 깨진」 갈래 — react-query 는 그때 **마지막 `data` 를 들고 있는다.**
+ * 읽는 중·첫 실패와 달리 `data` 와 `error` 가 동시에 있는 상태라 따로 세워야 잴 수 있다.
+ */
+let botsStale = false;
 const refetch = jest.fn();
 jest.mock('@/hooks/api/bot', () => ({
   ...jest.requireActual('@/hooks/api/bot'),
   useMyBots: () => ({
-    data: botsPending || botsError ? undefined : bots,
+    data: botsStale ? bots : botsPending || botsError ? undefined : bots,
     isPending: botsPending,
     isError: botsError !== null,
     error: botsError,
@@ -102,6 +107,7 @@ beforeEach(() => {
   bots = [FULL, BARE];
   botsPending = false;
   botsError = null;
+  botsStale = false;
   assignments = [];
   assignmentsPending = false;
   opsClasses = [CLASS_1];
@@ -192,6 +198,20 @@ describe('모르는 동안에는 숫자도 빈 상태도 말하지 않는다', (
     expect(screen.queryByText('아직 만든 봇이 없어요')).not.toBeInTheDocument();
   });
 
+  it('한 번 읽은 뒤 갱신이 깨지면 상단 요약도 함께 내린다 — 두 자리가 다른 말을 하지 않게', () => {
+    /*
+      옛 값이 손에 남아 있는 갈래다(지어낸 값은 아니다 — 마지막으로 참이었던 값).
+      그래도 바를 남기면, 목록이 「로그인이 필요해요」라 말하는 바로 위에서 바가
+      「내 봇 2개」라고 말한다. 한 화면의 두 자리가 서로 다른 말을 하는 것이 그 자체로 거짓이다.
+    */
+    botsStale = true;
+    botsError = new ApiError('unauthorized', 401);
+    render(<TeacherClassbotPage />);
+
+    expect(screen.getByText('로그인이 필요해요')).toBeInTheDocument();
+    expect(statBar()).toBeNull();
+  });
+
   it('낸 과제를 아직 못 읽었으면 그 칸도 카드의 한 줄도 뜨지 않는다', () => {
     assignmentsPending = true;
     render(<TeacherClassbotPage />);
@@ -210,7 +230,8 @@ describe('모르는 동안에는 숫자도 빈 상태도 말하지 않는다', (
 
     const attached = screen.getByTestId(`bot-ops-card-${FULL.id}`);
     expect(within(attached).queryByText('아직 붙은 학급이 없어요')).not.toBeInTheDocument();
-    expect(within(attached).getByText(/반 이름을 아직 못 읽었어요/)).toBeInTheDocument();
+    // 숫자까지 잰다 — 문구만 매칭하면 「(N개)」를 지워도 초록으로 남는다
+    expect(within(attached).getByText(/반 이름을 아직 못 읽었어요 \(1개\)/)).toBeInTheDocument();
     // 붙은 학급 수는 봇 행의 `classIds` 가 아는 값이라 반 목록 없이도 그대로 센다
     expect(kpi('붙은 학급')).toMatch(/(?<!\d)1개/);
 
