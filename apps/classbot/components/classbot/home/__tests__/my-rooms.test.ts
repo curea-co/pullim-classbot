@@ -88,6 +88,9 @@ describe('toSlot — 서버 카드 → 화면 슬롯', () => {
     expect(slot.enrollment.assignedBy).toBe('선생님');
     // 카드에는 수강 시각이 없다 — 화면은 빈 값이면 참여일 줄을 숨긴다.
     expect(slot.enrollment.assignedAt).toBe('');
+    // 소속도 없다. 실제 반 id 는 uuid 라 이 자리는 **언제나** 빈 값이고, 그래서 홈 카드는
+    // 학원·학교로 묶기를 그만두고 반 이름으로 말한다(`joined-classes-data.ts`).
+    expect(slot.enrollment.via).toBe('');
   });
 
   it('서버가 화면 union 밖의 말투·범위를 주면 카탈로그 값으로 접는다(캐스팅 없이)', () => {

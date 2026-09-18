@@ -48,8 +48,13 @@ function toneOf(raw: string | undefined): ClassBot['tone'] | undefined {
  * 서버에 없는 대화용 보조 필드뿐이다 — `quickPrompts`(서버는 문장만 주고 화면은 응답키가 필요하다) ·
  * `currentLesson`(서버 모양이 다르다) · 그리고 아직 응답에 없는 **선생님 이름·소속**.
  *
- * 선생님 이름은 정본 카드에 없다(계획 §10 해소 5 — 표시명 조인은 pullim-api PR 2 `members`). 시드 봇이
- * 아니면 「선생님」으로 부른다. 수강 시각도 카드에 없어(`enrolledAt` 은 참여 응답에만) 빈 값이다 —
+ * 선생님 이름·소속은 정본 카드에 없다(계획 §10 해소 5 — 표시명 조인은 pullim-api PR 2 `members`).
+ * 그래서 카탈로그가 채우는 그 두 칸(`teacherName` · `organization`)은 **시드 봇(`cb_001`…)에서만**
+ * 값이 붙는다 — 실제 반의 id 는 uuid 라 아래 `classBots.find(…)` 가 반드시 빗나가고 둘 다 빈 값이다.
+ * 그 빈 값은 「없다」가 아니라 **「모른다」**이니, 읽는 쪽은 아는 척하지 말고 자리를 접어야 한다:
+ * 홈 카드는 선생님 줄을 접고(`joined-classes.tsx`), 내 수업방 카드는 소속 줄을 숨긴다
+ * (`app/(student)/classbot/classroom/page.tsx`). 이름을 모르면 부르는 말은 「선생님」이다.
+ * 수강 시각도 카드에 없어(`enrolledAt` 은 참여 응답에만) 빈 값이다 —
  * 화면은 빈 값이면 참여일 줄을 숨긴다.
  * @param card - `GET /classbot/bots?role=student` 한 장
  * @returns 홈·목록이 그대로 그릴 수 있는 슬롯
