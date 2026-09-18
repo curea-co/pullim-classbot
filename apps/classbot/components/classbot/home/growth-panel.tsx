@@ -13,9 +13,13 @@ import { EmptyState } from '@/components/classbot/empty-state';
  * **누가 보든 늘 같은 숫자**였고, 제 기록으로 읽는 자리라 걷었다. 목 모듈은 그대로 두고
  * 여기서 읽지 않을 뿐이다(`lib/mock/persona.ts` 는 다른 화면이 아직 쓴다).
  *
- * 남은 `streakDays` 는 **지어낸 값이 아니다** — `useSelfStreak()` 이 서버가 아는 학습 날짜에서
- * 센다. 밖에서 받는 이유는 히어로의 스트릭 칩과 **같은 화면**에 있어서, 한쪽만 실제 기록을
- * 읽으면 두 숫자가 서로 어긋나기 때문이다.
+ * 남은 `streakDays` 는 **지어낸 값이 아니다** — `useSelfStreak()` 이 실제로 공부한 날짜에서
+ * 센다. 그 날짜가 어디 있는지는 신원을 따라간다(`hooks/api/self-bots.ts:439` 머리주석) —
+ * 신원이 있으면 서버(`GET /api/me/study-days`)고, 없는 데모에서는 이 기기의 기록이다.
+ * 어느 쪽이든 누가 보든 같은 숫자가 나오는 페르소나 상수와는 다르다.
+ *
+ * 밖에서 받는 이유는 히어로의 스트릭 칩과 **같은 화면**에 있어서, 한쪽만 실제 기록을 읽으면
+ * 두 숫자가 서로 어긋나기 때문이다.
  *
  * ## 정본이 주간 집계를 주게 되면 — 빈 상태 자리에 꽂는다
  *
@@ -23,7 +27,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
  * `GET /classbot/me/progress?period=week` 의 기간 합계 · 요일별 강도) 아래 `EmptyState` 자리에
  * 그 값을 그리고, 값이 없을 때만 지금의 빈 상태로 떨어지게 하면 된다.
  *
- * @param streakDays - 연속 학습일(서버 집계).
+ * @param streakDays - 연속 학습일(서버 · 데모면 이 기기의 기록).
  */
 export function GrowthPanel({ streakDays }: { streakDays: number }) {
   return (
