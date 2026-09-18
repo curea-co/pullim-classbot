@@ -1,22 +1,32 @@
 import { type Page, expect } from '@playwright/test';
 
 /**
- * 신규 사용자는 참여한 클래스가 없다(빈 상태).
- * 챗·과제 등 surface 를 검증하려면 먼저 참여 코드로 교사 클래스에 들어간다.
- * (class-enrollment 스토어 → localStorage 'pullim-class-enrollment' 에 지속)
+ * 학생 홈(`/classbot`)이 **참여 중인 반을 든 채로** 서는 것을 확인한다 — 뒤따르는 대화 스펙의 전제.
  *
- * ⚠ 「봇을 얻는 길은 참여 코드뿐」은 더 이상 사실이 아니다 — 학생은 봇 마켓에서 봇을 **담을** 수도
- * 있고, 담은 봇은 반 봇과 **한 목록**에서 대화한다(`lib/store/mode-bots.ts`). 이 헬퍼가 참여 코드를
- * 쓰는 이유는 그것이 유일한 길이라서가 아니라, **로그인 없이 도는 이 스펙들이 쓸 수 있는 길**이라서다 —
- * 마켓 목록·담기는 신원을 요구한다(마켓 계약 §2).
+ * **이 헬퍼는 반에 들어가지 않는다.** 이름만 옛것이다(아래 참조).
  *
- * 데모 유효 코드: MATH-2024(cb_001) / ENG-2024(cb_002) / SCI-2024(cb_003) — `lib/mock/class-codes.ts`
+ * 종전에는 참여 코드 칸에 `MATH-2024` 를 넣고 「참여」를 눌렀다. 그 코드는 옛 mock 표
+ * (`lib/mock/class-codes.ts`)의 것이고, 계획 PR 8 이 같은 오리진 route handler 와 mock 폴백을 함께
+ * 걷은 뒤로 정본(`POST /classbot/enrollments`)에는 **없는 코드다 — 404**. 즉 그 두 줄은 참여를
+ * 성사시킨 적이 없고 실패 토스트만 띄웠다.
+ *
+ * **그런데도 단언은 통과했다.** `login-student` 레인의 OS 계정이 이미 실제 반에 들어가 있어
+ * 「참여 중인 클래스」가 참여와 무관하게 원래부터 보였기 때문이다. 세 대화 스펙
+ * (`chat-greeting-by-bot` · `chat-quick-prompts-by-bot` · `chat-scroll-and-input`)이 그렇게
+ * **엉뚱한 이유로** green 이었다. 그 사실을 알고 나면 참여를 흉내 내는 두 줄은 거짓 안심일 뿐이라
+ * 걷고, 실제로 확인하던 것 하나만 남긴다 — **계정이 이미 든 반을 전제로 홈이 서는가.**
+ *
+ * ⚠ 그래서 전제가 계정에 있다: `E2E_OS_STUDENT_*` 계정이 최소 한 반의 학생이어야 한다. 어느 반에도
+ * 없으면 홈은 빈 가드(「아직 대화할 봇이 없어요」)로 서고 여기서 죽는다 — 화면이 깨진 것이 아니라
+ * **계정 상태**가 원인이라는 뜻이다.
+ *
+ * 이름을 `joinDemoClass` 로 남겨 둔 것은 세 스펙의 호출 일곱 자리를 건드리지 않으려는 것뿐이다.
+ * e2e 를 역할별로 다시 쓰는 트랙(`playwright.config.ts` 의 `MIXED_ROLE_SPECS` TODO)에서 이름도 함께 고친다.
+ * @param page - 학생 세션(`login-student` 레인)의 페이지
  */
-export async function joinDemoClass(page: Page, code = 'MATH-2024'): Promise<void> {
+export async function joinDemoClass(page: Page): Promise<void> {
   await page.goto('/classbot', { waitUntil: 'networkidle' });
-  await page.getByLabel('참여 코드 입력').fill(code);
-  await page.getByRole('button', { name: '참여' }).click();
-  // 참여 반영 — 홈이 참여 중인 클래스 목록을 가진 교사수업 홈으로 전환된다
+  // 홈은 한 RTT 동안 스켈레톤을 그린다 — `toBeVisible` 이 그동안 다시 본다.
   await expect(page.getByText('참여 중인 클래스')).toBeVisible({ timeout: 10_000 });
 }
 
