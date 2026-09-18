@@ -9,8 +9,9 @@
  *    원래 자리는 `lib/mock/__tests__/classbot-monitoring.test.ts` 였다. **거기서 그대로 지킨다**
  *    (같은 합·같은 배타). 여기서는 겹쳐 세지 않는다.
  *  - 「줄 배지는 카드와 같은 판정을 쓴다」·「머리글이 화면 순서대로」 외 다섯 — 표가 사라지며 함께 사라진다.
- *    표는 관제소·리포트 센터가 같은 껍데기(`roster-table.tsx`)로 계속 쓰고, 그 판정은
- *    `students/__tests__/monitor-roster.test.tsx` 와 `reports/__tests__/report-roster.test.tsx` 가 지킨다.
+ *    **넘긴 곳이 같은 날 한 번 더 옮겨졌다** — 받기로 했던 관제소·리포트 센터 명단 테스트 둘은
+ *    그 명단 화면들과 함께 걷혔다(#370 · 결함 03-③). 표 껍데기(`roster-table.tsx`)의 계약을
+ *    같은 항목으로 못박는 곳은 지금 **`components/classbot/__tests__/class-reach-roster.test.tsx`** 다.
  *
  * 그 자리에 **새로 지키는 것**은 「이 화면이 지어낸 값을 말하지 않는가」다 — 걷어낸 목이 다시 기어들면
  * 아래 「목이 하나도 남지 않았다」가 빨개진다.

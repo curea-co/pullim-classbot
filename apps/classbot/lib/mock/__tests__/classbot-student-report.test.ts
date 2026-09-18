@@ -4,7 +4,12 @@ import {
   conceptLabel, findStudent, reportOrder, scopeExitTotal, scopeExits, siblingStudents,
 } from '../classbot-student-report';
 
-describe('범위 이탈 — 관제소와 학생 리포트가 같은 값을 본다', () => {
+/*
+ * ⚠ 이 모듈을 읽는 화면은 2026-09-18 에 전부 걷혔다(`../classbot-student-report.ts` 머리주석).
+ * 검사는 남긴다 — 이 파일이 지키는 것은 화면이 아니라 **한 학생의 이탈 수를 세는 길이 하나뿐**이라는
+ * 모듈 안의 계약이고, 되살릴 때 그 계약이 먼저 깨져 있으면 안 된다.
+ */
+describe('범위 이탈 — 대화 기록·이탈 이력·명단이 같은 값을 본다', () => {
   it('대화 기록에 심긴 이탈 턴 수 = scopeExits()', () => {
     for (const s of monitoredRoster) {
       const offTopicTurns = buildTranscript(s).filter(t => t.offTopic);

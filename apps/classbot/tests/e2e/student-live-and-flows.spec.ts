@@ -271,14 +271,18 @@ test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
     await expect(page.getByText('이탈 대응 강도')).toBeVisible();
   });
 
-  // 이 링크는 학급 관제소에 달려 있었다 — 계획 PR 7 이 관제소를 정본 신호 표로 바꾸며 목 명단(`monitor-roster.tsx`)이
-  // 학생 목록(`/teacher/students`)으로 옮겨 갔고, 링크도 그 명단 아래에 그대로 산다.
-  test('학생 목록의 「봇 관리」는 이탈 대응을 실은 채 목록으로 온다', async ({ page }) => {
-    await page.goto(BASE + '/teacher/students', { waitUntil: 'networkidle' });
-
-    await page.getByRole('link', { name: /봇 관리에서 이탈 대응 강도/ }).click();
-    await expect(page).toHaveURL(BASE + '/teacher/bots?tab=drift');
-  });
+  /*
+   * 「학생 목록의 「봇 관리」는 이탈 대응을 실은 채 목록으로 온다」는 **2026-09-18 에 걷혔다.**
+   *
+   * 그 링크는 원래 학급 관제소에 달려 있었고, 계획 PR 7 이 관제소를 정본 신호 표로 바꾸며 목 명단
+   * (`monitor-roster.tsx`)과 함께 학생 목록(`/teacher/students`)으로 옮겨 갔다. 결함 03-③ 이 그 목
+   * 명단을 걷으면서 **그 링크를 내는 자리가 앱 전체에서 0 이 됐다** — 지어낸 학생 스무 명의 이탈
+   * 합계를 근거로 달려 있던 링크였다. 없는 링크를 지키는 검사를 남겨 두지 않는다.
+   *
+   * 이 검사가 지키던 것(「`?tab=` 이 봇을 고르는 단계까지 살아서 넘어간다」)은 **바로 위 검사가
+   * 그대로 지킨다** — 거기는 `?tab=drift` 를 실은 채 목록으로 들어가 카드를 눌러 상세까지 간다.
+   * 여기는 그 앞 한 칸(보내는 쪽)만 더 보던 것이고, 그 보내는 쪽이 사라졌다.
+   */
 
   /**
    * 앱 안의 링크는 모두 옮겼지만 옛 주소는 앱 밖에 남는다 — 이 검사가 지키는 것은

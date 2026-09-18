@@ -7,10 +7,11 @@
  *  - 「거르개가 관제소·교사 홈과 **같은 숫자**를 낸다」 — 규칙을 두 벌로 만들지 말라는 검사였고,
  *    리포트 센터는 애초에 판정을 하나도 갖지 않고 관제소(`../students/roster-filters`)와 교사 홈
  *    (`lib/mock/classbot-teacher-home`)을 읽기만 했다. **읽던 쪽이 사라졌으니 어긋날 두 벌이 없다.**
- *    원본 판정은 `students/__tests__/monitor-roster.test.tsx` 와
- *    `lib/mock/__tests__/classbot-monitoring.test.ts` 가 그대로 지킨다.
+ *    원본 판정은 `lib/mock/__tests__/classbot-monitoring.test.ts` 가 그대로 지킨다
+ *    (여기 적었던 `students/__tests__/monitor-roster.test.tsx` 는 결함 03-③ 이 그 화면과 함께 걷었다).
  *  - 「머리글이 눈에 보이고 이름과 학년이 다른 칸에 있다」 — 표 껍데기
- *    (`components/classbot/roster-table.tsx`) 한 벌의 계약이라 **관제소 명단 테스트가 같은 것을 지킨다.**
+ *    (`components/classbot/roster-table.tsx`) 한 벌의 계약이라
+ *    **`components/classbot/__tests__/class-reach-roster.test.tsx` 가 같은 것을 지킨다.**
  *  - 「리포트가 없는 학생도 명단에 있다」·「정렬이 실제로 순서를 바꾼다」·「줄을 누르면 그 학생
  *    기록으로 간다」 — 전부 사라진 명단의 계약이다. 명단이 필요해지는 날 서는 자리는 여기가 아니라
  *    **내 수업방의 반 명단**이고(정본 `GET /classbot/classes/:id/members`), 그쪽은 제 테스트를 갖는다.

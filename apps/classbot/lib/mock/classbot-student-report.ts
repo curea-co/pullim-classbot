@@ -1,15 +1,25 @@
 /**
- * 학생별 대화기록 리포트 · 과정 평가 mock — 관제소(`/teacher/monitor`)와 **같은 학생 명단**을 본다.
+ * 학생별 대화기록 리포트 · 과정 평가 mock — `classbot-monitoring.ts` 의 20명 스냅샷을 그대로 본다.
  *
- * 이 파일의 존재 이유는 하나다: 관제소에 뜨는 학생별 수치와 학생 리포트에 뜨는 수치가
- * 서로 다른 곳에서 계산되면 반드시 어긋난다. 그래서 두 화면이 읽는 원천을 여기 하나로 모은다.
+ * ⛔ **이 파일을 읽는 화면이 없다(2026-09-18).** 읽던 둘 — 학생 목록의 「이탈」 열과 학생 상세
+ * (대화 기록 뷰어 · 막힌 지점 · 주제 분포 · 이탈 이력 · 과정 평가 루브릭) — 은 이 PR 이 걷었다.
+ * 지어낸 학생 스무 명 위에서 돌던 화면이었고, **정본(pullim-api)에는 과정 평가·전사·주제 분포를
+ * 읽고 쓰는 문이 아예 없다.** 교사가 한 학생의 대화를 읽는 자리는 이제 반 상세의 「대화」 탭
+ * (`GET /classbot/classes/:classId/chat?studentId=` → `components/classbot/monitoring/member-transcript.tsx`)
+ * 하나다. **새 화면에서 읽지 마라.**
+ *
+ * 지우지 않고 남긴 까닭: `components/classbot/roster-columns.tsx` 의 이탈 열이 `scopeExits()` 를
+ * 아직 물고 있다. 그 공유 컴포넌트도 소비처가 0 이라 **함께 걷는 것이 다음 단위**다.
+ *
+ * ── 이 파일이 원래 지키던 것(되살릴 때 그대로 지켜라) ─────────────────────
+ * 한 학생의 수치가 두 화면에서 따로 계산되면 반드시 어긋난다. 그래서 원천을 하나로 모았다.
  *
  *  - 학생 명단·도달 상태·깊이·지름길·마지막 활동  → `classbot-monitoring.ts` (그대로 읽는다)
  *  - 범위 이탈 건수                                → 이 파일의 `scopeExitTable` **하나뿐**
  *
  * 범위 이탈(scope exit) = 봇이 정해진 수업 범위 밖 요청을 받아 되돌린 턴.
  * 대화 기록(`buildTranscript`)에 심는 이탈 턴 수 · 이탈 이력(`buildScopeExitLog`) 길이 ·
- * 관제소 명단의 「이탈 N회」가 전부 `scopeExits()` 한 함수를 통과한다.
+ * 명단의 「이탈 N회」가 전부 `scopeExits()` 한 함수를 통과한다.
  * 어긋나면 `__tests__/classbot-student-report.test.ts` 가 깨진다.
  *
  * 담지 않는 것: 감정·집중도·체류시간. 관제소와 같은 이유 — 지표 타당도가 약하고
@@ -36,7 +46,7 @@ const scopeExitTable: Record<string, number> = {
   m16: 0, m17: 2, m18: 1, m19: 0, m20: 1,
 };
 
-/** 범위 이탈 건수 — 관제소·학생 리포트가 함께 읽는다. */
+/** 범위 이탈 건수 — 이 모듈 안팎이 함께 읽는 유일한 원천. 다른 곳에서 다시 세지 마라. */
 export function scopeExits(s: MonitoredStudent): number {
   return scopeExitTable[s.id] ?? 0;
 }
@@ -339,7 +349,7 @@ export type ProcessCriterion = {
 
 /**
  * 과정 평가 항목. 점수는 학생의 깊이·지름길 수치에서 **계산**한다 —
- * 관제소 수치와 따로 노는 숫자를 만들지 않기 위해서다.
+ * 명단이 보여 주는 수치와 따로 노는 숫자를 만들지 않기 위해서다.
  */
 export function buildProcessEvaluation(s: MonitoredStudent): ProcessCriterion[] {
   const depthRatio = s.actualDepth / s.targetDepth;
@@ -434,7 +444,7 @@ export type StudentReport = {
   /** 막힌 개념 + 그 개념을 다룬 대화 턴 */
   stuckPoints: StuckPoint[];
   evaluation: ProcessCriterion[];
-  /** 관제소와 같은 값 — 두 화면이 같은 함수를 통과한다 */
+  /** 명단의 「이탈 N회」와 같은 값 — 같은 함수(`scopeExits`)를 통과한다 */
   scopeExitCount: number;
   shortcutCount: number;
 };
