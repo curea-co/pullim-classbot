@@ -12,7 +12,6 @@ import {
   clearDevIdentityCookie,
   findDevIdentity,
   isDevIdentityHost,
-  isRoleSwitchHost,
   readDevIdentityCookie,
   resolveDevIdentity,
   writeDevIdentityCookie,
@@ -141,12 +140,54 @@ describe('isDevIdentityHost — 허용 목록 + fail-closed', () => {
   });
 });
 
-describe('isRoleSwitchHost — 화면 전환은 신원과 다른 판정이다', () => {
+/*
+  **`isRoleSwitchHost` 는 2026-09-18 에 없어졌다.** 역할 전환 칩의 노출만 따로 재던 판정이고,
+  이 목록에 더해 `dev-classbot.pullim.ai` 와 preview `*.vercel.app` 을 열었다. 그 호스트들에서는
+  신원이 닫혀 있어(바로 위 describe) 쿠키가 안 써졌고, 화면 전환도 OS RoleGuard 가 되돌려서
+  **버튼만 서고 눌러도 아무 일이 없었다.** 지금은 칩의 노출도 위 `isDevIdentityHost` 하나를 따르므로
+  그 판정의 표는 위 describe 가 전부 덮는다 — 칩이 실제로 서는지는
+  `components/shell/__tests__/dev-role-switch.test.tsx` 의 호스트 표가 잰다.
+*/
+
+/**
+ * 주어진 host 로 `window.location` 을 바꾼 채 실행하고 원복한다.
+ *
+ * `writeDevIdentityCookie` 는 호스트를 **인자로 받지 않고** `window.location.host` 를 직접
+ * 읽으므로, 그 가드를 재려면 창을 바꾸는 수밖에 없다.
+ * @param host - 유지할 host
+ * @param run - 그 host 에서 돌릴 것
+ */
+function atHost(host: string, run: () => void) {
+  const { location } = window;
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...location, hostname: host.split(':')[0], host },
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(window, 'location', { configurable: true, value: location });
+  }
+}
+
+/*
+  **쓰기 가드는 UI 를 거치지 않고 함수를 직접 불러서 잰다.**
+
+  칩 쪽 테스트(`components/shell/__tests__/dev-role-switch.test.tsx`)는 배포 호스트에서
+  **버튼이 없다**를 잰다. 그건 사용자가 만난 증상 그 자체라 옳은 단언이지만, **쓰기 가드를
+  재지는 못한다** — 버튼이 없으면 클릭이 없고, 클릭이 없으면 그 뒤의 「쿠키가 안 남는다」는
+  아무도 쓰려 하지 않아서 통과한다. 실측(2026-09-18 · 리뷰 뮤테이션): 그 단언만 있는 판에서
+  `writeDevIdentityCookie` 의 호스트 가드 한 줄을 지워도 **1825 tests 가 전부 통과했다.**
+
+  그래서 아래 셋은 **`writeDevIdentityCookie` 를 직접 부른다.** 가드가 죽으면 첫 둘이 빨개진다.
+*/
+describe('writeDevIdentityCookie 의 호스트 가드 — 직접 부른다', () => {
   const SAVED = { v: process.env.VERCEL_ENV, p: process.env.NEXT_PUBLIC_VERCEL_ENV };
   const setEnv = (name: 'VERCEL_ENV' | 'NEXT_PUBLIC_VERCEL_ENV', value: string | undefined) => {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
   };
+  // 배포 환경을 모르는 자리에서 시작한다 — 로컬 케이스가 남의 환경변수에 흔들리지 않게.
   beforeEach(() => {
     setEnv('VERCEL_ENV', undefined);
     setEnv('NEXT_PUBLIC_VERCEL_ENV', undefined);
@@ -156,41 +197,31 @@ describe('isRoleSwitchHost — 화면 전환은 신원과 다른 판정이다', 
     setEnv('NEXT_PUBLIC_VERCEL_ENV', SAVED.p);
   });
 
-  /*
-    화면 전환은 서버를 부르지 않으므로 배포에서도 열린다. 신원(`isDevIdentityHost`)은
-    로컬만이다 — 배포에는 DB 가 없다. **두 판정이 같은 호스트에서 다른 답을 내는 것**이
-    이 분리의 요지다.
-  */
-  it('dev preview 는 전환은 열리고 신원은 닫힌다', () => {
-    expect(isRoleSwitchHost('dev-classbot.pullim.ai')).toBe(true);
-    expect(isDevIdentityHost('dev-classbot.pullim.ai')).toBe(false);
+  // `parent_001` 은 allowlist 안이라 **호스트 가드만이** 이 쓰기를 막는다.
+  // 목록 밖 id 를 쓰면 뒤의 allowlist 가드가 대신 막아 이 테스트가 공허해진다.
+  it('배포 호스트에서는 쓰지 않는다', () => {
+    atHost('dev-classbot.pullim.ai', () => {
+      writeDevIdentityCookie('parent_001');
+      expect(document.cookie).not.toContain(DEV_IDENTITY_COOKIE);
+    });
   });
 
-  it('로컬은 둘 다 열린다', () => {
-    expect(isRoleSwitchHost('localhost:3032')).toBe(true);
-    expect(isDevIdentityHost('localhost:3032')).toBe(true);
-  });
-
-  it('`*.vercel.app` 은 preview 라고 확인됐을 때만 전환이 열린다 — 모르면 닫는다', () => {
-    expect(isRoleSwitchHost('pullim-classbot-abc-curea.vercel.app')).toBe(false);
+  // preview 라고 확인돼도 열리지 않는다 — 여는 기준은 배포 환경이 아니라 호스트 목록이다.
+  it('preview 로 확인된 `*.vercel.app` 에서도 쓰지 않는다', () => {
     setEnv('VERCEL_ENV', 'preview');
-    expect(isRoleSwitchHost('pullim-classbot-abc-curea.vercel.app')).toBe(true);
-    // 그래도 신원은 닫혀 있다
-    expect(isDevIdentityHost('pullim-classbot-abc-curea.vercel.app')).toBe(false);
+    atHost('pullim-classbot-git-feat-x-curea.vercel.app', () => {
+      writeDevIdentityCookie('parent_001');
+      expect(document.cookie).not.toContain(DEV_IDENTITY_COOKIE);
+    });
   });
 
-  it.each(['classbot.pullim.ai', 'evil.example.com', '', '   '])(
-    'production 이름·목록 밖·빈 Host(%s)는 전환도 닫힌다',
-    (host) => {
-      expect(isRoleSwitchHost(host)).toBe(false);
-    },
-  );
-
-  it('production 배포면 어떤 호스트여도 전환이 닫힌다', () => {
-    setEnv('VERCEL_ENV', 'production');
-    for (const host of ['dev-classbot.pullim.ai', 'localhost:3032', 'x-curea.vercel.app']) {
-      expect(isRoleSwitchHost(host)).toBe(false);
-    }
+  // 짝이 되는 확인 — 로컬에서는 **쓴다.** 위 둘이 「아무 데서도 안 쓴다」로 통과하면
+  // 이 장치가 통째로 죽은 것을 못 잡는다.
+  it('로컬에서는 쓴다', () => {
+    atHost('localhost:3032', () => {
+      writeDevIdentityCookie('parent_001');
+      expect(document.cookie).toContain(`${DEV_IDENTITY_COOKIE}=parent_001`);
+    });
   });
 });
 
