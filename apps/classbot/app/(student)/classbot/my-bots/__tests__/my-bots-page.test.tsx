@@ -98,9 +98,20 @@ it('담은 것도 없고 마켓도 401 이면 빈 상태가 「마켓이 준비 
   expect(screen.queryByTestId('my-bots-list')).not.toBeInTheDocument();
   /*
     이 401 은 **로그인해도 안 풀린다** — 마켓은 같은 오리진 route handler 가 답하고 그
-    핸들러에 OS 세션을 풀 열쇠가 없다(`lib/current-user.ts`). 그래서 이 갈래는 로그인한
-    사람에게도 뜬다. 여기에 「로그인하면 담은 봇을 볼 수 있어요」를 적으면 로그인한 사람을
-    로그인 화면으로 보내 놓고 아무 일도 일어나지 않게 만든다 — 그 문구를 못 박아 막는다.
+    핸들러에 OS 세션을 풀 열쇠가 없다(`lib/current-user.ts`).
+
+    **다만 이 갈래를 실제로 보는 사람은 익명 방문자뿐이다.** 담은 봇 쪽은 마켓과 달리
+    신원 게이트가 있다 — 로그인하면 `useServerIdentityState()` 가 `'server'` 라
+    (`hooks/api/self-server.ts`) `useMySelfBots` 의 `enabled` 가 열려 `/api/me/self-bots` 를
+    **실제로 부르고**, 그것도 401 인데 `retryUnlessGuarded` 가 4xx 를 다시 걸지 않아
+    `mine.isError` 가 선다. 화면은 그 갈래를 **먼저** 보므로(`page.tsx` 의 첫 삼항)
+    로그인한 사람은 여기까지 못 오고 오류 카드를 본다. 익명은 `'demo'` 라 localStorage 를
+    읽고 `isError` 가 false 라 이 갈래에 닿는다.
+
+    **어느 쪽이든 로그인이 답이 아니다.** 익명이 로그인하면 담은 봇 목록이 아니라 빨간
+    오류 카드가 뜬다 — 그러니 여기에 「로그인하면 담은 봇을 볼 수 있어요」를 적으면 안 된다.
+    그 문구를 못 박아 막는다. (로그인한 사람이 오류 카드를 보는 것 자체는 이 PR 범위 밖의
+    기존 결함이고 마켓 정본 이전(계획 5e)으로 넘겼다.)
   */
   expect(box.textContent).not.toContain('로그인');
   expect(box.textContent).toContain('아직 준비 중');

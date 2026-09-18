@@ -80,7 +80,14 @@ function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
  * 답하는데 그 핸들러에 OS 세션을 풀 열쇠가 없어(`lib/current-user.ts` 머리주석) 배포본에서는
  * **로그인해도 401 이 온다.** 그러니 두 갈래를 가르는 것은 「로그인 여부」가 아니라
  * 「마켓이 답했는가」다. 판단 근거 전문은 `components/classbot/marketplace/marketplace-bot-list.tsx`
- * 의 같은 자리에 있다. 마켓을 정본(pullim-api)으로 옮기면(계획 5e) 그때 다시 본다.
+ * 의 같은 자리에 있다.
+ *
+ * **이 화면에서 그 401 갈래를 실제로 보는 사람은 익명 방문자뿐이다** — 담은 봇 쪽은 마켓과
+ * 달리 신원 게이트가 있어서다. 로그인하면 `useMySelfBots` 의 `enabled` 가 열려
+ * `/api/me/self-bots` 를 부르고 그것도 401 이라, 아래 첫 삼항의 `mine.isError` 가 **먼저**
+ * 갈라내 오류 카드를 띄운다. 익명은 localStorage 갈래라 `isError` 가 false 다.
+ * 그 오류 카드(로그인한 학생이 보는 빨간 「불러오지 못했어요」)는 이 문구 수정의 범위 밖이고
+ * 마켓 정본 이전(계획 5e)이 함께 푼다. **어느 쪽이든 로그인은 답이 아니다.**
  *
  * 담은 목록 자체(`isLoading`)는 지금 하이드레이션 대기 구간이다. P3 에서 서버 조회가
  * 되면 같은 자리가 진짜 로딩이 된다 — 화면은 한 줄도 안 바뀐다.
