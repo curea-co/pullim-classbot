@@ -8,9 +8,10 @@ import { EmptyState } from '@/components/classbot/empty-state';
  *
  * 빈 계정으로 들어와도 리포트 여섯 건(학부모·학생·수업 종료·학급·기간·실시간)이 목록에 서고,
  * KPI 넉 장(발송 대기 · 초안 · 위기 알림 · 먼저 볼 학생)이 숫자를 말하고, 없는 학생 스무 명이
- * 「등록된 학생」 명단으로 줄을 이뤘다. 원천은 셋이다 — `lib/mock/classbot.ts` 의 `reports`·
- * `crisisAlerts`, `lib/mock/classbot-monitoring` 의 `monitoredRoster`,
- * `lib/mock/classbot-teacher-home` 의 「먼저 볼 학생」 판정.
+ * 「등록된 학생」 명단으로 줄을 이뤘다. 원천은 셋이었다 — `lib/mock/classbot.ts` 의 `reports`·
+ * `crisisAlerts`, `lib/mock/classbot-monitoring` 의 `monitoredRoster`, 그리고
+ * `lib/mock/classbot-teacher-home` 의 「먼저 볼 학생」 판정. **셋째는 이제 없다** — 결함 03-③ 이
+ * 소비처가 0 이 된 그 모듈을 지웠다(앞의 둘은 공유 컴포넌트가 아직 물고 있어 남아 있다).
  *
  * 화면 아래에는 「승인된 리포트는 24시간 안에 카카오톡으로 자동 발송돼요」까지 적혀 있었다.
  * 보내는 문도, 승인하는 문도, 만드는 문도 없다.

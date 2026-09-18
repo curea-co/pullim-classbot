@@ -78,8 +78,11 @@ describe("nav-adapter", () => {
     // nav 에 없고 어느 행에도 속한다고 선언되지 않은 페이지 — 현재 위치라고 주장할 행이 없으니 아무것도 켜지 않는다
     expect(activeLabels("/teacher/settings")).toEqual([]);
   });
-  // 학생 상세는 관제소 명단에서 눌러 들어가지만 경로가 `/teacher/monitor` 아래가 아니다 —
-  // 관제소 항목이 `matchPrefix` 로 소속을 밝혀서 잡는다 (nav-config).
+  // `/teacher/students*` 는 경로가 `/teacher/monitor` 아래가 아닌데도 관제소 소속이다 —
+  // 관제소 항목이 `matchPrefix` 로 밝혀서 잡는다 (nav-config).
+  // 「관제소 명단에서 눌러 들어간다」는 2026-09-18 에 더는 참이 아니다(계획 PR 7 · 결함 03-③) —
+  // 그 두 화면은 빈 상태이고 학생 상세로 보내는 자리가 없다. 그래도 이 판정은 그대로 지킨다:
+  // 라우트가 살아 있고, 밖에 남은 주소로 들어온 교사가 레일에서 제 위치를 잃으면 안 된다.
   it("teacher 학급 관제소 stays active on its 학생 상세 sub-pages", () => {
     const activeLabels = (pathname: string) =>
       railSectionsForRole("teacher", pathname)
