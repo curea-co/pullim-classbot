@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { ArrowRight, Flame } from 'lucide-react';
-import { currentPersona } from '@/lib/mock';
 import type { Assignment } from '@/lib/mock';
 import { Chip } from '@/components/ui/chip';
 
@@ -20,8 +19,9 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
 /**
  * 학생 홈 상단 인사 띠.
  * @param incompleteAssignments - 아직 안 끝낸 과제(가장 급한 것이 앞)
- * @param name - 부르는 이름. 안 주면 데모 페르소나(서연)로 떨어진다 —
- *   개발용 신원으로 다른 학생을 보고 있는데 「서연님」이라고 부르면 안 된다.
+ * @param name - 부르는 이름. **세션에서 온다**(`useStudentMe()`). 비어 있으면 이름 없이
+ *   인사한다 — 로그인 전이거나 표시 이름을 아직 모르는 때다. 데모 페르소나(서연)로 메우지
+ *   않는다: 남의 이름으로 부르느니 안 부르는 편이 낫다.
  * @param streakDays - 연속 학습일. **밖에서 받는다** — 이름은 신원을 따라가는데 스트릭만
  *   데모 페르소나에 고정돼 있으면, 다른 학생을 보면서 남의 기록을 인증하는 화면이 된다.
  *   0 이면 칩을 그리지 않는다 — 스트릭 칩은 [08 § 1.6] 이 레몬을 허락한 「인증」 자리라
@@ -29,11 +29,12 @@ function pickNextAction(incomplete: Assignment[]): { title: string; dDay: string
  */
 export function LearningHero({
   incompleteAssignments,
-  name = currentPersona.name,
+  name,
   streakDays,
 }: {
   incompleteAssignments: Assignment[];
-  name?: string;
+  /** 부르는 이름. 빈 문자열이면 이름 없이 인사한다. */
+  name: string;
   streakDays: number;
 }) {
   const nextAction = pickNextAction(incompleteAssignments);
@@ -52,7 +53,7 @@ export function LearningHero({
         {/* Greeting row */}
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-2xl font-bold leading-tight text-white">
-            {name}님, 오늘도 화이팅
+            {name ? `${name}님, 오늘도 화이팅` : '오늘도 화이팅'}
           </h1>
           {/*
             이 화면에서 레몬을 쓰는 **단 한 곳**.

@@ -22,7 +22,7 @@ export interface AssignmentChatContext {
   botName: string;
   /** 발송한 선생님 — "김수학 선생님" */
   assignedBy: string;
-  /** 학생 이름 */
+  /** 학생 이름 — 세션에서 온다. 아직 모르면 빈 문자열이고, 그때는 이름 없이 말을 연다. */
   studentName: string;
 }
 
@@ -46,7 +46,8 @@ const OFF_TOPIC_WORDS = [
 export function buildAssignmentChatSeed(ctx: AssignmentChatContext): AssignmentChatReply[] {
   return [
     {
-      text: `${ctx.studentName}, 「${ctx.title}」 같이 풀어 보자. ${ctx.questionCount}문항이고 ${ctx.dueLabel}까지야.`,
+      // 이름을 모르면 부르지 않고 바로 연다 — 빈 이름을 그대로 끼우면 쉼표로 시작하는 말이 된다.
+      text: `${ctx.studentName ? `${ctx.studentName}, ` : ''}「${ctx.title}」 같이 풀어 보자. ${ctx.questionCount}문항이고 ${ctx.dueLabel}까지야.`,
     },
     {
       // 봇 입으로 저장·열람을 약속하지 않는다 — 아직 서버 영속도 교사용 조회도 없다

@@ -13,7 +13,7 @@ import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useMyConsents } from '@/hooks/api/consents';
 import { useServerIdentityState } from '@/hooks/api/self-server';
 import { isShareableType } from './share/catalog';
-import { useCurrentUser, useRosterMe } from '@/lib/current-user';
+import { useCurrentUser, useStudentMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
@@ -34,7 +34,7 @@ const roleLabel: Record<string, string> = {
  * 여기서 다시 만들지 않고 그쪽으로 보낸다(두 곳에서 고칠 수 있으면 어느 쪽이 참인지 흐려진다).
  */
 export default function MyProfilePage() {
-  const me = useRosterMe();
+  const me = useStudentMe();
   const user = useCurrentUser();
   // 참여한 반 — 신원이 있으면 서버, 없으면 데모 스토어다(`useMyRooms` 머리주석).
   // `isError` 를 버리면 조회 실패가 「참여한 수업이 없어요」로 확정된다 — 아래에서 가른다.
@@ -102,14 +102,15 @@ export default function MyProfilePage() {
     <div className="space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
-      <PageHeader eyebrow={{ icon: UserRound, text: '내 정보' }} title={me.name} />
+      {/* 이름을 아직 모르면 화면 이름으로 선다 — 데모 사람 이름을 빌려 쓰지 않는다. */}
+      <PageHeader eyebrow={{ icon: UserRound, text: '내 정보' }} title={me.name || '내 정보'} />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* ─── 기본 정보 ─── */}
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading title="기본 정보" />
           <dl className="divide-pullim-slate-100 divide-y">
-            <InfoRow label="이름" value={me.name} />
+            <InfoRow label="이름" value={me.name || '로그인하면 보여요'} muted={!me.name} />
             <InfoRow label="학년" value={grade ?? '수업에 참여하면 보여요'} muted={!grade} />
             <InfoRow
               label="역할"
