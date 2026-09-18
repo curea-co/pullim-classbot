@@ -56,6 +56,10 @@ function toneOf(raw: string | undefined): ClassBot['tone'] | undefined {
  * (`app/(student)/classbot/classroom/page.tsx`). 이름을 모르면 부르는 말은 「선생님」이다.
  * 수강 시각도 카드에 없어(`enrolledAt` 은 참여 응답에만) 빈 값이다 —
  * 화면은 빈 값이면 참여일 줄을 숨긴다.
+ *
+ * 그 두 칸만 놓고 보면 카탈로그 조회는 **런타임에선 죽은 코드**다. 그래도 지금 걷지 않는 이유는
+ * 같은 조회가 `quickPrompts`·`currentLesson`·과목·학년·말투 폴백까지 한꺼번에 물고 있어서다 —
+ * 걷는다면 `toSlot` 의 모양 전체를 함께 다시 잡아야 하고, **걷을 자리는 여기**다.
  * @param card - `GET /classbot/bots?role=student` 한 장
  * @returns 홈·목록이 그대로 그릴 수 있는 슬롯
  */

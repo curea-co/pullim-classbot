@@ -23,14 +23,26 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
   });
 
   /**
-   * 참여 코드 — 입구가 서고, 누른 결과가 화면에 보인다.
+   * 참여로 가는 문 — 홈이 선 갈래에 맞는 입구가 있고, 눌렀으면 결과가 보인다.
    *
    * ⚠ 종전에는 `MATH-2024` 를 넣고 **참여가 된다는 전제** 위에서 홈 카드를 단언했다. 그 코드는
    * 정본에 없다 — 서버가 404·401 을 주면 옛 목 표로 한 번 더 풀어 성공처럼 보이던 폴백을 걷었고
    * (`components/classbot/home/join-code-form.tsx` 의 「실패는 실패로 보인다」), 남은 길은
    * 정본 `POST /classbot/enrollments` 하나다. 전제가 거짓이면 그 아래 단언은 아무것도 증명하지
-   * 못하므로 **실제로 확인하던 것만** 남긴다: 입구가 늘 열려 있다는 것, 그리고 누른 결과가
-   * 제 상태 중 하나로 **보인다**는 것(들어간 반 카드 / 참여하지 못했다는 안내).
+   * 못하므로 **실제로 확인하던 것만** 남긴다.
+   *
+   * ## 홈에 늘 있는 것은 코드 입력칸이 아니라 **링크**다
+   *
+   * 홈은 참여한 반 수로 갈린다(`app/(student)/classbot/page.tsx`):
+   *
+   * | 반 | 화면 | 참여로 가는 문 |
+   * |---|---|---|
+   * | 0곳 | `TeacherClassHome` — 참여 코드 hero | 그 hero 의 입력칸(`teacher-class-hero.tsx`) |
+   * | 1곳 이상 | 히어로·패널 + `JoinedClasses` | 「내 수업방」 링크 — 코드 입력칸은 그 끝(`classroom/page.tsx`)에 있다 |
+   *
+   * 반이 있는 홈에는 **입력칸이 아예 없다.** `joined-classes.tsx` 머리주석의 「상시 참여 입구」도
+   * 입력칸이 아니라 그 **링크**를 가리킨다 — 「입력칸이 hero 에만 있으면 반이 하나 생긴 순간
+   * 사라져」가 그 링크가 있는 이유다. 그래서 계정 상태를 전제하지 않고 **둘 중 하나**를 본다.
    *
    * 들어간 반 카드를 **반 이름·선생님 같은 데이터 값으로 잡지 않는 것**도 그래서다 — 이 레인에서는
    * 그 카드가 설 수도, 안 설 수도 있다. 카드가 섰을 때 **무엇을 말하는가**(반 이름을 그대로
@@ -42,22 +54,35 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
    *
    * 넉넉한 timeout 을 주는 이유: 홈이 한 RTT 동안 스켈레톤을 그린다(`page.tsx` 의 `roomsLoading` 가드).
    */
-  test('참여 코드 — 입구가 서고, 누른 결과가 제 상태 중 하나로 보인다', async ({ page }) => {
+  test('참여로 가는 문 — 반이 없으면 코드 입력칸, 있으면 「내 수업방」', async ({ page }) => {
     await page.goto(BASE + '/classbot', { waitUntil: 'networkidle' });
 
-    // 참여 입구는 반이 하나도 없을 때도, 이미 있을 때도 홈에 있어야 한다(`joined-classes.tsx` 주석).
     const codeInput = page.getByLabel('참여 코드 입력');
-    await expect(codeInput).toBeVisible();
+    const joined = page.getByTestId('joined-classes');
 
-    // 실제 코드 모양(`AB3K9M`)으로 누른다 — 어떤 반에 든다고 단정하지 않는다.
+    // 홈이 섰다 — 위 표의 두 갈래는 배타적이라 strict mode 에 걸리지 않는다.
+    await expect(codeInput.or(joined)).toBeVisible({ timeout: 10_000 });
+
+    // 반이 있는 계정이면 여기서 끝이다 — 그 홈에 코드 입력칸은 없고, 문은 이 링크다.
+    if ((await codeInput.count()) === 0) {
+      await expect(joined).toBeVisible();
+      return;
+    }
+
+    // 반 0곳 갈래 — 실제 코드 모양(`AB3K9M`)으로 눌러 본다. 어떤 반에 든다고 단정하지 않는다.
     await codeInput.fill('AB3K9M');
     await page.getByRole('button', { name: '참여' }).click();
 
-    // 둘 중 하나면 통과 — 반에 들었으면 카드가 서고, 아니면 까닭을 말한다.
-    // 안내 문구의 출처는 `hooks/api/classroom.ts` 의 `joinFailureMessage`(404·401·그 밖).
-    const joined = page.getByTestId('joined-classes');
-    const failed = page.getByText(/없는 코드예요|로그인이 필요해요|참여하지 못했어요/);
-    await expect(joined.or(failed).first()).toBeVisible({ timeout: 10_000 });
+    // 결과가 **보인다**는 것까지가 이 스펙이다(「실패는 실패로 보인다」).
+    // 문구 여섯 갈래의 출처는 `hooks/api/classroom.ts` 의 `joinFailureMessage`.
+    // 토스트로 스코프하는 까닭: 「로그인이 필요해요」는 `components/features/auth/role-guard.tsx` 의
+    // 로그인 게이트 카드 제목과 **같은 글자**라, 스코프가 없으면 인증 게이트가 이 단언을 대신
+    // 만족시킨다. `joinFailureMessage` 는 sonner `toast.error` 로만 나간다(`join-code-form.tsx`).
+    const toast = page.locator('[data-sonner-toast]').first();
+    await expect(toast).toBeVisible({ timeout: 10_000 });
+    await expect(toast).toContainText(
+      /없는 코드예요|닫힌 코드예요|이미 들어와 있는 반이에요|이 반에는 들어갈 수 없어요|로그인이 필요해요|참여하지 못했어요/,
+    );
   });
 
   /**
