@@ -1,8 +1,6 @@
 import { gradingQueue, gradingHistory, overriddenSample } from '@/lib/mock';
 import { monitoredClass, monitoredRoster } from '../classbot-monitoring';
-import {
-  allGradingItems, buildGradingRoster, gradingItemsOfStudent, studentHrefOfGrading,
-} from '../classbot-grading-roster';
+import { allGradingItems, gradingItemsOfStudent } from '../classbot-grading-roster';
 
 /**
  * 채점 시드가 **학생 명단과 같은 모집단**인지 지키는 회귀 (spec 11 § 7.1).
@@ -12,7 +10,21 @@ import {
  * 학생을 눌러 들어가면 수학 제출물을 보러 왔는데 과학 대화가 열렸다.
  * 시드를 `monitoredRoster` 로 옮겨 모집단을 하나로 맞췄고, 여기서 그게 유지되는지 본다.
  *
- * 하나라도 어긋나면 학생 줄에서 그 채점이 사라지거나 다른 학생 밑에 붙는다.
+ * ── 2026-09-18 · 케이스 여섯을 걷었다 ──────────────────────────────────────
+ * 채점 허브가 목을 걷으면서 `buildGradingRoster()`·`GradingRosterRow`·`studentHrefOfGrading()` 이
+ * 함께 사라졌다(소비처가 그 화면뿐이었다). 그것들을 단언하던 케이스가 지키던 것과, 지금 그것을
+ * 누가 지키는가:
+ *  - 「확정한 채점을 얹으면 그 학생의 대기가 줄어든다」 — 확정을 시드 위에 얹는 일 자체는
+ *    `lib/store/__tests__/grading.test.ts` 의 `mergeGradingItems` 케이스가 그대로 지킨다.
+ *    **학생별로 다시 세는 부분**만 함께 사라졌다 — 그 함수가 없어졌기 때문이다.
+ *  - 「등록 학생 전원이 줄을 갖는다」·「대기 0건인 학생도 빠지지 않는다」·「학생별 대기 합계 =
+ *    큐 전체 대기」·「지금 검수할 한 건은 신뢰도가 가장 낮은 항목」 — 전부 사라진 함수의 계약이라
+ *    **대신 지킬 곳이 없다.** 같은 규칙이 필요해지는 날은 정본에 채점 문이 열리는 날이다.
+ *  - 「학생 상세로 가는 링크가 되돌아갈 곳을 넘긴다」 — 링크를 만들던 채점 상세 화면이 사라졌다.
+ *    `?from=` 을 읽는 쪽(`students/[id]/entry-source.ts`)은 그 트리의 테스트가 지킨다.
+ *
+ * 남은 것은 **학생 상세가 아직 읽는 둘**(`allGradingItems`·`gradingItemsOfStudent`)이고,
+ * 이 파일이 지키는 것도 그 둘이 가리키는 학생이 명단과 어긋나지 않는다는 사실 하나다.
  */
 
 describe('채점 시드는 학생 명단과 같은 모집단이다', () => {
@@ -40,7 +52,7 @@ describe('채점 시드는 학생 명단과 같은 모집단이다', () => {
   });
 
   it('채점 이력도 같은 학생을 가리킨다', () => {
-    // 채점 상세의 「이 학생 최근 채점」이 studentId 로 곧장 찾는다.
+    // 학생 상세의 채점 패널이 studentId 로 곧장 찾는다.
     for (const entry of gradingHistory) {
       expect(rosterIds.has(entry.studentId)).toBe(true);
     }
@@ -48,64 +60,6 @@ describe('채점 시드는 학생 명단과 같은 모집단이다', () => {
     for (const item of gradingQueue) {
       expect(withHistory.has(item.studentId)).toBe(true);
     }
-  });
-
-  it('학생 상세로 가는 링크가 그 학생을 가리키고 되돌아갈 곳을 넘긴다', () => {
-    const item = gradingQueue[0]; // gr_001 · m13 신윤서
-    expect(item.studentName).toBe('신윤서');
-    expect(studentHrefOfGrading(item)).toBe('/teacher/students/m13?from=grading');
-    // 검수하다 건너간 것이면 학생 전체 탭이 아니라 큐로 돌아간다.
-    expect(studentHrefOfGrading(item, 'grading-queue')).toBe('/teacher/students/m13?from=grading-queue');
-  });
-});
-
-describe('buildGradingRoster — 등록 학생 전체', () => {
-  const rows = buildGradingRoster();
-
-  it('등록 학생 전원이 줄을 갖는다', () => {
-    expect(rows).toHaveLength(monitoredRoster.length);
-    expect(rows.map(r => r.student.id)).toEqual(monitoredRoster.map(s => s.id));
-  });
-
-  it('채점 대기가 0건인 학생도 빠지지 않는다', () => {
-    const empty = rows.filter(r => r.items.length === 0);
-    // 채점 시드는 7건뿐이라 대부분의 학생은 채점 항목이 없다 — 그래도 줄은 남는다.
-    expect(empty.length).toBeGreaterThan(0);
-    for (const row of empty) {
-      expect(row.pending).toBe(0);
-      expect(row.next).toBeUndefined();
-    }
-  });
-
-  it('학생별 대기 합계 = 큐 전체 대기 — 어느 항목도 새지 않는다', () => {
-    const perStudent = rows.reduce((n, r) => n + r.pending, 0);
-    const total = allGradingItems.filter(i => i.status === 'queue').length;
-    expect(perStudent).toBe(total);
-    expect(total).toBeGreaterThan(0);
-  });
-
-  it('「지금 검수할 한 건」은 대기 중 AI 신뢰도가 가장 낮은 항목이다', () => {
-    for (const row of rows) {
-      const queued = row.items.filter(i => i.status === 'queue');
-      if (queued.length === 0) {
-        expect(row.next).toBeUndefined();
-        continue;
-      }
-      const lowest = Math.min(...queued.map(i => i.aiConfidence));
-      expect(row.next?.aiConfidence).toBe(lowest);
-    }
-  });
-
-  it('확정한 채점을 얹으면 그 학생의 대기가 줄어든다', () => {
-    const target = allGradingItems.find(i => i.status === 'queue')!;
-    const before = buildGradingRoster(allGradingItems)
-      .find(r => r.student.id === target.studentId)!;
-    const after = buildGradingRoster(
-      allGradingItems.map(i => (i.id === target.id ? { ...i, status: 'approved' as const } : i)),
-    ).find(r => r.student.id === before.student.id)!;
-
-    expect(after.pending).toBe(before.pending - 1);
-    expect(after.done).toBe(before.done + 1);
   });
 });
 
