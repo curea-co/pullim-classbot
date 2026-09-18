@@ -3,7 +3,7 @@
 import { ClipboardList } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { SectionHeading } from '@/components/shell/section-heading';
-import { useCurrentUser } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 import { TeacherClassHero } from '@/components/classbot/home/teacher-class-hero';
 import { ClassOnboarding } from '@/components/classbot/home/class-onboarding';
 import { TutorShowcase } from '@/components/classbot/home/tutor-showcase';
@@ -32,11 +32,16 @@ export function TeacherClassHome({
   /** 값의 존재만 본다 — `TutorShowcase` 와 같은 계약(`Record<string, unknown>`). */
   activeLive?: Record<string, unknown>;
 }) {
-  const me = useCurrentUser();
+  // 부르는 이름은 `useStudentMe()` 하나가 답한다 — 반이 1곳 이상일 때의 `LearningHero` 와
+  // **같은 출처**여야 한다. 종전에는 여기만 `useCurrentUser().isAuthenticated` 로 갈라
+  // 같은 라우트(`/classbot`) 안에 「신원이 있다」 정의가 둘이었다: 반이 0곳이면 OS 세션만
+  // 이름으로 인정하고, 1곳 이상이면 개발용 신원도 인정했다. 그래서 개발용 신원으로 보면
+  // 반을 하나 넣는 순간 이름 없는 인사가 「서연님」으로 바뀌었다.
+  const me = useStudentMe();
 
   return (
     <div className="space-y-5">
-      <TeacherClassHero name={me.isAuthenticated ? me.name : undefined} />
+      <TeacherClassHero name={me.name} />
 
       {selfBots.length > 0 && <TutorShowcase bots={selfBots} activeLive={activeLive} />}
 

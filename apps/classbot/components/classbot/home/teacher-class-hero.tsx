@@ -16,8 +16,15 @@ import { JoinCodeForm } from '@/components/classbot/home/join-code-form';
  * 참여한 뒤로는 코드를 넣을 곳이 사라진다 — 상시 입구는 `/classbot/classroom`
  * (내 수업방)이고, 아래 링크가 그리로 간다.
  * 권위 문서(`05_수업방` Step 6) 초대 채널은 코드·링크·QR — 현재 데모는 코드만 동작.
+ *
+ * @param name - 부르는 이름. **세션에서 온다**(`useStudentMe()`) — 반이 1곳 이상일 때의
+ *   `LearningHero` 와 같은 출처다. 비어 있으면 이름 없이 인사한다(로그인 전이거나 표시
+ *   이름을 아직 모르는 때). 데모 페르소나로 메우지 않는다.
  */
-export function TeacherClassHero({ name }: { name?: string }) {
+export function TeacherClassHero({ name }: {
+  /** 부르는 이름. 빈 문자열이면 이름 없이 인사한다. */
+  name: string;
+}) {
   return (
     <section className="relative overflow-hidden rounded-2xl bg-pullim-slate-900 p-5 text-white shadow-pullim-sm">
       <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
