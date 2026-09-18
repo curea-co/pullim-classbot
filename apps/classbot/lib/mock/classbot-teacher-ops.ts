@@ -23,7 +23,8 @@
  *
  * 담지 않는 것:
  *  - 라이브 수업 상태(`ClassBot.isLive`) — 라이브는 기획 보류(SCR-C-19)라 운영 화면이 읽지 않는다.
- *  - 학생 도달·활동 지표 — 그건 학급 관제소(lib/mock/classbot-monitoring.ts)가 갖는다.
+ *  - 학생 도달·활동 지표 — 서버에 원천이 없다. 학급 관제소(/teacher/monitor)가 담는 것은 정본이 주는
+ *    명단과 규칙 신호뿐이다(도달·깊이를 담던 목 스냅샷은 걷혔다 · lib/mock/classbot-monitoring.ts 머리주석).
  */
 
 /** 봇이 지금 학생에게 열려 있는지 */

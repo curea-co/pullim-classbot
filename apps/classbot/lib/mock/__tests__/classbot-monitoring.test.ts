@@ -90,7 +90,13 @@ describe('reachBadge — 도달 배지 3값은 서로 배타다', () => {
       .toBe(monitoredRoster.length);
   });
 
-  it('배지 수 = 교사 홈 상단 카드 숫자 — 셋이 어긋나면 실패', () => {
+  /*
+    이 케이스의 이름은 2026-09-18 까지 「배지 수 = **교사 홈 상단 카드** 숫자」였다. 그 카드는 #369 가
+    걷었고, 같은 숫자를 세던 학생 목록 거르개 알약도 이 PR 이 걷었다 — **지금 이 값을 화면에 세우는
+    곳이 없다.** 그래도 검사는 남긴다: `monitoringSummary` 와 `reachBadge()` 는 같은 roster 에서 각각
+    세는 두 벌이라, 한쪽만 고치면 되살릴 때 조용히 갈라진다. 이름을 두 함수의 계약으로 되돌린다.
+  */
+  it('배지 수 = monitoringSummary 의 같은 칸 — 셋이 어긋나면 실패', () => {
     const count = (v: ReachBadge) => monitoredRoster.filter(s => reachBadge(s) === v).length;
     expect(count('reached')).toBe(monitoringSummary.reached);
     expect(count('depth-short')).toBe(monitoringSummary.depthShort);

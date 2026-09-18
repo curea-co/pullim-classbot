@@ -176,9 +176,16 @@ export const teacherNav: NavGroup[] = [
       //  [봇 관리] 안의 「새 클래스봇」이 유일한 진입점이 되게 한다 (`proc/spec/03 § 4.4.7`).
       //  미뤄 둔 것이지 접은 것이 아니다 — 그때까지 라우트가 둘로 읽히는 상태가 남는다.
 
-      // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
-      // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
-      // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).
+      // `/teacher/students*` 는 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 —
+      // 관제소 소속임을 여기서 밝힌다. **이 `matchPrefix` 가 그 라우트를 살려 두는 근거다.**
+      //
+      // 종전 근거 둘은 2026-09-18 에 사라졌다. ⑴ 「관제소 명단에서 학생을 눌러 들어간다」 —
+      // 계획 PR 7 이 관제소를 정본 신호 표로 바꾸며 줄이 반 상세 「대화」 탭으로 가게 됐고,
+      // 그 뒤 결함 03-③ 이 목 명단을 걷어 **학생 상세로 보내는 자리가 앱 전체에서 0** 이 됐다.
+      // ⑵ 「되돌아갈 곳의 기본값이 관제소인 것과 같은 근거」 — 그 규칙을 담던
+      // `students/[id]/entry-source.ts` 는 `?from=` 발신자가 0 이 돼 파일째 걷혔다.
+      // 지금 `/teacher/students*` 는 「읽어 올 수 없다」만 말하는 빈 상태이고, 라우트를 남긴 것은
+      // 이 접두사와 밖에 남은 주소 때문이다 — 지우면 그 주소가 Next 기본 404 로 떨어진다.
       { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },

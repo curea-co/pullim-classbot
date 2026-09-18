@@ -19,6 +19,11 @@ const statusMeta = {
 /**
  * 채점 큐 한 행 — AI 신뢰도 + 위기 인디케이터 포함.
  * spec 11 § 3.3.1.
+ *
+ * ⚠ **2026-09-18 현재 이 행을 그리는 화면이 없고, 줄이 가리키는 `/teacher/grading/[id]` 라우트도
+ * 없다.** 채점 허브와 그 상세는 #370 이, 마지막으로 그 상세를 가리키던 학생 상세의 채점 패널은
+ * 결함 03-③ 이 걷었다 — 정본(pullim-api)에 채점 초안·루브릭·교사 확정 문이 없어서다.
+ * **다시 화면에 붙이기 전에 `href` 가 가리킬 화면부터 세워라.**
  */
 export function GradingRow({ item }: { item: GradingItem }) {
   const studentName = item.studentName;

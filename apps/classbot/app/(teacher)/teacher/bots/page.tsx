@@ -30,8 +30,9 @@ export default async function TeacherBotsPage({ searchParams }: { searchParams: 
 
   /*
     실어 나르는 탭 — 봇을 가리키지 못하는 링크가 보낸 것이다.
-    학급 관제소(`monitor-roster.tsx`)는 학급의 봇 id 를 모르고, 봇 빌더(`build-yards.tsx`)는
-    아직 봇을 만들기 전이다. 그래서 둘 다 이 목록으로 오고, **봇은 교사가 고르고 탭만 이어 붙인다** —
+    지금 남은 발신자는 봇 빌더(`build-yards.tsx`) 하나다 — 아직 봇을 만들기 전이라 가리킬 봇이 없다.
+    (학생 목록의 목 명단도 학급의 봇 id 를 몰라 같은 이유로 여기 보냈는데, 그 명단은 지어낸 학생
+    스무 명 위에 서 있어서 결함 03-③ 이 걷었다.) 그래서 이 목록으로 오고, **봇은 교사가 고르고 탭만 이어 붙인다** —
     고른 봇의 그 탭으로 바로 들어간다. 모르는 탭은 실어 나르지 않는다.
   */
   return <BotsWorkspace carriedTab={raw !== undefined && isBotPolicyTab(raw) ? raw : undefined} />;

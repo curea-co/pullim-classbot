@@ -10,6 +10,11 @@ import { cn } from '@/lib/utils';
 /**
  * 교사 리플레이 검수 액션 — 핵심 메시지 편집 + 승인 (sent 전환).
  * D3 의사결정: 승인 + 핵심메시지 편집.
+ *
+ * ⚠ **2026-09-18 현재 이 컴포넌트를 그리는 화면이 없다.** 유일한 소비처였던 교사 리플레이 상세
+ * (`app/(teacher)/teacher/replay/[id]/page.tsx`)가 빈 상태가 됐다 — 승인이 서버로 가지 않고
+ * `lib/store/replay.ts`(localStorage)에만 남던 것이 그 까닭이다. 정본에 리플레이 문이 열리기 전에는
+ * 다시 붙이지 마라.
  */
 export function ReplayReviewActions({ replay }: { replay: Replay }) {
   const override = useReplayStore(s => s.overrides[replay.id]);

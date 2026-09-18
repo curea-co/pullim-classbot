@@ -10,8 +10,11 @@
  *    먼저 잡는다** — 이 PR 로 `/teacher/grading` 이 dynamic(`ƒ`)에서 **prerender(`○`)** 로 바뀌어
  *    빌드가 이 페이지를 실제로 실행해 보기 때문이다(아래 「서버 컴포넌트로 선다」).
  *  - `grading-student-list.test.tsx` — 명단 표의 껍데기(머리글 보임 · 이름/학년 다른 칸 ·
- *    줄 전체가 링크 하나)를 단언했다. 그 껍데기는 `components/classbot/roster-table.tsx` 한 벌이고
- *    관제소·리포트 명단이 같은 것을 쓴다 — **`students/__tests__/monitor-roster.test.tsx` 가 지킨다.**
+ *    줄 전체가 링크 하나)를 단언했다. 그 껍데기는 `components/classbot/roster-table.tsx` 한 벌이다.
+ *    **넘긴 곳이 2026-09-18 에 한 번 더 옮겨졌다** — 받기로 했던
+ *    `students/__tests__/monitor-roster.test.tsx` 는 그 명단 화면과 함께 걷혔고(결함 03-③), 지금
+ *    같은 껍데기를 같은 항목으로 못박는 곳은 **`components/classbot/__tests__/class-reach-roster.test.tsx`**
+ *    다(머리글 순서·`sr-only` 금지 · 이름/학년 다른 칸 · 줄에 링크 하나).
  *  - `grading-detail.test.tsx` — 확정이 화면 상태가 아니라 store 에 남는지, 총합이 같아도 배분만
  *    바꾸면 「수정 후 승인」이 열리는지. **store 쪽 계약은 `lib/store/__tests__/grading.test.ts` 가
  *    그대로 지킨다**(approve · approveWithEdit · merge · persist). 배분 판정(`rubricChangedFrom`)은
@@ -23,7 +26,6 @@ import { render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import TeacherGradingPage from '../page';
-import GradingDetailPage from '../[id]/page';
 
 /** 이 화면이 말하던 목 문구·목 숫자. 하나라도 돌아오면 이 목록이 잡는다. */
 const MOCK_COPY = [
@@ -128,34 +130,13 @@ describe('채점 허브 — 나가는 길은 정본을 읽는 화면으로만 �
   });
 });
 
-describe('채점 한 건 — 「없다」가 아니라 「읽어 올 수 없다」', () => {
-  it('어떤 id 로 들어와도 같은 사실을 말한다 — 404 로 떨어뜨리지 않는다', () => {
-    render(<GradingDetailPage />);
-
-    const empty = screen.getByTestId('empty-state');
-    expect(within(empty).getByText('이 채점 건을 읽어 올 수 없어요')).toBeInTheDocument();
-    // 「그 건이 없다」가 아니다 — 교사가 id 를 의심하게 만들면 안 된다.
-    expect(screen.queryByText(/찾지 못했어요|찾을 수 없어요/)).not.toBeInTheDocument();
-  });
-
-  it('루브릭·코멘트·확정 버튼이 없다 — localStorage 에만 남던 「승인 완료」가 사라졌다', () => {
-    const { container } = render(<GradingDetailPage />);
-
-    for (const gone of ['그대로 승인', '수정 후 승인', '승인 완료', '최종 점수', '학생 응답']) {
-      expect(screen.queryByText(gone)).not.toBeInTheDocument();
-    }
-    expect(container.querySelectorAll('input[type="range"]')).toHaveLength(0);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-  });
-
-  it('돌아갈 곳은 채점 허브, 나가는 길은 낸 과제 하나다', () => {
-    render(<GradingDetailPage />);
-
-    expect(screen.getByRole('link', { name: /채점 허브/ })).toHaveAttribute('href', '/teacher/grading');
-
-    const empty = screen.getByTestId('empty-state');
-    const exits = within(empty).getAllByRole('link');
-    expect(exits).toHaveLength(1);
-    expect(exits[0]).toHaveAttribute('href', '/teacher/assignment');
-  });
-});
+/*
+ * 종전에 여기 있던 「채점 한 건」 describe 셋(`../[id]/page.tsx` 를 렌더해 「읽어 올 수 없다」·루브릭
+ * 없음·출구 하나를 단언)은 2026-09-18 에 **그 라우트와 함께 걷혔다.**
+ *
+ * #370 이 그 라우트를 살려 둔 **유일한 까닭**은 학생 상세의 채점 패널
+ * (`../../students/[id]/student-grading-panel.tsx`)이 목 항목마다 이리로 링크를 그리고 있어서였다.
+ * 결함 03-③ 이 그 패널을 걷으면서 `/teacher/grading/[id]` 로 오는 길이 트리 전체에서 0 이 됐고,
+ * 남겨 두면 그때부터는 아무도 닿을 수 없는 화면이다. 그래서 라우트를 지웠다 —
+ * 지킬 화면이 없으니 그 화면을 지키던 검사도 함께 간다.
+ */
