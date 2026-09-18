@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { LogIn, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -44,11 +44,21 @@ export function MarketplaceBotList({
   const query = useMarketplaceBots();
 
   /*
-    401 은 고장이 아니라 **로그인 안 한 상태**다. 마켓은 신원이 있어야 열리므로
-    (마켓 계약 §2) 로그인 없이 들어오면 언제나 이 답이 온다 — prod 를 훑는
-    prod-verify 도 그 상태다. 여기에 빨간 「불러오지 못했어요」를 띄우면 멀쩡한 화면이
-    매번 고장 난 것처럼 보인다. 내 수업방 화면이 같은 401 을 같은 이유로 에러에서
-    빼 두었다(`app/(student)/classbot/classroom/page.tsx`).
+    401 은 고장이 아니다 — **아직 열리지 않은 문**이다. 이 갈래를 에러에서 뺀 판단은
+    그대로 둔다. 여기에 빨간 「불러오지 못했어요」를 띄우면 멀쩡한 화면이 매번 고장 난
+    것처럼 보인다(내 수업방이 같은 401 을 같은 이유로 에러에서 뺐다 —
+    `app/(student)/classbot/classroom/page.tsx`).
+
+    ⛔ **다만 문구로 로그인을 시키지 마라.** 이 자리는 「로그인하면 봇 마켓을 볼 수 있어요」
+    였는데 **그 말이 참이 아니다.** 마켓은 같은 오리진 route handler(`app/api/marketplace/*`)
+    가 답하고, 그 핸들러는 OS 세션 서명을 풀 열쇠가 없다(`lib/current-user.ts` 머리주석).
+    개발 신원 쿠키도 로컬 호스트에서만 열린다(`lib/dev-identity.ts` 의 `DEV_IDENTITY_HOSTNAMES`).
+    그래서 배포본에서는 **로그인해도 401 이 온다** — 로그인 화면으로 보내 놓고 아무 일도
+    일어나지 않게 만드는 안내였다. 마켓을 정본(pullim-api)으로 옮기기 전까지(계획 5e)
+    사실인 말은 「아직 준비 중」이다. **되돌리지 마라.**
+
+    아래 이름(`isSignedOut` · `data-testid="marketplace-signin"`)은 그 사실을 알기 전에
+    붙였다. e2e 가 잡고 있어 이번 문구 수정에서는 그대로 두었다 — 정본 이전 때 함께 간다.
   */
   const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
 
@@ -97,15 +107,18 @@ export function MarketplaceBotList({
       ) : isSignedOut ? (
         <div data-testid="marketplace-signin">
           <EmptyState
-            icon={LogIn}
-            title="로그인하면 봇 마켓을 볼 수 있어요"
+            icon={Store}
+            title="봇 마켓은 아직 준비 중이에요"
             /*
               「선생님들이」라는 한정을 걷었다 — 이 목록에는 풀림이 만든 기본 봇도 함께
               선다(spec `03 § 4.13.1` · 문구 지시는 `§ 4.13.2`). 대신 바로 위 제목이 쓰는
               말(「공유된 봇」)을 그대로 이어 받는다. 한 화면에서 같은 목록을 두 이름으로
               부르지 않으려는 것이다. 되돌리지 마라.
+
+              `marketplace-bot-detail.tsx` 가 이 두 줄을 **글자까지 그대로** 쓴다 — 목록과
+              상세가 같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
             */
-            description="공유된 봇은 로그인한 뒤에 둘러볼 수 있어요."
+            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
           />
         </div>
       ) : bots.length === 0 ? (

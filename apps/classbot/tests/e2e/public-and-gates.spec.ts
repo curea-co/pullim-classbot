@@ -15,7 +15,6 @@ import { test, expect, type Page } from '@playwright/test';
  *     셸의 `main` **안에** 그려지므로 셸을 먼저 보면 (c) 가 영영 안 잡힌다:
  *     (a) 앱 오리진을 벗어나 `/login` 에 도착한다 — `redirectToOsLogin()` 뒤의 상태
  *     (b) 로그인 게이트 문구가 보인다 — `ReadLoginGate` 의 「로그인이 필요해요」(components/classbot/read-state.tsx)
- *         또는 마켓·담은 봇 게이트의 「로그인하면 … 볼 수 있어요」(components/classbot/marketplace/*, my-bots)
  *     (c) 화면 셸이 그려진다 — `main` 랜드마크(PUDS `DashboardShell`). 오늘의 상태
  *     5xx 응답과 빈 문서는 셋 중 어느 것도 아니므로 실패한다. 어느 상태였는지는 어노테이션으로 남긴다.
  *
@@ -43,10 +42,15 @@ type GateState = 'os-login' | 'login-gate' | 'shell';
 /**
  * 로그인 게이트 카드의 실제 문구. 느슨한 /로그인/ 은 헤더 카피(「로그인하고 학습을 시작하세요」)까지
  * 걸려 셸을 게이트로 읽으므로 게이트 컴포넌트가 실제로 그리는 제목만 본다.
- *  - `ReadLoginGate`: 「로그인이 필요해요」
- *  - 마켓 목록·상세 / 담은 봇: 「로그인하면 (봇 마켓|이 봇|담은 봇)을 볼 수 있어요」
+ *  - `ReadLoginGate`: 「로그인이 필요해요」 — 지금 이 한 벌뿐이다.
+ *
+ * 종전에는 「로그인하면 … 볼 수 있어요」 갈래도 함께 봤다. **그 문구가 사라졌다** —
+ * 마켓 목록·상세와 담은 봇의 401 은 로그인으로 풀리지 않아(같은 오리진 route handler 에
+ * OS 세션을 풀 열쇠가 없다) 「아직 준비 중이에요」로 고쳐졌다. 그 셋은 어차피 아래
+ * `CORE_ROUTES` 에 없어 이 판정에 들어오지도 않는다 — 없는 문구를 남겨 두면 이 주석이
+ * 가리키는 화면을 찾으러 가게 만든다.
  */
-const LOGIN_GATE_COPY = /로그인이 필요해요|로그인하면 .+ 볼 수 있어요/;
+const LOGIN_GATE_COPY = /로그인이 필요해요/;
 
 /**
  * 지금 페이지가 세 상태 중 어디에 있는지 본다. 어디에도 없으면 null — 호출자가 다시 본다.

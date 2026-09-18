@@ -61,7 +61,10 @@ it('마켓이 401 이어도 담은 봇이 있으면 목록을 그린다 — 대�
   expect(screen.getByTestId('my-bots-list')).toBeInTheDocument();
   expect(screen.queryByTestId('my-bots-signin')).not.toBeInTheDocument();
   // 목록을 지우는 대신, 이름을 못 붙인 까닭만 한 줄로 적는다.
-  expect(screen.getByTestId('my-bots-label-notice').textContent).toContain('로그인하면');
+  const notice = screen.getByTestId('my-bots-label-notice').textContent ?? '';
+  expect(notice).toContain('아직 준비 중');
+  // 로그인해도 이 401 은 그대로다 — 하라고 시킬 수 없는 일을 시키지 않는다.
+  expect(notice).not.toContain('로그인');
 });
 
 it('마켓이 401 이어도 시드 봇은 카탈로그가 이름을 되찾아 준다', () => {
@@ -84,17 +87,26 @@ it('마켓이 오류여도 목록은 남는다 — 까닭만 달라진다', () =
   expect(screen.getByTestId('my-bots-label-notice').textContent).toContain('읽어 오지 못했어요');
 });
 
-it('담은 것이 없고 로그인도 안 됐을 때만 로그인 안내가 목록 자리를 대신한다', () => {
+it('담은 것도 없고 마켓도 401 이면 빈 상태가 「마켓이 준비 중」까지 말한다', () => {
   selfRows = [];
   marketError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
 
   render(<MyBotsPage />);
 
-  expect(screen.getByTestId('my-bots-signin')).toBeInTheDocument();
+  const box = screen.getByTestId('my-bots-signin');
+  expect(box).toBeInTheDocument();
   expect(screen.queryByTestId('my-bots-list')).not.toBeInTheDocument();
+  /*
+    이 401 은 **로그인해도 안 풀린다** — 마켓은 같은 오리진 route handler 가 답하고 그
+    핸들러에 OS 세션을 풀 열쇠가 없다(`lib/current-user.ts`). 그래서 이 갈래는 로그인한
+    사람에게도 뜬다. 여기에 「로그인하면 담은 봇을 볼 수 있어요」를 적으면 로그인한 사람을
+    로그인 화면으로 보내 놓고 아무 일도 일어나지 않게 만든다 — 그 문구를 못 박아 막는다.
+  */
+  expect(box.textContent).not.toContain('로그인');
+  expect(box.textContent).toContain('아직 준비 중');
 });
 
-it('로그인했는데 담은 것이 없으면 빈 상태 — 로그인 안내가 아니다', () => {
+it('마켓이 답하면 담은 것이 없을 때 그냥 빈 상태 — 마켓 이야기를 덧붙이지 않는다', () => {
   selfRows = [];
   marketBots = [];
 

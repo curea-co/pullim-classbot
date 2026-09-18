@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Bookmark, LogIn, Store } from 'lucide-react';
+import { Bookmark, Store } from 'lucide-react';
 
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -73,8 +73,14 @@ function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
  *  - 마켓을 **아직 못 읽었으면** 뼈대만 그리고 기다린다(이름이 늦게 바뀌어 번쩍이지 않게)
  *  - 마켓이 **막혔으면**(401·오류) 담은 목록은 **그대로 그리고**, 이름을 못 붙인 까닭만
  *    목록 위에 한 줄로 적는다. 시드 봇은 카탈로그가 이름을 알고 있어 그대로 보인다
- *  - **담은 것이 하나도 없을 때만** 화면이 갈린다 — 로그인 안 했으면 로그인 안내,
- *    로그인했으면 「아직 담은 봇이 없어요」
+ *  - **담은 것이 하나도 없을 때만** 화면이 갈린다 — 마켓이 401 이면 「마켓이 준비 중」까지
+ *    함께 적고, 마켓이 답하면 「아직 담은 봇이 없어요」만 적는다
+ *
+ * ⛔ **401 갈래를 「로그인하세요」로 되돌리지 마라.** 마켓은 같은 오리진 route handler 가
+ * 답하는데 그 핸들러에 OS 세션을 풀 열쇠가 없어(`lib/current-user.ts` 머리주석) 배포본에서는
+ * **로그인해도 401 이 온다.** 그러니 두 갈래를 가르는 것은 「로그인 여부」가 아니라
+ * 「마켓이 답했는가」다. 판단 근거 전문은 `components/classbot/marketplace/marketplace-bot-list.tsx`
+ * 의 같은 자리에 있다. 마켓을 정본(pullim-api)으로 옮기면(계획 5e) 그때 다시 본다.
  *
  * 담은 목록 자체(`isLoading`)는 지금 하이드레이션 대기 구간이다. P3 에서 서버 조회가
  * 되면 같은 자리가 진짜 로딩이 된다 — 화면은 한 줄도 안 바뀐다.
@@ -91,18 +97,19 @@ export default function MyBotsPage() {
     return map;
   }, [market.data]);
 
-  // 마켓과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
+  // 마켓과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 아직 열리지 않은 문이다(머리주석 ⛔).
   const isSignedOut = market.error instanceof ApiClientError && market.error.status === 401;
   const isMarketBroken = market.isError && !isSignedOut;
   // 이름표를 못 붙인 까닭. 목록을 지우는 대신 목록 위에 한 줄로만 적는다.
+  // 401 은 「아직 안 열렸다」, 5xx 는 「이번엔 못 읽었다」 — 다시 눌러 볼 값이 있는 쪽만 그렇게 적는다.
   const labelNotice = isSignedOut
-    ? '로그인하면 봇 이름과 소개를 읽어 와요. 담아 둔 봇은 그대로 쓸 수 있어요.'
+    ? '봇 이름과 소개는 아직 준비 중이에요. 담아 둔 봇은 그대로 쓸 수 있어요.'
     : isMarketBroken
       ? '지금은 봇 이름과 소개를 읽어 오지 못했어요. 담아 둔 봇은 그대로 쓸 수 있어요.'
       : null;
-  // 담은 봇이 0개여도 마켓이 끝날 때까지 기다린다 — 「빈 목록」과 「로그인 안 함」을 가르는
-  // 근거가 마켓의 401 이라서다. 예전엔 rows 가 없으면 기다리지 않아, 비로그인 사용자가
-  // 「아직 담은 봇이 없어요」를 한 번 본 뒤에야 로그인 안내로 바뀌었다.
+  // 담은 봇이 0개여도 마켓이 끝날 때까지 기다린다 — 빈 상태에 무슨 말을 덧붙일지가
+  // 마켓의 답(401 인가)에 달려서다. 예전엔 rows 가 없으면 기다리지 않아, 빈 상태가 한 번
+  // 떴다가 다른 문구로 바뀌었다.
   const isLoading = mine.isLoading || market.isPending;
   const isEmpty = !mine.isError && !isLoading && rows.length === 0;
 
@@ -144,13 +151,15 @@ export default function MyBotsPage() {
       ) : isLoading ? (
         <MyBotsSkeleton />
       ) : rows.length === 0 && isSignedOut ? (
-        // 담은 것도 없고 로그인도 안 됐다 — 이때만 로그인 안내가 목록 자리를 대신한다.
-        // 담은 것이 있으면 아래 목록이 그대로 뜬다(마켓이 막혀도).
+        // 담은 것도 없고 마켓도 안 열렸다 — 이때만 빈 상태가 「담으러 갈 곳」 대신
+        // 「그 곳이 아직 준비 중」이라고 말한다. 담은 것이 있으면 아래 목록이 그대로 뜬다.
+        // `data-testid` 이름(`my-bots-signin`)은 로그인 안내이던 시절의 것이다 — 문구만
+        // 고치는 이번 범위에서 두었고, 마켓 정본 이전(계획 5e) 때 함께 간다.
         <div data-testid="my-bots-signin">
           <EmptyState
-            icon={LogIn}
-            title="로그인하면 담은 봇을 볼 수 있어요"
-            description="담은 봇이 무슨 봇인지는 로그인한 뒤에 읽어 올 수 있어요."
+            icon={Bookmark}
+            title="아직 담은 봇이 없어요"
+            description="봇 마켓이 아직 준비 중이에요. 열리면 마음에 드는 봇을 여기에 담을 수 있어요."
           />
         </div>
       ) : rows.length === 0 ? (
