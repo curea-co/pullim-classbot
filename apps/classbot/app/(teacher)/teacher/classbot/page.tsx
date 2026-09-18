@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
-  Rocket, Shield, Wrench, School, Pause, Play,
+  Rocket, Wrench, School,
   MoreHorizontal, Trash2,
 } from 'lucide-react';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
@@ -13,24 +13,29 @@ import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
-import { Chip } from '@/components/ui/chip';
-import {
-  scopeMeta, josa,
-} from '@/lib/mock';
-import {
-  getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
-} from '@/lib/mock/classbot-teacher-ops';
+import { Skeleton } from '@/components/ui/skeleton';
+import { josa } from '@/lib/mock';
+import { useMyBots } from '@/hooks/api/bot';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClasses } from '@/hooks/api/classroom';
-import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
+import { isUnauthorized } from '@/lib/api/classbot-client';
+import type { ApiError } from '@pullim-classbot/api-client';
+import type { AssignmentSummaryDto, BotDto } from '@/lib/api/classbot-dto';
 import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
 import {
   isDueSoon, modeOf, remainingOf, toTeacherClass, type TeacherClass,
 } from '@/app/(teacher)/teacher/assignment/assignment-filters';
+/*
+  안전 등급 칩은 봇 관리(`/teacher/bots`)와 **같은 부품**을 쓴다. 서버가 주는 `scope` 는 CHECK 없는
+  integer 라 L1~L5 로 좁혀지지 않는 값이 올 수 있고, 그때 「가까운 등급」으로 고쳐 부르지 않고 숫자를
+  그대로 말하는 판단이 그 파일에 적혀 있다. 여기서 같은 판단을 한 벌 더 쓰면 언젠가 한쪽만 바뀐다.
+*/
+import { ScopeChip } from '@/app/(teacher)/teacher/bots/bots-workspace';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -40,8 +45,38 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 /**
  * 클래스봇 운영 메인 (SCR-C-17) — 「내가 만든 봇들이 어느 학급에 붙어서 어떻게 돌고 있나」.
  *
+ * ── 2026-09-18 · 한 화면에 목과 정본이 나란히 서 있었다 ──────────────────────
+ * 「낸 과제」 묶음은 이미 정본(`useTeacherAssignments`·`useOperatorClasses`)을 읽는데, 바로 위
+ * 봇 목록과 상단 요약은 mock 카탈로그(`lib/mock/classbot-teacher-ops` 의 `getTeacherBotRows()`·
+ * `getTeacherBotSummary()`)였다. 어느 교사가 열어도 같은 다섯 봇 — 국어봇·수학봇… — 이 떴고,
+ * 「운영 중 3/5개 · 붙은 학급 6개 · 등록 학생 77명」이 그 위에 섰다. 하나도 그 교사의 것이 아니었다.
+ *
+ * 이제 봇 줄은 **정본**에서 온다 — `GET /classbot/me/bots`(`useMyBots` · api.md § 3.5b · 계획 PR 5d).
+ * 봇 관리(`/teacher/bots`)가 읽는 것과 **같은 문·같은 행**이라 두 화면이 같은 봇을 말한다.
+ * 이름·과목·학년·안전 등급은 1급 `bots` 표의 값이다(pullim-api #673 이 페르소나 입력원을
+ * `class_bot_profiles` → `bots` 로 옮겼다 — 그 전에는 봇 이름 자리에 반 이름이 떨어졌다).
+ *
+ * 걷은 것 둘과 그 까닭 — **정본에 그 칸이 없다. 없는 값을 0 이나 기본값으로 세우지 않는다.**
+ *  - **「운영 중」(운영 중/멈춤 · 멈춘 이유)** — `BotDto` 에 봇이 지금 학생에게 열려 있는지를
+ *    말하는 칸이 없다. 카드의 상태 칩도, 더보기의 「봇 멈추기 / 다시 돌리기」 항목도 함께 걷었다 —
+ *    그 항목은 **라벨이 갈리려면 지금 상태를 알아야 한다.** 둘 중 하나를 골라 적는 순간
+ *    「준비 중」이라 적어 둔 자리가 지어낸 상태를 말하게 된다.
+ *  - **「등록 학생 N명」** — 반 카드가 주는 `profile.enrolledCount` 는 **반별** 인원이라 더하면
+ *    두 반을 듣는 학생이 두 번 세어진다. 사람을 세는 문(`GET /classes/:classId/members`)은
+ *    반 하나짜리라 반 수만큼 부르는 일이 된다. 교사 홈이 같은 이유로 총원 합산을 거부했다
+ *    (`app/(teacher)/teacher/page.tsx` 의 `classCount` 주석). 반 **하나**의 인원은 그 반 줄에 적는다 —
+ *    그건 카드가 스스로 아는 값이다.
+ *    그 칸은 **이 화면**에서 학급 관제소(`/teacher/monitor`)로 가던 하나뿐인 길이기도 했다.
+ *    **되살리지 않는다** — 그 화면은 아직 목이고, 이 화면에서 목으로 가는 길을 새로 내지 않는다
+ *    (교사 홈이 같은 판단을 적어 뒀다 — `app/(teacher)/teacher/page.tsx` 의 「먼저 볼 학생」 빈 상태).
+ *    ⚠ **관제소가 앱에서 닫힌 것은 아니다** — 교사 레일에 상설 항목이 있고
+ *    (`components/shell/nav-config.ts` 의 `/teacher/monitor` 「학급 관제소」),
+ *    학생 화면(`app/(teacher)/teacher/students/page.tsx`)의 되돌아갈 곳도 거기다.
+ *    레일은 이 화면의 범위 밖이고 종전부터 그랬다.
+ *
  * 이 화면이 하지 않는 것:
- *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 봇마다 길만 열어둔다.
+ *  - 학생 관제(명단·활동·도달 상태) → 학급 관제소(/teacher/monitor). 위 까닭으로 **이 화면에서** 가는 길은 없다
+ *    (레일에는 있다).
  *  - 등록 학생 관리(명단 활성/비활성) — **지금 이 기능은 어디에도 없다.** 넘겨 줄 화면이 있어서
  *    걷은 게 아니다. 학급(/teacher/classroom)·학생(/teacher/students)·관제소(/teacher/monitor)는
  *    다 읽기 전용 명단이고(classroom 은 이름·들어온 날 두 칸짜리 표, students 는 관제소 명단을
@@ -64,17 +99,22 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  */
 export default function TeacherClassbotPage() {
   /*
-    낸 과제는 **정본**에서 읽는다 — `GET /classbot/assignments?audience=teacher`(2026-09-16 계획 §06 R11 · FE PR 6).
-    종전의 localStorage 스토어 + mock 시드(`studentAssignments`) 합산은 걷었다. 반 이름은 정본 반 목록에서 조인한다.
+    봇·반·과제 셋 다 **정본**에서 읽는다.
+     - 봇   `GET /classbot/me/bots`      — 내가 owner 인 봇 전부(최신순 · 없으면 `[]`)
+     - 반   `GET /classbot/bots?role=teacher` — 아직 bot == class 인 옛 문이라 카드 한 장이 반 하나다
+     - 과제 `GET /classbot/assignments?audience=teacher`(2026-09-16 계획 §06 R11 · FE PR 6)
     정본에는 회수·초안이 없어(내는 순간 `sent`) 여기서 거를 것도 없다 — 목록 전부가 「낸 과제」다.
     KPI 도 같은 셈을 읽어야 링크를 눌러 도착한 목록(「전체」)과 안 어긋난다.
   */
+  const myBots = useMyBots();
   const teacherAssignments = useTeacherAssignments();
   const teacherClasses = useOperatorClasses();
-  const allAssignments = useMemo<AssignmentRow[]>(
-    () => teacherAssignments.data ?? [],
-    [teacherAssignments.data],
-  );
+
+  /**
+   * 낸 과제 — **`null` 이 「아직 모른다」다.** 빈 배열과 갈라 둬야 읽는 중·실패에 「0건」이라 말하지
+   * 않는다(모르는 것을 0 이라 부르는 것도 지어내기다).
+   */
+  const assignments = teacherAssignments.data ?? null;
   const classIndex = useMemo(
     () => new Map<string, TeacherClass>((teacherClasses.data ?? []).map(toTeacherClass).map((c) => [c.id, c])),
     [teacherClasses.data],
@@ -82,13 +122,14 @@ export default function TeacherClassbotPage() {
 
   /*
     삭제는 **화면 안 상태로만** 돈다 — 지운 봇의 id 를 여기 모아 두고 걸러낸다.
-    `lib/mock/*` 의 배열을 직접 지우지 않는 까닭: mock 모듈은 이 화면만 읽는 게 아니라
-    학생 화면·관제소·과제 폼이 함께 읽는 공유 데이터다. 거기서 지우면 이 화면에서 누른
-    버튼이 남의 화면까지 바꾼다.
+    서버에도 캐시에도 쓰지 않는 까닭: 봇을 지우는 문이 정본에 아예 없다(`POST /bots`·`PATCH /bots/:id`
+    둘뿐 — `hooks/api/bot.ts` 머리주석). 읽어 온 목록에서 한 줄을 빼는 것이 이 화면이 할 수 있는 전부다.
+    react-query 캐시(`botKeys.myBots`)를 직접 고치지 않는 것도 같은 이유다 — 그 캐시는 봇 관리·빌더가
+    함께 읽으므로, 여기서 지우면 이 화면에서 누른 버튼이 남의 화면까지 바꾼다.
     진짜 삭제는 BE 별건이고, 그 방향은 `03 § 4.4.8` 이 정본으로 적어 뒀다 —
     **하드 삭제를 만들지 않고 `archived_at` 소프트 삭제 + 목록 필터로 간다.**
-    까닭은 `class_bots` 가 이미 11개 테이블의 `ON DELETE CASCADE` 부모라,
-    `DELETE` 한 줄이 학생의 대화·제출·과제·성취를 교사 버튼 하나로 지우기 때문이다.
+    까닭은 봇·반이 이미 여러 표의 부모라, `DELETE` 한 줄이 학생의 대화·제출·과제·성취를
+    교사 버튼 하나로 지우기 때문이다.
 
     ── 이 리포의 판례 둘과 이 자리의 관계 ──────────────────────────────────────
     이 화면에는 「사실이 아닌 것은 걷는다」와 「되돌릴 수 없는 일에만 되묻는다」가 이미
@@ -104,9 +145,8 @@ export default function TeacherClassbotPage() {
       버튼이 「지금은 화면 안 데모」라는 것, 모달이 고정 문구라는 것, 그리고 BE 가
       `archived_at` 소프트 삭제로 간다는 것까지 그 두 절이 적는다.
       ⚠️ **스키마에 그 컬럼이 이미 있는 것은 아니다** — `§ 4.4.8 (a)` 가 「`deleted_at`·
-      `archived_at`·`status` 같은 소프트 삭제 컬럼은 `class_bots` 에 없다. 지금 있는 것은
-      하드 삭제 한 길뿐이다」라고 못박는다(직접 확인했다 — `lib/db/schema.ts`·`drizzle/`
-      어디에도 없다). 있는 것은 **결정**이지 **컬럼**이 아니다.
+      `archived_at`·`status` 같은 소프트 삭제 컬럼은 없다. 지금 있는 것은 하드 삭제 한 길뿐이다」
+      라고 못박는다. 있는 것은 **결정**이지 **컬럼**이 아니고, 지우는 **라우트**도 아직 없다.
       그래서 이 PR 은 그 앞단(되묻는 판·포커스·숫자 동반 감소)을 먼저 세운다.
       **BE 가 붙을 때 바뀌는 곳은 `handleDelete` 하나가 아니다** — `§ 4.4.8 (e)` 가
       같이 고쳐야 하는 술어를 전수로 센다((e-1) 읽기 일곱 · (e-2) 쓰기 검증 넷 ·
@@ -116,7 +156,7 @@ export default function TeacherClassbotPage() {
       `classbot/my-bots/my-bot-card.tsx`(「빼기는 되묻지 않는다 — 다시 담으면 그만이라
       되돌릴 수 없는 일이 아니다」). **지금 구현만 재면 이 삭제는 후자 쪽**이다.
       그런데도 되묻는 판을 먼저 세우는 까닭은, 이 자리에 올 진짜 삭제가 학생의 대화·제출·
-      성취까지 함께 지우는 11테이블 cascade 라서다(바로 위). 되묻는 판을 BE 와 같이
+      성취까지 함께 지우는 cascade 라서다(바로 위). 되묻는 판을 BE 와 같이
       들이면 그때 급히 지어야 하고, 그 판이 접근성까지 맞는지 아무도 못 본다.
       `my-bot-card` 주석도 「대화 기록까지 지우게 되는 P4 부터는 이 판단을 다시 봐야
       한다」로 같은 방향을 가리킨다 — 여기가 그 P4 쪽 자리다.
@@ -129,34 +169,27 @@ export default function TeacherClassbotPage() {
   const [deleteNotice, setDeleteNotice] = useState('');
   const botListRef = useRef<HTMLElement>(null);
 
-  const allRows = useMemo(() => getTeacherBotRows(), []);
-
   /*
-    숫자가 거짓말하지 않게 — 이 화면에서 그 봇을 세는 자리가 넷이다(카드 · 상단 통계 4칸 ·
-    「낸 과제」 묶음). **한 군데서 거른 목록을 넷이 모두 받아 쓴다.**
+    숫자가 거짓말하지 않게 — 이 화면에서 그 봇을 세는 자리가 셋이다(카드 · 상단 통계 「내 봇」 ·
+    「붙은 학급」). **한 군데서 거른 목록을 셋이 모두 받아 쓴다.** 하나라도 빠뜨리면 카드는 사라졌는데
+    숫자만 안 줄어드는, 이 화면이 막으려던 바로 그 모양이 된다.
 
-    거르는 목록도 넷이다 — 봇(`botRows`) · 낸 과제(`assignments`) · 초안(`visibleDrafts`) ·
-    그 셋을 받아 세는 `summary`. **넷 다 같은 `deletedBotIds` 를 지난다.** 하나라도 빠뜨리면
-    카드는 사라졌는데 숫자만 안 줄어드는, 이 화면이 막으려던 바로 그 모양이 된다.
-
-    `getTeacherBotSummary()` 의 시그니처를 넓히는 길(⑴)은 택하지 않았다 — 이미
-    `rows` 를 받고 기본값으로만 mock 전체를 읽고 있어서, 걸러진 목록을 넘기기만 하면
-    된다(⑵). 공유 mock 모듈을 건드리지 않고 끝나는 쪽이 이 PR 의 경계에도 맞는다.
+    **「낸 과제」는 이 거르기를 지나지 않는다 — 봇과 반이 갈린 뒤로 그게 맞다.** 과제는 반(`classId`)에
+    달려 있고 봇을 이 화면에서 지워도 그 반과 그 반의 과제는 그대로 있다. 종전에는 bot == class 라
+    지운 봇의 과제도 함께 내렸는데, 지금 그렇게 하면 **멀쩡히 살아 있는 반의 과제를 없는 것처럼**
+    말하게 되고 도착지 `/teacher/assignment` 의 「전체」와도 어긋난다.
   */
-  const botRows = useMemo(
-    () => allRows.filter(r => !deletedBotIds.has(r.bot.id)),
-    [allRows, deletedBotIds],
+  const bots = useMemo(
+    () => (myBots.data ?? []).filter((b) => !deletedBotIds.has(b.id)),
+    [myBots.data, deletedBotIds],
   );
-  const summary = getTeacherBotSummary(botRows);
-
   /*
-    지운 봇의 과제도 함께 내린다. 목록에서만 빼면 `groupByClass` 가 그 과제들을
-    「반 목록에 없는 반」 묶음으로 되살려, 지운 봇의 과제가 이름만 바뀐 채 남는다.
-    (bot == class 라 `classId` 를 봇 id 와 견준다. 초안은 이 화면이 더 세지 않는다 — 정본 목록에 초안이 없다.)
+    붙은 학급 수는 **봇 행이 실어 준 `classIds`**(= `classes.bot_id == id`)로 센다 — 반 목록을
+    못 읽어도 아는 값이다. 한 반은 봇 하나만 가리키므로 겹칠 일이 없지만, 세는 값이라 Set 으로 못박는다.
   */
-  const assignments = useMemo(
-    () => allAssignments.filter(a => !deletedBotIds.has(a.classId)),
-    [allAssignments, deletedBotIds],
+  const attachedClassCount = useMemo(
+    () => new Set(bots.flatMap((b) => b.classIds)).size,
+    [bots],
   );
 
   const handleDelete = useCallback((botId: string, botName: string) => {
@@ -207,6 +240,8 @@ export default function TeacherClassbotPage() {
         /*
           봇을 새로 만드는 버튼은 이 헤더와 아래 「내 봇」 빈 상태 둘 중 하나만 뜬다 —
           봇이 있으면 이 헤더 CTA, 없으면 빈 상태의 「봇 만들기」.
+          **아직 모르는 동안(읽는 중·실패)에는 둘 다 뜨지 않는다** — 「있다」고도 「없다」고도
+          말할 수 없는 자리이고, 봇 관리(`bots-workspace.tsx`)가 같은 판단을 적어 뒀다.
 
           근거는 `03 § 4.4.5` 의 「둘은 같은 화면에 함께 나오지 않는다 — 봇이 없으면 헤더 CTA 를
           내리고 빈 상태 액션 하나만 둔다」인데, **그 절은 스스로를 봇 관리(`/teacher/bots`)로
@@ -221,7 +256,7 @@ export default function TeacherClassbotPage() {
           여전히 그 표에 없지만, 어긋날 이름이 없으므로 막는 규칙이 필요하지도 않다.
         */
         action={
-          botRows.length > 0 ? (
+          bots.length > 0 ? (
             <Link
               href="/teacher/builder"
               data-testid="classbot-new-cta"
@@ -237,50 +272,48 @@ export default function TeacherClassbotPage() {
       {/*
         봇 운영 요약 — 학생 도달·활동 지표는 담지 않는다(학급 관제소 몫).
 
-        카드 안에 텍스트 링크를 또 넣지 않는다. 나가는 길이 있는 카드는 카드째 링크(KpiStatLink),
-        없는 카드는 숫자만(KpiStat). 「봇 목록(#bot-list)」·「과제 현황(#dispatched)」은
-        바로 아래 있는 같은 화면 섹션으로 내려가는 스크롤이라 액션으로 세지 않고 걷어냈다.
-      */}
-      <KpiStatBar cols={4} size="lg">
-        <KpiStat
-          label="운영 중"
-          value={`${summary.runningCount}/${summary.botCount}개`}
-          tone="accent"
-        />
-        <KpiStat label="붙은 학급" value={`${summary.classroomCount}개`} />
-        <KpiStatLink
-          label="등록 학생"
-          value={`${summary.studentCount}명`}
-          href="/teacher/monitor"
-        />
-        {/*
-          낸 과제는 이제 갈 곳이 있다 — 숫자만 보여 주고 끊던 자리였다 (`proc/spec/14 § 3.2` 진입점 2).
-          정본 목록 전부를 센다(위 `allAssignments`) — 도착한 목록의 「전체」와 같아야 「2건」을 눌러 2줄짜리 목록에 도착한다.
+        **아직 모르는 동안에는 바 자체를 세우지 않는다.** 읽는 중·실패에 「0개」를 그리면 그 0 이
+        또 하나의 거짓이 된다(교사 홈이 반 개수 줄에 같은 판단을 적어 뒀다). 그래서 「낸 과제」 칸도
+        정본 목록을 실제로 읽은 뒤에만 선다 — 그 칸만 다른 문에서 오기 때문이다.
 
-          ⚠️ **봇 삭제에 대해서는 그 불변식이 지금 깨져 있다 — 알고 두는 것이다.**
-          여기 세는 목록은 지운 봇을 걸렀지만, 도착지 `/teacher/assignment` 는 정본을 그대로 그린다 —
-          삭제가 이 화면 안 상태(`deletedBotIds`)라 저 화면은 그 사실을 알 길이 없다. 이 어긋남은
-          「삭제가 화면 안 데모」라는 성격에서 그대로 따라오고(`03 § 4.2.1`), 봇 삭제가 정본으로 가는 날 닫힌다.
-        */}
-        <KpiStatLink
-          label="낸 과제"
-          value={`${assignments.length}건`}
-          href="/teacher/assignment"
-        />
-      </KpiStatBar>
+        **`isError` 를 따로 보는 까닭**: react-query 는 한 번 성공한 뒤 백그라운드 갱신이 깨져도
+        마지막 `data` 를 들고 있는다. `data` 만 보면 아래 목록이 「로그인이 필요해요」라 말하는
+        동안 이 바가 「내 봇 1개」라고 말한다 — 지어낸 값은 아니지만(마지막으로 참이었던 값)
+        같은 화면의 두 자리가 서로 다른 말을 한다. 바를 함께 내려 그 어긋남을 닫는다.
+
+        카드 안에 텍스트 링크를 또 넣지 않는다. 나가는 길이 있는 카드는 카드째 링크(KpiStatLink),
+        없는 카드는 숫자만(KpiStat).
+      */}
+      {myBots.data !== undefined && !myBots.isError && (
+        <KpiStatBar cols={assignments === null ? 2 : 3} size="lg">
+          <KpiStat label="내 봇" value={`${bots.length}개`} tone="accent" />
+          <KpiStat label="붙은 학급" value={`${attachedClassCount}개`} />
+          {assignments !== null && (
+            <KpiStatLink
+              label="낸 과제"
+              value={`${assignments.length}건`}
+              href="/teacher/assignment"
+            />
+          )}
+        </KpiStatBar>
+      )}
 
       {/* 봇 목록 — 이 화면의 본체 */}
       <BotOpsList
         ref={botListRef}
-        rows={botRows}
+        bots={bots}
+        classes={classIndex}
         assignments={assignments}
+        isPending={myBots.isPending}
+        error={myBots.isError ? myBots.error : null}
+        onRetry={() => void myBots.refetch()}
         onDelete={handleDelete}
         notice={deleteNotice}
       />
 
-      {/* 낸 과제 — 반(=봇)별로 묶어서 본다 */}
+      {/* 낸 과제 — 반별로 묶어서 본다 */}
       <DispatchedAssignments
-        assignments={assignments}
+        assignments={assignments ?? []}
         classes={classIndex}
         isPending={teacherAssignments.isPending}
         isError={teacherAssignments.isError}
@@ -291,19 +324,28 @@ export default function TeacherClassbotPage() {
 
 /* ─── 봇 목록 — 봇마다 학급 배정·안전 등급·낸 과제·동선 ─── */
 
-// 행 데이터 = 정본 요약 한 행. 봇 카드와의 조인 키는 `classId`(bot == class).
+// 행 데이터 = 정본 요약 한 행. 반 카드와의 조인 키는 `classId`.
 type AssignmentRow = AssignmentSummaryDto;
 
 function BotOpsList({
   ref,
-  rows,
+  bots,
+  classes,
   assignments,
+  isPending,
+  error,
+  onRetry,
   onDelete,
   notice,
 }: {
   ref?: Ref<HTMLElement>;
-  rows: TeacherBotRow[];
-  assignments: AssignmentRow[];
+  bots: BotDto[];
+  classes: ReadonlyMap<string, TeacherClass>;
+  /** `null` = 낸 과제를 아직 모른다 — 카드가 「아직 낸 과제가 없어요」라 말하면 안 되는 상태 */
+  assignments: AssignmentRow[] | null;
+  isPending: boolean;
+  error: ApiError | null;
+  onRetry: () => void;
   onDelete: (botId: string, botName: string) => void;
   /** 삭제 직후 낭독기에 읽어줄 말 — 눈으로 읽는 안내가 아니다 */
   notice: string;
@@ -340,8 +382,9 @@ function BotOpsList({
 
         **「길이 하나뿐」이 된 것은 아니다.** 지금 모은 것은 헤더 CTA 하나이고, 아래 카드의
         「아직 붙은 학급이 없어요」 빈 상태 액션 「학급에 붙이기」도 같은 `/teacher/builder` 로 간다.
-        죽은 갈래도 아니다 — `getTeacherBotRows()` 가 「만들어 두고 아직 안 붙인 봇」을
-        `classrooms: []` 로 떨어뜨리므로, 봇을 막 만든 교사는 헤더 CTA 와 그 링크를 함께 본다.
+        죽은 갈래도 아니다 — `POST /classbot/bots` 로 만든 봇은 어느 반에도 안 붙어 있으므로
+        (`classIds: []` — `hooks/api/bot.ts` `useCreateBot`), 봇을 막 만든 교사는 헤더 CTA 와
+        그 링크를 함께 본다.
         그 자리는 라벨이 하는 말(붙이기)과 도착지(빌더)가 어긋난 자리라 이번 범위 밖으로 두고
         따로 본다 — 여기서 같이 걷으면 그 어긋남이 고쳐지지 않은 채 숨는다.
       */}
@@ -356,7 +399,25 @@ function BotOpsList({
         {notice}
       </p>
 
-      {rows.length === 0 ? (
+      {/*
+        mock 은 늦지도 실패하지도 않아서 필요 없던 상태 셋이 정본과 함께 온다 —
+        읽는 중(뼈대) · 세션 끊김(로그인 안내) · 읽기 실패(다시 시도).
+        401 을 빨간 에러 카드로 그리지 않는 까닭은 `bots-workspace.tsx` 와 같다 —
+        `classbotRead` 가 이미 OS 로그인으로 보내는 중이고, 그 한 박자를 게이트가 든다.
+        게이트 문장은 `${label}를 보려면` 이라 라벨은 받침 없는 말이어야 한다(「내 봇를」 ✗).
+      */}
+      {isPending ? (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-busy="true" data-testid="bot-ops-loading">
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+        </div>
+      ) : error ? (
+        isUnauthorized(error) ? (
+          <ReadLoginGate label="봇 운영 상태" />
+        ) : (
+          <ReadErrorState onRetry={onRetry} />
+        )
+      ) : bots.length === 0 ? (
         <EmptyState
           icon={Bot}
           title="아직 만든 봇이 없어요"
@@ -365,11 +426,16 @@ function BotOpsList({
         />
       ) : (
         <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {rows.map(row => (
+          {bots.map(bot => (
             <BotOpsCard
-              key={row.bot.id}
-              row={row}
-              assignmentCount={assignments.filter(a => a.classId === row.bot.id).length}
+              key={bot.id}
+              bot={bot}
+              classes={classes}
+              assignmentCount={
+                assignments === null
+                  ? null
+                  : assignments.filter(a => bot.classIds.includes(a.classId)).length
+              }
               onDelete={onDelete}
             />
           ))}
@@ -388,11 +454,14 @@ function BotOpsList({
  * **나가는 길은 둘만 남긴다 — 그 봇을 고치는 길과 그 봇으로 과제를 내는 길.**
  * 둘 다 어느 봇의 더보기를 눌렀는지가 링크에 실린다. 봇을 가리키지 못하는 길은 여기 두지 않는다.
  *
- * 걷어낸 셋:
+ * 걷어낸 넷:
  *  - 「봇 관리」·「안전 등급 바꾸기」 — 같은 화면(`/teacher/bots/[botId]`)으로 가는 길이
  *    한 메뉴에 둘이었다. 봇 관리는 왼쪽 레일에 제 자리가 있다.
  *  - 「학급 관제소」 — 봇이 아니라 학급을 보는 화면이라 **어느 봇의 더보기를 눌렀는지가
- *    실리지 않는다.** 위쪽 「등록 학생」 카드가 같은 데로 간다.
+ *    실리지 않는다.** (그 화면은 아직 목이기도 하다 — 작업판 머리주석.)
+ *  - **「봇 멈추기 / 다시 돌리기」** — 「준비 중」으로 자리만 잡아 두던 항목인데, 라벨이
+ *    갈리려면 **그 봇이 지금 도는지를 알아야 한다.** `BotDto` 에 그 칸이 없으니
+ *    둘 중 하나를 골라 적는 순간 화면이 모르는 상태를 말하게 된다. 그래서 항목째 걷었다.
  */
 function botMenuLinks(botId: string) {
   return [
@@ -404,15 +473,12 @@ function botMenuLinks(botId: string) {
 function BotCardMenu({
   botId,
   botName,
-  running,
   onDelete,
 }: {
   botId: string;
   botName: string;
-  running: boolean;
   onDelete: (botId: string, botName: string) => void;
 }) {
-  const RunIcon = running ? Pause : Play;
   /*
     판이 닫힐 때 포커스를 돌려줄 자리를 손으로 대 준다.
     (base-ui 기본값으로도 여기로 돌아온다 — 드롭다운이 닫히며 제 트리거로 포커스를 되돌리기
@@ -442,12 +508,6 @@ function BotCardMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          {/* 멈추기·다시 돌리기는 아직 준비 중 — 자리는 두되 누를 수 없다 */}
-          <DropdownMenuItem disabled className="px-2 py-1.5">
-            <RunIcon className="h-4 w-4" aria-hidden />
-            {running ? '봇 멈추기' : '봇 다시 돌리기'}
-            <DropdownMenuShortcut className="tracking-normal">준비 중</DropdownMenuShortcut>
-          </DropdownMenuItem>
           {/*
             삭제는 되돌릴 수 없는 일이라 위 둘과 눈으로도 갈려야 한다 —
             이 리포의 danger 토큰(`AlertCard tone="danger"` 가 쓰는 `--color-pullim-danger`)
@@ -491,73 +551,64 @@ function BotCardMenu({
 
 /**
  * 봇 카드 — 「이 봇이 지금 제대로 돌고 있나」에 필요한 것만 남긴다.
- *  남긴 것: 이름·과목·학년 / 운영 상태(멈춤이면 이유) / 안전 등급 배지 / 붙은 학급과 인원 / 낸 과제 수.
- *  덜어낸 것: 말투(봇 관리에서 본다), 안전 등급 설명문(scope.allow — 배지로 갈음),
+ *  남긴 것: 이름·과목·학년 / 안전 등급 배지 / 붙은 학급과 반별 인원 / 낸 과제 수.
+ *  덜어낸 것: 운영 상태 칩과 멈춘 이유(정본에 그 칸이 없다 — 작업판 머리주석),
+ *            말투(봇 관리에서 본다), 안전 등급 설명문(배지로 갈음),
  *            바닥 링크 5개(더보기 안으로), 「진행 상황 보기」 앵커(바로 아래 낸 과제 섹션).
  * 카드 본체는 누르는 자리가 아니다 — 봇 하나짜리 화면이 아직 없어서 갈 데가 없다.
+ *
+ * **서버에 없는 값은 줄에 싣지 않는다.** `subject`·`grade` 는 `BotDto` 에서 null 이 될 수 있고,
+ * 그때는 그 칸을 통째로 빼지 빈 글자나 가운뎃점만 남은 줄(`· 중3`)을 그리지 않는다.
+ *
+ * @param bot - 정본 봇 한 행(`GET /classbot/me/bots`)
+ * @param classes - 정본 반 목록 색인. 봇의 `classIds` 를 이름·인원으로 푸는 데 쓴다
+ * @param assignmentCount - 이 봇이 붙은 반들의 낸 과제 수 · `null` = 아직 모른다
  */
 function BotOpsCard({
-  row,
+  bot,
+  classes,
   assignmentCount,
   onDelete,
 }: {
-  row: TeacherBotRow;
-  assignmentCount: number;
+  bot: BotDto;
+  classes: ReadonlyMap<string, TeacherClass>;
+  assignmentCount: number | null;
   onDelete: (botId: string, botName: string) => void;
 }) {
-  const { bot, ops, studentCount } = row;
-  const running = ops.runState === 'running';
-  const scope = scopeMeta[bot.scope];
+  // 과목·학년 중 있는 것만 잇는다 — 둘 다 없으면 줄 자체가 없다.
+  const facts = [bot.subject, bot.grade].filter((v): v is string => Boolean(v)).join(' · ');
+  /*
+    붙은 반 — 이름은 **반 목록**에서 푼다. 반 목록을 아직 못 읽었거나 그 사이 반이 사라졌으면
+    그 id 는 이름 없이 남는다. 그때 줄을 지어내지 않고 「아직 못 읽은 반이 몇 개」라고만 말한다 —
+    **모르는 것을 「붙은 학급 없음」으로 바꿔 말하면 그게 거짓이다.**
+  */
+  const rooms = bot.classIds
+    .map(id => classes.get(id))
+    .filter((c): c is TeacherClass => c !== undefined);
+  const unnamedCount = bot.classIds.length - rooms.length;
 
   return (
     <li data-testid={`bot-ops-card-${bot.id}`} className="bg-card flex flex-col rounded-2xl border p-5">
-      {/* 정체 — 이름 · 과목 · 학년 · 지금 도는지 · 안전 등급 */}
+      {/* 정체 — 이름 · 과목 · 학년 · 안전 등급 */}
       <div className="flex items-start gap-3">
         <BotAvatar subject={bot.subject} name={bot.name} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="text-pullim-slate-900 text-sm font-bold">{bot.name}</h3>
-            <Chip tone={running ? 'info' : 'neutral'} className="py-1">
-              {running ? (
-                <span className="bg-pullim-blue-600 inline-block h-1.5 w-1.5 rounded-full" aria-hidden />
-              ) : (
-                <Pause className="h-2.5 w-2.5" aria-hidden />
-              )}
-              {runStateLabels[ops.runState]}
-            </Chip>
             {/* 안전 등급 — 배지 하나로 읽어준다. 설명·변경은 봇 관리(왼쪽 레일). */}
-            <Chip tone="outline" className="py-1">
-              <Shield className="text-pullim-blue-600" aria-hidden />
-              <span>
-                <span className="sr-only">안전 등급 </span>
-                <span className="font-mono">{scope.short}</span> {scope.label}
-              </span>
-            </Chip>
+            <ScopeChip scope={bot.scope} />
           </div>
-          <p className="text-pullim-slate-500 mt-0.5 text-2xs">
-            {bot.subject} · {bot.grade}
-          </p>
-          {!running && ops.pauseReason && (
-            <p className="text-pullim-slate-500 mt-0.5 text-2xs">{ops.pauseReason}</p>
-          )}
+          {facts && <p className="text-pullim-slate-500 mt-0.5 text-2xs">{facts}</p>}
         </div>
-        <BotCardMenu botId={bot.id} botName={bot.name} running={running} onDelete={onDelete} />
+        <BotCardMenu botId={bot.id} botName={bot.name} onDelete={onDelete} />
       </div>
 
       {/* 붙어 있는 학급 */}
       <div className="mt-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">
-            붙어 있는 학급
-          </div>
-          {/* 반이 여럿일 때만 합계를 얹는다 — 한 반이면 아래 학급 줄과 같은 숫자라 중복이다 */}
-          {ops.classrooms.length > 1 && (
-            <span className="text-pullim-slate-500 shrink-0 font-mono text-2xs font-bold">
-              모두 {studentCount}명
-            </span>
-          )}
+        <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">
+          붙어 있는 학급
         </div>
-        {ops.classrooms.length === 0 ? (
+        {bot.classIds.length === 0 ? (
           <EmptyState
             tone="plain"
             size="sm"
@@ -567,34 +618,44 @@ function BotOpsCard({
           />
         ) : (
           <ul className="mt-1 space-y-1">
-            {ops.classrooms.map(c => (
+            {rooms.map(room => (
               <li
-                key={c.id}
+                key={room.id}
                 className="bg-pullim-slate-50/50 flex items-center gap-2 rounded-lg px-3 py-2"
               >
                 <School className="text-pullim-blue-500 h-3 w-3 shrink-0" aria-hidden />
                 <span className="text-pullim-slate-900 min-w-0 flex-1 truncate text-xs font-bold">
-                  {c.label}
+                  {room.name}
                 </span>
-                <span className="text-pullim-slate-500 shrink-0 font-mono text-2xs font-bold">
-                  {c.studentCount}명
-                </span>
+                {/* 인원은 반 카드가 스스로 아는 값이다. 프로필이 없는 반은 모르므로 칸째 뺀다. */}
+                {room.enrolledCount !== null && (
+                  <span className="text-pullim-slate-500 shrink-0 font-mono text-2xs font-bold">
+                    {room.enrolledCount}명
+                  </span>
+                )}
               </li>
             ))}
+            {unnamedCount > 0 && (
+              <li className="text-pullim-slate-500 px-3 py-2 text-2xs">
+                반 이름을 아직 못 읽었어요 ({unnamedCount}개)
+              </li>
+            )}
           </ul>
         )}
       </div>
 
       {/* 낸 과제 — 몇 건 냈는지만. 자세한 건 아래 「낸 과제」 섹션에서 본다. */}
-      <p className="text-pullim-slate-500 mt-auto pt-3 text-2xs">
-        {assignmentCount === 0 ? (
-          '아직 낸 과제가 없어요'
-        ) : (
-          <>
-            낸 과제 <b className="text-pullim-slate-700 font-mono">{assignmentCount}건</b>
-          </>
-        )}
-      </p>
+      {assignmentCount !== null && (
+        <p className="text-pullim-slate-500 mt-auto pt-3 text-2xs">
+          {assignmentCount === 0 ? (
+            '아직 낸 과제가 없어요'
+          ) : (
+            <>
+              낸 과제 <b className="text-pullim-slate-700 font-mono">{assignmentCount}건</b>
+            </>
+          )}
+        </p>
+      )}
     </li>
   );
 }
@@ -615,7 +676,7 @@ export const modeMeta = {
 } as const;
 
 /**
- * 반(=봇)별로 묶는다 — 조인 키는 정본 행의 `classId`(bot == class). 이름은 정본 반 목록(`useOperatorClasses`)에서,
+ * 반별로 묶는다 — 조인 키는 정본 행의 `classId`. 이름은 정본 반 목록(`useOperatorClasses`)에서,
  * 거기 없는 반의 과제는 맨 뒤에 「반 목록에 없는 반」으로 따로 둔다(지어낸 이름을 붙이지 않는다).
  */
 function groupByClass(assignments: AssignmentRow[], classes: ReadonlyMap<string, TeacherClass>) {
@@ -662,8 +723,9 @@ function DispatchedAssignments({
           부제는 정본 목록이 실제로 세는 값만 말한다 — 건수와 문항 수. 종전의 「학생 풀이 진행 N/M문항」은
           localStorage 제출 기록을 합산한 값이라 정본과 함께 걷었다. 학생 풀이 진행은 과제 상세(`/submissions`)가 답한다.
           「오늘 N건」도 두지 않는다(2026-09-15 결정 — 라벨 문자열로 세던 값이 두 방향으로 틀려 있었다).
+          읽는 중·실패에는 부제를 내린다 — 그때의 「0건 · 0문항」은 셈이 아니라 아직 안 읽은 것이다.
         */
-        description={`${assignments.length}건 · ${totalQuestions}문항`}
+        description={isPending || isError ? undefined : `${assignments.length}건 · ${totalQuestions}문항`}
         action={
           <Link
             href="/teacher/assignment/new"

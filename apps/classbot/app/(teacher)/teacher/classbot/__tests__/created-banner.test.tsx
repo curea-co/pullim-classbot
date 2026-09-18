@@ -33,6 +33,15 @@ jest.mock('@/hooks/api/classroom', () => ({
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: [], isPending: false, isError: false, error: null }),
 }));
+/*
+  같은 화면의 봇 목록도 정본이다(`GET /classbot/me/bots`). 이 파일은 배너만 보므로 빈 목록으로
+  세우되, 훅을 세워 두기는 해야 한다 — 진짜 훅은 `useAuth()` 를 부르고 이 render 에는
+  `<AuthProvider>` 가 없다.
+*/
+jest.mock('@/hooks/api/bot', () => ({
+  ...jest.requireActual('@/hooks/api/bot'),
+  useMyBots: () => ({ data: [], isPending: false, isError: false, error: null, refetch: jest.fn() }),
+}));
 
 beforeEach(() => {
   search = '';

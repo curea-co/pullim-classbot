@@ -1,8 +1,20 @@
 /**
- * 교사 운영 메인(SCR-C-17) — 봇 운영 사실 mock.
+ * 교사 운영 화면의 「봇 운영 사실」 mock — **화면이 더는 읽지 않는다.**
+ *
+ * 2026-09-18 에 운영 메인(`/teacher/classbot`)이 봇 목록·요약을 정본으로 옮기며
+ * (`GET /classbot/me/bots` · `hooks/api/bot.ts` `useMyBots`) 이 파일의 화면 쪽 소비처가 사라졌다.
+ * 그때 함께 걷은 것 다섯: `getTeacherBotRows()` · `getTeacherBotSummary()` · `TeacherBotRow` ·
+ * `TeacherBotSummary` · `runStateLabels`. 운영 중/멈춤을 말하는 칸이 정본(`BotDto`)에 없어서,
+ * 그 값을 화면에 그대로 되살릴 자리도 없다.
+ *
+ * **남은 것은 `teacherBotOps` 하나다.** 지우지 않는 까닭은 다른 소비처가 있어서다 —
+ * 봇 관리 mock(`./classbot-bot-policy.ts` 의 `toManagedBot`)이 「이 봇이 어느 학급에 붙어 있나」를
+ * 여기서 읽고, 빌더 테스트(`components/builder/__tests__/builder.test.tsx`)가 학급 표와
+ * 어긋나지 않는지를 여기에 건다.
  *
  * 봇 카탈로그(이름·과목·학년·톤·안전 등급·등록 인원)의 권위는 lib/mock/classbot.ts 의 `classBots` 다.
- * 이 파일은 그 위에 카탈로그가 담지 않는 「운영 사실」만 얹는다.
+ * 이 파일은 카탈로그가 담지 않는 「운영 사실」만 `botId` 로 가리켜 둔다 — **조인은 여기서 하지 않는다**
+ * (종전의 `getTeacherBotRows()` 가 그 자리였고, 지금 남은 조인은 `./classbot-bot-policy.ts` 쪽 하나다).
  *   ① 지금 학생에게 열려 있는지(운영 중) 멈춰 있는지
  *   ② 어느 학급에 붙어 있고 학급마다 몇 명인지
  *
@@ -14,15 +26,8 @@
  *  - 학생 도달·활동 지표 — 그건 학급 관제소(lib/mock/classbot-monitoring.ts)가 갖는다.
  */
 
-import { classBots, type ClassBot } from './classbot';
-
 /** 봇이 지금 학생에게 열려 있는지 */
 export type BotRunState = 'running' | 'paused';
-
-export const runStateLabels: Record<BotRunState, string> = {
-  running: '운영 중',
-  paused: '멈춤',
-};
 
 /** 봇이 붙어 있는 학급 한 반 */
 export type BotClassroom = {
@@ -76,48 +81,3 @@ export const teacherBotOps: BotOps[] = [
     classrooms: [{ id: 'cr_soc_a', label: '고1 사회 탐구반', studentCount: 14 }],
   },
 ];
-
-/** 카탈로그 한 줄 + 그 봇의 운영 사실 */
-export type TeacherBotRow = {
-  bot: ClassBot;
-  ops: BotOps;
-  /** 학급 인원 합 — 화면에 쓰는 학생 수의 권위 */
-  studentCount: number;
-};
-
-/**
- * 카탈로그 + 운영 기록 조인. 카탈로그 순서를 그대로 따른다.
- * 운영 기록이 없는 봇은 「멈춤 · 붙은 학급 없음」으로 본다 — 만들어 두고 아직 안 붙인 봇.
- */
-export function getTeacherBotRows(): TeacherBotRow[] {
-  return classBots.map(bot => {
-    const ops: BotOps = teacherBotOps.find(o => o.botId === bot.id) ?? {
-      botId: bot.id,
-      runState: 'paused',
-      pauseReason: '아직 학급에 붙이지 않았어요',
-      classrooms: [],
-    };
-    return {
-      bot,
-      ops,
-      studentCount: ops.classrooms.reduce((n, c) => n + c.studentCount, 0),
-    };
-  });
-}
-
-export type TeacherBotSummary = {
-  botCount: number;
-  runningCount: number;
-  classroomCount: number;
-  studentCount: number;
-};
-
-/** 상단 요약 — 전부 위 조인에서 계산한다. 직접 쓴 숫자가 아니라 봇 줄을 고치면 같이 움직인다. */
-export function getTeacherBotSummary(rows: TeacherBotRow[] = getTeacherBotRows()): TeacherBotSummary {
-  return {
-    botCount: rows.length,
-    runningCount: rows.filter(r => r.ops.runState === 'running').length,
-    classroomCount: rows.reduce((n, r) => n + r.ops.classrooms.length, 0),
-    studentCount: rows.reduce((n, r) => n + r.studentCount, 0),
-  };
-}

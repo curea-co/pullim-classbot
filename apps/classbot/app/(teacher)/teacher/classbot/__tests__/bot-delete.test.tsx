@@ -1,39 +1,65 @@
 /**
  * 교사 운영 메인(SCR-C-17) — 봇 카드 「더보기 → 봇 삭제」와 되묻는 판.
  *
- * 여기서 재는 것은 **화면 안 상태로 도는 삭제**다. 이 화면의 봇 목록은 mock
- * (`lib/mock/classbot-teacher-ops`)이고, 이 PR 은 DB·API 를 건드리지 않는다.
- * 그래서 「지웠다」는 곧 「이 화면에서 걸러졌다」이며, **그 봇을 세던 자리가 전부 함께
- * 줄어드는지**가 이 파일의 핵심이다 — 카드만 사라지고 상단 통계가 그대로면,
- * 교사는 지워지지 않았다고 읽는다.
+ * 여기서 재는 것은 **화면 안 상태로 도는 삭제**다. 봇 목록은 이제 정본
+ * (`GET /classbot/me/bots`)이지만 **봇을 지우는 문은 정본에 없다** — 그래서 「지웠다」는
+ * 여전히 「이 화면에서 걸러졌다」이고, 캐시에도 서버에도 쓰지 않는다.
+ * 핵심은 **그 봇을 세던 자리가 전부 함께 줄어드는지**다 — 카드만 사라지고 상단 통계가
+ * 그대로면 교사는 지워지지 않았다고 읽는다.
+ *
+ * **「낸 과제」는 이 거르기를 지나지 않는다 — 2026-09-18 에 뒤집힌 줄이다.** 종전에는
+ * bot == class 라 지운 봇의 과제 묶음도 함께 내렸는데, 봇이 반에서 독립한 뒤로는 봇을
+ * 지워도 그 반과 그 반의 과제가 그대로 있다. 지금 함께 내리면 **멀쩡히 살아 있는 반의
+ * 과제를 없는 것처럼** 말하게 되고, 도착지 `/teacher/assignment` 의 「전체」와도 어긋난다.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import TeacherClassbotPage from '../page';
-import type { AssignmentSummaryDto } from '@/lib/api/classbot-dto';
-import {
-  getTeacherBotRows, getTeacherBotSummary,
-} from '@/lib/mock/classbot-teacher-ops';
+import type { AssignmentSummaryDto, BotCardDto, BotDto } from '@/lib/api/classbot-dto';
 
-const ROWS = getTeacherBotRows();
-/** 반이 둘이라 「붙은 학급」·「등록 학생」이 함께 줄어드는 걸 한 봇으로 볼 수 있다 */
-const TARGET = ROWS.find(r => r.bot.id === 'cb_004')!;
-const REST = ROWS.filter(r => r.bot.id !== TARGET.bot.id);
+/** 반이 둘이라 「붙은 학급」이 그 수만큼 줄어드는 걸 한 봇으로 볼 수 있다 */
+const TARGET: BotDto = {
+  id: 'bot_1', operatorId: 't1', name: '국어봇', subject: '국어', grade: '중3', tone: '친근',
+  greeting: null, scope: 3, avatarEmoji: '📚', quickPrompts: [],
+  isPublished: false, publishedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
+};
+const KEEP: BotDto = {
+  id: 'bot_2', operatorId: 't1', name: '수학 도우미', subject: '수학', grade: '중2', tone: '차분',
+  greeting: null, scope: 3, avatarEmoji: '🧮', quickPrompts: [],
+  isPublished: false, publishedAt: null, classIds: ['cls_3'], createdAt: '', updatedAt: '',
+};
+
+const klass = (id: string, name: string, enrolledCount: number): BotCardDto => ({
+  id, name, description: null, isActive: true, role: 'teacher',
+  profile: {
+    subject: '국어', grade: '중3', tone: '친근', greeting: '', scope: 3, avatarEmoji: '📚',
+    quickPrompts: [], enrolledCount, isLive: false, currentLesson: null,
+  },
+});
 
 /** 사용자가 정한 고정 문구 — 누가 말을 다듬으면 여기서 빨개진다 */
 const WARNING =
   '현재 이 봇으로 학습 중인 학생들이 있어요. 봇을 삭제하면 해당 학생은 봇을 이용할 수 없어요.';
 
-/**
- * 낸 과제는 정본(`GET /classbot/assignments?audience=teacher`)에서 온다(FE PR 6) — 테스트마다 갈아 끼운다.
- * bot == class 라 `classId` 에 봇 id 를 넣으면 그 봇의 과제다.
- */
+/* ── 훅 바꿔 끼우기 ─────────────────────────────────────────── */
+
+let bots: BotDto[] = [];
+jest.mock('@/hooks/api/bot', () => ({
+  ...jest.requireActual('@/hooks/api/bot'),
+  useMyBots: () => ({
+    data: bots, isPending: false, isError: false, error: null, refetch: jest.fn(),
+  }),
+}));
+
+/** 낸 과제는 정본(`GET /classbot/assignments?audience=teacher`)에서 온다 — 테스트마다 갈아 끼운다. */
 let teacherAssignments: AssignmentSummaryDto[] = [];
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: teacherAssignments, isPending: false, isError: false, error: null }),
 }));
+
+let opsClasses: BotCardDto[] = [];
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
-  useOperatorClasses: () => ({ data: [], isPending: false, isError: false, error: null }),
+  useOperatorClasses: () => ({ data: opsClasses, isPending: false, isError: false, error: null }),
 }));
 
 const dispatchedFor = (classId: string, id: string): AssignmentSummaryDto => ({
@@ -44,12 +70,18 @@ const dispatchedFor = (classId: string, id: string): AssignmentSummaryDto => ({
 });
 
 beforeEach(() => {
+  bots = [TARGET, KEEP];
   teacherAssignments = [];
+  opsClasses = [
+    klass('cls_1', '중3 국어 A반', 9),
+    klass('cls_2', '중3 국어 B반', 7),
+    klass('cls_3', '중2 수학 A반', 18),
+  ];
 });
 
 /**
  * 상단 통계 묶음 — 「붙은 학급」은 이 묶음에만 있다(카드 쪽은 「붙어 있는 학급」).
- * 「운영 중」·「낸 과제」는 카드·섹션 제목에도 나와서 화면 전체에서 찾으면 여럿이 걸린다.
+ * 「내 봇」·「낸 과제」는 아래 섹션 제목이기도 해서 화면 전체에서 찾으면 여럿이 걸린다.
  */
 function statBar() {
   return screen.getByText('붙은 학급').closest('ul')!;
@@ -62,7 +94,7 @@ function kpi(label: string) {
 
 /**
  * 상단 통계 한 칸을 **경계까지** 잰다.
- * 부분 문자열로 재면 헛돈다 — `toContain('0명')` 은 `10명`·`20명` 에도, `toContain('2건')` 은
+ * 부분 문자열로 재면 헛돈다 — `toContain('0개')` 는 `10개`·`20개` 에도, `toContain('2건')` 은
  * `12건`·`22건` 에도 통과한다. 「지운 몫만큼, 정확히」를 재겠다는 이 파일에서 그건 뜻이 없다.
  * 앞에 숫자가 더 붙어 있으면 다른 값이라는 것만 못박으면 된다(뒤는 단위 글자가 막는다).
  */
@@ -80,11 +112,11 @@ function openDeleteDialog(botName: string) {
 
 it('카드의 나가는 길은 여전히 「더보기」 하나뿐이고, 그 안에 「봇 삭제」가 있다', () => {
   render(<TeacherClassbotPage />);
-  const card = screen.getByTestId(`bot-ops-card-${TARGET.bot.id}`);
+  const card = screen.getByTestId(`bot-ops-card-${TARGET.id}`);
   // 카드 위에 삭제 버튼을 따로 깔지 않았다
   expect(within(card).queryByRole('button', { name: /삭제/ })).toBeNull();
 
-  fireEvent.click(within(card).getByRole('button', { name: `${TARGET.bot.name} 더보기` }));
+  fireEvent.click(within(card).getByRole('button', { name: `${TARGET.name} 더보기` }));
   const menu = screen.getByRole('menu');
   expect(within(menu).getByRole('menuitem', { name: '봇 삭제' })).toBeInTheDocument();
   // 종전 둘도 그대로다
@@ -94,18 +126,18 @@ it('카드의 나가는 길은 여전히 「더보기」 하나뿐이고, 그 �
 
 it('판이 열리면 정해진 문구가 그대로 뜬다 — 제목·본문·버튼 둘', () => {
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   const dialog = screen.getByTestId('bot-delete-dialog');
   expect(within(dialog).getByText(WARNING)).toBeInTheDocument();
-  expect(dialog).toHaveTextContent(`${TARGET.bot.name}을 삭제할까요?`); // 국어봇 → 받침 있음
+  expect(dialog).toHaveTextContent(`${TARGET.name}을 삭제할까요?`); // 국어봇 → 받침 있음
   expect(within(dialog).getByRole('button', { name: '그만두기' })).toBeInTheDocument();
-  expect(within(dialog).getByRole('button', { name: `${TARGET.bot.name} 삭제` })).toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: `${TARGET.name} 삭제` })).toBeInTheDocument();
 });
 
 it('되묻는 판은 alertdialog 이고 제목·본문이 연결돼 있다', () => {
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   const dialog = screen.getByTestId('bot-delete-dialog');
   expect(dialog).toHaveAttribute('role', 'alertdialog');
@@ -132,7 +164,7 @@ it('되묻는 판은 alertdialog 이고 제목·본문이 연결돼 있다', () 
 */
 it('열리면 포커스는 「그만두기」에 있다', async () => {
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   const cancel = within(screen.getByTestId('bot-delete-dialog'))
     .getByRole('button', { name: '그만두기' });
@@ -141,85 +173,78 @@ it('열리면 포커스는 「그만두기」에 있다', async () => {
 
 it('「그만두기」를 누르면 아무것도 지워지지 않고 포커스가 「더보기」로 돌아온다', async () => {
   render(<TeacherClassbotPage />);
-  const before = kpi('운영 중');
-  const trigger = openDeleteDialog(TARGET.bot.name);
+  const before = kpi('내 봇');
+  const trigger = openDeleteDialog(TARGET.name);
 
   fireEvent.click(screen.getByRole('button', { name: '그만두기' }));
 
   expect(screen.queryByTestId('bot-delete-dialog')).toBeNull();
-  expect(screen.getByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeInTheDocument();
-  expect(kpi('운영 중')).toBe(before);
+  expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
+  expect(kpi('내 봇')).toBe(before);
   await waitFor(() => expect(document.activeElement).toBe(trigger));
 });
 
 it('Escape 로 닫아도 지워지지 않는다', () => {
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   fireEvent.keyDown(screen.getByTestId('bot-delete-dialog'), { key: 'Escape' });
 
   expect(screen.queryByTestId('bot-delete-dialog')).toBeNull();
-  expect(screen.getByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeInTheDocument();
+  expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
 });
 
-it('「삭제」를 누르면 카드와 상단 통계 넉 칸이 함께 줄어든다', () => {
+it('「삭제」를 누르면 카드와 상단 통계 두 칸이 함께 줄어든다', () => {
   render(<TeacherClassbotPage />);
 
-  const before = getTeacherBotSummary(ROWS);
-  expectKpi('운영 중', `${before.runningCount}/${before.botCount}개`);
-  expectKpi('붙은 학급', `${before.classroomCount}개`);
-  expectKpi('등록 학생', `${before.studentCount}명`);
+  expectKpi('내 봇', '2개');
+  expectKpi('붙은 학급', '3개');
 
-  openDeleteDialog(TARGET.bot.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
+  openDeleteDialog(TARGET.name);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
 
   // 카드가 사라진다
-  expect(screen.queryByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeNull();
-  expect(screen.getByTestId(`bot-ops-card-${REST[0].bot.id}`)).toBeInTheDocument();
+  expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull();
+  expect(screen.getByTestId(`bot-ops-card-${KEEP.id}`)).toBeInTheDocument();
 
   // 그 봇을 세던 자리가 전부 함께 줄어든다 — 지운 봇 몫만큼, 정확히
-  const after = getTeacherBotSummary(REST);
-  expect(after.botCount).toBe(before.botCount - 1);
-  expect(after.classroomCount).toBe(before.classroomCount - TARGET.ops.classrooms.length);
-  expect(after.studentCount).toBe(before.studentCount - TARGET.studentCount);
-
-  expectKpi('운영 중', `${after.runningCount}/${after.botCount}개`);
-  expectKpi('붙은 학급', `${after.classroomCount}개`);
-  expectKpi('등록 학생', `${after.studentCount}명`);
+  expectKpi('내 봇', '1개');
+  expectKpi('붙은 학급', `${KEEP.classIds.length}개`);
 });
 
-it('「낸 과제」도 함께 줄어든다 — 지운 봇의 과제 묶음이 남지 않는다', () => {
+it('「낸 과제」는 함께 줄지 않는다 — 봇을 지워도 그 반과 그 반의 과제는 그대로다', () => {
   teacherAssignments = [
-    dispatchedFor(TARGET.bot.id, 'as_del_1'),
-    dispatchedFor(REST[0].bot.id, 'as_keep_1'),
+    dispatchedFor('cls_1', 'as_kor_1'),
+    dispatchedFor('cls_3', 'as_math_1'),
   ];
   render(<TeacherClassbotPage />);
   expectKpi('낸 과제', '2건');
-  expect(screen.getByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeInTheDocument();
+  expect(screen.getByTestId('dispatched-group-cls_1')).toBeInTheDocument();
 
-  openDeleteDialog(TARGET.bot.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
+  openDeleteDialog(TARGET.name);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
 
-  expectKpi('낸 과제', '1건');
-  // 「반 목록에 없는 반」 묶음으로 되살아나서도 안 된다
-  expect(screen.queryByTestId(`dispatched-group-${TARGET.bot.id}`)).toBeNull();
-  expect(screen.queryByText('as_del_1 과제')).toBeNull();
-  expect(screen.getByTestId(`dispatched-group-${REST[0].bot.id}`)).toBeInTheDocument();
+  // 카드는 사라졌지만 그 반의 과제 묶음은 제 이름으로 그대로 선다
+  expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull();
+  expectKpi('낸 과제', '2건');
+  const group = screen.getByTestId('dispatched-group-cls_1');
+  expect(within(group).getByRole('heading', { name: '중3 국어 A반' })).toBeInTheDocument();
+  expect(within(group).getByText('as_kor_1 과제')).toBeInTheDocument();
 });
 
 it('봇을 전부 지우면 헤더 CTA 가 사라지고 빈 상태의 「봇 만들기」만 남는다', () => {
   render(<TeacherClassbotPage />);
-  for (const row of ROWS) {
-    openDeleteDialog(row.bot.name);
-    fireEvent.click(screen.getByRole('button', { name: `${row.bot.name} 삭제` }));
+  for (const bot of bots) {
+    openDeleteDialog(bot.name);
+    fireEvent.click(screen.getByRole('button', { name: `${bot.name} 삭제` }));
   }
 
   expect(screen.queryByRole('link', { name: '새 클래스봇' })).toBeNull();
   const list = screen.getByTestId('bot-ops-list');
   expect(within(list).getByText('아직 만든 봇이 없어요')).toBeInTheDocument();
   expect(within(list).getByRole('link', { name: '봇 만들기' })).toBeInTheDocument();
-  expectKpi('운영 중', '0/0개');
-  expectKpi('등록 학생', '0명');
+  expectKpi('내 봇', '0개');
+  expectKpi('붙은 학급', '0개');
 });
 
 /*
@@ -232,7 +257,7 @@ it('봇을 전부 지우면 헤더 CTA 가 사라지고 빈 상태의 「봇 만
 it('바깥을 눌러도 안 닫힌다 — 되돌릴 수 없는 일을 묻는 판이라 잘못 눌러 닫히면 안 된다', () => {
   // `<Dialog disablePointerDismissal>` 을 지키는 단정 (base-ui `AlertDialog` 가 세우는 값과 같다)
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   const backdrop = document.querySelector('[data-slot="dialog-overlay"]')!;
   fireEvent.pointerDown(backdrop);
@@ -241,14 +266,14 @@ it('바깥을 눌러도 안 닫힌다 — 되돌릴 수 없는 일을 묻는 판
   fireEvent.click(backdrop);
 
   expect(screen.getByTestId('bot-delete-dialog')).toBeInTheDocument();
-  expect(screen.getByTestId(`bot-ops-card-${TARGET.bot.id}`)).toBeInTheDocument();
+  expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
 });
 
 it('프리미티브 기본 X 버튼은 뜨지 않는다 — 판의 나가는 길은 「그만두기」 하나다', () => {
   // `showCloseButton={false}` 를 지키는 단정. 프리미티브의 sr 텍스트가 영어 `Close` 라
   // 되살아나면 이 판에서만 한국어 사이에 영어 이름이 하나 낀다.
   render(<TeacherClassbotPage />);
-  openDeleteDialog(TARGET.bot.name);
+  openDeleteDialog(TARGET.name);
 
   const dialog = screen.getByTestId('bot-delete-dialog');
   expect(within(dialog).queryByRole('button', { name: 'Close' })).toBeNull();
@@ -259,7 +284,7 @@ it('프리미티브 기본 X 버튼은 뜨지 않는다 — 판의 나가는 길
 it('메뉴의 「봇 삭제」는 「판을 여는 항목」이라고 낭독기에 말한다', () => {
   // 옆 두 항목은 링크라 저절로 갈리지만 이 항목만 겉보기가 같고 하는 일이 다르다.
   render(<TeacherClassbotPage />);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 더보기` }));
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 더보기` }));
 
   expect(screen.getByRole('menuitem', { name: '봇 삭제' }))
     .toHaveAttribute('aria-haspopup', 'dialog');
@@ -274,8 +299,8 @@ it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 �
   expect(list).toHaveAttribute('aria-label', '내 봇');
   expect(screen.getByRole('status')).toHaveTextContent('');
 
-  openDeleteDialog(TARGET.bot.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.bot.name} 삭제` }));
+  openDeleteDialog(TARGET.name);
+  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
 
   /*
     아직은 비어 있어야 한다 — 알림이 카드가 사라지는 그 커밋에 함께 실리면, polite 발화와
@@ -286,8 +311,6 @@ it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 �
 
   await waitFor(() => expect(document.activeElement).toBe(list));
   await waitFor(() =>
-    expect(screen.getByRole('status')).toHaveTextContent(`${TARGET.bot.name}을 삭제했어요.`),
+    expect(screen.getByRole('status')).toHaveTextContent(`${TARGET.name}을 삭제했어요.`),
   );
 });
-
-// 「낸 과제」의 초안 필터 테스트는 걷었다 — 정본 목록에는 초안이 없고(내는 순간 `sent`), 이 화면은 초안 스토어를 더 읽지 않는다(FE PR 6).
