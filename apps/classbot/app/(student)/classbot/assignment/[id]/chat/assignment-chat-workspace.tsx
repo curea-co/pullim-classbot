@@ -30,7 +30,7 @@ import {
   type AssignmentChatTurn,
 } from '@/lib/store/assignment-chat';
 import { useSubmissionResult } from '@/lib/store/submission-result';
-import { useRosterMe } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { cn } from '@/lib/utils';
 
@@ -53,7 +53,7 @@ export function AssignmentChatWorkspace({
   questions: AssignmentQuestion[];
   bot: ChatBotFace;
 }) {
-  const me = useRosterMe();
+  const me = useStudentMe();
 
   const turns = useAssignmentChatTurns(assignment.id);
   const seed = useAssignmentChatStore(s => s.seed);

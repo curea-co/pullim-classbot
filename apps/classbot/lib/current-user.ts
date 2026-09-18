@@ -161,31 +161,69 @@ function displayNameFromEmail(email: string): string {
   return local || email;
 }
 
+/**
+ * 학생 화면이 부르는 "나" — **신원과 데모 부가 데이터를 가른 값**이다.
+ *
+ * 종전의 `useRosterMe()` 는 목 roster 행(`ClassroomStudent`)을 통째로 돌려줬고, 그 행의
+ * `name` 이 인사·내 정보에 그대로 찍혔다. roster id 는 `s1`…`s18` 인데 실계정 id 는 OS
+ * `sub`(uuid) 라 조인이 **한 번도 맞지 않았다** — 「미스면 데모 행」 폴백이 사실상 상수여서
+ * 로그인한 사람도 늘 데모 「서연」으로 불렸다. 같은 화면 우상단 아바타는
+ * `useCurrentUser()` 를 보고 있어 한 화면에 두 사람이 섰다.
+ *
+ * 그래서 두 축을 가른다:
+ *  - **신원**(`id`·`name`) — `useCurrentUser()`(OS 세션 · 개발용 신원 쿠키)에서만 온다.
+ *    신원이 없으면 **빈 값**이다. 데모 이름으로 채우지 않는다 — 이름 없이 서는 편이 남의
+ *    이름으로 부르는 것보다 낫다. 부르는 쪽이 `name` 이 비었을 때를 각자 정한다.
+ *  - **데모 부가 데이터**(`demo`) — 목 roster 행. 목 조회 키(`demo.id`)와 목 수치(웰빙·정답률
+ *    등)가 들어 있고, 신원이 **데모 사람일 때만** 찬다(개발용 신원 `student_001`·`s2` …).
+ *    실계정은 `null` 이다 — 목 roster 에 그 사람의 행이 없기 때문이다.
+ *
+ * `demo.name`·`demo.id` 는 **신원이 아니다.** 화면에 사람 이름으로 찍지 마라.
+ * 목 수치를 읽는 화면(웰빙 게이지·감정 기록·가벼운 모드)은 `demo` 가 `null` 이면 각자의 빈
+ * 상태로 선다. 정본이 그 문을 낼 때 `demo` 를 걷는다.
+ */
+export interface StudentMe {
+  /** 신원 id — OS 세션 sub 또는 개발용 신원 id. 신원이 없으면 `''`. */
+  id: string;
+  /** 부르는 이름 — 세션 표시 이름(email 로컬파트). 신원이 없으면 `''`. */
+  name: string;
+  /** 데모 부가 데이터 행 — 목 조회 키와 목 수치. 실계정·비신원은 `null`. */
+  demo: ClassroomStudent | null;
+}
+
 /** 데모 roster 의 "나"(서연) 행 — seed 의 s1 == student_001. */
 const DEMO_ROSTER_ME: ClassroomStudent =
   classRoster.find((s) => s.name === currentPersona.name) ?? classRoster[0];
 
 /**
- * 현재 사용자에 해당하는 **도메인 roster 행**을 해석한다.
+ * 신원 id 로 **데모 roster 행**을 찾는다 — 못 찾으면 `null`.
  *
- * 도메인 화면 다수가 per-student 데이터를 mock `classRoster`(id `s1`..`s18`,
- * seed 에서 s1→student_001)로 키잉한다. 그 읽기 경로를 깨지 않으면서 신원만
- * 세션 기반으로 전환하기 위한 브리지:
- *  - 세션/폴백 사용자 id 가 roster 에 있으면 그 행을(예: student_001 → 서연 s1),
- *  - 없으면(신규 가입 uuid 등) 데모 "나"(서연) 행을 표시 데이터로 사용한다.
+ * 종전 해석기는 미스를 데모 행(서연)으로 메웠다. 그 폴백이 결함의 본체였다 — 실계정 id 는
+ * 절대 `s1`…`s18` 과 맞지 않으므로 「폴백」이 아니라 상수였다. 여기서는 메우지 않는다:
+ * 목 사람이 아니면 목 부가 데이터도 없다.
  *
- * 반환 행의 `id` 는 mock roster id 라서 도메인 mock 조회 키로만 쓴다.
- * **쓰기 명의**(저장될 user_id)는 항상 `useCurrentUserId()`(세션 uuid)를 쓴다.
- * @returns 현재 사용자의 roster 표시 행
+ * @param userId - 신원 id(세션 uuid · `student_001` · `sN`)
+ * @returns 데모 roster 행 또는 null
  */
-export function useRosterMe(): ClassroomStudent {
-  const { id } = useCurrentUser();
-  return resolveRosterMe(id);
+function demoRowOf(userId: string): ClassroomStudent | null {
+  if (!userId) return null;
+  // seed 매핑: student_001 ↔ roster s1(서연).
+  if (userId === currentPersona.id) return DEMO_ROSTER_ME;
+  return classRoster.find((s) => s.id === userId) ?? null;
 }
 
-/** id(세션 uuid 또는 student_001/sN)로 roster 행 해석 — 미스 시 데모(서연). */
-export function resolveRosterMe(userId: string): ClassroomStudent {
-  // seed 매핑: student_001 ↔ roster s1(서연). 그 외 uuid/sN 은 직접 매칭 시도.
-  if (userId === currentPersona.id) return DEMO_ROSTER_ME;
-  return classRoster.find((s) => s.id === userId) ?? DEMO_ROSTER_ME;
+/**
+ * 학생 화면의 "나" — 신원은 세션에서, 목 부가 데이터는 roster 조인에서.
+ *
+ * `useCurrentUser()` 의 세 갈래 중 **세 번째(데모 폴백 `student_001`)는 신원이 아니다** —
+ * 아무도 고르지 않았는데 서 있는 값이라, 그것으로 사람을 부르면 거짓이 된다. 그래서 여기서는
+ * OS 세션이거나 개발용 신원 쿠키일 때만 이름·id 를 싣고, 그 밖에는 빈 값으로 둔다.
+ * @returns 신원 + 데모 부가 데이터
+ */
+export function useStudentMe(): StudentMe {
+  const user = useCurrentUser();
+  const devIdentityId = useDevIdentityId();
+  const identified = user.isAuthenticated || findDevIdentity(devIdentityId) !== null;
+  if (!identified) return { id: '', name: '', demo: null };
+  return { id: user.id, name: user.name, demo: demoRowOf(user.id) };
 }

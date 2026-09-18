@@ -1,4 +1,6 @@
-import { ClipboardList, Heart, MessageCircle, Sparkles, Target, ArrowRight } from 'lucide-react';
+'use client';
+
+import { ClipboardList, Heart, Sparkles, Target, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
@@ -7,12 +9,16 @@ import BackLink from '@/components/classbot/back-link';
 import { WellbeingGauge } from '@/components/classbot/wellbeing-gauge';
 import { KpiTrendCard } from '@/components/classbot/kpi-trend-card';
 import { reports } from '@/lib/mock';
-import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 
 export default function MyReportPage() {
-  // 서버 컴포넌트 — 세션 토큰은 client(localStorage)에 있어 SSR 시점엔 데모 폴백.
-  // 신원은 해석기 경유(currentPersona 직접 참조 제거).
-  const me = resolveRosterMe(DEMO_FALLBACK_USER_ID);
+  // 종전에는 서버 컴포넌트라 상수(`DEMO_FALLBACK_USER_ID`)를 넘겼다 — 누가 열어도 데모
+  // 「서연」의 주간 리포트였다. 세션은 client 에만 있으므로 이 화면을 client 로 내려
+  // **실제 신원**을 본다.
+  const me = useStudentMe();
+  // 웰빙 게이지가 읽는 것은 **목 웰빙 기록**이고 키는 roster id 다. 실계정에는 그 행이 없어
+  // 게이지가 「웰빙 데이터가 아직 없어요」로 선다.
+  const demoKey = me.demo?.id ?? '';
 
   // 학부모 리포트가 있으면 그 KPI를 1인칭 톤으로 재가공
   const parentReport = reports.find(r => r.kind === 'parent') ?? reports[0];
@@ -27,21 +33,13 @@ export default function MyReportPage() {
         </ul>
       </section>
 
-      {/* 1:1 메시지 — 면담 메모가 있을 때만 */}
-      <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
-        <h3 className="text-pullim-lemon inline-flex items-center gap-1 text-xs font-bold tracking-wider uppercase">
-          <MessageCircle className="h-3 w-3" />
-          선생님이 한 마디
-        </h3>
-        <p className="text-pullim-slate-200 mt-2 text-sm leading-relaxed">
-          서연 학생, 이번 주 모든 과제 끝까지 풀어준 게 정말 보기 좋았어요. 다음 주도 천천히 같이 가요.
-        </p>
-        {/* 선생님이 적은 면담 메모를 그대로 보여 주는 자리다 — 서명도 선생님이어야 한다.
-            봇 이름으로 서명하면 머리말(「선생님이 한 마디」)과 어긋나 봇이 지어낸 말로 읽힌다. */}
-        <div className="text-pullim-slate-400 mt-3 text-2xs font-mono">
-          — 김보람 선생님 · 오늘 18:00
-        </div>
-      </section>
+      {/*
+        「선생님이 한 마디」 카드를 걷었다. 그 자리는 선생님이 적은 면담 메모를 그대로 보여
+        주는 곳인데, 메모를 담아 두는 곳도 읽어 오는 문도 없어 **글도 서명도 지어낸 것**이었다
+        ('서연 학생, …' + '— 김보람 선생님 · 오늘 18:00'). 로그인한 학생을 남의 이름으로 부르고,
+        있지도 않은 선생님이 오늘 18:00 에 글을 남긴 것처럼 읽혔다.
+        정본이 면담 메모를 낼 때 같은 자리에 되살린다 — 그때 쓸 것은 글쓴이·시각이 함께 오는 값이다.
+      */}
 
       {/* 다음 주 도전 */}
       <Link
@@ -72,7 +70,7 @@ export default function MyReportPage() {
       {/* [13 § 3.3.5·9.2] 본인 리포트 — 봇 인사이트 텍스트 유지 + CTA만 "다음 주 도전"(`/classbot/assignment`)으로 분기 */}
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* MAIN: WellbeingGauge + 잘한점/신경쓸점 pair */}
-        <WellbeingGauge studentId={me.id} audience="student-self" />
+        <WellbeingGauge studentId={demoKey} audience="student-self" />
 
         {/* 잘한 점 / 신경 쓸 점 — 색상 유지: blue-50/blue-700, slate-50/slate-700 */}
         <section className="space-y-2">

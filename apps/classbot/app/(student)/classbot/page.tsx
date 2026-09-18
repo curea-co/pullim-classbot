@@ -1,6 +1,6 @@
 'use client';
 
-import { useRosterMe } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 import { useVisibleAssignments } from '@/app/(student)/classbot/assignment/use-assignment-reads';
 import { readRowToAssignment } from '@/lib/assignment-demo';
 import { useLiveStore } from '@/lib/store/live';
@@ -59,7 +59,7 @@ export default function StudentClassbotPage() {
   // hook 1 — 참여(persist) 하이드레이션. 예전엔 학습 모드 스토어가 이 신호를 겸했는데
   // 홈이 더는 모드로 갈리지 않으므로(위 머리주석) 참여 스토어를 직접 본다.
   const hydrated = useStoresHydrated(useClassEnrollmentStore);
-  const me = useRosterMe();                               // hook 2
+  const me = useStudentMe();                              // hook 2
   const activeLive = useLiveStore(s => s.active);         // hook 3
   // hook 4 — 받은 과제. 정본(`GET /classbot/assignments?audience=student`) 하나다 — 종전의 localStorage 병합
   // (`useMergedAssignments`)은 PR 6 에서 걷었다. 서버 술어가 이미 참여 반으로 좁혀 주므로 여기서 반으로 다시 거르지 않는다.
@@ -78,7 +78,10 @@ export default function StudentClassbotPage() {
   // 남의 기록이 그대로 인증된다.
   const streak = useSelfStreak();
   // 가벼운 모드(Light Day) — 저조 신호·상태·hydration (spec §6 홈 배선). todayKey 는 같은 날 안정적.
-  const lowToday = useLowConditionToday(me.id);           // hook 7
+  // 가벼운 모드 저조 판정은 **목 웰빙 기록**을 읽는다 — 키는 roster id 다. 실계정에는 그 행이
+  // 없으므로(`me.demo === null`) 신호가 서지 않는다. 신원 id 를 그대로 넘기면 조회가 미스로
+  // 끝나는 것은 같지만, 「목 조회에 신원 키를 쓴다」는 잘못된 계약이 남는다.
+  const lowToday = useLowConditionToday(me.demo?.id ?? ''); // hook 7
   const lightOn = useLightDayOn(todayKey());              // hook 8
   const { enable: enableLight, disable: disableLight } = useLightDayActions(); // hook 9
   const lightHydrated = useStoresHydrated(useLightDayStore); // hook 10
