@@ -8,12 +8,10 @@ import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
-import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Chip } from '@/components/ui/chip';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClasses } from '@/hooks/api/classroom';
-import { gradingStats } from '@/lib/mock';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import {
@@ -41,7 +39,8 @@ import {
  *
  * 이 화면이 하지 않는 것:
  *  - 과제 하나의 제출 현황 → 과제 상세(`[id]`). 목록 DTO 에 제출 집계가 없어 여기서는 세지 않는다(N+1 을 피한다).
- *  - 채점 → 채점 허브(`/teacher/grading`). 요약 띠에서 길만 열어 둔다.
+ *  - 채점 → 채점 허브(`/teacher/grading`). 요약 띠가 「채점 대기 N건」으로 길을 열어 뒀는데 그 N 이
+ *    목이라 2026-09-18 에 내렸다(아래 요약 띠 주석). 채점 허브로 가는 길은 레일이 연다.
  *  - 고치기·회수 — 정본에 그 문이 없다. 상세가 그 사실을 말한다. 그래서 「회수됨」 칩·빈 상태도 없다.
  *
  * 마감은 지금 기준이다 — 정본 `dDay` 는 낼 때 굳힌 정수라 `dispatchedAt` 로 다시 센다(`assignment-filters.ts`).
@@ -101,12 +100,17 @@ function AssignmentList() {
       {/*
         요약은 **거르기와 무관하게 전체를 센다.** 거르개를 걸 때마다 숫자가 같이 줄면
         「지금 급한 게 몇 건인가」를 물어볼 수가 없다 — 요약의 일이 그것이다.
-        채점 대기만 출처가 다르다(채점 허브의 큐) — 그래서 링크로 두고 라벨로 밝힌다.
+
+        넉 장이었다. 「채점 대기」 한 장이 **혼자 목이었다**(`gradingStats.totalQueue` — 고정 숫자).
+        종전 주석은 그것을 「출처가 다르다(채점 허브의 큐) — 그래서 링크로 두고 라벨로 밝힌다」로
+        적어 뒀는데, 다른 것은 출처가 아니라 **진짜냐 아니냐**였다: 나머지 셋은 정본 목록을 센 값이고
+        그 한 장만 지어낸 값이라, 낸 과제가 0건인 계정에서도 「채점 대기 N건」이 떴다.
+        2026-09-18 에 그 장을 내렸다 — 정본에 채점 큐를 세는 문이 없다. 문이 열리면 같은 자리에
+        같은 모양(링크 카드)으로 되살리면 된다. 채점 허브로 가는 길은 레일이 이미 연다.
       */}
-      <KpiStatBar cols={4}>
+      <KpiStatBar cols={3}>
         <KpiStat label="진행 중" value={`${summary.live}건`} />
         <KpiStat label="마감 임박" value={`${summary.dueSoon}건`} tone={summary.dueSoon > 0 ? 'alert' : 'default'} />
-        <KpiStatLink label="채점 대기" value={`${gradingStats.totalQueue}건`} href="/teacher/grading?view=queue" />
         <KpiStat label="마감" value={`${summary.closed}건`} />
       </KpiStatBar>
 

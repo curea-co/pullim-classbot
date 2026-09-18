@@ -1,132 +1,185 @@
+/**
+ * 교사 홈 — **화면에 서는 값이 전부 진짜인가.**
+ *
+ * 이 파일은 2026-09-18 에 통째로 다시 썼다. 종전 여덟 케이스는 상단 카드 넉 장(`monitoringSummary`)과
+ * 「먼저 볼 학생」 표(`pickAttentionStudents`)를 **목 값에 대고** 단언했고, 그 둘이 이 PR 에서 걷혔다.
+ *
+ * 종전이 지키던 것과 지금 그것을 누가 지키는가:
+ *  - 「앞 세 장을 더하면 학급 전체 — 셋은 서로 배타다」 — 렌더를 안 보는 순수 데이터 불변식이라
+ *    원래 자리는 `lib/mock/__tests__/classbot-monitoring.test.ts` 였다. **거기서 그대로 지킨다**
+ *    (같은 합·같은 배타). 여기서는 겹쳐 세지 않는다.
+ *  - 「줄 배지는 카드와 같은 판정을 쓴다」·「머리글이 화면 순서대로」 외 다섯 — 표가 사라지며 함께 사라진다.
+ *    표는 관제소·리포트 센터가 같은 껍데기(`roster-table.tsx`)로 계속 쓰고, 그 판정은
+ *    `students/__tests__/monitor-roster.test.tsx` 와 `reports/__tests__/report-roster.test.tsx` 가 지킨다.
+ *
+ * 그 자리에 **새로 지키는 것**은 「이 화면이 지어낸 값을 말하지 않는가」다 — 걷어낸 목이 다시 기어들면
+ * 아래 「목이 하나도 남지 않았다」가 빨개진다.
+ */
 import { render, screen, within } from '@testing-library/react';
-import {
-  monitoringSummary, reachBadge, reachBadgeLabels,
-} from '@/lib/mock/classbot-monitoring';
-import { pickAttentionStudents } from '@/lib/mock/classbot-teacher-home';
-import TeacherHomePage from '../page';
+import type { BotCardDto, BotProfileDto } from '@/lib/api/classbot-dto';
+import type { CurrentUser } from '@/lib/current-user';
 
 // 홈의 「낸 과제 N건」 한 줄은 정본 훅(`GET /classbot/assignments?audience=teacher`)을 읽는다(FE PR 6) —
-// 이 파일은 상단 카드·먼저 볼 학생 표만 보므로 빈 목록으로 세운다(0건이면 그 줄은 그려지지 않는다).
+// 이 파일은 머리와 본체만 보므로 빈 목록으로 세운다(0건이면 그 줄은 그려지지 않는다).
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: [], isPending: false, isError: false, error: null }),
 }));
 
-/**
- * 교사 홈 — 상단 카드 넉 장과 「먼저 볼 학생」 줄이 **같은 판정**을 읽는지 본다.
- * 홈은 몇 명만 보여주므로 전체 집계가 카드와 맞는지는 관제소 명단 쪽(monitor-roster.test)에서 못박는다.
- */
+let user: CurrentUser = { id: 'sub-t1', role: 'teacher', name: '보람', isAuthenticated: true };
+jest.mock('@/lib/current-user', () => ({
+  ...jest.requireActual('@/lib/current-user'),
+  useCurrentUser: () => user,
+}));
 
-/** 요약 카드 = 첫 번째 list (「먼저 볼 학생」은 이제 목록이 아니라 표다) */
-function cardBar() {
-  return screen.getAllByRole('list')[0];
+let classes: BotCardDto[] | undefined = [];
+jest.mock('@/hooks/api/classroom', () => ({
+  ...jest.requireActual('@/hooks/api/classroom'),
+  useOperatorClasses: () => ({ data: classes, isPending: false, isError: false, error: null }),
+}));
+
+import TeacherHomePage from '../page';
+
+const PROFILE: BotProfileDto = {
+  subject: '수학', grade: '중2', tone: '친근', greeting: '', scope: 3, avatarEmoji: '🤖',
+  quickPrompts: [], enrolledCount: 12, isLive: false, currentLesson: null,
+};
+function card(id: string, name: string): BotCardDto {
+  return { id, name, description: null, isActive: true, role: 'teacher', profile: PROFILE };
 }
 
-/** 먼저 볼 학생 = 표 하나. 이름으로 집어 요약 카드 줄과 헷갈리지 않게 한다. */
-function attentionTable() {
-  return screen.getByRole('table', { name: '먼저 볼 학생' });
-}
+beforeEach(() => {
+  user = { id: 'sub-t1', role: 'teacher', name: '보람', isAuthenticated: true };
+  classes = [];
+});
 
-/** 학생 줄만 — 줄묶음 둘 중 두 번째(`tbody`)다. 첫 번째는 머리글 줄. */
-function attentionBody() {
-  return within(attentionTable()).getAllByRole('rowgroup')[1];
-}
-
-function attentionRows() {
-  return within(attentionBody()).getAllByRole('row');
-}
-
-describe('교사 홈 상단 카드', () => {
-  it('카드 넉 장 — 도달 · 미도달 · 목표 수준 미달 · 오늘 안 들어옴', () => {
+describe('인사말 — 이름은 세션에서 온다', () => {
+  it('교사 세션의 이름으로 부른다', () => {
+    user = { id: 'sub-t1', role: 'teacher', name: 'psh', isAuthenticated: true };
     render(<TeacherHomePage />);
-    const cards = within(cardBar()).getAllByRole('listitem');
-    expect(cards).toHaveLength(4);
 
-    const { reached, total, notReached, depthShort, offlineToday } = monitoringSummary;
-    expect(within(cardBar()).getByText(`${reached}/${total}명`)).toBeInTheDocument();
-    expect(within(cardBar()).getByText(`${notReached}명`)).toBeInTheDocument();
-    expect(within(cardBar()).getByText(`${depthShort}명`)).toBeInTheDocument();
-    expect(within(cardBar()).getByText(`${offlineToday}명`)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('안녕하세요, psh 선생님');
   });
 
-  it('앞 세 장을 더하면 학급 전체 — 셋은 서로 배타다', () => {
-    const { reached, notReached, depthShort, total } = monitoringSummary;
-    expect(reached + notReached + depthShort).toBe(total);
+  it('admin 도 교사 화면을 쓰므로 이름을 부른다', () => {
+    user = { id: 'sub-a1', role: 'admin', name: '운영', isAuthenticated: true };
+    render(<TeacherHomePage />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('안녕하세요, 운영 선생님');
+  });
+
+  it('세션 복원 전 데모 폴백(학생 「서연」)에는 이름을 붙이지 않는다', () => {
+    // `RoleGuard` 가 `isReady=false` 동안 children 을 그대로 세우는 한 박자. 그때 이름을 그대로 쓰면
+    // 「안녕하세요, 서연 선생님」이 스쳐 지나간다 — 방금 걷어낸 바로 그 모양이다.
+    user = { id: 'student_001', role: 'student', name: '서연', isAuthenticated: false };
+    render(<TeacherHomePage />);
+
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1).toHaveTextContent('안녕하세요');
+    expect(h1.textContent).not.toContain('서연');
+    expect(h1.textContent).not.toContain('선생님');
   });
 });
 
-describe('먼저 볼 학생 한 줄', () => {
-  it('줄마다 링크 하나뿐이고 그 학생의 기록으로 간다', () => {
+describe('머리의 숫자 — 정본 반 목록만 센다', () => {
+  it('정본이 준 반 개수를 그대로 말한다', () => {
+    classes = [card('c1', '중2 수학 A반'), card('c2', '중2 수학 B반')];
     render(<TeacherHomePage />);
-    for (const row of attentionRows()) {
-      const links = within(row).getAllByRole('link');
-      expect(links).toHaveLength(1);
-      // 되돌아갈 곳(from=home)이 붙는다 — 없으면 학생 상세의 뒤로 가기가 관제소로 튄다.
-      expect(links[0].getAttribute('href')).toMatch(/^\/teacher\/students\/m\d+\?from=home$/);
-      expect(within(row).queryAllByRole('button')).toHaveLength(0);
+
+    expect(screen.getByText('내 반 2개')).toBeInTheDocument();
+  });
+
+  it('반이 없으면 0 을 말하지 않고 없다고 말한다', () => {
+    classes = [];
+    render(<TeacherHomePage />);
+
+    expect(screen.getByText('아직 만든 반이 없어요')).toBeInTheDocument();
+    expect(screen.queryByText(/내 반 \d+개/)).not.toBeInTheDocument();
+  });
+
+  it('아직 모르면(복원 중·비로그인·읽기 실패) 그 줄이 아예 없다 — 실패를 0 으로 바꿔 말하지 않는다', () => {
+    classes = undefined;
+    render(<TeacherHomePage />);
+
+    expect(screen.queryByText(/내 반/)).not.toBeInTheDocument();
+    expect(screen.queryByText('아직 만든 반이 없어요')).not.toBeInTheDocument();
+  });
+
+  it('반별 인원을 더해 학생 총원으로 말하지 않는다 — 두 반을 듣는 학생이 두 번 세어진다', () => {
+    classes = [card('c1', 'A반'), card('c2', 'B반')]; // enrolledCount 12 + 12
+    render(<TeacherHomePage />);
+
+    expect(screen.queryByText(/학생 \d+명/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/24/)).not.toBeInTheDocument();
+  });
+});
+
+describe('목이 하나도 남지 않았다', () => {
+  it('지어낸 교사 프로필(이름·소속·활성 봇·학생 수)이 없다', () => {
+    classes = [card('c1', 'A반')];
+    render(<TeacherHomePage />);
+
+    for (const gone of ['김보람', '대치프리미엄 수학학원', '활성 봇 3개', '학생 47명']) {
+      expect(screen.queryByText(new RegExp(gone))).not.toBeInTheDocument();
     }
   });
 
-  it('줄 배지는 카드와 같은 판정(reachBadge)을 쓴다', () => {
+  it('집계할 문이 없는 KPI 넉 장이 없다 — 「0명」으로 세워 두지도 않는다', () => {
     render(<TeacherHomePage />);
-    const rows = attentionRows();
-    const picked = pickAttentionStudents();
-    expect(rows).toHaveLength(picked.length);
 
-    picked.forEach(({ student }, i) => {
-      const row = rows[i];
-      expect(within(row).getByText(student.name)).toBeInTheDocument();
-      expect(within(row).getByText(reachBadgeLabels[reachBadge(student)])).toBeInTheDocument();
-      expect(within(row).getByLabelText(/마지막 접속 /)).toBeInTheDocument();
-    });
+    for (const label of ['도달', '미도달', '목표 수준 미달', '오늘 안 들어옴']) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/\d+명/)).not.toBeInTheDocument();
   });
 
-  it('오늘 안 들어온 학생은 최근 접속 배지가 말한다 — 설명문을 겹쳐 쓰지 않는다', () => {
+  it('없는 학생을 그리던 「먼저 볼 학생」 표가 없다', () => {
     render(<TeacherHomePage />);
-    const offlineBadges = screen.getAllByLabelText(/^오늘 안 들어옴 · /);
-    expect(offlineBadges.length).toBeGreaterThan(0);
 
-    for (const gone of [
-      '오늘 안 들어왔어요',
-      '과제에서 성취기준까지 못 갔어요',
-      '풀긴 했는데 목표한 사고 수준엔 못 닿았어요',
-      '접속부터 확인',
-      '어디서 막혔는지 대화 기록 열기',
-    ]) {
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('처리할 곳이 없는 「나를 기다리는 일」이 없다', () => {
+    render(<TeacherHomePage />);
+
+    expect(screen.queryByText('나를 기다리는 일')).not.toBeInTheDocument();
+    for (const gone of ['서술형 채점 대기', '학부모 리포트 승인', '12건', '5건']) {
       expect(screen.queryByText(gone)).not.toBeInTheDocument();
     }
   });
 });
 
-describe('먼저 볼 학생 표 — 관제소·리포트 센터와 같은 껍데기', () => {
-  it('머리글이 화면 순서대로 있고 눈에서 감춰져 있지 않다', () => {
+describe('본체 — 빈 상태가 사실을 말하고, 나가는 길은 정본을 읽는 화면으로만 난다', () => {
+  it('「먼저 볼 학생」 자리는 남되 고를 수 없다고 말한다', () => {
     render(<TeacherHomePage />);
-    const headers = within(attentionTable()).getAllByRole('columnheader');
 
-    expect(headers.map(h => h.textContent)).toEqual(
-      // 마지막은 꺾쇠 자리 — 값이 아니라 「갈 수 있다」는 표시라 부를 이름이 없다
-      ['이름', '학년', '막힌 곳', '도달', '최근 접속', ''],
-    );
-    // 머리글을 `sr-only` 로 감추면 표가 아니라 그냥 줄 몇 개가 된다
-    for (const h of headers) expect(h.className).not.toContain('sr-only');
+    expect(screen.getByRole('heading', { name: '먼저 볼 학생', level: 2 })).toBeInTheDocument();
+    const empty = screen.getByTestId('empty-state');
+    expect(within(empty).getByText('먼저 볼 학생을 아직 고를 수 없어요')).toBeInTheDocument();
   });
 
-  it('이름과 학년은 서로 다른 칸에 있다 — 한 칸에 겹쳐 있던 것을 뗐다', () => {
+  it('빈 상태의 출구는 하나이고 내 수업방(정본)으로 간다', () => {
     render(<TeacherHomePage />);
 
-    pickAttentionStudents().forEach(({ student }, i) => {
-      const row = attentionRows()[i];
-      const nameCell = within(row).getByRole('rowheader');
-      expect(nameCell).toHaveTextContent(student.name);
-      expect(nameCell.textContent).not.toContain(student.grade);
-      // 학년은 이름 다음 칸 — `th`(이름)는 cell 에 들어오지 않으므로 첫 칸이 학년이다
-      expect(within(row).getAllByRole('cell')[0]).toHaveTextContent(student.grade);
-    });
+    const empty = screen.getByTestId('empty-state');
+    const exits = within(empty).getAllByRole('link');
+    expect(exits).toHaveLength(1);
+    expect(exits[0]).toHaveAttribute('href', '/teacher/classroom');
   });
 
-  it('「막힌 곳」 이름표는 머리글이 맡는다 — 줄마다 되풀이하지 않는다', () => {
+  it('아직 목인 화면(채점·리포트·관제소·학생 상세)으로 가는 길이 홈에 없다', () => {
+    classes = [card('c1', 'A반')];
     render(<TeacherHomePage />);
-    // 머리글에 한 번. 줄에는 개념 이름만 남는다.
-    expect(within(attentionBody()).queryByText(/^막힌 곳/)).not.toBeInTheDocument();
-    expect(screen.queryByText('아직 막힌 곳이 안 보여요')).not.toBeInTheDocument();
+
+    const hrefs = screen.getAllByRole('link').map(a => a.getAttribute('href') ?? '');
+    for (const mockTree of ['/teacher/grading', '/teacher/reports', '/teacher/monitor', '/teacher/students']) {
+      expect(hrefs.some(h => h.startsWith(mockTree))).toBe(false);
+    }
+  });
+
+  it('진짜로 할 수 있는 일 둘(새 클래스봇 · 과제 내기)은 그대로 있다', () => {
+    render(<TeacherHomePage />);
+
+    expect(screen.getByRole('link', { name: '새 클래스봇' })).toHaveAttribute('href', '/teacher/builder');
+    expect(screen.getByRole('link', { name: '과제 내기' })).toHaveAttribute('href', '/teacher/assignment/new');
   });
 });

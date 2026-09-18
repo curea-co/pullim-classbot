@@ -451,46 +451,22 @@ export const upcomingLessons: UpcomingLesson[] = [
   },
 ];
 
-/**
- * 교사 홈 — 처리 대기 항목.
+/*
+ * 교사 홈이 읽던 목 둘(`pendingItems`·`currentTeacher`)은 **2026-09-18 에 걷혔다.**
  *
- * 이 목록의 계약은 **「교사가 지금 처리할 수 있는 일」**이다. 그래서 줄 하나가 서려면
- * **그 일이 끝나는 화면**이 있어야 한다 — 누르면 닿는 곳에서 실제로 처리가 된다.
+ *  - `pendingItems` — 「서술형 채점 대기 12건」·「학부모 리포트 승인 5건」. 이 목록의 계약은
+ *    「교사가 지금 처리할 수 있는 일」이었고, 그래서 줄 하나가 서려면 **그 일이 끝나는 화면**이
+ *    있어야 했다(그 계약 때문에 「루브릭 수정 요청」 줄이 먼저 걷혔다 — 2026-09-16 소유자 지시).
+ *    정본에는 채점 쓰기도 리포트도 문이 아예 없고, 그 두 숫자가 데려가던 화면(`/teacher/grading` ·
+ *    `/teacher/reports`)도 아직 목이다. 계약을 못 지키는 목록이라 통째로 내렸다.
+ *  - `currentTeacher` — 「김보람 · 수학과 전임강사 · 대치프리미엄 수학학원 · 활성 봇 3 · 학생 47」.
+ *    빈 계정으로 로그인해도 이 이름과 이 숫자가 떴다. 이름은 세션(`useCurrentUser()`)이,
+ *    반 개수는 정본(`GET /classbot/bots?role=teacher`)이 대신한다. **소속은 대신할 것이 없다** —
+ *    세션 claim 에도 정본 반 카드에도 소속 칸이 없어 그 자리는 되살리지 않는다.
  *
- * 그 계약 때문에 **「루브릭 수정 요청」(`p3`, `type: 'approval'`)을 걷었다**(2026-09-16 소유자 지시).
- * 그 줄이 가리키던 일이 앱 어디에도 없었다 —
- *  - 누르면 봇 관리 목록(`/teacher/bots`)으로 갔는데 그 화면에는 루브릭도 승인 대기도 없다.
- *  - 루브릭을 고치는 자리는 봇별 설정의 「평가 규칙」 탭인데 **준비 중**이다
- *    (`lib/mock/classbot-bot-policy.ts` 의 `botPolicyTabs`).
- *  - 루브릭이 어긋났다는 신호(재학습 제안)는 채점 쪽에 있고, 그것도 누적 변경률이 임계를
- *    넘어야 뜬다 — 지금 mock 은 `avgOverrideRate` 8 < `rubricLearningThreshold` 20 이라 **떠 있지 않다.**
- *  - 「요청」은 요청한 주체를 전제하는데 그런 주체도 없다.
- *
- * **「평가 규칙」 탭이 실제로 오는 날 되살린다.** 그때는 그 탭으로 바로 보내면 된다.
+ * 되살리지 마라. 같은 값이 다시 필요해지는 날은 정본에 그 문이 열리는 날이고, 그때 올 자리는
+ * 이 파일이 아니라 `hooks/api/*` 다.
  */
-export type PendingItem = {
-  id: string;
-  /** 'approval' 은 걷혔다 — 위 주석 참고. 되살릴 때 union 에 다시 넣는다. */
-  type: 'grading' | 'report';
-  label: string;
-  count: number;
-  href: string;
-};
-
-export const pendingItems: PendingItem[] = [
-  { id: 'p1', type: 'grading',  label: '서술형 채점 대기',  count: 12, href: '#grading' },
-  { id: 'p2', type: 'report',   label: '학부모 리포트 승인', count: 5,  href: '#reports' },
-];
-
-/** 교사 프로필 */
-export const currentTeacher = {
-  name: '김보람',
-  title: '수학과 전임강사',
-  organization: '대치프리미엄 수학학원',
-  yearsOfExperience: 7,
-  activeBots: 3,
-  totalStudents: 47,
-};
 
 /** 교사 뷰 — 클래스 KPI 요약 */
 export const classKpis = {

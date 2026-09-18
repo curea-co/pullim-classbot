@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { Chip } from '@/components/ui/chip';
 import {
-  currentTeacher, scopeMeta, josa,
+  scopeMeta, josa,
 } from '@/lib/mock';
 import {
   getTeacherBotRows, getTeacherBotSummary, runStateLabels, type TeacherBotRow,
@@ -193,7 +193,17 @@ export default function TeacherClassbotPage() {
       <PageHeader
         eyebrow={{ icon: Bot, text: '클래스봇 운영' }}
         title="내 클래스봇"
-        description={`${currentTeacher.name} 선생님 · ${currentTeacher.organization}`}
+        /*
+          여기에 「김보람 선생님 · 대치프리미엄 수학학원」이 있었다 — `lib/mock` 의 `currentTeacher` 다.
+          빈 계정에도 그 이름과 그 학원이 떴다. 2026-09-18 에 그 목을 걷으며 **부제 자체를 내렸다.**
+          이름을 세션(`useCurrentUser()`)으로 갈아 끼우지 않은 까닭은 **이 부제가 이름을 부를 자리가
+          아니어서**다. 이 화면의 제목은 「내 클래스봇」이고 부제가 답할 것은 「어느 봇들인가」인데,
+          거기 선생님 이름과 학원을 적는 것은 화면과 상관없는 명함이었다. 세션 이름이 필요한 자리는
+          이미 둘 다 서 있다 — 인사하는 교사 홈(`app/(teacher)/teacher/page.tsx`)과 셸 프로필 메뉴
+          (`components/shell/app-header.tsx` 의 `ProfileMenu` — 교사면 「<이름> 선생님」. 다만 그것은
+          **메뉴를 열어야** 보이고, 우상단에 늘 서 있는 것은 이름 첫 글자 하나다).
+          소속은 애초에 대신할 것이 없다 — 세션 claim(id·email·role)에도 정본 반 카드에도 소속 칸이 없다.
+        */
         /*
           봇을 새로 만드는 버튼은 이 헤더와 아래 「내 봇」 빈 상태 둘 중 하나만 뜬다 —
           봇이 있으면 이 헤더 CTA, 없으면 빈 상태의 「봇 만들기」.
