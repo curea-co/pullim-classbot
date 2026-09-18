@@ -14,7 +14,9 @@
  *
  * 화면만 바꾸면 서버가 여전히 서연으로 보므로, 이동 **직전에** 개발용 신원 쿠키
  * (`lib/dev-identity.ts`)도 함께 쓴다 — 그래야 `/api/*` 가 그 역할의 데모 사용자로 응답한다.
- * 쿠키 역시 허용 목록 밖 호스트·production 배포에서는 무력이고, allowlist 밖 id 는 쓰지 않는다.
+ * 쿠키를 인정하는 호스트는 로컬 셋뿐이고(배포에는 DB 가 없다 — 그 파일 머리주석),
+ * **이 버튼이 뜨는 호스트도 같은 판정**(`isDevIdentityHost`)이다. 즉 쿠키가 안 써지는 곳에는
+ * 버튼도 서지 않는다. allowlist 밖 id 는 쓰지 않는다.
  *
  * ── 제거 방법 ─────────────────────────────────────────────────────────────
  *  1. components/shell/app-header.tsx 에서 `<DevRoleSwitch role={role} />`
@@ -31,7 +33,7 @@ import {
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  DEV_IDENTITIES, isDevIdentityHost, isRoleSwitchHost, writeDevIdentityCookie,
+  DEV_IDENTITIES, isDevIdentityHost, writeDevIdentityCookie,
   type DevIdentity,
 } from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
@@ -75,20 +77,6 @@ const SWITCHABLE: readonly DevIdentity[] = DEV_IDENTITIES.filter(
   (identity) => targetOf(identity) !== undefined,
 );
 
-/**
- * 이동 직전 신원 쿠키를 쓴다 — **로컬에서만.**
- *
- * 배포에는 DB 가 없어 명의를 세우면 라우트가 500 만 낸다(`lib/dev-identity.ts` 머리주석).
- * 그래서 배포에서 이 버튼은 **화면만** 바꾼다 — 원래 하던 일 그대로다. 학생·교사 화면은
- * mock·localStorage 로 돌아 그대로 보이고, 학부모 화면은 셸과 함께 「로그인이 필요해요」
- * 안내를 보여준다(그게 익명 상태의 정직한 답이다).
- * @param id - allowlist 안의 데모 사용자 id
- */
-function writeIdentityIfLocal(id: string): void {
-  if (!isDevIdentityHost(window.location.host)) return;
-  writeDevIdentityCookie(id);
-}
-
 /** 호스트는 바뀌지 않는다 — 구독할 게 없어 unsubscribe 만 돌려준다. */
 const neverChanges = () => () => {};
 
@@ -97,15 +85,15 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
   // 호스트는 클라이언트에서만 알 수 있다 → 서버 스냅샷은 항상 false 로 두고
   // 하이드레이션 직후 클라이언트 스냅샷으로 갈린다(SSR 마크업 불일치 방지).
   //
-  // 노출은 `isRoleSwitchHost` 가 가른다 — **신원(`isDevIdentityHost`)과 다른 판정이다.**
-  // 화면 전환은 서버를 부르지 않으므로 배포(프리뷰·PR 미리보기)에서도 열고, 쿠키는 로컬에서만
-  // 쓴다(아래 `writeIdentityIfLocal`). 종전에는 여기서
-  // `hostname !== PROD_HOST` 로 따로 비교했는데, 표가 둘이면 갈라진다 — 실제로 서버가
-  // 허용 목록으로 좁혀진 뒤에도 이 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
+  // 노출 판정은 쿠키를 쓰는 판정과 **같은 함수다**(`isDevIdentityHost`) — 아래 onClick 의
+  // `writeDevIdentityCookie` 가 안에서 그것을 다시 본다. 표가 둘이면 갈라진다:
+  // 종전에는 노출 전용 판정(`isRoleSwitchHost`)이 `dev-classbot.pullim.ai` 와 preview 를
+  // 더 열었는데, 그 호스트들에서는 쿠키가 안 써지고(배포에 DB 가 없어 일부러 닫아 뒀다)
+  // 화면 전환도 RoleGuard 가 되돌려서 **버튼만 서고 눌러도 아무 일이 없었다.**
   // `.host` 는 포트를 달고 오지만 그쪽이 떼어 준다.
   const visible = useSyncExternalStore(
     neverChanges,
-    () => isRoleSwitchHost(window.location.host),
+    () => isDevIdentityHost(window.location.host),
     () => false,
   );
   // 지금 어느 데모 계정인지 — 드롭다운 체크 표시에만 쓴다.
@@ -140,7 +128,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
             <a
               key={target.role}
               href={target.href}
-              onClick={() => writeIdentityIfLocal(target.identity.id)}
+              onClick={() => writeDevIdentityCookie(target.identity.id)}
               aria-current={active ? 'true' : undefined}
               title={target.identity.label}
               className={cn(
@@ -194,7 +182,7 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
                   {/* 세그먼트와 같은 이유로 순수 <a> — 쿠키를 쓰고 문서를 새로 받는다 */}
                   <a
                     href={target.href}
-                    onClick={() => writeIdentityIfLocal(identity.id)}
+                    onClick={() => writeDevIdentityCookie(identity.id)}
                     aria-current={active ? 'true' : undefined}
                     className="flex w-full items-center gap-1.5 px-2 py-1.5 text-sm"
                   >

@@ -34,7 +34,7 @@
  * 배포에 DB 가 붙는 날(BE 배선) 이 판단을 다시 본다. 그때 여는 것은 이 목록 한 줄이다.
  *
  * 안전 장치 둘:
- *  1. **호스트 허용 목록 + fail-closed** — 로컬·preview 같이 **아는 이름에서만** 인정하고,
+ *  1. **호스트 허용 목록 + fail-closed** — 로컬처럼 **아는 이름에서만** 인정하고,
  *     production 배포면 어떤 주소로 닿든 무력이다(`isDevIdentityHost`). Host 를 모르면
  *     막는다 — 신원을 세우는 판정이라 「모른다」를 「괜찮다」로 읽지 않는다.
  *  2. **allowlist** — 아래 `DEV_IDENTITIES` 의 5명 밖 id 는 전부 무시한다.
@@ -135,22 +135,7 @@ function deploymentEnv(): string | undefined {
 }
 
 /**
- * 이 호스트에서 개발용 신원을 인정해도 되는가.
- *
- * **모르면 닫는다(fail-closed).** 종전에는 `Host` 를 모를 때 통과였는데, 이 장치에서
- * fail-open 은 그 자체로 사고다 — 신원을 세우는 판정이라 「모른다」는 「괜찮다」가 아니다.
- * 같은 이유로 **배포 환경을 모를 때도 닫는다.** 환경변수가 없을 때 열리는 설계였다면
- * 그 변수가 빠지는 순간 이 파일이 막으려던 구멍이 조용히 되살아난다.
- *
- * `NODE_ENV` 로 가르지 않은 이유는 그대로다 — Vercel 은 preview 빌드도
- * `NODE_ENV='production'` 으로 돌려서, 그 기준이면 정작 이 장치가 필요한 preview 에서
- * 신원이 사라져 전체가 401 이 된다. 대신 **배포 환경**(`deploymentEnv()`)을 본다.
- *
- * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
- * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
- */
-/**
- * 배포가 `production` 인가 — 두 판정이 공유하는 방어선.
+ * 배포가 `production` 인가 — 이름에 기대지 않는 방어선.
  * @returns production 배포면 true
  */
 function isProductionDeploy(): boolean {
@@ -158,35 +143,41 @@ function isProductionDeploy(): boolean {
 }
 
 /**
- * **역할 전환 버튼을 펴도 되는 호스트인가** — 신원과 **다른 판정이다.**
+ * 이 호스트에서 개발용 신원을 인정해도 되는가.
  *
- * 이 버튼이 원래 하던 일은 **화면 전환**이다(`components/shell/dev-role-switch.tsx` 머리주석
- * — 「학생 화면과 교사 화면을 클릭 한 번으로 오가려고 둔 임시 장치」). DB 가 필요한 것은
- * 나중에 얹힌 **쿠키**(명의) 쪽뿐이다. 그래서 둘을 가른다:
+ * **모르면 닫는다(fail-closed).** 종전에는 `Host` 를 모를 때 통과였는데, 이 장치에서
+ * fail-open 은 그 자체로 사고다 — 신원을 세우는 판정이라 「모른다」는 「괜찮다」가 아니다.
+ * 같은 이유로 **배포 환경을 모를 때도 닫는다.** 환경변수가 없을 때 열리는 설계였다면
+ * 그 변수가 빠지는 순간 이 파일이 막으려던 구멍이 조용히 되살아난다.
  *
- * | | 여는 호스트 | 왜 |
- * |---|---|---|
- * | 화면 전환(이 함수) | 로컬 + `dev-classbot.pullim.ai` + preview `*.vercel.app` | 서버를 부르지 않는다 — 데모에서 화면을 오가는 것뿐 |
- * | 명의(`isDevIdentityHost`) | **로컬만** | 서버가 `users` 를 조회하고 배포에는 DB 가 없다 |
+ * `NODE_ENV` 로 가르지 않는 이유 — Vercel 은 preview 빌드도 `NODE_ENV='production'` 으로
+ * 돌려서, 그 이름으로 재면 preview 와 production 이 구분되지 않는다. 대신 **배포 환경**
+ * (`deploymentEnv()`)을 본다.
  *
- * 종전에는 버튼 노출이 `isDevIdentityHost` 를 그대로 썼다. 그래서 신원을 로컬로 좁히자
- * **배포에서 버튼까지 사라졌다** — 화면 전환은 DB 와 무관한데 함께 닫힌 것이다.
+ * ## 역할 전환 칩의 노출도 이 판정 하나를 따른다
  *
- * `*.vercel.app` 은 production 배포도 받는 접미사라 **preview 라고 확인됐을 때만** 연다
- * (모르면 닫는다 — positive 확인). production 배포면 이름이 무엇이든 닫힌다.
- * @param host - `Host` 헤더 또는 `location.host`
- * @returns 버튼을 펴도 되는 호스트면 true
+ * 2026-09-18 까지는 **노출 전용 판정**(`isRoleSwitchHost`)이 따로 있어서, 아래 목록에 더해
+ * `dev-classbot.pullim.ai` 와 preview `*.vercel.app` 을 열었다. 「화면만 바꾸는 일은 서버를
+ * 부르지 않으니 배포에서도 열어도 된다」는 생각이었는데, 정작 배포에서 그 버튼이 할 수 있는
+ * 일이 남아 있지 않았다:
+ *
+ *  - **쿠키가 안 써진다** — 아래 목록이 배포 호스트를 막으므로 `writeDevIdentityCookie` 가
+ *    그대로 되돌아간다. 눌러도 명의가 안 바뀐다.
+ *  - **화면도 안 바뀐다** — PR 8 이 화면 진입 게이트를 OS RoleGuard 로 옮겨, 로그인한 채로
+ *    다른 역할의 홈을 누르면 제 홈으로 되돌려진다.
+ *
+ * 즉 배포에서는 **버튼만 서고 아무 일도 일어나지 않았다.** 그래서 표를 하나로 되돌렸다 —
+ * 칩의 노출과 쿠키 쓰기가 이 함수 하나를 함께 본다
+ * (`components/shell/dev-role-switch.tsx`). 표가 둘이면 갈라지고, 갈라진 쪽이 곧
+ * 「눌러도 아무 일이 없는 버튼」이다.
+ *
+ * ⚠ 노출 쪽에서만 배포 호스트를 다시 여는 것은 그 결함을 되살리는 일이다. 여는 날은 이 파일의
+ * 결정(머리주석 「배포 호스트는 열지 않는다」)이 뒤집히는 날이고, 그때 여는 것은
+ * `DEV_IDENTITY_HOSTNAMES` 한 줄이라 칩도 함께 열린다.
+ *
+ * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
+ * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
  */
-export function isRoleSwitchHost(host: string | null | undefined): boolean {
-  if (isProductionDeploy()) return false;
-  if (!host) return false;
-  const hostname = hostnameOf(host);
-  if (!hostname) return false;
-  if (hostname === 'dev-classbot.pullim.ai') return true;
-  if (hostname.endsWith('.vercel.app')) return deploymentEnv() === 'preview';
-  return DEV_IDENTITY_HOSTNAMES.includes(hostname);
-}
-
 export function isDevIdentityHost(host: string | null | undefined): boolean {
   // 이름에 기대지 않는 방어선 — production 배포면 어떤 주소로 닿든, `Host` 를 무엇으로
   // 위조하든 무력이다.
