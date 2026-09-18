@@ -262,52 +262,14 @@ test.describe('봇 관리 — 봇 목록 → 봇별 설정 (SCR-C-25)', () => {
   });
 });
 
-/**
- * F5·B10 — 교사가 홈에서 **먼저 볼 학생**을 골라 그 학생 하나로 들어간다.
+/*
+ * F5·B10 「교사 홈 「먼저 볼 학생」 → 학생 상세」는 **2026-09-18 에 걷혔다.**
  *
- * ⚠ 이 자리는 **카드 + 모달이 아니다.** 예전에는 위기 학생 카드를 누르면 「〈이름〉 학생책」
- * 모달이 떴고(`components/classbot/crisis-intervention-panel.tsx`), 그 모달 안에
- * 「1:1 채팅 시작」 버튼이 있었다. 교사 관제 재설계(#219)와 「남은 학생 명단 둘도 표로」(#265)가
- * 그 카드를 **표**로 갈았다 — 줄 전체가 학생 상세(`/teacher/students/<id>?from=home`)로 가는
- * 링크이고, 모달은 없다. 그 컴포넌트는 어느 화면에도 마운트되지 않은 채 남아 있다가 **FE PR 5c 가 지웠다** —
- * 안에 있던 「응원 한마디」 폼이 은퇴한 로컬 개입 스토어(`lib/store/interventions.ts`)의 `send()` 위에 서 있었고,
- * `crisis` 개입은 이제 위험 신호에서 **서버가 자동으로 만든다**(`proc/spec/05 § 3`).
+ * 이 검사가 지키던 것은 「홈에서 학생 하나로 들어갈 길이 있고 그 화면이 제 내용을 그리는가」였는데,
+ * 홈의 그 표가 지어낸 학생 다섯(`pickAttentionStudents`)을 그리고 있었다. 고를 근거(대화·막힌 개념·
+ * 도달 기록)를 읽는 문이 정본에 없어 표를 빈 상태로 바꿨고, 그러면서 **홈에서 학생으로 들어가는 길이
+ * 없어졌다.** 없는 길을 지키는 검사를 남겨 두지 않는다.
  *
- * 그래서 **표를 지키는 쪽으로 다시 쓴다.** 학생 이름(`도현`)으로 잡던 것도 걷었다 —
- * 홈이 보여 주는 몇 줄은 `pickAttentionStudents` 가 골라 주는 것이라 **특정 이름이 그 안에
- * 있다는 보장이 없다**(실측: 지금은 권태민·장현우·남유하·배서진·윤시우다). 이 검사가 지키는 것은
- * 「누가 뜨는가」가 아니라 **「홈에서 학생 하나로 들어갈 길이 있고 그 화면이 제 내용을 그리는가」**다.
- *
- * 「1:1 채팅 시작」은 되살리지 않는다 — 그 CTA 는 홈에서 사라졌고, 위기 대응 동선은 명세상
- * 리포트 상세의 위기 신호 패널(`teacher/reports/[id]` — 「1:1 상담 (v2)」 · 「Wee센터 연결 (v2)」)이
- * 맡는다(13 § 5 · 07 § 6.6.2). 그 둘은 **준비 중 자리표시라 disabled** 이므로 「눌러서 들어간다」를
- * 여기서 검증할 수 있는 것이 없다.
+ * 학생 상세(`/teacher/students/[id]`) 자체는 아직 있고 여전히 목이다 — 그 트리를 걷는 것은 별건이다.
+ * 홈에서 그 길이 다시 나는 날은 정본에 그 문이 열리는 날이고, 그때 이 자리에 같은 모양으로 되살린다.
  */
-test.describe('교사 홈 「먼저 볼 학생」 → 학생 상세 (F5, B10)', () => {
-  test('표의 학생 이름을 누르면 그 학생 상세로 가고, 돌아갈 곳이 교사 홈이다', async ({ page }) => {
-    await page.goto(BASE + '/teacher', { waitUntil: 'networkidle' });
-
-    const roster = page.getByRole('table', { name: '먼저 볼 학생' });
-    await expect(roster).toBeVisible();
-
-    // 줄의 이름 링크 하나 — `?from=home` 이 붙어 있어야 상세의 뒤로 가기가 관제소로 튀지 않는다
-    // (`attention-roster.tsx` 의 `href`, `students/[id]/entry-source.ts`).
-    const firstStudent = roster.getByRole('link').first();
-    const href = (await firstStudent.getAttribute('href')) ?? '';
-    expect(href).toMatch(/^\/teacher\/students\/\w+\?from=home$/);
-
-    const name = (await firstStudent.textContent())?.trim() ?? '';
-    expect(name.length).toBeGreaterThan(0);
-
-    await firstStudent.click();
-    await expect(page).toHaveURL(BASE + href);
-
-    // 상세가 세 가지를 답한다 — 누구인가(헤더) · 어디서 막혔나 · 어떤 대화를 했나 (spec 11 § 3.3.3)
-    await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /막힌 지점/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '대화 기록', exact: true })).toBeVisible();
-
-    // 들어온 곳으로 돌아가는 길
-    await expect(page.getByRole('link', { name: /교사 홈/ })).toBeVisible();
-  });
-});

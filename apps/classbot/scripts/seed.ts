@@ -57,13 +57,11 @@ import {
   classBots as mockClassBots,
   classRoster,
   crisisAlerts as mockCrisisAlerts,
-  currentTeacher,
   gradingQueue,
   liveFeed,
   liveSessions as mockLiveSessions,
   myTemplateUploads,
   overriddenSample,
-  pendingItems as _pendingItems,
   currentQuiz,
   quizDrafts,
   quizHistory,
@@ -159,6 +157,23 @@ function officialPublishedAt(index: number): Date {
   return new Date(OFFICIAL_PUBLISHED_AT_BASE.getTime() + (lastIndex - index) * 1000);
 }
 
+/**
+ * 로컬 데모 DB 의 교사 다섯. 화면이 읽는 값이 아니라 **이 시더가 쓰는 자리 데이터**다.
+ *
+ * `teacher_001` 의 프로필(직함·소속·경력·봇 수·학생 수)은 `lib/mock/classbot.ts` 의
+ * `currentTeacher` 에서 가져왔는데, 그 상수는 교사 화면들이 함께 읽는 바람에 **빈 계정에도
+ * 「김보람 · 대치프리미엄 수학학원 · 활성 봇 3개 · 학생 47명」이 뜨게 만들고 있었다.**
+ * 2026-09-18 에 그 상수를 걷으며, 시더가 쓰던 몫만 여기로 내렸다 — 시드 행은 로컬 DB 안에서만
+ * 살고 화면 인사말이 되지 않는다.
+ */
+const DEMO_TEACHER_PROFILE = {
+  title: '수학과 전임강사',
+  organization: '대치프리미엄 수학학원',
+  yearsOfExperience: 7,
+  activeBots: 3,
+  totalStudents: 47,
+} as const;
+
 const TEACHER_NAMES: Record<string, string> = {
   teacher_001: '김보람',
   teacher_002: '박서윤',
@@ -226,15 +241,7 @@ async function main() {
     id,
     name,
     role: 'teacher' as const,
-    profile: id === 'teacher_001'
-      ? {
-          title: currentTeacher.title,
-          organization: currentTeacher.organization,
-          yearsOfExperience: currentTeacher.yearsOfExperience,
-          activeBots: currentTeacher.activeBots,
-          totalStudents: currentTeacher.totalStudents,
-        }
-      : {},
+    profile: id === 'teacher_001' ? { ...DEMO_TEACHER_PROFILE } : {},
   }));
 
   const parentRows = [
@@ -802,8 +809,8 @@ async function main() {
       id: m.id,
       kind: m.kind,
       title: m.title,
-      authorName: currentTeacher.name,
-      authorOrganization: currentTeacher.organization,
+      authorName: TEACHER_NAMES.teacher_001,
+      authorOrganization: DEMO_TEACHER_PROFILE.organization,
       isOfficial: false,
       pricing: 'free' as const,
       subject: '수학',
@@ -826,7 +833,6 @@ async function main() {
    */
 
   // unused but imported — quiet linter for unused vars
-  void _pendingItems;
   void myUploadIds;
 
   console.log('[seed] done ✅');

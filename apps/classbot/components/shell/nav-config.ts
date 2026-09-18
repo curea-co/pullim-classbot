@@ -142,7 +142,13 @@ export const teacherNav: NavGroup[] = [
       // 「나중에 형제 경로가 생기면 소속을 새로 정한다」의 그 자리다 — `/teacher/assignment` 아래에
       // 목록·상세가 생겼으므로, `new` 만 떼어 이 항목에 붙여 두면 같은 트리가 두 레일 항목으로
       // 갈린다. 이제 `/teacher/assignment/*` 전부가 [낸 과제] 소속이다(접두사로 자연히 잡힌다).
-      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링' },
+      // 배지에 `3` 이 박혀 있었다 — 봇을 하나도 안 만든 계정에도 「내 클래스봇 ③」이 떴다.
+      // **걷은 것은 숫자이지 배지가 아니다**(`NavItem.badge` 는 그대로 있고 다른 항목이 쓸 수 있다).
+      // 여기에 진짜 수를 다시 넣으려면 레일이 정본을 읽어야 하는데, 이 파일은 훅을 부를 수 없는
+      // 정적 배열이다 — 셀 값은 `useOperatorClasses()`(`GET /classbot/bots?role=teacher`)에 있고,
+      // 그것을 레일까지 들고 오는 일은 이 PR 의 경계 밖이다(`app-sidebar.tsx` 가 클라이언트이므로
+      // 길은 있다). 그날까지는 **아무 숫자도 말하지 않는 쪽**이 맞는다.
+      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot,             description: '활성 봇 운영 + 라이브 모니터링' },
       // 여기 「봇 빌더」가 있었다. **레일에서는 내렸다** (2026-09-15, 사용자 직접 지시 —
       // `apps/classbot/CLAUDE.md § 5`). 레일은 「어디에 무엇이 사는가」를 적는 자리인데
       // 빌더는 사는 곳이 아니라 **하는 일**이고, 그 일로 가는 길은 앱 안에 **여러 곳**이다 —
