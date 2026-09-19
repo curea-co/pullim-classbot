@@ -32,14 +32,17 @@ import { toOperatorClass, type OperatorClass } from './operator-class';
  * 것이다. 목록이 다시 그려지면 그 반의 카드도 같은 코드로 선다(`useClassDetail` → `JoinCodeBlock.initial`).
  *
  * 카드의 봇 칩은 **반 상세 문이 준 `ClassDto`** 로 그린다(`useClassDetail` · `known-bot-chip.tsx` — 모른다 · 없다 ·
- * 이 봇). 옛 `profile`(bot == class)로 「봇 없음」을 단정하지 않는다 — 그 문에는 `classes.bot_id` 가 실리지 않아
- * `POST /classes` 로 만든 반이 봇을 붙인 뒤에도 늘 「봇 없음」이 된다. 계획 PR 5d 전에는 이 자리가 **이 세션이
- * 만들거나 고친 반만 아는** 캐시라 새로고침하면 칩이 다시 비었다 — 이제 묻는다(pullim-api #672).
+ * 이 봇). 계획 PR 5d 전에는 이 자리가 **이 세션이 만들거나 고친 반만 아는** 캐시라 새로고침하면 칩이 다시
+ * 비었다 — 이제 묻는다(pullim-api #672).
  *
- * 그래서 카드마다 반 상세를 한 번씩 읽는다(목록 한 번 + 반 N 번). 목록 문이 `classes.bot_id` 를 싣게 되는 날
- * 이 N 번은 없어진다 — 그전까지는 **칩이 틀린 말을 하는 것보다 요청이 느는 쪽**을 고른다. 붙이고 떼는 자리는
- * 반 상세 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) · 봇 마켓 공유 칸
- * (`/teacher/marketplace` 「내 봇 공유」 · 결정 ①).
+ * 그래서 카드마다 반 상세를 한 번씩 읽는다(목록 한 번 + 반 N 번).
+ * *(`[2026-09-19 정정]` 종전에는 「목록 문에는 `classes.bot_id` 가 실리지 않아 `POST /classes` 로 만든 반이
+ * 봇을 붙인 뒤에도 늘 「봇 없음」이 된다 · 목록 문이 그것을 싣게 되는 날 이 N 번은 없어진다」고 적었다.
+ * **그날이 왔다** — pullim-api #679 가 카드에 `botId` 를 싣고, 봇 이름(`name`)과 아바타(`profile.avatarEmoji`)
+ * 까지 함께 준다. 그래서 **이 N 번은 이제 없앨 수 있다 — 별건이다.** 칩 셋(모른다·없다·이 봇)을 카드 한 장에서
+ * 짓는 모양으로 다시 잡는 일이라 이 PR 의 범위 밖이다.)*
+ * 붙이고 떼는 자리는 반 상세 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) ·
+ * 봇 마켓 공유 칸(`/teacher/marketplace` 「내 봇 공유」 · 결정 ①).
  */
 export function ClassroomWorkspace() {
   const query = useOperatorClasses();

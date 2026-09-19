@@ -26,8 +26,11 @@ export type StudentBotSource = 'class' | 'self';
  *
  * 서버가 대화를 반 단위로 저장·인가하므로(`POST/GET /classbot/classes/:classId/chat`) 챗이 고르는
  * 것은 봇이 아니라 반이다. 한 봇이 두 반에 걸려 있으면 칸도 둘이다 — 기록이 다르고 보는 선생님이
- * 다르다. `classId` 가 그 반의 pullim-api id 이고 `bot.id` 는 지금(bot == class · ADR-063) 같은 값이지만
- * **같다고 기대하지 마라** — `bots` 표(pullim-api PR 1)가 오면 갈리는 칸이 이것이다.
+ * 다르다. `classId` 가 그 반의 pullim-api id 이고 `bot.id` 는 지금도 같은 값이지만
+ * **같다고 기대하지 마라** — 카드의 탐색 키가 아직 반이라(ADR-092 open ①) `toSlot` 이 그 값을 양쪽에
+ * 넣고 있을 뿐이다. 진짜 봇 id 는 이미 카드에 따로 온다(`BotCardDto.botId` · pullim-api #679).
+ * *(`[2026-09-19 정정]` 종전에는 「`bots` 표가 오면 갈린다」고 적었다. 그 표는 왔는데 이 칸은 안 갈렸다 —
+ * 갈린 것은 **이름**(`name` ↔ `className`)이 먼저다.)*
  */
 export interface ClassBotSlot {
   source: 'class';
@@ -63,9 +66,16 @@ export function studentBotSlotKey(slot: StudentBotSlot): string {
 }
 
 /**
- * 반 칸의 표시 이름 — 「<반 이름> · <봇 이름>」. 지금은 bot == class 라 두 이름이 같아 **한 번만** 적는다
- * (「고2 미적분 A반 · 고2 미적분 A반」을 학생에게 보이지 않는다). `bots` 표가 오면 둘이 갈리고 이 함수는
- * 그때 그대로 둘을 잇는다.
+ * 반 칸의 표시 이름 — 「<반 이름> · <봇 이름>」.
+ *
+ * **그 「그때」가 왔다.** 종전 이 주석은 「지금은 bot == class 라 두 이름이 같아 한 번만 적는다 ·
+ * `bots` 표가 오면 둘이 갈린다」로 앞날을 예고하고 있었는데, pullim-api #679 가 카드의 `name` 을
+ * 봇 이름으로 옮기고 반 이름을 `className` 으로 따로 내면서 실제로 갈렸다 — 「중1 수학 QA반 ·
+ * QA 수학 선생님」처럼 두 마디로 선다.
+ *
+ * 그래도 같으면 한 번만 적는 가지는 **남긴다.** 둘은 여전히 같아질 수 있다 —
+ * 봇을 안 붙인 반은 서버가 `name` 을 반 이름으로 떨어뜨리고(#679), 교사가 봇에 반과 같은 이름을
+ * 지을 수도 있다. 그때 「고2 미적분 A반 · 고2 미적분 A반」을 학생에게 보이지 않는다.
  * @param slot - 반 칸
  * @returns 선택기 칩·헤더에 쓰는 이름
  */

@@ -22,7 +22,7 @@ import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClasses } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import type { ApiError } from '@pullim-classbot/api-client';
-import type { AssignmentSummaryDto, BotDto } from '@/lib/api/classbot-dto';
+import { classNameOf, type AssignmentSummaryDto, type BotDto } from '@/lib/api/classbot-dto';
 import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
 import {
   isDueSoon, modeOf, remainingOf, toTeacherClass, type TeacherClass,
@@ -849,7 +849,11 @@ function CreatedBanner() {
   // 반 이름은 **정본 목록**에서 찾는다. 종전의 `classroomLabel` 은 목 학급 표라(`builder-types.ts`)
   // 정본 반 id 를 모르고 **그 id 를 그대로 돌려준다** — 교사가 uuid 를 읽게 된다.
   const names = rooms
-    .map((id) => classes.data?.find((room) => room.id === id)?.name)
+    .map((id) => {
+      const room = classes.data?.find((r) => r.id === id);
+      // `room.name` 은 이제 봇 이름이다(pullim-api #679) — 여기서 부를 것은 **반** 이름이다.
+      return room ? classNameOf(room) : undefined;
+    })
     .filter((name): name is string => Boolean(name));
 
   if (!created) return null;

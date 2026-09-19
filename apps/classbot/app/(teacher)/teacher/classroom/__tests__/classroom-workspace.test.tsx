@@ -14,8 +14,22 @@ import type { BotCardDto, ClassDto, JoinCodeDto } from '@/lib/api/classbot-dto';
 import type { CreatedClassroom } from '../create-classroom-form';
 import { ClassroomWorkspace } from '../classroom-workspace';
 
-function card(id: string, name: string, profile: BotCardDto['profile']): BotCardDto {
-  return { id, name, description: null, isActive: true, role: 'teacher', profile };
+/**
+ * 정본 카드 한 장(pullim-api #679 이후) — 두 번째 인자가 **반 이름**(`className`)이고 봇 이름은
+ * 「…의 봇」으로 **다른 글자**가 된다. 둘에 같은 글자를 넣으면 카드 제목이 어느 칸을 읽든 통과해
+ * 「목록 제목은 반 이름이다」가 하중을 안 받는다.
+ */
+function card(id: string, className: string, profile: BotCardDto['profile']): BotCardDto {
+  return {
+    id,
+    botId: `bot_${id}`,
+    name: `${className}의 봇`,
+    className,
+    description: null,
+    isActive: true,
+    role: 'teacher',
+    profile,
+  };
 }
 
 const PROFILE: NonNullable<BotCardDto['profile']> = {
@@ -115,6 +129,8 @@ describe('반 카드 — 정본 카드 한 장이 반 하나', () => {
 
     const a = screen.getByTestId('classroom-card-cls_1');
     expect(a).toHaveTextContent('고2 미적분 A반');
+    // 카드 제목은 **반** 이름이다 — `card.name`(봇 이름)을 쓰면 여기가 「…의 봇」이 된다(#679).
+    expect(a).not.toHaveTextContent('고2 미적분 A반의 봇');
     expect(a).toHaveTextContent('수학Ⅱ');
     expect(a).toHaveTextContent('고2');
     expect(screen.queryByTestId('classroom-bot-cls_1')).toBeNull();

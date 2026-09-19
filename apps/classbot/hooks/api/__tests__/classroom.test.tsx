@@ -29,7 +29,7 @@ jest.mock('@/lib/auth/os-sso', () => ({
 }));
 
 import { API_BASE } from '@/lib/auth/os-sso';
-import type { BotCardDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
+import type { BotCardDto, BotDetailDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
 import {
   classroomKeys,
   joinFailureMessage,
@@ -64,6 +64,15 @@ let teacherStatus: number;
 let teacherBots: BotCardDto[];
 /** 교사 — 반 하나(`GET /bots/:id`) 응답 코드. */
 let detailStatus: number;
+/**
+ * 반 하나(`GET /bots/:id`) 응답 본문.
+ *
+ * 기본은 **pullim-api #679 이후 모양**이다 — `name` 이 봇 이름(「문학 도우미」)이고 반 이름은
+ * `className`(「고2 미적분 A반」)으로 따로 온다. **두 칸에 다른 글자를 넣는 것이 요점이다**:
+ * 같은 글자를 넣으면 참여 토스트가 어느 칸을 읽든 통과해서, 「학생이 넣은 것은 반 코드다」가
+ * 하중을 하나도 안 받는다. `className` 이 없던 옛 응답은 각 테스트가 따로 세운다.
+ */
+let detail: BotDetailDto;
 /** 교사 — 코드 발급 응답 코드. */
 let issueStatus: number;
 /** 교사 — 반 만들기 응답 코드. */
@@ -119,9 +128,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   }
   if (url === `${BASE}/bots/cls_1` && method === 'GET') {
     if (detailStatus >= 400) return Promise.resolve(res(detailStatus, { statusCode: detailStatus, message: 'nope' }));
-    return Promise.resolve(
-      res(200, { id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, operatorId: 't1', profile: null }),
-    );
+    return Promise.resolve(res(200, detail));
   }
   if (url === `${BASE}/bots?role=student` && method === 'GET') {
     if (botsStatus >= 400) return Promise.resolve(res(botsStatus, { statusCode: botsStatus, message: 'nope' }));
@@ -184,6 +191,16 @@ beforeEach(() => {
   teacherStatus = 200;
   teacherBots = [{ id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null }];
   detailStatus = 200;
+  detail = {
+    id: 'cls_1',
+    botId: 'bot_1',
+    name: '문학 도우미',
+    className: '고2 미적분 A반',
+    description: null,
+    isActive: true,
+    operatorId: 't1',
+    profile: null,
+  };
   issueStatus = 201;
   createStatus = 201;
   membersStatus = 200;
@@ -223,9 +240,36 @@ describe('useJoinByCode — POST /classbot/enrollments', () => {
 
     expect(joined).toEqual({
       enrollment: { membershipId: 'mem_1', classId: 'cls_1', memberId: 'sub-1', enrolledAt: '2026-09-16T00:00:00.000Z' },
+      // 상세의 `name`(「문학 도우미」)이 아니라 `className` 이다 — 학생이 넣은 것은 **반** 참여 코드다.
       className: '고2 미적분 A반',
       alreadyJoined: false,
     });
+  });
+
+  it('토스트가 부르는 이름은 봇이 아니라 반이다 — 상세의 `className` 을 읽는다', async () => {
+    detail = { ...detail, name: 'QA 수학 선생님', className: '중1 수학 QA반' };
+    const { result } = renderHook(() => useJoinByCode(), { wrapper: Wrapper });
+
+    let joined: { className: string | null } | undefined;
+    await act(async () => {
+      joined = await result.current.mutateAsync({ code: 'AB3K9M' });
+    });
+
+    expect(joined?.className).toBe('중1 수학 QA반');
+    expect(joined?.className).not.toBe('QA 수학 선생님');
+  });
+
+  it('`className` 이 없는 옛 응답은 `name` 으로 떨어진다 — 이름 없는 토스트로 물러나지 않는다', async () => {
+    // #679 이전 모양. 그 시절 `name` 이 곧 반 이름이었다.
+    detail = { id: 'cls_1', name: '중2 수학 A반', description: null, isActive: true, operatorId: 't1', profile: null };
+    const { result } = renderHook(() => useJoinByCode(), { wrapper: Wrapper });
+
+    let joined: { className: string | null } | undefined;
+    await act(async () => {
+      joined = await result.current.mutateAsync({ code: 'AB3K9M' });
+    });
+
+    expect(joined?.className).toBe('중2 수학 A반');
   });
 
   it('200 이면 이미 멤버(멱등) — alreadyJoined:true, 오류가 아니다', async () => {
@@ -396,7 +440,9 @@ describe('useOperatorClasses — GET /classbot/bots?role=teacher', () => {
 describe('useOperatorClass — GET /classbot/bots/:id', () => {
   it('반 하나를 읽는다 — 상세 머리가 목록 없이 선다', async () => {
     const { result } = renderHook(() => useOperatorClass('cls_1'), { wrapper: Wrapper });
-    await waitFor(() => expect(result.current.data?.name).toBe('고2 미적분 A반'));
+    // 이 훅은 응답을 그대로 흘린다 — `name` 은 봇 이름, 반 이름은 `className` 이다(#679).
+    await waitFor(() => expect(result.current.data?.name).toBe('문학 도우미'));
+    expect(result.current.data?.className).toBe('고2 미적분 A반');
     expect(calls.filter((c) => c.url === `${BASE}/bots/cls_1`)).toHaveLength(1);
   });
 

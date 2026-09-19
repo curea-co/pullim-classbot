@@ -32,15 +32,18 @@ export interface RoomNames {
  * 반 이름 — 「내가 어느 반에 들어가 있나」를 이름 그대로 말한다.
  *
  * 종전에는 학원·학교로 묶어 「○○학원 3반」처럼 적었다. **그 축이 정본에 없다** — 홈이 읽는
- * `GET /classbot/bots?role=student` 한 행(`BotCardDto`)은 `id` · `name`(반 이름) · `description` ·
- * `isActive` · `role` · `profile` 뿐이고 소속 칸이 없다. 그래서 실제로 로그인한 학생의 반은 하나도
+ * `GET /classbot/bots?role=student` 한 행(`BotCardDto`)은 `id` · `botId` · `name`(봇 이름) ·
+ * `className`(반 이름) · `description` · `isActive` · `role` · `profile` 뿐이고 소속 칸이 없다
+ * (이름이 두 칸으로 갈린 것은 pullim-api #679 · `my-rooms.ts` 의 `classNameOf`). 그래서 실제로 로그인한 학생의 반은 하나도
  * 빠짐없이 「그 밖의 수업방」이라는 한 묶음으로 떨어졌고, 학생은 이 카드에서 자기 반을 알아볼 수
  * 없었다. 묶음이 하나뿐이면 묶은 것이 아니고, 그 묶음 이름이 「그 밖」이면 아무 말도 아니다.
  *
- * 그래서 묶기를 그만두고 **반 이름을 그대로 늘어놓는다.** 반 이름은 정본이 `name` 으로 늘 주니
+ * 그래서 묶기를 그만두고 **반 이름을 그대로 늘어놓는다.** 반 이름은 정본이 `className` 으로 늘 주니
  * 시드 봇이 아닌 실제 반에서도 비지 않는다. 읽는 칸을 `bot.name` 이 아니라 `classroomLabel` 로
- * 잡은 이유: 「내 수업방」·「내 정보」가 같은 칸을 부른다(`app/(student)/classbot/classroom/page.tsx` ·
- * `me/page.tsx`). 같은 반을 두 화면이 다르게 부르면 안 된다.
+ * 잡은 이유는 둘이다. 하나는 「내 수업방」·「내 정보」가 같은 칸을 부른다는 것
+ * (`app/(student)/classbot/classroom/page.tsx` · `me/page.tsx`) — 같은 반을 두 화면이 다르게 부르면 안 된다.
+ * 다른 하나는 **`bot.name` 이 이제 봇 이름이라는 것**(pullim-api #679) — 거기서 읽으면 이 줄이
+ * 「QA 수학 선생님 · 문학 도우미」처럼 봇 이름만 늘어놓는 줄이 된다.
  *
  * **소속 축을 되살릴 자리는 여기다.** 길은 둘이고, 어느 쪽이든 카드 응답이 먼저 넓어져야 한다 —
  * 교사 표시명·소속을 얹는 `members` 조인, 또는 `classes.org_id`(`auth.organizations` ID-참조)를

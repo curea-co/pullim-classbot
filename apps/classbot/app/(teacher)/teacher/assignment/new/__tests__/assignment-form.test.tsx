@@ -10,15 +10,26 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentForm, toLocalDatetimeInput } from '../assignment-form';
 import type { BotCardDto, DispatchAssignmentBody } from '@/lib/api/classbot-dto';
 
-/** 정본 반 카드 — 프로필이 있는 반(과목·학년·인원)과 없는 반. */
+/**
+ * 정본 반 카드(pullim-api #679 이후) — 봇이 붙은 반과 안 붙은 반.
+ *
+ * **`name`(봇 이름)과 `className`(반 이름)에 다른 글자를 넣는다.** 둘에 같은 글자를 넣으면 반 고르기
+ * 드롭다운이 어느 칸을 읽든 통과해서, 이 파일이 잠그려는 「교사가 어느 반에 내는지 알 수 있다」가
+ * 하중을 하나도 안 받는다. 봇이 안 붙은 반(`botId: null` · `profile: null`)은 서버가 `name` 도 반 이름으로
+ * 떨어뜨리므로 둘이 같은 것이 정상이다.
+ */
 const CLASS_A: BotCardDto = {
-  id: 'cls_a', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher',
+  id: 'cls_a', botId: 'bot_math', name: '수학 도우미', className: '고2 미적분 A반',
+  description: null, isActive: true, role: 'teacher',
   profile: {
     subject: '수학Ⅱ', grade: '고2', tone: '친근', greeting: '', scope: 3, avatarEmoji: '🤖',
     quickPrompts: [], enrolledCount: 12, isLive: false, currentLesson: null,
   },
 };
-const CLASS_B: BotCardDto = { id: 'cls_b', name: '중3 국어 B반', description: null, isActive: true, role: 'teacher', profile: null };
+const CLASS_B: BotCardDto = {
+  id: 'cls_b', botId: null, name: '중3 국어 B반', className: '중3 국어 B반',
+  description: null, isActive: true, role: 'teacher', profile: null,
+};
 
 const mutateAsync = jest.fn();
 const push = jest.fn();
@@ -233,6 +244,54 @@ it('서버가 거절하면 이동하지 않고 그 문구를 보여 준다', asy
 });
 
 /* ── 반 고르기 ───────────────────────────────────────────────────────────── */
+
+/** 드롭다운 선택지의 글자 — 반 이름 + 과목·학년 + 인원이 한 줄에 붙는다. */
+const optionTexts = () =>
+  Array.from((screen.getByTestId('class-select') as HTMLSelectElement).options).map(
+    (o) => o.textContent ?? '',
+  );
+
+/*
+  드롭다운은 **어느 반에 과제를 내는지 고르는 자리**다. 여기서 두 반을 구분 못 하면 그건 표시 회귀가
+  아니라 **오배포**다 — 아래 두 검사가 그것을 잠근다.
+*/
+it('선택지는 반 이름으로 선다 — 봇 이름이 그 자리를 덮지 않는다', () => {
+  render(<AssignmentForm />);
+
+  expect(optionTexts()[0]).toContain('고2 미적분 A반');
+  // 봇 이름(`card.name`)은 선택지에 한 글자도 오지 않는다.
+  expect(optionTexts().join('|')).not.toContain('수학 도우미');
+});
+
+it('같은 봇을 건 두 반도 서로 다른 선택지다 — 과목·학년까지 같아 이름 말고는 갈릴 것이 없다', () => {
+  // ADR-092 로 한 봇이 여러 반을 섬긴다. 그 두 반은 `name`·`profile` 이 **같은 `bots` 행**에서 온다.
+  const shared = CLASS_A.profile;
+  queries.classes = {
+    data: [
+      { ...CLASS_A, id: 'cls_1', className: '중2 수학 A반', profile: shared },
+      { ...CLASS_A, id: 'cls_2', className: '중2 수학 B반', profile: shared },
+    ],
+    isPending: false, isSuccess: true, isError: false, error: null,
+  };
+  render(<AssignmentForm />);
+
+  const [first, second] = optionTexts();
+  expect(first).toContain('중2 수학 A반');
+  expect(second).toContain('중2 수학 B반');
+  // 붙는 과목·학년·인원이 똑같으므로, 이름이 갈리지 않으면 두 줄이 **완전히 같은 글자**가 된다.
+  expect(first).not.toBe(second);
+});
+
+it('`className` 이 없는 옛 응답(#679 배포 전)은 `name` 으로 떨어진다 — 지금과 같게 동작한다', () => {
+  // 폴백이 있어서 이 FE 를 BE 보다 먼저 머지해도 된다(`classNameOf` 머리주석).
+  queries.classes = {
+    data: [{ id: 'cls_a', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null }],
+    isPending: false, isSuccess: true, isError: false, error: null,
+  };
+  render(<AssignmentForm />);
+
+  expect(optionTexts()[0]).toContain('고2 미적분 A반');
+});
 
 it('?classId 로 들어오면 그 반이 골라져 있다 — 반 상세에서 진입한 그 반', () => {
   render(<AssignmentForm initialClassId="cls_b" />);

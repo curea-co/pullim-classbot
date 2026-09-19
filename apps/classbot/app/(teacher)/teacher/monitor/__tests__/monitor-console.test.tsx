@@ -8,9 +8,14 @@ import { ApiError } from '@pullim-classbot/api-client';
 import type { BotCardDto, ClassMemberDto, ClassSignalsDto } from '@/lib/api/classbot-dto';
 import { MonitorConsole } from '../monitor-console';
 
+/**
+ * 내 반 둘 — **같은 봇(`bot_calc`)이 걸려 있다.** ADR-092 로 한 봇이 여러 반을 섬기므로 카드의
+ * `name`(봇 이름)은 둘이 똑같고, 갈리는 것은 `className`(반 이름)뿐이다(pullim-api #679).
+ * 반 고르기 칩이 그 이름을 읽어야 교사가 어느 반을 보고 있는지 안다.
+ */
 const CLASSES: BotCardDto[] = [
-  { id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null },
-  { id: 'cls_2', name: '고2 미적분 B반', description: null, isActive: true, role: 'teacher', profile: null },
+  { id: 'cls_1', botId: 'bot_calc', name: '미적분 도우미', className: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null },
+  { id: 'cls_2', botId: 'bot_calc', name: '미적분 도우미', className: '고2 미적분 B반', description: null, isActive: true, role: 'teacher', profile: null },
 ];
 const MEMBERS: Record<string, ClassMemberDto[]> = {
   cls_1: [
@@ -63,6 +68,16 @@ function rows() {
 }
 
 describe('MonitorConsole', () => {
+  it('반 고르기 칩은 반 이름으로 선다 — 같은 봇을 건 두 반이 같은 칩이 되지 않는다', () => {
+    render(<MonitorConsole initialClassId={null} />);
+
+    const picker = within(screen.getByTestId('monitor-class-picker'));
+    const labels = picker.getAllByRole('button').map((b) => b.textContent);
+    expect(labels).toEqual(['고2 미적분 A반', '고2 미적분 B반']);
+    // 봇 이름(`card.name`)을 읽으면 둘 다 「미적분 도우미」가 돼 고를 수 없다(#679).
+    expect(labels).not.toContain('미적분 도우미');
+  });
+
   it('첫 반이 골라지고, 요약 넉 칸과 표가 같은 수를 말한다 — 미확인 많은 학생이 위', () => {
     render(<MonitorConsole initialClassId={null} />);
 
