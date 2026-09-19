@@ -110,6 +110,11 @@ describe('MathText', () => {
     expect(container.querySelector('.katex')).toBeNull();
     // 원문 그대로 — 빈 칸이나 에러 문구가 아니다.
     expect(container.textContent).toBe(String.raw`앞 \frac 뒤`);
+    // KaTeX 가 스스로 그리는 빨간 에러 표시(`.katex-error` + `color:#cc0000` + 에러 메시지
+    // title)가 아니라 **우리 폴백**이어야 한다. renderError 를 빼면 여기가 걸린다.
+    const errored = container.querySelector('.katex-error');
+    expect(errored).toBeNull();
+    expect(container.querySelector('[title]')).toBeNull();
   });
 
   it('깨진 수식 하나가 같은 글의 멀쩡한 수식을 끌고 내려가지 않는다', () => {
@@ -146,7 +151,8 @@ describe('MathFormula', () => {
   });
 
   it('못 그리는 식이면 원문을 그대로 보여준다', () => {
-    render(<MathFormula latex={String.raw`\frac`} />);
+    const { container } = render(<MathFormula latex={String.raw`\frac`} />);
     expect(screen.getByText(String.raw`\frac`)).toBeInTheDocument();
+    expect(container.querySelector('.katex-error')).toBeNull();
   });
 });

@@ -153,6 +153,8 @@ describe('RichText 렌더', () => {
     expect(container.textContent).toContain('앞말');
     expect(container.textContent).toContain('뒷말');
     expect(container.textContent).toContain(String.raw`\frac`);
+    // KaTeX 의 빨간 에러 표시가 아니라 우리 원문 폴백이어야 한다.
+    expect(container.querySelector('.katex-error')).toBeNull();
   });
 
   it('수식 없는 본문은 KaTeX 를 부르지 않는다', () => {

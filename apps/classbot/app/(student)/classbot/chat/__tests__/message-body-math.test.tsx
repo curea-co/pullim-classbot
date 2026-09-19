@@ -141,5 +141,7 @@ describe('MessageBody — 카드 본문의 수식', () => {
     });
     expect(c.textContent).toContain('제목');
     expect(c.textContent).toContain(String.raw`\frac`);
+    // KaTeX 의 빨간 에러 표시가 아니라 우리 원문 폴백이어야 한다.
+    expect(c.querySelector('.katex-error')).toBeNull();
   });
 });
