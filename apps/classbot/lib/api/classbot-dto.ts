@@ -11,8 +11,11 @@
  * `GET /classbot/bots` 는 `BotCardDto[]`. 같은 오리진 `/api/*` 의 `{ assignments: [...] }` 봉투와 다르다.
  *
  * **봇은 이제 두 뜻이다(ADR-092 · pullim-api PR 1·2, 2026-09-17 `origin/dev`)** — 이 파일이 둘을 갈라 적는다.
- *  - `GET /classbot/bots?role=`·`GET /classbot/bots/:id` 는 **아직 bot == class(ADR-063)** 다 — `id` 가 반 id 고
- *    `profile` 은 옛 `class_bot_profiles` 다(api.md § 3.5 「뜻 개정은 후속 PR」). `BotCardDto`·`BotDetailDto` 가 그것.
+ *  - `GET /classbot/bots?role=`·`GET /classbot/bots/:id` 의 **탐색 키는 아직 반이다**(ADR-063 잔재 · ADR-092 open ①) —
+ *    `id` 가 `classes.id` 고 404/403 도 그대로다. 바뀐 것은 **그 안을 어느 표에서 읽느냐**다(pullim-api #679):
+ *    `name` 이 **봇 이름**(`bots.name`)이고 반 이름은 **`className`** 으로 따로 오며, `profile` 의 페르소나 칸도
+ *    `bots` 에서 온다. 붙은 봇이 없는 반은 `botId`·`profile` 이 null 이고 `name` 이 반 이름으로 떨어진다.
+ *    `BotCardDto`·`BotDetailDto` 가 그것.
  *  - `GET /classbot/me/bots`·`POST/PATCH /classbot/bots`·`PUT /classbot/classes/:classId/bot` 은 **1급 `bots` 표**를
  *    읽고 만지고 `BotDto` 로 답한다. 반이 어느 봇을 가리키는지(`classes.bot_id`)는 `ClassDto.bot` 으로 오고,
  *    그 `ClassDto` 를 주는 문은 이제 셋이다 — 반 생성(`POST /classes`) · 봇 할당(`PUT …/bot`) · **읽기
@@ -64,28 +67,51 @@ export interface AssignmentDetailDto extends AssignmentSummaryDto {
   questions: AssignmentQuestionDto[];
 }
 
-/** `BotProfileView` — `class_bot_profiles` 1:1. 카드·상세의 `profile` 칸(생성 전 null). */
+/**
+ * `BotProfileView` — 카드·상세의 `profile` 칸. **입력원이 갈려 있다**(pullim-api #679 · ADR-092):
+ * 페르소나 일곱 칸(과목·학년·말투·인사말·scope·아바타·quickPrompts)은 그 반에 붙은 봇(`classes.bot_id` → `bots`)에서,
+ * 마지막 세 칸(`enrolledCount`·`isLive`·`currentLesson`)은 **반의 상태**라 아직 `class_bot_profiles` 에서 온다.
+ *
+ * **`null` 인 조건이 바뀌었다** — 종전 「profile 행이 없다」에서 **「붙은 봇이 없다」**로. 그래서 봇이 붙은 반은
+ * 이제 profile 이 실린다(`class_bot_profiles` 행이 없어도). 옛 profile 행으로 페르소나를 되살리지는 않는다 —
+ * 그 값은 이행 스냅샷이라 교사가 그 뒤 봇을 고쳤으면 틀렸다.
+ *
+ * 페르소나 텍스트 칸이 **`null` 로 올 수 있다** — `bots` 가 null 을 허용하고 `PATCH /bots/:id` 의 `null` 이
+ * 「비움」이라 그게 그대로 보인다. 읽는 쪽은 `??` 로 접는다(`my-rooms.ts` 의 `toSlot`).
+ */
 export interface BotProfileDto {
-  subject: string;
-  grade: string;
+  subject: string | null;
+  grade: string | null;
   /** 서버는 string — 화면 union(정중·친근·스파르타·차분·열정)으로는 어댑터가 좁힌다. */
-  tone: string;
-  greeting: string;
+  tone: string | null;
+  greeting: string | null;
+  /** ScopeLevel 1~5(`bots.scope` · 서버 기본 3). 봇이 붙어 있으면 이 값이 그 봇의 등급이다. */
   scope: number;
-  avatarEmoji: string;
+  avatarEmoji: string | null;
   /** 서버는 문장만 준다 — 화면의 `ClassbotQuickPrompt`(text + expectedReplyKey)와 모양이 다르다. */
   quickPrompts: string[];
+  /** 반의 상태(`class_bot_profiles.enrolled_count`) — 행이 없으면 0. */
   enrolledCount: number;
+  /** 반의 상태(`class_bot_profiles.is_live`) — 행이 없으면 false. */
   isLive: boolean;
+  /** 반의 상태(`class_bot_profiles.current_lesson`) — 행이 없으면 null. */
   currentLesson: Record<string, unknown> | null;
 }
 
 /** `BotCardResponseDto` — `GET /classbot/bots?role=` 한 행. */
 export interface BotCardDto {
-  /** bot(=class) id. */
+  /** 반 id(`classes.id`) — 탐색 키. 대화·과제·멤버십이 전부 이 값으로 걸린다. */
   id: string;
-  /** 반 이름. */
+  /**
+   * 그 반에 붙은 봇 id(`classes.bot_id`) — 미배정이면 null. **`id` 와 다른 세계의 값이다.**
+   * 없으면 아래 `name` 이 반 이름 폴백이라는 뜻이기도 하다.
+   * `className` 이 없던 옛 응답과 새 응답을 가르는 데 쓸 수 있다.
+   */
+  botId?: string | null;
+  /** **봇 이름**(`bots.name`) — 봇 미배정 반은 반 이름으로 떨어진다. 옛 응답(#679 이전)에서는 반 이름이었다. */
   name: string;
+  /** 반 이름(`classes.name`). **pullim-api #679 가 낸 칸이라 그 전 응답에는 없다** — 읽는 쪽이 폴백을 진다. */
+  className?: string;
   description: string | null;
   isActive: boolean;
   /** 요청자 관점 — operator 면 teacher, member 면 student. */
@@ -95,13 +121,56 @@ export interface BotCardDto {
 
 /** `BotDetailResponseDto` — `GET /classbot/bots/:id`. 커리큘럼·설정 칸은 이 앱이 아직 읽지 않아 적지 않았다. */
 export interface BotDetailDto {
+  /** 반 id(`classes.id`) — 탐색 키. */
   id: string;
+  /** 그 반에 붙은 봇 id(`classes.bot_id`) — 미배정이면 null. #679 가 낸 칸(그 전 응답에는 없다). */
+  botId?: string | null;
+  /** **봇 이름**(`bots.name`) — 봇 미배정 반은 반 이름 폴백. */
   name: string;
+  /** 반 이름(`classes.name`) — #679 가 낸 칸(그 전 응답에는 없다). */
+  className?: string;
   description: string | null;
   isActive: boolean;
   /** 운영자(교사) sub — 표시명은 없다(계획 §10 해소 5 · pullim-api PR 2 members 조인). */
   operatorId: string;
   profile: BotProfileDto | null;
+}
+
+/**
+ * 이 카드(또는 상세)가 말하는 **반 이름** — 화면에서 반을 부를 때는 **반드시 이 함수를 거친다.**
+ *
+ * pullim-api #679 부터 `name` 은 **봇 이름**이고 반 이름은 `className` 으로 따로 온다. 그 전 응답에는
+ * `className` 이 없고 `name` 이 곧 반 이름이었다.
+ *
+ * ## `?? card.name` 은 방어 코드가 아니라 **머지 순서를 여는 장치**다 — 걷지 마라
+ *
+ * 이 폴백이 있어서 **FE 를 #679 보다 먼저 머지해도 된다.** 그 편이 오히려 안전하다:
+ * BE 배포는 pre-deploy 게이트 + ECR + ECS 로 30분이 넘고 FE(Vercel)는 몇 분이라, BE 를 먼저 올리면
+ * **그 30분 동안 교사 과제 배포 드롭다운이 봇 이름으로 서 있다**(아래 ⚠ — 오배포 위험). 반대로 FE 가 먼저면
+ * 위험 창이 **아예 없다**:
+ *  - **#679 배포 전** — `className` 이 없으니 `name` 으로 떨어진다 = **지금과 한 글자도 다르지 않은 동작.**
+ *  - **#679 배포 후** — `className` 이 실리면서 저절로 맞아진다. 이 함수 밖은 손대지 않는다.
+ *
+ * ⚠ **그 사이에는 봇 이름 자리와 반 이름 자리가 여전히 같은 값**이다(지금 상태 그대로다).
+ * 그건 이 PR 이 못 고치는 것이 아니라 **고칠 것이 아직 서버에 없는 것**이고, #679 가 해소한다.
+ *
+ * **걷을 조건**: #679 가 **prod 까지** 가서 모든 응답이 `className` 을 싣게 되면 이 폴백은 죽은 코드다.
+ * 그때 `BotCardDto.className`·`BotDetailDto.className` 을 `?` 없는 필수 칸으로 좁히고 이 함수를
+ * `card.className` 한 줄로 줄인다(타입이 남은 호출부를 전부 짚어 준다).
+ *
+ * **빈 값으로 떨어뜨리지 않는 이유**: 반 이름이 서는 자리는 제목·이름표·선택지다 —
+ * 학생 「내 수업방」 카드 제목과 나가기·과제 링크의 aria-label, 홈 「참여 중인 클래스」 줄, 「내 정보」 줄,
+ * 교사 「내 수업방」 목록 제목과 반 상세 제목, **과제 배포 반 고르기 드롭다운**, 관제소 반 고르기,
+ * 봇 빌더의 「붙일 반」 칩. 비우면 제목이 사라지고 고를 수 없는 빈 선택지가 된다.
+ *
+ * ⚠ **`name` 을 반 이름으로 읽지 마라.** ADR-092 로 **한 봇이 여러 반을 섬긴다** — 같은 봇을 건 두 반은
+ * `name` 도 `profile`(과목·학년)도 **같은 `bots` 행**에서 와 완전히 같아진다. 과제 배포 드롭다운에서
+ * 그건 표시 회귀가 아니라 **오배포 위험**이다.
+ * @param card - `GET /classbot/bots?role=` 한 행 또는 `GET /classbot/bots/:id`
+ * @returns 화면이 반을 부를 이름
+ */
+export function classNameOf(card: Pick<BotCardDto, 'name' | 'className'>): string {
+  return card.className ?? card.name;
 }
 
 /**

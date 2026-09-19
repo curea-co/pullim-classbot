@@ -10,8 +10,12 @@
  * 몇으로 바뀌든 통과해 버려서, 정작 잠그려던 「아바타와 이름 줄이 같은 수를 말한다」를 못 잡는다.
  */
 import { roomNames, teacherNames } from '../joined-classes-data';
-import type { RoomSlot } from '../my-rooms';
+import { toSlot, type RoomSlot } from '../my-rooms';
+import type { BotCardDto } from '@/lib/api/classbot-dto';
 import type { ClassBot } from '@/lib/mock/classbot';
+
+// `toSlot` 을 부르려고 한 줄만 막는다 — 이 파일이 재는 것은 훅이 아니라 **카드 → 홈 줄** 사슬이다.
+jest.mock('@/hooks/api/classroom', () => ({ useMyClassrooms: () => ({ isPending: true }) }));
 
 /**
  * 반 한 칸 — 이 두 함수가 읽는 칸만 채운다.
@@ -35,6 +39,47 @@ function room(name: string, teacherName = ''): RoomSlot {
     source: 'api',
   };
 }
+
+/**
+ * 정본 카드 한 장(pullim-api #679 이후) — **`name` 은 봇 이름이고 반 이름은 `className`** 이다.
+ * 위 `room()` 은 슬롯을 손으로 세우지만 이건 실제 응답 모양에서 `toSlot` 을 거쳐 온다.
+ */
+function apiCard(className: string, botName: string): BotCardDto {
+  return {
+    id: className,
+    botId: `bot_${className}`,
+    name: botName,
+    className,
+    description: null,
+    isActive: true,
+    role: 'student',
+    profile: null,
+  };
+}
+
+describe('roomNames — 정본 카드에서 온 방', () => {
+  /*
+    위 `room()` 이 잠그는 것은 **이 파일이 어느 칸을 읽는가**다. 여기서 잠그는 것은 그 앞 —
+    **`toSlot` 이 그 칸에 무엇을 넣는가**다. 둘을 갈라 두는 이유: 카드의 `name` 을 반 이름 자리에
+    그대로 넣던 시절에도 위 검사들은 전부 통과했다(슬롯을 손으로 세우니까). 그래서 #679 가
+    `name` 의 뜻을 바꿔도 여기서만 빨개진다.
+  */
+  it('홈 줄은 반 이름으로 선다 — 봇 이름이 그 자리를 덮지 않는다', () => {
+    const { line, shown } = roomNames([
+      toSlot(apiCard('중1 수학 QA반', 'QA 수학 선생님')),
+      toSlot(apiCard('고2 국어', '문학 도우미')),
+    ]);
+
+    expect(line).toBe('중1 수학 QA반 · 고2 국어');
+    // 봇 이름은 이 줄에 한 글자도 오지 않는다.
+    expect(line).not.toContain('선생님');
+    expect(line).not.toContain('도우미');
+    // 아바타가 그릴 반도 같은 칸을 말한다.
+    expect(shown.map((r) => r.enrollment.classroomLabel)).toEqual(['중1 수학 QA반', '고2 국어']);
+    // 그리고 봇 이름은 **잃지 않았다** — 다른 칸에 그대로 서 있다.
+    expect(shown.map((r) => r.bot.name)).toEqual(['QA 수학 선생님', '문학 도우미']);
+  });
+});
 
 describe('roomNames — 반 이름을 그대로 말한다', () => {
   it('반이 하나면 그 반 이름만 선다 — 묶음 제목이 끼어들지 않는다', () => {

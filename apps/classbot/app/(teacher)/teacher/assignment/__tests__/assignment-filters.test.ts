@@ -53,18 +53,41 @@ const CLASSES = new Map<string, TeacherClass>([
 ]);
 
 describe('toTeacherClass — 정본 반 카드(useOperatorClasses)에서 과제 축이 읽는 칸만', () => {
+  /** `name`(봇 이름)과 `className`(반 이름)에 **다른 글자** — 같으면 어느 칸을 읽든 통과한다(#679). */
   const withProfile: BotCardDto = {
-    id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher',
+    id: 'cls_1', botId: 'bot_math', name: '미적분 도우미', className: '고2 미적분 A반',
+    description: null, isActive: true, role: 'teacher',
     profile: {
       subject: '수학Ⅱ', grade: '고2', tone: '친근', greeting: '', scope: 3, avatarEmoji: '🤖',
       quickPrompts: [], enrolledCount: 12, isLive: false, currentLesson: null,
     },
   };
-  const withoutProfile: BotCardDto = { id: 'cls_2', name: '중3 국어 B반', description: null, isActive: false, role: 'teacher', profile: null };
+  const withoutProfile: BotCardDto = {
+    id: 'cls_2', botId: null, name: '중3 국어 B반', className: '중3 국어 B반',
+    description: null, isActive: false, role: 'teacher', profile: null,
+  };
 
   it('프로필이 있으면 과목·학년·인원을 그대로, 없으면 빈 문자열·null', () => {
     expect(toTeacherClass(withProfile)).toEqual({ id: 'cls_1', name: '고2 미적분 A반', subject: '수학Ⅱ', grade: '고2', enrolledCount: 12, isActive: true });
     expect(toTeacherClass(withoutProfile)).toEqual({ id: 'cls_2', name: '중3 국어 B반', subject: '', grade: '', enrolledCount: null, isActive: false });
+  });
+
+  it('`name` 칸은 반 이름이다 — 이 칸이 과제 배포 드롭다운의 선택지 라벨이다', () => {
+    expect(toTeacherClass(withProfile).name).toBe('고2 미적분 A반');
+    expect(toTeacherClass(withProfile).name).not.toBe('미적분 도우미');
+  });
+
+  it('같은 봇을 건 두 반은 과목·학년까지 같다 — 갈리는 것은 반 이름뿐이다(오배포 방지)', () => {
+    const a = toTeacherClass({ ...withProfile, id: 'cls_a', className: '중2 수학 A반' });
+    const b = toTeacherClass({ ...withProfile, id: 'cls_b', className: '중2 수학 B반' });
+    expect(a.subject).toBe(b.subject);
+    expect(a.grade).toBe(b.grade);
+    expect(a.name).not.toBe(b.name);
+  });
+
+  it('`className` 이 없는 옛 응답(#679 배포 전)은 `name` 으로 떨어진다 — 선택지가 비지 않는다', () => {
+    const legacy: BotCardDto = { id: 'cls_9', name: '고1 통합과학', description: null, isActive: true, role: 'teacher', profile: null };
+    expect(toTeacherClass(legacy).name).toBe('고1 통합과학');
   });
 });
 

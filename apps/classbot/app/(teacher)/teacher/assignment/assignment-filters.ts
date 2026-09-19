@@ -1,4 +1,4 @@
-import type { AssignmentSummaryDto, BotCardDto } from '@/lib/api/classbot-dto';
+import { classNameOf, type AssignmentSummaryDto, type BotCardDto } from '@/lib/api/classbot-dto';
 import { remainingDDay } from '@/lib/assignment-due';
 import { dDayLabel } from '@/lib/assignment-labels';
 import type { AssignmentMode } from '@/lib/mock';
@@ -24,10 +24,17 @@ import type { AssignmentMode } from '@/lib/mock';
 
 /**
  * 과제 축이 읽는 반 한 칸 — 정본 반 카드(`useOperatorClasses` · `GET /classbot/bots?role=teacher`, #351)에서
- * 필요한 것만. bot == class(ADR-063)라 카드 `id` 가 곧 반 id 이며, 과제 내기 경로의 `:classId` 와 과제 행의 `classId` 가 이 값이다.
+ * 필요한 것만. 카드 탐색 키가 아직 반이라 `id` 가 곧 반 id 이며, 과제 내기 경로의 `:classId` 와 과제 행의 `classId` 가 이 값이다.
  */
 export interface TeacherClass {
   id: string;
+  /**
+   * **반** 이름(카드의 `className`) — 봇 이름이 아니다.
+   *
+   * ⚠ 이 칸이 과제 배포 드롭다운의 선택지 라벨이다(`new/assignment-form.tsx`). 봇 이름을 넣으면
+   * **같은 봇을 건 두 반이 완전히 같은 선택지**가 된다 — 함께 붙는 과목·학년도 같은 `bots` 행에서 와서
+   * 그것으로도 안 갈린다. 표시 회귀가 아니라 **오배포 위험**이다(`classNameOf` 머리주석).
+   */
   name: string;
   /** 프로필이 없으면 빈 문자열 — 채우는 쪽(과제 내기)이 폴백을 정한다. */
   subject: string;
@@ -38,13 +45,14 @@ export interface TeacherClass {
 }
 
 /**
- * `BotCardDto` → `TeacherClass`. 프로필(`class_bot_profiles`)이 아직 없는 반은 과목·학년이 비고 인원을 모른다.
+ * `BotCardDto` → `TeacherClass`. 붙은 봇이 없는 반은 `profile` 이 null 이라 과목·학년이 비고 인원을 모른다.
  * @param card - `useOperatorClasses` 한 장
  */
 export function toTeacherClass(card: BotCardDto): TeacherClass {
   return {
     id: card.id,
-    name: card.name,
+    // **`card.name` 이 아니다** — 위 `name` 주석의 오배포 위험이 이 한 줄에 달려 있다.
+    name: classNameOf(card),
     subject: card.profile?.subject ?? '',
     grade: card.profile?.grade ?? '',
     enrolledCount: card.profile?.enrolledCount ?? null,

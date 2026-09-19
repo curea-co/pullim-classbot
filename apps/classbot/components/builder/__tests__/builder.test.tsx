@@ -26,7 +26,7 @@ import {
 import { botSignature } from '@/lib/tokens/bot-signature';
 import { teacherBotOps } from '@/lib/mock/classbot-teacher-ops';
 import { teacherClassrooms } from '@/lib/mock/classbot-classrooms';
-import type { BotCardDto, BotDto, CreateBotBody } from '@/lib/api/classbot-dto';
+import { classNameOf, type BotCardDto, type BotDto, type CreateBotBody } from '@/lib/api/classbot-dto';
 
 /**
  * `botSignature` 는 **불렀는지**를 보려고 감싼다 — 값은 진짜를 그대로 돌려준다.
@@ -54,10 +54,16 @@ const CREATED: BotDto = {
   scope: 3, avatarEmoji: null, quickPrompts: [], isPublished: false, publishedAt: null, classIds: [],
   createdAt: '', updatedAt: '',
 };
-/** 내가 운영하는 반 — 만든 뒤 화면의 칩이 여기서 나온다(`GET /bots?role=teacher` 한 행 = 반 하나). */
-const CLASSES: BotCardDto[] = [
-  { id: 'cls_1', name: '중1 과학 A반', description: null, isActive: true, role: 'teacher', profile: null },
-  { id: 'cls_2', name: '중1 과학 B반', description: null, isActive: true, role: 'teacher', profile: null },
+/**
+ * 내가 운영하는 반 — 만든 뒤 화면의 칩이 여기서 나온다(`GET /bots?role=teacher` 한 행 = 반 하나).
+ *
+ * **둘 다 같은 봇(`bot_sci`)을 걸고 있다.** ADR-092 로 한 봇이 여러 반을 섬기므로 카드의 `name`(봇 이름)은
+ * 둘이 똑같고 갈리는 것은 `className`(반 이름)뿐이다(pullim-api #679) — 칩이 봇 이름을 읽으면 교사가
+ * 두 반을 구분할 수 없다. `className` 을 필수로 좁혀 두어 아래 조회가 그 칸을 쓰게 한다.
+ */
+const CLASSES: (BotCardDto & { className: string })[] = [
+  { id: 'cls_1', botId: 'bot_sci', name: '과학 도우미', className: '중1 과학 A반', description: null, isActive: true, role: 'teacher', profile: null },
+  { id: 'cls_2', botId: 'bot_sci', name: '과학 도우미', className: '중1 과학 B반', description: null, isActive: true, role: 'teacher', profile: null },
 ];
 const createMutate = jest.fn(
   (body: CreateBotBody, handlers?: { onSuccess: (bot: BotDto) => void }) => {
@@ -771,7 +777,7 @@ describe('만든 뒤 화면', () => {
     fireEvent.click(screen.getByRole('button', { name: '채운 그대로 봇 생성하기' }));
     expect(screen.getByTestId('summary-row-classes')).toHaveTextContent('아직 안 넣음');
 
-    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].name }));
+    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].className }));
 
     // 반 쪽 문이다 — 봇에 반 목록을 통째로 주는 문은 없다
     expect(assignMutate).toHaveBeenLastCalledWith(
@@ -779,11 +785,11 @@ describe('만든 뒤 화면', () => {
       expect.anything(),
     );
     // 줄에는 id 가 아니라 반 이름이 실린다 — 교사에게 uuid 를 보여주지 않는다
-    expect(screen.getByTestId('summary-row-classes')).toHaveTextContent(CLASSES[0].name);
+    expect(screen.getByTestId('summary-row-classes')).toHaveTextContent(CLASSES[0].className);
     expect(marks('classes').beside).toContain('(선택)');
 
     // 다시 누르면 뗀다 — 그 반이 봇을 잃는 것이지 이 봇이 지워지는 것이 아니다
-    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].name }));
+    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].className }));
     expect(assignMutate).toHaveBeenLastCalledWith(
       { classId: 'cls_1', botId: null },
       expect.anything(),
@@ -812,8 +818,8 @@ describe('만든 뒤 화면', () => {
     expect(link()).toHaveAttribute('href', `/teacher/classbot?created=${encodeURIComponent('과학봇')}&rooms=`);
 
     // 반을 고르면 반 id 가 실려 간다 — 이름이 아니라 id 라야 다음 화면이 이어 붙일 수 있다
-    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].name }));
-    fireEvent.click(screen.getByRole('button', { name: CLASSES[1].name }));
+    fireEvent.click(screen.getByRole('button', { name: CLASSES[0].className }));
+    fireEvent.click(screen.getByRole('button', { name: CLASSES[1].className }));
     const href = link().getAttribute('href') ?? '';
     const q = new URLSearchParams(href.split('?')[1]);
 
@@ -851,7 +857,8 @@ describe('만든 뒤 화면', () => {
         <DoneView
           draft={draft}
           created={CREATED_BOT}
-          classes={rooms.map((r) => ({ id: r.id, name: r.name }))}
+          // 페이지와 **같은 칸**을 읽는다 — 칩 라벨은 반 이름이다(`classNameOf` · #679).
+          classes={rooms.map((r) => ({ id: r.id, name: classNameOf(r) }))}
           classesPending={false}
           classesFailed={false}
           onPick={() => {}}

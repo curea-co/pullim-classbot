@@ -14,8 +14,14 @@ import type { AssignmentSummaryDto, BotDetailDto, ClassDto, JoinCodeDto } from '
 import { ClassDetail } from '../class-detail';
 import type { ClassTabId } from '../class-tabs';
 
+/**
+ * 반 상세 한 장(pullim-api #679 이후) — `name` 은 **봇 이름**이고 반 이름은 `className` 이다.
+ * **두 칸에 다른 글자를 넣는 것이 요점이다**: 같은 글자면 화면 제목이 어느 칸을 읽든 통과해서
+ * 「상세 제목은 반 이름이다」가 하중을 안 받는다.
+ */
 const DETAIL: BotDetailDto = {
-  id: 'cls_1', name: '고2 미적분 A반', description: null, isActive: true, operatorId: 't1',
+  id: 'cls_1', botId: 'bot_1', name: '미적분 도우미', className: '고2 미적분 A반',
+  description: null, isActive: true, operatorId: 't1',
   profile: {
     subject: '수학Ⅱ', grade: '고2', tone: '친근', greeting: '', scope: 3, avatarEmoji: '📐',
     quickPrompts: [], enrolledCount: 3, isLive: false, currentLesson: null,
@@ -89,7 +95,9 @@ describe('머리', () => {
   it('반 이름 · 과목·학년 · 참여 코드 상자가 선다 — 봇을 모르면 봇 칩은 없다(「봇 없음」이라 하지 않는다)', () => {
     detailAt();
 
+    // 제목은 **반** 이름이다 — 상세의 `name`(「미적분 도우미」)은 봇 이름이다(#679).
     expect(screen.getByRole('heading', { level: 1, name: '고2 미적분 A반' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: '미적분 도우미' })).toBeNull();
     const facts = screen.getByTestId('class-facts');
     expect(facts).toHaveTextContent('수학Ⅱ');
     expect(facts).toHaveTextContent('고2');

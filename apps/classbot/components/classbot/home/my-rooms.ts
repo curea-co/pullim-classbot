@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 
 import { useMyClassrooms } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
-import type { BotCardDto } from '@/lib/api/classbot-dto';
+import { classNameOf, type BotCardDto } from '@/lib/api/classbot-dto';
 import { isScopeLevel } from '@/lib/mock';
 import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/classbot';
 
@@ -34,17 +34,26 @@ function withHonorific(teacherName: string): string {
 
 const TONES = ['정중', '친근', '스파르타', '차분', '열정'] as const satisfies readonly ClassBot['tone'][];
 
-/** 서버가 string 으로 준 말투를 화면 union 으로 — 목록에 없으면 undefined(폴백은 호출부). */
-function toneOf(raw: string | undefined): ClassBot['tone'] | undefined {
+/**
+ * 서버가 string 으로 준 말투를 화면 union 으로 — 목록에 없으면 undefined(폴백은 호출부).
+ * `null` 도 받는다 — `bots` 의 말투 칸은 비울 수 있고(`PATCH /bots/:id` 의 null), 그게 그대로 실린다.
+ */
+function toneOf(raw: string | null | undefined): ClassBot['tone'] | undefined {
   return TONES.find((t) => t === raw);
 }
 
 /**
  * 서버가 준 봇 카드 한 장을 화면이 쓰는 슬롯으로 옮긴다.
  *
- * bot == class(ADR-063)라 카드 `id` 가 반 id 이자 봇 id 다. **서버가 명시적으로 주는 칸은 서버 값이
- * 이긴다** — 반 이름·과목·학년·아바타·말투·인사·범위·라이브·인원(`profile`). 그건 봇의 성격이 아니라
- * 이 학생이 들어간 **그 반의 사실**이라서다. 카탈로그(`classBots`, 시드 `cb_001`…)에서 가져오는 것은
+ * 카드 `id` 는 **반 id** 다 — 탐색 키가 아직 반이라(ADR-092 open ①) 대화·과제·멤버십이 전부 이 값으로
+ * 걸린다. `bot.id` 에도 같은 값을 넣는 것은 그 때문이고, 진짜 봇 id(`card.botId`)로 갈아 끼우는 일은
+ * 겹치는 자리가 여럿이라(담은 봇과의 중복 판정 · 카탈로그 조회 키) **별건**이다.
+ *
+ * **서버가 명시적으로 주는 칸은 서버 값이 이긴다** — 반 이름·봇 이름·과목·학년·아바타·말투·인사·범위·
+ * 라이브·인원(`profile`). 그건 봇의 성격이 아니라 이 학생이 들어간 **그 반의 사실**이라서다.
+ * 그중 **이름은 두 칸이다**(pullim-api #679): `name` 이 봇 이름, `className` 이 반 이름 —
+ * 한 값을 두 자리에 쓰면 반 이름이 화면에서 사라진다(`lib/api/classbot-dto.ts` 의 `classNameOf` 머리주석).
+ * 카탈로그(`classBots`, 시드 `cb_001`…)에서 가져오는 것은
  * 서버에 없는 대화용 보조 필드뿐이다 — `quickPrompts`(서버는 문장만 주고 화면은 응답키가 필요하다) ·
  * `currentLesson`(서버 모양이 다르다) · 그리고 아직 응답에 없는 **선생님 이름·소속**.
  *
@@ -68,6 +77,9 @@ export function toSlot(card: BotCardDto): RoomSlot {
   const profile = card.profile;
   const teacherName = seeded?.teacherName ?? '';
   const organization = seeded?.organization ?? '';
+  // `profile` 이 실리는 조건이 「profile 행이 있다」에서 **「붙은 봇이 있다」**로 바뀌었다(#679).
+  // 그래서 봇이 붙은 반은 이제 그 봇의 등급(`bots.scope`)이 여기로 들어온다 — 아래 `?? 3` 은
+  // **봇이 아예 안 붙은 반**의 자리다(그런 반은 대화 상대가 없으니 등급을 물을 데도 없다).
   const profileScope = profile && isScopeLevel(profile.scope) ? profile.scope : undefined;
 
   const bot: ClassBot = {
@@ -92,7 +104,9 @@ export function toSlot(card: BotCardDto): RoomSlot {
     enrollment: {
       botId: card.id,
       classroomId: card.id,
-      classroomLabel: card.name,
+      // **`card.name` 이 아니다.** #679 뒤로 그건 봇 이름이라, 여기에 쓰면 봇 이름이 반 이름 자리
+      // 넷(내 수업방 제목·나가기·과제 링크·내 정보 줄)과 홈 「참여 중인 클래스」 줄까지 덮는다.
+      classroomLabel: classNameOf(card),
       assignedBy: teacherName ? withHonorific(teacherName) : '선생님',
       assignedAt: '',
       via: organization,

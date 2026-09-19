@@ -18,7 +18,7 @@ import { BotAttachError, useCreateBotForClass, useMyBot, useMyBots, useUpdateBot
 import { useAssignClassBot, useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { botFailureMessage } from '@/lib/bot-failure-message';
-import type { BotDto, ClassBotSummaryDto, CreateBotBody, UpdateBotBody } from '@/lib/api/classbot-dto';
+import { classNameOf, type BotDto, type ClassBotSummaryDto, type CreateBotBody, type UpdateBotBody } from '@/lib/api/classbot-dto';
 import { GRADES } from '@/lib/grades';
 import { josa, scopeMeta, type ScopeLevel } from '@/lib/mock';
 
@@ -308,8 +308,12 @@ function SwapBotForm({
   const assign = useAssignClassBot();
   const [picked, setPicked] = useState<string | null>(null);
 
-  /** 반 id → 반 이름. 목록을 아직 못 읽었으면 비어 있고, 그때는 id 대신 개수만 말한다. */
-  const classNames = new Map((classes.data ?? []).map((room) => [room.id, room.name] as const));
+  /**
+   * 반 id → **반** 이름. 목록을 아직 못 읽었으면 비어 있고, 그때는 id 대신 개수만 말한다.
+   * 카드의 `name` 은 이제 봇 이름이라(pullim-api #679) 그걸 쓰면 「이 봇이 이미 붙은 반」 줄이
+   * 봇 이름만 늘어놓는다 — 같은 봇이 걸린 반들이라 전부 같은 글자가 된다.
+   */
+  const classNames = new Map((classes.data ?? []).map((room) => [room.id, classNameOf(room)] as const));
 
   /*
     지금 붙은 봇을 빼는 잣대가 **둘**이다.

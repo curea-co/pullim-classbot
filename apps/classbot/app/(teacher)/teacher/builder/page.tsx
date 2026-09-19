@@ -18,7 +18,7 @@ import {
 import { botFailureMessage } from '@/lib/bot-failure-message';
 import { useCreateBot } from '@/hooks/api/bot';
 import { useOperatorClasses } from '@/hooks/api/classroom';
-import type { BotDto } from '@/lib/api/classbot-dto';
+import { classNameOf, type BotDto } from '@/lib/api/classbot-dto';
 
 /**
  * 봇 빌더 — 한 길 · 세 마당.
@@ -56,12 +56,15 @@ export default function BotBuilderPage() {
 
   const create = useCreateBot();
   /*
-    만든 뒤 화면에서 반에 붙일 때 고를 목록 — **한 행이 반 하나**다(`GET /bots?role=teacher` · 이 문은 아직
-    bot == class 라 `name` 이 반 이름이다). 마당에 있는 동안에도 미리 읽는다: 봇이 만들어지는 순간 칩이 서 있어야
+    만든 뒤 화면에서 반에 붙일 때 고를 목록 — **한 행이 반 하나**다(`GET /bots?role=teacher` · 탐색 키가 아직
+    반이라 `id` 가 반 id 다). 마당에 있는 동안에도 미리 읽는다: 봇이 만들어지는 순간 칩이 서 있어야
     「만들었는데 붙일 반이 없는」 한 박자가 안 생긴다. 목록 하나라 값싸고, 반을 안 고르고 나가도 손해가 없다.
+
+    칩 라벨은 **반** 이름(`classNameOf`)이다 — 카드의 `name` 은 이제 봇 이름이라(pullim-api #679) 그걸 쓰면
+    지금 만든 봇을 어느 반에 붙이는지 고를 수 없다. 같은 봇을 이미 건 두 반이 같은 칩이 되기 때문이다.
   */
   const classesQuery = useOperatorClasses();
-  const classChoices: ClassChoice[] = (classesQuery.data ?? []).map((c) => ({ id: c.id, name: c.name }));
+  const classChoices: ClassChoice[] = (classesQuery.data ?? []).map((c) => ({ id: c.id, name: classNameOf(c) }));
 
   /**
    * 막힌 자리로 초점을 옮긴다 — 오류만 띄우고 어디인지 안 알려주면 교사가 찾아 헤맨다.

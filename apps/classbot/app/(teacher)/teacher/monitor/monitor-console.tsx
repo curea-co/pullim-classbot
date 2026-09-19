@@ -10,6 +10,7 @@ import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state'
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
+import { classNameOf } from '@/lib/api/classbot-dto';
 import { useClassSignals } from '@/hooks/api/monitoring';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { buildMonitorRows } from '@/lib/risk-signals';
@@ -62,7 +63,8 @@ export function MonitorConsole({ initialClassId }: { initialClassId: string | nu
     <>
       <section className="bg-card rounded-2xl border p-4" data-testid="monitor-class-picker">
         <FilterPillButtons
-          options={classList.map((c) => ({ value: c.id, label: c.name }))}
+          // 라벨은 **반** 이름이다 — 카드의 `name` 은 봇 이름이라 같은 봇을 건 두 반이 같은 칩이 된다(#679).
+          options={classList.map((c) => ({ value: c.id, label: classNameOf(c) }))}
           current={classId}
           onSelect={setPickedId}
           shape="tab"

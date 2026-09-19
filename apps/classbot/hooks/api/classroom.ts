@@ -118,9 +118,16 @@ export function useTeacherClassrooms(): UseQueryResult<
 /**
  * `GET /classbot/bots?role=teacher` — 내가 operator 인 반(과 그 봇) 목록.
  *
- * 응답은 봉투 없는 `BotCardDto[]` 다. **이 문은 아직 bot == class(ADR-063)다**(api.md § 3.5 「뜻 개정은 후속 PR」) —
- * 카드 한 장이 반 하나이고 `name` 은 반 이름, `profile` 은 옛 `class_bot_profiles`(생성 전 null)다. 참여 코드는
- * **카드에 없다**(코드는 낼 때만 돌아온다 · `useIssueJoinCode`) — 코드도 지금 붙은 봇도
+ * 응답은 봉투 없는 `BotCardDto[]` 다. **탐색 키는 아직 반이다**(ADR-092 open ①) — 카드 한 장이 반 하나다.
+ * 다만 **안은 바뀌었다**(pullim-api #679): `name` 이 **봇 이름**이고 반 이름은 `className` 으로 따로 오며,
+ * `profile` 의 페르소나 칸은 `bots` 에서 온다(붙은 봇이 없으면 null).
+ *
+ * ⚠ **이 목록에서 반을 부를 때는 `classNameOf(card)` 를 거쳐라**(`lib/api/classbot-dto.ts`). `card.name` 을
+ * 그대로 쓰면 같은 봇을 건 두 반이 **완전히 같은 글자**가 된다 — 과제 배포 드롭다운에서 그건 오배포다.
+ * 지금 그 함수를 거치는 자리: `toOperatorClass` · `toTeacherClass` · 관제소 반 고르기 · 봇 빌더 「붙일 반」 칩 ·
+ * 반 상세 「봇」 탭의 「이미 붙은 반」 줄 · 만든 봇 배너.
+ *
+ * 참여 코드는 **카드에 없다**(코드는 낼 때만 돌아온다 · `useIssueJoinCode`) — 코드도 지금 붙은 봇도
  * `useClassDetail` 이 든다. 화면 모양으로 옮기는 일은 `app/(teacher)/teacher/classroom/operator-class.ts` 가 한다.
  * @returns react-query 결과(`data` = 카드 배열)
  */
@@ -139,8 +146,11 @@ export function useOperatorClasses(): UseQueryResult<BotCardDto[], ApiError> {
  *
  * 목록에서 찾지 않고 따로 읽는 이유: 상세는 링크로 바로 열리는 화면이라 목록이 캐시에 없을 수 있고,
  * 남의 반은 정본이 **403** 으로 가른다(`authz.md § 1.5` · 없는 반은 404) — 목록에서 못 찾는 것과
- * 다른 뜻이다. 화면은 `statusOf` 로 둘을 갈라 말한다. 이 문도 아직 bot == class 라 `classes.bot_id` 는
- * 실리지 않는다 — 「지금 붙은 봇」은 `useClassDetail`.
+ * 다른 뜻이다. 화면은 `statusOf` 로 둘을 갈라 말한다. 이 문도 탐색 키는 반이고, 카드와 같은 개정을 받는다
+ * (pullim-api #679) — `name` 이 봇 이름, `className` 이 반 이름, `botId` 가 `classes.bot_id` 다.
+ * *(`[2026-09-19 정정]` 종전에는 「`classes.bot_id` 는 실리지 않는다」고 적었다. #679 가 `botId` 를 실었다.)*
+ * 그래도 **봇 칩은 여전히 `useClassDetail`** 이 든다 — 칩이 그리는 것은 id 가 아니라 이름·아바타이고
+ * (`ClassDto.bot`), 이 문은 그 둘을 봇 단위로 주지 않는다.
  * @param classId - 반 id. 비어 있으면 묻지 않는다.
  * @returns react-query 결과(`data` = 반 상세)
  */
@@ -307,8 +317,11 @@ export interface JoinByCodeInput {
 export interface JoinByCodeResult {
   enrollment: EnrollmentDto;
   /**
-   * 들어간 반 이름 — 참여 응답에는 `classId` 만 있어 `GET /bots/:id` 로 한 번 더 읽는다.
+   * 들어간 **반** 이름 — 참여 응답에는 `classId` 만 있어 `GET /bots/:id` 로 한 번 더 읽는다.
    * 못 읽어도 참여는 이미 됐으므로 실패로 만들지 않고 null 로 둔다(토스트는 이름 없이 말한다).
+   *
+   * ⚠ **상세의 `name` 이 아니라 `className` 을 읽는다**(pullim-api #679) — `name` 은 이제 봇 이름이라
+   * 그걸 쓰면 「QA 수학 선생님에 들어왔어요!」가 된다. 학생이 방금 넣은 것은 **반** 참여 코드다.
    */
   className: string | null;
   /** 서버가 200 을 줬다 = 이미 멤버였다(멱등 재입장). 201 이면 새로 들어왔다. */
@@ -330,7 +343,8 @@ export function useJoinByCode(): UseMutationResult<JoinByCodeResult, ApiError, J
       const className = await classbotRead<BotDetailDto>(
         `/bots/${encodeURIComponent(body.classId)}`,
       )
-        .then((bot) => bot.name)
+        // `className` 이 없는 옛 응답(#679 이전)에서는 `name` 이 곧 반 이름이라 거기로 떨어진다.
+        .then((bot) => bot.className ?? bot.name)
         .catch(() => null);
       return { enrollment: body, className, alreadyJoined: status === 200 };
     },
@@ -371,8 +385,10 @@ export function joinFailureMessage(error: unknown): string {
 /**
  * `GET /classbot/bots?role=student` — 내가 들어간 반(과 그 봇) 목록.
  *
- * 응답은 봉투 없는 `BotCardDto[]` 다(bot == class). 화면 슬롯으로 옮기는 일은
- * `components/classbot/home/my-rooms.ts` 의 `toSlot` 이 한다.
+ * 응답은 봉투 없는 `BotCardDto[]` 다. 카드 한 장이 반 하나이고(탐색 키는 아직 반 — ADR-092 open ①),
+ * **이름은 두 칸이다**(pullim-api #679): `name` = 봇 이름 · `className` = 반 이름.
+ * 화면 슬롯으로 옮기는 일은 `components/classbot/home/my-rooms.ts` 의 `toSlot` 이 한다 —
+ * **어느 칸을 어느 자리에 쓰는지는 거기가 정본이다.**
  * @returns react-query 결과(`data` = 카드 배열)
  */
 export function useMyClassrooms(): UseQueryResult<BotCardDto[], ApiError> {
