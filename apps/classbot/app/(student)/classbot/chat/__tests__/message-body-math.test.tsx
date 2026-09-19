@@ -4,10 +4,12 @@
  * `math-text`·`rich-text` 단위 테스트는 **렌더러**가 맞게 도는지를 본다. 이 파일은 그 렌더러가
  * **카드의 그 자리에 걸려 있는지**를 본다 — 어느 자리를 날것 `{값}` 으로 되돌리면 여기가 빨개진다.
  *
- * 퀴즈·자기설명 카드는 `useCurrentUser()`(→ `useAuth()`)를 타 `<AuthProvider>` 없이는 못 선다.
- * 그 둘의 본문은 같은 `MathText` 를 거치고, 렌더러 쪽 하중은 `math-text.test.tsx` 가 진다.
+ * **퀴즈 카드만** `<AuthProvider>` 없이는 못 선다 — `InlineQuiz` 가 `useCurrentUser()`(→
+ * `useAuth()`)를 타고, 그 훅은 provider 밖에서 던진다. 그 카드의 본문도 같은 `MathText` 를
+ * 거치므로 렌더러 쪽 하중은 `math-text.test.tsx` 가 진다.
+ * (자기설명 카드는 `useLessonActionStore` + `useState` 뿐이라 그냥 선다 — 아래에서 세운다.)
  */
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MessageBody } from '../page';
 import type { LessonConcept, LessonStep } from '@/lib/mock/classbot-lesson';
 
@@ -132,6 +134,53 @@ describe('MessageBody — 카드 본문의 수식', () => {
       payload: { problemNumber: '3', title: '$x^2 - 1 = 0$ 풀기', ctaLabel: '학습', ctaHref: '/x' },
     });
     expect(renderedLatex(c)).toEqual(['x^2 - 1 = 0']);
+  });
+
+  it('자기설명 카드 — 물음', () => {
+    const c = body({
+      kind: 'self-explain',
+      payload: {
+        prompt: {
+          conceptId: 'c1',
+          prompt: '$b^2 - 4ac$ 가 뭘 뜻하는지 네 말로 설명해봐',
+          keywords: ['판별식'],
+          sampleAnswer: '$b^2 - 4ac$ 는 판별식이야',
+          feedbackStrong: '잘했어',
+          feedbackPartial: '거의 맞아',
+          feedbackWeak: '다시 보자',
+        },
+      },
+    });
+    expect(renderedLatex(c)).toEqual(['b^2 - 4ac']);
+  });
+
+  it('자기설명 카드 — 제출 뒤 보이는 모범 답안', () => {
+    const c = body({
+      kind: 'self-explain',
+      payload: {
+        prompt: {
+          conceptId: 'c1',
+          prompt: '설명해봐',
+          keywords: ['판별식'],
+          sampleAnswer: '판별식은 $b^2 - 4ac$ 야',
+          feedbackStrong: '잘했어',
+          feedbackPartial: '거의 맞아',
+          feedbackWeak: '다시 보자',
+        },
+      },
+    });
+    fireEvent.change(screen.getByLabelText('자기설명 입력'), { target: { value: '판별식' } });
+    fireEvent.click(screen.getByRole('button', { name: /설명 제출하기/ }));
+    expect(renderedLatex(c)).toEqual(['b^2 - 4ac']);
+  });
+
+  it('오늘 정리 카드 — 「다음 한 걸음」', () => {
+    const c = body({
+      kind: 'summary',
+      text: '오늘은 여기까지!',
+      payload: { goalKey: 'me::bot_1::2026-09-19', nextLine: '다음엔 $b^2 - 4ac$ 를 더 풀어보자' },
+    });
+    expect(renderedLatex(c)).toEqual(['b^2 - 4ac']);
   });
 
   it('깨진 수식이 와도 카드가 죽지 않고 원문이 보인다', () => {

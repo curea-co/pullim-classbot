@@ -21,10 +21,29 @@ describe('normalizeLatexEscapes', () => {
     expect(normalizeLatexEscapes(sane)).toBe(sane);
   });
 
-  it('줄바꿈 `\\\\` 는 뒤에 글자가 붙지 않으므로 그대로 둔다', () => {
+  it('줄바꿈 `\\\\` 뒤가 공백이면 그대로 둔다', () => {
     // 진짜 LaTeX 에서 `\\` 는 줄바꿈이다. 이걸 반으로 줄이면 줄바꿈이 사라진다.
     const aligned = String.raw`\begin{aligned} a &= b \\ c &= d \end{aligned}`;
     expect(normalizeLatexEscapes(aligned)).toBe(aligned);
+  });
+
+  // ⚠️ 「진짜 LaTeX 의 `\\` 뒤에는 명령 이름이 바로 붙지 않는다」는 **거짓**이다 — 붙는다.
+  // 아래 셋은 전부 정상 LaTeX 이고, `\\`+알파벳만 보던 종전 판은 이것들을 망가뜨렸다.
+  it.each([
+    ['matrix 행 구분', String.raw`\begin{matrix}a&b\\c&d\end{matrix}`],
+    ['cases 행 구분', String.raw`\begin{cases}a, & x>0 \\b, & x<0\end{cases}`],
+    // 이 자리가 제일 나빴다 — 망가진 `1\\hline 2` 를 KaTeX 가 **던지지 않고** 그려서
+    // 원문 폴백이 안 걸린다. 학생이 틀린 수식을 옳은 것처럼 본다.
+    ['array 행 구분 + \\hline', String.raw`\begin{array}{c}1\\\hline 2\end{array}`],
+  ])('정상 LaTeX 의 `\\\\`+명령(%s)을 깎지 않는다', (_name, latex) => {
+    expect(normalizeLatexEscapes(latex)).toBe(latex);
+  });
+
+  it('홑 백슬래시 명령이 이미 있으면 이중 이스케이프로 보지 않는다', () => {
+    // 홑과 겹이 섞인 글은 손대지 않는다 — 반만 맞는 변환으로 조용히 틀리게 그리느니
+    // 안 건드려 원문 폴백으로 보이는 쪽이 낫다.
+    const mixed = String.raw`\\frac{1}{2} \times 3`;
+    expect(normalizeLatexEscapes(mixed)).toBe(mixed);
   });
 
   it('이중 이스케이프된 정렬식은 줄바꿈까지 정확히 복원한다', () => {
@@ -79,6 +98,27 @@ describe('splitMath', () => {
   it('줄을 넘어가는 `$` 짝은 잡지 않는다', () => {
     const two = '앞 $a\n뒤 b$';
     expect(splitMath(two)).toEqual([{ type: 'text', value: two }]);
+  });
+
+  // 가드가 막는 범위를 있는 그대로 못 박는다 — 머리주석의 표와 같은 사실이다.
+  // 「평범한 문장을 다 막는다」가 아니라 **달러 사이에 공백이 있는** 문장만 막는다.
+  it.each([
+    '가격이 $5 랑 $10 이야',
+    '$100 정도',
+    '정가 $50, 할인가 $30 입니다',
+    'export $FOO=1; echo $BAR',
+  ])('달러 사이에 공백이 있으면 수식이 아니다 — %s', sentence => {
+    expect(splitMath(sentence)).toEqual([{ type: 'text', value: sentence }]);
+  });
+
+  it.each([
+    ['이건 $20~$30 사이야', '20~'],
+    ['a$b$c', 'b'],
+    ['$5랑$10', '5랑'],
+  ])('달러가 공백 없이 붙으면 통과한다(알려진 오검출) — %s', (sentence, caught) => {
+    expect(splitMath(sentence).filter(s => s.type === 'math')).toEqual([
+      { type: 'math', value: caught },
+    ]);
   });
 });
 
@@ -148,6 +188,14 @@ describe('MathFormula', () => {
     expect(renderedLatex(container)).toEqual([
       String.raw`x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} \quad (단, a \neq 0, b^2 - 4ac \geq 0)`,
     ]);
+  });
+
+  it('정상 LaTeX 의 행 구분 `\\\\` 를 원형 그대로 KaTeX 에 넘긴다', () => {
+    // 순수 함수 검사만으로는 부족한 자리 — 깎인 `1\\hline 2` 는 KaTeX 가 **던지지 않아**
+    // 원문 폴백이 안 걸리고 조용히 틀리게 그려진다. 실제로 무엇이 그려졌는지를 본다.
+    const array = String.raw`\begin{array}{c}1\\\hline 2\end{array}`;
+    const { container } = render(<MathFormula latex={array} />);
+    expect(renderedLatex(container)).toEqual([array]);
   });
 
   it('못 그리는 식이면 원문을 그대로 보여준다', () => {
