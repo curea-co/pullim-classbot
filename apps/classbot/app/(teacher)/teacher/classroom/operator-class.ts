@@ -8,10 +8,15 @@ import { classNameOf, type BotCardDto, type BotDetailDto } from '@/lib/api/class
  * 아래 `name` 칸은 `classNameOf(card)` 로 채운다. `profile` 의 과목·학년도 이제 그 반에 붙은 봇(`bots`)에서
  * 온다(붙은 봇이 없으면 null).
  *
- * **봇은 여기서 옮기지 않는다** — `profile` 유무로 「봇 없음」을 단정하지 않는다는 원래 이유는 그대로고,
- * 봇 칩이 그리는 것은 id 가 아니라 이름·아바타라 반 상세 문이 주는 `ClassDto`(`useClassDetail`)를
- * `known-bot-chip.tsx` 가 읽는다. 여기서 옮기는 것은 과목·학년(profile 에서 — 반 자체의 `subject`·`grade` 를
- * 읽는 문이 열리면 그쪽으로)과 활성 여부뿐이다.
+ * **봇은 여기서 옮기지 않는다** — 다만 **이유가 갈렸다.** 종전 이유는 「`POST /classes` 로 만든 반은
+ * `class_bot_profiles` 행이 영영 없어, `profile` 유무로 단정하면 봇을 붙인 뒤에도 늘 「봇 없음」이 된다」
+ * 였는데 **#679 가 그 이유를 무너뜨렸다** — 이제 `profile` 은 붙은 봇이 있을 때만 실리므로
+ * (`toProfileView` 가 `if (!bot) return null`) **`profile` 유무가 정확히 「봇 붙음」 신호**다.
+ * 그래도 여기서 안 옮기는 **지금의 이유**는 다른 것이다: 봇 칩이 그리는 것은 id 가 아니라 이름·아바타이고,
+ * 카드의 `name` 은 봇 이름이어도 **아바타가 `profile` 안에** 있어 「봇 없는 반」과 모양이 갈린다 —
+ * 칩 하나를 두 원천에서 지어내지 않고, 반 상세 문이 주는 `ClassDto`(`useClassDetail`)를
+ * `known-bot-chip.tsx` 가 한 곳에서 읽는다. 여기서 옮기는 것은 과목·학년(profile 에서 — 반 자체의
+ * `subject`·`grade` 를 읽는 문이 열리면 그쪽으로)과 활성 여부뿐이다.
  *
  * 카드에 **없는 것**도 여기서 못박는다: 참여 코드(낼 때만 돌아온다 · `useIssueJoinCode`) · 명단(반 상세 「명단」 탭) ·
  * 소속(organization) · 게시(마켓) 상태(범위 밖 · 결정 ①).

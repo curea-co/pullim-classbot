@@ -42,7 +42,9 @@ type Params = Promise<{ id: string }>;
  * 명단에 없는 sub 는 「알 수 없는 학생」으로, 명단 자체를 못 읽었으면 종전처럼 sub 앞 여덟 자로 떨어진다.
  * 같은 명단이 「반 참여」 KPI 도 센다. 종전 값은 반 카드의 `profile.enrolledCount` 하나였고 **둘 중 하나만
  * 어긋나도 `—` 로 비었다** — `useOperatorClasses` 목록에서 이 반을 못 찾거나(`klass === undefined`),
- * 찾았어도 옛 `class_bot_profiles` 투영인 `profile` 이 null 이거나(`toTeacherClass` 가 `?? null`).
+ * 찾았어도 `profile` 이 null 이거나(`toTeacherClass` 가 `?? null`). 그 `profile` 의 페르소나 칸은 이제
+ * `bots` 에서 오고 null 인 조건도 **「붙은 봇 없음」**으로 바뀌었지만(pullim-api #679), `enrolledCount` 는
+ * 여전히 `class_bot_profiles` 의 **반별** 집계라 위 판단은 그대로다.
  * 명단 길이는 그 둘 어느 쪽에도 기대지 않는 지금 실측이다.
  *
  * **미제출 리마인드는 섰다**(계획 PR 5c) — 대상은 같은 명단 빼기 제출자이고, 발송은
