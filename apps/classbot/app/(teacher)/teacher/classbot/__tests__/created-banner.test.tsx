@@ -24,8 +24,13 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(search),
 }));
 
-/** 내가 운영하는 반 — 배너가 `rooms=` 의 id 를 이름으로 옮길 때 읽는다. */
-let operatorClasses: { id: string; name: string }[] = [];
+/**
+ * 내가 운영하는 반 — 배너가 `rooms=` 의 id 를 이름으로 옮길 때 읽는다.
+ *
+ * **둘 다 같은 봇을 건다**(`name` 이 같은 글자). pullim-api #679 로 카드의 `name` 은 봇 이름이고
+ * 반 이름은 `className` 이라, 배너가 `name` 을 읽으면 두 반이 「국어 도우미 · 국어 도우미」가 된다.
+ */
+let operatorClasses: { id: string; name: string; className: string }[] = [];
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
   useOperatorClasses: () => ({ data: operatorClasses, isPending: false, isError: false, error: null }),
@@ -46,8 +51,8 @@ jest.mock('@/hooks/api/bot', () => ({
 beforeEach(() => {
   search = '';
   operatorClasses = [
-    { id: 'cls_1', name: '고2 국어 A반' },
-    { id: 'cls_2', name: '고2 국어 B반' },
+    { id: 'cls_1', name: '국어 도우미', className: '고2 국어 A반' },
+    { id: 'cls_2', name: '국어 도우미', className: '고2 국어 B반' },
   ];
 });
 
@@ -65,6 +70,8 @@ describe('방금 만든 봇 배너', () => {
     render(<TeacherClassbotPage />);
     expect(screen.getByText('방금 만든 봇: 문학 도우미')).toBeInTheDocument();
     expect(note()).toHaveTextContent('봇을 만들어 고2 국어 A반 · 고2 국어 B반에 넣었어요.');
+    // 부르는 것은 **반** 이름이다 — 두 반에 걸린 봇 이름을 읽으면 같은 글자가 두 번 선다(#679).
+    expect(note()).not.toHaveTextContent('국어 도우미');
   });
 
   it('반을 안 골랐으면 「아직 반에는 안 넣었어요」 — 다음에 할 일을 가리킨다', () => {
@@ -77,7 +84,7 @@ describe('방금 만든 봇 배너', () => {
   it('이름을 일부만 풀면 개수로 물러선다 — 못 찾은 반이 말없이 사라지지 않는다', () => {
     // 한 반만 이으면 두 반에 넣은 봇이 한 반에만 넣은 것처럼 보인다.
     // 빌더 만든 뒤 화면·반 상세 고르개와 같은 규칙이다 — 네 자리가 한 규칙이다.
-    operatorClasses = [{ id: 'cls_1', name: '고2 국어 A반' }];
+    operatorClasses = [{ id: 'cls_1', name: '국어 도우미', className: '고2 국어 A반' }];
     search = 'created=%EB%B4%87&rooms=cls_1,cls_2';
     render(<TeacherClassbotPage />);
 

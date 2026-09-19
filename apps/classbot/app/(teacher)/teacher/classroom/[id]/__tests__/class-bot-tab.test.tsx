@@ -32,8 +32,14 @@ let knownBot: BotDto | undefined;
 let myBots: BotDto[] | undefined;
 let myBotsPending: boolean;
 let myBotsError: unknown;
-/** `useOperatorClasses` — 고르개가 `classIds` 를 반 이름으로 옮길 때 쓴다. */
-let operatorClasses: { id: string; name: string }[] | undefined;
+/**
+ * `useOperatorClasses` — 고르개가 `classIds` 를 반 이름으로 옮길 때 쓴다.
+ *
+ * `name`(봇 이름)과 `className`(반 이름) 둘을 다 들려 보낸다 — pullim-api #679 로 카드의 `name` 이
+ * 봇 이름이 됐고, **이 줄이 부르는 것은 반 이름**이다. 같은 봇이 여러 반을 섬기므로 여기서 `name` 을
+ * 읽으면 「지금 붙어 있는 반」 줄이 같은 글자만 늘어놓는다.
+ */
+let operatorClasses: { id: string; name: string; className: string }[] | undefined;
 type CreateHandlers = { onSuccess: (r: { bot: BotDto; class: ClassDto }) => void; onError: (e: unknown) => void };
 type AssignHandlers = { onSuccess: () => void; onError: (e: unknown) => void };
 /** 다음 「만들어 붙이기」가 어떻게 끝나는지 — 테스트가 갈아 끼운다. 비우면 아무 콜백도 부르지 않는다. */
@@ -181,7 +187,7 @@ describe('다른 봇으로 바꾸기 — GET /me/bots 에서 고른다', () => {
 
   it('이름을 일부만 찾으면 개수로 물러선다 — 못 찾은 반이 말없이 사라지지 않는다', () => {
     myBots = [{ ...OTHER, classIds: ['cls_9', 'cls_8'] }];
-    operatorClasses = [{ id: 'cls_9', name: '중3 국어 B반' }];
+    operatorClasses = [{ id: 'cls_9', name: '국어 도우미', className: '중3 국어 B반' }];
     openSwap();
 
     const rooms = screen.getByTestId('class-bot-swap-rooms-bot_2');
@@ -191,14 +197,16 @@ describe('다른 봇으로 바꾸기 — GET /me/bots 에서 고른다', () => {
 
   it('봇마다 과목·학년·말투·등급과 이미 붙어 있는 반을 적는다', () => {
     myBots = [OTHER];
-    operatorClasses = [{ id: 'cls_9', name: '중3 국어 B반' }];
+    operatorClasses = [{ id: 'cls_9', name: '국어 도우미', className: '중3 국어 B반' }];
     openSwap();
     const row = screen.getByTestId('class-bot-swap-bot_2');
     expect(row).toHaveTextContent('국어');
     expect(row).toHaveTextContent('중3');
     expect(row).toHaveTextContent('말투 · 차분');
     expect(row).toHaveTextContent('L3 · 교과 범위');
+    // 부르는 것은 **반** 이름이다 — 카드의 `name`(「국어 도우미」)은 봇 이름이다(#679).
     expect(screen.getByTestId('class-bot-swap-rooms-bot_2')).toHaveTextContent('지금 붙어 있는 반 · 중3 국어 B반');
+    expect(screen.getByTestId('class-bot-swap-rooms-bot_2')).not.toHaveTextContent('국어 도우미');
   });
 
   it('반 이름을 못 읽었으면 개수만 말한다 — id 를 보여주지 않는다', () => {
