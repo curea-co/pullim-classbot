@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { LessonStep } from '@/lib/mock/classbot-lesson';
+import { MathText, MathFormula } from '@/components/classbot/math-text';
 import { cn } from '@/lib/utils';
 
 /**
@@ -42,7 +43,7 @@ export function InlineWorkedExample({
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      {title && <p className="text-pullim-slate-900 mb-2 text-base font-bold">{title}</p>}
+      {title && <p className="text-pullim-slate-900 mb-2 text-base font-bold"><MathText text={title} /></p>}
       <ol className="space-y-2.5">
         {steps.map((s, i) => {
           const isRevealed = i < revealedUpTo;
@@ -61,13 +62,10 @@ export function InlineWorkedExample({
                   {s.num}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-pullim-slate-900 text-[15px] font-bold">{s.label}</div>
-                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{shownBody}</div>
-                  {s.formula && (
-                    <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
-                      {s.formula}
-                    </code>
-                  )}
+                  <div className="text-pullim-slate-900 text-[15px] font-bold"><MathText text={s.label} /></div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed"><MathText text={shownBody} /></div>
+                  {/* formula 는 필드 전체가 수식이다 — `$` 구분자 없이 통째로 넘긴다. */}
+                  {s.formula && <MathFormula latex={s.formula} className="mt-1 px-1.5 py-0.5 text-xs" />}
                 </div>
               </li>
             );
@@ -82,7 +80,7 @@ export function InlineWorkedExample({
                 className="border-pullim-slate-300 bg-pullim-slate-100 min-w-0 flex-1 rounded-lg border border-dashed p-2.5"
                 aria-label={`${s.num}단계 — 아직 가려진 단계`}
               >
-                <div className="text-pullim-slate-400 text-[15px] font-semibold">{s.label}</div>
+                <div className="text-pullim-slate-400 text-[15px] font-semibold"><MathText text={s.label} /></div>
                 <p className="text-pullim-slate-400 mt-0.5 text-sm">직접 떠올려본 뒤 정답을 확인해봐.</p>
                 {isActive ? (
                   <button

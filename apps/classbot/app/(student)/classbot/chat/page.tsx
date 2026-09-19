@@ -20,6 +20,7 @@ import {
   CONFIDENCE_OPTIONS, getCalibrationFeedback, CALIB_TONE_CLASS, type Confidence,
 } from '@/lib/tokens/quiz-calibration';
 import { RichText } from '@/components/classbot/rich-text';
+import { MathText, MathFormula } from '@/components/classbot/math-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
@@ -1192,7 +1193,17 @@ function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { tur
 }
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
-function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number; onCardReveal: () => void }) {
+/**
+ * turn 한 개의 본문 렌더 — 말풍선과 카드 여덟 종이 여기서 갈린다.
+ *
+ * 봇이 보내는 글에는 수식이 섞여 오므로 **본문을 그리는 자리마다** `MathText`(`$…$` 섞인 글)
+ * 또는 `MathFormula`(필드 전체가 수식인 `formula`)를 거친다 — 날것의 LaTeX 가 학생 화면에
+ * 글자 그대로 뜨지 않게. 새 카드를 더할 때도 같은 규칙을 따른다.
+ *
+ * `export` 는 단위 테스트가 카드별 본문 렌더를 직접 세우기 위한 것이다(같은 파일의
+ * `plainAnnounceText` 와 같은 이유). 라우트 계약과는 무관하다.
+ */
+export function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number; onCardReveal: () => void }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
   // 버블 겉모양은 공유 프리미티브 한 곳에서 온다(과제 대화와 같은 말풍선).
   const baseBubbleClass = chatBubbleClass(isStudent);
@@ -1227,7 +1238,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <div className="text-pullim-blue-700 inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
-          <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · {topic}
+          <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · <MathText text={topic} />
         </div>
         <RichText text={turn.text} />
         <div className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2.5 text-base">
@@ -1245,18 +1256,15 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 space-y-2 rounded-xl border p-3">
-          <p className="text-pullim-slate-900 text-base font-bold">{concept.title}</p>
-          <p className="text-pullim-slate-600 text-[15px] leading-relaxed">{concept.summary}</p>
-          {concept.formula && (
-            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1 font-mono text-xs">
-              {concept.formula}
-            </code>
-          )}
+          <p className="text-pullim-slate-900 text-base font-bold"><MathText text={concept.title} /></p>
+          <p className="text-pullim-slate-600 text-[15px] leading-relaxed"><MathText text={concept.summary} /></p>
+          {/* formula 는 필드 전체가 수식이다 — `$` 구분자 없이 통째로 넘긴다. */}
+          {concept.formula && <MathFormula latex={concept.formula} className="text-xs" />}
           {concept.coreElements.length > 0 && (
             <ul className="flex flex-wrap gap-1.5">
               {concept.coreElements.map((el, i) => (
                 <li key={i} className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-2 py-0.5 text-xs font-semibold">
-                  {el}
+                  <MathText text={el} />
                 </li>
               ))}
             </ul>
@@ -1282,11 +1290,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 space-y-3 rounded-xl border p-3">
           <RichText text={concept.detail} />
-          {concept.formula && (
-            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1.5 font-mono text-sm">
-              {concept.formula}
-            </code>
-          )}
+          {concept.formula && <MathFormula latex={concept.formula} className="py-1.5" />}
           {concept.tips.length > 0 && (
             <div>
               <div className="text-pullim-blue-700 mb-1.5 text-sm font-bold">학습 팁</div>
@@ -1294,7 +1298,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                 {concept.tips.map((t, i) => (
                   <li key={i} className="bg-pullim-blue-50/60 text-pullim-slate-800 flex gap-2 rounded-lg px-3 py-2 text-[15px]">
                     <span className="text-pullim-blue-600 shrink-0 font-bold">✓</span>
-                    <span className="min-w-0 flex-1">{t}</span>
+                    <span className="min-w-0 flex-1"><MathText text={t} /></span>
                   </li>
                 ))}
               </ul>
@@ -1306,7 +1310,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
               <ul className="flex flex-wrap gap-1.5">
                 {concept.coreElements.map((el, i) => (
                   <li key={i} className="bg-pullim-slate-100 text-pullim-slate-700 rounded-full px-2.5 py-1 text-sm font-semibold">
-                    {el}
+                    <MathText text={el} />
                   </li>
                 ))}
               </ul>
@@ -1320,11 +1324,11 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                   <li key={i} className="bg-pullim-slate-50 rounded-lg p-2.5">
                     <p className="text-pullim-slate-900 text-[15px] font-semibold">
                       <span className="text-pullim-blue-600 mr-1 font-mono">Q{i + 1}.</span>
-                      {s.q}
+                      <MathText text={s.q} />
                     </p>
                     {s.a && (
                       <p className="text-pullim-slate-600 mt-1 text-sm">
-                        <span className="text-pullim-blue-700 font-bold">정답 ·</span> {s.a}
+                        <span className="text-pullim-blue-700 font-bold">정답 ·</span> <MathText text={s.a} />
                       </p>
                     )}
                   </li>
@@ -1361,13 +1365,9 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                   {s.num}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-pullim-slate-900 text-[15px] font-bold">{s.label}</div>
-                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{s.body}</div>
-                  {s.formula && (
-                    <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
-                      {s.formula}
-                    </code>
-                  )}
+                  <div className="text-pullim-slate-900 text-[15px] font-bold"><MathText text={s.label} /></div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed"><MathText text={s.body} /></div>
+                  {s.formula && <MathFormula latex={s.formula} className="mt-1 px-1.5 py-0.5 text-xs" />}
                 </div>
               </li>
             ))}
@@ -1428,7 +1428,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <span className="bg-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold text-white">
             {problemNumber}
           </span>
-          <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
+          <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold"><MathText text={title} /></div>
           <Link
             href={ctaHref}
             aria-label={ctaAriaLabel ?? `${title} — ${ctaLabel} 열기`}
@@ -1485,7 +1485,7 @@ function SummaryProgress({ goalKey, nextLine }: { goalKey: string; nextLine?: st
           <ArrowRight aria-hidden className="text-pullim-blue-600 h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
             <span className="text-pullim-blue-700 mr-1 font-bold">다음 한 걸음 ·</span>
-            {nextLine}
+            <MathText text={nextLine} />
           </span>
         </div>
       )}
@@ -1566,7 +1566,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      <p className="text-pullim-slate-900 text-base font-bold">{quiz.question}</p>
+      <p className="text-pullim-slate-900 text-base font-bold"><MathText text={quiz.question} /></p>
       <ol role="radiogroup" aria-label="객관식 보기" className="mt-2.5 space-y-1.5">
         {quiz.options.map((opt, i) => {
           const isSelected = selected === i;
@@ -1590,7 +1590,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
                 )}
               >
                 <span className="font-mono">{['①', '②', '③', '④', '⑤'][i] ?? i + 1}</span>
-                <span className="min-w-0 flex-1">{opt}</span>
+                <span className="min-w-0 flex-1"><MathText text={opt} /></span>
                 {isCorrect && <Check className="h-4 w-4 shrink-0" />}
               </button>
             </li>
@@ -1607,7 +1607,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
               className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2 text-[15px] leading-relaxed"
             >
               <span className="text-pullim-blue-700 font-bold">힌트 {i + 1} · </span>
-              {h}
+              <MathText text={h} />
             </div>
           ))}
           {hintCount < maxHints ? (
@@ -1685,15 +1685,17 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
           {correct ? (
             <div className="bg-pullim-blue-50 rounded-lg p-3 text-[15px]">
               <p className="text-pullim-blue-700 font-bold">정답이에요!</p>
-              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.explain}</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed"><MathText text={quiz.explain} /></p>
             </div>
           ) : (
             <div className="bg-pullim-danger-bg rounded-lg p-3 text-[15px]">
               <p className="text-pullim-danger font-bold">아쉽지만 다시 볼까요?</p>
-              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.optionFeedback[selected ?? 0]}</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed">
+                <MathText text={quiz.optionFeedback[selected ?? 0] ?? ''} />
+              </p>
               <p className="text-pullim-slate-600 mt-1.5 text-sm leading-relaxed">
                 <span className="text-pullim-blue-700 font-bold">정답 · </span>
-                {quiz.explain}
+                <MathText text={quiz.explain} />
               </p>
             </div>
           )}
@@ -1784,7 +1786,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      <p className="text-pullim-slate-900 text-base font-bold">{prompt.prompt}</p>
+      <p className="text-pullim-slate-900 text-base font-bold"><MathText text={prompt.prompt} /></p>
       <textarea
         value={value}
         rows={3}
@@ -1817,7 +1819,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
           </div>
           <div className="bg-pullim-slate-50 text-pullim-slate-700 rounded-lg p-3 text-sm leading-relaxed">
             <span className="text-pullim-blue-700 font-bold">모범 답안 · </span>
-            {prompt.sampleAnswer}
+            <MathText text={prompt.sampleAnswer} />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {!positive ? (
