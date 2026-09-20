@@ -11,6 +11,27 @@ export interface AuthUser {
   email: string;
   /** student/teacher/admin. 역할별 라우팅·메뉴 분기에 사용. */
   role: UserRole;
+  /**
+   * 사람 이름(표시명) — 화면이 사람을 부를 때 쓰는 값.
+   *
+   * **왜 optional 인가.** 이름은 신원의 필수 부분이 아니다:
+   *  - 이 계약은 구현체에게 이름을 **요구하지 않는다.** `getSession()`·`signInWithEmail()` 이
+   *    id·email·role 만으로 세션을 세워도 계약은 지켜진 것이다.
+   *  - 지금 유일한 구현(`apps/classbot/lib/auth/os-sso-provider.ts` 의 `OsSsoAuthProvider`)이
+   *    이 칸을 채우는 출처는 pullim-api `GET /me` 의 `displayName` 인데, **그 값 자체가 비어 올 수
+   *    있다.** 같은 auth 프로필을 투영하는 반 명단 DTO 가 이미 그렇게 적혀 있다 —
+   *    `apps/classbot/lib/api/classbot-dto.ts` 의 `ClassMemberDto.displayName` 은
+   *    `string | null` 이고 「auth 프로필 투영이라 비어 있을 수 있다(탈퇴·부재)」가 근거다.
+   *  - `/me` 응답은 런타임 JSON 이라 타입 검사를 지나지 않는다 — 구현체가 `as MeResponse` 로
+   *    받는다. 칸이 아예 없는 응답도 타입이 막아 주지 않는다.
+   *
+   * **그래서 읽는 쪽은 폴백을 가져야 한다.** 빈 문자열(`''`)도 「없음」과 같이 다뤄라 —
+   * 화면에서 둘은 똑같은 빈칸이다. 이 앱의 폴백은
+   * `apps/classbot/lib/current-user.ts` 의 `useCurrentUser()` 가 갖고 있다:
+   * **이름 → 없으면 email 로컬파트** 순서이고, 그 순서를 테스트가 고정한다
+   * (`apps/classbot/lib/__tests__/current-user-name.test.tsx`).
+   */
+  name?: string;
 }
 
 /**
