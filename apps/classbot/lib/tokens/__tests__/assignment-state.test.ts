@@ -1,30 +1,14 @@
-import { getAssignmentVisual } from '../assignment-state';
+import { getAssignmentVisual, type AssignmentVisualInput } from '../assignment-state';
 import { palette } from '../palette';
-import type { Assignment } from '@/lib/mock';
 
-const base = (over: Partial<Assignment>): Assignment => ({
-  id: 'a',
-  botId: 'cb_001',
-  title: 'Test',
-  scope: 'Test scope',
-  subject: 'Test',
-  grade: 'Test',
-  chapterFrom: 'Test',
-  chapterTo: 'Test',
-  achievementCodes: [],
+/** 이 함수가 읽는 칸은 넷뿐이다(`AssignmentVisualInput`) — 나머지를 세워 두면 무엇이 판정에 쓰이는지 흐려진다. */
+const base = (over: Partial<AssignmentVisualInput>): AssignmentVisualInput => ({
   mode: 'practice',
   state: 'in-progress',
   dDay: 'D-5',
-  questionCount: 10,
-  completedCount: 2,
-  difficulty: '중',
-  source: 'teacher-assigned',
-  assignedBy: 'Test',
-  assignedAt: 'Test',
-  dueLabel: 'Test',
-  solveHref: 'Test',
+  submitted: false,
   ...over,
-} as Assignment & typeof over);
+});
 
 it('liner colors come from palette (no magic hex)', () => {
   expect(getAssignmentVisual(base({ mode: 'exam' })).linerHex).toBe(palette.gray[950]);
@@ -40,7 +24,7 @@ it('과제 카드 시각 토큰에 success·warn 이 없다', () => {
   const all = [
     base({ mode: 'exam' }),
     base({ mode: 'wrong-conquest' }),
-    base({ state: 'submitted' }),
+    base({ submitted: true }),
     base({ state: 'overdue' }),
     base({ dDay: '오늘' }),
     base({}),
@@ -65,7 +49,7 @@ it('레몬은 오답정복 칩·라이너에만 쓰인다', () => {
 
   const others = [
     base({ mode: 'exam' }),
-    base({ state: 'submitted' }),
+    base({ submitted: true }),
     base({ state: 'overdue' }),
     base({ dDay: '오늘' }),
     base({}),
@@ -82,7 +66,7 @@ it('모든 상태가 글자 라벨을 가진다', () => {
   const labels = [
     base({ mode: 'exam' }),
     base({ mode: 'wrong-conquest' }),
-    base({ state: 'submitted' }),
+    base({ submitted: true }),
     base({ state: 'overdue' }),
     base({ dDay: '오늘' }),
     base({}),
@@ -90,4 +74,43 @@ it('모든 상태가 글자 라벨을 가진다', () => {
 
   expect(new Set(labels).size).toBe(6);
   for (const l of labels) expect(l.length).toBeGreaterThan(0);
+});
+
+/**
+ * 완료 판정의 원천 — **`submitted` 한 칸**이다(pullim-api #681).
+ *
+ * 종전 판정 `state === 'submitted' || completedCount >= questionCount` 는 둘 다 못 쓴다:
+ * `state` 는 과제당 하나뿐인 자유 문자열이라 **학생을 가르지 못하고**(이 앱의 배포 폼은 늘 `'todo'` 를 넣는다),
+ * `completedCount` 는 그 `submitted` 의 투영이라 같은 말을 두 번 하는 것이다.
+ * 그리고 **모르는 것(칸 없음·`null`)을 완료로도 「안 냄」으로도 단정하지 않는다** — 그 자리는 마감일이 말한다.
+ */
+describe('완료는 submitted 가 정한다', () => {
+  it('true 면 완료다', () => {
+    expect(getAssignmentVisual(base({ submitted: true })).semanticLabel).toBe('완료');
+  });
+
+  it('false(서버가 「안 냈다」고 말했다)면 완료가 아니다', () => {
+    expect(getAssignmentVisual(base({ submitted: false })).semanticLabel).toBe('진행 중');
+  });
+
+  it('null(운영자 관점)은 완료가 아니고, 마감일이 그리던 그림 그대로다', () => {
+    expect(getAssignmentVisual(base({ submitted: null })).semanticLabel).toBe('진행 중');
+    expect(getAssignmentVisual(base({ submitted: null, dDay: '오늘' })).semanticLabel).toBe('마감 임박');
+  });
+
+  it('칸 자체가 없으면(옛 서버) 완료가 아니다 — 「모른다」이고, 그때 카드는 #681 이전과 같은 그림이다', () => {
+    const old = { mode: 'practice', state: 'todo', dDay: 'D-5' } as const;
+    expect(getAssignmentVisual(old).semanticLabel).toBe('진행 중');
+    expect(getAssignmentVisual({ ...old, dDay: '지난 2일' }).semanticLabel).toBe('지연');
+  });
+
+  it('state 가 submitted 여도 그것만으로는 완료가 아니다 — 그 칸은 과제당 하나라 학생을 못 가른다', () => {
+    expect(getAssignmentVisual(base({ state: 'submitted', submitted: false })).semanticLabel).toBe('진행 중');
+    expect(getAssignmentVisual(base({ state: 'submitted', submitted: null })).semanticLabel).toBe('진행 중');
+  });
+
+  it('완료는 지연·마감 임박보다 앞선다 — 이미 낸 과제를 다시 재촉하지 않는다', () => {
+    expect(getAssignmentVisual(base({ submitted: true, state: 'overdue', dDay: '지난 3일' })).semanticLabel).toBe('완료');
+    expect(getAssignmentVisual(base({ submitted: true, dDay: '오늘' })).semanticLabel).toBe('완료');
+  });
 });

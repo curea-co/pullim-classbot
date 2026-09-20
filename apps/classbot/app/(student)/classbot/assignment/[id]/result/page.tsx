@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useSubmissionResult } from '@/lib/store/submission-result';
 import { shortTimeLabel } from '@/lib/assignment-labels';
-import { studentQuestionsOf, useVisibleAssignment } from '../../use-assignment-reads';
+import { mySubmissionOf, studentQuestionsOf, useVisibleAssignment } from '../../use-assignment-reads';
 import { cn } from '@/lib/utils';
 
 /**
@@ -27,8 +27,13 @@ import { cn } from '@/lib/utils';
  *
  * 서버가 주는 것과 안 주는 것:
  *  - `scorePercent` — 자동 채점 문항만 있으면 0~100, 서술형이 하나라도 있으면 **null(미채점)**.
+ *    **`0` 은 0점이고 `null` 은 점수가 없다는 뜻이다** — 둘을 같은 자리에 그리지 않는다.
  *  - **문항별 정오는 오지 않는다.** 그래서 「오답 한눈에」 카드는 걷었다 — 정답도 기준 응답도 학생 응답에 없다(🔒).
- *  - 학생 본인의 제출을 되읽는 문이 없다 — 새로고침하면 점수가 비고, 그 사실을 말한다.
+ *  - **새로고침해도 점수가 남는다**(pullim-api #681) — 상세 응답이 본인 제출 세 칸을 실어서다. 세션 응답이
+ *    있으면 그게 먼저고(방금 낸 것), 없으면 서버 행이 답한다(`mySubmissionOf`).
+ *
+ * 점수 칸이 가르는 갈래는 넷이다 — **냈고 점수가 있다 · 냈는데 미채점 · 안 냈다 · 모른다.** 마지막 둘을
+ * 합치지 않는다: 「안 냈다」는 서버가 한 말이고, 「모른다」는 이 서버가 아직 본인 제출 칸을 안 싣는다는 뜻이다.
  */
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -80,7 +85,8 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
   const isExam = a.mode === 'exam';
   const autoGraded = questions.filter(q => q.type !== 'essay').length;
   const essayCount = questions.filter(q => q.type === 'essay').length;
-  const submission = result?.submission;
+  const mine = mySubmissionOf(a, result?.submission);
+  const scoredAtLabel = mine.kind === 'submitted' ? shortTimeLabel(mine.gradedAt ?? mine.submittedAt) : '';
 
   const scoreCard = isExam ? (
     <section className="bg-pullim-slate-900 text-white rounded-2xl p-5">
@@ -101,7 +107,18 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
           <p className="text-pullim-slate-500 mt-0.5 text-2xs">객관식·단답·수치는 바로</p>
         </div>
-        {submission === undefined ? (
+        {mine.kind === 'not-submitted' ? (
+          /* 서버가 「안 냈다」고 말한 자리 — 결과 화면에 곧장 들어온 경우다. 점수를 못 읽은 것과 다른 말을 한다. */
+          <div data-testid="result-not-submitted">
+            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
+            <div className="text-pullim-slate-400 mt-1 font-mono text-2xl font-bold">—</div>
+            <p className="text-pullim-slate-500 mt-0.5 text-2xs">
+              아직 안 냈어요. 풀어서 내면 여기에 점수가 보여요.
+            </p>
+          </div>
+        ) : mine.kind === 'unknown' ? (
+          /* 모른다 — 이 서버가 아직 본인 제출 칸을 안 싣고(#681 배포 전), 이 세션에서 내지도 않았다.
+             「안 냈다」고 말하지 않는다. 우리가 아는 것은 「여기서는 못 본다」까지다. */
           <div data-testid="result-missing">
             <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
             <div className="text-pullim-slate-400 mt-1 font-mono text-2xl font-bold">—</div>
@@ -109,7 +126,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
               점수는 제출하고 바로 그때만 여기서 보여요. 낸 답은 선생님께 가 있어요.
             </p>
           </div>
-        ) : submission.scorePercent === null ? (
+        ) : mine.scorePercent === null ? (
           <div data-testid="result-ungraded">
             <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">선생님 채점 기다리는 중</div>
             <div className="text-pullim-blue-700 mt-1 font-mono text-2xl font-bold">
@@ -121,10 +138,12 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           <div>
             <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
             <div data-testid="result-score" className="mt-1">
-              <ScoreDisplay score={submission.scorePercent} max={100} size="xl" tone="threshold" />
+              {/* `0` 이 여기까지 온다 — 위 분기가 「점수 없음(null)」을 먼저 걸러 내므로 0 은 0점으로 그려진다 */}
+              <ScoreDisplay score={mine.scorePercent} max={100} size="xl" tone="threshold" />
             </div>
             <p className="text-pullim-slate-500 mt-0.5 text-2xs">
-              {shortTimeLabel(submission.gradedAt ?? submission.submittedAt)} 채점 · 선생님 쪽에서 매긴 점수
+              {/* 서버 행으로 되읽은 점수에는 채점 시각이 없다 — 없으면 시각을 지어내지 않고 문장만 남긴다 */}
+              {scoredAtLabel && `${scoredAtLabel} 채점 · `}선생님 쪽에서 매긴 점수
             </p>
           </div>
         )}
@@ -179,7 +198,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
         {!isExam && <TeacherCommentCard assignmentId={id} />}
 
         {/* 낸 답 — 정오는 서버가 주지 않으니(🔒 정답 비노출) 「무엇을 냈나」만 보여 준다. */}
-        {!isExam && submission !== undefined && questions.length > 0 && (
+        {/* 「낸 답」은 이 세션이 보낸 답을 그대로 보여 주는 것이라 세션 응답이 있을 때만 선다 —
+            서버 행으로 제출 사실을 되읽어도 **답은 그 응답에 없다**(🔒 `SubmissionDto` 에 답 칸이 없다). */}
+        {!isExam && result !== undefined && questions.length > 0 && (
           <section className="bg-card rounded-2xl border p-4">
             <SectionHeading title="내가 낸 답" description="맞았는지는 선생님 화면에서 매겨져요." />
             <ul className="space-y-2">

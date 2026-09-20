@@ -10,7 +10,7 @@ import { FlywheelNote } from '@/components/shell/flywheel-note';
 import { ContextRail } from '@/components/shell/context-rail';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { studentQuestionsOf, useVisibleAssignment } from '../use-assignment-reads';
+import { mySubmissionOf, studentQuestionsOf, useVisibleAssignment } from '../use-assignment-reads';
 import { useSubmissionResult } from '@/lib/store/submission-result';
 import { questionTypeMeta } from '@/lib/question-type';
 import { cn } from '@/lib/utils';
@@ -21,13 +21,17 @@ import { cn } from '@/lib/utils';
  * 문항도 같은 응답에서 온다(🔒 answerKey 없음). 종전의 「목록=서버 / 문항=mock 시드 / 데모=로컬 스토어」
  * 세 갈래는 걷었다 — 목록·상세·풀이·결과·대화가 같은 행과 같은 문항을 본다.
  *
- * **제출 여부는 이 세션 안에서만 안다.** 정본에 학생 본인의 제출을 되읽는 문이 없어(`/submissions` 는 operator 전용)
- * 새로고침하면 서버 행의 `state`(교사가 낼 때 굳힌 값)로 돌아간다 — 그때 CTA 는 다시 「시작」이다.
+ * **제출 여부는 서버 행의 `submitted` 가 말한다**(pullim-api #681 — 상세도 목록과 같은 세 칸을 싣는다).
+ * 종전에는 `state === 'submitted'` 와 이 세션의 제출 응답뿐이라 **새로고침하면 낸 과제가 다시 「시작」으로
+ * 돌아갔다** — `state` 는 과제당 하나뿐인 자유 문자열이라 배포 폼이 넣은 `'todo'` 에서 영영 안 움직인다.
+ * 갈래는 셋이고(`mySubmissionOf`), **「모른다」(옛 서버·운영자 관점)를 「안 냄」으로 그리지 않는다** —
+ * 그때 CTA 는 종전과 똑같이 「시작」이다.
  */
 export default function AssignmentOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const api = useVisibleAssignment(id);
-  const submitted = useSubmissionResult(id);
+  // 이 세션에서 방금 낸 결과 — 행의 `submitted`(서버가 한 말)와 헷갈리지 않게 이름을 갈라 둔다.
+  const sessionResult = useSubmissionResult(id);
   const a = api.data;
 
   const back = (
@@ -63,7 +67,8 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
 
   const questions = studentQuestionsOf(a);
 
-  const isSubmitted = a.state === 'submitted' || submitted !== undefined;
+  // 방금 낸 것(세션) → 서버 행(`submitted`) 순서로 답한다. 「모른다」는 낸 것으로도 안 낸 것으로도 치지 않는다.
+  const isSubmitted = mySubmissionOf(a, sessionResult?.submission).kind === 'submitted';
   const isInProgress = !isSubmitted && a.state === 'in-progress';
   const isExam = a.mode === 'exam';
 

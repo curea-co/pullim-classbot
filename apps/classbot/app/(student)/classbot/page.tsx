@@ -124,8 +124,10 @@ export default function StudentClassbotPage() {
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
 
   // 아직 안 끝낸 과제 — 급한 것이 앞. 히어로·할 일 패널이 mock 시절의 `Assignment` 모양을 읽어 어댑터를 지난다.
-  // 서버 행의 `completedCount` 는 늘 0 이다(학생 본인의 제출을 되읽는 문이 정본에 없다) — 그래서 받은 과제는 전부
-  // 「안 끝낸 것」으로 선다. 목록이 아직 안 왔으면 빈 배열이고, 패널은 그때 빈 상태를 잠깐 보인다.
+  // 서버 행의 `completedCount` 는 제출 여부의 투영이다(`use-assignment-reads.ts`) — 낸 과제는 여기서 빠지고,
+  // 안 냈거나 **아직 모르는**(서버가 본인 제출 칸을 안 싣는) 과제가 「안 끝낸 것」으로 선다. 모르는 쪽을 남기는
+  // 편이 안전하다 — 낸 것을 할 일에 한 번 더 세우는 쪽이, 안 낸 것을 숨기는 쪽보다 덜 해롭다.
+  // 목록이 아직 안 왔으면 빈 배열이고, 패널은 그때 빈 상태를 잠깐 보인다.
   const incompleteAssignments = (assignmentsQuery.data?.assignments ?? [])
     .map(readRowToAssignment)
     .filter(a => a.completedCount < a.questionCount)

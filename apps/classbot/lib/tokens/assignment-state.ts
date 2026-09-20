@@ -16,7 +16,9 @@
  *   오답정복     → blue-600 progress · **lime 칩 + lime 라이너**([§ 15.6] 모드 식별 시그니처)
  *   시험         → navy solid · navy 칩 "시험" · navy 라이너
  *
- * 우선순위: mode(exam/wrong-conquest) > state(overdue/submitted) > dDay(D-1/오늘) > 진행 중
+ * 우선순위: mode(exam/wrong-conquest) > 완료(`submitted === true`) > state(overdue) > dDay(D-1/오늘) > 진행 중
+ *
+ * ⚠ **완료는 `submitted` 한 칸이 정한다** — `state` 가 아니다. 그 이유는 아래 완료 분기 주석에 적었다.
  */
 
 import type { Assignment, AssignmentMode } from '@/lib/mock';
@@ -98,7 +100,20 @@ function parseDDay(dDay: string): { value: number; isOverdue: boolean } {
   return { value: 999, isOverdue: false };
 }
 
-export function getAssignmentVisual(a: Assignment): AssignmentVisual {
+/**
+ * 이 함수가 실제로 읽는 칸만 — 학생 목록의 서버 행(`AssignmentReadRow`)과 mock `Assignment` 둘 다 이 모양을
+ * 만족한다. 종전에는 `Assignment` 를 통째로 받아 호출부가 `as never` 로 캐스팅해야 했고, 그 캐스팅이
+ * **행에 `submitted` 가 실리는지 타입이 못 보게 막았다.**
+ */
+export type AssignmentVisualInput = Pick<Assignment, 'mode' | 'state' | 'dDay'> & {
+  /**
+   * 내가 냈는가 — `true` 냄 · `false` 안 냄 · `null`/없음 **모른다**(서버가 아직 안 싣거나 운영자 관점).
+   * 「모른다」는 완료가 아니지만 **「안 냄」도 아니다** — 아래 완료 분기만 건너뛰고 마감일이 말하게 둔다.
+   */
+  submitted?: boolean | null;
+};
+
+export function getAssignmentVisual(a: AssignmentVisualInput): AssignmentVisual {
   // 1) 모드 기반 (시험 > 오답정복)
   if (a.mode === 'exam') {
     return {
@@ -125,8 +140,13 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     };
   }
 
-  // 2) 완료 (state == submitted 또는 completedCount == questionCount)
-  const isComplete = a.state === 'submitted' || a.completedCount >= a.questionCount;
+  // 2) 완료 — **서버가 「냈다」고 말한 것만** 이다(pullim-api #681 의 `submitted`).
+  //    종전에는 `state === 'submitted' || completedCount >= questionCount` 였는데 둘 다 못 쓴다:
+  //    `state` 는 과제당 하나뿐인 자유 문자열이라 배포 폼이 넣는 `'todo'` 에서 영영 안 움직이고,
+  //    `completedCount` 는 그 `submitted` 의 투영이라 같은 말을 두 번 하는 것이다.
+  //    `false`(안 냄)와 `null`/없음(모른다)은 **둘 다 여기서 안 멈춘다** — 다만 그 차이는 완료 여부가
+  //    아니라 「안 냈다고 말해도 되는가」에 있고, 그 답은 화면(KPI·결과)이 한다.
+  const isComplete = a.submitted === true;
   if (isComplete) {
     return {
       state: 'complete',

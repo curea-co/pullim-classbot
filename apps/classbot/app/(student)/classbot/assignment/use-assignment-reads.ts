@@ -20,8 +20,9 @@
  * 아래 `toAssignmentReadRow` 다. 서버에 **없는 칸**은 이렇게 채운다(줄마다 이유):
  *  - `botId` ← `classId` — bot == class(ADR-063). 화면의 봇 조인 키가 그대로 선다.
  *  - `studentId: null` — 서버는 대상 표(`assignment_targets`)를 학생 응답에 싣지 않는다. 술어는 서버가 집행.
- *  - `completedCount: 0` · `recentAccuracy: null` — 학생 본인의 제출을 되읽는 문이 정본에 없다(`/submissions` 는
- *    operator 전용). 제출 직후의 점수는 `lib/store/submission-result.ts` 가 세션 안에서만 든다.
+ *  - `completedCount` — 「몇 번까지 풀었나」를 담는 칸은 여전히 정본에 없다(중간 저장·이어서 풀기는 별건 설계).
+ *    그래서 진행도가 아니라 **제출 여부의 투영**이다 — 냈으면 `questionCount`, 안 냈거나 모르면 0.
+ *  - `recentAccuracy: null` — 정본에 그 개념이 없다.
  *  - `assignedBy: ''` — 교사 표시명이 응답에 없다(계획 §10 해소 5 · pullim-api PR 2 members 조인). 모르는 것을
  *    지어내지 않는다 — 화면이 반 봇 이름을 먼저 쓰고, 그것도 없을 때의 「선생님」은 화면의 폴백이다
  *    (`assignment/page.tsx`).
@@ -30,6 +31,31 @@
  *    지금 기준으로 다시 센 뒤(`remainingDDay`) 라벨로 만든다(`lib/assignment-labels.ts` — `parseDDay` 가 읽는 형태).
  *  - `mode`·`difficulty`·`state` 는 서버가 string 으로 열어 둔 칸이다 — 교사가 낼 때 이 앱의 union 값을
  *    보내므로 그대로 좁히고, 낯선 값은 가장 보수적인 쪽(연습·중·todo)으로 접는다.
+ *
+ * ## 제출 여부는 `state` 가 아니라 본인 제출 세 칸에서 읽는다 (pullim-api #681)
+ *
+ * `assignments.state` 는 **과제 한 건에 하나뿐인 칸**이고 교사가 낼 때 보낸 값이 그대로 돌아온다 —
+ * 이 앱의 배포 폼은 늘 `'todo'` 를 보내므로 그 값은 누가 무엇을 내든 영영 `'todo'` 다. 그래서 그것으로
+ * 「냈는가」를 판정하면 **낸 과제가 계속 안 낸 것으로 보인다.** #681 이 요청자 본인의 `submissions` 행에서
+ * 오는 `submitted`·`submittedAt`·`scorePercent` 를 목록과 상세 양쪽에 실어 그 자리를 채운다.
+ *
+ * ⛔ **갈래는 셋이다 — 「모른다」를 「안 냄」으로 접지 마라**
+ * (`hooks/api/classroom.ts` `useClassDetail` 머리주석의 「모른다 · 없음 · 이 값」과 같은 규칙):
+ *
+ * | 서버가 준 것 | 뜻 | 행의 `submitted` |
+ * |---|---|---|
+ * | 키 자체가 없다(`undefined`) | **모른다** — #681 배포 전 서버다 | `null` |
+ * | `null` | **모른다** — 운영자 관점이라 「내가 냈나」가 성립하지 않는다 | `null` |
+ * | `false` | **안 냈다** — 서버가 그렇게 말했다 | `false` |
+ * | `true` | **냈다** | `true` |
+ *
+ * 앞의 둘을 한 값(`null`)으로 합치는 것은 **화면이 할 답이 같아서**다 — 둘 다 「이 학생이 냈다고도 안 냈다고도
+ * 말할 수 없다」이고, 그때 화면은 종전(#681 이전)과 **한 글자도 다르지 않게** 그린다. 서버가 세 칸을 싣기
+ * 시작하면 저절로 맞아진다 — `classNameOf` 의 `?? card.name` 폴백과 같은 장치이고, 그래서 **이 FE 를 #681
+ * 보다 먼저 머지해도 안전하다.**
+ *
+ * **걷을 조건**: #681 이 prod 까지 가서 모든 응답이 세 칸을 싣게 되면 `classbot-dto.ts` 의 `?` 를 떼고
+ * 여기 `?? null` 을 지운다(타입이 남은 자리를 짚어 준다).
  *
  * 문항은 `toStudentQuestion` 이 옮긴다 — 정본 문항에는 **배점·정답·힌트·기준 응답이 없다**(🔒 answerKey 는 서버
  * 전용, 나머지는 칸 자체가 없다). 풀이·대화 화면이 읽는 `AssignmentQuestion` 모양으로 맞추되 그 칸들은 비운다.
@@ -52,6 +78,7 @@ import type {
   AssignmentDetailDto,
   AssignmentQuestionDto,
   AssignmentSummaryDto,
+  SubmissionDto,
 } from '@/lib/api/classbot-dto';
 import { remainingDDay } from '@/lib/assignment-due';
 import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
@@ -123,6 +150,8 @@ export function studentQuestionsOf(row: VisibleAssignmentRow): AssignmentQuestio
  * @returns 목록 카드·상세가 읽는 행
  */
 export function toAssignmentReadRow(dto: AssignmentSummaryDto, now: number = Date.now()): AssignmentReadRow {
+  // 키가 없으면(`undefined`) 운영자 관점의 `null` 과 같은 답 — 「모른다」다. 머리주석의 표가 권위.
+  const submitted = dto.submitted ?? null;
   return {
     id: dto.id,
     botId: dto.classId,
@@ -143,8 +172,13 @@ export function toAssignmentReadRow(dto: AssignmentSummaryDto, now: number = Dat
     assignedAtLabel: dispatchedAtLabel(dto.dispatchedAt),
     dueLabel: dto.dueLabel,
     dDay: dDayLabel(remainingDDay(dto.dDay, dto.dispatchedAt, now)),
-    completedCount: 0,
+    // 진행도가 아니라 제출 여부의 투영이다(머리주석) — 「모른다」는 0 쪽으로 둔다. 0 이 「안 냈다」를 뜻하지는
+    // 않는다: 카드가 「완료」를 말할지 말지는 `submitted` 가 정한다(`lib/tokens/assignment-state.ts`).
+    completedCount: submitted === true ? dto.questionCount : 0,
     recentAccuracy: null,
+    submitted,
+    submittedAt: dto.submittedAt ?? null,
+    scorePercent: dto.scorePercent ?? null,
     state: narrow(dto.state, STATES, 'todo'),
     reasonHint: null,
     solveHref: `/classbot/assignment/${dto.id}/solve?step=1`,
@@ -159,6 +193,48 @@ export function toAssignmentReadRow(dto: AssignmentSummaryDto, now: number = Dat
  */
 export function toVisibleAssignmentRow(dto: AssignmentDetailDto, now: number = Date.now()): VisibleAssignmentRow {
   return { ...toAssignmentReadRow(dto, now), questions: dto.questions };
+}
+
+/**
+ * 「내 제출」에 대해 화면이 말할 수 있는 것 — **세 갈래다.** 둘(`냈다`/`안 냈다`)로 접으면 못 읽은 것을
+ * 「안 냈다」로 단언하게 된다.
+ */
+export type MySubmissionView =
+  /** 모른다 — 이 서버가 아직 본인 제출 칸을 안 싣거나(#681 전), 운영자 관점이라 그 개념이 없다. */
+  | { kind: 'unknown' }
+  /** 서버가 「안 냈다」고 말했다. */
+  | { kind: 'not-submitted' }
+  /** 냈다. `scorePercent` 의 `0` 은 0점이고 `null` 은 「점수가 아직 없다」(미채점)다. */
+  | { kind: 'submitted'; scorePercent: number | null; submittedAt: string | null; gradedAt: string | null };
+
+/**
+ * 과제 한 건에 대한 내 제출 상태 — 서버 행과 이 세션의 제출 응답을 합쳐 위 셋 중 하나로 답한다.
+ *
+ * 세션 응답(`lib/store/submission-result.ts` · 방금 낸 것)이 있으면 그게 가장 최신이라 먼저다 —
+ * 목록 캐시가 아직 옛 행을 들고 있어도 방금 낸 사실은 확실하다. 없으면 서버 행이 답하고, 서버가
+ * 모르면 **모른다로 남긴다.**
+ * @param row - 목록·상세가 준 행
+ * @param submission - 이 세션에서 방금 낸 제출 응답(없으면 undefined)
+ * @returns 화면이 그릴 세 갈래 중 하나
+ */
+export function mySubmissionOf(
+  row: Pick<AssignmentReadRow, 'submitted' | 'submittedAt' | 'scorePercent'>,
+  submission?: SubmissionDto,
+): MySubmissionView {
+  if (submission) {
+    return {
+      kind: 'submitted',
+      scorePercent: submission.scorePercent,
+      submittedAt: submission.submittedAt,
+      gradedAt: submission.gradedAt,
+    };
+  }
+  if (row.submitted === true) {
+    // 서버 행에는 채점 시각 칸이 없다 — 지어내지 않고 제출 시각만 말한다.
+    return { kind: 'submitted', scorePercent: row.scorePercent, submittedAt: row.submittedAt, gradedAt: null };
+  }
+  if (row.submitted === false) return { kind: 'not-submitted' };
+  return { kind: 'unknown' };
 }
 
 /** 목록 읽기 결과 — 인증 게이트가 반영된 모양(`StudentReadResult` 와 같은 계약). */

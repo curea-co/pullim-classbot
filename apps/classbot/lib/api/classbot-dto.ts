@@ -49,6 +49,24 @@ export interface AssignmentSummaryDto {
   chapterFrom: string | null;
   chapterTo: string | null;
   achievementCodes: string[] | null;
+  /**
+   * 📥 **요청자 본인이 이 과제를 냈는가** — `true` 냄 · `false` 안 냄 · `null` 「냈는지」라는 개념이 없는 관점
+   * (반 operator: `audience=teacher` 목록 · operator 가 읽은 상세 · 배포 201 응답). pullim-api #681 이 낸 칸이라
+   * **그 전 서버 응답에는 이 키가 아예 없다** — 그래서 `?` 다. 키가 없는 것은 「안 냄」이 아니라 **「모른다」**다
+   * (`use-assignment-reads.ts` 의 `toAssignmentReadRow` 가 그 셋을 가른다).
+   *
+   * ⚠ **제출 여부를 `state` 에서 읽지 마라.** `state` 는 교사가 낼 때 보낸 값이 그대로 돌아오는 자유 문자열이고
+   * **과제 한 건에 하나뿐**이라 모든 학생에게 같은 값이다(pullim-api api.md § 3.6 · #681 DTO 주석).
+   */
+  submitted?: boolean | null;
+  /** 📥 본인 제출 시각(ISO 8601) — 미제출·operator 관점이면 `null`. #681 이전 응답에는 키가 없다. */
+  submittedAt?: string | null;
+  /**
+   * 📥 본인 제출의 서버 권위 채점값(0~100). **`0`(전부 오답)과 `null` 은 다른 값이다** —
+   * `null` 은 미채점(서술형 등 자동채점 불가 포함)·미제출·operator 관점이다. 「냈는지」는 이 칸이 아니라
+   * 위 `submitted` 가 말한다. #681 이전 응답에는 키가 없다.
+   */
+  scorePercent?: number | null;
 }
 
 /** `AssignmentQuestionResponseDto` — 🔒 `answerKey` 없음(서버 전용 채점 소스). */
@@ -62,7 +80,11 @@ export interface AssignmentQuestionDto {
   autoGradable: boolean;
 }
 
-/** `AssignmentDetailResponseDto` — 요약 + 문항. `GET /classbot/assignments/:id`. */
+/**
+ * `AssignmentDetailResponseDto` — 요약 + 문항. `GET /classbot/assignments/:id`.
+ * 본인 제출 세 칸(`submitted`·`submittedAt`·`scorePercent`)도 요약에서 그대로 물려받는다 —
+ * 상세도 목록과 같은 값을 싣는다(pullim-api #681).
+ */
 export interface AssignmentDetailDto extends AssignmentSummaryDto {
   questions: AssignmentQuestionDto[];
 }

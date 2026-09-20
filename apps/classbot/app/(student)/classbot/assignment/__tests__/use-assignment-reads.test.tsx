@@ -25,6 +25,7 @@ import type { AssignmentDetailDto, AssignmentSummaryDto } from '@/lib/api/classb
 import {
   dDayLabel,
   dispatchedAtLabel,
+  mySubmissionOf,
   studentQuestionsOf,
   toAssignmentReadRow,
   toStudentQuestion,
@@ -151,6 +152,10 @@ describe('toAssignmentReadRow — 정본 DTO → 화면 행', () => {
       dDay: 'D-3',
       completedCount: 0,
       recentAccuracy: null,
+      // SUMMARY 에는 본인 제출 세 칸이 없다(#681 이전 서버) — 「모른다」로 떨어진다. 아래 describe 가 네 갈래를 잰다.
+      submitted: null,
+      submittedAt: null,
+      scorePercent: null,
       state: 'todo',
       reasonHint: null,
       solveHref: '/classbot/assignment/asg_1/solve?step=1',
@@ -195,6 +200,110 @@ describe('toAssignmentReadRow — 정본 DTO → 화면 행', () => {
   it('배포 전(null)·깨진 시각은 빈 라벨', () => {
     expect(dispatchedAtLabel(null)).toBe('');
     expect(dispatchedAtLabel('not-a-date')).toBe('');
+  });
+});
+
+/**
+ * 본인 제출 세 칸(pullim-api #681) — **갈래는 넷이고, 그중 둘만 사실 주장이다.**
+ *
+ * 종전에는 `completedCount: 0` 이 박혀 있고 제출 여부를 `state` 에서 읽어, **낸 과제가 계속 「안 냄」으로 보였다**
+ * (`state` 는 과제당 하나뿐인 자유 문자열이고 이 앱의 배포 폼은 늘 `'todo'` 를 넣는다).
+ */
+describe('본인 제출 세 칸 — 없음·false·true·null', () => {
+  it('칸이 아예 없으면(#681 배포 전 서버) 「모른다」다 — false 로 접지 않는다', () => {
+    const row = toAssignmentReadRow(SUMMARY);
+    expect(row.submitted).toBeNull();
+    expect(row.submittedAt).toBeNull();
+    expect(row.scorePercent).toBeNull();
+    // 「모른다」에서는 종전과 같은 그림이어야 한다 — 진척을 0 으로 두되 그것이 「안 냈다」는 뜻은 아니다.
+    expect(row.completedCount).toBe(0);
+  });
+
+  it('false 면 「안 냈다」 — 서버가 한 말이고, 「모른다」와 구별된다', () => {
+    const row = toAssignmentReadRow({ ...SUMMARY, submitted: false, submittedAt: null, scorePercent: null });
+    expect(row.submitted).toBe(false);
+    expect(row.completedCount).toBe(0);
+  });
+
+  it('true 면 「냈다」 — 진척도 다 푼 것으로 선다(정본에 중간 진행도 칸이 없다)', () => {
+    const row = toAssignmentReadRow({
+      ...SUMMARY,
+      submitted: true,
+      submittedAt: '2026-09-18T10:00:00.000Z',
+      scorePercent: 80,
+    });
+    expect(row.submitted).toBe(true);
+    expect(row.submittedAt).toBe('2026-09-18T10:00:00.000Z');
+    expect(row.scorePercent).toBe(80);
+    expect(row.completedCount).toBe(row.questionCount);
+  });
+
+  it('null 이면(운영자 관점) 「모른다」다 — 칸 없음과 같은 답으로 떨어진다', () => {
+    const row = toAssignmentReadRow({ ...SUMMARY, submitted: null, submittedAt: null, scorePercent: null });
+    expect(row.submitted).toBeNull();
+    expect(row.completedCount).toBe(0);
+  });
+
+  it('scorePercent 0 은 0점이고 null 은 「점수가 없다」 — 둘을 같은 값으로 접지 않는다', () => {
+    const zero = toAssignmentReadRow({ ...SUMMARY, submitted: true, submittedAt: 'x', scorePercent: 0 });
+    const none = toAssignmentReadRow({ ...SUMMARY, submitted: true, submittedAt: 'x', scorePercent: null });
+    expect(zero.scorePercent).toBe(0);
+    expect(none.scorePercent).toBeNull();
+  });
+
+  it('상세도 같은 세 칸을 싣는다', () => {
+    const row = toVisibleAssignmentRow({ ...DETAIL, submitted: true, submittedAt: 'x', scorePercent: 0 });
+    expect(row.submitted).toBe(true);
+    expect(row.scorePercent).toBe(0);
+  });
+});
+
+/**
+ * `mySubmissionOf` — 행과 이 세션의 제출 응답을 합쳐 **셋 중 하나**로 답한다.
+ * 화면(상세 CTA·결과 점수 칸)이 「안 냄」과 「모른다」를 다르게 그리는 근거가 여기다.
+ */
+describe('mySubmissionOf — 냈다 · 안 냈다 · 모른다', () => {
+  const row = (submitted: boolean | null, scorePercent: number | null = null) =>
+    ({ submitted, submittedAt: submitted ? '2026-09-18T10:00:00.000Z' : null, scorePercent });
+
+  it('서버가 모르면 unknown — 「안 냈다」고 말하지 않는다', () => {
+    expect(mySubmissionOf(row(null))).toEqual({ kind: 'unknown' });
+  });
+
+  it('서버가 false 면 not-submitted', () => {
+    expect(mySubmissionOf(row(false))).toEqual({ kind: 'not-submitted' });
+  });
+
+  it('서버가 true 면 submitted — 점수 0 도 0점으로 그대로 전한다', () => {
+    expect(mySubmissionOf(row(true, 0))).toEqual({
+      kind: 'submitted',
+      scorePercent: 0,
+      submittedAt: '2026-09-18T10:00:00.000Z',
+      // 서버 행에는 채점 시각 칸이 없다 — 지어내지 않는다.
+      gradedAt: null,
+    });
+  });
+
+  it('미채점(null)은 점수 0 과 다른 값으로 남는다', () => {
+    const view = mySubmissionOf(row(true, null));
+    expect(view).toMatchObject({ kind: 'submitted', scorePercent: null });
+  });
+
+  it('이 세션에서 방금 낸 것이 서버 행보다 앞선다 — 목록 캐시가 아직 옛 행이어도', () => {
+    const view = mySubmissionOf(row(null), {
+      submissionId: 's_1',
+      assignmentId: 'asg_1',
+      studentId: 'sub-1',
+      scorePercent: 0,
+      gradedAt: '2026-09-19T01:00:00.000Z',
+      submittedAt: '2026-09-19T00:59:00.000Z',
+    });
+    expect(view).toEqual({
+      kind: 'submitted',
+      scorePercent: 0,
+      gradedAt: '2026-09-19T01:00:00.000Z',
+      submittedAt: '2026-09-19T00:59:00.000Z',
+    });
   });
 });
 
