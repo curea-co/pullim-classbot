@@ -18,7 +18,7 @@ import { Slider } from '@/components/ui/slider';
 import { getBotCurriculum, type AssignmentMode, type BotCurriculumUnit, type ScopeLevel } from '@/lib/mock';
 import type { DispatchAssignmentBody } from '@/lib/api/classbot-dto';
 import { useDispatchAssignment } from '@/hooks/api/assignment-dispatch';
-import { useOperatorClasses } from '@/hooks/api/classroom';
+import { useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
 import { toTeacherClass, type TeacherClass } from '../assignment-filters';
 import {
   QuestionListEditor, PointsTally, createDefaultQuestions, makeQuestion,
@@ -47,6 +47,15 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
  *    아니라 「반 전체」 한 줄이다.
  *  - 정본에 칸이 없어 **보내지 않는 것**: 봇 한 마디(`reasonHint`) · 마감 시각(`dueAt`) · 문항 배점·채점 기준.
  *    배점은 편집기 안 규칙(합 100)으로만 남고, 서버 채점은 자동 채점 문항을 균등하게 센다.
+ *
+ * **과목·학년은 ① 에서 보이고 고칠 수 있다.** 종전에는 화면에 칸이 없어, 반 카드가 비어 오면 「과목 미정」·
+ * 「학년 미정」이라는 지어낸 글자가 그대로 `assignments` 행에 들어갔다(2026-09-18 dev 실측). 이제 **봇 → 반 →
+ * 교사** 순으로 채운다 — 자세한 출처와 순서 이유는 아래 `autoSubject` 위 주석.
+ *
+ * **`scope`(단원)는 이 화면이 아직 못 고친다.** 같은 모양의 결함이지만(정본 반은 단원 카탈로그에 없어 늘
+ * 「단원 미정」으로 나간다) 과목·학년과 달리 **정본에 읽을 출처가 아예 없다** — pullim-api classbot 에
+ * 커리큘럼 문이 없어 단원은 mock 카탈로그가 소유한다. 고치려면 교사가 단원을 직접 쓰는 새 입력을 여는 셈이라
+ * (그 select 의 뜻이 바뀐다) 이 PR 범위 밖이다. 서버도 `scope` 를 `@IsNotEmpty` 로 막으므로 비워 보낼 수도 없다.
  */
 
 type ModeMeta = { label: string; description: string; color: string; defaultScope: ScopeLevel };
@@ -102,9 +111,13 @@ export function toLocalDatetimeInput(d: Date): string {
     + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** 서버가 `NotEmpty` 로 막는 두 칸 — 프로필이 없는 반은 비어 오므로 「미정」으로 채운다. 지어낸 과목을 넣지 않는다. */
-const SUBJECT_FALLBACK = '과목 미정';
-const GRADE_FALLBACK = '학년 미정';
+/**
+ * 과목·학년 입력 상한 — 반의 같은 두 칸이 서버에서 50자다(pullim-api `CreateClassDto` 의 `@MaxLength(50)`).
+ *
+ * 과제 쪽(`DispatchAssignmentDto`)에는 길이 제약이 없다(`assignments.subject`·`grade` 는 `text`) — 그래서
+ * 이 상한은 **서버가 요구하는 것이 아니라** 「반에 적을 수 있는 말이면 과제에도 적을 수 있다」로 맞춘 것이다.
+ */
+const SUBJECT_GRADE_MAX = 50;
 
 /**
  * `initialClassId` — 반 상세·봇 운영 화면의 「과제 내기」가 어느 반에서 눌렸는지(`?classId=`).
@@ -122,6 +135,14 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   const [difficulty, setDifficulty] = useState<Difficulty>('중');
   const [unitId, setUnitId] = useState<string>('');
   const [questions, setQuestions] = useState<DraftQuestion[]>(createDefaultQuestions);
+  /**
+   * 교사가 손댄 과목·학년. **`null` = 아직 안 건드렸다 = 자동 채움 값을 그대로 쓴다.**
+   *
+   * 빈 문자열로 초기화하면 안 된다 — 자동 채움이 반 상세 응답을 기다렸다 오므로, 도착한 값을 effect 로
+   * state 에 밀어 넣으면 그 사이에 교사가 적은 글자를 덮어쓴다. 고른 반이 state 가 아니라 파생인 것과 같은 이유다.
+   */
+  const [subjectEdit, setSubjectEdit] = useState<string | null>(null);
+  const [gradeEdit, setGradeEdit] = useState<string | null>(null);
   const [dueIso, setDueIso] = useState(defaultDueLabel());
   const [examTimeLimit, setExamTimeLimit] = useState(60);
   const [preview, setPreview] = useState(false);
@@ -141,9 +162,44 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   const curriculum = useMemo<BotCurriculumUnit[]>(() => getBotCurriculum(selectedClassId), [selectedClassId]);
   const selectedUnit = curriculum.find((u) => u.id === unitId) ?? curriculum[0];
 
+  /*
+    과목·학년의 출처 — **봇 → 반 → 교사** 순이다.
+
+    반 목록 카드(`GET /classbot/bots?role=teacher`)의 `profile` 은 그 반에 **붙은 봇**(`bots` 행)에서 온다.
+    그래서 봇이 안 붙은 반은 `profile` 이 통째로 null 이고, 붙어 있어도 `subject`·`grade` 가 null 일 수 있다
+    (`PATCH /classbot/bots/:id` 의 `null` 이 「비움」이다 — `lib/api/classbot-dto.ts` `BotProfileDto`).
+    그 두 경우에 종전 코드는 「과목 미정」·「학년 미정」이라는 **지어낸 글자를 DB 에 박았다**.
+
+    반은 스스로 과목·학년을 든다(ADR-092 — `classes.subject`·`grade`). 그것을 주는 문은 반 카드가 아니라
+    **`GET /classbot/classes/:classId`** 다(`useClassDetail` · `ClassResponseDto.subject|grade`, 둘 다 nullable).
+    그래서 고른 반 하나만 따로 읽어 봇이 못 채운 자리를 메운다 — 목록 전체를 반마다 읽지는 않는다(N 요청).
+
+    **봇이 먼저인 이유**: 한 봇이 여러 반을 섬기지만(ADR-092), 종전에도 봇이 채우던 자리는 그대로 맞았다.
+    순서를 뒤집으면 지금 잘 나가던 반의 과제 과목이 조용히 바뀐다 — 이 PR 이 고치려는 것은 **비는 자리**다.
+  */
+  const classDetailQuery = useClassDetail(selectedClassId);
+  const autoSubject = klass?.subject || classDetailQuery.data?.subject || '';
+  const autoGrade = klass?.grade || classDetailQuery.data?.grade || '';
+  const subject = subjectEdit ?? autoSubject;
+  const grade = gradeEdit ?? autoGrade;
+  /** 자동 채움이 아직 오는 중 — 그동안 빈 칸을 잘못이라고 말하지 않는다(곧 채워질 수 있다). */
+  const autofillPending = classDetailQuery.isLoading;
+  const subjectValid = subject.trim().length > 0;
+  const gradeValid = grade.trim().length > 0;
+  /*
+    빨간 글씨를 띄울 조건 — **고른 반이 있고**, 자동 채움이 끝났는데도 비어 있을 때만.
+    반 목록이 아직 안 왔거나 운영하는 반이 하나도 없으면 `klass` 가 undefined 인데, 그때 이 칸이 빈 것은
+    교사 잘못이 아니다 — 그 이유는 위 오류·빈 상태 카드가 이미 말하고 있다.
+  */
+  const subjectMissing = !!klass && !autofillPending && !subjectValid;
+  const gradeMissing = !!klass && !autofillPending && !gradeValid;
+
   function handleClassChange(next: string) {
     setClassId(next);
     setUnitId('');
+    // 반을 바꾸면 자동 채움도 바뀐다 — 앞 반에 맞춰 적은 과목·학년을 새 반에 끌고 가지 않는다.
+    setSubjectEdit(null);
+    setGradeEdit(null);
   }
 
   // 검증
@@ -187,16 +243,22 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   }
   const blockedReason = questionBlockedReason();
 
+  /*
+    `subjectValid`·`gradeValid` 는 `autofillPending` 과 무관하게 막는다 — 기다리는 중에도 비어 있으면 못 낸다.
+    `autofillPending` 이 접는 것은 **빨간 글씨**뿐이다(아래 ① 섹션).
+  */
   const canDispatch =
-    !!klass && titleValid && dueValid && blockedReason === null && !dispatchAssignment.isPending;
+    !!klass && titleValid && subjectValid && gradeValid && dueValid
+    && blockedReason === null && !dispatchAssignment.isPending;
 
   /** 정본 본문 — 화면이 고른 것을 서버 DTO 모양으로. 검증은 위에서 끝났다. */
-  function buildBody(target: TeacherClass): DispatchAssignmentBody {
+  function buildBody(): DispatchAssignmentBody {
     return {
       title: title.trim(),
       scope: selectedUnit?.fullPath ?? '단원 미정',
-      subject: target.subject || SUBJECT_FALLBACK,
-      grade: target.grade || GRADE_FALLBACK,
+      // 화면에 선 그 글자가 그대로 간다 — 자동 채움이든 교사가 적은 것이든. 빈 값은 위 `canDispatch` 가 막았다.
+      subject: subject.trim(),
+      grade: grade.trim(),
       mode,
       // 서버가 `questions.length` 로 덮어 쓴다 — 같은 값을 보내 어긋남이 없게 한다.
       questionCount: questions.length,
@@ -220,7 +282,7 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   async function handleDispatch() {
     if (!canDispatch || !klass) return;
     try {
-      const created = await dispatchAssignment.mutateAsync({ classId: klass.id, body: buildBody(klass) });
+      const created = await dispatchAssignment.mutateAsync({ classId: klass.id, body: buildBody() });
       toast.success(`${klass.name} 반 전체에게 보냈어요`, {
         description: `"${created.title}" · ${created.dueLabel}`,
       });
@@ -249,8 +311,9 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
           eyebrow={{ icon: Send, text: '새 과제' }}
           title="과제 내기"
           description={
+            // 아직 모르는 과목·학년은 자리를 비운다 — 「과목 미정」 같은 지어낸 글자를 세우지 않는다.
             klass
-              ? `${klass.name} · ${klass.subject || SUBJECT_FALLBACK} ${klass.grade || GRADE_FALLBACK}`.trim()
+              ? [klass.name, [subject, grade].filter(Boolean).join(' ')].filter(Boolean).join(' · ')
               : '먼저 반을 선택해주세요'
           }
         />
@@ -313,6 +376,48 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
                 )}
               </select>
             </Field>
+
+            {/*
+              과목·학년 — 반(과 그 봇)에서 자동으로 차고, 교사가 고칠 수 있다.
+              서버가 둘 다 `@IsNotEmpty` 로 막으므로 비운 채로는 못 낸다(`DispatchAssignmentDto`).
+            */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="과목" htmlFor="af-subject">
+                <Input
+                  id="af-subject"
+                  value={subject}
+                  onChange={(e) => setSubjectEdit(e.target.value.slice(0, SUBJECT_GRADE_MAX))}
+                  placeholder={autofillPending ? '반 정보를 불러오는 중…' : '예: 수학Ⅱ'}
+                  data-testid="subject-input"
+                  aria-invalid={subjectMissing}
+                  aria-describedby={subjectMissing ? 'af-subject-err' : undefined}
+                  className="h-10 text-sm"
+                />
+                {subjectMissing && (
+                  <p id="af-subject-err" className="text-pullim-danger mt-1 text-xs" data-testid="subject-err">
+                    반에도 봇에도 과목이 적혀 있지 않아요 — 여기에 적어야 낼 수 있어요.
+                  </p>
+                )}
+              </Field>
+
+              <Field label="학년" htmlFor="af-grade">
+                <Input
+                  id="af-grade"
+                  value={grade}
+                  onChange={(e) => setGradeEdit(e.target.value.slice(0, SUBJECT_GRADE_MAX))}
+                  placeholder={autofillPending ? '반 정보를 불러오는 중…' : '예: 고2'}
+                  data-testid="grade-input"
+                  aria-invalid={gradeMissing}
+                  aria-describedby={gradeMissing ? 'af-grade-err' : undefined}
+                  className="h-10 text-sm"
+                />
+                {gradeMissing && (
+                  <p id="af-grade-err" className="text-pullim-danger mt-1 text-xs" data-testid="grade-err">
+                    반에도 봇에도 학년이 적혀 있지 않아요 — 여기에 적어야 낼 수 있어요.
+                  </p>
+                )}
+              </Field>
+            </div>
 
             <Field label="과제 제목" hint="5~50자" htmlFor="af-title">
               <Input

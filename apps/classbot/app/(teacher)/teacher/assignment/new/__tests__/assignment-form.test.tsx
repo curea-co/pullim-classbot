@@ -8,7 +8,7 @@
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentForm, toLocalDatetimeInput } from '../assignment-form';
-import type { BotCardDto, DispatchAssignmentBody } from '@/lib/api/classbot-dto';
+import type { BotCardDto, ClassDto, DispatchAssignmentBody } from '@/lib/api/classbot-dto';
 
 /**
  * 정본 반 카드(pullim-api #679 이후) — 봇이 붙은 반과 안 붙은 반.
@@ -31,17 +31,40 @@ const CLASS_B: BotCardDto = {
   description: null, isActive: true, role: 'teacher', profile: null,
 };
 
+/**
+ * 반 상세(`GET /classbot/classes/:classId` · `useClassDetail`) — **반이 스스로 든 과목·학년**이 여기 있다(ADR-092).
+ * 카드의 `profile` 은 붙은 봇에서 오므로 봇이 없으면 비고, 그때 과제 내기가 이 문을 읽어 메운다.
+ * @param over - 이 테스트가 정할 칸(대개 `subject`·`grade`)
+ */
+function classDto(over: Partial<ClassDto> = {}): ClassDto {
+  return {
+    id: 'cls_b', operatorId: 'teacher_1', orgId: null, name: '중3 국어 B반', description: null,
+    subject: null, grade: null, isActive: true, bot: null, joinCode: null,
+    createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
 const mutateAsync = jest.fn();
 const push = jest.fn();
 
 type QueryState<T> = { data: T | undefined; isPending: boolean; isSuccess: boolean; isError: boolean; error: unknown };
-const queries: { classes: QueryState<BotCardDto[]> } = {
+/** `useClassDetail` 이 돌려주는 모양 — 자동 채움이 오는 중인지(`isLoading`) 폼이 본다. */
+type DetailState = QueryState<ClassDto> & { isLoading: boolean };
+
+const IDLE_DETAIL: DetailState = {
+  data: undefined, isPending: true, isLoading: false, isSuccess: false, isError: false, error: null,
+};
+
+const queries: { classes: QueryState<BotCardDto[]>; classDetail: DetailState } = {
   classes: { data: [CLASS_A, CLASS_B], isPending: false, isSuccess: true, isError: false, error: null },
+  classDetail: IDLE_DETAIL,
 };
 
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
   useOperatorClasses: () => queries.classes,
+  useClassDetail: () => queries.classDetail,
 }));
 
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
@@ -68,6 +91,7 @@ beforeEach(() => {
     id: 'asg_1', classId: 'cls_a', title: body.title, dueLabel: body.dueLabel,
   }));
   queries.classes = { data: [CLASS_A, CLASS_B], isPending: false, isSuccess: true, isError: false, error: null };
+  queries.classDetail = IDLE_DETAIL;
 });
 
 /** 내기 — 서버 응답을 기다린 뒤에야 이동한다. */
@@ -303,15 +327,106 @@ it('모르는 classId 면 첫 반으로 연다 — 없는 반을 고른 척하�
   expect((screen.getByTestId('class-select') as HTMLSelectElement).value).toBe('cls_a');
 });
 
-it('프로필이 없는 반은 과목·학년을 「미정」으로 채워 보낸다 — 서버가 빈 문자열을 거절한다', async () => {
+/* ── 과목·학년 — 봇 → 반 → 교사 ─────────────────────────────────────────── */
+
+/*
+  2026-09-18 dev 에 `subject:"과목 미정"` · `grade:"학년 미정"` 이 그대로 저장돼 있었다. 그 두 글자는 어디에도
+  없던 값이고, 화면에 칸이 없어 교사가 고칠 수도 없었다. 아래 다섯이 그 자리를 잠근다 —
+  **지어낸 값을 보내지 않는다 · 반이 든 값을 읽는다 · 그래도 비면 교사에게 묻는다.**
+*/
+
+it('봇이 안 붙은 반은 반이 든 과목·학년으로 채운다 — 「미정」을 지어내지 않는다', async () => {
+  // 카드의 `profile` 은 null(봇 없음)이고, 반 자체는 `classes.subject`·`grade` 를 든다(ADR-092).
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '중3' }), isPending: false, isSuccess: true };
   render(<AssignmentForm initialClassId="cls_b" />);
   fillTitle();
   authorAllDefaults();
   await clickDispatch();
 
   const body = sentBody();
-  expect(body.subject).toBe('과목 미정');
-  expect(body.grade).toBe('학년 미정');
+  expect(body.subject).toBe('국어');
+  expect(body.grade).toBe('중3');
+});
+
+it('봇에 적힌 과목·학년이 먼저다 — 반이 다른 값을 들고 있어도 지금 나가던 값이 안 바뀐다', async () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL,
+    data: classDto({ id: 'cls_a', subject: '반이 든 과목', grade: '반이 든 학년' }),
+    isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_a" />); // CLASS_A.profile = 수학Ⅱ · 고2
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.subject).toBe('수학Ⅱ');
+  expect(body.grade).toBe('고2');
+});
+
+it('반에도 봇에도 안 적혀 있으면 내기를 막는다 — 빈 칸을 지어낸 글자로 메우지 않는다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true }; // subject·grade 둘 다 null
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('subject-err')).toBeInTheDocument();
+  expect(screen.getByTestId('grade-err')).toBeInTheDocument();
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('');
+});
+
+it('교사가 적으면 그 글자가 그대로 나간다 — 비어 있던 칸을 교사가 채울 수 있다', async () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
+  fireEvent.change(screen.getByTestId('grade-input'), { target: { value: '중3' } });
+
+  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.subject).toBe('국어');
+  expect(body.grade).toBe('중3');
+});
+
+it('반을 바꾸면 앞 반에 맞춰 적은 과목이 따라가지 않는다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '손으로 적은 과목' } });
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('손으로 적은 과목');
+
+  fireEvent.change(screen.getByTestId('class-select'), { target: { value: 'cls_a' } });
+  // cls_a 는 봇이 과목을 든 반 — 자동 채움으로 되돌아간다.
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('수학Ⅱ');
+});
+
+it('반 상세를 아직 읽는 중이면 빈 칸을 잘못이라고 말하지 않는다 — 다만 낼 수도 없다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('반 목록이 아직 안 왔으면 과목 칸을 잘못이라고 말하지 않는다 — 고를 반이 없어 빈 것뿐이다', () => {
+  queries.classes = { data: undefined, isPending: true, isSuccess: false, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.queryByTestId('grade-err')).toBeNull();
+});
+
+it('운영하는 반이 하나도 없어도 과목 칸이 빨개지지 않는다 — 빈 상태 카드가 이미 이유를 말한다', () => {
+  queries.classes = { data: [], isPending: false, isSuccess: true, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('rooms-empty')).toBeInTheDocument();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
 });
 
 it('운영하는 반이 없으면 낼 곳이 없다고 말하고 내 수업방으로 보낸다', () => {
