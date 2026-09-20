@@ -59,6 +59,11 @@ interface GroupBot {
  * 비로그인은 이 화면에 오지 않고(PR 4 RoleGuard), 세션이 끊긴 401 은 로그인 안내로 선다.
  * 봇별 그룹핑은 과제 행의 `botId`(=반 id)로 묶고, 헤더 페르소나(봇 배지·이름)는 참여 중인 반 목록을 조인해
  * 표시한다([08 § 15.6] `[봇 · N개]` 패턴).
+ *
+ * **「냈는가」는 행의 `submitted` 한 칸이 말한다**(pullim-api #681 · `use-assignment-reads.ts` 머리주석의 표).
+ * `state` 로 판정하던 종전 코드는 낸 과제를 계속 「안 낸 것」으로 그렸다 — 그 칸이 과제당 하나뿐이고 배포 폼이
+ * 늘 `'todo'` 를 넣어서다. 서버가 아직 그 칸을 안 실어 「모른다」인 동안에는 **세지도 그리지도 않는다** —
+ * 이 화면에서 0 은 「안 냈다」로 읽히기 때문이다.
  */
 export default function StudentAssignmentListPage() {
   const { data, isLoading, isUnauthenticated, isError, refetch } = useVisibleAssignments();
@@ -96,10 +101,15 @@ function AssignmentListBody({
   if (isLoading || !data) return <AssignmentListSkeleton />;
 
   const assignments = data.assignments;
-  const inProgress = assignments.filter(a => a.state === 'in-progress').length;
-  const todo = assignments.filter(a => a.state === 'todo').length;
-  const totalQuestions = assignments.reduce((s, a) => s + a.questionCount, 0);
-  const completed = assignments.reduce((s, a) => s + a.completedCount, 0);
+  // 셀 수 있는 것은 **서버가 말해 준 것뿐**이다(`submitted` · `use-assignment-reads.ts` 머리주석의 표).
+  // 「모른다」(#681 배포 전 서버 · 운영자 관점)는 어느 쪽에도 세지 않는다 — 못 읽은 것을 「안 냄」으로 세면
+  // 그 수가 곧 거짓말이 된다.
+  const submittedCount = assignments.filter(a => a.submitted === true).length;
+  const unsubmittedCount = assignments.filter(a => a.submitted === false).length;
+  // **전부** 알 때만 센다. 한 줄이라도 모르면 두 수의 합이 머리줄의 「받은 과제 N건」과 어긋나고,
+  // 그 어긋남은 「나머지는 안 냈다」로 읽힌다 — 한 응답에서 갈리는 일이 없어야 정상이지만, 여기서
+  // 「하나라도 알면 센다」로 열어 두면 그 비정상이 조용히 거짓말로 그려진다.
+  const knowsSubmission = submittedCount + unsubmittedCount === assignments.length;
 
   // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 반에서 온다.
   const botById = new Map(rooms.map(r => [r.bot.id, r.bot]));
@@ -137,11 +147,19 @@ function AssignmentListBody({
         <EmptyState icon={Inbox} title="아직 받은 과제가 없어요" description="선생님이 새 과제를 내면 여기에 표시돼요." />
       ) : (
         <>
-          <KpiStatBar cols={3}>
-            <KpiStat label="진행 중" value={`${inProgress}건`} tone="accent" />
-            <KpiStat label="대기" value={`${todo}건`} tone="default" />
-            <KpiStat label="완료" value={`${completed}/${totalQuestions}문항`} tone="success" />
-          </KpiStatBar>
+          {/* 제출 요약 두 칸 — 서버가 「냈다/안 냈다」를 말해 줄 때만 선다.
+              종전 세 칸(「진행 중」·「대기」·「완료」)은 전부 읽을 곳이 없어졌다:
+                · 「진행 중」 = `state === 'in-progress'` 인데 그 값을 쓰는 곳이 서버에 없다(배포 폼이 늘 `'todo'`)
+                  — **영영 0 이던 칸이라 지웠다.** 「몇 번까지 풀었나」는 중간 저장이 생기는 별건 설계의 몫이다.
+                · 「대기」 = `state === 'todo'` 인데 같은 이유로 **늘 전체 건수**였다(머리줄의 「받은 과제 N건」과 같은 수).
+                · 「완료」 = 문항 수 합인데 `completedCount` 가 제출 여부의 투영이라 아래 「냈어요」와 같은 말이다.
+              아무것도 모르는 동안(=#681 배포 전)에는 **바를 그리지 않는다** — 0/0 을 세우면 「다 안 냈다」로 읽힌다. */}
+          {knowsSubmission && (
+            <KpiStatBar cols={2}>
+              <KpiStat label="냈어요" value={`${submittedCount}건`} tone="accent" />
+              <KpiStat label="아직이에요" value={`${unsubmittedCount}건`} tone="default" />
+            </KpiStatBar>
+          )}
 
           {/* 묶음은 봇 머리줄이 보여준다 — 화면에 없는 것은 정렬 기준뿐이라 그것만 남긴다 ([07 § 6.7]) */}
           <SectionHeading title="모든 과제" description="새로 받은 과제가 위에 있어요." />
@@ -174,6 +192,9 @@ function AssignmentListSkeleton() {
 function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadRow[] }) {
   const sig = botSignature(bot);
   const groupHex = sig.hex;
+  // 이 묶음의 진척 — 제출 여부의 투영이라(`use-assignment-reads.ts`) **전부 알 때만** 그린다. 한 줄이라도
+  // 모르면 분모가 「N개」 머리줄과 어긋나고, 0% 막대는 「하나도 안 냈다」는 주장이 된다(KPI 와 같은 규칙).
+  const knowsSubmission = items.every(a => a.submitted !== null);
   const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
   const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
@@ -202,18 +223,20 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
               {items.length}개
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-2">
-            {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 머리줄의 시그니처 점이 한다(위 묶음 표시 주석과 같은 말) */}
-            <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
-              <div
-                className="bg-pullim-blue-600 h-full rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
+          {knowsSubmission && (
+            <div className="mt-1 flex items-center gap-2">
+              {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 머리줄의 시그니처 점이 한다(위 묶음 표시 주석과 같은 말) */}
+              <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">
+                <div
+                  className="bg-pullim-blue-600 h-full rounded-full transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-pullim-slate-500 font-mono text-2xs font-bold">
+                {completedQ}/{totalQ}문항
+              </span>
             </div>
-            <span className="text-pullim-slate-500 font-mono text-2xs font-bold">
-              {completedQ}/{totalQ}문항
-            </span>
-          </div>
+          )}
         </div>
       </header>
       <ul className="grid gap-2 sm:grid-cols-2">
@@ -227,9 +250,12 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
 function AssignmentCard({ assignment: a, botLabel }: { assignment: AssignmentReadRow; botLabel: string }) {
   const m = modeMeta[a.mode];
   const Icon = m.icon;
-  // getAssignmentVisual 은 mode/dDay/state 만 읽는다 — read row 와 호환.
-  const visual = getAssignmentVisual({ ...a, assignedAt: a.assignedAtLabel } as never);
+  // 읽는 칸은 mode·dDay·state·submitted 넷이고 행이 그 넷을 다 가진다 — 종전의 `as never` 캐스팅은
+  // `submitted` 가 실제로 실리는지를 타입이 못 보게 막으므로 걷었다(`AssignmentVisualInput`).
+  const visual = getAssignmentVisual(a);
   const DDayIcon = dDayIcon[visual.state as keyof typeof dDayIcon] ?? Clock;
+  // 진척은 제출 여부의 투영이다 — 모르면(서버가 아직 안 싣거나 운영자 관점) 0% 막대 대신 **안 그린다.**
+  const knowsSubmission = a.submitted !== null;
   const progress = a.questionCount === 0 ? 0 : (a.completedCount / a.questionCount) * 100;
 
   return (
@@ -264,18 +290,22 @@ function AssignmentCard({ assignment: a, botLabel }: { assignment: AssignmentRea
               {a.scope} · {a.questionCount}문항 · 난이도 {a.difficulty}
             </div>
 
-            {/* 진행 — 상태별 컬러 */}
+            {/* 진행 — 상태별 컬러. 막대·문항 수는 제출 여부를 알 때만, 글자 라벨은 늘 선다 */}
             <div className="mt-2 flex items-center gap-2">
-              <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
-                <div
-                  className={cn('h-full rounded-full transition-all', visual.progressClass)}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="text-pullim-slate-500 font-mono text-micro font-bold">
-                {a.completedCount}/{a.questionCount}
-              </span>
-              <span className="bg-pullim-slate-50 text-pullim-slate-600 inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold">
+              {knowsSubmission && (
+                <>
+                  <div className="bg-pullim-slate-200 h-1.5 flex-1 overflow-hidden rounded-full">
+                    <div
+                      className={cn('h-full rounded-full transition-all', visual.progressClass)}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="text-pullim-slate-500 font-mono text-micro font-bold">
+                    {a.completedCount}/{a.questionCount}
+                  </span>
+                </>
+              )}
+              <span className="bg-pullim-slate-50 text-pullim-slate-600 ml-auto inline-flex items-center rounded-full px-1.5 py-0.5 text-2xs font-bold">
                 {visual.semanticLabel}
               </span>
             </div>

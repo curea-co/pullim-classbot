@@ -31,8 +31,29 @@ export interface AssignmentReadRow {
   assignedAtLabel: string;
   dueLabel: string;
   dDay: string;
+  /**
+   * 푼 문항 수 — **진행도의 원천이 아니라 `submitted` 의 투영이다.** 정본에 「몇 번까지 풀었나」를 담는 칸이
+   * 없어(중간 저장은 별건 설계) 냈으면 `questionCount`, 안 냈거나 모르면 0 이다. 자세한 것은
+   * `use-assignment-reads.ts` 의 `toAssignmentReadRow`.
+   */
   completedCount: number;
   recentAccuracy: number | null;
+  /**
+   * **내가 이 과제를 냈는가** — 화면이 제출 여부를 읽는 **유일한 칸**이다(아래 `state` 가 아니다).
+   *  - `true` — 냈다.
+   *  - `false` — 안 냈다. 서버가 그렇게 말한 것이다.
+   *  - `null` — **모른다.** ① 서버가 아직 이 칸을 안 싣거나(pullim-api #681 배포 전) ② 운영자 관점이라
+   *    「내가 냈나」가 성립하지 않는 경우. **「모른다」를 「안 냄」으로 그리지 마라.**
+   */
+  submitted: boolean | null;
+  /** 내 제출 시각(ISO 8601) — 미제출·모름이면 null. */
+  submittedAt: string | null;
+  /** 내 제출의 서버 채점값(0~100). **`0` 은 0점이고 `null` 은 「점수가 없다」**(미채점·미제출·모름). */
+  scorePercent: number | null;
+  /**
+   * 교사가 낼 때 보낸 자유 문자열이 그대로 돌아온 값 — **제출 여부가 아니다.** 과제 한 건에 하나뿐이라
+   * 모든 학생에게 같은 값이고, 이 앱의 배포 폼은 늘 `'todo'` 를 보낸다. 「냈는가」는 위 `submitted` 가 말한다.
+   */
   state: 'todo' | 'in-progress' | 'submitted' | 'overdue';
   reasonHint: string | null;
   solveHref: string;
