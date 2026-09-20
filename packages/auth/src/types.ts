@@ -32,9 +32,9 @@ export interface AuthUser {
    *
    * **그래서 읽는 쪽은 폴백을 가져야 한다.** 빈 문자열(`''`)도 「없음」과 같이 다뤄라 —
    * 화면에서 둘은 똑같은 빈칸이다. 이 앱에서 그 폴백이 설 자리는
-   * `apps/classbot/lib/current-user.ts` 의 `useCurrentUser()` 이고, 순서는
-   * **이름 → 없으면 email 로컬파트** 다 — 그 읽기와 순서를 고정하는 테스트는 이 칸에 기대는
-   * FE PR(#375)이 함께 들인다.
+   * `apps/classbot/lib/current-user.ts` 의 `useCurrentUser()` 다 — 그 읽기와 순서
+   * (**이름 → 없으면 email 로컬파트**)는 이 칸에 기대는 FE 쪽이 세우고 테스트로 고정한다.
+   * (이 칸만으로는 아직 아무 화면도 이름을 부르지 않는다 — 칸이 먼저 서는 것이 순서다.)
    */
   name?: string;
 }
