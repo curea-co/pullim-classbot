@@ -165,20 +165,26 @@ export function getCurrentUserIdFromRequest(req: Request): {
 /**
  * 세션 사용자를 **부를 이름** — 순서는 「사람 이름 → 없으면 email 로컬파트」다.
  *
- * **순서를 뒤집지 마라.** 화면이 오래도록 email 앞부분(`psh`)으로 사람을 부른 데는 자리가 둘
+ * **순서를 뒤집지 마라.** 화면이 오래도록 email 앞부분(`suhak`)으로 사람을 부른 데는 자리가 둘
  * 있었고, 둘 다 고쳤다:
  *  - ⑴ **이 자리가 `user.name` 을 읽지 않았다.** 종전 코드는 세션 갈래에서 곧바로
  *    `displayNameFromEmail(user.email)` 을 썼다. 공유 계약 `AuthUser` 에 칸을 낸 것은 값을
  *    나르려고가 아니라 이 읽기가 **컴파일되게** 하려는 것이다.
  *  - ⑵ **provider 가 실어 보낸 값이 사람 이름이 아니었다.** `/me` 의 `displayName` 이었는데,
  *    그것은 pullim-api 가 가입 때 **email local-part 에서 파생**한 값이다(`deriveDisplayName` —
- *    바꾸는 엔드포인트도 없다). 그래서 ⑴ 만 고치면 이름 자리에 여전히 `psh` 가 선다.
+ *    바꾸는 엔드포인트도 없다). 그래서 ⑴ 만 고치면 이름 자리에 여전히 `suhak` 가 선다.
  *    provider 는 이제 `/me` 의 **`name`**(KCB 실명)을 먼저 싣는다 — 근거와 순서는
  *    `lib/auth/os-sso-provider.ts` 의 `MeResponse` 주석.
  *
  * ⛔ **여기 들어오는 `user.name` 은 본인-조회 한정 PII 다**(권위: pullim-api
  * `me-response.dto.ts` — 「KCB 실명 … 본인-조회 한정 · 로그/토큰 금지」). 이 함수의 반환값은
  * **본인 화면에만** 찍는다 — 로그·서버 재전송·저장 금지.
+ *
+ * **「저장 금지」는 이 값을 받아 가는 쪽까지 걸린다.** localStorage 에 적히는 store 는
+ * 로그아웃으로 지워지지 않는다 — 공용 PC 라면 다음 사람이 읽는다. 그래서 이 값을 쓰는 두 자리가
+ * 담는 것을 바꿔 두었다: 과제 대화는 이름 없는 문장 + `leadWithName`
+ * (`lib/store/assignment-chat.ts`), 라이브 질문 큐는 `studentId`(`lib/store/live.ts`).
+ * **이 반환값을 persist 되는 상태에 넣지 마라.**
  *
  * **그래도 폴백은 지우지 마라.** `AuthUser.name` 은 optional 이고(계약이 구현체에게 이름을
  * 요구하지 않는다), provider 가 고른 값도 비어 있을 수 있다 — `/me` 는 검사받지 않은 JSON 이라

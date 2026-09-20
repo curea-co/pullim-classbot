@@ -36,6 +36,10 @@ interface MeResponse {
    *  2. **서버로 되보내지 않는다.** 요청 명의는 OS 쿠키가 지고 FE 는 신원을 실어 보내지 않는다.
    *     신원 스냅샷(`lib/api/identity-snapshot.ts`)도 `id` 만 읽는다.
    *  3. **저장하지 않는다.** localStorage·sessionStorage·쿠키 어디에도 쓰지 않는다.
+   *     화면 상태를 디스크에 적는 store 가 둘 있고(과제 대화 `lib/store/assignment-chat.ts` ·
+   *     라이브 질문 큐 `lib/store/live.ts`) **둘 다 이름 대신 id·템플릿으로 담는다** —
+   *     persist 는 로그아웃으로 지워지지 않아서, 공용 PC 라면 다음 사람이 그대로 읽는다.
+   *     이름이 필요한 말풍선·라벨은 그릴 때 세션에서 읽는다.
    *  4. **본인 화면 전용이다.** 남의 이름은 여기서 오지 않는다 — 명단·제출은
    *     `ClassMemberDto.displayName`(auth 프로필 투영 5필드, ADR-005)을 타는 **다른 값**이다.
    *
@@ -48,8 +52,8 @@ interface MeResponse {
    *
    * pullim-api 는 가입 때 이 값을 **email local-part 에서 파생**한다
    * (`signup.util.ts` 의 `deriveDisplayName` → `member-registration.service.ts`), 그리고 그것을
-   * 바꾸는 엔드포인트가 account 모듈에 없다(`PATCH /me` 는 학년·학교뿐). 그래서 `psh@curea.co` 는
-   * 계속 `psh` 다. 이름 자리에 이 값이 서면 사람을 email 앞부분으로 부르는 것이 된다 —
+   * 바꾸는 엔드포인트가 account 모듈에 없다(`PATCH /me` 는 학년·학교뿐). 그래서 `suhak@pullim.com` 는
+   * 계속 `suhak` 다. 이름 자리에 이 값이 서면 사람을 email 앞부분으로 부르는 것이 된다 —
    * 그래서 1순위가 아니라 폴백이다.
    */
   displayName: string;
@@ -143,7 +147,7 @@ export class OsSsoAuthProvider implements IAuthProvider {
       //
       // ⑵ 를 여기서 고친다 — **`/me.name`(KCB 실명) → 비면 `displayName`** 순서다.
       // `displayName` 은 가입 때 email local-part 로 파생된 값이라(위 `MeResponse` 주석)
-      // 그것을 이름 자리에 그대로 실으면 사람을 `psh` 라고 부르게 된다.
+      // 그것을 이름 자리에 그대로 실으면 사람을 `suhak` 라고 부르게 된다.
       // 폴백을 두는 이유는 서버가 이 칸을 비워 보내기 때문이 아니다 —
       // `decryptName` 이 이미 `displayName` 으로 떨어뜨린다. 이 응답이 **검사받지 않은 JSON**
       // (`as MeResponse`)이라 칸이 아예 없을 수 있어서다.

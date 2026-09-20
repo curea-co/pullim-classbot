@@ -7,7 +7,7 @@
  * `/me` 의 `name`(KCB 실명) → 비면 `displayName`(`lib/auth/os-sso-provider.ts`, 그쪽 테스트가
  * 그 순서를 따로 고정한다). 이 파일은 그 뒤, **그 값을 화면이 어떻게 부르는지**만 본다.
  *
- * 왜 이 테스트가 있나 — 화면이 「박성호」 대신 email 앞부분 「psh」로 사람을 부른 자리가 둘이었다:
+ * 왜 이 테스트가 있나 — 화면이 사람 이름 대신 email 앞부분으로 사람을 부른 자리가 둘이었다:
  * ⑴ `useCurrentUser()` 가 `user.name` 을 **읽지 않고** email 로 이름을 만들고 있었고,
  * ⑵ provider 가 그 칸에 실어 보낸 값이 `/me` 의 `displayName` 이었는데 **그것 자체가 email
  * local-part 에서 파생된 값**이다(pullim-api `deriveDisplayName`). 이 파일이 지키는 것은 ⑴ 이다.
@@ -18,7 +18,8 @@
  * 순서를 뒤집어도, 폴백을 지워도 빨개진다.
  *
  * ⛔ 이 파일의 `name` 목값은 **본인-조회 한정 PII 자리**다(권위: pullim-api
- * `me-response.dto.ts`). 실계정 이름을 픽스처로 넣지 마라.
+ * `me-response.dto.ts`). 실계정 이름·이메일을 픽스처로 넣지 마라 — 아래는 전부 지어낸 값이다
+ * (`김수학` · `suhak@pullim.com`).
  */
 import { render, screen } from '@testing-library/react';
 
@@ -63,31 +64,31 @@ const studentName = () => screen.getByTestId('student').textContent;
 
 describe('useCurrentUser().name — 이름 → 없으면 email 로컬파트', () => {
   it('이름이 있으면 그 이름으로 부른다 — email 앞부분이 아니다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student', name: '박성호' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student', name: '김수학' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[박성호]');
+    expect(currentName()).toBe('[김수학]');
   });
 
   it('이름이 없으면 email 로컬파트로 떨어진다 — 빈칸으로 두지 않는다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[psh]');
+    expect(currentName()).toBe('[suhak]');
   });
 
   it('이름이 빈 문자열이어도 폴백이 받는다 — 화면에서 빈 문자열과 없음은 같은 빈칸이다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student', name: '' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student', name: '' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[psh]');
+    expect(currentName()).toBe('[suhak]');
   });
 
   it('공백뿐인 이름도 「없음」으로 본다 — 반 명단의 memberLabel 과 같은 판정이다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student', name: '   ' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student', name: '   ' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[psh]');
+    expect(currentName()).toBe('[suhak]');
   });
 
   it('이름 앞뒤 공백은 잘라서 쓴다 — 이름이 있는데 폴백으로 넘기지는 않는다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'teacher', name: '  김수학  ' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'teacher', name: '  김수학  ' };
     render(<NameProbe />);
     expect(currentName()).toBe('[김수학]');
   });
@@ -107,17 +108,17 @@ describe('useCurrentUser().name — 이름 → 없으면 email 로컬파트', ()
 
 describe('이름은 화면이 읽는 끝까지 같다', () => {
   it('useStudentMe() 도 같은 이름을 싣는다 — 한 화면에 두 사람이 서지 않는다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student', name: '박성호' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student', name: '김수학' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[박성호]');
-    expect(studentName()).toBe('[박성호]');
+    expect(currentName()).toBe('[김수학]');
+    expect(studentName()).toBe('[김수학]');
   });
 
   it('이름이 없을 때도 둘이 같다 — 폴백은 한 곳(useCurrentUser)에만 있다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<NameProbe />);
-    expect(currentName()).toBe('[psh]');
-    expect(studentName()).toBe('[psh]');
+    expect(currentName()).toBe('[suhak]');
+    expect(studentName()).toBe('[suhak]');
   });
 });
 

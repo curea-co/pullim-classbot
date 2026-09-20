@@ -19,6 +19,12 @@
  *                 (`persistChatMessage` 와 같은 규약 — `app/(student)/classbot/chat/page.tsx`).
  *
  * 두 자리 모두 **assignmentId 를 이미 손에 들고 있다** — 그게 이 store 의 모양을 이렇게 잡은 이유다.
+ *
+ * ⛔ **사람 이름을 여기 담지 않는다.** 이 store 는 통째로 localStorage 에 적히고 **로그아웃해도
+ * 남는다** — 학교 공용 PC 라면 다음 사람이 그대로 읽는다. 세션 이름(`AuthUser.name`)은
+ * 본인-조회 한정 PII 라(권위: pullim-api `me-response.dto.ts` — 「KCB 실명 … 본인-조회 한정 ·
+ * 로그/토큰 금지」) 디스크에 닿으면 안 된다. 여는 인사는 이름 없는 문장으로 저장하고 화면이
+ * 그릴 때 이름을 앞에 붙인다(`leadWithName`). **말풍선 `text` 에 이름을 끼워 넣지 마라.**
  */
 
 import { create } from 'zustand';
@@ -35,6 +41,11 @@ export interface AssignmentChatTurn {
   tag?: AssignmentChatTag;
   /** 수업 범위 밖 질문을 되돌린 답 — 안내 줄을 덧붙인다. */
   redirected?: boolean;
+  /**
+   * 이 줄은 학생 이름으로 연다 — **이름은 `text` 에 없다.** 화면이 그릴 때 앞에 붙인다
+   * (`buildAssignmentChatSeed` 의 같은 이름 주석).
+   */
+  leadWithName?: boolean;
 }
 
 interface AssignmentChatStore {

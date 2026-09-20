@@ -66,37 +66,37 @@ describe('useStudentMe — 이름과 id 는 세션에서 온다', () => {
   it('로그인한 사람의 이름은 세션에서 온다 — 목 roster 를 타지 않는다', () => {
     mockAuthUser = {
       id: '46638489-5c2f-4d6a-9b21-000000000001',
-      email: 'psh@curea.co',
+      email: 'suhak@pullim.com',
       role: 'student',
-      name: '박성호',
+      name: '김수학',
     };
     render(<MeProbe />);
-    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[박성호]');
+    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[김수학]');
   });
 
   it('세션에 이름이 없으면 email 로컬파트로 선다 — 이름 해석 순서는 useCurrentUser 가 쥔다', () => {
-    mockAuthUser = { id: '46638489-5c2f-4d6a-9b21-000000000001', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: '46638489-5c2f-4d6a-9b21-000000000001', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
-    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[psh]');
+    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[suhak]');
   });
 
   it('로그인한 사람을 「서연」이라 부르지 않는다 — 이 PR 이 고친 결함 자체다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
     expect(identity()).not.toContain('서연');
   });
 
   it('실계정에는 목 roster 행이 없다 — demo 는 null 이고 목 수치가 딸려오지 않는다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
     expect(demo()).toBe('(none)');
   });
 
   it('세션은 개발용 신원 쿠키를 이긴다 — 이름도 demo 도 세션 쪽이다', () => {
     document.cookie = `${DEV_IDENTITY_COOKIE}=student_001; path=/`;
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
-    expect(identity()).toBe('[uuid-1]/[psh]');
+    expect(identity()).toBe('[uuid-1]/[suhak]');
     expect(demo()).toBe('(none)');
   });
 });

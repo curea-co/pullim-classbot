@@ -70,8 +70,9 @@ export function AssignmentChatWorkspace({
     dueLabel: assignment.dueLabel,
     botName: bot.name,
     assignedBy: assignment.assignedBy,
-    studentName: me.name,
-  }), [assignment, bot.name, me.name]);
+    // ⛔ 학생 이름은 여기 넣지 않는다 — 이 맥락으로 만든 말풍선은 저장되는 쪽이고
+    // (`lib/store/assignment-chat.ts` 머리주석), 이름은 아래 `meName` 으로 그릴 때만 붙는다.
+  }), [assignment, bot.name]);
 
   // 첫 진입 오프너 — 이미 대화가 있으면 seed 가 알아서 비켜선다(멱등).
   useEffect(() => {
@@ -225,7 +226,9 @@ function AssignmentTurnRow({
               </span>
             )}
             <div className={cn(chatBubbleClass(false), 'px-4 py-3')} style={{ borderLeftColor: bot.hex }}>
-              <RichText text={turn.text} />
+              {/* 이름은 **여기서만** 붙는다 — 저장된 `text` 에는 없다(`leadWithName` 주석).
+                  이름을 모르면 붙이지 않고 그대로 연다. 본인 화면이라 부를 수 있는 이름이다. */}
+              <RichText text={turn.leadWithName && meName ? `${meName}, ${turn.text}` : turn.text} />
             </div>
             {/* 선생님에게 전해진다고 말하지 않는다 — 교사용 집계가 아직 없다(위 store 주석). */}
             {turn.redirected && (

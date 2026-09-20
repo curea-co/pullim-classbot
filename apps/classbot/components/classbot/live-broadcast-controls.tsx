@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Radio, PlayCircle, StopCircle, ChevronLeft, ChevronRight, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { type ClassBot, getLiveContent } from '@/lib/mock';
 import { useLiveStore } from '@/lib/store/live';
+import { memberLabel } from '@/lib/risk-signals';
 import { useReplayStore } from '@/lib/store/replay';
 import { cn } from '@/lib/utils';
 
@@ -147,6 +148,14 @@ export function LiveBroadcastControls({ bot }: { bot: ClassBot }) {
   );
 }
 
+/**
+ * 학생 질문 모더레이션 큐.
+ *
+ * 줄에 붙는 이름은 **id 라벨**(`학생 <앞 8자>`)이다. 큐는 localStorage 에 적히는 store 에서
+ * 오므로 사람 이름을 담지 않고(`lib/store/live.ts`), 남의 이름은 애초에 세션에서 읽을 수 있는
+ * 값이 아니다 — 진짜 이름을 붙이려면 반 명단(`GET /classbot/classes/:id/members` 의
+ * `displayName`)이 필요하고 그건 서버 쪽 일이다. **라벨을 이름으로 되돌리지 마라.**
+ */
 function ModerationQueue({ botId }: { botId: string }) {
   const session = useLiveStore(s => s.active[botId]);
   const moderate = useLiveStore(s => s.moderateQuestion);
@@ -171,7 +180,7 @@ function ModerationQueue({ botId }: { botId: string }) {
         {pendings.map(q => (
           <li key={q.id} className="rounded-lg border border-white/30 bg-white/10 p-2 text-2xs">
             <div className="text-white font-bold">
-              <span className="text-pullim-blue-200 mr-1">{q.studentName}</span>
+              <span className="text-pullim-blue-200 mr-1">{memberLabel(null, q.studentId)}</span>
               {q.text}
             </div>
             <div className="mt-1.5 flex gap-1.5">
@@ -199,7 +208,7 @@ function ModerationQueue({ botId }: { botId: string }) {
             <span className={cn('mr-1', q.status === 'shared' ? 'text-pullim-blue-400' : 'text-pullim-slate-500')}>
               {q.status === 'shared' ? '🔵 공유' : '⚪ 비공개'}
             </span>
-            <span className="text-pullim-slate-300">{q.studentName}: {q.text.slice(0, 30)}{q.text.length > 30 && '…'}</span>
+            <span className="text-pullim-slate-300">{memberLabel(null, q.studentId)}: {q.text.slice(0, 30)}{q.text.length > 30 && '…'}</span>
           </li>
         ))}
       </ul>
