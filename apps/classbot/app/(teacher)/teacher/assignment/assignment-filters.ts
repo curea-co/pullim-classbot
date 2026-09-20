@@ -36,7 +36,14 @@ export interface TeacherClass {
    * 그것으로도 안 갈린다. 표시 회귀가 아니라 **오배포 위험**이다(`classNameOf` 머리주석).
    */
   name: string;
-  /** 프로필이 없으면 빈 문자열 — 채우는 쪽(과제 내기)이 폴백을 정한다. */
+  /**
+   * 그 반에 **붙은 봇**의 과목·학년(`BotCardDto.profile`) — 봇이 안 붙었거나 봇에 안 적혀 있으면 빈 문자열이다.
+   *
+   * ⚠ **반 자체의 `classes.subject`·`grade` 가 아니다.** 카드에는 그 칸이 없다 — 반이 든 값은
+   * `GET /classbot/classes/:classId`(`useClassDetail` · `ClassDto`)로만 온다. 그래서 비는 자리를 메우는 일은
+   * 읽는 쪽 몫이고, 과제 내기는 **봇 → 반 → 교사 입력** 순으로 채운다(`new/assignment-form.tsx`).
+   * 빈 문자열을 「과목 미정」 같은 글자로 바꿔 저장하지 마라 — 그게 2026-09-18 dev 에 지어낸 값이 박힌 경로다.
+   */
   subject: string;
   grade: string;
   /** 참여 학생 수 — 프로필이 없으면 null(모른다). */
