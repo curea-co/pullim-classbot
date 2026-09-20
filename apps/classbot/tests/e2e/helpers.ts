@@ -143,9 +143,22 @@ export async function fillAssignmentTitle(page: Page, title: string): Promise<vo
  * (`:185`·`:186` — 그 둘이 손대기 전까지 `null` 인 것이 일부러 그렇다) 덮어쓰면 우리가 그 반의
  * 과목을 바꿔 버린다.
  *
- * 그리고 **자동 채움이 결판난 뒤에** 묻는다. 반 상세를 읽는 중이면(`autofillPending` — `:188`)
- * 칸이 빈 것이 정상인데 그때 적으면 뒤늦게 오는 값을 이겨 버린다 — 폼 자신이 `:423`–`:424` 에서
- * 경고하는 자리다. 결판의 증인은 학년 고르개 첫 option 의 글자다(`:458`).
+ * 그리고 **자동 채움이 결판난 뒤에** 묻는다. 반 상세를 읽는 중이면 칸이 빈 것이 정상인데 그때 적으면
+ * 뒤늦게 오는 값을 이겨 버린다 — 폼 자신이 `:423`–`:424` 에서 경고하는 자리다.
+ *
+ * **그 결판의 증인으로 `autofillPending`(`:188`)을 쓰면 안 된다.** 그것은 `isLoading` 이고
+ * `isPending && isFetching` 이라 **읽기가 실패한 순간에도, 끊겨서 멈춘 동안에도 거짓**이다 —
+ * 폼 자신이 `:192`–`:196`·`:211`–`:215` 에 그렇게 적어 뒀다. 그러니 「지금 안 읽고 있다」는
+ * 「결판났다」가 아니다. 재시도 백오프 사이(≈1초)에 그 값만 보고 적으면, 뒤이어 성공한 반 상세의
+ * 과목을 우리가 적은 글자가 영구히 이긴다(손으로 적은 값이 자동 채움을 이기는 구조이므로).
+ *
+ * 그래서 증인은 **화면이 과목·학년에 대해 말을 한 것**으로 삼는다 — 셋 중 하나다:
+ *  - 칸이 이미 차 있다(자동 채움이 닿았다)
+ *  - `subject-err`·`grade-err` — 「반에도 봇에도 안 적혀 있다」. 이 둘은 `autofillResolved`
+ *    (`isSuccess`) 일 때만 서므로(`assignment-form.tsx:205`·`:206`) **읽어낸 뒤**라는 뜻이다
+ *  - `class-detail-error` — 「못 읽었다」(`:212`·`:472`). 그 화면은 「직접 정해주세요」라고
+ *    말하고 있으니 적는 것이 화면이 요구하는 일이다
+ * 셋 다 아니면 아직 오는 중이거나 재시도 중이라 **기다린다.**
  *
  * ## 증인
  *
@@ -157,12 +170,22 @@ export async function fillAssignmentTitle(page: Page, title: string): Promise<vo
  *   과목·학년 칸은 `disabled={!klass}` 라(`assignment-form.tsx:433`·`:452`) 반이 서기 전에는 잠긴다
  */
 export async function authorDispatchableAssignment(page: Page): Promise<void> {
-  // 자동 채움 결판 대기 — 「반 정보를 불러오는 중…」이 「학년 고르기」로 바뀌는 것이 그 증인이다.
-  await expect(page.locator('[data-testid="grade-select"] option').first())
-    .toHaveText('학년 고르기', { timeout: 15_000 });
-
   const subjectInput = page.getByTestId('subject-input');
   const gradeSelect = page.getByTestId('grade-select');
+  /*
+    자동 채움 결판 대기 — 증인은 **화면이 과목·학년에 대해 말을 한 것**이다(머리주석 참조).
+    「지금 안 읽고 있다」(`autofillPending` 거짓)로는 안 된다 — 실패·끊김·재시도 백오프에서도 거짓이라,
+    그 사이에 적으면 뒤이어 도착한 반의 과목을 우리가 적은 글자가 이긴다.
+  */
+  await expect(async () => {
+    const filled = (await subjectInput.inputValue()).trim() !== ''
+      && (await gradeSelect.inputValue()).trim() !== '';
+    const said = await page.getByTestId('subject-err')
+      .or(page.getByTestId('grade-err'))
+      .or(page.getByTestId('class-detail-error'))
+      .count() > 0;
+    expect(filled || said).toBe(true);
+  }).toPass({ timeout: 15_000 });
 
   await expect(async () => {
     // 비어 있을 때만. 매 바퀴 다시 묻기 때문에 그사이 자동 채움이 닿았으면 손대지 않는다.
