@@ -4,6 +4,7 @@
  * 정본 서버는 OS 쿠키의 sub 로 신원을 파생하므로 **사용자 프로비저닝(me/sync) 호출이 없다** —
  * `/me` 외 다른 fetch 가 나가지 않는 것을 함께 검증한다(구 x-user-id + me/sync 모델 폐기 회귀).
  * 그리고 `/me` 에 **닿지 못한** 것(네트워크·5xx)은 `sessionError` 로 갈라 비로그인과 다르게 노출한다.
+ * 세션 사용자의 **이름**(`/me` displayName → `AuthUser.name`)이 컨텍스트를 그대로 통과하는지도 함께 본다.
  */
 import { render, screen, waitFor } from '@testing-library/react';
 
@@ -37,7 +38,7 @@ function Probe() {
   if (!isReady) return <span>loading</span>;
   return (
     <>
-      <span data-testid="user">{user ? `${user.id}:${user.role}` : 'anonymous'}</span>
+      <span data-testid="user">{user ? `${user.id}:${user.role}:${user.name}` : 'anonymous'}</span>
       <span data-testid="session-error">{sessionError ?? 'none'}</span>
     </>
   );
@@ -51,7 +52,9 @@ it('세션 확립 → 스냅샷 publish (raw sub), 프로비저닝 호출 없음
   );
 
   await waitFor(() => {
-    expect(screen.getByTestId('user')).toHaveTextContent(`${ME.sub}:teacher`);
+    // 이름까지 본다 — `AuthUser.name` 이 계약의 칸이 되기 전에는 `auth-context` 의
+    // `AuthUser | null` 이 이 자리에서 이름을 좁혀 `undefined` 로 떨어뜨렸다.
+    expect(screen.getByTestId('user')).toHaveTextContent(`${ME.sub}:teacher:${ME.displayName}`);
   });
   expect(screen.getByTestId('session-error')).toHaveTextContent('none');
 

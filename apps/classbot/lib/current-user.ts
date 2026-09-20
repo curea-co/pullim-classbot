@@ -24,6 +24,8 @@
  * `getCurrentUserIdFromRequest` 주석에 적어 뒀다.
  */
 
+import type { AuthUser } from '@pullim-classbot/auth';
+
 import type { AppUserRole } from '@/lib/auth/app-user-role';
 import { useAuth } from '@/lib/auth/auth-context';
 import { findDevIdentity, resolveDevIdentity, type DevIdentityRole } from '@/lib/dev-identity';
@@ -48,7 +50,11 @@ export interface CurrentUser {
   id: string;
   /** student/teacher/admin/parent. 폴백은 student. */
   role: AppUserRole;
-  /** 표시 이름. 세션 사용자는 가입 이름, 폴백은 서연. */
+  /**
+   * 부르는 이름. 세 갈래의 출처가 다르다 — **세션**이면 OS 가 준 사람 이름(비면 email 로컬파트,
+   * 그 순서는 `displayNameOf` 가 쥔다), **개발용 신원 쿠키**면 그 신원의 이름,
+   * **데모 폴백**이면 서연.
+   */
   name: string;
   /** 실제 로그인 세션이면 true, 데모 폴백이면 false. */
   isAuthenticated: boolean;
@@ -65,8 +71,8 @@ const DEMO_FALLBACK_USER: CurrentUser = {
 /**
  * 현재 사용자(세션 우선, 개발용 신원 쿠키, 그다음 데모 폴백)를 반환하는 client 훅.
  *
- * 세션 사용자에는 가입 이름이 없을 수 있어(JWT claim 은 id/email/role 만 보유),
- * 이름은 email 로컬파트로 임시 표기한다. (도메인 users.name 조회 API 신설 시 대체)
+ * 세션 사용자의 이름은 **OS 가 준 사람 이름**(`/me` 의 `displayName` → `AuthUser.name`)이고,
+ * 그게 비었을 때만 email 로컬파트로 떨어진다 — 순서와 근거는 `displayNameOf` 에 적어 뒀다.
  *
  * ⚠️ 쿠키 폴백은 **`isAuthenticated: false` 를 유지한다.** 이 플래그는 RoleGuard·
  * `packages/auth` 가 「실제 로그인 세션인가」를 판정하는 값이라, 개발용 쿠키가 여기로
@@ -81,7 +87,7 @@ export function useCurrentUser(): CurrentUser {
     return {
       id: user.id,
       role: user.role,
-      name: displayNameFromEmail(user.email),
+      name: displayNameOf(user),
       isAuthenticated: true,
     };
   }
@@ -155,7 +161,32 @@ export function getCurrentUserIdFromRequest(req: Request): {
   return { id: DEMO_FALLBACK_USER_ID, role: 'student', isAuthenticated: false, isIdentified: false };
 }
 
-/** email 로컬파트를 표시 이름으로(세션 사용자 이름 임시 표기). */
+/**
+ * 세션 사용자를 **부를 이름** — 순서는 「사람 이름 → 없으면 email 로컬파트」다.
+ *
+ * **순서를 뒤집지 마라.** 이름은 진작부터 들어오고 있었다 — `lib/auth/os-sso-provider.ts` 가
+ * OS `/me` 의 `displayName` 을 읽는다. 그런데도 화면은 오래도록 email 앞부분(`psh`)으로 사람을
+ * 불렀다. 공유 계약 `AuthUser` 에 이름 칸이 없어 provider 가 부가 필드로 동봉했고,
+ * `auth-context` 의 `user: AuthUser | null` 이 그 자리에서 좁혀 버렸기 때문이다. 칸이 생긴 지금
+ * 이 함수가 그 순서를 쥔다.
+ *
+ * **그래도 폴백은 지우지 마라.** `AuthUser.name` 은 optional 이고(계약이 구현체에게 이름을
+ * 요구하지 않는다), 값을 대는 `/me` 의 `displayName` 도 비어 올 수 있다 — 같은 auth 프로필을
+ * 투영하는 `ClassMemberDto.displayName` 이 `string | null` 인 것이 그 증거다
+ * (`lib/api/classbot-dto.ts`). 이름을 못 받은 사람이 빈칸으로 서면 안 된다.
+ *
+ * **빈 문자열·공백은 「없음」과 같이 본다** — 화면에서 셋은 똑같은 빈칸이라 갈라 둘 이유가 없다.
+ * 반 명단 쪽도 같은 판정을 쓴다(`lib/risk-signals.ts` 의 `memberLabel` 이 `displayName?.trim()`).
+ *
+ * @param user - 세션 사용자
+ * @returns 화면에 찍을 이름 (빈 문자열이 될 수 있는 경우는 email 까지 빈 세션뿐)
+ */
+function displayNameOf(user: AuthUser): string {
+  const given = user.name?.trim();
+  return given ? given : displayNameFromEmail(user.email);
+}
+
+/** email 로컬파트를 표시 이름으로 — 이름이 없을 때의 폴백(`displayNameOf`). */
 function displayNameFromEmail(email: string): string {
   const local = email.split('@')[0] ?? email;
   return local || email;
@@ -185,7 +216,7 @@ function displayNameFromEmail(email: string): string {
 export interface StudentMe {
   /** 신원 id — OS 세션 sub 또는 개발용 신원 id. 신원이 없으면 `''`. */
   id: string;
-  /** 부르는 이름 — 세션 표시 이름(email 로컬파트). 신원이 없으면 `''`. */
+  /** 부르는 이름 — `useCurrentUser().name`(사람 이름 → 없으면 email 로컬파트). 신원이 없으면 `''`. */
   name: string;
   /** 데모 부가 데이터 행 — 목 조회 키와 목 수치. 실계정·비신원은 `null`. */
   demo: ClassroomStudent | null;

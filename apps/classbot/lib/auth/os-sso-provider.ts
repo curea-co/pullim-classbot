@@ -23,6 +23,12 @@ import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
 interface MeResponse {
   sub: string;
   email: string;
+  /**
+   * 사람 이름 — `AuthUser.name` 의 출처다. 이 응답은 `as MeResponse` 캐스팅이라 타입이
+   * 런타임을 보증하지 않고, 같은 auth 프로필을 투영하는 반 명단 쪽은 이미 `string | null` 이다
+   * (`lib/api/classbot-dto.ts` 의 `ClassMemberDto.displayName`). 비어 올 때 무엇으로 부를지는
+   * `lib/current-user.ts` 의 `useCurrentUser()` 가 정한다.
+   */
   displayName: string;
   /** 도메인 역할: student|parent|teacher|institution. */
   role: string;
@@ -103,9 +109,15 @@ export class OsSsoAuthProvider implements IAuthProvider {
         return null;
       }
       const me = (await res.json()) as MeResponse;
-      // name(displayName)은 AuthUser 계약 외 부가 필드 — 표시명으로 auth-context 배선을 그대로
-      // 통과한다(구조적 서브타입).
-      const user: AuthUser & { name: string } = {
+      // `name` 은 이제 **계약의 칸**이다(`packages/auth` 의 `AuthUser.name`, optional).
+      // 종전에는 계약 밖 부가 필드라 `AuthUser & { name: string }` 으로 동봉했는데, 그러면
+      // `auth-context` 의 `user: AuthUser | null` 이 그 자리에서 이름을 좁혀 버려 화면까지 닿지
+      // 못했다 — 그래서 화면이 사람을 email 앞부분으로 불렀다.
+      //
+      // `me.displayName` 은 **그대로 싣는다.** 비었을 때 무엇으로 부를지는 여기서 정하지 않는다 —
+      // 그 폴백은 `lib/current-user.ts` 의 `useCurrentUser()` 한 곳에 있다. provider 는 `/me` 가
+      // 준 것을 비틀지 않고 옮기는 자리다.
+      const user: AuthUser = {
         id: me.sub,
         email: me.email,
         // ⚠️ 이 앱의 **유일한** 역할 캐스팅 자리. `AuthUser.role` 은 공유 계약 `UserRole`

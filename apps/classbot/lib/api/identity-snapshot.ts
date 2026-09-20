@@ -11,8 +11,8 @@
  */
 
 /**
- * 스냅샷 사용자의 최소 형태 — `AuthUser`({ id, email, role }) 가 그대로 대입 가능하도록
- * 구조적으로 느슨하게 둔다. `name` 은 OS `/me` 의 displayName(OsSsoAuthProvider 가 동봉).
+ * 스냅샷 사용자의 최소 형태 — `AuthUser`({ id, email, role, name? }) 가 그대로 대입 가능하도록
+ * 구조적으로 느슨하게 둔다.
  */
 export interface SsoIdentityUser {
   /** OS 세션 sub (raw uuid) — 캐시 키로만 쓴다. 요청 명의는 쿠키가 진다(FE 는 id 를 보내지 않는다). */
@@ -20,7 +20,7 @@ export interface SsoIdentityUser {
   email: string;
   /** `AppUserRole`(student·teacher·admin·parent·institution) — 여기서는 갈라 읽지 않아 string 으로 둔다. */
   role: string;
-  /** OS `/me` displayName. */
+  /** 사람 이름 — `AuthUser.name`(OS `/me` 의 displayName). 비어 올 수 있어 optional 이다. */
   name?: string;
 }
 
