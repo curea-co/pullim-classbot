@@ -82,13 +82,20 @@ export async function joinDemoClass(page: Page): Promise<void> {
  * 보여 어느 검증이 막았는지 로그에 남지 않는다. 같은 자리가 스펙 파일 셋에 다섯 벌 있어서
  * 여기 한 곳으로 모았다.
  *
- * ⚠ **제목만으로는 그 증인이 서지 않는다.** `canDispatch` 는 `titleValid` 말고도 반·마감과
- * **문항 차단 사유 없음**을 함께 요구하고(`app/(teacher)/teacher/assignment/new/assignment-form.tsx:190`),
- * 폼이 처음 세우는 5문항은 발문이 전부 비어 있어 그 자리에서 막힌다(`:176` ·
- * `question-editor.tsx:126` 의 `createDefaultQuestions`). 그러니 이 헬퍼 앞에
- * `authorDefaultQuestions` 를 먼저 불러야 한다 — 안 부르면 아래 `toPass` 가 15초를 돌고 던진다.
- * (`assignment-dispatch.spec.ts` · `mobile-and-focus.spec.ts` 는 아직 안 부른다 — 그 둘은 도착지
- * URL 과 걷힌 `bot-select`·localStorage 시딩까지 낡아 있어 파일 단위로 따로 고친다.)
+ * ⚠ **제목만으로는 그 증인이 서지 않는다.** `canDispatch` 는 `titleValid` 말고도 반·과목·학년·마감과
+ * **문항 차단 사유 없음**을 함께 요구하고
+ * (`app/(teacher)/teacher/assignment/new/assignment-form.tsx:285`–`:287`), 폼이 처음 세우는 5문항은
+ * 발문이 전부 비어 있어 그 자리에서 막힌다(`:267` · `question-editor.tsx:126` 의
+ * `createDefaultQuestions`). 그러니 이 헬퍼 앞에 `authorDispatchableAssignment` 를 먼저 불러야
+ * 한다 — 안 부르면 아래 `toPass` 가 15초를 돌고 **이유를 말하지 못한 채** 던진다.
+ *
+ * 형제 스펙 셋은 아직 그 헬퍼를 안 부르는데, 그 셋은 그것만 더해도 통과하지 못한다 —
+ * 파일 단위로 따로 고칠 자리다(실측 2026-09-20, `origin/dev` = `f097a0e`):
+ *  - `assignment-dispatch.spec.ts` — 걷힌 `bot-select`(`:57`) · 옛 도착지 `/teacher/classbot`(`:68`·`:106`)
+ *  - `mobile-and-focus.spec.ts` — 옛 도착지(`:87`) · `pullim-class-enrollment` 시딩(`:93`) · `as_user_`(`:114`·`:117`)
+ *  - `student-live-and-flows.spec.ts` — 걷힌 `bot-select`(`:245`)
+ *
+ * `bot-select` 는 **앱 소스(`app`·`components`·`lib`)에 0건**이다 — 그 칸은 `class-select` 로 개명됐다.
  * @param page - 출제 화면이 열려 있는 페이지
  * @param title - 넣을 과제 제목 (5~50자). **그것만으로는 「과제 내기」가 열리지 않는다** — 위 ⚠
  */
@@ -101,33 +108,73 @@ export async function fillAssignmentTitle(page: Page, title: string): Promise<vo
 }
 
 /**
- * 출제 화면이 처음 세운 5문항을 **낼 수 있는 최소치까지** 화면에서 채운다.
+ * 출제 화면을 **낼 수 있는 상태까지** 화면에서 채운다 — 문항 다섯과, 자동 채움이 비운 과목·학년.
+ *
+ * ## 문항 — 처음 세우는 다섯은 통째로 비어 있다
  *
  * 폼은 `createDefaultQuestions()`(`app/(teacher)/teacher/assignment/new/question-editor.tsx:126`)로
  * 객관식·객관식·단답·수치·서술 다섯을 세우는데 **발문·정답·기준이 전부 비어 있다.** 그래서
  * `questionBlockedReason()` 이 곧바로 「모든 문항의 발문을 써야 낼 수 있어요」로 막고
- * (`assignment-form.tsx:176`), `canDispatch` 가 그 사유 없음을 요구하므로(`:190`) 제목만 넣어서는
- * 「과제 내기」 버튼이 열리지 않는다. 종전 「비운 채 내면 단원에서 자동으로 뽑아 온다」 규약은
- * 정본에 없어 #352 가 걷었고, 그 뒤로 이 앞부분을 쓰는 e2e 레인이 여기서 죽어 있었다.
+ * (`assignment-form.tsx:267`), `canDispatch` 가 그 사유 없음을 요구하므로(`:285`–`:287`) 제목만
+ * 넣어서는 「과제 내기」 버튼이 열리지 않는다. 종전 「비운 채 내면 단원에서 자동으로 뽑아 온다」
+ * 규약은 정본에 없어 #352 가 걷었고, 그 뒤로 이 앞부분을 쓰는 e2e 레인이 여기서 죽어 있었다.
  *
  * 채우는 값은 앱의 jest 가 같은 최소치를 채우는 자리에서 그대로 옮겼다 —
- * `app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx` 의 `authorAllDefaults`.
- * 문항별로 필요한 것이 다르다:
+ * `app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx:125`–`:137` 의
+ * `authorAllDefaults`. 문항별로 필요한 것이 다르다:
  *  - **모든 문항** — 발문(`authoredCount`)
  *  - **객관식** — 보기 둘 이상에 글자가 있고 **고른 보기**가 비지 않을 것(`hasGradableAnswer`).
  *    기본 정답은 0번이라 `question-option-<i>-0` 이 반드시 차 있어야 한다
  *  - **단답·수치** — 정답 칸. 수치는 숫자여야 한다(`invalidNumericAnswerNumbers`)
- *  - **서술형** — 기준 **둘 다**. 하나만 적으면 적은 것의 배점 합(10)이 문항 배점(20)과 어긋나
- *    `rubricWeightMismatchNumbers` 가 다시 막는다
+ *  - **서술형** — 기준 **둘 다**. 하나만 적으면 `missingRubricNumbers` 는 풀리지만
+ *    **적은 것의 배점 합(10)이 문항 배점(20)과 달라** `rubricWeightMismatchNumbers` 가 다시 막는다
+ *    (기본 기준은 `defaultRubric` 이 10·10 으로 세운다 — `question-editor.tsx:101`–`:107`)
  *
- * `fillAssignmentTitle` 과 같은 이유로 `toPass` 로 감싼다(하이드레이션이 값을 지운다). 증인은
- * **차단 사유 자체가 사라지는 것**이다 — `dispatch-blocked` 는 문항 사유만 싣고
- * (`assignment-form.tsx:558`–`:561` — 그 칸이 그리는 것은 `blockedReason` 하나다), 제목·마감은
- * 그 칸에 오지 않으므로 이 헬퍼가 한 일만 본다.
- * @param page - 출제 화면(`/teacher/assignment/new`)이 열려 있는 페이지
+ * ## 과목·학년 — `blockedReason` 밖에 있는 관문 둘 (#376)
+ *
+ * `canDispatch` 는 `subjectValid && gradeValid` 도 요구한다(`assignment-form.tsx:285`–`:287` ·
+ * 정의는 `:197`·`:198`). **그 둘은 `blockedReason` 에 들어가지 않는다** — 그래서 아래
+ * `dispatch-blocked` 증인만 보면 「막힌 게 없다」인데 버튼은 잠긴 채이고, 뒤따르는
+ * `fillAssignmentTitle` 이 15초를 돌다 **이유를 말하지 못한 채** 죽는다. 헬퍼가 막으려는 바로
+ * 그 이름 없는 실패다. 그래서 여기서 함께 보고, 비면 채운다.
+ *
+ * **비어 있을 때만 적는다 — 덮어쓰지 않는다.** 정상적인 반은 봇·반 상세가 이미 채워 주고
+ * (`:183`–`:186`), 손으로 적은 값(`subjectEdit`·`gradeEdit`)이 자동 채움을 이기는 구조라
+ * (`:185`·`:186` — 그 둘이 손대기 전까지 `null` 인 것이 일부러 그렇다) 덮어쓰면 우리가 그 반의
+ * 과목을 바꿔 버린다.
+ *
+ * 그리고 **자동 채움이 결판난 뒤에** 묻는다. 반 상세를 읽는 중이면(`autofillPending` — `:188`)
+ * 칸이 빈 것이 정상인데 그때 적으면 뒤늦게 오는 값을 이겨 버린다 — 폼 자신이 `:423`–`:424` 에서
+ * 경고하는 자리다. 결판의 증인은 학년 고르개 첫 option 의 글자다(`:458`).
+ *
+ * ## 증인
+ *
+ * `fillAssignmentTitle` 과 같은 이유로 `toPass` 로 감싼다(하이드레이션이 값을 지운다). 증인은 둘:
+ * **차단 사유가 사라지는 것**(`dispatch-blocked` 는 문항 사유만 싣는다 — `assignment-form.tsx:719`–`:721`
+ * 의 그 칸이 그리는 것은 `blockedReason` 하나다)과 **과목·학년이 비지 않은 것**이다. 「버튼 활성」을
+ * 여기서 보지 않는 이유는 그것이 `fillAssignmentTitle` 의 증인이어서다 — 제목은 아직 안 넣었다.
+ * @param page - 출제 화면(`/teacher/assignment/new`)이 열려 있고 **반 조회가 정착한** 페이지.
+ *   과목·학년 칸은 `disabled={!klass}` 라(`assignment-form.tsx:433`·`:452`) 반이 서기 전에는 잠긴다
  */
-export async function authorDefaultQuestions(page: Page): Promise<void> {
+export async function authorDispatchableAssignment(page: Page): Promise<void> {
+  // 자동 채움 결판 대기 — 「반 정보를 불러오는 중…」이 「학년 고르기」로 바뀌는 것이 그 증인이다.
+  await expect(page.locator('[data-testid="grade-select"] option').first())
+    .toHaveText('학년 고르기', { timeout: 15_000 });
+
+  const subjectInput = page.getByTestId('subject-input');
+  const gradeSelect = page.getByTestId('grade-select');
+
   await expect(async () => {
+    // 비어 있을 때만. 매 바퀴 다시 묻기 때문에 그사이 자동 채움이 닿았으면 손대지 않는다.
+    if ((await subjectInput.inputValue()).trim() === '') {
+      await subjectInput.fill('수학');
+    }
+    if ((await gradeSelect.inputValue()).trim() === '') {
+      // `GRADES`(초1~고3)는 언제나 선택지에 다 들어간다 — 목록 밖 값이 와도 앞에 한 줄 덧붙을
+      // 뿐이다(`assignment-form.tsx:227`–`:229` · 목록은 `lib/grades.ts`).
+      await gradeSelect.selectOption('중1');
+    }
+
     for (let i = 0; i < 5; i++) {
       await page.getByTestId(`question-prompt-${i}`).fill(`${i + 1}번 발문 — e2e 검증`);
     }
@@ -139,6 +186,9 @@ export async function authorDefaultQuestions(page: Page): Promise<void> {
     await page.getByTestId('question-answer-3').fill('42');
     await page.getByTestId('question-criterion-4-0').fill('근거를 썼어요');
     await page.getByTestId('question-criterion-4-1').fill('결론이 있어요');
+
+    await expect(subjectInput).not.toHaveValue('');
+    await expect(gradeSelect).not.toHaveValue('');
     await expect(page.getByTestId('dispatch-blocked')).toHaveCount(0);
   }).toPass({ timeout: 20_000 });
 }

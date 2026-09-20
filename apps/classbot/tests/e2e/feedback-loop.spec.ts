@@ -14,26 +14,37 @@
  * | `localStorage['pullim-assignments']` 가 `submissions`·`scorePercent` 를 담을 것 | **뒤집혔다.** 앱은 이제 그 키를 rehydrate 뒤 **지운다**(`lib/store/assignments.ts` 의 `RETIRED_STORAGE_KEY`). 앱의 jest 는 그 키가 `null` 임을 단언한다(`app/(student)/classbot/assignment/__tests__/use-assignment-submit.test.tsx`). 이 스펙만 반대를 요구하고 있었다 |
  * | `as_user_\d+` URL 모양 | 그 접두사는 브라우저가 붙이던 것이고 그 레인이 은퇴했다. **id 는 이제 서버가 준다** — 모양을 알 수 없으므로 가리지 않는다 |
  * | `pullim-class-enrollment` 시딩 | **무효다.** 서버가 401 을 줄 때 그 localStorage 의 데모 방으로 갈아타던 폴백을 걷었다(`components/classbot/home/my-rooms.ts`) |
- * | 낸 뒤 `/teacher/classbot` 에 서고, 거기 `dispatched-row-<id>` 에서 과제 id 를 읽는다 | **도착지와 testid 가 함께 옮겨 갔다** — 같은 `1a14886` 이 바꾼 자리다. 폼은 낸 과제 목록으로 보낸다(`app/(teacher)/teacher/assignment/new/assignment-form.tsx:227` 의 `router.push('/teacher/assignment')`). 되돌려 주는 리다이렉트는 **없다** — 이 앱에는 `middleware.ts` 도 `next.config.ts` 의 `redirects` 도 없다. 그리고 `dispatched-row-<id>` 는 `/teacher/classbot` 에만 있고(`app/(teacher)/teacher/classbot/page.tsx:784`), 도착하는 화면의 줄은 `assignment-row-<id>` 다(`app/(teacher)/teacher/assignment/page.tsx:232` · 제목은 같은 줄 안 `:245`). 그래서 둘 다 그 화면 것으로 고쳤다 |
+ * | 낸 뒤 `/teacher/classbot` 에 서고, 거기 `dispatched-row-<id>` 에서 과제 id 를 읽는다 | **도착지와 testid 가 함께 옮겨 갔다** — 같은 `1a14886` 이 바꾼 자리다. 폼은 낸 과제 목록으로 보낸다(`app/(teacher)/teacher/assignment/new/assignment-form.tsx:324` 의 `router.push('/teacher/assignment')`). 되돌려 주는 리다이렉트는 **없다** — 이 앱에는 `middleware.ts` 도 `next.config.ts` 의 `redirects` 도 없다. 그리고 `dispatched-row-<id>` 는 `/teacher/classbot` 에만 있고(`app/(teacher)/teacher/classbot/page.tsx:784`), 도착하는 화면의 줄은 `assignment-row-<id>` 다(`app/(teacher)/teacher/assignment/page.tsx:232` · 제목은 같은 줄 안 `:245`). 그래서 둘 다 그 화면 것으로 고쳤다 |
  *
  * **화면이 깨진 게 아니라 옮겨 간 것이다.** 그래서 스펙을 옮겨 간 자리로 따라 보낸다 —
  * 교사가 학생별 진행을 읽는 곳은 과제 상세(`/teacher/assignment/<id>` 의 `submissions-list`)이고,
  * 학생 점수는 제출 응답을 든 **저장하지 않는** 스토어(`lib/store/submission-result.ts`)다.
  *
- * ## 전제가 하나 더 있다 — 문항을 다 쓰지 않으면 「과제 내기」는 열리지 않는다
+ * ## 전제가 더 있다 — 제목만으로는 「과제 내기」가 열리지 않는다
  *
- * `canDispatch` 는 제목만 보지 않는다. 반·마감과 함께 **문항 차단 사유 없음**까지 요구하고
- * (`assignment-form.tsx:190` 의 `blockedReason === null`), 폼이 처음 세우는 5문항
- * (객관식·객관식·단답·수치·서술 — `question-editor.tsx:126` 의 `createDefaultQuestions`)은 발문이
- * 전부 비어 있어 `questionBlockedReason()` 이 그 자리에서 막는다(`assignment-form.tsx:176`
+ * `canDispatch` 는 제목만 보지 않는다(`assignment-form.tsx:285`–`:287`):
+ * 반 · **과목 · 학년** · 마감과 함께 **문항 차단 사유 없음**(`blockedReason === null`)을 요구한다.
+ *
+ * ⑴ **문항** — 폼이 처음 세우는 5문항(객관식·객관식·단답·수치·서술 —
+ * `question-editor.tsx:126` 의 `createDefaultQuestions`)은 발문이 전부 비어 있어
+ * `questionBlockedReason()` 이 그 자리에서 막는다(`assignment-form.tsx:267`
  * 「모든 문항의 발문을 써야 낼 수 있어요」). 발문을 채워도 객관식·단답·수치는 정답이,
- * 서술형은 채점 기준이 더 필요하다(`hasGradableAnswer` · `missingRubricNumbers`).
+ * 서술형은 채점 기준 **둘**이 더 필요하다(`hasGradableAnswer` · `missingRubricNumbers` ·
+ * `rubricWeightMismatchNumbers`).
+ *
+ * ⑵ **과목·학년** — #376 이 더한 관문 둘이다(`subjectValid`·`gradeValid` — `:197`·`:198`).
+ * **이 둘은 `blockedReason` 에 들어가지 않는다** — 그래서 문항을 다 채워
+ * `dispatch-blocked` 가 사라져도 버튼은 잠긴 채일 수 있다. 자동 채움(봇 → 반)이 비운 반에서
+ * 그렇다(`:183`–`:186`).
  *
  * **그래서 #352 뒤로 이 레인은 첫 단계에서 죽어 있었다** — `fillAssignmentTitle` 의 `toPass` 가
- * 「버튼 활성」 증인을 못 보고 15초를 돌다 던진다. 문항을 화면에서 실제로 채우는
- * `authorDefaultQuestions`(`helpers.ts`)를 앞에 세워 그 자리를 살린다. 앱의 jest 가 같은 최소치를
- * 같은 testid 로 채우고 있어 그것을 그대로 옮겼다
- * (`app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx` 의 `authorAllDefaults`).
+ * 「버튼 활성」 증인을 못 보고 15초를 돌다 **이유를 말하지 못한 채** 던진다. 문항과 두 칸을
+ * 화면에서 실제로 채우는 `authorDispatchableAssignment`(`helpers.ts`)를 앞에 세워 그 자리를
+ * 살린다 — 문항 값과 testid 는 앱의 jest 가 같은 최소치를 채우는 자리에서 그대로 옮겼고
+ * (`app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx:125`–`:137` 의
+ * `authorAllDefaults`), 과목·학년은 **비어 있을 때만** 적는다(자동 채움을 덮지 않는다).
+ * 없는 전제를 `test.fixme` 로 덮는 대신 **세우는** 쪽을 골랐다 — 그래야 이 스펙이 시드 자료의
+ * 질에 매달리지 않는다.
  *
  * ## ⚠ 이 파일은 실제 과제를 **쓴다** — prod 에 대고 돌리지 마라
  *
@@ -64,7 +75,7 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
-import { authorDefaultQuestions, fillAssignmentTitle, solveAllAndSubmit } from './helpers';
+import { authorDispatchableAssignment, fillAssignmentTitle, solveAllAndSubmit } from './helpers';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
@@ -95,10 +106,10 @@ async function dispatchSolveAndSubmit(page: Page, title: string): Promise<string
 
   /*
     반 조회가 **정착할 때까지** 기다린 뒤에 본다. `class-select` 는 조회 중에도 서 있으므로
-    (「반을 불러오는 중…」 한 줄 — `assignment-form.tsx:303`) 그것이 있다는 사실은 정착이 아니다.
+    (「반을 불러오는 중…」 한 줄 — `assignment-form.tsx:401`) 그것이 있다는 사실은 정착이 아니다.
     정착의 증인은 셋이다: 반이 있으면 select 의 `disabled` 가 풀리고
-    (`assignment-form.tsx:297` — `disabled={classes.length === 0}`), 없으면 `rooms-empty`(`:272`),
-    못 읽으면 `rooms-error`(`:263`) 가 선다. **갓 띄운 페이지에서는 셋이 배타적이다** — 캐시가
+    (`assignment-form.tsx:395` — `disabled={classes.length === 0}`), 없으면 `rooms-empty`(`:370`),
+    못 읽으면 `rooms-error`(`:361`) 가 선다. **갓 띄운 페이지에서는 셋이 배타적이다** — 캐시가
     없어 `isError` 면 `classes` 도 비고, 그래서 select 는 잠긴 채다(strict mode 에 안 걸린다).
     셋 다 React Query 가 답한 뒤에야 갈리는데
     하이드레이션은 `networkidle` 뒤에 오므로(`fillAssignmentTitle` 머리주석의 #294 실측),
@@ -118,14 +129,15 @@ async function dispatchSolveAndSubmit(page: Page, title: string): Promise<string
     || (await page.getByTestId('rooms-error').count()) > 0;
   test.skip(noRooms, '이 계정에는 과제를 낼 반이 없다 — 반이 있어야 「과제 내기」가 열린다');
 
-  // 문항을 먼저 채운다 — 비운 발문·정답이 「과제 내기」를 막는다(머리주석 「전제가 하나 더 있다」).
-  await authorDefaultQuestions(page);
+  // 문항 다섯과, 자동 채움이 비운 과목·학년을 먼저 채운다 — 넷 다 「과제 내기」를 막는 관문이다
+  // (머리주석 「전제가 더 있다」 ⑴·⑵). 과목·학년은 비어 있을 때만 적는다.
+  await authorDispatchableAssignment(page);
 
   // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석. 그 헬퍼가 「과제 내기」
   // 버튼의 활성까지 확인하고 돌아오므로 여기서 따로 못박지 않는다.
   await fillAssignmentTitle(page, title);
   await page.getByTestId('dispatch-btn').click();
-  // 낸 뒤 서는 화면은 **낸 과제 목록**이다(`assignment-form.tsx:227`) — 위 표 여섯째 줄.
+  // 낸 뒤 서는 화면은 **낸 과제 목록**이다(`assignment-form.tsx:324`) — 위 표 여섯째 줄.
   await expect(page).toHaveURL(BASE + '/teacher/assignment');
 
   // 낸 과제의 id 는 **서버가 준다.** 도착한 화면의 줄 testid(`assignment-row-<id>`)에서 읽는다.
@@ -202,7 +214,7 @@ test.describe('피드백 루프 — 제출 ↔ 교사 제출 현황', () => {
     //
     // ⚠ 그리고 이 셋은 **`exam` 모드에는 아예 없다** — 결과 화면이 「결과는 선생님 발표 후
     // 공개돼요」 한 장으로 갈린다(`app/(student)/classbot/assignment/[id]/result/page.tsx:85`–`:95`).
-    // 여기서 안전한 까닭은 폼의 기본 모드가 `practice` 이고(`assignment-form.tsx:121`) 이 스펙이
+    // 여기서 안전한 까닭은 폼의 기본 모드가 `practice` 이고(`assignment-form.tsx:136`) 이 스펙이
     // 모드를 건드리지 않기 때문이다 — 모드를 고르는 줄을 넣는 날 이 단언도 함께 갈라야 한다.
     await expect(
       page.getByTestId('result-score').or(page.getByTestId('result-ungraded')),
