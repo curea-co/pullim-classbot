@@ -32,8 +32,11 @@ import { cn } from '@/lib/utils';
  *  - **새로고침해도 점수가 남는다**(pullim-api #681) — 상세 응답이 본인 제출 세 칸을 실어서다. 세션 응답이
  *    있으면 그게 먼저고(방금 낸 것), 없으면 서버 행이 답한다(`mySubmissionOf`).
  *
- * 점수 칸이 가르는 갈래는 넷이다 — **냈고 점수가 있다 · 냈는데 미채점 · 안 냈다 · 모른다.** 마지막 둘을
- * 합치지 않는다: 「안 냈다」는 서버가 한 말이고, 「모른다」는 이 서버가 아직 본인 제출 칸을 안 싣는다는 뜻이다.
+ * 갈래는 넷이고 **갈리는 층이 둘**이다:
+ *  - **안 냈다**(서버가 그렇게 말했다) → 점수 칸이 아니라 **화면째** 갈린다. 이 화면 전체가 낸 사람을
+ *    전제로 서 있어서다(머리줄 「제출 완료 · 수고했어요」 · 「질문」 CTA · 「낸 답과 점수는 선생님 화면으로
+ *    가요」) — 점수 칸만 바꾸면 한 화면이 두 말을 한다. 아래 이른 반환이 그 자리다.
+ *  - **냈고 점수가 있다 · 냈는데 미채점 · 모른다** → 점수 칸 세 갈래. 「모른다」를 「안 냈다」로 접지 않는다.
  */
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -86,6 +89,33 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
   const autoGraded = questions.filter(q => q.type !== 'essay').length;
   const essayCount = questions.filter(q => q.type === 'essay').length;
   const mine = mySubmissionOf(a, result?.submission);
+
+  /*
+   * 서버가 「안 냈다」고 말한 사람에게는 **결과 화면 자체가 거짓말이다.**
+   *
+   * 이 라우트에는 미제출자를 막는 문이 없다(딥링크·뒤로가기로 그냥 들어온다). 그런데 이 아래 전부가
+   * 낸 사람을 전제로 서 있다 — 머리줄 「제출 완료 · 수고했어요」, 레일의 「질문」 CTA, 「낸 답과 점수는
+   * 선생님 화면으로 가요」. 점수 칸 하나만 「아직 안 냈어요」로 바꾸면 **한 화면이 두 말을 한다.**
+   * 그래서 점수 칸을 가르는 게 아니라 **화면을 가른다** — 없는 과제(`api.isNotFound`)와 같은 모양으로,
+   * 나가는 길 하나(풀이 화면)만 준다.
+   *
+   * 「모른다」는 여기 오지 않는다 — 그건 「안 냈다」가 아니라 이 서버가 아직 말해 주지 않는 것이라
+   * 아래 점수 칸이 종전 문구로 받는다.
+   */
+  if (mine.kind === 'not-submitted') {
+    return (
+      <div className="space-y-4" data-testid="result-not-submitted">
+        {back}
+        <EmptyState
+          icon={Clock}
+          title="아직 내지 않은 과제예요"
+          description="풀어서 내면 여기에 점수와 선생님 한마디가 보여요."
+          action={{ href: a.solveHref, label: '시작', ariaLabel: '지금 풀기 시작하기' }}
+        />
+      </div>
+    );
+  }
+
   const scoredAtLabel = mine.kind === 'submitted' ? shortTimeLabel(mine.gradedAt ?? mine.submittedAt) : '';
 
   const scoreCard = isExam ? (
@@ -107,18 +137,9 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
           <ScoreDisplay score={autoGraded} max={questions.length} size="xl" tone="fixed-accent" className="mt-1" />
           <p className="text-pullim-slate-500 mt-0.5 text-2xs">객관식·단답·수치는 바로</p>
         </div>
-        {mine.kind === 'not-submitted' ? (
-          /* 서버가 「안 냈다」고 말한 자리 — 결과 화면에 곧장 들어온 경우다. 점수를 못 읽은 것과 다른 말을 한다. */
-          <div data-testid="result-not-submitted">
-            <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
-            <div className="text-pullim-slate-400 mt-1 font-mono text-2xl font-bold">—</div>
-            <p className="text-pullim-slate-500 mt-0.5 text-2xs">
-              아직 안 냈어요. 풀어서 내면 여기에 점수가 보여요.
-            </p>
-          </div>
-        ) : mine.kind === 'unknown' ? (
+        {mine.kind === 'unknown' ? (
           /* 모른다 — 이 서버가 아직 본인 제출 칸을 안 싣고(#681 배포 전), 이 세션에서 내지도 않았다.
-             「안 냈다」고 말하지 않는다. 우리가 아는 것은 「여기서는 못 본다」까지다. */
+             「안 냈다」고 말하지 않는다(그건 위에서 화면째 갈렸다). 우리가 아는 것은 「여기서는 못 본다」까지다. */
           <div data-testid="result-missing">
             <div className="text-pullim-slate-500 text-2xs font-bold tracking-wider uppercase">내 점수</div>
             <div className="text-pullim-slate-400 mt-1 font-mono text-2xl font-bold">—</div>

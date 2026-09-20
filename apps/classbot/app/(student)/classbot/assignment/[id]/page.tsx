@@ -69,21 +69,25 @@ export default function AssignmentOverviewPage({ params }: { params: Promise<{ i
 
   // 방금 낸 것(세션) → 서버 행(`submitted`) 순서로 답한다. 「모른다」는 낸 것으로도 안 낸 것으로도 치지 않는다.
   const isSubmitted = mySubmissionOf(a, sessionResult?.submission).kind === 'submitted';
-  const isInProgress = !isSubmitted && a.state === 'in-progress';
   const isExam = a.mode === 'exam';
 
-  const ctaHref =
-    isSubmitted ? `/classbot/assignment/${a.id}/result`
-    : `/classbot/assignment/${a.id}/solve?step=${isInProgress ? a.completedCount + 1 : 1}`;
-  const ctaLabel =
-    isSubmitted ? '결과'
-    : isInProgress ? `이어서 풀기 (${a.completedCount + 1}/${a.questionCount})`
-    : '시작';
+  /*
+   * CTA 는 둘뿐이다 — **결과** 아니면 **시작.**
+   *
+   * 종전에는 셋째 갈래 「이어서 풀기」가 있었고 `state === 'in-progress'` 로 켰다. 그 값은 **서버에서
+   * 도달할 수 없다** — `assignments.state` 는 과제당 하나뿐인 칸이고 이 앱의 배포 폼이 늘 `'todo'` 를
+   * 넣는다(목록 KPI 「푸는 중」을 같은 이유로 걷었다). 그리고 켜졌다 해도 `completedCount + 1` 이 가리키던
+   * 문항 번호가 이제 뜻이 없다 — 그 칸은 진행도가 아니라 **제출 여부의 투영**(0 또는 전부)이다.
+   *
+   * 중간까지 푼 자리로 돌아가는 일은 **중간 저장이 생기는 별건 설계**의 몫이다. 그 문이 없는 동안
+   * 「이어서 풀기 (1/10)」을 그리면 **한 번도 안 푼 사람에게 이어서 푸는 척**을 하게 된다.
+   */
+  const ctaHref = isSubmitted
+    ? `/classbot/assignment/${a.id}/result`
+    : `/classbot/assignment/${a.id}/solve?step=1`;
+  const ctaLabel = isSubmitted ? '결과' : '시작';
   // 보이는 글자는 단어, 잃은 뜻은 낭독기 이름에 ([07 § 6.6.2(3)])
-  const ctaAria =
-    isSubmitted ? '제출한 결과 보기'
-    : isInProgress ? `이어서 풀기 — ${a.completedCount + 1}번째 문항부터`
-    : '지금 시작하기';
+  const ctaAria = isSubmitted ? '제출한 결과 보기' : '지금 시작하기';
 
   const rail = (
     <div className="max-lg:sticky max-lg:bottom-2 max-lg:z-10 space-y-3">

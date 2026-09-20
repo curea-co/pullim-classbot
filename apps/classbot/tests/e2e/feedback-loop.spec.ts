@@ -71,8 +71,7 @@
  * 검증 핵심(지금 사실인 것만):
  *  1. 교사가 낸 과제가 학생 목록에 서고, 학생이 제출하면 그 제출이 **교사 과제 상세**에 선다
  *  2. 결과 화면은 제출 직후 **서버가 센 점수**(또는 서술형 대기)를 그린다
- *  3. 새로고침해도 **이 브라우저에 점수 사본이 남지 않는다** — 제출의 정본은 서버다
- *     (점수가 다시 보이는지는 서버가 본인 제출 칸을 싣는지에 달렸다 — pullim-api #681)
+ *  3. 새로고침하면 그 점수는 비고 화면이 **그 사실을 말한다** — 제출의 정본은 서버다
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -230,18 +229,18 @@ test.describe('피드백 루프 — 제출 ↔ 교사 제출 현황', () => {
   });
 
   /**
-   * 새로고침 — **이 브라우저에 점수 사본을 남기지 않는다.**
+   * 새로고침 — 점수는 **이 세션 안에서만** 살고, 낸 답은 서버에 남는다.
    *
-   * `lib/store/submission-result.ts` 는 저장하지 않는 스토어다(「제출의 정본은 서버이고, 이 브라우저에
-   * 사본을 남기면 다른 기기와 어긋난 채로 오래 산다」). 이 검사가 지키는 것은 **그 계약**이다.
+   * 종전에는 `localStorage['pullim-assignments']` 가 `submissions`·`scorePercent` 를 담고 있기를
+   * 단언했다. 지금은 **그 반대가 계약이다.** `lib/store/submission-result.ts` 는 저장하지 않는
+   * 스토어이고(「제출의 정본은 서버이고, 이 브라우저에 사본을 남기면 다른 기기와 어긋난 채로
+   * 오래 산다」), 결과 화면은 새로고침하면 `result-missing` 으로 그 사실을 말한다 —
+   * 「점수는 제출하고 바로 그때만 여기서 보여요. 낸 답은 선생님께 가 있어요.」
    *
-   * ⚠ 종전 증인이던 「새로고침 뒤 `result-missing` 이 선다」는 **서버가 본인 제출 칸을 안 싣던 세계**의
-   * 것이다. pullim-api #681 이 목록·상세에 `submitted`·`submittedAt`·`scorePercent` 를 실으면 새로고침
-   * 뒤에도 점수가 **서버에서** 다시 온다 — 그게 결함이 아니라 그 PR 이 고치는 것이다. 그래서 화면 쪽
-   * 단언은 「셋 중 하나가 선다」로 두고, 회귀 증인은 **localStorage 에 사본이 없다**로 옮겼다.
-   * 이쪽이 서버가 세 칸을 싣든 안 싣든 같은 답이다.
+   * 그래서 이 검사는 **브라우저에 사본을 다시 남기는 회귀를 잡는다.** 누가 제출 결과를 persist 로
+   * 되돌리면 새로고침 뒤에도 점수가 남아 `result-missing` 이 서지 않는다.
    */
-  test('새로고침 — 점수 사본을 브라우저에 남기지 않는다', async ({ page }) => {
+  test('새로고침 — 점수는 세션 안에서만 살고 화면이 그 사실을 말한다', async ({ page }) => {
     await dispatchSolveAndSubmit(page, '세션 점수 검증 과제');
 
     await expect(
@@ -250,27 +249,10 @@ test.describe('피드백 루프 — 제출 ↔ 교사 제출 현황', () => {
 
     await page.reload({ waitUntil: 'networkidle' });
 
-    // 과제 자체는 서버에서 다시 읽어 오므로 404 가 아니다. 점수 칸은 서버가 말해 주면 서고, 아니면 「모른다」다.
+    // 같은 결과 화면인데 점수 칸만 바뀐다 — 과제 자체는 서버에서 다시 읽어 오므로 404 가 아니다.
     await expect(page).toHaveURL(RESULT_URL);
-    await expect(
-      page
-        .getByTestId('result-score')
-        .or(page.getByTestId('result-ungraded'))
-        .or(page.getByTestId('result-missing')),
-    ).toBeVisible({ timeout: 10_000 });
-
-    // 회귀 증인 — 누가 제출 결과를 persist 로 되돌리면 그 사본이 여기 남는다.
-    const leaked = await page.evaluate(() => {
-      const keys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i += 1) {
-        const key = window.localStorage.key(i);
-        if (key === null) continue;
-        const value = window.localStorage.getItem(key) ?? '';
-        if (value.includes('scorePercent') || value.includes('submissionId')) keys.push(key);
-      }
-      return keys;
-    });
-    expect(leaked).toEqual([]);
+    await expect(page.getByTestId('result-missing')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('result-score')).toHaveCount(0);
   });
 
   /**

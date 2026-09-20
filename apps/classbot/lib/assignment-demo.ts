@@ -12,8 +12,19 @@ import type { AssignmentReadRow } from '@/hooks/api/read/types';
  * @returns 홈이 읽는 Assignment
  */
 export function readRowToAssignment(row: AssignmentReadRow): Assignment {
-  const { assignedAtLabel, scopeOverride, recentAccuracy, reasonHint, studentId, ...rest } = row;
+  const {
+    assignedAtLabel, scopeOverride, recentAccuracy, reasonHint, studentId,
+    submitted, submittedAt, scorePercent,
+    ...rest
+  } = row;
   void studentId; // 서버 행의 대상 표기 — 학생은 「내 과제」만 받으므로 쓰지 않는다.
+  // 본인 제출 세 칸(pullim-api #681)은 **`Assignment` 에 없는 칸**이라 떨어뜨린다. 남겨 두면 `Assignment`
+  // 라고 적힌 객체가 선언에 없는 칸을 몰래 들고 다닌다(스프레드라 타입이 막아 주지 않는다).
+  // 홈이 읽는 것은 `completedCount` 까지다 — 그 값이 이미 「냈나」의 투영이라 판정에 필요한 것은 넘어간다.
+  // 「냈는지」를 직접 물어야 하는 화면이 생기면 `Assignment` 를 넓히는 대신 그 화면이 행을 그대로 읽는다.
+  void submitted;
+  void submittedAt;
+  void scorePercent;
   return {
     ...rest,
     assignedAt: assignedAtLabel,

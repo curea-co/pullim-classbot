@@ -106,7 +106,10 @@ function AssignmentListBody({
   // 그 수가 곧 거짓말이 된다.
   const submittedCount = assignments.filter(a => a.submitted === true).length;
   const unsubmittedCount = assignments.filter(a => a.submitted === false).length;
-  const knowsSubmission = submittedCount + unsubmittedCount > 0;
+  // **전부** 알 때만 센다. 한 줄이라도 모르면 두 수의 합이 머리줄의 「받은 과제 N건」과 어긋나고,
+  // 그 어긋남은 「나머지는 안 냈다」로 읽힌다 — 한 응답에서 갈리는 일이 없어야 정상이지만, 여기서
+  // 「하나라도 알면 센다」로 열어 두면 그 비정상이 조용히 거짓말로 그려진다.
+  const knowsSubmission = submittedCount + unsubmittedCount === assignments.length;
 
   // botId → 봇(페르소나 메타) 조인 맵 — 참여 중인 반에서 온다.
   const botById = new Map(rooms.map(r => [r.bot.id, r.bot]));
@@ -189,11 +192,11 @@ function AssignmentListSkeleton() {
 function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadRow[] }) {
   const sig = botSignature(bot);
   const groupHex = sig.hex;
-  // 이 묶음의 진척 — 제출 여부의 투영이라(`use-assignment-reads.ts`) **서버가 말해 준 과제만** 센다.
-  // 하나도 모르면 막대를 아예 그리지 않는다: 0% 막대는 「하나도 안 냈다」는 주장이고, 그건 우리가 모르는 것이다.
-  const known = items.filter(a => a.submitted !== null);
-  const totalQ = known.reduce((s, a) => s + a.questionCount, 0);
-  const completedQ = known.reduce((s, a) => s + a.completedCount, 0);
+  // 이 묶음의 진척 — 제출 여부의 투영이라(`use-assignment-reads.ts`) **전부 알 때만** 그린다. 한 줄이라도
+  // 모르면 분모가 「N개」 머리줄과 어긋나고, 0% 막대는 「하나도 안 냈다」는 주장이 된다(KPI 와 같은 규칙).
+  const knowsSubmission = items.every(a => a.submitted !== null);
+  const totalQ = items.reduce((s, a) => s + a.questionCount, 0);
+  const completedQ = items.reduce((s, a) => s + a.completedCount, 0);
   const progress = totalQ === 0 ? 0 : (completedQ / totalQ) * 100;
   // 묶음 표시는 머리줄(봇 배지·시그니처 점)이 한다 — 라이너까지 칠하면 한 화면 hue 가 [08 § 14.1] 한도를 넘는다
   return (
@@ -220,7 +223,7 @@ function BotGroupSection({ bot, items }: { bot: GroupBot; items: AssignmentReadR
               {items.length}개
             </span>
           </div>
-          {known.length > 0 && (
+          {knowsSubmission && (
             <div className="mt-1 flex items-center gap-2">
               {/* 진척 막대는 데이터라 브랜드 블루로 — 봇 표시는 머리줄의 시그니처 점이 한다(위 묶음 표시 주석과 같은 말) */}
               <div className="bg-pullim-slate-200 h-1 flex-1 overflow-hidden rounded-full">

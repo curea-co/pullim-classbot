@@ -89,23 +89,30 @@ describe('완료는 submitted 가 정한다', () => {
     expect(getAssignmentVisual(base({ submitted: true })).semanticLabel).toBe('완료');
   });
 
-  it('false(서버가 「안 냈다」고 말했다)면 완료가 아니다', () => {
-    expect(getAssignmentVisual(base({ submitted: false })).semanticLabel).toBe('진행 중');
+  it('false(서버가 「안 냈다」고 말했다)면 완료가 아니라 「시작 전」이다 — 「진행 중」은 모를 때만 쓴다', () => {
+    const v = getAssignmentVisual(base({ submitted: false }));
+    expect(v.semanticLabel).toBe('시작 전');
+    expect(v.state).toBe('not-started');
   });
 
-  it('null(운영자 관점)은 완료가 아니고, 마감일이 그리던 그림 그대로다', () => {
+  it('null(운영자 관점)은 완료도 「시작 전」도 아니다 — 모르면 종전 라벨(진행 중)이고 마감일이 앞선다', () => {
     expect(getAssignmentVisual(base({ submitted: null })).semanticLabel).toBe('진행 중');
     expect(getAssignmentVisual(base({ submitted: null, dDay: '오늘' })).semanticLabel).toBe('마감 임박');
   });
 
-  it('칸 자체가 없으면(옛 서버) 완료가 아니다 — 「모른다」이고, 그때 카드는 #681 이전과 같은 그림이다', () => {
+  it('칸 자체가 없으면(옛 서버) `null` 과 같은 답이다 — 「안 냈다」고 단정하지 않는다', () => {
     const old = { mode: 'practice', state: 'todo', dDay: 'D-5' } as const;
     expect(getAssignmentVisual(old).semanticLabel).toBe('진행 중');
     expect(getAssignmentVisual({ ...old, dDay: '지난 2일' }).semanticLabel).toBe('지연');
   });
 
+  it('급한 것은 「시작 전」보다 앞선다 — 안 낸 것이 마감을 지났으면 지연이라고 말한다', () => {
+    expect(getAssignmentVisual(base({ submitted: false, dDay: '지난 2일' })).semanticLabel).toBe('지연');
+    expect(getAssignmentVisual(base({ submitted: false, dDay: '오늘' })).semanticLabel).toBe('마감 임박');
+  });
+
   it('state 가 submitted 여도 그것만으로는 완료가 아니다 — 그 칸은 과제당 하나라 학생을 못 가른다', () => {
-    expect(getAssignmentVisual(base({ state: 'submitted', submitted: false })).semanticLabel).toBe('진행 중');
+    expect(getAssignmentVisual(base({ state: 'submitted', submitted: false })).semanticLabel).toBe('시작 전');
     expect(getAssignmentVisual(base({ state: 'submitted', submitted: null })).semanticLabel).toBe('진행 중');
   });
 

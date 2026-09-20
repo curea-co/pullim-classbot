@@ -300,7 +300,13 @@ function AssignmentTracker({
 
 /**
  * 문항이 답을 낸 것으로 보이는지.
- * 제출 기록에 답이 있거나(정확), 과제 행의 진행 수 안에 들어오면(목록·상세와 같은 숫자) 낸 것으로 본다.
+ *
+ * 둘 중 하나면 낸 것으로 본다 — ① 이 세션이 보낸 답이 있다(정확하다) ② 과제 행의 `completedCount` 안에 든다.
+ *
+ * ⚠ ②는 **문항별 진행도가 아니다.** 그 칸은 이제 제출 여부의 투영이라 값이 `0` 아니면 `questionCount` 뿐이고
+ * (`use-assignment-reads.ts` — 정본에 중간 진행도 칸이 없다), 그래서 ②는 사실상 **「이 과제를 냈나」** 를 묻는다.
+ * 그 결과가 「낸 과제는 문항 전부가 냈음으로 보인다」이고 그건 맞는 말이다. 다만 **어느 문항을 어떻게 냈는지는
+ * 모른다** — 답 본문은 ①(세션)에만 있다.
  */
 function isAnswered(q: AssignmentQuestion, answers: Record<string, string>, completedCount: number): boolean {
   return answers[q.id] !== undefined || q.order <= completedCount;
@@ -351,7 +357,8 @@ function AutoGradedTracker({
                     <p className="text-pullim-blue-700 mt-1 text-2xs font-semibold">
                       {myAnswer !== undefined
                         ? `낸 답 — ${myAnswer}`
-                        : '냈어요 · 낸 답은 풀이 화면에 있어요'}
+                        /* 답 본문은 이 세션에만 있다 — 새로고침하면 「낸 답」이 없으니 어디 있다고 말하지 않는다 */
+                        : '냈어요'}
                     </p>
                   ) : (
                     <p className="text-pullim-slate-500 mt-1 text-2xs">아직 안 냈어요</p>
