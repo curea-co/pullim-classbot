@@ -79,10 +79,18 @@ export async function joinDemoClass(page: Page): Promise<void> {
  * 버튼이 잠겨 있으면 그것은 **아직 React 가 안 붙은 것**이므로, 블록이 던지고 다시 넣는다.
  *
  * 증인을 헬퍼 안에 둔 덕에 실패 메시지도 제 이름을 갖는다 — 없으면 「클릭 타임아웃」으로만
- * 보여 네 검증(`titleValid`·`targetValid`·`dueValid`·문항 수) 중 무엇이 막았는지 로그에
- * 남지 않는다. 같은 자리가 스펙 파일 셋에 다섯 벌 있어서 여기 한 곳으로 모았다.
+ * 보여 어느 검증이 막았는지 로그에 남지 않는다. 같은 자리가 스펙 파일 셋에 다섯 벌 있어서
+ * 여기 한 곳으로 모았다.
+ *
+ * ⚠ **제목만으로는 그 증인이 서지 않는다.** `canDispatch` 는 `titleValid` 말고도 반·마감과
+ * **문항 차단 사유 없음**을 함께 요구하고(`app/(teacher)/teacher/assignment/new/assignment-form.tsx:190`),
+ * 폼이 처음 세우는 5문항은 발문이 전부 비어 있어 그 자리에서 막힌다(`:176` ·
+ * `question-editor.tsx:126` 의 `createDefaultQuestions`). 그러니 이 헬퍼 앞에
+ * `authorDefaultQuestions` 를 먼저 불러야 한다 — 안 부르면 아래 `toPass` 가 15초를 돌고 던진다.
+ * (`assignment-dispatch.spec.ts` · `mobile-and-focus.spec.ts` 는 아직 안 부른다 — 그 둘은 도착지
+ * URL 과 걷힌 `bot-select`·localStorage 시딩까지 낡아 있어 파일 단위로 따로 고친다.)
  * @param page - 출제 화면이 열려 있는 페이지
- * @param title - 넣을 과제 제목 (5자 이상이어야 「과제 내기」 버튼이 열린다)
+ * @param title - 넣을 과제 제목 (5~50자). **그것만으로는 「과제 내기」가 열리지 않는다** — 위 ⚠
  */
 export async function fillAssignmentTitle(page: Page, title: string): Promise<void> {
   await expect(async () => {
@@ -90,6 +98,49 @@ export async function fillAssignmentTitle(page: Page, title: string): Promise<vo
     await expect(page.getByTestId('title-input')).toHaveValue(title);
     await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
   }).toPass({ timeout: 15_000 });
+}
+
+/**
+ * 출제 화면이 처음 세운 5문항을 **낼 수 있는 최소치까지** 화면에서 채운다.
+ *
+ * 폼은 `createDefaultQuestions()`(`app/(teacher)/teacher/assignment/new/question-editor.tsx:126`)로
+ * 객관식·객관식·단답·수치·서술 다섯을 세우는데 **발문·정답·기준이 전부 비어 있다.** 그래서
+ * `questionBlockedReason()` 이 곧바로 「모든 문항의 발문을 써야 낼 수 있어요」로 막고
+ * (`assignment-form.tsx:176`), `canDispatch` 가 그 사유 없음을 요구하므로(`:190`) 제목만 넣어서는
+ * 「과제 내기」 버튼이 열리지 않는다. 종전 「비운 채 내면 단원에서 자동으로 뽑아 온다」 규약은
+ * 정본에 없어 #352 가 걷었고, 그 뒤로 이 앞부분을 쓰는 e2e 레인이 여기서 죽어 있었다.
+ *
+ * 채우는 값은 앱의 jest 가 같은 최소치를 채우는 자리에서 그대로 옮겼다 —
+ * `app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx` 의 `authorAllDefaults`.
+ * 문항별로 필요한 것이 다르다:
+ *  - **모든 문항** — 발문(`authoredCount`)
+ *  - **객관식** — 보기 둘 이상에 글자가 있고 **고른 보기**가 비지 않을 것(`hasGradableAnswer`).
+ *    기본 정답은 0번이라 `question-option-<i>-0` 이 반드시 차 있어야 한다
+ *  - **단답·수치** — 정답 칸. 수치는 숫자여야 한다(`invalidNumericAnswerNumbers`)
+ *  - **서술형** — 기준 **둘 다**. 하나만 적으면 적은 것의 배점 합(10)이 문항 배점(20)과 어긋나
+ *    `rubricWeightMismatchNumbers` 가 다시 막는다
+ *
+ * `fillAssignmentTitle` 과 같은 이유로 `toPass` 로 감싼다(하이드레이션이 값을 지운다). 증인은
+ * **차단 사유 자체가 사라지는 것**이다 — `dispatch-blocked` 는 문항 사유만 싣고
+ * (`assignment-form.tsx:558`–`:561` — 그 칸이 그리는 것은 `blockedReason` 하나다), 제목·마감은
+ * 그 칸에 오지 않으므로 이 헬퍼가 한 일만 본다.
+ * @param page - 출제 화면(`/teacher/assignment/new`)이 열려 있는 페이지
+ */
+export async function authorDefaultQuestions(page: Page): Promise<void> {
+  await expect(async () => {
+    for (let i = 0; i < 5; i++) {
+      await page.getByTestId(`question-prompt-${i}`).fill(`${i + 1}번 발문 — e2e 검증`);
+    }
+    for (const i of [0, 1]) {
+      await page.getByTestId(`question-option-${i}-0`).fill('첫째 보기');
+      await page.getByTestId(`question-option-${i}-1`).fill('둘째 보기');
+    }
+    await page.getByTestId('question-answer-2').fill('증발');
+    await page.getByTestId('question-answer-3').fill('42');
+    await page.getByTestId('question-criterion-4-0').fill('근거를 썼어요');
+    await page.getByTestId('question-criterion-4-1').fill('결론이 있어요');
+    await expect(page.getByTestId('dispatch-blocked')).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
 }
 
 /**

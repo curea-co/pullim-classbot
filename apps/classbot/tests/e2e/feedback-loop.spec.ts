@@ -4,7 +4,7 @@
  * ## 2026-09-20 재작성 — 이 스펙이 딛고 서 있던 세계가 은퇴했다
  *
  * 종전 판은 **브라우저 localStorage 가 과제·제출의 정본이던 시절**의 스펙이었다. 그 시절이
- * #350(계획 PR 4)·#352(계획 PR 6)에서 끝났고, 스펙만 남아 다섯 자리가 **거짓**이 돼 있었다.
+ * #350(계획 PR 4)·#352(계획 PR 6)에서 끝났고, 스펙만 남아 여섯 자리가 **거짓**이 돼 있었다.
  * 고친 것과 근거를 한 줄씩 적어 둔다 — 「왜 이렇게 바뀌었나」를 다시 묻지 않게:
  *
  * | 걷어낸 단언 | 왜 거짓인가 |
@@ -14,17 +14,48 @@
  * | `localStorage['pullim-assignments']` 가 `submissions`·`scorePercent` 를 담을 것 | **뒤집혔다.** 앱은 이제 그 키를 rehydrate 뒤 **지운다**(`lib/store/assignments.ts` 의 `RETIRED_STORAGE_KEY`). 앱의 jest 는 그 키가 `null` 임을 단언한다(`app/(student)/classbot/assignment/__tests__/use-assignment-submit.test.tsx`). 이 스펙만 반대를 요구하고 있었다 |
  * | `as_user_\d+` URL 모양 | 그 접두사는 브라우저가 붙이던 것이고 그 레인이 은퇴했다. **id 는 이제 서버가 준다** — 모양을 알 수 없으므로 가리지 않는다 |
  * | `pullim-class-enrollment` 시딩 | **무효다.** 서버가 401 을 줄 때 그 localStorage 의 데모 방으로 갈아타던 폴백을 걷었다(`components/classbot/home/my-rooms.ts`) |
+ * | 낸 뒤 `/teacher/classbot` 에 서고, 거기 `dispatched-row-<id>` 에서 과제 id 를 읽는다 | **도착지와 testid 가 함께 옮겨 갔다** — 같은 `1a14886` 이 바꾼 자리다. 폼은 낸 과제 목록으로 보낸다(`app/(teacher)/teacher/assignment/new/assignment-form.tsx:227` 의 `router.push('/teacher/assignment')`). 되돌려 주는 리다이렉트는 **없다** — 이 앱에는 `middleware.ts` 도 `next.config.ts` 의 `redirects` 도 없다. 그리고 `dispatched-row-<id>` 는 `/teacher/classbot` 에만 있고(`app/(teacher)/teacher/classbot/page.tsx:784`), 도착하는 화면의 줄은 `assignment-row-<id>` 다(`app/(teacher)/teacher/assignment/page.tsx:232` · 제목은 같은 줄 안 `:245`). 그래서 둘 다 그 화면 것으로 고쳤다 |
  *
  * **화면이 깨진 게 아니라 옮겨 간 것이다.** 그래서 스펙을 옮겨 간 자리로 따라 보낸다 —
  * 교사가 학생별 진행을 읽는 곳은 과제 상세(`/teacher/assignment/<id>` 의 `submissions-list`)이고,
  * 학생 점수는 제출 응답을 든 **저장하지 않는** 스토어(`lib/store/submission-result.ts`)다.
  *
- * ## 이 파일이 아직 `mixed-role-pending` 인 이유는 그대로다
+ * ## 전제가 하나 더 있다 — 문항을 다 쓰지 않으면 「과제 내기」는 열리지 않는다
+ *
+ * `canDispatch` 는 제목만 보지 않는다. 반·마감과 함께 **문항 차단 사유 없음**까지 요구하고
+ * (`assignment-form.tsx:190` 의 `blockedReason === null`), 폼이 처음 세우는 5문항
+ * (객관식·객관식·단답·수치·서술 — `question-editor.tsx:126` 의 `createDefaultQuestions`)은 발문이
+ * 전부 비어 있어 `questionBlockedReason()` 이 그 자리에서 막는다(`assignment-form.tsx:176`
+ * 「모든 문항의 발문을 써야 낼 수 있어요」). 발문을 채워도 객관식·단답·수치는 정답이,
+ * 서술형은 채점 기준이 더 필요하다(`hasGradableAnswer` · `missingRubricNumbers`).
+ *
+ * **그래서 #352 뒤로 이 레인은 첫 단계에서 죽어 있었다** — `fillAssignmentTitle` 의 `toPass` 가
+ * 「버튼 활성」 증인을 못 보고 15초를 돌다 던진다. 문항을 화면에서 실제로 채우는
+ * `authorDefaultQuestions`(`helpers.ts`)를 앞에 세워 그 자리를 살린다. 앱의 jest 가 같은 최소치를
+ * 같은 testid 로 채우고 있어 그것을 그대로 옮겼다
+ * (`app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx` 의 `authorAllDefaults`).
+ *
+ * ## ⚠ 이 파일은 실제 과제를 **쓴다** — prod 에 대고 돌리지 마라
+ *
+ * 아래 두 검사는 매번 `PLAYWRIGHT_BASE_URL` 이 가리키는 곳에 과제를 하나씩 내고 **지우지 않는다**
+ * (정본에 지우는 문이 없다). 지금 무해한 것은 prod-verify 가 `anon` · `login-student` ·
+ * `login-teacher` 세 프로젝트만 부르고 이 파일의 프로젝트(`mixed-role-pending`)는 부르지 않기
+ * 때문이다(`.github/workflows/prod-verify.yml:114`·`:124`·`:134`). 그 레인에 이 파일을 올리려면
+ * **뒷정리를 먼저 붙여야 한다.**
+ *
+ * ## 이 파일이 아직 `mixed-role-pending` 인 이유는 그대로다 — 그 레인은 교사 세션뿐이다
  *
  * 한 브라우저에서 교사와 학생을 오가는데 OS 계정은 역할이 고정이라, 역할별 파일로 다시 쓰기
  * 전에는 어느 로그인 레인에서도 절반이 빨개진다. 그 분리는 `playwright.config.ts` 의
  * `MIXED_ROLE_SPECS` TODO(PR 6 e2e 트랙)가 인도한다 — **이 재작성은 그 트랙이 아니다.**
  * 여기서 한 일은 「거짓이 된 단언을 사실로 되돌린 것」까지다.
+ *
+ * ⚠ 그래서 **아래 학생 절반은 이 레인에서 통과할 수 없다.** `mixed-role-pending` 은 교사
+ * storageState 로만 돈다(`playwright.config.ts:130`–`:134`). 교사 세션이 `/classbot/assignment` 로
+ * 가면 학생 레이아웃의 RoleGuard 가(`app/(student)/layout.tsx:10` → `role-guard.tsx:88`·`:97`)
+ * `homePathForRole('teacher')` = `/teacher` 로 돌려보낸다. 같은 사실을 config 의 TODO 가
+ * 「절반이 반드시 빨개진다」로 적어 뒀다. **이 스펙은 그걸 고치지 않는다 — 대신 조용한 초록이
+ * 되지 않게만 한다**(아래 [2] 의 URL 못박기).
  *
  * 검증 핵심(지금 사실인 것만):
  *  1. 교사가 낸 과제가 학생 목록에 서고, 학생이 제출하면 그 제출이 **교사 과제 상세**에 선다
@@ -33,14 +64,17 @@
  */
 
 import { test, expect, type Page } from '@playwright/test';
-import { fillAssignmentTitle, solveAllAndSubmit } from './helpers';
+import { authorDefaultQuestions, fillAssignmentTitle, solveAllAndSubmit } from './helpers';
 
 const BASE = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3032';
 
 /**
  * 과제 id 를 **가리지 않는** URL 모양. 서버가 주는 id 라 접두사도 자릿수도 알 수 없다 —
  * 종전의 `as_user_\d+` 는 브라우저가 붙이던 모양이었고 그 레인은 은퇴했다.
- * `[^/]+` 로 한 칸만 집어 `…/solve/무언가` 같은 다른 경로까지 걸리지 않게 한다.
+ *
+ * `[^/]+` 가 사 주는 것은 **id 가 한 칸을 넘지 않는다**는 것뿐이다 — `…/assignment/a/b/solve` 처럼
+ * 여러 칸이 끼어든 경로는 걸리지 않는다. 뒤는 막아 주지 않는다: 끝 고정이 없어 `…/solve/무언가` 도
+ * 그대로 매치한다. 그런 경로가 앱에 없어 그대로 둔다. `RESULT_URL` 은 `$` 로 끝을 막는다.
  */
 const SOLVE_URL = /\/classbot\/assignment\/[^/]+\/solve/;
 const RESULT_URL = /\/classbot\/assignment\/[^/]+\/result$/;
@@ -51,35 +85,56 @@ const RESULT_URL = /\/classbot\/assignment\/[^/]+\/result$/;
  * 전제를 못 세우면(반이 없다 · 그 반의 학생이 아니다) **이유를 적고 건너뛴다.** 없는 전제를
  * 실패로 적지 않는 것은 이 리포의 기존 방식이다(`sso-login-roundtrip.spec.ts`, 아래 시드 검사).
  * @param page - 교사·학생 화면을 오가는 페이지
- * @param title - 낼 과제 제목(5자 이상이어야 「과제 내기」가 열린다)
+ * @param title - 낼 과제 제목(5~50자). **제목만으로는 「과제 내기」가 열리지 않는다** — 문항까지
+ *   채워야 한다(머리주석 「전제가 하나 더 있다」)
  * @returns 서버가 준 과제 id — 뒤이어 교사 상세를 열 때 쓴다
  */
 async function dispatchSolveAndSubmit(page: Page, title: string): Promise<string> {
   // [1] 교사: 과제 내기
   await page.goto(BASE + '/teacher/assignment/new', { waitUntil: 'networkidle' });
 
+  /*
+    반 조회가 **정착할 때까지** 기다린 뒤에 본다. `class-select` 는 조회 중에도 서 있으므로
+    (「반을 불러오는 중…」 한 줄 — `assignment-form.tsx:303`) 그것이 있다는 사실은 정착이 아니다.
+    정착의 증인은 셋이다: 반이 있으면 select 의 `disabled` 가 풀리고
+    (`assignment-form.tsx:297` — `disabled={classes.length === 0}`), 없으면 `rooms-empty`(`:272`),
+    못 읽으면 `rooms-error`(`:263`) 가 선다. **갓 띄운 페이지에서는 셋이 배타적이다** — 캐시가
+    없어 `isError` 면 `classes` 도 비고, 그래서 select 는 잠긴 채다(strict mode 에 안 걸린다).
+    셋 다 React Query 가 답한 뒤에야 갈리는데
+    하이드레이션은 `networkidle` 뒤에 오므로(`fillAssignmentTitle` 머리주석의 #294 실측),
+    기다리지 않고 `isVisible()` 로 물으면 **언제나 「없다」** 가 돌아온다.
+  */
+  await expect(
+    page
+      .getByTestId('rooms-empty')
+      .or(page.getByTestId('rooms-error'))
+      .or(page.locator('[data-testid="class-select"]:not([disabled])')),
+  ).toBeVisible({ timeout: 15_000 });
+
   // 반이 없거나 못 읽으면 낼 곳이 없어 폼 전체가 뜻을 잃는다 — 그때 폼은 「아직 운영하는 반이
-  // 없어요」/「반을 불러오지 못했어요」로 선다(`assignment-form.tsx` 의 `rooms-empty`·`rooms-error`).
-  const noRooms = await page
-    .getByTestId('rooms-empty')
-    .or(page.getByTestId('rooms-error'))
-    .isVisible()
-    .catch(() => false);
+  // 없어요」/「반을 불러오지 못했어요」로 선다. 위에서 정착을 기다렸으므로 여기 답은 사실이다.
+  const noRooms =
+    (await page.getByTestId('rooms-empty').count()) > 0
+    || (await page.getByTestId('rooms-error').count()) > 0;
   test.skip(noRooms, '이 계정에는 과제를 낼 반이 없다 — 반이 있어야 「과제 내기」가 열린다');
+
+  // 문항을 먼저 채운다 — 비운 발문·정답이 「과제 내기」를 막는다(머리주석 「전제가 하나 더 있다」).
+  await authorDefaultQuestions(page);
 
   // 하이드레이션 경합 — 근거는 `fillAssignmentTitle` 머리주석. 그 헬퍼가 「과제 내기」
   // 버튼의 활성까지 확인하고 돌아오므로 여기서 따로 못박지 않는다.
   await fillAssignmentTitle(page, title);
   await page.getByTestId('dispatch-btn').click();
-  await expect(page).toHaveURL(BASE + '/teacher/classbot');
+  // 낸 뒤 서는 화면은 **낸 과제 목록**이다(`assignment-form.tsx:227`) — 위 표 여섯째 줄.
+  await expect(page).toHaveURL(BASE + '/teacher/assignment');
 
-  // 낸 과제의 id 는 **서버가 준다.** 「낸 과제」 줄의 testid(`dispatched-row-<id>`)에서 읽는다.
+  // 낸 과제의 id 는 **서버가 준다.** 도착한 화면의 줄 testid(`assignment-row-<id>`)에서 읽는다.
   // 첫 줄을 그냥 집지 않고 **제목으로 좁히는** 이유: 계정에 이미 낸 과제가 있으면 정렬이
-  // 어떻든 방금 낸 것을 집는다는 보장이 없다.
-  const row = page.locator('[data-testid^="dispatched-row-"]').filter({ hasText: title }).first();
+  // 어떻든 방금 낸 것을 집는다는 보장이 없다. 제목은 그 줄 안에 있다(`page.tsx:245`).
+  const row = page.locator('[data-testid^="assignment-row-"]').filter({ hasText: title }).first();
   await expect(row).toBeVisible({ timeout: 10_000 });
   const rowTestId = await row.getAttribute('data-testid');
-  const assignmentId = (rowTestId ?? '').replace('dispatched-row-', '');
+  const assignmentId = (rowTestId ?? '').replace('assignment-row-', '');
   expect(assignmentId, '「낸 과제」 줄에서 과제 id 를 읽지 못했다').not.toBe('');
 
   // [2] 학생: 받은 과제 목록 → 그 과제 → 풀이 → 제출
@@ -91,6 +146,20 @@ async function dispatchSolveAndSubmit(page: Page, title: string): Promise<string
   await expect(
     page.locator('a[href^="/classbot/assignment/"], [data-testid="empty-state"]').first(),
   ).toBeVisible({ timeout: 10_000 });
+
+  /*
+    그 둘만으로는 **fail-open 이 닫히지 않는다.** 위 선택자는 「어느 화면인가」를 묻지 않는데,
+    교사 세션은 여기 못 들어온다 — RoleGuard 가 `/teacher` 로 돌려보내고
+    (`app/(student)/layout.tsx:10` → `role-guard.tsx:88`·`:97`), 그 화면은 「먼저 볼 학생」 자리에
+    `EmptyState` 를 **조건 없이** 그린다(`app/(teacher)/teacher/page.tsx:127`). 그러면 위 단언이
+    통과하고 아래 skip 이 「받은 과제에 없다」로 초록이 된다 — 돌려보내진 것을 「과제가 없다」로
+    읽는 자리다. 이 파일의 유일한 레인이 교사 세션이라(머리주석 마지막 ⚠) 남의 일도 아니다.
+
+    그래서 **어느 화면에 서 있는지 못박는다.** 위 대기보다 **뒤**에 두는 것이 중요하다:
+    돌려보내기는 하이드레이션 뒤의 `router.replace` 라, 도착 직후에는 URL 이 아직
+    `/classbot/assignment` 이다. 먼저 물으면 그 순간의 참을 보고 통과해 버린다.
+  */
+  await expect(page).toHaveURL(/\/classbot\/assignment$/);
 
   const card = page.locator(`a[href="/classbot/assignment/${assignmentId}"]`);
   // 서버의 술어는 「현재 멤버 AND (타겟 없음 OR 본인 타겟)」이라(pullim-api authz.md §1.5)
@@ -112,6 +181,15 @@ async function dispatchSolveAndSubmit(page: Page, title: string): Promise<string
 }
 
 test.describe('피드백 루프 — 제출 ↔ 교사 제출 현황', () => {
+  /*
+    한 검사가 교사 출제(문항 다섯 채우기 포함) → 학생 풀이 → 제출 → 교사 상세까지 밟는다.
+    헬퍼들의 내부 대기만 더해도 기본 30초(`playwright.config.ts:84`)를 넘어서, 느린 러너에서는
+    이름 없는 Playwright 타임아웃이 먼저 와 `helpers.ts` 가 애써 남기는 진단 문구를 버린다.
+    같은 이유로 세워 둔 90초 선례가 setup 프로젝트에 있다(`playwright.config.ts:102`–`:115`).
+    config 를 건드리지 않고 이 describe 에만 준다.
+  */
+  test.describe.configure({ timeout: 90_000 });
+
   test('학생 제출 → 결과에 서버 점수 → 교사 과제 상세의 제출 현황에 선다', async ({ page }) => {
     const assignmentId = await dispatchSolveAndSubmit(page, '피드백 루프 검증 과제');
 
@@ -121,6 +199,11 @@ test.describe('피드백 루프 — 제출 ↔ 교사 제출 현황', () => {
     // ⚠ 여기서 `result-missing` 을 같이 받아 주면 안 된다. 그건 **새로고침 뒤**의 모습이고
     // (아래 검사가 그쪽을 본다), 받아 주는 순간 제출 응답이 스토어에 아예 기록되지 않아도
     // 이 단언이 통과한다 — 「깨진 것도 통과하는 선택자」가 되는 자리다.
+    //
+    // ⚠ 그리고 이 셋은 **`exam` 모드에는 아예 없다** — 결과 화면이 「결과는 선생님 발표 후
+    // 공개돼요」 한 장으로 갈린다(`app/(student)/classbot/assignment/[id]/result/page.tsx:85`–`:95`).
+    // 여기서 안전한 까닭은 폼의 기본 모드가 `practice` 이고(`assignment-form.tsx:121`) 이 스펙이
+    // 모드를 건드리지 않기 때문이다 — 모드를 고르는 줄을 넣는 날 이 단언도 함께 갈라야 한다.
     await expect(
       page.getByTestId('result-score').or(page.getByTestId('result-ungraded')),
     ).toBeVisible({ timeout: 10_000 });
