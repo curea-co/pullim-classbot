@@ -79,10 +79,25 @@ export async function joinDemoClass(page: Page): Promise<void> {
  * 버튼이 잠겨 있으면 그것은 **아직 React 가 안 붙은 것**이므로, 블록이 던지고 다시 넣는다.
  *
  * 증인을 헬퍼 안에 둔 덕에 실패 메시지도 제 이름을 갖는다 — 없으면 「클릭 타임아웃」으로만
- * 보여 네 검증(`titleValid`·`targetValid`·`dueValid`·문항 수) 중 무엇이 막았는지 로그에
- * 남지 않는다. 같은 자리가 스펙 파일 셋에 다섯 벌 있어서 여기 한 곳으로 모았다.
+ * 보여 어느 검증이 막았는지 로그에 남지 않는다. 같은 자리가 스펙 파일 셋에 다섯 벌 있어서
+ * 여기 한 곳으로 모았다.
+ *
+ * ⚠ **제목만으로는 그 증인이 서지 않는다.** `canDispatch` 는 `titleValid` 말고도 반·과목·학년·마감과
+ * **문항 차단 사유 없음**을 함께 요구하고
+ * (`app/(teacher)/teacher/assignment/new/assignment-form.tsx:285`–`:287`), 폼이 처음 세우는 5문항은
+ * 발문이 전부 비어 있어 그 자리에서 막힌다(`:267` · `question-editor.tsx:126` 의
+ * `createDefaultQuestions`). 그러니 이 헬퍼 앞에 `authorDispatchableAssignment` 를 먼저 불러야
+ * 한다 — 안 부르면 아래 `toPass` 가 15초를 돌고 **이유를 말하지 못한 채** 던진다.
+ *
+ * 형제 스펙 셋은 아직 그 헬퍼를 안 부르는데, 그 셋은 그것만 더해도 통과하지 못한다 —
+ * 파일 단위로 따로 고칠 자리다(실측 2026-09-20, `origin/dev` = `f097a0e`):
+ *  - `assignment-dispatch.spec.ts` — 걷힌 `bot-select`(`:57`) · 옛 도착지 `/teacher/classbot`(`:68`·`:106`)
+ *  - `mobile-and-focus.spec.ts` — 옛 도착지(`:87`) · `pullim-class-enrollment` 시딩(`:93`) · `as_user_`(`:114`·`:117`)
+ *  - `student-live-and-flows.spec.ts` — 걷힌 `bot-select`(`:245`)
+ *
+ * `bot-select` 는 **앱 소스(`app`·`components`·`lib`)에 0건**이다 — 그 칸은 `class-select` 로 개명됐다.
  * @param page - 출제 화면이 열려 있는 페이지
- * @param title - 넣을 과제 제목 (5자 이상이어야 「과제 내기」 버튼이 열린다)
+ * @param title - 넣을 과제 제목 (5~50자). **그것만으로는 「과제 내기」가 열리지 않는다** — 위 ⚠
  */
 export async function fillAssignmentTitle(page: Page, title: string): Promise<void> {
   await expect(async () => {
@@ -90,6 +105,115 @@ export async function fillAssignmentTitle(page: Page, title: string): Promise<vo
     await expect(page.getByTestId('title-input')).toHaveValue(title);
     await expect(page.getByTestId('dispatch-btn')).toBeEnabled();
   }).toPass({ timeout: 15_000 });
+}
+
+/**
+ * 출제 화면을 **낼 수 있는 상태까지** 화면에서 채운다 — 문항 다섯과, 자동 채움이 비운 과목·학년.
+ *
+ * ## 문항 — 처음 세우는 다섯은 통째로 비어 있다
+ *
+ * 폼은 `createDefaultQuestions()`(`app/(teacher)/teacher/assignment/new/question-editor.tsx:126`)로
+ * 객관식·객관식·단답·수치·서술 다섯을 세우는데 **발문·정답·기준이 전부 비어 있다.** 그래서
+ * `questionBlockedReason()` 이 곧바로 「모든 문항의 발문을 써야 낼 수 있어요」로 막고
+ * (`assignment-form.tsx:267`), `canDispatch` 가 그 사유 없음을 요구하므로(`:285`–`:287`) 제목만
+ * 넣어서는 「과제 내기」 버튼이 열리지 않는다. 종전 「비운 채 내면 단원에서 자동으로 뽑아 온다」
+ * 규약은 정본에 없어 #352 가 걷었고, 그 뒤로 이 앞부분을 쓰는 e2e 레인이 여기서 죽어 있었다.
+ *
+ * 채우는 값은 앱의 jest 가 같은 최소치를 채우는 자리에서 그대로 옮겼다 —
+ * `app/(teacher)/teacher/assignment/new/__tests__/assignment-form.test.tsx:125`–`:137` 의
+ * `authorAllDefaults`. 문항별로 필요한 것이 다르다:
+ *  - **모든 문항** — 발문(`authoredCount`)
+ *  - **객관식** — 보기 둘 이상에 글자가 있고 **고른 보기**가 비지 않을 것(`hasGradableAnswer`).
+ *    기본 정답은 0번이라 `question-option-<i>-0` 이 반드시 차 있어야 한다
+ *  - **단답·수치** — 정답 칸. 수치는 숫자여야 한다(`invalidNumericAnswerNumbers`)
+ *  - **서술형** — 기준 **둘 다**. 하나만 적으면 `missingRubricNumbers` 는 풀리지만
+ *    **적은 것의 배점 합(10)이 문항 배점(20)과 달라** `rubricWeightMismatchNumbers` 가 다시 막는다
+ *    (기본 기준은 `defaultRubric` 이 10·10 으로 세운다 — `question-editor.tsx:101`–`:107`)
+ *
+ * ## 과목·학년 — `blockedReason` 밖에 있는 관문 둘 (#376)
+ *
+ * `canDispatch` 는 `subjectValid && gradeValid` 도 요구한다(`assignment-form.tsx:285`–`:287` ·
+ * 정의는 `:197`·`:198`). **그 둘은 `blockedReason` 에 들어가지 않는다** — 그래서 아래
+ * `dispatch-blocked` 증인만 보면 「막힌 게 없다」인데 버튼은 잠긴 채이고, 뒤따르는
+ * `fillAssignmentTitle` 이 15초를 돌다 **이유를 말하지 못한 채** 죽는다. 헬퍼가 막으려는 바로
+ * 그 이름 없는 실패다. 그래서 여기서 함께 보고, 비면 채운다.
+ *
+ * **비어 있을 때만 적는다 — 덮어쓰지 않는다.** 정상적인 반은 봇·반 상세가 이미 채워 주고
+ * (`:183`–`:186`), 손으로 적은 값(`subjectEdit`·`gradeEdit`)이 자동 채움을 이기는 구조라
+ * (`:185`·`:186` — 그 둘이 손대기 전까지 `null` 인 것이 일부러 그렇다) 덮어쓰면 우리가 그 반의
+ * 과목을 바꿔 버린다.
+ *
+ * 그리고 **자동 채움이 결판난 뒤에** 묻는다. 반 상세를 읽는 중이면 칸이 빈 것이 정상인데 그때 적으면
+ * 뒤늦게 오는 값을 이겨 버린다 — 폼 자신이 `:423`–`:424` 에서 경고하는 자리다.
+ *
+ * **그 결판의 증인으로 `autofillPending`(`:188`)을 쓰면 안 된다.** 그것은 `isLoading` 이고
+ * `isPending && isFetching` 이라 **읽기가 실패한 순간에도, 끊겨서 멈춘 동안에도 거짓**이다 —
+ * 폼 자신이 `:192`–`:196`·`:211`–`:215` 에 그렇게 적어 뒀다. 그러니 「지금 안 읽고 있다」는
+ * 「결판났다」가 아니다. 재시도 백오프 사이(≈1초)에 그 값만 보고 적으면, 뒤이어 성공한 반 상세의
+ * 과목을 우리가 적은 글자가 영구히 이긴다(손으로 적은 값이 자동 채움을 이기는 구조이므로).
+ *
+ * 그래서 증인은 **화면이 과목·학년에 대해 말을 한 것**으로 삼는다 — 셋 중 하나다:
+ *  - 칸이 이미 차 있다(자동 채움이 닿았다)
+ *  - `subject-err`·`grade-err` — 「반에도 봇에도 안 적혀 있다」. 이 둘은 `autofillResolved`
+ *    (`isSuccess`) 일 때만 서므로(`assignment-form.tsx:205`·`:206`) **읽어낸 뒤**라는 뜻이다
+ *  - `class-detail-error` — 「못 읽었다」(`:212`·`:472`). 그 화면은 「직접 정해주세요」라고
+ *    말하고 있으니 적는 것이 화면이 요구하는 일이다
+ * 셋 다 아니면 아직 오는 중이거나 재시도 중이라 **기다린다.**
+ *
+ * ## 증인
+ *
+ * `fillAssignmentTitle` 과 같은 이유로 `toPass` 로 감싼다(하이드레이션이 값을 지운다). 증인은 둘:
+ * **차단 사유가 사라지는 것**(`dispatch-blocked` 는 문항 사유만 싣는다 — `assignment-form.tsx:719`–`:721`
+ * 의 그 칸이 그리는 것은 `blockedReason` 하나다)과 **과목·학년이 비지 않은 것**이다. 「버튼 활성」을
+ * 여기서 보지 않는 이유는 그것이 `fillAssignmentTitle` 의 증인이어서다 — 제목은 아직 안 넣었다.
+ * @param page - 출제 화면(`/teacher/assignment/new`)이 열려 있고 **반 조회가 정착한** 페이지.
+ *   과목·학년 칸은 `disabled={!klass}` 라(`assignment-form.tsx:433`·`:452`) 반이 서기 전에는 잠긴다
+ */
+export async function authorDispatchableAssignment(page: Page): Promise<void> {
+  const subjectInput = page.getByTestId('subject-input');
+  const gradeSelect = page.getByTestId('grade-select');
+  /*
+    자동 채움 결판 대기 — 증인은 **화면이 과목·학년에 대해 말을 한 것**이다(머리주석 참조).
+    「지금 안 읽고 있다」(`autofillPending` 거짓)로는 안 된다 — 실패·끊김·재시도 백오프에서도 거짓이라,
+    그 사이에 적으면 뒤이어 도착한 반의 과목을 우리가 적은 글자가 이긴다.
+  */
+  await expect(async () => {
+    const filled = (await subjectInput.inputValue()).trim() !== ''
+      && (await gradeSelect.inputValue()).trim() !== '';
+    const said = await page.getByTestId('subject-err')
+      .or(page.getByTestId('grade-err'))
+      .or(page.getByTestId('class-detail-error'))
+      .count() > 0;
+    expect(filled || said).toBe(true);
+  }).toPass({ timeout: 15_000 });
+
+  await expect(async () => {
+    // 비어 있을 때만. 매 바퀴 다시 묻기 때문에 그사이 자동 채움이 닿았으면 손대지 않는다.
+    if ((await subjectInput.inputValue()).trim() === '') {
+      await subjectInput.fill('수학');
+    }
+    if ((await gradeSelect.inputValue()).trim() === '') {
+      // `GRADES`(초1~고3)는 언제나 선택지에 다 들어간다 — 목록 밖 값이 와도 앞에 한 줄 덧붙을
+      // 뿐이다(`assignment-form.tsx:227`–`:229` · 목록은 `lib/grades.ts`).
+      await gradeSelect.selectOption('중1');
+    }
+
+    for (let i = 0; i < 5; i++) {
+      await page.getByTestId(`question-prompt-${i}`).fill(`${i + 1}번 발문 — e2e 검증`);
+    }
+    for (const i of [0, 1]) {
+      await page.getByTestId(`question-option-${i}-0`).fill('첫째 보기');
+      await page.getByTestId(`question-option-${i}-1`).fill('둘째 보기');
+    }
+    await page.getByTestId('question-answer-2').fill('증발');
+    await page.getByTestId('question-answer-3').fill('42');
+    await page.getByTestId('question-criterion-4-0').fill('근거를 썼어요');
+    await page.getByTestId('question-criterion-4-1').fill('결론이 있어요');
+
+    await expect(subjectInput).not.toHaveValue('');
+    await expect(gradeSelect).not.toHaveValue('');
+    await expect(page.getByTestId('dispatch-blocked')).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
 }
 
 /**
