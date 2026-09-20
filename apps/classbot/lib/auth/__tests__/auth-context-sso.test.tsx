@@ -4,7 +4,7 @@
  * 정본 서버는 OS 쿠키의 sub 로 신원을 파생하므로 **사용자 프로비저닝(me/sync) 호출이 없다** —
  * `/me` 외 다른 fetch 가 나가지 않는 것을 함께 검증한다(구 x-user-id + me/sync 모델 폐기 회귀).
  * 그리고 `/me` 에 **닿지 못한** 것(네트워크·5xx)은 `sessionError` 로 갈라 비로그인과 다르게 노출한다.
- * 세션 사용자의 **이름**(`/me` displayName → `AuthUser.name`)이 계약의 칸으로 남아
+ * 세션 사용자의 **이름**(`/me` 의 `name` — KCB 실명 → `AuthUser.name`)이 계약의 칸으로 남아
  * `AuthUser | null` 경계를 지나 **소비자에서** 읽히는지도 함께 본다.
  */
 import { render, screen, waitFor } from '@testing-library/react';
@@ -16,7 +16,10 @@ import { API_BASE } from '@/lib/auth/os-sso';
 const ME = {
   sub: '5f0c9a2e-1111-4222-8333-444455556666',
   email: 'teacher@pullim.com',
-  displayName: '김교사',
+  // `name` = KCB 실명(이름 자리에 서는 값), `displayName` = 가입 때 email local-part 로 파생된 값.
+  // 일부러 다르게 둔다 — 컨텍스트를 지나 소비자에 닿는 것이 어느 쪽인지 보려는 것이다.
+  name: '김수학',
+  displayName: 'teacher',
   role: 'teacher',
   globalRole: 'user',
 };
@@ -62,7 +65,7 @@ it('세션 확립 → 스냅샷 publish (raw sub), 프로비저닝 호출 없음
     // `setUser(next)` 로 참조 그대로 넘긴다. 빠져 있던 것은 **읽는 자리**였다
     // (`lib/current-user.ts` 가 `user.name` 대신 email 로 이름을 만들고 있었다 —
     // `lib/__tests__/current-user-name.test.tsx` 가 그 순서를 본다).
-    expect(screen.getByTestId('user')).toHaveTextContent(`${ME.sub}:teacher:${ME.displayName}`);
+    expect(screen.getByTestId('user')).toHaveTextContent(`${ME.sub}:teacher:${ME.name}`);
   });
   expect(screen.getByTestId('session-error')).toHaveTextContent('none');
 

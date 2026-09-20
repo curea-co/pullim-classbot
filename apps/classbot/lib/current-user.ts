@@ -71,8 +71,9 @@ const DEMO_FALLBACK_USER: CurrentUser = {
 /**
  * 현재 사용자(세션 우선, 개발용 신원 쿠키, 그다음 데모 폴백)를 반환하는 client 훅.
  *
- * 세션 사용자의 이름은 **OS 가 준 사람 이름**(`/me` 의 `displayName` → `AuthUser.name`)이고,
+ * 세션 사용자의 이름은 **OS 가 준 사람 이름**(`/me` 의 `name` — KCB 실명 → `AuthUser.name`)이고,
  * 그게 비었을 때만 email 로컬파트로 떨어진다 — 순서와 근거는 `displayNameOf` 에 적어 뒀다.
+ * **본인-조회 한정 PII 다** — 취급 규칙은 `displayNameOf` 와 provider 주석에 있다.
  *
  * ⚠️ 쿠키 폴백은 **`isAuthenticated: false` 를 유지한다.** 이 플래그는 RoleGuard·
  * `packages/auth` 가 「실제 로그인 세션인가」를 판정하는 값이라, 개발용 쿠키가 여기로
@@ -164,23 +165,33 @@ export function getCurrentUserIdFromRequest(req: Request): {
 /**
  * 세션 사용자를 **부를 이름** — 순서는 「사람 이름 → 없으면 email 로컬파트」다.
  *
- * **순서를 뒤집지 마라.** 이름은 진작부터 세션 객체에 실려 있었다 — `lib/auth/os-sso-provider.ts`
- * 가 OS `/me` 의 `displayName` 을 담고, `auth-context` 는 그 객체를 참조 그대로 넘긴다. 그런데도
- * 화면은 오래도록 email 앞부분(`psh`)으로 사람을 불렀다. **값이 없어서가 아니라 이 자리가 그 값을
- * 읽지 않았기 때문이다** — 종전 코드는 세션 갈래에서 곧바로 `displayNameFromEmail(user.email)` 을
- * 썼다. 공유 계약 `AuthUser` 에 칸을 낸 것도 값을 나르려고가 아니라 `user.name` 읽기가
- * **컴파일되게** 하려는 것이다. 칸이 생긴 지금 이 함수가 그 순서를 쥔다.
+ * **순서를 뒤집지 마라.** 화면이 오래도록 email 앞부분(`psh`)으로 사람을 부른 데는 자리가 둘
+ * 있었고, 둘 다 고쳤다:
+ *  - ⑴ **이 자리가 `user.name` 을 읽지 않았다.** 종전 코드는 세션 갈래에서 곧바로
+ *    `displayNameFromEmail(user.email)` 을 썼다. 공유 계약 `AuthUser` 에 칸을 낸 것은 값을
+ *    나르려고가 아니라 이 읽기가 **컴파일되게** 하려는 것이다.
+ *  - ⑵ **provider 가 실어 보낸 값이 사람 이름이 아니었다.** `/me` 의 `displayName` 이었는데,
+ *    그것은 pullim-api 가 가입 때 **email local-part 에서 파생**한 값이다(`deriveDisplayName` —
+ *    바꾸는 엔드포인트도 없다). 그래서 ⑴ 만 고치면 이름 자리에 여전히 `psh` 가 선다.
+ *    provider 는 이제 `/me` 의 **`name`**(KCB 실명)을 먼저 싣는다 — 근거와 순서는
+ *    `lib/auth/os-sso-provider.ts` 의 `MeResponse` 주석.
+ *
+ * ⛔ **여기 들어오는 `user.name` 은 본인-조회 한정 PII 다**(권위: pullim-api
+ * `me-response.dto.ts` — 「KCB 실명 … 본인-조회 한정 · 로그/토큰 금지」). 이 함수의 반환값은
+ * **본인 화면에만** 찍는다 — 로그·서버 재전송·저장 금지.
  *
  * **그래도 폴백은 지우지 마라.** `AuthUser.name` 은 optional 이고(계약이 구현체에게 이름을
- * 요구하지 않는다), 값을 대는 `/me` 의 `displayName` 도 비어 올 수 있다 — 같은 auth 프로필을
- * 투영하는 `ClassMemberDto.displayName` 이 `string | null` 인 것이 그 증거다
+ * 요구하지 않는다), provider 가 고른 값도 비어 있을 수 있다 — `/me` 는 검사받지 않은 JSON 이라
+ * 칸이 아예 없을 수 있고, 그 폴백으로 서는 `displayName` 도 같은 auth 프로필을 투영하는
+ * `ClassMemberDto.displayName` 이 `string | null` 인 것처럼 비어 올 수 있다
  * (`lib/api/classbot-dto.ts`). 이름을 못 받은 사람이 빈칸으로 서면 안 된다.
  *
  * **빈 문자열·공백은 「없음」과 같이 본다** — 화면에서 셋은 똑같은 빈칸이라 갈라 둘 이유가 없다.
  * 반 명단 쪽도 **판정은 같다**(`lib/risk-signals.ts` 의 `memberLabel` 이 `displayName?.trim()` 으로
- * 갈린다). **다만 떨어지는 값은 다르다** — 저쪽은 `학생 <sub 앞 8자>` 로, 이쪽은 email 로컬파트로
- * 떨어진다. 명단은 줄 스무 개가 다 같아지지 않게 사람을 가려야 하고, 여기는 부를 이름 하나를
- * 세우는 자리라서다.
+ * 갈린다). **다만 떨어지는 값도, 애초에 보는 값도 다르다** — 저쪽은 `학생 <sub 앞 8자>` 로
+ * 떨어지고, 보는 값이 auth 프로필 투영(`displayName`, 5필드 · ADR-005)이라 **KCB 실명이 아니다.**
+ * 그래서 교사 명단은 여전히 email 앞부분을 보여 준다 — **이 함수가 고칠 수 있는 자리가 아니고,
+ * 이 PR 도 고치지 않는다.**
  *
  * @param user - 세션 사용자
  * @returns 화면에 찍을 이름 (빈 문자열이 되는 경우는 email 까지 빈 세션뿐 —

@@ -3,17 +3,22 @@
  *
  * 못박는 것은 **순서** 하나다: **OS 가 준 사람 이름 → 그게 비었을 때만 email 로컬파트.**
  *
- * 왜 이 테스트가 있나 — 이름은 진작부터 **세션 객체에 실려 있었다**(`lib/auth/os-sso-provider.ts`
- * 가 OS `/me` 의 `displayName` 을 담고, `auth-context` 는 그 객체를 참조 그대로 넘긴다). 그런데도
- * 화면은 「박성호」 대신 email 앞부분 「psh」로 사람을 불렀다. **값이 없어서가 아니라
- * `useCurrentUser()` 가 그 값을 읽지 않고 email 로 이름을 만들고 있어서다.** 공유 계약
- * `AuthUser` 에 이름 칸을 낸 것은 값을 나르려고가 아니라 `user.name` 읽기가 컴파일되게 하려는
- * 것이다 — 그래서 고쳐야 할 것은 **읽는 순서**였고, 이 파일이 그 순서를 못박는다.
+ * 여기서 「사람 이름」은 `AuthUser.name` 이고, 그 칸에 무엇이 실리는지는 **provider 가 정한다** —
+ * `/me` 의 `name`(KCB 실명) → 비면 `displayName`(`lib/auth/os-sso-provider.ts`, 그쪽 테스트가
+ * 그 순서를 따로 고정한다). 이 파일은 그 뒤, **그 값을 화면이 어떻게 부르는지**만 본다.
  *
- * 그렇다고 폴백을 지우면 안 된다 — `AuthUser.name` 은 optional 이고 `/me` 의 `displayName` 도
+ * 왜 이 테스트가 있나 — 화면이 「박성호」 대신 email 앞부분 「psh」로 사람을 부른 자리가 둘이었다:
+ * ⑴ `useCurrentUser()` 가 `user.name` 을 **읽지 않고** email 로 이름을 만들고 있었고,
+ * ⑵ provider 가 그 칸에 실어 보낸 값이 `/me` 의 `displayName` 이었는데 **그것 자체가 email
+ * local-part 에서 파생된 값**이다(pullim-api `deriveDisplayName`). 이 파일이 지키는 것은 ⑴ 이다.
+ *
+ * 그렇다고 폴백을 지우면 안 된다 — `AuthUser.name` 은 optional 이고 provider 가 고른 값도
  * 비어 올 수 있어서, 폴백이 없으면 그런 사람은 **빈칸으로 선다.** 아래 여섯 경우(이름 있음 ·
  * 이름 없음 · 빈 문자열 · 공백뿐 · 앞뒤 공백 · email 까지 빈 세션)가 그 둘을 한꺼번에 고정한다:
  * 순서를 뒤집어도, 폴백을 지워도 빨개진다.
+ *
+ * ⛔ 이 파일의 `name` 목값은 **본인-조회 한정 PII 자리**다(권위: pullim-api
+ * `me-response.dto.ts`). 실계정 이름을 픽스처로 넣지 마라.
  */
 import { render, screen } from '@testing-library/react';
 

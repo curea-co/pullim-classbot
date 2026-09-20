@@ -11,8 +11,14 @@
  */
 
 /**
- * 스냅샷 사용자의 최소 형태 — `AuthUser`({ id, email, role, name? }) 가 그대로 대입 가능하도록
- * 구조적으로 느슨하게 둔다.
+ * 스냅샷 사용자의 최소 형태 — `AuthUser` 가 그대로 대입 가능하도록 구조적으로 느슨하게 둔다.
+ *
+ * ⛔ **`AuthUser.name` 은 여기 선언하지 않는다.** 그 칸은 KCB 실명이고 **본인-조회 한정 PII** 다
+ * (권위: pullim-api `me-response.dto.ts` — 「KCB 실명 … 본인-조회 한정 · 로그/토큰 금지」).
+ * 이 모듈이 쓰는 것은 `id` 하나뿐이다(`domain-fetch` 의 `currentSessionUserId`).
+ * 넘어오는 객체는 `AuthUser` 를 **참조 그대로** 받은 것이라 런타임에는 그 칸이 붙어 있다 —
+ * 타입이 지우는 것이 아니다. 그래서 **여기서 읽지 않는다는 것이 규칙이고**, 이 타입이 그 규칙이다.
+ * 이름을 이 경로로 끌어다 쓰지 마라 — 이 스냅샷은 domain-fetch 로 가는 길이다.
  */
 export interface SsoIdentityUser {
   /** OS 세션 sub (raw uuid) — 캐시 키로만 쓴다. 요청 명의는 쿠키가 진다(FE 는 id 를 보내지 않는다). */
@@ -20,8 +26,6 @@ export interface SsoIdentityUser {
   email: string;
   /** `AppUserRole`(student·teacher·admin·parent·institution) — 여기서는 갈라 읽지 않아 string 으로 둔다. */
   role: string;
-  /** 사람 이름 — `AuthUser.name`(OS `/me` 의 displayName). 비어 올 수 있어 optional 이다. */
-  name?: string;
 }
 
 let sessionUser: SsoIdentityUser | null = null;
