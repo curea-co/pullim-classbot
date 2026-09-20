@@ -14,12 +14,15 @@ describe('OsSsoAuthProvider', () => {
     jest.restoreAllMocks();
   });
 
-  it('getSession: /me 200 → AuthUser 매핑(sub→id, teacher→teacher, displayName→name), credentials include', async () => {
+  it('getSession: /me 200 → AuthUser 매핑(sub→id, teacher→teacher, name→name), credentials include', async () => {
     const fetchMock = jest.fn().mockResolvedValue(
       jsonRes(200, {
         sub: 'user_1',
         email: 'a@pullim.com',
-        displayName: '김교사',
+        // `displayName` 은 가입 때 email local-part 로 파생된 값이다(pullim-api `deriveDisplayName`).
+        // 이름 자리에 서야 하는 것은 `name`(KCB 실명)이다 — 둘을 다르게 줘서 어느 쪽이 실리는지 본다.
+        name: '김수학',
+        displayName: 'a',
         role: 'teacher',
         globalRole: 'user',
       }),
@@ -28,11 +31,36 @@ describe('OsSsoAuthProvider', () => {
 
     const user = await new OsSsoAuthProvider().getSession();
 
-    expect(user).toEqual({ id: 'user_1', email: 'a@pullim.com', role: 'teacher', name: '김교사' });
+    expect(user).toEqual({ id: 'user_1', email: 'a@pullim.com', role: 'teacher', name: '김수학' });
     expect(fetchMock).toHaveBeenCalledWith(`${API_BASE}/me`, {
       credentials: 'include',
       headers: { Accept: 'application/json' },
     });
+  });
+
+  // `/me` 는 `as MeResponse` 캐스팅이라 칸이 아예 없는 응답을 타입이 막아 주지 않는다.
+  // (서버 쪽 `decryptName` 은 이미 `displayName` 으로 떨어뜨리므로 정상 경로에서는 비지 않는다 —
+  //  이 폴백이 지키는 것은 그 계약이 아니라 **검사받지 않은 JSON** 이다.)
+  it('getSession: /me.name 이 없거나 공백뿐이면 displayName 으로 떨어진다 — 빈 이름을 싣지 않는다', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', displayName: 'psh', role: 'student', globalRole: 'user' }))
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', name: '', displayName: 'psh', role: 'student', globalRole: 'user' }))
+      .mockResolvedValueOnce(jsonRes(200, { sub: 'u', email: 'e', name: '   ', displayName: 'psh', role: 'student', globalRole: 'user' })) as unknown as typeof fetch;
+
+    expect((await new OsSsoAuthProvider().getSession())?.name).toBe('psh');
+    expect((await new OsSsoAuthProvider().getSession())?.name).toBe('psh');
+    expect((await new OsSsoAuthProvider().getSession())?.name).toBe('psh');
+  });
+
+  // 앞뒤 공백은 provider 가 자르지 않는다 — 자르는 자리는 `lib/current-user.ts` 의 `displayNameOf`
+  // 한 곳이다. provider 는 `/me` 가 준 것을 비틀지 않고 옮긴다.
+  it('getSession: /me.name 이 있으면 그대로 싣는다 — 앞뒤 공백도 provider 가 자르지 않는다', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonRes(200, { sub: 'u', email: 'e', name: '  김수학  ', displayName: 'psh', role: 'student', globalRole: 'user' })) as unknown as typeof fetch;
+
+    expect((await new OsSsoAuthProvider().getSession())?.name).toBe('  김수학  ');
   });
 
   it('getSession: globalRole=admin → admin · parent·institution 은 그대로(학생으로 위장하지 않는다 — 계획 결정 ⑥)', async () => {

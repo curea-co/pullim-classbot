@@ -4,6 +4,9 @@
  * 못박는 것은 하나다: **이름과 id 는 세션에서 온다.** 목 roster(`lib/mock/classbot.ts` 의
  * `classRoster`)는 부가 데이터 조회용으로만 남고, 그 행의 이름이 사람 이름 자리로 새지 않는다.
  *
+ * *세션 이름 안에서의 순서(사람 이름 → 없으면 email 로컬파트)는 여기가 아니라
+ * `current-user-name.test.tsx` 가 고정한다 — 이 파일은 「목이 아니라 세션」까지를 본다.*
+ *
  * 왜 이 테스트가 있나 — 종전 `useRosterMe()` 는 목 roster 행을 통째로 돌려줬고, 미스면 데모
  * 행(서연)으로 메웠다. roster id 는 `s1`…`s18` 인데 실계정 id 는 OS `sub`(uuid) 라 조인이
  * **한 번도 맞지 않아** 그 「폴백」이 사실상 상수였다 — 로그인한 사람도 늘 「서연」으로 불렸고,
@@ -16,7 +19,8 @@ import { useStudentMe } from '@/lib/current-user';
 import { DEV_IDENTITY_COOKIE } from '@/lib/dev-identity';
 
 // useAuth 만 가변 오버라이드 — 나머지 auth-context 는 이 테스트와 무관하다.
-let mockAuthUser: { id: string; email: string; role: 'student' | 'teacher' } | null = null;
+let mockAuthUser: { id: string; email: string; role: 'student' | 'teacher'; name?: string } | null =
+  null;
 jest.mock('@/lib/auth/auth-context', () => ({
   useAuth: () => ({ user: mockAuthUser, isReady: true }),
 }));
@@ -59,29 +63,40 @@ const identity = () => screen.getByTestId('identity').textContent;
 const demo = () => screen.getByTestId('demo').textContent;
 
 describe('useStudentMe — 이름과 id 는 세션에서 온다', () => {
-  it('로그인한 사람의 이름은 세션 email 로컬파트다 — 목 roster 를 타지 않는다', () => {
-    mockAuthUser = { id: '46638489-5c2f-4d6a-9b21-000000000001', email: 'psh@curea.co', role: 'student' };
+  it('로그인한 사람의 이름은 세션에서 온다 — 목 roster 를 타지 않는다', () => {
+    mockAuthUser = {
+      id: '46638489-5c2f-4d6a-9b21-000000000001',
+      email: 'suhak@pullim.com',
+      role: 'student',
+      name: '김수학',
+    };
     render(<MeProbe />);
-    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[psh]');
+    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[김수학]');
+  });
+
+  it('세션에 이름이 없으면 email 로컬파트로 선다 — 이름 해석 순서는 useCurrentUser 가 쥔다', () => {
+    mockAuthUser = { id: '46638489-5c2f-4d6a-9b21-000000000001', email: 'suhak@pullim.com', role: 'student' };
+    render(<MeProbe />);
+    expect(identity()).toBe('[46638489-5c2f-4d6a-9b21-000000000001]/[suhak]');
   });
 
   it('로그인한 사람을 「서연」이라 부르지 않는다 — 이 PR 이 고친 결함 자체다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
     expect(identity()).not.toContain('서연');
   });
 
   it('실계정에는 목 roster 행이 없다 — demo 는 null 이고 목 수치가 딸려오지 않는다', () => {
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
     expect(demo()).toBe('(none)');
   });
 
   it('세션은 개발용 신원 쿠키를 이긴다 — 이름도 demo 도 세션 쪽이다', () => {
     document.cookie = `${DEV_IDENTITY_COOKIE}=student_001; path=/`;
-    mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'student' };
+    mockAuthUser = { id: 'uuid-1', email: 'suhak@pullim.com', role: 'student' };
     render(<MeProbe />);
-    expect(identity()).toBe('[uuid-1]/[psh]');
+    expect(identity()).toBe('[uuid-1]/[suhak]');
     expect(demo()).toBe('(none)');
   });
 });

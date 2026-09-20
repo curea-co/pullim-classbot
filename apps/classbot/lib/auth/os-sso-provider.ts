@@ -23,6 +23,39 @@ import { API_BASE, fetchOsCsrfToken } from '@/lib/auth/os-sso';
 interface MeResponse {
   sub: string;
   email: string;
+  /**
+   * **KCB 실명** — `AuthUser.name` 의 1순위 출처다.
+   *
+   * 권위(pullim-api `me-response.dto.ts`)가 이 칸에 적어 둔 말 그대로다 —
+   * 「KCB 실명(users.name — AES-256-GCM 복호화 PII). **본인-조회 한정 · 로그/토큰 금지.**」
+   * 서버는 `users.name`(암호문)을 복호해 싣고, 없거나 복호에 실패하면 `displayName` 으로
+   * 떨어뜨린다(`me.service.ts` 의 `decryptName`). 그래서 **유효한 세션에서는 빈 값이 아니다.**
+   *
+   * ⛔ **이 값의 취급 규칙 — 넷 다 지킨다.**
+   *  1. **로그에 남기지 않는다.** `console.*` 금지, 에러 메시지에 끼워 넣는 것도 금지.
+   *  2. **서버로 되보내지 않는다.** 요청 명의는 OS 쿠키가 지고 FE 는 신원을 실어 보내지 않는다.
+   *     신원 스냅샷(`lib/api/identity-snapshot.ts`)도 `id` 만 읽는다.
+   *  3. **저장하지 않는다.** localStorage·sessionStorage·쿠키 어디에도 쓰지 않는다.
+   *     화면 상태를 디스크에 적는 store 가 둘 있고(과제 대화 `lib/store/assignment-chat.ts` ·
+   *     라이브 질문 큐 `lib/store/live.ts`) **둘 다 이름 대신 id·템플릿으로 담는다** —
+   *     persist 는 로그아웃으로 지워지지 않아서, 공용 PC 라면 다음 사람이 그대로 읽는다.
+   *     이름이 필요한 말풍선·라벨은 그릴 때 세션에서 읽는다.
+   *  4. **본인 화면 전용이다.** 남의 이름은 여기서 오지 않는다 — 명단·제출은
+   *     `ClassMemberDto.displayName`(auth 프로필 투영 5필드, ADR-005)을 타는 **다른 값**이다.
+   *
+   * optional 로 받는다. 이 응답은 `as MeResponse` 캐스팅이라 타입이 런타임을 보증하지 않는다 —
+   * 칸이 없는 응답을 타입이 막아 주지 않으므로 없을 수 있는 것으로 다룬다.
+   */
+  name?: string;
+  /**
+   * 표시명 — `AuthUser.name` 의 2순위. **사람이 고른 이름이 아니다.**
+   *
+   * pullim-api 는 가입 때 이 값을 **email local-part 에서 파생**한다
+   * (`signup.util.ts` 의 `deriveDisplayName` → `member-registration.service.ts`), 그리고 그것을
+   * 바꾸는 엔드포인트가 account 모듈에 없다(`PATCH /me` 는 학년·학교뿐). 그래서 `suhak@pullim.com` 는
+   * 계속 `suhak` 다. 이름 자리에 이 값이 서면 사람을 email 앞부분으로 부르는 것이 된다 —
+   * 그래서 1순위가 아니라 폴백이다.
+   */
   displayName: string;
   /** 도메인 역할: student|parent|teacher|institution. */
   role: string;
@@ -103,9 +136,30 @@ export class OsSsoAuthProvider implements IAuthProvider {
         return null;
       }
       const me = (await res.json()) as MeResponse;
-      // name(displayName)은 AuthUser 계약 외 부가 필드 — 표시명으로 auth-context 배선을 그대로
-      // 통과한다(구조적 서브타입).
-      const user: AuthUser & { name: string } = {
+      // `name` 은 **계약의 칸**이다(`packages/auth` 의 `AuthUser.name`, optional).
+      // 종전에는 계약 밖 부가 필드라 `AuthUser & { name: string }` 으로 동봉했다. 그래도
+      // **값은 나가고 있었다** — 타입은 런타임에서 아무것도 깎지 않고, `auth-context` 는 이
+      // 객체를 참조 그대로 넘긴다. 화면이 사람을 email 앞부분으로 부른 원인은 이 자리가 아니라
+      // ⑴ `lib/current-user.ts` 가 `user.name` 을 읽지 않았던 것과 ⑵ **실어 보낸 값이
+      // `displayName` 이었던 것**이다. 계약에 칸을 낸 것은 ⑴ 의 읽기가 **컴파일되게** 하려는
+      // 것이다 — 교차 타입은 이 파일 안에서만 참이라, `AuthUser` 로 받는 쪽에서는
+      // `user.name` 이 타입 오류였다.
+      //
+      // ⑵ 를 여기서 고친다 — **`/me.name`(KCB 실명) → 비면 `displayName`** 순서다.
+      // `displayName` 은 가입 때 email local-part 로 파생된 값이라(위 `MeResponse` 주석)
+      // 그것을 이름 자리에 그대로 실으면 사람을 `suhak` 라고 부르게 된다.
+      // 폴백을 두는 이유는 서버가 이 칸을 비워 보내기 때문이 아니다 —
+      // `decryptName` 이 이미 `displayName` 으로 떨어뜨린다. 이 응답이 **검사받지 않은 JSON**
+      // (`as MeResponse`)이라 칸이 아예 없을 수 있어서다.
+      //
+      // ⛔ **`me.name` 은 본인-조회 한정 PII 다**(권위: pullim-api `me-response.dto.ts` —
+      // 「KCB 실명 … 본인-조회 한정 · 로그/토큰 금지」). 로그·서버 재전송·저장 금지, 본인 화면
+      // 전용 — 규칙 넷은 위 `MeResponse.name` 주석에 적어 뒀다. 여기서는 **옮기기만** 한다.
+      //
+      // 고른 값은 **그대로 싣는다.** 둘 다 비었을 때 무엇으로 부를지는 여기서 정하지 않는다 —
+      // 그 폴백(email 로컬파트)은 `lib/current-user.ts` 의 `useCurrentUser()` 한 곳에 있고,
+      // 빈 문자열·공백을 「없음」과 같이 보는 판정도 거기 있다.
+      const user: AuthUser = {
         id: me.sub,
         email: me.email,
         // ⚠️ 이 앱의 **유일한** 역할 캐스팅 자리. `AuthUser.role` 은 공유 계약 `UserRole`
@@ -114,7 +168,7 @@ export class OsSsoAuthProvider implements IAuthProvider {
         // `AppUserRole` 로 받아 그 둘을 가른다(`components/features/auth/role-guard.tsx`).
         // 넓은 값을 좁은 타입에 담는 캐스팅이므로 여기 말고 다른 곳에서 반복하지 마라.
         role: mapRole(me.role, me.globalRole) as UserRole,
-        name: me.displayName,
+        name: me.name?.trim() ? me.name : me.displayName,
       };
       this.failure = null;
       this.emit(user);
