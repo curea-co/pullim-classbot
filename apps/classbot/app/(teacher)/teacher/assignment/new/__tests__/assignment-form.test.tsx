@@ -61,10 +61,19 @@ const queries: { classes: QueryState<BotCardDto[]>; classDetail: DetailState } =
   classDetail: IDLE_DETAIL,
 };
 
+/**
+ * `useClassDetail` 이 받은 반 id — **고른 반**(파생)으로 읽는지 잠근다.
+ * `?classId` 를 그대로 넘기면 남의 반·없는 반 id 로 읽으면서 화면은 첫 반을 보여 주는데, 인자를 안 보면 그래도 green 이다.
+ */
+const detailCalls: string[] = [];
+
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
   useOperatorClasses: () => queries.classes,
-  useClassDetail: () => queries.classDetail,
+  useClassDetail: (classId: string) => {
+    detailCalls.push(classId);
+    return queries.classDetail;
+  },
 }));
 
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
@@ -92,6 +101,7 @@ beforeEach(() => {
   }));
   queries.classes = { data: [CLASS_A, CLASS_B], isPending: false, isSuccess: true, isError: false, error: null };
   queries.classDetail = IDLE_DETAIL;
+  detailCalls.length = 0;
 });
 
 /** 내기 — 서버 응답을 기다린 뒤에야 이동한다. */
@@ -374,6 +384,7 @@ it('반에도 봇에도 안 적혀 있으면 내기를 막는다 — 빈 칸을 
   expect(screen.getByTestId('subject-err')).toBeInTheDocument();
   expect(screen.getByTestId('grade-err')).toBeInTheDocument();
   expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('');
+  expect((screen.getByTestId('grade-select') as HTMLSelectElement).value).toBe('');
 });
 
 it('교사가 적으면 그 글자가 그대로 나간다 — 비어 있던 칸을 교사가 채울 수 있다', async () => {
@@ -382,7 +393,7 @@ it('교사가 적으면 그 글자가 그대로 나간다 — 비어 있던 칸�
   fillTitle();
   authorAllDefaults();
   fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
-  fireEvent.change(screen.getByTestId('grade-input'), { target: { value: '중3' } });
+  fireEvent.change(screen.getByTestId('grade-select'), { target: { value: '중3' } });
 
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
   await clickDispatch();
@@ -411,6 +422,87 @@ it('반 상세를 아직 읽는 중이면 빈 칸을 잘못이라고 말하지 �
 
   expect(screen.queryByTestId('subject-err')).toBeNull();
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+/*
+  `isLoading` 은 `isPending && isFetching` 이라 **실패하면 false** 다. 그것만 보고 빨간 글씨를 띄우면
+  못 읽은 것을 「어디에도 안 적혀 있다」로 그리고, 교사는 반이 이미 든 과목과 다른 글자를 적어 낸다.
+*/
+it('반 상세를 못 읽으면 「안 적혀 있다」고 하지 않는다 — 못 읽었다고 말하고 직접 정하게 한다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, isPending: false, isError: true, error: new Error('서버가 응답하지 않아요.'),
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.queryByTestId('grade-err')).toBeNull();
+  expect(screen.getByTestId('class-detail-error')).toBeInTheDocument();
+  // 그래도 못 낸다 — 빈 과목·학년은 서버가 거절한다.
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('봇이 이미 채운 반은 상세를 못 읽어도 아무 말 하지 않는다 — 자동 채움이 비지 않았다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isPending: false, isError: true, error: new Error('끊김') };
+  render(<AssignmentForm initialClassId="cls_a" />); // CLASS_A.profile = 수학Ⅱ · 고2
+
+  expect(screen.queryByTestId('class-detail-error')).toBeNull();
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('수학Ⅱ');
+});
+
+it('교사가 먼저 적은 글자를 늦게 온 자동 채움이 덮지 않는다 — `null` 초기값이 하는 일', () => {
+  const { rerender } = render(<AssignmentForm initialClassId="cls_b" />); // 상세는 아직 안 옴
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
+
+  // 이제 상세가 도착한다 — 반은 다른 과목을 들고 있다.
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '수학', grade: '중3' }), isPending: false, isSuccess: true,
+  };
+  rerender(<AssignmentForm initialClassId="cls_b" />);
+
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('국어');
+});
+
+/*
+  손으로 적게 두면 「고2」·「고 2」·「2학년」이 섞인다(`lib/grades.ts`). 반 만들기·봇 만들기가 이미 고르개를 쓰므로
+  `assignments.grade` 에 쓰는 이 칸도 같은 목록에서 고른다.
+*/
+it('학년은 목록에서 고른다 — 초1~고3 열둘이 선택지다', () => {
+  render(<AssignmentForm initialClassId="cls_a" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+  const values = Array.from(select.options).map((o) => o.value);
+
+  expect(values).toContain('초1');
+  expect(values).toContain('고3');
+  expect(values.filter((v) => v !== '')).toHaveLength(12);
+  expect(select.value).toBe('고2'); // 봇이 든 값이 골라져 있다
+});
+
+it('목록에 없는 학년이 자동으로 차 오면 그 값을 선택지로 세운다 — 옛 글자를 조용히 지우지 않는다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '고 2' }), isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+
+  expect(select.value).toBe('고 2');
+  expect(Array.from(select.options).map((o) => o.value)).toContain('고 2');
+});
+
+it('반이 서기 전에는 과목·학년을 못 건드린다 — 적어 둔 글자가 뒤늦게 선 반을 이기지 못하게', () => {
+  queries.classes = { data: undefined, isPending: true, isSuccess: false, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('subject-input')).toBeDisabled();
+  expect(screen.getByTestId('grade-select')).toBeDisabled();
+});
+
+it('상세는 고른 반 id 로 읽는다 — 모르는 `?classId` 로 읽지 않는다', () => {
+  render(<AssignmentForm initialClassId="cls_nope" />);
+
+  expect(detailCalls).toContain('cls_a'); // 화면이 첫 반을 보여 주므로 읽는 것도 그 반이어야 한다
+  expect(detailCalls).not.toContain('cls_nope');
 });
 
 it('반 목록이 아직 안 왔으면 과목 칸을 잘못이라고 말하지 않는다 — 고를 반이 없어 빈 것뿐이다', () => {

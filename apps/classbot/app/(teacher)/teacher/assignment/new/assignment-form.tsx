@@ -28,6 +28,7 @@ import {
 } from './question-editor';
 import { invalidNumericAnswerNumbers, toDispatchQuestions } from './dispatch-body';
 import { formatDueLabel, computeDDay, computeDDayNumber } from '@/lib/assignment-due';
+import { GRADES } from '@/lib/grades';
 import { cn } from '@/lib/utils';
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 
@@ -112,12 +113,13 @@ export function toLocalDatetimeInput(d: Date): string {
 }
 
 /**
- * 과목·학년 입력 상한 — 반의 같은 두 칸이 서버에서 50자다(pullim-api `CreateClassDto` 의 `@MaxLength(50)`).
+ * 과목 입력 상한 — 반의 같은 칸이 서버에서 50자다(pullim-api `CreateClassDto` 의 `@MaxLength(50)`).
  *
- * 과제 쪽(`DispatchAssignmentDto`)에는 길이 제약이 없다(`assignments.subject`·`grade` 는 `text`) — 그래서
+ * 과제 쪽(`DispatchAssignmentDto`)에는 길이 제약이 없다(`assignments.subject` 는 `text`) — 그래서
  * 이 상한은 **서버가 요구하는 것이 아니라** 「반에 적을 수 있는 말이면 과제에도 적을 수 있다」로 맞춘 것이다.
+ * 학년은 고르개(`GRADES`)라 상한이 필요 없다.
  */
-const SUBJECT_GRADE_MAX = 50;
+const SUBJECT_MAX = 50;
 
 /**
  * `initialClassId` — 반 상세·봇 운영 화면의 「과제 내기」가 어느 반에서 눌렸는지(`?classId=`).
@@ -184,15 +186,38 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   const grade = gradeEdit ?? autoGrade;
   /** 자동 채움이 아직 오는 중 — 그동안 빈 칸을 잘못이라고 말하지 않는다(곧 채워질 수 있다). */
   const autofillPending = classDetailQuery.isLoading;
+  /**
+   * 자동 채움이 **결판났는가** — 반 상세를 읽어냈을 때만 「어디에도 안 적혀 있다」고 말할 수 있다.
+   *
+   * `isLoading` 은 `isPending && isFetching` 이라 **읽기가 실패한 순간 false 로 떨어진다**(react-query
+   * `QueryObserver`). 그것만 보고 빨간 글씨를 띄우면 **못 읽은 것을 「없다」로 그린다** — `useClassDetail`
+   * 머리주석이 갈라 두라고 적어 둔 셋(모른다 · 없음 · 이 값) 중 첫째를 둘째로 뭉개는 자리다.
+   */
+  const autofillResolved = classDetailQuery.isSuccess;
   const subjectValid = subject.trim().length > 0;
   const gradeValid = grade.trim().length > 0;
   /*
-    빨간 글씨를 띄울 조건 — **고른 반이 있고**, 자동 채움이 끝났는데도 비어 있을 때만.
+    빨간 글씨를 띄울 조건 — **고른 반이 있고**, 반 상세를 **읽어냈는데도** 비어 있을 때만.
     반 목록이 아직 안 왔거나 운영하는 반이 하나도 없으면 `klass` 가 undefined 인데, 그때 이 칸이 빈 것은
     교사 잘못이 아니다 — 그 이유는 위 오류·빈 상태 카드가 이미 말하고 있다.
+    상세를 못 읽었을 때도 잘못이라 하지 않는다 — 그 경우는 아래 `autofillFailed` 가 사실대로 말한다.
   */
-  const subjectMissing = !!klass && !autofillPending && !subjectValid;
-  const gradeMissing = !!klass && !autofillPending && !gradeValid;
+  const subjectMissing = !!klass && autofillResolved && !subjectValid;
+  const gradeMissing = !!klass && autofillResolved && !gradeValid;
+  /**
+   * 반 상세를 **못 읽어서** 자동 채움이 빈 자리 — 봇이 이미 채운 반은 아무 일도 없으니 말하지 않는다.
+   * (반 목록 오류는 위 카드가 맡는다. 이쪽은 고른 반 하나를 읽는 문이 따로 넘어진 경우다.)
+   */
+  const autofillFailed = !!klass && classDetailQuery.isError && (!subjectValid || !gradeValid);
+  /*
+    학년 고르개의 선택지 — `GRADES`(초1~고3)에, **자동 채움이 그 목록에 없는 값을 들고 온 경우** 그 값을 한 줄 더 세운다.
+    고르개는 모르는 값을 빈 칸으로 그리므로, 그 줄이 없으면 반이 든 「고 2」 같은 옛 글자가 조용히 지워진 채
+    빈 학년으로 나간다 — 손으로 적게 두던 것을 고르개로 바꾸면서 자료를 잃지 않으려는 자리다.
+  */
+  const gradeOptions = useMemo<string[]>(
+    () => ((grade && !(GRADES as readonly string[]).includes(grade)) ? [grade, ...GRADES] : [...GRADES]),
+    [grade],
+  );
 
   function handleClassChange(next: string) {
     setClassId(next);
@@ -380,13 +405,22 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
             {/*
               과목·학년 — 반(과 그 봇)에서 자동으로 차고, 교사가 고칠 수 있다.
               서버가 둘 다 `@IsNotEmpty` 로 막으므로 비운 채로는 못 낸다(`DispatchAssignmentDto`).
+
+              **학년은 고르개다** — 손으로 적게 두면 「고2」·「고 2」·「2학년」이 한 화면에 섞인다(`lib/grades.ts`).
+              반 만들기·봇 만들기가 이미 같은 고르개를 쓰는데, `assignments.grade` 에 쓰는 이 칸만 자유 입력이면
+              그 세 글자가 과제 목록에서 만난다. 과목은 반 만들기와 같이 자유 입력이다(교과 이름에 목록이 없다).
+
+              둘 다 **반이 서기 전에는 잠근다** — 고른 반은 파생이라(위) 목록이 늦게 오면 그 사이에 적은 글자가
+              뒤늦게 선 반의 자동 채움을 이긴다. 그러면 수학 반 과제에 국어가 실린다.
             */}
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="과목" htmlFor="af-subject">
                 <Input
                   id="af-subject"
                   value={subject}
-                  onChange={(e) => setSubjectEdit(e.target.value.slice(0, SUBJECT_GRADE_MAX))}
+                  onChange={(e) => setSubjectEdit(e.target.value.slice(0, SUBJECT_MAX))}
+                  maxLength={SUBJECT_MAX}
+                  disabled={!klass}
                   placeholder={autofillPending ? '반 정보를 불러오는 중…' : '예: 수학Ⅱ'}
                   data-testid="subject-input"
                   aria-invalid={subjectMissing}
@@ -401,23 +435,35 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
               </Field>
 
               <Field label="학년" htmlFor="af-grade">
-                <Input
+                <select
                   id="af-grade"
                   value={grade}
-                  onChange={(e) => setGradeEdit(e.target.value.slice(0, SUBJECT_GRADE_MAX))}
-                  placeholder={autofillPending ? '반 정보를 불러오는 중…' : '예: 고2'}
-                  data-testid="grade-input"
+                  onChange={(e) => setGradeEdit(e.target.value)}
+                  disabled={!klass}
+                  data-testid="grade-select"
                   aria-invalid={gradeMissing}
                   aria-describedby={gradeMissing ? 'af-grade-err' : undefined}
-                  className="h-10 text-sm"
-                />
+                  className="border-pullim-slate-200 focus:border-pullim-blue-500 h-10 w-full rounded-lg border px-3 text-sm outline-none disabled:bg-pullim-slate-50 disabled:text-pullim-slate-400"
+                >
+                  <option value="">{autofillPending ? '반 정보를 불러오는 중…' : '학년 고르기'}</option>
+                  {gradeOptions.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
                 {gradeMissing && (
                   <p id="af-grade-err" className="text-pullim-danger mt-1 text-xs" data-testid="grade-err">
-                    반에도 봇에도 학년이 적혀 있지 않아요 — 여기에 적어야 낼 수 있어요.
+                    반에도 봇에도 학년이 적혀 있지 않아요 — 여기서 골라야 낼 수 있어요.
                   </p>
                 )}
               </Field>
             </div>
+
+            {/* 못 읽은 것을 「없다」로 그리지 않는다 — 교사에게 직접 정하라고만 말한다. */}
+            {autofillFailed && (
+              <p className="text-pullim-slate-500 text-xs" data-testid="class-detail-error">
+                반 정보를 읽지 못해 과목·학년을 채우지 못했어요 — 여기서 직접 정해주세요.
+              </p>
+            )}
 
             <Field label="과제 제목" hint="5~50자" htmlFor="af-title">
               <Input
