@@ -61,7 +61,13 @@ it('레몬은 오답정복 칩·라이너에만 쓰인다', () => {
   }
 });
 
-/** 색을 못 읽어도 상태를 알 수 있어야 한다 — 모든 상태에 글자 라벨이 붙는다. */
+/**
+ * 색을 못 읽어도 상태를 알 수 있어야 한다 — 모든 상태에 글자 라벨이 붙는다.
+ *
+ * `base` 의 기본값이 `submitted: false` 라 **`base({})` 는 「시작 전」**이다. 「진행 중」(모를 때)을
+ * 밟으려면 `submitted: null` 을 따로 넣어야 한다 — 그 줄이 없으면 일곱 중 여섯만 보면서 개수는 맞아
+ * 이 검사가 조용히 좁아진다(「시작 전」이 생기던 라운드에 실제로 그랬다).
+ */
 it('모든 상태가 글자 라벨을 가진다', () => {
   const labels = [
     base({ mode: 'exam' }),
@@ -70,9 +76,10 @@ it('모든 상태가 글자 라벨을 가진다', () => {
     base({ state: 'overdue' }),
     base({ dDay: '오늘' }),
     base({}),
+    base({ submitted: null }),
   ].map(a => getAssignmentVisual(a).semanticLabel);
 
-  expect(new Set(labels).size).toBe(6);
+  expect(new Set(labels).size).toBe(7);
   for (const l of labels) expect(l.length).toBeGreaterThan(0);
 });
 

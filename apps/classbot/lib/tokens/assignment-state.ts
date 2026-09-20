@@ -17,7 +17,8 @@
  *   오답정복     → blue-600 progress · **lime 칩 + lime 라이너**([§ 15.6] 모드 식별 시그니처)
  *   시험         → navy solid · navy 칩 "시험" · navy 라이너
  *
- * 우선순위: mode(exam/wrong-conquest) > 완료(`submitted === true`) > state(overdue) > dDay(D-1/오늘) > 진행 중
+ * 우선순위: mode(exam/wrong-conquest) > 완료(`submitted === true`) > state(overdue) > dDay(D-1/오늘)
+ *          > 시작 전(`submitted === false`) / 진행 중(제출 여부를 모를 때)
  *
  * ⚠ **완료는 `submitted` 한 칸이 정한다** — `state` 가 아니다. 그 이유는 아래 완료 분기 주석에 적었다.
  */

@@ -106,6 +106,10 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     return (
       <div className="space-y-4" data-testid="result-not-submitted">
         {back}
+        {/* 선생님 한마디는 **제출과 무관하다** — 개입 인박스에서 오므로 아직 안 낸 과제에도 달릴 수 있다
+            (그게 「내라」는 한마디의 자리다). 이 갈래에서 빼면 그 학생은 결과 화면에서 그것을 못 본다.
+            시험 모드는 결과 피드백 비공개 정책을 따른다(아래 본 화면과 같은 조건). */}
+        {!isExam && <TeacherCommentCard assignmentId={id} />}
         <EmptyState
           icon={Clock}
           title="아직 내지 않은 과제예요"
