@@ -205,18 +205,28 @@ export function AssignmentForm({ initialClassId = '' }: { initialClassId?: strin
   const subjectMissing = !!klass && autofillResolved && !subjectValid;
   const gradeMissing = !!klass && autofillResolved && !gradeValid;
   /**
-   * 반 상세를 **못 읽어서** 자동 채움이 빈 자리 — 봇이 이미 채운 반은 아무 일도 없으니 말하지 않는다.
-   * (반 목록 오류는 위 카드가 맡는다. 이쪽은 고른 반 하나를 읽는 문이 따로 넘어진 경우다.)
+   * 자동 채움을 **못 읽었다** — 「모른다」는 실패 말고도 모양이 하나 더 있다.
+   *
+   * react-query 기본 `networkMode: 'online'` 에서 연결이 끊긴 채로 걸면 `fetchStatus` 가 `paused` 로 서고,
+   * 그때는 `isPending` 만 참이라 `isLoading`·`isSuccess`·`isError` **셋 다 거짓**이다. `isError` 만 보면
+   * 그 자리에서 빨간 글씨도 안내도 없이 빈 칸과 잠긴 내기 버튼만 남는다 — 이유를 아무도 말하지 않는다.
+   * 그래서 「오는 중도 아니고 읽어내지도 못했다」를 통째로 모른다로 본다(실패 · 끊김, 그리고 도달 불가인 비활성).
    */
-  const autofillFailed = !!klass && classDetailQuery.isError && (!subjectValid || !gradeValid);
+  const autofillUnknown = !!klass && !autofillPending && !autofillResolved;
+  /** 그 모른다 때문에 칸이 빈 자리 — 봇이 이미 채운 반은 아무 일도 없으니 말하지 않는다. */
+  const autofillFailed = autofillUnknown && (!subjectValid || !gradeValid);
   /*
     학년 고르개의 선택지 — `GRADES`(초1~고3)에, **자동 채움이 그 목록에 없는 값을 들고 온 경우** 그 값을 한 줄 더 세운다.
     고르개는 모르는 값을 빈 칸으로 그리므로, 그 줄이 없으면 반이 든 「고 2」 같은 옛 글자가 조용히 지워진 채
     빈 학년으로 나간다 — 손으로 적게 두던 것을 고르개로 바꾸면서 자료를 잃지 않으려는 자리다.
+
+    기준은 지금 값(`grade`)이 아니라 **자동 채움 값(`autoGrade`)** 이다. 지금 값으로 memo 하면 교사가 목록의
+    학년을 한 번 고르는 순간 옛 값 줄이 사라져 **되돌아갈 길이 없어진다**(같은 option 을 다시 골라도 onChange 가
+    안 뜨므로 반을 바꿨다 돌아와야 한다). 고를 수 있는 것은 고르는 동안 그대로 있어야 한다.
   */
   const gradeOptions = useMemo<string[]>(
-    () => ((grade && !(GRADES as readonly string[]).includes(grade)) ? [grade, ...GRADES] : [...GRADES]),
-    [grade],
+    () => ((autoGrade && !(GRADES as readonly string[]).includes(autoGrade)) ? [autoGrade, ...GRADES] : [...GRADES]),
+    [autoGrade],
   );
 
   function handleClassChange(next: string) {

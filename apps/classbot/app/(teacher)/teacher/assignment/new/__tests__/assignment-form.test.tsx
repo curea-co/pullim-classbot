@@ -52,6 +52,12 @@ type QueryState<T> = { data: T | undefined; isPending: boolean; isSuccess: boole
 /** `useClassDetail` 이 돌려주는 모양 — 자동 채움이 오는 중인지(`isLoading`) 폼이 본다. */
 type DetailState = QueryState<ClassDto> & { isLoading: boolean };
 
+/**
+ * 「**모른다**」 — `isPending` 만 참이고 `isLoading`·`isSuccess`·`isError` 가 다 거짓인 모양.
+ *
+ * react-query 에서 이 셋이 동시에 거짓인 실제 상태는 **끊김(`fetchStatus: 'paused'`)** 과 비활성이다.
+ * 「오는 중」은 이 모양이 아니라 `{ ...IDLE_DETAIL, isLoading: true }` 다 — 아래 검사들이 그 둘을 갈라 쓴다.
+ */
 const IDLE_DETAIL: DetailState = {
   data: undefined, isPending: true, isLoading: false, isSuccess: false, isError: false, error: null,
 };
@@ -452,7 +458,8 @@ it('봇이 이미 채운 반은 상세를 못 읽어도 아무 말 하지 않는
 });
 
 it('교사가 먼저 적은 글자를 늦게 온 자동 채움이 덮지 않는다 — `null` 초기값이 하는 일', () => {
-  const { rerender } = render(<AssignmentForm initialClassId="cls_b" />); // 상세는 아직 안 옴
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true }; // 상세는 아직 오는 중
+  const { rerender } = render(<AssignmentForm initialClassId="cls_b" />);
   fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
 
   // 이제 상세가 도착한다 — 반은 다른 과목을 들고 있다.
@@ -503,6 +510,45 @@ it('상세는 고른 반 id 로 읽는다 — 모르는 `?classId` 로 읽지 �
 
   expect(detailCalls).toContain('cls_a'); // 화면이 첫 반을 보여 주므로 읽는 것도 그 반이어야 한다
   expect(detailCalls).not.toContain('cls_nope');
+});
+
+/*
+  「모른다」는 실패 말고도 모양이 하나 더다 — 연결이 끊기면 `fetchStatus: 'paused'` 라 `isError` 도 거짓이다.
+  `isError` 만 보면 그 자리에 빨간 글씨도 안내도 없이 빈 칸과 잠긴 버튼만 남아, 아무도 이유를 말하지 않는다.
+*/
+it('끊겨서 못 읽은 것도 못 읽었다고 말한다 — 실패만 말하고 끊김을 빼두지 않는다', () => {
+  queries.classDetail = IDLE_DETAIL; // isLoading·isSuccess·isError 셋 다 거짓
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.getByTestId('class-detail-error')).toBeInTheDocument();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('오는 중에는 못 읽었다고도 하지 않는다 — 곧 채워질 수 있다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+
+  expect(screen.queryByTestId('class-detail-error')).toBeNull();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+});
+
+it('목록 밖 학년을 한 번 벗어나도 되돌아갈 수 있다 — 고르는 동안 선택지가 사라지지 않는다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '고 2' }), isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+
+  fireEvent.change(select, { target: { value: '고2' } }); // 목록에 있는 값으로 고친다
+  expect(select.value).toBe('고2');
+  // 옛 값 줄이 남아 있어야 되돌아갈 수 있다 — 같은 option 을 다시 골라도 onChange 는 안 뜬다.
+  expect(Array.from(select.options).map((o) => o.value)).toContain('고 2');
+
+  fireEvent.change(select, { target: { value: '고 2' } });
+  expect(select.value).toBe('고 2');
 });
 
 it('반 목록이 아직 안 왔으면 과목 칸을 잘못이라고 말하지 않는다 — 고를 반이 없어 빈 것뿐이다', () => {
