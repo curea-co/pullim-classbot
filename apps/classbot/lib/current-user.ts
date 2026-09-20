@@ -164,11 +164,12 @@ export function getCurrentUserIdFromRequest(req: Request): {
 /**
  * 세션 사용자를 **부를 이름** — 순서는 「사람 이름 → 없으면 email 로컬파트」다.
  *
- * **순서를 뒤집지 마라.** 이름은 진작부터 들어오고 있었다 — `lib/auth/os-sso-provider.ts` 가
- * OS `/me` 의 `displayName` 을 읽는다. 그런데도 화면은 오래도록 email 앞부분(`psh`)으로 사람을
- * 불렀다. 공유 계약 `AuthUser` 에 이름 칸이 없어 provider 가 부가 필드로 동봉했고,
- * `auth-context` 의 `user: AuthUser | null` 이 그 자리에서 좁혀 버렸기 때문이다. 칸이 생긴 지금
- * 이 함수가 그 순서를 쥔다.
+ * **순서를 뒤집지 마라.** 이름은 진작부터 세션 객체에 실려 있었다 — `lib/auth/os-sso-provider.ts`
+ * 가 OS `/me` 의 `displayName` 을 담고, `auth-context` 는 그 객체를 참조 그대로 넘긴다. 그런데도
+ * 화면은 오래도록 email 앞부분(`psh`)으로 사람을 불렀다. **값이 없어서가 아니라 이 자리가 그 값을
+ * 읽지 않았기 때문이다** — 종전 코드는 세션 갈래에서 곧바로 `displayNameFromEmail(user.email)` 을
+ * 썼다. 공유 계약 `AuthUser` 에 칸을 낸 것도 값을 나르려고가 아니라 `user.name` 읽기가
+ * **컴파일되게** 하려는 것이다. 칸이 생긴 지금 이 함수가 그 순서를 쥔다.
  *
  * **그래도 폴백은 지우지 마라.** `AuthUser.name` 은 optional 이고(계약이 구현체에게 이름을
  * 요구하지 않는다), 값을 대는 `/me` 의 `displayName` 도 비어 올 수 있다 — 같은 auth 프로필을
@@ -176,10 +177,14 @@ export function getCurrentUserIdFromRequest(req: Request): {
  * (`lib/api/classbot-dto.ts`). 이름을 못 받은 사람이 빈칸으로 서면 안 된다.
  *
  * **빈 문자열·공백은 「없음」과 같이 본다** — 화면에서 셋은 똑같은 빈칸이라 갈라 둘 이유가 없다.
- * 반 명단 쪽도 같은 판정을 쓴다(`lib/risk-signals.ts` 의 `memberLabel` 이 `displayName?.trim()`).
+ * 반 명단 쪽도 **판정은 같다**(`lib/risk-signals.ts` 의 `memberLabel` 이 `displayName?.trim()` 으로
+ * 갈린다). **다만 떨어지는 값은 다르다** — 저쪽은 `학생 <sub 앞 8자>` 로, 이쪽은 email 로컬파트로
+ * 떨어진다. 명단은 줄 스무 개가 다 같아지지 않게 사람을 가려야 하고, 여기는 부를 이름 하나를
+ * 세우는 자리라서다.
  *
  * @param user - 세션 사용자
- * @returns 화면에 찍을 이름 (빈 문자열이 될 수 있는 경우는 email 까지 빈 세션뿐)
+ * @returns 화면에 찍을 이름 (빈 문자열이 되는 경우는 email 까지 빈 세션뿐 —
+ *          `lib/__tests__/current-user-name.test.tsx` 가 그 한 경우도 고정한다)
  */
 function displayNameOf(user: AuthUser): string {
   const given = user.name?.trim();

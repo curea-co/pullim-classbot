@@ -3,14 +3,17 @@
  *
  * 못박는 것은 **순서** 하나다: **OS 가 준 사람 이름 → 그게 비었을 때만 email 로컬파트.**
  *
- * 왜 이 테스트가 있나 — 이름은 진작부터 들어오고 있었다(`lib/auth/os-sso-provider.ts` 가 OS
- * `/me` 의 `displayName` 을 읽는다). 그런데 공유 계약 `AuthUser` 에 이름 칸이 없어 provider 가
- * 부가 필드로 동봉했고 `auth-context` 의 `AuthUser | null` 이 그 자리에서 좁혀 버려, 화면은
- * 「박성호」 대신 email 앞부분 「psh」로 사람을 불렀다.
+ * 왜 이 테스트가 있나 — 이름은 진작부터 **세션 객체에 실려 있었다**(`lib/auth/os-sso-provider.ts`
+ * 가 OS `/me` 의 `displayName` 을 담고, `auth-context` 는 그 객체를 참조 그대로 넘긴다). 그런데도
+ * 화면은 「박성호」 대신 email 앞부분 「psh」로 사람을 불렀다. **값이 없어서가 아니라
+ * `useCurrentUser()` 가 그 값을 읽지 않고 email 로 이름을 만들고 있어서다.** 공유 계약
+ * `AuthUser` 에 이름 칸을 낸 것은 값을 나르려고가 아니라 `user.name` 읽기가 컴파일되게 하려는
+ * 것이다 — 그래서 고쳐야 할 것은 **읽는 순서**였고, 이 파일이 그 순서를 못박는다.
  *
  * 그렇다고 폴백을 지우면 안 된다 — `AuthUser.name` 은 optional 이고 `/me` 의 `displayName` 도
- * 비어 올 수 있어서, 폴백이 없으면 그런 사람은 **빈칸으로 선다.** 아래 세 경우(이름 있음 ·
- * 이름 없음 · 빈 문자열)가 그 둘을 한꺼번에 고정한다: 순서를 뒤집어도, 폴백을 지워도 빨개진다.
+ * 비어 올 수 있어서, 폴백이 없으면 그런 사람은 **빈칸으로 선다.** 아래 여섯 경우(이름 있음 ·
+ * 이름 없음 · 빈 문자열 · 공백뿐 · 앞뒤 공백 · email 까지 빈 세션)가 그 둘을 한꺼번에 고정한다:
+ * 순서를 뒤집어도, 폴백을 지워도 빨개진다.
  */
 import { render, screen } from '@testing-library/react';
 
@@ -82,6 +85,18 @@ describe('useCurrentUser().name — 이름 → 없으면 email 로컬파트', ()
     mockAuthUser = { id: 'uuid-1', email: 'psh@curea.co', role: 'teacher', name: '  김수학  ' };
     render(<NameProbe />);
     expect(currentName()).toBe('[김수학]');
+  });
+
+  // 폴백까지 빈 유일한 경우 — `displayNameOf` 의 @returns 가 「빈 문자열이 되는 경우는 email 까지
+  // 빈 세션뿐」이라고 단정하므로, 그 한 경우도 여기서 본다. 이 값이 그대로 화면에 간다:
+  // `components/shell/app-header.tsx` 의 아바타가 `profile.name[0]` 을 찍는데, 학생 역할이면
+  // `''[0]` 이 `undefined` 라 글자 없는 동그라미가 선다. 지금은 그것이 의도다 — 남의 이름으로
+  // 부르지 않는다. 바꾸려면 이 단정부터 바꿔라.
+  it('이름도 email 도 빈 세션은 빈 이름이다 — 폴백이 메울 것이 없다', () => {
+    mockAuthUser = { id: 'uuid-1', email: '', role: 'student', name: '' };
+    render(<NameProbe />);
+    expect(currentName()).toBe('[]');
+    expect(studentName()).toBe('[]');
   });
 });
 

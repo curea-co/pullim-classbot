@@ -110,9 +110,12 @@ export class OsSsoAuthProvider implements IAuthProvider {
       }
       const me = (await res.json()) as MeResponse;
       // `name` 은 이제 **계약의 칸**이다(`packages/auth` 의 `AuthUser.name`, optional).
-      // 종전에는 계약 밖 부가 필드라 `AuthUser & { name: string }` 으로 동봉했는데, 그러면
-      // `auth-context` 의 `user: AuthUser | null` 이 그 자리에서 이름을 좁혀 버려 화면까지 닿지
-      // 못했다 — 그래서 화면이 사람을 email 앞부분으로 불렀다.
+      // 종전에는 계약 밖 부가 필드라 `AuthUser & { name: string }` 으로 동봉했다. 그래도
+      // **값은 나가고 있었다** — 타입은 런타임에서 아무것도 깎지 않고, `auth-context` 는 이
+      // 객체를 참조 그대로 넘긴다. 화면이 사람을 email 앞부분으로 부른 원인은 이 자리가 아니라
+      // **읽는 자리**였다(`lib/current-user.ts` 가 `user.name` 을 읽지 않았다).
+      // 계약에 칸을 낸 것은 그 읽기가 **컴파일되게** 하려는 것이다 — 교차 타입은 이 파일 안에서만
+      // 참이라, `AuthUser` 로 받는 쪽에서는 `user.name` 이 타입 오류였다.
       //
       // `me.displayName` 은 **그대로 싣는다.** 비었을 때 무엇으로 부를지는 여기서 정하지 않는다 —
       // 그 폴백은 `lib/current-user.ts` 의 `useCurrentUser()` 한 곳에 있다. provider 는 `/me` 가
