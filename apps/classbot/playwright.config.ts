@@ -6,8 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
  * dev 서버는 이미 외부에서 띄워둔 상태로 가정 (port 3032).
  *
  * 프로젝트 여섯 = 두 레인 + 보류 하나 (2026-09-16, 완성 계획 §10 해소 1):
- *  - `anon`          : 로그인 없이 돈다 — `public-and-gates.spec.ts` 하나. 공개 화면이 열리는지,
- *                      코어 화면이 「OS 로그인 / 로그인 게이트 / 셸」 셋 중 하나로 서는지만 본다.
+ *  - `anon`          : 로그인 없이 돈다 — 스펙 둘(목록은 아래 `ANON_SPECS`). 공개 화면이 열리는지와
+ *                      코어 화면이 「OS 로그인 / 로그인 게이트 / 셸」 셋 중 하나로 서는지, 그리고
+ *                      정본 API 가 이 화면의 오리진을 CORS 로 허용하는지.
  *  - `setup-student` / `setup-teacher`
  *                    : `auth.setup.ts` — 풀림 OS 로그인 라운드트립을 역할별로 한 번 돌려 세션을 STORAGE_STATE 에 남긴다.
  *                      OS 계정은 가입 때 역할이 고정되므로 학생·교사 계정이 따로 있어야 한다.
@@ -48,7 +49,16 @@ const loginLaneUse = { trace: 'off', screenshot: 'only-on-failure' } as const;
  */
 const setupUse = { trace: 'off', screenshot: 'off' } as const;
 
-const ANON_SPEC = /public-and-gates\.spec\.ts$/;
+/**
+ * 익명 레인 스펙 — 로그인 없이 도는 것들.
+ *  - `public-and-gates`: 공개 화면이 열리고 코어 화면이 셋 중 하나로 서는지.
+ *  - `prod-origins`: 정본 API 가 이 화면의 오리진을 CORS 로 허용하는지. 그 값은 코드가 아니라
+ *    ECS 태스크 정의 env 에 살아 리뷰가 닿지 않고, 빠져도 서버 로그에 안 남는다(스펙 머리주석).
+ */
+const ANON_SPECS = [
+  /public-and-gates\.spec\.ts$/,
+  /prod-origins\.spec\.ts$/,
+];
 const SETUP_FILE = /auth\.setup\.ts$/;
 
 /** 첫 화면이 학생 라우트(`/classbot/*`)인 스펙 — 학생 계정 세션으로 돈다. */
@@ -93,7 +103,7 @@ export default defineConfig({
   projects: [
     {
       name: 'anon',
-      testMatch: ANON_SPEC,
+      testMatch: ANON_SPECS,
       use: { ...desktop },
     },
     // 로그인 라운드트립은 두 호스트를 오간다(OS 프로브 → 폼 → 복귀). 기본 30초에 두면 안의 대기(폼 20초 +
@@ -121,7 +131,7 @@ export default defineConfig({
     },
     {
       name: 'login-teacher',
-      testIgnore: [ANON_SPEC, SETUP_FILE, ...STUDENT_SPECS, ...MIXED_ROLE_SPECS],
+      testIgnore: [...ANON_SPECS, SETUP_FILE, ...STUDENT_SPECS, ...MIXED_ROLE_SPECS],
       dependencies: ['setup-teacher'],
       use: { ...desktop, storageState: STORAGE_STATE.teacher, ...loginLaneUse },
     },
