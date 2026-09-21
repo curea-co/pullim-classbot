@@ -6,8 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
  * dev 서버는 이미 외부에서 띄워둔 상태로 가정 (port 3032).
  *
  * 프로젝트 여섯 = 두 레인 + 보류 하나 (2026-09-16, 완성 계획 §10 해소 1):
- *  - `anon`          : 로그인 없이 돈다 — `public-and-gates.spec.ts` 하나. 공개 화면이 열리는지,
- *                      코어 화면이 「OS 로그인 / 로그인 게이트 / 셸」 셋 중 하나로 서는지만 본다.
+ *  - `anon`          : 로그인 없이 돈다 — 스펙 둘(목록은 아래 `ANON_SPECS`). 공개 화면이 열리는지와
+ *                      코어 화면이 「OS 로그인 / 로그인 게이트 / 셸」 셋 중 하나로 서는지, 그리고
+ *                      정본 API 가 이 화면의 오리진을 CORS 로 허용하는지.
  *  - `setup-student` / `setup-teacher`
  *                    : `auth.setup.ts` — 풀림 OS 로그인 라운드트립을 역할별로 한 번 돌려 세션을 STORAGE_STATE 에 남긴다.
  *                      OS 계정은 가입 때 역할이 고정되므로 학생·교사 계정이 따로 있어야 한다.
