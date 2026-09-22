@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { useRailCollapse } from '@/components/ui/rail-collapse-context';
 import { ServiceIcon } from '@/components/ui/service-icon';
-import { ServiceSwitcher } from '@/components/ui/service-switcher';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -22,10 +21,8 @@ import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
-import {
-  classbotSwitcherServices,
-  type ClassbotServiceIconName,
-} from './pullim-services';
+import { ClassbotServiceSwitcher } from './classbot-service-switcher';
+import shellStyles from './classbot-shell.module.css';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -67,7 +64,7 @@ export function RailCollapseToggle() {
       aria-expanded={!collapsed}
       aria-label={label}
       title={label}
-      className="text-pullim-slate-600 hover:bg-pullim-slate-100 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-pullim-blue-300 md:inline-flex"
+      className={shellStyles.railToggle}
     >
       <svg
         viewBox="0 0 24 24"
@@ -95,43 +92,9 @@ export function AppHeaderStart({ role }: { role: Role }) {
   );
 }
 
-function JuniorServiceIcon({ size }: { size: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 100 100"
-      width={size}
-      height={size}
-      aria-hidden="true"
-    >
-      <rect x="4" y="4" width="92" height="92" rx="18" fill="#0362DA" />
-      <circle cx="50" cy="50" r="22" fill="#E6FF4C" />
-    </svg>
-  );
-}
-
-function ServiceGlyph({ name, size = 22 }: { name: ClassbotServiceIconName; size?: number }) {
-  if (name === 'junior') return <JuniorServiceIcon size={size} />;
-  return <ServiceIcon name={name} size={size} aria-hidden="true" />;
-}
-
 /** 사용자 확정 9개 서비스 순서의 OS 공통 전환 메뉴. */
 export function AppServiceSwitcher() {
-  const services = classbotSwitcherServices();
-  if (services.length === 0) return null;
-
-  return (
-    <ServiceSwitcher
-      current="클래스봇"
-      className="shrink-0"
-      services={services.map((service) => ({
-        name: service.name,
-        href: service.href,
-        active: service.active,
-        icon: <ServiceGlyph name={service.icon} />,
-      }))}
-    />
-  );
+  return <ClassbotServiceSwitcher />;
 }
 
 /** 브랜드 로고 클러스터 — 풀림 공통 아이콘 + "풀림" + 클래스봇, 역할 홈으로 링크. */

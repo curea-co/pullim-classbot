@@ -16,6 +16,20 @@ describe('classbot service switcher catalog', () => {
       '스튜디오',
     ]);
     expect(services.filter(({ active }) => active).map(({ name }) => name)).toEqual(['클래스봇']);
+    expect(services.map(({ icon }) => icon)).toEqual([
+      'home',
+      'planner',
+      'q',
+      'writing',
+      'junior',
+      'arcade',
+      'exam',
+      'classbot',
+      'studio',
+    ]);
+    expect(services.find(({ slug }) => slug === 'classbot')?.description).toBe(
+      '선생님의 분신을 만든다.',
+    );
   });
 
   it('dev OS 티어를 형제 앱 호스트와 경로에 보존한다', () => {
