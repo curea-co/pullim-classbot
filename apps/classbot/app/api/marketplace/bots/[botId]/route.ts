@@ -35,6 +35,9 @@ export async function GET(
   const { botId } = await ctx.params;
   const db = getDb();
 
+  // 고르는 열은 **목록과 같은 묶음**이다 — 한쪽에만 칸이 늘면 목록에서 본 봇이 상세로
+  // 들어가는 순간 다른 모양이 된다. 무엇을 싣고 무엇을 빼는지(그리고 `scope` 는 왜
+  // 참여자 필드와 갈리는지)의 근거는 목록 라우트의 같은 자리에 적어 뒀다.
   const [row] = await db
     .select({
       botId: classBots.id,
@@ -44,10 +47,13 @@ export async function GET(
       grade: classBots.grade,
       tone: classBots.tone,
       greeting: classBots.greeting,
+      scope: classBots.scope,
       blurb: classBots.publishBlurb,
       teacherName: classBots.teacherName,
       organization: classBots.organization,
       publishedAt: classBots.publishedAt,
+      // 공식 봇 판별에만 쓰고 응답에서는 뺀다 — 아래 조립부 참조.
+      teacherId: classBots.teacherId,
     })
     .from(classBots)
     .where(and(eq(classBots.id, botId), eq(classBots.isPublished, true)))
@@ -61,10 +67,13 @@ export async function GET(
     .from(enrollments)
     .where(eq(enrollments.botId, botId));
 
+  // 목록과 같다 — `teacherId` 는 판별에만 쓰고 떼어 낸다(까닭은 목록 라우트 조립부 주석).
+  const { teacherId, ...rest } = row;
   const bot: MarketplaceBotItem = {
-    ...row,
+    ...rest,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     enrolledCount: countRow?.count ?? 0,
+    isOfficial: teacherId === null,
   };
 
   return NextResponse.json({ bot });

@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
-import { ClassbotMark } from '@/components/brand/classbot-mark';
 import { Badge } from '@/components/ui/badge';
+import { useRailCollapse } from '@/components/ui/rail-collapse-context';
+import { ServiceIcon } from '@/components/ui/service-icon';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -16,12 +16,13 @@ import {
 import { useCurrentUser } from '@/lib/current-user';
 import { useStreak } from '@/lib/store/self-learning';
 import { useAuth } from '@/lib/auth/auth-context';
-import { osLoginUrl, resolveReturnTarget, OS_URL } from '@/lib/auth/os-sso';
-import { OS_SSO_ENABLED } from '@/lib/auth/auth-mode';
+import { redirectToOsLogin, OS_URL } from '@/lib/auth/os-sso';
 import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
+import { ClassbotServiceSwitcher } from './classbot-service-switcher';
+import shellStyles from './classbot-shell.module.css';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -50,7 +51,53 @@ const roleProfileHref: Record<Role, string> = {
   parent: '/parent',
 };
 
-/** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */
+/** 플래너와 같은 패널 글리프를 쓰는 데스크톱 레일 토글. */
+export function RailCollapseToggle() {
+  const { collapsed, toggle } = useRailCollapse();
+  const label = collapsed ? '사이드바 펼치기' : '사이드바 접기';
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-controls="app-rail"
+      aria-expanded={!collapsed}
+      aria-label={label}
+      title={label}
+      className={shellStyles.railToggle}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </svg>
+    </button>
+  );
+}
+
+/** DashboardShell 의 첫 슬롯 — 열기/접기 다음에 풀림 아이덴티티를 둔다. */
+export function AppHeaderStart({ role }: { role: Role }) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 md:gap-3">
+      <RailCollapseToggle />
+      <AppBrand role={role} />
+    </div>
+  );
+}
+
+/** 사용자 확정 9개 서비스 순서의 OS 공통 전환 메뉴. */
+export function AppServiceSwitcher() {
+  return <ClassbotServiceSwitcher />;
+}
+
+/** 브랜드 로고 클러스터 — 풀림 공통 아이콘 + "풀림" + 클래스봇, 역할 홈으로 링크. */
 export function AppBrand({ role }: { role: Role }) {
   return (
     <Link
@@ -58,17 +105,17 @@ export function AppBrand({ role }: { role: Role }) {
       aria-label="풀림 클래스봇 홈"
       className="inline-flex items-center gap-2.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
     >
-      {/* 로고 글리프 — os.pullim.ai `.mast .glyph`(30×30, radius 9px, pullim-blue 타일) 동형 */}
-      <ClassbotMark size={30} />
+      {/* 플래너와 같은 풀림 OS 마스트 아이콘. 서비스 아이콘은 바로 뒤 전환 버튼이 맡는다. */}
+      <ServiceIcon name="pullim" size={30} aria-hidden="true" />
       {/* 워드마크 — `.mast .wordmark`: 800 / 18px / letter-spacing -0.04em */}
-      <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
+      <span className="text-pullim-slate-900 hidden font-extrabold text-[18px] leading-none tracking-[-0.04em] sm:inline">
         풀림
       </span>
       {/* 서비스명 — 상류 스펙 `.mast .sub` 는 mono **11px** 이지만 여기 텍스트는
           한국어(「클래스봇」)라 계약 §1(한국어 12px 미만 금지)에 걸린다.
           대괄호 임의 크기 자체도 금지라 토큰 클래스 text-2xs(12px)로 올린다.
           divider 간격(pl 9px·ml 2px)은 스펙대로 둔다. */}
-      <span className="text-pullim-slate-500 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
+      <span className="text-pullim-slate-500 ml-[2px] hidden border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em] sm:inline">
         클래스봇
       </span>
     </Link>
@@ -82,7 +129,7 @@ export function AppHeaderActions({ role }: { role: Role }) {
       {/* 기획 보류 — 자기주도 모드 보류로 학습 모드 토글(StudentModeToggle) 비노출. 재개 시 되살린다 */}
 
       {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
-      <div className="flex flex-1 items-center justify-end gap-1">
+      <div className="flex shrink-0 items-center justify-end gap-1">
         {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
         <DevRoleSwitch role={role} />
         {/* 스트릭은 학생 것뿐이다 — 교사에는 표시할 스트릭이 없어 자리째 빠진다. */}
@@ -94,7 +141,7 @@ export function AppHeaderActions({ role }: { role: Role }) {
              계약 §4.1 은 비활성 후퇴를 접두사 variant 로만 허용하므로
              data-disabled 를 실제로 달고 그것을 겨냥한다. */
           data-disabled=""
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative hidden h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300 sm:inline-flex"
           title="준비 중"
         >
           <Search className="h-[22px] w-[22px]" />
@@ -128,7 +175,8 @@ export function AppHeaderActions({ role }: { role: Role }) {
  *
  * 프로필 메뉴에 역할 전환은 없다. 역할은 풀림 통합 계정이 가입 때 정하고 사용자가 바꾸지
  * 않는다(내 정보에서도 읽기 전용) — 헤더에서 스스로 역할을 바꾸는 진입점은 두지 않는다.
- * 개발 중 두 화면을 오가려고 둔 장치는 DevRoleSwitch 뿐이고, 운영 호스트에서는 숨는다.
+ * 개발 중 세 화면을 오가려고 둔 장치는 DevRoleSwitch 뿐이고, 개발용 신원 쿠키가 먹히는
+ * 로컬 호스트에서만 뜬다 — 배포(prod·dev preview)에서는 전부 숨는다.
  *
  * 도메인 네비게이션은 사이드바 단일 진실원 (Layer 1 §14.1: nav 이중화 금지).
  */
@@ -166,7 +214,6 @@ function StudentStreakBadge() {
 function ProfileMenu({ role }: { role: Role }) {
   const me = useCurrentUser();
   const { signOut } = useAuth();
-  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -183,24 +230,13 @@ function ProfileMenu({ role }: { role: Role }) {
   async function handleLogout() {
     await signOut();
     toast.success('로그아웃되었습니다.');
-    // OS SSO 모드: 로그아웃 후 OS 로 내보낸다(인증 진입 일원화). 비-SSO 모드: 루트로.
-    if (typeof window !== 'undefined') window.location.assign(OS_SSO_ENABLED ? OS_URL : '/');
+    // 로그아웃 후 OS 로 내보낸다 — 인증 진입이 OS 하나라 나가는 곳도 하나다.
+    if (typeof window !== 'undefined') window.location.assign(OS_URL);
   }
 
-  // 로그인 진입. OS SSO 모드면 OS 로그인으로 이동(현재 경로를 next 로 복귀, 공통 헤더 없어 자체 처리),
-  // 아니면 기존 classbot 로그인 폼(`/login`)으로 라우팅.
-  // cross-host(예: Dev — OS≠classbot 오리진)면 내부 경로만으론 OS 가 앱으로 못 돌아오므로
-  // resolveReturnTarget 이 앱 오리진 절대 URL 로 승격한다(same-origin 은 기존 내부 경로 유지). (B-7)
-  function goLogin() {
-    if (OS_SSO_ENABLED) {
-      if (typeof window === 'undefined') return;
-      const appOrigin = window.location.origin;
-      const target = resolveReturnTarget(window.location.pathname + window.location.search, appOrigin);
-      window.location.assign(osLoginUrl(target, appOrigin));
-      return;
-    }
-    router.push('/login');
-  }
+  // 로그인 진입 — 클래스봇은 자체 로그인 화면이 없다. 복귀 경로 · cross-host 승격은
+  // `redirectToOsLogin` 이 소유한다(읽기 로그인 게이트와 같은 함수를 지난다).
+  const goLogin = redirectToOsLogin;
 
   return (
     <DropdownMenu>

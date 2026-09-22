@@ -22,8 +22,6 @@ export interface AssignmentChatContext {
   botName: string;
   /** 발송한 선생님 — "김수학 선생님" */
   assignedBy: string;
-  /** 학생 이름 */
-  studentName: string;
 }
 
 /** 봇 말풍선에 붙는 작은 꼬리표. */
@@ -34,6 +32,16 @@ export interface AssignmentChatReply {
   tag?: AssignmentChatTag;
   /** 수업 범위 밖 질문을 되돌린 답인지 — 화면이 안내 줄을 덧붙인다. */
   redirected?: boolean;
+  /**
+   * 이 줄은 **학생 이름으로 연다** — 이름은 `text` 에 넣지 않고 **그릴 때 앞에 붙인다.**
+   *
+   * 여는 인사에 사람 이름이 들어가는 건 맞지만, 이 줄은 `lib/store/assignment-chat.ts` 를 지나
+   * **localStorage 에 적히고 로그아웃해도 남는다** — 공용 PC 라면 다음 사람이 읽는다. 세션 이름은
+   * 본인-조회 한정 PII 라(pullim-api `me-response.dto.ts`) 디스크에 닿으면 안 된다. 그래서
+   * 저장되는 것은 이름 없는 문장이고, 이름은 화면이 매번 자기 세션에서 읽어 붙인다.
+   * **`text` 안으로 이름을 되돌리지 마라.**
+   */
+  leadWithName?: boolean;
 }
 
 /** 수업 범위 밖으로 보는 낱말 — 봇이 되돌리는 기준(더미). */
@@ -46,7 +54,11 @@ const OFF_TOPIC_WORDS = [
 export function buildAssignmentChatSeed(ctx: AssignmentChatContext): AssignmentChatReply[] {
   return [
     {
-      text: `${ctx.studentName}, 「${ctx.title}」 같이 풀어 보자. ${ctx.questionCount}문항이고 ${ctx.dueLabel}까지야.`,
+      // 이름은 여기 넣지 않는다 — 이 문장은 저장되는 쪽이다(위 `leadWithName` 주석).
+      // 화면이 앞에 「<이름>, 」를 붙인다. 이름을 모르면 그대로 이 문장으로 연다 —
+      // 빈 이름을 끼우면 쉼표로 시작하는 말이 되기 때문이다.
+      text: `「${ctx.title}」 같이 풀어 보자. ${ctx.questionCount}문항이고 ${ctx.dueLabel}까지야.`,
+      leadWithName: true,
     },
     {
       // 봇 입으로 저장·열람을 약속하지 않는다 — 아직 서버 영속도 교사용 조회도 없다

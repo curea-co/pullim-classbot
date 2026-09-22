@@ -48,9 +48,11 @@ export function WellbeingGauge({
   /*
     ⚠ 봇 인사이트를 여기서 만들지 않는다 — **`ComponentBreakdown` 안에서** 만든다.
     이 컴포넌트는 교사 리포트(`/teacher/reports/[id]`)에서도 `compact` 로 쓰이는데, 인사이트
-    합성이 `useClassBots()` 를 부르고 그 훅이 `useMyRooms()` → `GET /api/me/classrooms` 를
-    친다. 그 라우트는 **학생 전용**이라 교사에게 403 이다(`app/api/_lib/guards.ts` 의
-    `denyUnlessStudent`). 훅은 조건부로 부를 수 없으니(Rules of Hooks) `compact` 분기가
+    합성이 `useClassBots()` 를 부르고 그 훅이 `useMyRooms()` → 정본
+    `GET /classbot/bots?role=student` 를 친다. 그 문은 **학생 시점**이라 교사에게는 제 반이
+    나오지 않는다. *(종전에는 같은 오리진 `GET /api/me/classrooms` 였고 교사에게 403 이었다 —
+    그 라우트는 계획 PR 8 에서 걷혔다. 아래 이유는 그대로다.)*
+    훅은 조건부로 부를 수 없으니(Rules of Hooks) `compact` 분기가
     아래에 있어도 요청은 이미 나간다 — 교사가 리포트를 열 때마다 403 과 마켓 조회가 함께
     떴다. 그래서 그 훅들을 **비-compact 경로에서만 마운트되는 자식**으로 내렸다.
   */
@@ -227,7 +229,7 @@ function scoreTone(score: number) {
  * 5지표 분해 ([13 § 9.2]) — 수면·집중·감정·사회·학업 + 봇 인사이트 1줄 + actionable CTA
  *
  * **봇 인사이트를 여기서 만든다.** 이 컴포넌트는 학생 화면(비-compact)에서만 마운트되므로,
- * `useClassBots()` 의 학생 전용 조회(`GET /api/me/classrooms`)가 교사 리포트에서 돌지 않는다
+ * `useClassBots()` 의 학생 시점 조회(정본 `GET /classbot/bots?role=student`)가 교사 리포트에서 돌지 않는다
  * (부모 머리주석 참조).
  */
 function ComponentBreakdown({
@@ -295,7 +297,7 @@ function ComponentBreakdown({
         {botInsight && insightSig ? (
           <div className="flex flex-col gap-2">
             <p className="text-pullim-slate-700 text-2xs leading-relaxed">
-              <span className="font-bold">{botInsight.bot.avatarEmoji} {botInsight.bot.name}</span>
+              <span className="font-bold">{botInsight.bot.name}</span>
               {audience === 'student-self' ? (
                 // [13 § 3.3.5] 본인 주간 리포트 1인칭 톤 — "봇이 본 나의 한 주" 형식. § 8.3 완화 표현.
                 <span className="text-pullim-slate-500">: 이번 주 {lowest.label} 신경 쓸 부분이었어요. 다음 주에 짧은 한 걸음부터 시작해봐요.</span>

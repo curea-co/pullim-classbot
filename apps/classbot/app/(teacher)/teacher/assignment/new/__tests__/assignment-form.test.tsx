@@ -1,78 +1,116 @@
 /**
- * 출제 폼 — 배점 합계 100점 규칙이 내기를 막는지, 문항 편집이 과제에 실리는지.
+ * 출제 폼 — 정본 한 요청으로 내는지(FE PR 6).
  *
- * 폼은 이제 **DB 를 본다** — 고르는 방은 내 수업방(`useTeacherClassrooms`)이고, 대상 학생은
- * 그 방의 참여자(`useClassroomStudents`)이며, 내기는 `useDispatchAssignment` 로 나간다.
- * 여기서 확인하려는 것은 그 세 훅의 동작이 아니라 **폼의 규칙**이라, 훅은 mock 으로 세우고
- * 서버가 성공을 준 뒤의 자리(문항이 로컬 사본에 실리는지)를 본다.
+ * 폼은 **정본을 본다** — 고르는 반은 `useOperatorClasses`(`hooks/api/classroom.ts` · `GET /classbot/bots?role=teacher`)이고,
+ * 내기는 `useDispatchAssignment`(`POST /classbot/classes/:id/assignments`)에 문항까지 실어 나간다. 여기서 확인하려는 것은
+ * 그 두 훅의 동작이 아니라 **폼의 규칙과 본문 모양**이라, 훅은 mock 으로 세우고 `mutateAsync` 가 받은 인자를 본다.
  */
 
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AssignmentForm, toLocalDatetimeInput } from '../assignment-form';
-import { useAssignmentStore, getQuestionsForAssignment } from '@/lib/store/assignments';
-import { ApiClientError } from '@/lib/api/client-fetch';
+import type { BotCardDto, ClassDto, DispatchAssignmentBody } from '@/lib/api/classbot-dto';
 
-/** 서버가 만들어 준 과제 id — 로컬 사본은 이 id 로 맞춰져야 학생 링크와 문항이 어긋나지 않는다. */
-const SERVER_ASSIGNMENT_ID = 'as_server_1';
-
-const mockRoom = {
-  classroomId: 'cr_test',
-  label: '고2 미적분 A반',
-  organization: '풀림',
-  botId: 'cb_001',
-  botName: '수학이 형',
-  subject: '수학Ⅱ',
-  grade: '고2',
-  studentCount: 2,
-  joinCode: 'ABC123',
+/**
+ * 정본 반 카드(pullim-api #679 이후) — 봇이 붙은 반과 안 붙은 반.
+ *
+ * **`name`(봇 이름)과 `className`(반 이름)에 다른 글자를 넣는다.** 둘에 같은 글자를 넣으면 반 고르기
+ * 드롭다운이 어느 칸을 읽든 통과해서, 이 파일이 잠그려는 「교사가 어느 반에 내는지 알 수 있다」가
+ * 하중을 하나도 안 받는다. 봇이 안 붙은 반(`botId: null` · `profile: null`)은 서버가 `name` 도 반 이름으로
+ * 떨어뜨리므로 둘이 같은 것이 정상이다.
+ */
+const CLASS_A: BotCardDto = {
+  id: 'cls_a', botId: 'bot_math', name: '수학 도우미', className: '고2 미적분 A반',
+  description: null, isActive: true, role: 'teacher',
+  profile: {
+    subject: '수학Ⅱ', grade: '고2', tone: '친근', greeting: '', scope: 3, avatarEmoji: '🤖',
+    quickPrompts: [], enrolledCount: 12, isLive: false, currentLesson: null,
+  },
 };
-const mockStudents = [
-  { id: 'student_001', name: '서연', joinedAt: '2026-03-04T08:20:00.000Z' },
-  { id: 's2', name: '민준', joinedAt: '2026-03-05T08:20:00.000Z' },
-];
+const CLASS_B: BotCardDto = {
+  id: 'cls_b', botId: null, name: '중3 국어 B반', className: '중3 국어 B반',
+  description: null, isActive: true, role: 'teacher', profile: null,
+};
+
+/**
+ * 반 상세(`GET /classbot/classes/:classId` · `useClassDetail`) — **반이 스스로 든 과목·학년**이 여기 있다(ADR-092).
+ * 카드의 `profile` 은 붙은 봇에서 오므로 봇이 없으면 비고, 그때 과제 내기가 이 문을 읽어 메운다.
+ * @param over - 이 테스트가 정할 칸(대개 `subject`·`grade`)
+ */
+function classDto(over: Partial<ClassDto> = {}): ClassDto {
+  return {
+    id: 'cls_b', operatorId: 'teacher_1', orgId: null, name: '중3 국어 B반', description: null,
+    subject: null, grade: null, isActive: true, bot: null, joinCode: null,
+    createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
+    ...over,
+  };
+}
 
 const mutateAsync = jest.fn();
+const push = jest.fn();
 
-/** 두 조회의 상태 — 테스트마다 갈아 끼운다(명단 실패·비로그인 데모를 세우려면 필요하다). */
-type QueryState<T> = { data: T | undefined; isPending: boolean; isError: boolean; error: unknown };
-const queries: {
-  classrooms: QueryState<{ classrooms: (typeof mockRoom)[] }>;
-  students: QueryState<{ students: typeof mockStudents }>;
-} = {
-  classrooms: { data: { classrooms: [mockRoom] }, isPending: false, isError: false, error: null },
-  students: { data: { students: mockStudents }, isPending: false, isError: false, error: null },
+type QueryState<T> = { data: T | undefined; isPending: boolean; isSuccess: boolean; isError: boolean; error: unknown };
+/** `useClassDetail` 이 돌려주는 모양 — 자동 채움이 오는 중인지(`isLoading`) 폼이 본다. */
+type DetailState = QueryState<ClassDto> & { isLoading: boolean };
+
+/**
+ * 「**모른다**」 — `isPending` 만 참이고 `isLoading`·`isSuccess`·`isError` 가 다 거짓인 모양.
+ *
+ * react-query 에서 이 셋이 동시에 거짓인 실제 상태는 **끊김(`fetchStatus: 'paused'`)** 과 비활성이다.
+ * 「오는 중」은 이 모양이 아니라 `{ ...IDLE_DETAIL, isLoading: true }` 다 — 아래 검사들이 그 둘을 갈라 쓴다.
+ */
+const IDLE_DETAIL: DetailState = {
+  data: undefined, isPending: true, isLoading: false, isSuccess: false, isError: false, error: null,
 };
 
-jest.mock('@/hooks/api/classroom', () => ({
-  useTeacherClassrooms: () => queries.classrooms,
-  useClassroomStudents: () => queries.students,
-}));
+const queries: { classes: QueryState<BotCardDto[]>; classDetail: DetailState } = {
+  classes: { data: [CLASS_A, CLASS_B], isPending: false, isSuccess: true, isError: false, error: null },
+  classDetail: IDLE_DETAIL,
+};
 
-/** 내기 성공 토스트 — 대상 표기가 사실과 맞는지 여기서 읽는다. */
-const toastSuccess = jest.fn();
-jest.mock('sonner', () => ({
-  toast: { success: (...args: unknown[]) => toastSuccess(...args), error: jest.fn() },
+/**
+ * `useClassDetail` 이 받은 반 id — **고른 반**(파생)으로 읽는지 잠근다.
+ * `?classId` 를 그대로 넘기면 남의 반·없는 반 id 로 읽으면서 화면은 첫 반을 보여 주는데, 인자를 안 보면 그래도 green 이다.
+ */
+const detailCalls: string[] = [];
+
+jest.mock('@/hooks/api/classroom', () => ({
+  ...jest.requireActual('@/hooks/api/classroom'),
+  useOperatorClasses: () => queries.classes,
+  useClassDetail: (classId: string) => {
+    detailCalls.push(classId);
+    return queries.classDetail;
+  },
 }));
 
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
-  useDispatchAssignment: () => ({
-    mutateAsync,
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
+  useDispatchAssignment: () => ({ mutateAsync, isPending: false, isError: false, error: null }),
+}));
+
+jest.mock('next/navigation', () => ({
+  ...jest.requireActual('next/navigation'),
+  useRouter: () => ({ push, replace: jest.fn(), back: jest.fn(), prefetch: jest.fn() }),
+}));
+
+const toastSuccess = jest.fn();
+const toastError = jest.fn();
+jest.mock('sonner', () => ({
+  toast: { success: (...args: unknown[]) => toastSuccess(...args), error: (...args: unknown[]) => toastError(...args) },
 }));
 
 beforeEach(() => {
-  useAssignmentStore.setState({ dispatched: [], drafts: [], submissions: [], lastDispatched: null });
   mutateAsync.mockReset();
+  push.mockReset();
   toastSuccess.mockReset();
-  mutateAsync.mockResolvedValue({ assignment: { id: SERVER_ASSIGNMENT_ID } });
-  queries.classrooms = { data: { classrooms: [mockRoom] }, isPending: false, isError: false, error: null };
-  queries.students = { data: { students: mockStudents }, isPending: false, isError: false, error: null };
+  toastError.mockReset();
+  mutateAsync.mockImplementation(async ({ body }: { body: DispatchAssignmentBody }) => ({
+    id: 'asg_1', classId: 'cls_a', title: body.title, dueLabel: body.dueLabel,
+  }));
+  queries.classes = { data: [CLASS_A, CLASS_B], isPending: false, isSuccess: true, isError: false, error: null };
+  queries.classDetail = IDLE_DETAIL;
+  detailCalls.length = 0;
 });
 
-/** 내기 — 서버 응답을 기다린 뒤에야 로컬 사본이 쓰인다(낙관적 선반영을 하지 않는다). */
+/** 내기 — 서버 응답을 기다린 뒤에야 이동한다. */
 async function clickDispatch() {
   await act(async () => {
     fireEvent.click(screen.getByTestId('dispatch-btn'));
@@ -83,11 +121,34 @@ function fillTitle() {
   fireEvent.change(screen.getByTestId('title-input'), { target: { value: '배점 규칙 확인 과제' } });
 }
 
-it('기본 문항 배점 합은 100점이라 제목만 채우면 낼 수 있다', () => {
+/** 기본 5문항(mc·mc·short·numeric·essay)의 발문·정답·기준을 전부 채운다 — 정본이 요구하는 최소치. */
+function authorAllDefaults() {
+  for (let i = 0; i < 5; i++) {
+    fireEvent.change(screen.getByTestId(`question-prompt-${i}`), { target: { value: `${i + 1}번 발문` } });
+  }
+  fireEvent.change(screen.getByTestId('question-option-0-0'), { target: { value: '그대로' } });
+  fireEvent.change(screen.getByTestId('question-option-0-1'), { target: { value: '오른다' } });
+  fireEvent.change(screen.getByTestId('question-option-1-0'), { target: { value: '참' } });
+  fireEvent.change(screen.getByTestId('question-option-1-1'), { target: { value: '거짓' } });
+  fireEvent.change(screen.getByTestId('question-answer-2'), { target: { value: '증발' } });
+  fireEvent.change(screen.getByTestId('question-answer-3'), { target: { value: '42' } });
+  fireEvent.change(screen.getByTestId('question-criterion-4-0'), { target: { value: '근거를 썼어요' } });
+  fireEvent.change(screen.getByTestId('question-criterion-4-1'), { target: { value: '결론이 있어요' } });
+}
+
+/** 마지막 `mutateAsync` 호출의 본문. */
+function sentBody(): DispatchAssignmentBody {
+  return (mutateAsync.mock.calls[0][0] as { body: DispatchAssignmentBody }).body;
+}
+
+/* ── 정본이 요구하는 것 — 발문 전부·정답 ─────────────────────────────────── */
+
+it('발문이 비어 있으면 낼 수 없다 — 정본은 문항마다 발문을 요구하고 자동 추출 폴백은 없다', () => {
   render(<AssignmentForm />);
   fillTitle();
   expect(screen.getByTestId('points-tally').textContent).toContain('100 / 100점');
-  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('모든 문항의 발문을 써야');
 });
 
 it('배점 합계가 100이 아니면 내기를 막고 이유를 보여 준다', () => {
@@ -108,56 +169,9 @@ it('문항 더하기·점수 자동 분배로 다시 100점을 맞출 수 있다
   expect(screen.getByTestId('points-tally').textContent).toContain('100 / 100점');
 });
 
-it('발문을 전부 채워 내면 그 문항이 학생 풀이에 그대로 쓰인다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  // 기본 5문항 중 1문항만 남기고 발문을 채운다
-  for (let i = 4; i >= 1; i--) {
-    fireEvent.click(screen.getByRole('button', { name: `${i + 1}번 문항 지우기` }));
-  }
-  fireEvent.change(screen.getByTestId('question-points-0'), { target: { value: '100' } });
-  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '얼음이 녹는 동안 온도는?' } });
-  fireEvent.change(screen.getByTestId('question-option-0-0'), { target: { value: '그대로' } });
-  fireEvent.change(screen.getByTestId('question-option-0-1'), { target: { value: '오른다' } });
-  await clickDispatch();
-
-  // 서버가 소유권·대상을 검사한 뒤에야 로컬 사본이 생긴다 — id 도 서버가 준 것이다
-  expect(mutateAsync).toHaveBeenCalledWith(
-    expect.objectContaining({ botId: 'cb_001', questionCount: 1, difficulty: '중', mode: 'practice' }),
-  );
-  const [dispatched] = useAssignmentStore.getState().dispatched;
-  expect(dispatched.id).toBe(SERVER_ASSIGNMENT_ID);
-  expect(dispatched.questions).toHaveLength(1);
-  expect(getQuestionsForAssignment(dispatched)[0]).toMatchObject({
-    prompt: '얼음이 녹는 동안 온도는?',
-    points: 100,
-    type: 'mc',
-    answerIndex: 0,
-  });
-});
-
-/*
-  문항 **본문**은 아직 서버에 저장되는 자리가 없어서(M2 경계 — `solve/__tests__/page.test.tsx`
-  의 `[M2 한계]`), 직접 쓴 발문은 낸 브라우저에만 남는다. 내기를 막는 것으로는 학생 쪽이
-  달라지지 않으므로(같은 테스트가 못박는다) 남는 수단은 **말해 주는 것**이다.
-*/
-it('직접 쓴 발문이 있으면 「이 브라우저에만 저장된다」고 알려 준다 — 고칠 수 없으면 말은 해야 한다', () => {
-  render(<AssignmentForm />);
-  expect(screen.queryByText(/이 브라우저에만 저장돼요/)).not.toBeInTheDocument();
-
-  fireEvent.change(screen.getByTestId('question-prompt-0'), {
-    target: { value: '얼음이 녹는 동안 온도는?' },
-  });
-
-  expect(screen.getByText(/이 브라우저에만 저장돼요/)).toBeInTheDocument();
-  // 다른 기기 학생이 무엇을 받는지까지 말한다 — 「저장 안 된다」만으로는 결과를 모른다.
-  expect(screen.getByText(/자동 추출된 문항/)).toBeInTheDocument();
-});
-
 it('발문을 다 썼는데 자동 채점 문항 정답이 비면 내기를 막고 문항 번호를 알려 준다', () => {
   render(<AssignmentForm />);
   fillTitle();
-  // 기본 5문항 중 단답 1문항만 남긴다 — 정답키를 비워 둔 상태
   for (let i = 4; i >= 0; i--) {
     if (i === 2) continue; // 3번(단답)만 남긴다
     fireEvent.click(screen.getByRole('button', { name: `${i + 1}번 문항 지우기` }));
@@ -168,26 +182,407 @@ it('발문을 다 썼는데 자동 채점 문항 정답이 비면 내기를 막�
   expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
   expect(screen.getByTestId('dispatch-blocked').textContent).toContain('1번 문항 정답');
 
-  // 정답을 채우면 내기가 열린다
   fireEvent.change(screen.getByTestId('question-answer-0'), { target: { value: '그대로' } });
   expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
 });
 
-it('발문을 비워 두면 문항을 싣지 않고 단원 자동 추출로 남긴다', async () => {
+it('수치 문항 정답이 숫자가 아니면 막는다 — 서버가 number 로 받는다', () => {
   render(<AssignmentForm />);
   fillTitle();
-  await clickDispatch();
+  authorAllDefaults();
+  fireEvent.change(screen.getByTestId('question-answer-3'), { target: { value: '마흔둘' } });
 
-  const [dispatched] = useAssignmentStore.getState().dispatched;
-  expect(dispatched.questions).toBeUndefined();
-  // 폴백이 살아 있어 학생 풀이 화면이 비지 않는다
-  expect(getQuestionsForAssignment(dispatched).length).toBeGreaterThan(0);
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('4번 수치 문항 정답은 숫자');
 });
 
-/**
- * 문항 수 상한 — 종전 `문항 수` 슬라이더가 걸던 `min 1 / max 연습 50 · 시험 60` 이
- * 문항 목록 편집기로 바뀌면서 사라져 51·61문항이 그대로 나가던 결함에 대한 회귀.
- */
+/* ── 본문 모양 — 정본 DTO 그대로 ─────────────────────────────────────────── */
+
+it('문항까지 한 요청으로 낸다 — 반 id 를 경로에, 문항은 서버 DTO 모양으로', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  expect(mutateAsync).toHaveBeenCalledTimes(1);
+  const { classId } = mutateAsync.mock.calls[0][0] as { classId: string };
+  expect(classId).toBe('cls_a');
+
+  const body = sentBody();
+  expect(body).toMatchObject({
+    title: '배점 규칙 확인 과제',
+    subject: '수학Ⅱ',
+    grade: '고2',
+    mode: 'practice',
+    difficulty: '중',
+    questionCount: 5,
+    state: 'todo',
+    // 반 전체 — 학생을 골라 내는 길은 정본 명단이 붙으면 열린다.
+    targetStudentIds: [],
+    examTimeLimitMin: null,
+  });
+  expect(body.questions).toHaveLength(5);
+  expect(body.questions.map((q) => q.order)).toEqual([0, 1, 2, 3, 4]);
+  expect(body.questions[0]).toEqual({ order: 0, type: 'mc', prompt: '1번 발문', options: ['그대로', '오른다'], answerKey: 0 });
+  expect(body.questions[2]).toEqual({ order: 2, type: 'short', prompt: '3번 발문', answerKey: '증발' });
+  expect(body.questions[3]).toEqual({ order: 3, type: 'numeric', prompt: '4번 발문', answerKey: 42 });
+  expect(body.questions[4]).toEqual({ order: 4, type: 'essay', prompt: '5번 발문' });
+  // 정본에 칸이 없는 것은 보내지 않는다 — 배점·루브릭·봇 한 마디·마감 시각.
+  expect(body).not.toHaveProperty('reasonHint');
+  expect(body).not.toHaveProperty('dueAt');
+  expect(body.questions.some((q) => 'points' in q || 'rubric' in q)).toBe(false);
+});
+
+it('dDay 는 정수로, dueLabel 은 표시 문자열로 함께 간다 — 서버는 둘 다 그대로 저장한다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(Number.isInteger(body.dDay)).toBe(true);
+  expect(body.dDay).toBe(1); // 기본 마감이 내일 22:00 이다
+  expect(typeof body.dueLabel).toBe('string');
+  expect(body.dueLabel).not.toBe('');
+});
+
+it('시험 과제는 제한 시간이 실리고(10~180), 연습은 null 이다', async () => {
+  render(<AssignmentForm />);
+  fireEvent.click(screen.getByTestId('mode-exam'));
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.mode).toBe('exam');
+  const limit = body.examTimeLimitMin as number;
+  expect(Number.isInteger(limit)).toBe(true);
+  expect(limit).toBeGreaterThanOrEqual(10);
+  expect(limit).toBeLessThanOrEqual(180);
+});
+
+it('낸 뒤에는 낸 과제 목록으로 가고, 반 이름으로 성공을 말한다', async () => {
+  render(<AssignmentForm />);
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  expect(push).toHaveBeenCalledWith('/teacher/assignment');
+  expect(toastSuccess.mock.calls[0][0]).toContain('고2 미적분 A반');
+  expect(toastSuccess.mock.calls[0][0]).toContain('반 전체');
+});
+
+it('서버가 거절하면 이동하지 않고 그 문구를 보여 준다', async () => {
+  mutateAsync.mockRejectedValueOnce(new Error('questions 는 최소 1개 이상이어야 합니다.'));
+  render(<AssignmentForm />);
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  expect(push).not.toHaveBeenCalled();
+  expect(toastError).toHaveBeenCalledWith('questions 는 최소 1개 이상이어야 합니다.');
+});
+
+/* ── 반 고르기 ───────────────────────────────────────────────────────────── */
+
+/** 드롭다운 선택지의 글자 — 반 이름 + 과목·학년 + 인원이 한 줄에 붙는다. */
+const optionTexts = () =>
+  Array.from((screen.getByTestId('class-select') as HTMLSelectElement).options).map(
+    (o) => o.textContent ?? '',
+  );
+
+/*
+  드롭다운은 **어느 반에 과제를 내는지 고르는 자리**다. 여기서 두 반을 구분 못 하면 그건 표시 회귀가
+  아니라 **오배포**다 — 아래 두 검사가 그것을 잠근다.
+*/
+it('선택지는 반 이름으로 선다 — 봇 이름이 그 자리를 덮지 않는다', () => {
+  render(<AssignmentForm />);
+
+  expect(optionTexts()[0]).toContain('고2 미적분 A반');
+  // 봇 이름(`card.name`)은 선택지에 한 글자도 오지 않는다.
+  expect(optionTexts().join('|')).not.toContain('수학 도우미');
+});
+
+it('같은 봇을 건 두 반도 서로 다른 선택지다 — 과목·학년까지 같아 이름 말고는 갈릴 것이 없다', () => {
+  // ADR-092 로 한 봇이 여러 반을 섬긴다. 그 두 반은 `name`·`profile` 이 **같은 `bots` 행**에서 온다.
+  const shared = CLASS_A.profile;
+  queries.classes = {
+    data: [
+      { ...CLASS_A, id: 'cls_1', className: '중2 수학 A반', profile: shared },
+      { ...CLASS_A, id: 'cls_2', className: '중2 수학 B반', profile: shared },
+    ],
+    isPending: false, isSuccess: true, isError: false, error: null,
+  };
+  render(<AssignmentForm />);
+
+  const [first, second] = optionTexts();
+  expect(first).toContain('중2 수학 A반');
+  expect(second).toContain('중2 수학 B반');
+  // 붙는 과목·학년·인원이 똑같으므로, 이름이 갈리지 않으면 두 줄이 **완전히 같은 글자**가 된다.
+  expect(first).not.toBe(second);
+});
+
+it('`className` 이 없는 옛 응답(#679 배포 전)은 `name` 으로 떨어진다 — 지금과 같게 동작한다', () => {
+  // 폴백이 있어서 이 FE 를 BE 보다 먼저 머지해도 된다(`classNameOf` 머리주석).
+  queries.classes = {
+    data: [{ id: 'cls_a', name: '고2 미적분 A반', description: null, isActive: true, role: 'teacher', profile: null }],
+    isPending: false, isSuccess: true, isError: false, error: null,
+  };
+  render(<AssignmentForm />);
+
+  expect(optionTexts()[0]).toContain('고2 미적분 A반');
+});
+
+it('?classId 로 들어오면 그 반이 골라져 있다 — 반 상세에서 진입한 그 반', () => {
+  render(<AssignmentForm initialClassId="cls_b" />);
+  expect((screen.getByTestId('class-select') as HTMLSelectElement).value).toBe('cls_b');
+});
+
+it('모르는 classId 면 첫 반으로 연다 — 없는 반을 고른 척하지 않는다', () => {
+  render(<AssignmentForm initialClassId="cls_nope" />);
+  expect((screen.getByTestId('class-select') as HTMLSelectElement).value).toBe('cls_a');
+});
+
+/* ── 과목·학년 — 봇 → 반 → 교사 ─────────────────────────────────────────── */
+
+/*
+  2026-09-18 dev 에 `subject:"과목 미정"` · `grade:"학년 미정"` 이 그대로 저장돼 있었다. 그 두 글자는 어디에도
+  없던 값이고, 화면에 칸이 없어 교사가 고칠 수도 없었다. 아래 다섯이 그 자리를 잠근다 —
+  **지어낸 값을 보내지 않는다 · 반이 든 값을 읽는다 · 그래도 비면 교사에게 묻는다.**
+*/
+
+it('봇이 안 붙은 반은 반이 든 과목·학년으로 채운다 — 「미정」을 지어내지 않는다', async () => {
+  // 카드의 `profile` 은 null(봇 없음)이고, 반 자체는 `classes.subject`·`grade` 를 든다(ADR-092).
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '중3' }), isPending: false, isSuccess: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.subject).toBe('국어');
+  expect(body.grade).toBe('중3');
+});
+
+it('봇에 적힌 과목·학년이 먼저다 — 반이 다른 값을 들고 있어도 지금 나가던 값이 안 바뀐다', async () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL,
+    data: classDto({ id: 'cls_a', subject: '반이 든 과목', grade: '반이 든 학년' }),
+    isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_a" />); // CLASS_A.profile = 수학Ⅱ · 고2
+  fillTitle();
+  authorAllDefaults();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.subject).toBe('수학Ⅱ');
+  expect(body.grade).toBe('고2');
+});
+
+it('반에도 봇에도 안 적혀 있으면 내기를 막는다 — 빈 칸을 지어낸 글자로 메우지 않는다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true }; // subject·grade 둘 다 null
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+  expect(screen.getByTestId('subject-err')).toBeInTheDocument();
+  expect(screen.getByTestId('grade-err')).toBeInTheDocument();
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('');
+  expect((screen.getByTestId('grade-select') as HTMLSelectElement).value).toBe('');
+});
+
+it('교사가 적으면 그 글자가 그대로 나간다 — 비어 있던 칸을 교사가 채울 수 있다', async () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
+  fireEvent.change(screen.getByTestId('grade-select'), { target: { value: '중3' } });
+
+  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
+  await clickDispatch();
+
+  const body = sentBody();
+  expect(body.subject).toBe('국어');
+  expect(body.grade).toBe('중3');
+});
+
+it('반을 바꾸면 앞 반에 맞춰 적은 과목이 따라가지 않는다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, data: classDto(), isPending: false, isSuccess: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '손으로 적은 과목' } });
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('손으로 적은 과목');
+
+  fireEvent.change(screen.getByTestId('class-select'), { target: { value: 'cls_a' } });
+  // cls_a 는 봇이 과목을 든 반 — 자동 채움으로 되돌아간다.
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('수학Ⅱ');
+});
+
+it('반 상세를 아직 읽는 중이면 빈 칸을 잘못이라고 말하지 않는다 — 다만 낼 수도 없다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+/*
+  `isLoading` 은 `isPending && isFetching` 이라 **실패하면 false** 다. 그것만 보고 빨간 글씨를 띄우면
+  못 읽은 것을 「어디에도 안 적혀 있다」로 그리고, 교사는 반이 이미 든 과목과 다른 글자를 적어 낸다.
+*/
+it('반 상세를 못 읽으면 「안 적혀 있다」고 하지 않는다 — 못 읽었다고 말하고 직접 정하게 한다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, isPending: false, isError: true, error: new Error('서버가 응답하지 않아요.'),
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.queryByTestId('grade-err')).toBeNull();
+  expect(screen.getByTestId('class-detail-error')).toBeInTheDocument();
+  // 그래도 못 낸다 — 빈 과목·학년은 서버가 거절한다.
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('봇이 이미 채운 반은 상세를 못 읽어도 아무 말 하지 않는다 — 자동 채움이 비지 않았다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isPending: false, isError: true, error: new Error('끊김') };
+  render(<AssignmentForm initialClassId="cls_a" />); // CLASS_A.profile = 수학Ⅱ · 고2
+
+  expect(screen.queryByTestId('class-detail-error')).toBeNull();
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('수학Ⅱ');
+});
+
+it('교사가 먼저 적은 글자를 늦게 온 자동 채움이 덮지 않는다 — `null` 초기값이 하는 일', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true }; // 상세는 아직 오는 중
+  const { rerender } = render(<AssignmentForm initialClassId="cls_b" />);
+  fireEvent.change(screen.getByTestId('subject-input'), { target: { value: '국어' } });
+
+  // 이제 상세가 도착한다 — 반은 다른 과목을 들고 있다.
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '수학', grade: '중3' }), isPending: false, isSuccess: true,
+  };
+  rerender(<AssignmentForm initialClassId="cls_b" />);
+
+  expect((screen.getByTestId('subject-input') as HTMLInputElement).value).toBe('국어');
+});
+
+/*
+  손으로 적게 두면 「고2」·「고 2」·「2학년」이 섞인다(`lib/grades.ts`). 반 만들기·봇 만들기가 이미 고르개를 쓰므로
+  `assignments.grade` 에 쓰는 이 칸도 같은 목록에서 고른다.
+*/
+it('학년은 목록에서 고른다 — 초1~고3 열둘이 선택지다', () => {
+  render(<AssignmentForm initialClassId="cls_a" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+  const values = Array.from(select.options).map((o) => o.value);
+
+  expect(values).toContain('초1');
+  expect(values).toContain('고3');
+  expect(values.filter((v) => v !== '')).toHaveLength(12);
+  expect(select.value).toBe('고2'); // 봇이 든 값이 골라져 있다
+});
+
+it('목록에 없는 학년이 자동으로 차 오면 그 값을 선택지로 세운다 — 옛 글자를 조용히 지우지 않는다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '고 2' }), isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+
+  expect(select.value).toBe('고 2');
+  expect(Array.from(select.options).map((o) => o.value)).toContain('고 2');
+});
+
+it('반이 서기 전에는 과목·학년을 못 건드린다 — 적어 둔 글자가 뒤늦게 선 반을 이기지 못하게', () => {
+  queries.classes = { data: undefined, isPending: true, isSuccess: false, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('subject-input')).toBeDisabled();
+  expect(screen.getByTestId('grade-select')).toBeDisabled();
+});
+
+it('상세는 고른 반 id 로 읽는다 — 모르는 `?classId` 로 읽지 않는다', () => {
+  render(<AssignmentForm initialClassId="cls_nope" />);
+
+  expect(detailCalls).toContain('cls_a'); // 화면이 첫 반을 보여 주므로 읽는 것도 그 반이어야 한다
+  expect(detailCalls).not.toContain('cls_nope');
+});
+
+/*
+  「모른다」는 실패 말고도 모양이 하나 더다 — 연결이 끊기면 `fetchStatus: 'paused'` 라 `isError` 도 거짓이다.
+  `isError` 만 보면 그 자리에 빨간 글씨도 안내도 없이 빈 칸과 잠긴 버튼만 남아, 아무도 이유를 말하지 않는다.
+*/
+it('끊겨서 못 읽은 것도 못 읽었다고 말한다 — 실패만 말하고 끊김을 빼두지 않는다', () => {
+  queries.classDetail = IDLE_DETAIL; // isLoading·isSuccess·isError 셋 다 거짓
+  render(<AssignmentForm initialClassId="cls_b" />);
+  fillTitle();
+  authorAllDefaults();
+
+  expect(screen.getByTestId('class-detail-error')).toBeInTheDocument();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('오는 중에는 못 읽었다고도 하지 않는다 — 곧 채워질 수 있다', () => {
+  queries.classDetail = { ...IDLE_DETAIL, isLoading: true };
+  render(<AssignmentForm initialClassId="cls_b" />);
+
+  expect(screen.queryByTestId('class-detail-error')).toBeNull();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+});
+
+it('목록 밖 학년을 한 번 벗어나도 되돌아갈 수 있다 — 고르는 동안 선택지가 사라지지 않는다', () => {
+  queries.classDetail = {
+    ...IDLE_DETAIL, data: classDto({ subject: '국어', grade: '고 2' }), isPending: false, isSuccess: true,
+  };
+  render(<AssignmentForm initialClassId="cls_b" />);
+  const select = screen.getByTestId('grade-select') as HTMLSelectElement;
+
+  fireEvent.change(select, { target: { value: '고2' } }); // 목록에 있는 값으로 고친다
+  expect(select.value).toBe('고2');
+  // 옛 값 줄이 남아 있어야 되돌아갈 수 있다 — 같은 option 을 다시 골라도 onChange 는 안 뜬다.
+  expect(Array.from(select.options).map((o) => o.value)).toContain('고 2');
+
+  fireEvent.change(select, { target: { value: '고 2' } });
+  expect(select.value).toBe('고 2');
+});
+
+it('반 목록이 아직 안 왔으면 과목 칸을 잘못이라고 말하지 않는다 — 고를 반이 없어 빈 것뿐이다', () => {
+  queries.classes = { data: undefined, isPending: true, isSuccess: false, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+  expect(screen.queryByTestId('grade-err')).toBeNull();
+});
+
+it('운영하는 반이 하나도 없어도 과목 칸이 빨개지지 않는다 — 빈 상태 카드가 이미 이유를 말한다', () => {
+  queries.classes = { data: [], isPending: false, isSuccess: true, isError: false, error: null };
+  render(<AssignmentForm />);
+
+  expect(screen.getByTestId('rooms-empty')).toBeInTheDocument();
+  expect(screen.queryByTestId('subject-err')).toBeNull();
+});
+
+it('운영하는 반이 없으면 낼 곳이 없다고 말하고 내 수업방으로 보낸다', () => {
+  queries.classes = { data: [], isPending: false, isSuccess: true, isError: false, error: null };
+  render(<AssignmentForm />);
+  expect(screen.getByTestId('rooms-empty')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /내 수업방으로/ })).toHaveAttribute('href', '/teacher/classroom');
+  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
+});
+
+it('반 목록을 못 읽으면 오류 카드를 띄운다 — 401 은 이미 로그인으로 갔다', () => {
+  queries.classes = { data: undefined, isPending: false, isSuccess: false, isError: true, error: new Error('서버가 응답하지 않아요.') };
+  render(<AssignmentForm />);
+  expect(screen.getByTestId('rooms-error')).toHaveTextContent('서버가 응답하지 않아요.');
+});
+
+/* ── 문항 수 상한 (spec 14 §5.1) ─────────────────────────────────────────── */
+
 function addQuestions(times: number) {
   for (let i = 0; i < times; i++) fireEvent.click(screen.getByTestId('question-add'));
 }
@@ -222,260 +617,23 @@ it('시험에서 51문항을 만든 뒤 연습으로 되돌리면 상한 초과�
   expect(screen.getByTestId('question-add')).toBeDisabled();
 });
 
-it('발문을 일부만 쓰면 내기를 막는다 — 쓴 발문이 조용히 버려지지 않게', () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  // 5문항 중 1번만 발문을 채운다 → toAssignmentQuestions 가 null 을 돌려 전부 버려지던 자리
-  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '기울기를 구하는 식은?' } });
-
-  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
-  expect(screen.getByTestId('dispatch-blocked').textContent).toContain('발문은 전부 쓰거나 전부 비워야 해요');
-
-  // 다시 비우면(=전부 비움) 단원 자동 추출 경로라 내기가 열린다
-  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '' } });
-  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
-});
-
-/* ── 명단·데모 분기 ─────────────────────────────────────────────────────── */
-
-it('명단을 못 읽으면 내기를 막는다 — 조회 실패가 「전원에게 내기」로 바뀌지 않게', () => {
-  // 빈 배열은 「학생 0명인 반」과 모양이 같고, 그때 나가는 targetStudentIds=[] 는
-  // 서버에서 **반 전체**로 읽힌다. 즉 막지 않으면 명단을 못 본 채 전원에게 나간다.
-  queries.students = {
-    data: undefined,
-    isPending: false,
-    isError: true,
-    error: new Error('명단을 불러오지 못했어요.'),
-  };
-  render(<AssignmentForm />);
-  fillTitle();
-
-  expect(screen.getByTestId('students-error')).toBeInTheDocument();
-  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
-});
-
-it('명단이 아직 안 왔을 때도 내기를 막는다 — 빈 명단과 구별되지 않는다', () => {
-  queries.students = { data: undefined, isPending: true, isError: false, error: null };
-  render(<AssignmentForm />);
-  fillTitle();
-
-  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
-});
+/* ── 마감 기본값 ─────────────────────────────────────────────────────────── */
 
 /*
-  막힌 이유가 둘인데 문구가 하나면 교사가 자기 잘못으로 읽는다. 명단을 못 읽어서 막힌 것은
-  ③ 섹션이 이미 「불러오는 중」·API 오류로 말하고 있고 교사가 할 수 있는 일도 없다 —
-  거기에 「최소 1명을 선택해주세요」까지 겹치면 안 골라서 막힌 것처럼 보인다.
-*/
-it('명단을 못 읽어 막힌 것을 「최소 1명」 탓으로 그리지 않는다', () => {
-  queries.students = {
-    data: undefined,
-    isPending: false,
-    isError: true,
-    error: new Error('명단을 불러오지 못했어요.'),
-  };
-  render(<AssignmentForm />);
-
-  expect(screen.getByTestId('students-error')).toBeInTheDocument();
-  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
-});
-
-it('명단이 아직 안 왔을 때도 「최소 1명」을 띄우지 않는다', () => {
-  queries.students = { data: undefined, isPending: true, isError: false, error: null };
-  render(<AssignmentForm />);
-
-  expect(screen.getByTestId('students-loading')).toBeInTheDocument();
-  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
-});
-
-it('고를 수 있는데 전부 껐을 때만 「최소 1명」을 띄운다', () => {
-  render(<AssignmentForm />);
-  // 기본은 전원 선택 — 하나씩 끄면 0명이 된다.
-  expect(screen.queryByTestId('target-empty-error')).not.toBeInTheDocument();
-  mockStudents.forEach(s => fireEvent.click(screen.getByTestId(`student-${s.id}`)));
-
-  expect(screen.getByTestId('target-empty-error')).toBeInTheDocument();
-  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
-});
-
-it('비로그인 데모(401)에서는 오류 카드를 띄우지 않는다 — 고장이 아니라 데모 상태다', () => {
-  queries.classrooms = {
-    data: undefined,
-    isPending: false,
-    isError: true,
-    // 401 판정은 `instanceof ApiClientError` + status 다 — 진짜 타입으로 세운다.
-    error: new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED'),
-  };
-  render(<AssignmentForm />);
-
-  expect(screen.queryByTestId('rooms-error')).not.toBeInTheDocument();
-});
-
-/*
-  데모의 방은 mock(`demo_*`)이라 서버에 없다 — 명단 조회도 401 로 돌아온다. 그 401 까지
-  숨겨야 「비로그인 데모는 고장이 아니다」가 화면 전체에서 성립한다. 수업방 카드만 고치고
-  ③ 대상 섹션을 두면 데모 진입마다 빨간 「로그인이 필요합니다.」가 남는다.
-*/
-it('비로그인 데모(401)에서는 대상 명단도 오류로 그리지 않는다 — 빈 방 안내로 내려간다', () => {
-  const unauthorized = new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED');
-  queries.classrooms = { data: undefined, isPending: false, isError: true, error: unauthorized };
-  queries.students = { data: undefined, isPending: true, isError: false, error: null };
-  render(<AssignmentForm />);
-
-  expect(screen.queryByTestId('students-error')).not.toBeInTheDocument();
-  expect(screen.queryByTestId('students-loading')).not.toBeInTheDocument();
-  // 명단을 못 읽은 게 아니라 「아직 아무도 안 들어온 방」이므로 내는 것도 막지 않는다.
-  fillTitle();
-  expect(screen.getByTestId('dispatch-btn')).not.toBeDisabled();
-});
-
-/*
-  빈 배열은 「0명」이 아니라 「반 전체」다(spec 14 §5.1). 인원수로 적으면 빈 방에 내기가
-  「0명에게 보냈어요」가 되는데, 실제로는 뒤에 참여 코드로 들어온 학생이 그대로 받는다 —
-  낸 사람에게 사실과 정반대로 읽힌다.
-*/
-it('빈 방에 내면 「0명」이 아니라 「반 전체」라고 말한다', async () => {
-  queries.students = { data: { students: [] }, isPending: false, isError: false, error: null };
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  const message = toastSuccess.mock.calls[0][0] as string;
-  expect(message).toContain('반 전체');
-  expect(message).not.toContain('0명');
-});
-
-it('명단을 아는 전원에게 내기는 인원수로 말한다 — 「반 전체」보다 많이 말한다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  expect(toastSuccess.mock.calls[0][0]).toContain(`${mockStudents.length}명 전체`);
-});
-
-it('내기 payload 에 교사가 고른 단원이 실린다 — 서버에서 읽는 화면이 단원을 잃지 않게', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  expect(mutateAsync).toHaveBeenCalledTimes(1);
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  expect(typeof payload.scope).toBe('string');
-  expect(payload.scope).not.toBe('');
-  expect(payload.chapterFrom).toBe(payload.scope);
-  expect(payload.chapterTo).toBe(payload.scope);
-});
-
-/*
-  단원과 같은 이유로 나머지 셋도 payload 에 실려야 한다 — 로컬 사본에만 남으면 그건 이
-  브라우저뿐이고, 학생·학부모·리포트는 서버 행을 읽는다. 풀이 화면마저 접근 판정을 서버로
-  옮겼기 때문에 「로컬에 있으니 괜찮다」가 더는 성립하지 않는다.
-*/
-it('내기 payload 에 성취기준이 실린다 — 한 번 빈 배열로 저장되면 되살릴 수 없다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  expect(Array.isArray(payload.achievementCodes)).toBe(true);
-  expect(payload.achievementCodes).not.toHaveLength(0);
-  // 로컬 사본과 같은 값이어야 한다 — 갈라지면 교사가 낸 것과 학생이 받는 것이 달라진다.
-  expect(payload.achievementCodes).toEqual(
-    useAssignmentStore.getState().dispatched[0].achievementCodes,
-  );
-});
-
-it('내기 payload 에 봇 한 마디가 실린다 — 학생 개요가 읽는 값이다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  fireEvent.change(screen.getByLabelText(/봇 한 마디/), {
-    target: { value: '  어제 부호 변화에서 막혔던 사람들 다시 짚자  ' },
-  });
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  // 앞뒤 공백은 떼고 보낸다 — 서버도 `readTrimmed` 로 같은 판단을 한다.
-  expect(payload.reasonHint).toBe('어제 부호 변화에서 막혔던 사람들 다시 짚자');
-});
-
-it('봇 한 마디를 안 적으면 보내지 않는다 — 공백만 남기지 않는다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  fireEvent.change(screen.getByLabelText(/봇 한 마디/), { target: { value: '   ' } });
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  expect(payload.reasonHint).toBeUndefined();
-});
-
-it('시험 과제는 제한 시간이 실린다 — 서버 범위(10~180) 안이다', async () => {
-  render(<AssignmentForm />);
-  fireEvent.click(screen.getByTestId('mode-exam'));
-  fillTitle();
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  const limit = payload.examTimeLimitMin as number;
-  expect(Number.isInteger(limit)).toBe(true);
-  expect(limit).toBeGreaterThanOrEqual(10);
-  expect(limit).toBeLessThanOrEqual(180);
-});
-
-it('시험이 아니면 제한 시간을 보내지 않는다 — 서버도 그때는 null 로 떨어뜨린다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  expect(payload.examTimeLimitMin).toBeUndefined();
-});
-
-/*
-  마감 시각은 표시용 라벨과 **따로** 실린다. 라벨(「10월 2일 (목) 18:00」)만 보내면 서버가
-  「마감은 미래」(14 §5.1)를 검증할 방법이 없다 — 서버 `readDueAt` 주석이 「보내는 쪽(#269)이
-  실으면 필수로 좁힌다」고 적어 둔 자리를 여기서 채운다. 라벨도 계속 보낸다(서버 행의 표시
-  칸이라 지금은 둘 다 필요하다).
-*/
-it('내기 payload 에 진짜 마감 시각이 ISO 로 실린다 — 라벨만으로는 서버가 미래인지 못 본다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  const payload = mutateAsync.mock.calls[0][0] as Record<string, unknown>;
-  const dueAt = payload.dueAt as string;
-  expect(typeof dueAt).toBe('string');
-  // 파싱되는 ISO 8601 이어야 한다 — 서버가 `new Date()` 로 읽고 NaN 이면 400 이다.
-  const parsed = new Date(dueAt);
-  expect(Number.isNaN(parsed.getTime())).toBe(false);
-  // 반드시 미래 — 폼이 이미 잠그는 조건이고, 서버도 과거면 거절한다.
-  expect(parsed.getTime()).toBeGreaterThan(Date.now());
-  // 표시용 라벨은 그대로 함께 간다 — 하나가 다른 하나를 대신하지 않는다.
-  expect(typeof payload.dueLabel).toBe('string');
-  expect(payload.dueLabel).not.toBe('');
-});
-
-/*
-  마감 기본값 — `toISOString()` 은 **UTC 로 바꾼 뒤** 문자열을 주는데 `datetime-local` 은 받은
-  문자열을 **로컬로 읽는다.** KST 에서 로컬 22:00 을 그렇게 넣으면 화면에 `13:00` 이 떴다.
-  교사가 마감을 안 건드리면 그 값이 그대로 나가므로, 화면을 여는 순간이 이미 틀린 자리였다.
-
-  **이 회귀는 호스트 시간대가 UTC 면 드러나지 않는다** — 거기서는 UTC 판과 로컬 판의 출력이
-  같기 때문이다(실측: `TZ=UTC` 에서 `toISOString().slice(0,16)` 도 `…T22:00` 을 낸다). 그래서
-  아래 첫 테스트는 **호스트 TZ 를 타지 않는다** — 로컬 게터와 `toISOString()` 이 서로 다른 값을
-  내놓는 Date 를 만들어 넣고, 함수가 어느 쪽을 읽는지로 구현을 가른다.
+  `toISOString()` 은 **UTC 로 바꾼 뒤** 문자열을 주는데 `datetime-local` 은 받은 문자열을 **로컬로 읽는다.**
+  KST 에서 로컬 22:00 을 그렇게 넣으면 화면에 `13:00` 이 떴다. 이 회귀는 호스트 시간대가 UTC 면 드러나지 않으므로
+  아래 첫 테스트는 로컬 게터와 `toISOString()` 이 다른 값을 내는 Date 를 만들어 구현을 가른다.
 */
 it('toLocalDatetimeInput 은 로컬 게터만 읽는다 — UTC 로 새면 여기서 갈린다', () => {
-  // 로컬 22:00 = UTC 13:00 인 Date 를 흉내 낸다. 어느 시간대에서 돌려도 값이 고정이다.
   const localIs22ButUtcIs13 = {
     getFullYear: () => 2026,
-    getMonth: () => 8,          // 0-based = 9월
+    getMonth: () => 8,
     getDate: () => 15,
     getHours: () => 22,
     getMinutes: () => 0,
     toISOString: () => '2026-09-15T13:00:00.000Z',
   } as unknown as Date;
 
-  // UTC 를 타는 종전 구현이면 '2026-09-15T13:00' 이 나온다.
   expect(toLocalDatetimeInput(localIs22ButUtcIs13)).toBe('2026-09-15T22:00');
 });
 
@@ -489,73 +647,30 @@ it('마감 기본값이 내일 22:00 으로 뜬다 — 교사가 안 건드려�
   expect(due).toBe(
     `${expected.getFullYear()}-${pad(expected.getMonth() + 1)}-${pad(expected.getDate())}T22:00`,
   );
-  // 그 문자열을 로컬로 읽었을 때도 22시여야 한다 — 표기만 맞고 뜻이 틀리면 소용없다.
   expect(new Date(due).getHours()).toBe(22);
 });
 
-/*
-  모드별 Scope 는 spec 05 § 5.2 가 정하고 서버 `SCOPE_OVERRIDE_BY_MODE` 가 그대로 쥐고 있다.
-  FE 로컬 사본만 `mode === 'exam' ? 1 : undefined` 라 **오답정복이 봇 기본 Scope 로 떨어졌다** —
-  서버에서 한 번 고친 버그가 이쪽에는 안 왔다. 두 벌이 갈라지면 미리보기·비로그인 데모·
-  서버 성공 뒤 로컬 동기화 세 자리가 서버와 다른 값을 쥔다.
-*/
-it('오답정복 로컬 사본의 scopeOverride 가 5 다 — 서버 표와 갈라지지 않는다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  fireEvent.click(screen.getByTestId('mode-wrong-conquest'));
-  await clickDispatch();
+/* ── 걷어낸 자리 ─────────────────────────────────────────────────────────── */
 
-  // 서버는 `mode` 에서 직접 파생하므로 payload 에 없다 — 갈라진 것은 **로컬 사본**이다.
-  const [dispatched] = useAssignmentStore.getState().dispatched;
-  expect(dispatched.scopeOverride).toBe(5);
-});
-
-it('연습은 scopeOverride 를 보내지 않는다 — 봇 기본 Scope 를 쓴다는 뜻이다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  await clickDispatch();
-
-  const [dispatched] = useAssignmentStore.getState().dispatched;
-  expect(dispatched.scopeOverride).toBeUndefined();
-});
-
-it('시험은 scopeOverride 가 1 이다 — 종전 동작을 그대로 지킨다', async () => {
-  render(<AssignmentForm />);
-  fillTitle();
-  fireEvent.click(screen.getByTestId('mode-exam'));
-  await clickDispatch();
-
-  // 서버는 `mode` 에서 직접 파생하므로 payload 에 없다 — 갈라진 것은 **로컬 사본**이다.
-  const [dispatched] = useAssignmentStore.getState().dispatched;
-  expect(dispatched.scopeOverride).toBe(1);
-});
-
-/*
-  ⓑ 배치 — spec 14 § 3.3.1 · § 9.3 (2026-09-14 결정).
-*/
 it('진행도 숫자를 더 보여 주지 않는다 — 빈 폼이 이미 「4/5」라고 말하던 자리다', () => {
   render(<AssignmentForm />);
   expect(screen.queryByText(/진행도/)).toBeNull();
 });
 
-it('막힌 이유는 숫자 대신 문장으로 말한다', () => {
-  render(<AssignmentForm />);   // 제목이 비어 아직 못 낸다
-  fireEvent.change(screen.getByTestId('title-input'), { target: { value: '짧' } });
-  expect(screen.getByTestId('dispatch-btn')).toBeDisabled();
-});
-
-it('봇 한 마디가 ① 정체성에 있다 — 저장 컬럼이 reason_hint 라 일정이 아니다', () => {
+it('③ 대상은 고르는 칸이 아니라 「반 전체」 한 줄이다 — 정본 명단이 없어 학생을 고를 수 없다', () => {
   render(<AssignmentForm />);
-  const message = screen.getByLabelText(/봇 한 마디/);
-  const due = screen.getByTestId('due-input');
-  // DOM 순서상 봇 한 마디가 마감(④)보다 앞이어야 ① 에 있는 것이다.
-  expect(message.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-});
-
-it('③ 대상은 기본이 반 전체라 접혀 있고, 누르면 명단이 열린다', () => {
-  render(<AssignmentForm />);
-  // `hidden` 이라 접근성 트리에서도 빠진다 — 보조기기에 「고를 수 있다」고 알리지 않는다.
   expect(screen.queryByRole('group', { name: '대상 학생' })).toBeNull();
-  fireEvent.click(screen.getByTestId('target-expand'));
-  expect(screen.getByRole('group', { name: '대상 학생' })).toBeVisible();
+  expect(screen.queryByTestId('target-expand')).toBeNull();
+  expect(screen.getByText(/반 전체/)).toBeInTheDocument();
+});
+
+it('봇 한 마디 칸은 없다 — 정본 본문에 실을 자리가 없다', () => {
+  render(<AssignmentForm />);
+  expect(screen.queryByLabelText(/봇 한 마디/)).toBeNull();
+});
+
+it('「이 브라우저에만 저장돼요」 안내는 사라졌다 — 문항이 서버에 저장된다', () => {
+  render(<AssignmentForm />);
+  fireEvent.change(screen.getByTestId('question-prompt-0'), { target: { value: '얼음이 녹는 동안 온도는?' } });
+  expect(screen.queryByText(/이 브라우저에만 저장돼요/)).not.toBeInTheDocument();
 });

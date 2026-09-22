@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { Chip } from '@/components/ui/chip';
 import type { SelfBotRow } from '@/hooks/api/self-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { formatAddedAt } from '@/components/classbot/marketplace';
 
 /**
@@ -14,6 +14,12 @@ import { formatAddedAt } from '@/components/classbot/marketplace';
  *
  * 담은 목록에는 `{ botId, addedAt }` 두 칸밖에 없다(계약 §3 — 그 모양이 미래 API 의 행
  * 모양이라 늘리지 않는다). 이름·아바타·과목은 전부 **마켓 목록에서 찾아 붙인다.**
+ *
+ * ## 풀림 공식 봇 — 이름 밑에 사람을 적지 않는다
+ *
+ * 마켓 값을 그대로 흘리면 이름 밑이 「풀림 공식 · 풀림」이 된다 — 회사가 사람 이름 자리에
+ * 앉는 것이고, 마켓 카드에서 이미 걷어낸 칸이다(spec `03 § 4.13.3`). 담기 전에 참이던
+ * 규칙이 담았다고 거짓이 되지 않으므로, 여기서도 **같은 배지**로 대신한다.
  *
  * ## 못 찾았을 때 — 선생님이 공유를 내린 봇
  *
@@ -45,8 +51,6 @@ export function MyBotCard({
   onRemove: () => void;
   isRemoving: boolean;
 }) {
-  // 시그니처는 id 로도 잡힌다(`cb_001` → 수학) — 이름을 모르는 봇도 제 색을 쓴다.
-  const sig = botSignature({ id: row.botId, subject: bot?.subject });
   const addedLabel = formatAddedAt(row.addedAt);
   const name = bot?.name ?? '지금은 마켓에 없는 봇';
 
@@ -57,21 +61,32 @@ export function MyBotCard({
         data-testid={`my-bot-${row.botId}`}
       >
         <div className="flex items-start gap-3">
-          {/* ⚠️ 봇 색은 이 타일 한 곳만. 왼쪽 라이너를 덧대면 목록 hue 가 한도를 넘는다. */}
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
-            style={{ backgroundColor: sig.hex }}
-            aria-hidden
-          >
-            {bot?.avatarEmoji || '🤖'}
-          </span>
+          <BotAvatar subject={bot?.subject} name={bot?.name} size="lg" />
           <div className="min-w-0 flex-1">
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold">{name}</h3>
-            <p className="text-pullim-slate-500 mt-0.5 truncate text-2xs">
-              {bot
-                ? `${bot.teacherName}${bot.organization ? ` · ${bot.organization}` : ''}`
-                : '공유가 내려가 마켓에서는 안 보여요. 담아 둔 봇은 그대로 남아 있어요.'}
-            </p>
+            {bot?.isOfficial ? (
+              /*
+                공식 봇에는 만든 선생님이 없다 — 마켓 카드에서 이미 걷어낸 바로 그 칸이다
+                (spec `03 § 4.13.3`). 담고 나면 화면이 바뀐다는 뜻이 아니라, 담기 전이든
+                뒤든 **없는 사람을 있는 것처럼 적지 않는다**는 같은 규칙이 걸린다.
+                배지는 마켓 카드와 **한 벌**이다 — `tone="info"` · `Sparkles` · 낭독기 한 마디.
+                새 색이나 새 아이콘을 들이지 마라. 같은 봇을 두 화면이 다른 표시로 부르면
+                학생이 같은 봇인 줄 못 알아본다.
+              */
+              <p className="mt-1">
+                <Chip tone="info" data-testid={`my-bot-official-${row.botId}`}>
+                  <Sparkles aria-hidden />
+                  풀림 공식<span className="sr-only"> — 풀림이 제공하는 공식 봇이에요</span>
+                </Chip>
+              </p>
+            ) : (
+              /* 교사 봇과 **못 찾은 봇**은 종전 그대로 — 위 분기는 공식 봇에만 걸린다. */
+              <p className="text-pullim-slate-500 mt-0.5 truncate text-2xs">
+                {bot
+                  ? `${bot.teacherName}${bot.organization ? ` · ${bot.organization}` : ''}`
+                  : '공유가 내려가 마켓에서는 안 보여요. 담아 둔 봇은 그대로 남아 있어요.'}
+              </p>
+            )}
           </div>
         </div>
 

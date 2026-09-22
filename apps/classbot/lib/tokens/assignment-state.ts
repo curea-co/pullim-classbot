@@ -9,14 +9,18 @@
  *   - 색만으로 뜻을 전하지 않는다 — 카드에는 `semanticLabel`(글자)·모드 아이콘이 늘 함께 붙는다.
  *
  * 매트릭스:
- *   진행 중      → blue-600 progress · 회색 D-N 칩 · brand.50 라이너
+ *   시작 전      → 진행 중과 같은 면. 다른 것은 **글자**뿐이다 — 서버가 「안 냈다」고 말한 자리
+ *   진행 중      → blue-600 progress · 회색 D-N 칩 · brand.50 라이너 (제출 여부를 **모를 때**)
  *   마감 임박    → blue-800 progress (가장 진한 블루 = 가장 급함) · 진한 블루 칩 "내일" · blue 라이너
  *   지연         → danger progress · danger 칩 "지난 N일" · danger 라이너   ← 유일한 시맨틱 hue
  *   완료         → blue-300 progress (물러남) + 100% · 회색 "완료" 칩 + 체크 · blue-300 라이너
  *   오답정복     → blue-600 progress · **lime 칩 + lime 라이너**([§ 15.6] 모드 식별 시그니처)
  *   시험         → navy solid · navy 칩 "시험" · navy 라이너
  *
- * 우선순위: mode(exam/wrong-conquest) > state(overdue/submitted) > dDay(D-1/오늘) > 진행 중
+ * 우선순위: mode(exam/wrong-conquest) > 완료(`submitted === true`) > state(overdue) > dDay(D-1/오늘)
+ *          > 시작 전(`submitted === false`) / 진행 중(제출 여부를 모를 때)
+ *
+ * ⚠ **완료는 `submitted` 한 칸이 정한다** — `state` 가 아니다. 그 이유는 아래 완료 분기 주석에 적었다.
  */
 
 import type { Assignment, AssignmentMode } from '@/lib/mock';
@@ -66,10 +70,11 @@ export const assignmentModeBadge: Record<AssignmentMode, AssignmentModeBadge> = 
 };
 
 export type AssignmentVisualState =
-  | 'in-progress'
+  | 'not-started'   // submitted === false — 서버가 「안 냈다」고 말했다
+  | 'in-progress'   // 제출 여부를 모른다(옛 서버·운영자 관점) — 종전 기본값 자리
   | 'urgent'        // D-1/오늘
   | 'overdue'       // 지난 N일
-  | 'complete'      // submitted + completed = total
+  | 'complete'      // submitted === true
   | 'wrong-conquest' // mode = wrong-conquest
   | 'exam';         // mode = exam
 
@@ -83,8 +88,14 @@ export type AssignmentVisual = {
   dDayChipClass: string;
   /** D-day 라벨 (예: "내일", "지난 2일", "완료", "오답정복", "시험") */
   dDayLabel: string;
-  /** 의미적 라벨 — 색을 못 읽어도 이 글자로 상태를 안다 */
-  semanticLabel: '진행 중' | '마감 임박' | '지연' | '완료' | '오답정복' | '시험';
+  /**
+   * 의미적 라벨 — 색을 못 읽어도 이 글자로 상태를 안다.
+   *
+   * 「시작 전」은 **서버가 「안 냈다」고 말했을 때만** 선다. 학부모 화면이 같은 뜻에 이미 쓰는 말이다
+   * (`app/(parent)/parent/assignment-status.ts` 의 `todo`). 반대로 「진행 중」은 이제 **모를 때만** 서는
+   * 라벨이다 — 시작했는지 아닌지 말해 주는 칸이 정본에 없어서, 모르는 동안은 #681 이전 그림을 그대로 둔다.
+   */
+  semanticLabel: '시작 전' | '진행 중' | '마감 임박' | '지연' | '완료' | '오답정복' | '시험';
 };
 
 /** "D-1" / "D-9" 등에서 일수 추출. "오늘"·"내일"은 1, "지난 N일"은 음수 처리. */
@@ -98,7 +109,20 @@ function parseDDay(dDay: string): { value: number; isOverdue: boolean } {
   return { value: 999, isOverdue: false };
 }
 
-export function getAssignmentVisual(a: Assignment): AssignmentVisual {
+/**
+ * 이 함수가 실제로 읽는 칸만 — 학생 목록의 서버 행(`AssignmentReadRow`)과 mock `Assignment` 둘 다 이 모양을
+ * 만족한다. 종전에는 `Assignment` 를 통째로 받아 호출부가 `as never` 로 캐스팅해야 했고, 그 캐스팅이
+ * **행에 `submitted` 가 실리는지 타입이 못 보게 막았다.**
+ */
+export type AssignmentVisualInput = Pick<Assignment, 'mode' | 'state' | 'dDay'> & {
+  /**
+   * 내가 냈는가 — `true` 냄 · `false` 안 냄 · `null`/없음 **모른다**(서버가 아직 안 싣거나 운영자 관점).
+   * 「모른다」는 완료가 아니지만 **「안 냄」도 아니다** — 아래 완료 분기만 건너뛰고 마감일이 말하게 둔다.
+   */
+  submitted?: boolean | null;
+};
+
+export function getAssignmentVisual(a: AssignmentVisualInput): AssignmentVisual {
   // 1) 모드 기반 (시험 > 오답정복)
   if (a.mode === 'exam') {
     return {
@@ -125,8 +149,13 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     };
   }
 
-  // 2) 완료 (state == submitted 또는 completedCount == questionCount)
-  const isComplete = a.state === 'submitted' || a.completedCount >= a.questionCount;
+  // 2) 완료 — **서버가 「냈다」고 말한 것만** 이다(pullim-api #681 의 `submitted`).
+  //    종전에는 `state === 'submitted' || completedCount >= questionCount` 였는데 둘 다 못 쓴다:
+  //    `state` 는 과제당 하나뿐인 자유 문자열이라 배포 폼이 넣는 `'todo'` 에서 영영 안 움직이고,
+  //    `completedCount` 는 그 `submitted` 의 투영이라 같은 말을 두 번 하는 것이다.
+  //    `false`(안 냄)와 `null`/없음(모른다)은 **둘 다 여기서 안 멈춘다** — 다만 그 차이는 완료 여부가
+  //    아니라 「안 냈다고 말해도 되는가」에 있고, 그 답은 화면(KPI·결과)이 한다.
+  const isComplete = a.submitted === true;
   if (isComplete) {
     return {
       state: 'complete',
@@ -175,13 +204,17 @@ export function getAssignmentVisual(a: Assignment): AssignmentVisual {
     };
   }
 
-  // 5) 진행 중 (기본)
+  // 5) 기본 — 급하지도 지나지도 않은 자리. 여기서 **아는 것과 모르는 것이 갈린다.**
+  //    서버가 「안 냈다」고 말했으면 「시작 전」이고, 모르면 종전대로 「진행 중」이다.
+  //    「아직이에요 5건」 위에 카드 다섯 장이 「진행 중」으로 서 있으면 한 화면이 두 말을 한다 —
+  //    그걸 막는 자리가 여기다. 색은 같은 단계로 둔다(상태 차이는 hue 가 아니라 글자가 말한다 · [08 § 14.1]).
+  const knowsNotSubmitted = a.submitted === false;
   return {
-    state: 'in-progress',
+    state: knowsNotSubmitted ? 'not-started' : 'in-progress',
     progressClass: 'bg-pullim-blue-600',
     linerHex: palette.primary[50],
     dDayChipClass: 'bg-pullim-slate-100 text-pullim-slate-600',
     dDayLabel: a.dDay,
-    semanticLabel: '진행 중',
+    semanticLabel: knowsNotSubmitted ? '시작 전' : '진행 중',
   };
 }

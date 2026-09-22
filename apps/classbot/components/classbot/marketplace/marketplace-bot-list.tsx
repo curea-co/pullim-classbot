@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { LogIn, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -44,11 +44,21 @@ export function MarketplaceBotList({
   const query = useMarketplaceBots();
 
   /*
-    401 은 고장이 아니라 **로그인 안 한 상태**다. 마켓은 신원이 있어야 열리므로
-    (마켓 계약 §2) 로그인 없이 들어오면 언제나 이 답이 온다 — prod 를 훑는
-    prod-verify 도 그 상태다. 여기에 빨간 「불러오지 못했어요」를 띄우면 멀쩡한 화면이
-    매번 고장 난 것처럼 보인다. 내 수업방 화면이 같은 401 을 같은 이유로 에러에서
-    빼 두었다(`app/(student)/classbot/classroom/page.tsx`).
+    401 은 고장이 아니다 — **아직 열리지 않은 문**이다. 이 갈래를 에러에서 뺀 판단은
+    그대로 둔다. 여기에 빨간 「불러오지 못했어요」를 띄우면 멀쩡한 화면이 매번 고장 난
+    것처럼 보인다(내 수업방이 같은 401 을 같은 이유로 에러에서 뺐다 —
+    `app/(student)/classbot/classroom/page.tsx`).
+
+    ⛔ **다만 문구로 로그인을 시키지 마라.** 이 자리는 「로그인하면 봇 마켓을 볼 수 있어요」
+    였는데 **그 말이 참이 아니다.** 마켓은 같은 오리진 route handler(`app/api/marketplace/*`)
+    가 답하고, 그 핸들러는 OS 세션 서명을 풀 열쇠가 없다(`lib/current-user.ts` 머리주석).
+    개발 신원 쿠키도 로컬 호스트에서만 열린다(`lib/dev-identity.ts` 의 `DEV_IDENTITY_HOSTNAMES`).
+    그래서 배포본에서는 **로그인해도 401 이 온다** — 로그인 화면으로 보내 놓고 아무 일도
+    일어나지 않게 만드는 안내였다. 마켓을 정본(pullim-api)으로 옮기기 전까지(계획 5e)
+    사실인 말은 「아직 준비 중」이다. **되돌리지 마라.**
+
+    아래 이름(`isSignedOut` · `data-testid="marketplace-signin"`)은 그 사실을 알기 전에
+    붙였다. e2e 가 잡고 있어 이번 문구 수정에서는 그대로 두었다 — 정본 이전 때 함께 간다.
   */
   const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
 
@@ -66,9 +76,26 @@ export function MarketplaceBotList({
 
   return (
     <section>
+      {/*
+        `description` 을 넘기지 않는다. 이 자리에 「선생님들이 직접 만들어 공유한 봇이에요.」가
+        있었는데 바로 위 제목 「공유된 봇 N개」가 이미 같은 말이었다 — 화면이 이미 말하는
+        부제는 적지 않는다(07 § 6.7). **되살리지 마라**: 학생·교사 두 셸이 이 한 벌을 쓰므로
+        여기 한 줄이 두 화면에 동시에 되풀이로 돌아온다. 교사 쪽 설명은 페이지 헤더가 든다
+        (`app/(teacher)/teacher/marketplace/page.tsx`).
+
+        부제가 빠지면서 정렬도 바뀐다. `SectionHeading` 은 `sm:items-end` 라 제목+부제(44px)와
+        44px 버튼을 밑선으로 맞췄는데, 이제 왼쪽이 제목 한 줄(20px)뿐이라 밑선에 맞추면 제목
+        위로 24px 빈 칸이 생긴다(실측: 행 48→44px, 제목 offsetTop 0→24). 여기서 가운데로 맞춘다.
+
+        ⚠ 이건 **이 호출처만** 고친 것이다. `SectionHeading` 은 부제 없이 action 만 있는 모양을
+        늘 `sm:items-end` 로 그리고, 같은 모양이 지금 셋이다(교사 홈 「먼저 볼 학생」·
+        `class-reach-roster` 「학생 한 줄 보기」·여기). 나머지 둘은 이 PR 이전부터 그랬던
+        자리라 손대지 않았다 — `components/shell/*` 는 이 리포에서 사용자 확인 사항이라
+        (`apps/classbot/CLAUDE.md § 5`) 셋을 한 번에 고치는 건 별건으로 올린다.
+      */}
       <SectionHeading
+        className="sm:items-center"
         title={query.isPending || isSignedOut ? '공유된 봇' : `공유된 봇 ${bots.length}개`}
-        description="선생님들이 직접 만들어 공유한 봇이에요."
         action={headingAction}
       />
 
@@ -80,9 +107,18 @@ export function MarketplaceBotList({
       ) : isSignedOut ? (
         <div data-testid="marketplace-signin">
           <EmptyState
-            icon={LogIn}
-            title="로그인하면 봇 마켓을 볼 수 있어요"
-            description="선생님들이 공유한 봇은 로그인한 뒤에 둘러볼 수 있어요."
+            icon={Store}
+            title="봇 마켓은 아직 준비 중이에요"
+            /*
+              「선생님들이」라는 한정을 걷었다 — 이 목록에는 풀림이 만든 기본 봇도 함께
+              선다(spec `03 § 4.13.1` · 문구 지시는 `§ 4.13.2`). 대신 바로 위 제목이 쓰는
+              말(「공유된 봇」)을 그대로 이어 받는다. 한 화면에서 같은 목록을 두 이름으로
+              부르지 않으려는 것이다. 되돌리지 마라.
+
+              `marketplace-bot-detail.tsx` 가 이 두 줄을 **글자까지 그대로** 쓴다 — 목록과
+              상세가 같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
+            */
+            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
           />
         </div>
       ) : bots.length === 0 ? (

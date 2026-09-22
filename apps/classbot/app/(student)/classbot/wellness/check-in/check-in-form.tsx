@@ -4,13 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Check, Heart } from 'lucide-react';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { EmotionEmojiPicker } from '@/components/classbot/emotion-emoji-picker';
 import BackLink from '@/components/classbot/back-link';
 import { Textarea } from '@/components/ui/textarea';
 import { type EmotionMood } from '@/lib/mock';
 import { getCheckInReaction } from '@/lib/mock/classbot-wellness-bot';
 import { useClassBots } from '@/lib/store/mode-bots';
-import { useRosterMe } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 import { botSignature } from '@/lib/tokens/bot-signature';
 
 /**
@@ -19,7 +20,7 @@ import { botSignature } from '@/lib/tokens/bot-signature';
  */
 export function CheckInForm() {
   const router = useRouter();
-  const me = useRosterMe();
+  const me = useStudentMe();
   // 체크인 봇 반응은 **반 봇**만 낸다 — 담은 봇에는 교사 관계가 없다(계약 §1).
   const enrolledBots = useClassBots();
   const [mood, setMood] = useState<EmotionMood | null>(null);
@@ -44,7 +45,9 @@ export function CheckInForm() {
 
   if (done) {
     // [13 § 3.3.4] 체크인 사후 봇 반응 — 가장 낮은 영역 담당 봇이 한 줄 + actionable CTA
-    const reaction = getCheckInReaction(me.id, mood, enrolledBots);
+    // 반응은 **목 웰빙 기록**에서 나온다 — 키는 roster id 다(신원 id 가 아니다).
+    // 실계정에는 그 행이 없어 반응이 서지 않는다. 그 자리는 정본이 웰빙을 낼 때 찬다.
+    const reaction = getCheckInReaction(me.demo?.id ?? '', mood, enrolledBots);
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
         <div className="bg-pullim-blue-50 pullim-anim-message-mount flex h-20 w-20 items-center justify-center rounded-full">
@@ -59,12 +62,7 @@ export function CheckInForm() {
           return (
             <section className="bg-card pullim-anim-message-mount mt-4 w-full max-w-sm rounded-2xl border p-3 text-left">
               <div className="flex items-center gap-2">
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base"
-                  style={{ backgroundColor: sig.hex }}
-                >
-                  {reaction.bot.avatarEmoji}
-                </span>
+                <BotAvatar subject={reaction.bot.subject} name={reaction.bot.name} size="sm" />
                 {/* [13 § 9.3] 메타 토큰 — 12px(`text-xs`) text.tertiary(`text-pullim-slate-400`) */}
                 <div className="inline-flex items-center gap-1.5 text-xs">
                   <span className="text-pullim-slate-900 font-bold">{reaction.bot.name}</span>

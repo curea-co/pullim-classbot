@@ -19,16 +19,19 @@ const DEFAULT_OS_URL = 'http://os.pullim.local:3001';
 const DEFAULT_API_BASE = 'http://api.pullim.local:3000';
 
 /**
- * 풀림 OS base URL. Next 가 클라이언트 번들에 인라인하려면 **정적** 참조여야 한다
- * (api-client 의 NEXT_PUBLIC_API_URL 주석과 동일 이유 — 동적 우회는 치환 안 됨).
+ * 풀림 OS base URL. Next 가 클라이언트 번들에 인라인하려면 **정적** 참조여야 한다 —
+ * `globalThis.process` 같은 동적 우회는 치환 대상이 아니라 브라우저에서 늘 undefined 가 되고,
+ * 그러면 아래 로컬 기본값으로 굳어 배포에서 로그인 진입이 통째로 깨진다.
  */
 export const OS_URL = process.env.NEXT_PUBLIC_OS_URL || DEFAULT_OS_URL;
 
 /**
- * pullim-api base URL(OS SSO 모드). `/me`·`/auth/csrf`·`/auth/logout`·`/classbot/*` 호출 대상.
- * api-client 의 `NEXT_PUBLIC_API_URL`(= classbot BE base) 과는 **별개 변수**다. 둘이 충돌하지
- * 않도록 OS SSO/pullim-api base 는 전용 `NEXT_PUBLIC_OS_API_URL` 로 읽는다
- * (글로벌 envelope·`/api` 프리픽스 없음 — 경로는 `/me` 처럼 루트 기준).
+ * pullim-api base URL. `/me`·`/auth/csrf`·`/auth/logout`·`/classbot/*` 호출 대상.
+ * 경로는 `/me` 처럼 **루트 기준**이다 — 글로벌 envelope 도 `/api` 프리픽스도 없다.
+ *
+ * *(종전에는 api-client 의 `NEXT_PUBLIC_API_URL`(classbot 자체 BE base)과 헷갈리지 않게
+ * 전용 변수를 쓴다고 적어 두었다. 그 변수는 자체 인증과 함께 걷혔고, 지금 BE base 는 이
+ * 하나뿐이다.)*
  */
 export const API_BASE = process.env.NEXT_PUBLIC_OS_API_URL || DEFAULT_API_BASE;
 
@@ -98,6 +101,28 @@ function osAuthUrl(path: '/login' | '/signup', next: string, selfOrigin?: string
   const base = `${OS_URL}${path}`;
   if (!isSafeNext(next, selfOrigin)) return base;
   return `${base}?next=${encodeURIComponent(next)}`;
+}
+
+/**
+ * 현재 위치를 복귀 대상으로 실어 **OS 로그인으로 이동**한다.
+ *
+ * 클래스봇은 자체 로그인 화면을 갖지 않는다 — 로그인 진입은 전부 이 함수 하나를 지난다
+ * (헤더 프로필 메뉴 · 읽기 로그인 게이트). 계약을 한곳에 두는 이유는, 종전에 헤더와
+ * 읽기 게이트가 `?next=` 복귀를 **각자 만들어** 한쪽만 cross-host 승격을 하고 있었기 때문이다.
+ *
+ * cross-host(예: Dev — OS ≠ classbot 오리진)면 내부 경로만으론 OS 가 앱으로 못 돌아오므로
+ * `resolveReturnTarget` 이 앱 오리진 절대 URL 로 승격한다(same-origin 은 내부 경로 유지). (B-7)
+ *
+ * 브라우저에서만 동작한다 — 서버(SSR)에서는 현재 위치를 알 수 없어 아무것도 하지 않는다.
+ */
+export function redirectToOsLogin(): void {
+  if (typeof window === 'undefined') return;
+  const appOrigin = window.location.origin;
+  const target = resolveReturnTarget(
+    window.location.pathname + window.location.search,
+    appOrigin,
+  );
+  window.location.assign(osLoginUrl(target, appOrigin));
 }
 
 /** URL 문자열의 오리진을 안전하게 추출한다(파싱 실패 시 null). */

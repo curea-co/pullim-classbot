@@ -1,9 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, KeyRound, LogIn, MessageCircle, Store, UserRound, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  KeyRound,
+  MessageCircle,
+  Sparkles,
+  Store,
+  UserRound,
+  Users,
+} from 'lucide-react';
 
 import { AlertCard } from '@/components/classbot/alert-card';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { PageHeader } from '@/components/shell/page-header';
@@ -12,7 +21,6 @@ import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketplaceBot } from '@/hooks/api/marketplace';
 import { ApiClientError } from '@/lib/api/client-fetch';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { cn } from '@/lib/utils';
 import { formatPublishedAt } from './format';
 import { SelfAddButton } from './self-add-button';
@@ -50,7 +58,8 @@ export function MarketplaceBotDetail({
 }) {
   const query = useMarketplaceBot(botId);
   const bot = query.data?.bot ?? null;
-  // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 로그인 안 한 상태다.
+  // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 아직 열리지 않은 문이다.
+  // **로그인해도 401 이 온다**는 사실과 그 근거는 `marketplace-bot-list.tsx` 의 같은 자리에 있다.
   const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
   /*
     404 도 고장이 아니다 — 이 라우트의 404 는 「없는 주소」가 아니라 **「지금은 공개돼 있지
@@ -71,7 +80,6 @@ export function MarketplaceBotDetail({
     viewer === 'student'
       ? '공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요.'
       : '공유가 내려갔거나 아직 공개되지 않았어요. 다시 공유하면 여기에 보여요.';
-  const sig = botSignature({ id: botId, subject: bot?.subject });
   const publishedLabel = formatPublishedAt(bot?.publishedAt);
 
   return (
@@ -81,20 +89,32 @@ export function MarketplaceBotDetail({
         <PageHeader
           eyebrow={{ icon: Store, text: '봇 소개' }}
           title={bot?.name ?? '봇 상세'}
+          /*
+            한 줄 소개가 없을 때 대신 적는 말에서도 **「선생님이 만들어」라는 한정을 걷었다.**
+            지금 시드로는 공식 봇이 `blurb` 를 갖고 있어 이 자리에 닿지 않지만, 닿기만 하면
+            바로 위 배지가 「풀림 공식」이라 말하는 옆에서 「선생님이 만들어 공유한 봇」이
+            된다 — 같은 파일 안에서 같은 종류의 거짓이다(spec `03 § 4.13.3`). 한정을 걷으면
+            공식 봇이든 교사 봇이든 참이고, 이 화면이 아는 것(마켓에 올라와 있다)까지만
+            말한다. `blurb` 가 null 인 길은 교사가 소개를 안 적었을 때에도 열려 있다.
+          */
           description={
-            bot?.blurb ??
-            (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '선생님이 만들어 공유한 봇이에요.')
+            bot?.blurb ?? (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '마켓에 공유된 봇이에요.')
           }
-
         />
       </div>
 
       {isSignedOut ? (
         <div data-testid="marketplace-detail-signin">
           <EmptyState
-            icon={LogIn}
-            title="로그인하면 이 봇을 볼 수 있어요"
-            description="선생님들이 공유한 봇은 로그인한 뒤에 둘러볼 수 있어요."
+            icon={Store}
+            /*
+              제목·설명 둘 다 `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 두 화면이
+              같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
+              「선생님들이」라는 한정도 그대로 걷어 둔다 — 마켓에는 풀림이 만든 기본 봇도
+              함께 선다(spec `03 § 4.13.1` · `§ 4.13.3`).
+            */
+            title="봇 마켓은 아직 준비 중이에요"
+            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
           />
         </div>
       ) : isUnavailable ? (
@@ -120,18 +140,23 @@ export function MarketplaceBotDetail({
         <>
           <section className="bg-card rounded-2xl border p-5" data-testid="marketplace-detail">
             <div className="flex items-start gap-4">
-              <span
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
-                style={{ backgroundColor: sig.hex }}
-                aria-hidden
-              >
-                {bot.avatarEmoji || '🤖'}
-              </span>
+              <BotAvatar subject={bot.subject} name={bot.name} size="xl" />
               {/*
                 봇 이름을 여기서 다시 적지 않는다 — 바로 위 페이지 제목이 이미 그 이름이고,
                 한 화면에 같은 글자가 두 번 서면 둘 중 무엇이 제목인지 안 읽힌다.
               */}
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                {/*
+                  **카드와 같은 규칙**(spec `03 § 4.13.1`) — 공식 봇은 사람 이름 자리를
+                  「풀림 공식」 배지로 대신한다. 아래 `dl` 의 「만든 선생님」 줄이 빠지므로
+                  그 뜻을 이 배지가 든다. 배지 모양·색은 카드와 한 벌이다(`tone="info"`).
+                */}
+                {bot.isOfficial && (
+                  <Chip tone="info">
+                    <Sparkles aria-hidden />
+                    풀림 공식<span className="sr-only"> — 풀림이 제공하는 공식 봇이에요</span>
+                  </Chip>
+                )}
                 <Chip tone="neutral">{bot.subject}</Chip>
                 <Chip tone="outline">{bot.grade}</Chip>
                 <Chip tone="outline">{bot.tone} 말투</Chip>
@@ -139,11 +164,18 @@ export function MarketplaceBotDetail({
             </div>
 
             <dl className="mt-4 space-y-2">
-              {/* 호칭은 `teacherName` 에 이미 들어 있다 — 목록 카드와 같은 이유로 덧붙이지 않는다. */}
-              <Fact icon={UserRound} label="만든 선생님">
-                {bot.teacherName}
-                {bot.organization ? ` · ${bot.organization}` : ''}
-              </Fact>
+              {/*
+                **카드와 같은 규칙** — 공식 봇에는 만든 선생님이 없으니(소유자를 비운 행이다)
+                이 줄을 아예 내린다. 값이 비어서가 아니라 값이 사람이 아니어서다 —
+                「풀림 공식 · 풀림」을 여기 적으면 회사가 선생님 행세를 한다.
+                호칭은 `teacherName` 에 이미 들어 있다 — 목록 카드와 같은 이유로 덧붙이지 않는다.
+              */}
+              {!bot.isOfficial && (
+                <Fact icon={UserRound} label="만든 선생님">
+                  {bot.teacherName}
+                  {bot.organization ? ` · ${bot.organization}` : ''}
+                </Fact>
+              )}
               <Fact icon={Store} label="공유한 날">
                 {publishedLabel ?? '알 수 없어요'}
               </Fact>

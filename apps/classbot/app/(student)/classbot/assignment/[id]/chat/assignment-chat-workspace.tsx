@@ -29,8 +29,8 @@ import {
   useAssignmentChatTurns,
   type AssignmentChatTurn,
 } from '@/lib/store/assignment-chat';
-import { useAssignmentStore } from '@/lib/store/assignments';
-import { useRosterMe } from '@/lib/current-user';
+import { useSubmissionResult } from '@/lib/store/submission-result';
+import { useStudentMe } from '@/lib/current-user';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { cn } from '@/lib/utils';
 
@@ -53,7 +53,7 @@ export function AssignmentChatWorkspace({
   questions: AssignmentQuestion[];
   bot: ChatBotFace;
 }) {
-  const me = useRosterMe();
+  const me = useStudentMe();
 
   const turns = useAssignmentChatTurns(assignment.id);
   const seed = useAssignmentChatStore(s => s.seed);
@@ -70,8 +70,9 @@ export function AssignmentChatWorkspace({
     dueLabel: assignment.dueLabel,
     botName: bot.name,
     assignedBy: assignment.assignedBy,
-    studentName: me.name,
-  }), [assignment, bot.name, me.name]);
+    // ⛔ 학생 이름은 여기 넣지 않는다 — 이 맥락으로 만든 말풍선은 저장되는 쪽이고
+    // (`lib/store/assignment-chat.ts` 머리주석), 이름은 아래 `meName` 으로 그릴 때만 붙는다.
+  }), [assignment, bot.name]);
 
   // 첫 진입 오프너 — 이미 대화가 있으면 seed 가 알아서 비켜선다(멱등).
   useEffect(() => {
@@ -150,7 +151,7 @@ export function AssignmentChatWorkspace({
       <ContextRail
         railWidth="md"
         stickyRail
-        rail={<AssignmentTracker assignment={assignment} questions={questions} gradingMode={gradingMode} studentId={me.id} />}
+        rail={<AssignmentTracker assignment={assignment} questions={questions} gradingMode={gradingMode} />}
       >
         <section className="bg-card flex min-h-0 flex-col rounded-2xl border">
           <header className="border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-2.5 text-sm">
@@ -225,7 +226,9 @@ function AssignmentTurnRow({
               </span>
             )}
             <div className={cn(chatBubbleClass(false), 'px-4 py-3')} style={{ borderLeftColor: bot.hex }}>
-              <RichText text={turn.text} />
+              {/* 이름은 **여기서만** 붙는다 — 저장된 `text` 에는 없다(`leadWithName` 주석).
+                  이름을 모르면 붙이지 않고 그대로 연다. 본인 화면이라 부를 수 있는 이름이다. */}
+              <RichText text={turn.leadWithName && meName ? `${meName}, ${turn.text}` : turn.text} />
             </div>
             {/* 선생님에게 전해진다고 말하지 않는다 — 교사용 집계가 아직 없다(위 store 주석). */}
             {turn.redirected && (
@@ -265,19 +268,19 @@ function ProgressStrip({ assignment: a, gradingMode }: { assignment: AssignmentR
 
 /* ─── 곁의 진행 트래커 — 과제 유형에 따라 다르다 ─── */
 function AssignmentTracker({
-  assignment: a, questions, gradingMode, studentId,
+  assignment: a, questions, gradingMode,
 }: {
   assignment: AssignmentReadRow;
   questions: AssignmentQuestion[];
   gradingMode: GradingMode;
-  studentId: string;
 }) {
-  // 낸 답 — 풀이 화면이 남긴 제출 기록. 대화 화면은 읽기만 한다.
-  const submissions = useAssignmentStore(s => s.submissions);
-  const answers = useMemo(
-    () => submissions.find(s => s.assignmentId === a.id && s.studentId === studentId)?.answers ?? {},
-    [submissions, a.id, studentId],
-  );
+  // 낸 답 — 이 세션에서 제출한 결과(`lib/store/submission-result.ts`). 대화 화면은 읽기만 한다.
+  // 새로고침하면 비는데, 그때는 「아직 안 냈어요」로 보인다 — 학생 본인의 제출을 되읽는 문이 정본에 없어서다.
+  const result = useSubmissionResult(a.id);
+  const answers = useMemo<Record<string, string>>(() => {
+    const raw = result?.answers ?? {};
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+  }, [result]);
 
   if (questions.length === 0) {
     return (
@@ -300,7 +303,13 @@ function AssignmentTracker({
 
 /**
  * 문항이 답을 낸 것으로 보이는지.
- * 제출 기록에 답이 있거나(정확), 과제 행의 진행 수 안에 들어오면(목록·상세와 같은 숫자) 낸 것으로 본다.
+ *
+ * 둘 중 하나면 낸 것으로 본다 — ① 이 세션이 보낸 답이 있다(정확하다) ② 과제 행의 `completedCount` 안에 든다.
+ *
+ * ⚠ ②는 **문항별 진행도가 아니다.** 그 칸은 이제 제출 여부의 투영이라 값이 `0` 아니면 `questionCount` 뿐이고
+ * (`use-assignment-reads.ts` — 정본에 중간 진행도 칸이 없다), 그래서 ②는 사실상 **「이 과제를 냈나」** 를 묻는다.
+ * 그 결과가 「낸 과제는 문항 전부가 냈음으로 보인다」이고 그건 맞는 말이다. 다만 **어느 문항을 어떻게 냈는지는
+ * 모른다** — 답 본문은 ①(세션)에만 있다.
  */
 function isAnswered(q: AssignmentQuestion, answers: Record<string, string>, completedCount: number): boolean {
   return answers[q.id] !== undefined || q.order <= completedCount;
@@ -351,7 +360,8 @@ function AutoGradedTracker({
                     <p className="text-pullim-blue-700 mt-1 text-2xs font-semibold">
                       {myAnswer !== undefined
                         ? `낸 답 — ${myAnswer}`
-                        : '냈어요 · 낸 답은 풀이 화면에 있어요'}
+                        /* 답 본문은 이 세션에만 있다 — 새로고침하면 「낸 답」이 없으니 어디 있다고 말하지 않는다 */
+                        : '냈어요'}
                     </p>
                   ) : (
                     <p className="text-pullim-slate-500 mt-1 text-2xs">아직 안 냈어요</p>

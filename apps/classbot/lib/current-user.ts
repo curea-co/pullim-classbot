@@ -1,26 +1,34 @@
 /**
  * 현재 사용자 해석기 — 도메인 신원의 단일 진입점.
  *
- * 신원 단일화 원칙(plan 2026-06-01):
- *  - `auth_users.id`(uuid) 가 정본. 가입 시 같은 id 로 도메인 `users` 행이 생성된다(BE).
- *  - 도메인 코드는 "현재 사용자"를 더 이상 mock `currentPersona`(student_001)로
- *    하드코딩하지 않고, 이 해석기를 통해 **로그인 세션**에서 가져온다.
- *  - 세션이 없으면 **개발용 신원 쿠키**(`lib/dev-identity.ts`)를 본다. prod 호스트가
- *    아닐 때만 유효하고, allowlist 안의 데모 사용자만 인정한다. 폴백 경로일 뿐
- *    **JWT 를 이기지 못한다.**
- *  - 그것도 없으면 `student_001`(서연, student) 로 폴백한다.
+ * ⚠️ **은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 8).** 정본 서버는 pullim-api 이고 화면 훅은
+ * `useAuth()`(OS 세션)로 신원을 읽는다 — 계획 PR 4 가 과제·참여·내 반·챗을 그쪽으로 옮겼다.
+ * 이 파일의 서버 해석기(`getCurrentUserIdFromRequest`)와 개발용 신원 쿠키(`lib/dev-identity.ts`)는
+ * **범위 밖으로 남은 같은 오리진 `/api/*` 라우트**(학부모·동의·담은 봇·자기주도·마켓, 그리고
+ * 마켓 「내 봇 공유」가 읽는 교사 반 목록)가 쓰므로 남겨 둔다. 참조가 0 이 되는 시점에 걷는다.
+ * 새 코드는 이 파일을 신원 출처로 삼지 마라.
+ * *(`[계획 PR 8 정정]` 종전 목록의 「과제 내기」는 이제 여기 없다 — `/api/teacher/assignments*` ·
+ * `/api/assignments*` · `/api/enrollments` · `/api/chat` · `/api/bots` · `/api/me/classrooms` ·
+ * `/api/grades` · `/api/wellness` 는 PR 8 이 걷었다.)*
+ *
+ * 신원 단일화 원칙:
+ *  - 도메인 코드는 "현재 사용자"를 mock `currentPersona`(student_001)로 하드코딩하지 않고
+ *    이 해석기를 통해 얻는다.
+ *  - **client** 는 `useCurrentUser()`/`useCurrentUserId()` — 풀림 OS SSO 세션
+ *    (`auth-context` → pullim-api `/me` 쿠키)에서 온다.
+ *  - **서버(route handler)** 는 `getCurrentUserIdFromRequest(req)` — **개발용 신원 쿠키**
+ *    (`lib/dev-identity.ts`)를 보고, 없으면 `student_001`(서연, student) 로 폴백한다.
  *    데모 화면이 로그인 없이도 깨지지 않게 하기 위한 의도된 폴백이다.
  *
- * client 컴포넌트는 `useCurrentUser()`/`useCurrentUserId()` 를 쓴다.
- * 서버(route handler)는 `getCurrentUserIdFromRequest(req)` 로 JWT → 개발용 신원 쿠키
- * 순으로 id 를 얻는다.
+ * ⚠️ 두 쪽의 신원 출처가 다르다. 서버 쪽에 **production 신원이 없는** 이유는
+ * `getCurrentUserIdFromRequest` 주석에 적어 뒀다.
  */
 
-import { verifyAccessToken } from '@pullim-classbot/api-client/jwt-verify';
-import type { UserRole } from '@pullim-classbot/types';
+import type { AuthUser } from '@pullim-classbot/auth';
 
+import type { AppUserRole } from '@/lib/auth/app-user-role';
 import { useAuth } from '@/lib/auth/auth-context';
-import { findDevIdentity, resolveDevIdentity } from '@/lib/dev-identity';
+import { findDevIdentity, resolveDevIdentity, type DevIdentityRole } from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
 import { classRoster, type ClassroomStudent } from '@/lib/mock/classbot';
 import { currentPersona } from '@/lib/mock/persona';
@@ -29,23 +37,24 @@ import { currentPersona } from '@/lib/mock/persona';
 export const DEMO_FALLBACK_USER_ID = currentPersona.id;
 
 /**
- * 이 앱 안에서만 쓰는 역할 union — `UserRole` 에 'parent' 를 더한 것.
- *
- * `packages/types` 의 `UserRole` 은 'student' | 'teacher' | 'admin' 이라 학부모가 없다.
- * 학부모 화면은 **이 앱에만** 있고 BE 인증(JWT claim)은 여전히 그 셋만 발급하므로,
- * BE 와 공유하는 계약(`packages/*`)을 이 앱 사정으로 넓히지 않는다 —
- * 대신 여기서 넓힌 별칭을 두고 앱 경계 안에서만 쓴다.
- * (JWT 경로가 돌려주는 role 은 지금도 `UserRole` 뿐이다. 'parent' 는 개발용 신원 쿠키에서만 온다.)
+ * 이 앱 안에서만 쓰는 역할 union — 정의는 leaf `lib/auth/app-user-role.ts` 로 옮겼고 여기서는
+ * 재수출한다(호출부 경로 유지). 'parent' 에 'institution' 이 더해졌다 — 둘 다 이제 OS `/me` 에서
+ * 그대로 온다(`lib/auth/os-sso-provider.ts` `mapRole`). 종전 「'parent' 는 개발용 신원 쿠키에서만
+ * 온다」는 더는 사실이 아니다.
  */
-export type AppUserRole = UserRole | 'parent';
+export type { AppUserRole };
 
 /** 도메인 "현재 사용자" 모델 — 세션 또는 데모 폴백. */
 export interface CurrentUser {
-  /** 도메인 users.id (= auth_users.id). 세션 없으면 student_001. */
+  /** 도메인 users.id — OS 세션이면 그 sub, 아니면 데모 폴백 student_001. */
   id: string;
   /** student/teacher/admin/parent. 폴백은 student. */
   role: AppUserRole;
-  /** 표시 이름. 세션 사용자는 가입 이름, 폴백은 서연. */
+  /**
+   * 부르는 이름. 세 갈래의 출처가 다르다 — **세션**이면 OS 가 준 사람 이름(비면 email 로컬파트,
+   * 그 순서는 `displayNameOf` 가 쥔다), **개발용 신원 쿠키**면 그 신원의 이름,
+   * **데모 폴백**이면 서연.
+   */
   name: string;
   /** 실제 로그인 세션이면 true, 데모 폴백이면 false. */
   isAuthenticated: boolean;
@@ -62,8 +71,9 @@ const DEMO_FALLBACK_USER: CurrentUser = {
 /**
  * 현재 사용자(세션 우선, 개발용 신원 쿠키, 그다음 데모 폴백)를 반환하는 client 훅.
  *
- * 세션 사용자에는 가입 이름이 없을 수 있어(JWT claim 은 id/email/role 만 보유),
- * 이름은 email 로컬파트로 임시 표기한다. (도메인 users.name 조회 API 신설 시 대체)
+ * 세션 사용자의 이름은 **OS 가 준 사람 이름**(`/me` 의 `name` — KCB 실명 → `AuthUser.name`)이고,
+ * 그게 비었을 때만 email 로컬파트로 떨어진다 — 순서와 근거는 `displayNameOf` 에 적어 뒀다.
+ * **본인-조회 한정 PII 다** — 취급 규칙은 `displayNameOf` 와 provider 주석에 있다.
  *
  * ⚠️ 쿠키 폴백은 **`isAuthenticated: false` 를 유지한다.** 이 플래그는 RoleGuard·
  * `packages/auth` 가 「실제 로그인 세션인가」를 판정하는 값이라, 개발용 쿠키가 여기로
@@ -78,7 +88,7 @@ export function useCurrentUser(): CurrentUser {
     return {
       id: user.id,
       role: user.role,
-      name: displayNameFromEmail(user.email),
+      name: displayNameOf(user),
       isAuthenticated: true,
     };
   }
@@ -100,53 +110,50 @@ export function useCurrentUserId(): string {
 /**
  * 요청에서 현재 사용자 id 를 해석한다(서버 route handler 용).
  *
- * `Authorization: Bearer <access>` 의 토큰을 **서명까지 검증**(HS256, BE 와 공유하는
- * JWT_SECRET)한 뒤에만 claim(sub/role)을 신뢰한다. 디코드만 하면 공격자가 임의의
- * sub/role 을 넣은 self-signed 토큰으로 타인 명의·교사 권한을 위조할 수 있으므로,
- * 신원·역할 판정 경로는 반드시 서명 검증을 통과해야 한다.
+ * **개발 전용 신원 쿠키**(`lib/dev-identity.ts`)를 보고, 없으면 데모 폴백으로 본다.
+ * 쿠키는 prod 호스트가 아니고 allowlist 안의 id 일 때만 인정된다.
  *
- * 토큰이 없거나·서명/만료/형식 검증에 실패하면 **JWT 로는 인증되지 않는다** — 위조 토큰이
- * 신원을 얻는 경로는 여기에 없다.
+ * ── 이 경로에는 production 신원이 없다 ──────────────────────────────────────
+ * 인증·인가는 **pullim-os·pullim-api 가 소유한다.** OS 세션은 `Domain=.pullim.ai` HttpOnly
+ * access 쿠키이고 **pullim-api 가** 그것을 검증한다(ES256 · `JwtVerifyGuard`) — 클래스봇
+ * route handler 는 그 서명을 풀 열쇠가 없다. 개발 신원 쿠키는 prod 에서 항상 닫히므로,
+ * **prod 의 `/api/*` 는 익명이고 쓰기 가드는 401 을 준다.**
  *
- * 그다음에야 **개발용 신원 쿠키**(`lib/dev-identity.ts`)를 본다. prod 호스트가 아니고
- * allowlist 안의 id 일 때만 인정하는 별도 경로다. 위조 JWT 를 들고 왔더라도 그 토큰이
- * 신원이 되는 일은 없고, 쿠키가 있으면 **쿠키의** 데모 사용자가 될 뿐이다.
- * 둘 다 없으면 데모 폴백(student_001)으로 본다.
+ * prod 신원이 필요한 표면은 route handler 가 아니라 **정본 `api.pullim.ai/classbot/*`**
+ * (`lib/api/domain-fetch.ts`)다 — 서버가 쿠키에서 `sub` 를 파생한다.
+ *
+ * *(종전에는 `Authorization: Bearer` 토큰을 **서명까지 검증**(HS256, classbot BE 와 공유하는
+ * `JWT_SECRET`)해 claim 을 믿는 경로가 먼저 있었다. 그 토큰을 발급하던 주체가 클래스봇
+ * 자체 인증 BE 뿐이었고, 그것이 걷히며 검증 경로도 함께 걷혔다 — `05 § 11.1`.)*
  *
  * ── 플래그가 둘인 이유 ────────────────────────────────────────────────────
- * `isAuthenticated` 는 **실제 세션(JWT)** 하나만 가리킨다. 스펙이 세션을 JWT 로 고정하고
- * 매 요청 서명 검증을 요구하므로(spec 05 §311·be-api-design §255), 개발용 쿠키가 이 이름을
- * 얻으면 계약이 갈라진다 — client 훅(`useCurrentUser`)도 같은 쿠키를 `isAuthenticated: false`
- * 로 보기 때문에 서버만 true 로 두면 **같은 쿠키를 두 층이 반대로 부르는** 상태가 된다.
- *
  * 라우트가 실제로 물어야 하는 건 「인증됐나」가 아니라 **「이 요청을 그 사용자 명의로
- * 처리해도 되나」**다. 그 판정은 `isIdentified` 가 진다 — JWT 세션이거나, prod 가 아닌 곳의
- * allowlist 개발 신원. 데모 폴백은 둘 다 false 이므로 가드가 401 을 준다.
+ * 처리해도 되나」**다. 그 판정은 `isIdentified` 가 진다 — 가드가 보는 값도 그쪽이다
+ * (`app/api/_lib/guards.ts`). 데모 폴백은 false 이므로 가드가 401 을 준다.
+ *
+ * `isAuthenticated` 는 **실제 로그인 세션**만 가리키고 지금은 **늘 false** 다 — 위에서
+ * 적은 대로 이 경로가 세울 수 있는 세션이 없다. 이름을 남겨 둔 이유는 client 훅
+ * (`useCurrentUser`)이 같은 이름을 **OS 세션** 기준으로 쓰기 때문이다 — 서버만 이름을
+ * 바꾸면 같은 질문을 두 층이 다른 말로 부르게 된다. 이 값으로 분기하지 마라.
  *
  * @param req - Next.js Request
  * @returns { id, role, isAuthenticated, isIdentified }
  */
 export function getCurrentUserIdFromRequest(req: Request): {
   id: string;
-  role: AppUserRole;
-  /** 실제 로그인 세션(JWT)인가 — 개발용 쿠키는 여기 들어오지 않는다. */
+  /**
+   * 이 경로가 세울 수 있는 역할은 개발용 신원 쿠키의 셋(student·teacher·parent)뿐이다 — OS 의
+   * institution 은 여기로 오지 않는다(OS 세션은 이 서버가 풀 수 없다, 위 주석). 그래서 client 훅의
+   * `AppUserRole` 이 아니라 쿠키의 union 을 그대로 쓴다. 라우트 가드(`app/api/_lib/guards.ts`)의
+   * `ActorRole` 이 그 셋을 받는다.
+   */
+  role: DevIdentityRole;
+  /** 실제 로그인 세션인가 — **늘 false**(위 주석). 이 값으로 분기하지 마라. */
   isAuthenticated: boolean;
-  /** 그 사용자 명의로 처리해도 되는가 — JWT 세션이거나 개발용 신원. 가드는 이 값을 본다. */
+  /** 그 사용자 명의로 처리해도 되는가 — 개발용 신원. 가드는 이 값을 본다. */
   isIdentified: boolean;
 } {
-  const header = req.headers.get('authorization') ?? req.headers.get('Authorization');
-  const token = header?.toLowerCase().startsWith('bearer ')
-    ? header.slice('bearer '.length).trim()
-    : null;
-  if (token) {
-    // 서명 secret 미설정 시 검증 불가 → 토큰을 신뢰하지 않는다(폴백).
-    const secret = process.env.JWT_SECRET ?? '';
-    const payload = verifyAccessToken(token, secret);
-    if (payload) {
-      return { id: payload.sub, role: payload.role, isAuthenticated: true, isIdentified: true };
-    }
-  }
-  // 개발 전용 폴백 — prod 호스트에서는 resolveDevIdentity 가 항상 null 이다.
+  // 개발 전용 — prod 호스트에서는 resolveDevIdentity 가 항상 null 이다.
   const dev = resolveDevIdentity(req.headers.get('cookie'), req.headers.get('host'));
   if (dev) {
     // 개발 신원은 **인증이 아니다** — 명의로 쓸 수 있을 뿐이다(위 주석).
@@ -155,10 +162,86 @@ export function getCurrentUserIdFromRequest(req: Request): {
   return { id: DEMO_FALLBACK_USER_ID, role: 'student', isAuthenticated: false, isIdentified: false };
 }
 
-/** email 로컬파트를 표시 이름으로(세션 사용자 이름 임시 표기). */
+/**
+ * 세션 사용자를 **부를 이름** — 순서는 「사람 이름 → 없으면 email 로컬파트」다.
+ *
+ * **순서를 뒤집지 마라.** 화면이 오래도록 email 앞부분(`suhak`)으로 사람을 부른 데는 자리가 둘
+ * 있었고, 둘 다 고쳤다:
+ *  - ⑴ **이 자리가 `user.name` 을 읽지 않았다.** 종전 코드는 세션 갈래에서 곧바로
+ *    `displayNameFromEmail(user.email)` 을 썼다. 공유 계약 `AuthUser` 에 칸을 낸 것은 값을
+ *    나르려고가 아니라 이 읽기가 **컴파일되게** 하려는 것이다.
+ *  - ⑵ **provider 가 실어 보낸 값이 사람 이름이 아니었다.** `/me` 의 `displayName` 이었는데,
+ *    그것은 pullim-api 가 가입 때 **email local-part 에서 파생**한 값이다(`deriveDisplayName` —
+ *    바꾸는 엔드포인트도 없다). 그래서 ⑴ 만 고치면 이름 자리에 여전히 `suhak` 가 선다.
+ *    provider 는 이제 `/me` 의 **`name`**(KCB 실명)을 먼저 싣는다 — 근거와 순서는
+ *    `lib/auth/os-sso-provider.ts` 의 `MeResponse` 주석.
+ *
+ * ⛔ **여기 들어오는 `user.name` 은 본인-조회 한정 PII 다**(권위: pullim-api
+ * `me-response.dto.ts` — 「KCB 실명 … 본인-조회 한정 · 로그/토큰 금지」). 이 함수의 반환값은
+ * **본인 화면에만** 찍는다 — 로그·서버 재전송·저장 금지.
+ *
+ * **「저장 금지」는 이 값을 받아 가는 쪽까지 걸린다.** localStorage 에 적히는 store 는
+ * 로그아웃으로 지워지지 않는다 — 공용 PC 라면 다음 사람이 읽는다. 그래서 이 값을 쓰는 두 자리가
+ * 담는 것을 바꿔 두었다: 과제 대화는 이름 없는 문장 + `leadWithName`
+ * (`lib/store/assignment-chat.ts`), 라이브 질문 큐는 `studentId`(`lib/store/live.ts`).
+ * **이 반환값을 persist 되는 상태에 넣지 마라.**
+ *
+ * **그래도 폴백은 지우지 마라.** `AuthUser.name` 은 optional 이고(계약이 구현체에게 이름을
+ * 요구하지 않는다), provider 가 고른 값도 비어 있을 수 있다 — `/me` 는 검사받지 않은 JSON 이라
+ * 칸이 아예 없을 수 있고, 그 폴백으로 서는 `displayName` 도 같은 auth 프로필을 투영하는
+ * `ClassMemberDto.displayName` 이 `string | null` 인 것처럼 비어 올 수 있다
+ * (`lib/api/classbot-dto.ts`). 이름을 못 받은 사람이 빈칸으로 서면 안 된다.
+ *
+ * **빈 문자열·공백은 「없음」과 같이 본다** — 화면에서 셋은 똑같은 빈칸이라 갈라 둘 이유가 없다.
+ * 반 명단 쪽도 **판정은 같다**(`lib/risk-signals.ts` 의 `memberLabel` 이 `displayName?.trim()` 으로
+ * 갈린다). **다만 떨어지는 값도, 애초에 보는 값도 다르다** — 저쪽은 `학생 <sub 앞 8자>` 로
+ * 떨어지고, 보는 값이 auth 프로필 투영(`displayName`, 5필드 · ADR-005)이라 **KCB 실명이 아니다.**
+ * 그래서 교사 명단은 여전히 email 앞부분을 보여 준다 — **이 함수가 고칠 수 있는 자리가 아니고,
+ * 이 PR 도 고치지 않는다.**
+ *
+ * @param user - 세션 사용자
+ * @returns 화면에 찍을 이름 (빈 문자열이 되는 경우는 email 까지 빈 세션뿐 —
+ *          `lib/__tests__/current-user-name.test.tsx` 가 그 한 경우도 고정한다)
+ */
+function displayNameOf(user: AuthUser): string {
+  const given = user.name?.trim();
+  return given ? given : displayNameFromEmail(user.email);
+}
+
+/** email 로컬파트를 표시 이름으로 — 이름이 없을 때의 폴백(`displayNameOf`). */
 function displayNameFromEmail(email: string): string {
   const local = email.split('@')[0] ?? email;
   return local || email;
+}
+
+/**
+ * 학생 화면이 부르는 "나" — **신원과 데모 부가 데이터를 가른 값**이다.
+ *
+ * 종전의 `useRosterMe()` 는 목 roster 행(`ClassroomStudent`)을 통째로 돌려줬고, 그 행의
+ * `name` 이 인사·내 정보에 그대로 찍혔다. roster id 는 `s1`…`s18` 인데 실계정 id 는 OS
+ * `sub`(uuid) 라 조인이 **한 번도 맞지 않았다** — 「미스면 데모 행」 폴백이 사실상 상수여서
+ * 로그인한 사람도 늘 데모 「서연」으로 불렸다. 같은 화면 우상단 아바타는
+ * `useCurrentUser()` 를 보고 있어 한 화면에 두 사람이 섰다.
+ *
+ * 그래서 두 축을 가른다:
+ *  - **신원**(`id`·`name`) — `useCurrentUser()`(OS 세션 · 개발용 신원 쿠키)에서만 온다.
+ *    신원이 없으면 **빈 값**이다. 데모 이름으로 채우지 않는다 — 이름 없이 서는 편이 남의
+ *    이름으로 부르는 것보다 낫다. 부르는 쪽이 `name` 이 비었을 때를 각자 정한다.
+ *  - **데모 부가 데이터**(`demo`) — 목 roster 행. 목 조회 키(`demo.id`)와 목 수치(웰빙·정답률
+ *    등)가 들어 있고, 신원이 **데모 사람일 때만** 찬다(개발용 신원 `student_001`·`s2` …).
+ *    실계정은 `null` 이다 — 목 roster 에 그 사람의 행이 없기 때문이다.
+ *
+ * `demo.name`·`demo.id` 는 **신원이 아니다.** 화면에 사람 이름으로 찍지 마라.
+ * 목 수치를 읽는 화면(웰빙 게이지·감정 기록·가벼운 모드)은 `demo` 가 `null` 이면 각자의 빈
+ * 상태로 선다. 정본이 그 문을 낼 때 `demo` 를 걷는다.
+ */
+export interface StudentMe {
+  /** 신원 id — OS 세션 sub 또는 개발용 신원 id. 신원이 없으면 `''`. */
+  id: string;
+  /** 부르는 이름 — `useCurrentUser().name`(사람 이름 → 없으면 email 로컬파트). 신원이 없으면 `''`. */
+  name: string;
+  /** 데모 부가 데이터 행 — 목 조회 키와 목 수치. 실계정·비신원은 `null`. */
+  demo: ClassroomStudent | null;
 }
 
 /** 데모 roster 의 "나"(서연) 행 — seed 의 s1 == student_001. */
@@ -166,26 +249,34 @@ const DEMO_ROSTER_ME: ClassroomStudent =
   classRoster.find((s) => s.name === currentPersona.name) ?? classRoster[0];
 
 /**
- * 현재 사용자에 해당하는 **도메인 roster 행**을 해석한다.
+ * 신원 id 로 **데모 roster 행**을 찾는다 — 못 찾으면 `null`.
  *
- * 도메인 화면 다수가 per-student 데이터를 mock `classRoster`(id `s1`..`s18`,
- * seed 에서 s1→student_001)로 키잉한다. 그 읽기 경로를 깨지 않으면서 신원만
- * 세션 기반으로 전환하기 위한 브리지:
- *  - 세션/폴백 사용자 id 가 roster 에 있으면 그 행을(예: student_001 → 서연 s1),
- *  - 없으면(신규 가입 uuid 등) 데모 "나"(서연) 행을 표시 데이터로 사용한다.
+ * 종전 해석기는 미스를 데모 행(서연)으로 메웠다. 그 폴백이 결함의 본체였다 — 실계정 id 는
+ * 절대 `s1`…`s18` 과 맞지 않으므로 「폴백」이 아니라 상수였다. 여기서는 메우지 않는다:
+ * 목 사람이 아니면 목 부가 데이터도 없다.
  *
- * 반환 행의 `id` 는 mock roster id 라서 도메인 mock 조회 키로만 쓴다.
- * **쓰기 명의**(저장될 user_id)는 항상 `useCurrentUserId()`(세션 uuid)를 쓴다.
- * @returns 현재 사용자의 roster 표시 행
+ * @param userId - 신원 id(세션 uuid · `student_001` · `sN`)
+ * @returns 데모 roster 행 또는 null
  */
-export function useRosterMe(): ClassroomStudent {
-  const { id } = useCurrentUser();
-  return resolveRosterMe(id);
+function demoRowOf(userId: string): ClassroomStudent | null {
+  if (!userId) return null;
+  // seed 매핑: student_001 ↔ roster s1(서연).
+  if (userId === currentPersona.id) return DEMO_ROSTER_ME;
+  return classRoster.find((s) => s.id === userId) ?? null;
 }
 
-/** id(세션 uuid 또는 student_001/sN)로 roster 행 해석 — 미스 시 데모(서연). */
-export function resolveRosterMe(userId: string): ClassroomStudent {
-  // seed 매핑: student_001 ↔ roster s1(서연). 그 외 uuid/sN 은 직접 매칭 시도.
-  if (userId === currentPersona.id) return DEMO_ROSTER_ME;
-  return classRoster.find((s) => s.id === userId) ?? DEMO_ROSTER_ME;
+/**
+ * 학생 화면의 "나" — 신원은 세션에서, 목 부가 데이터는 roster 조인에서.
+ *
+ * `useCurrentUser()` 의 세 갈래 중 **세 번째(데모 폴백 `student_001`)는 신원이 아니다** —
+ * 아무도 고르지 않았는데 서 있는 값이라, 그것으로 사람을 부르면 거짓이 된다. 그래서 여기서는
+ * OS 세션이거나 개발용 신원 쿠키일 때만 이름·id 를 싣고, 그 밖에는 빈 값으로 둔다.
+ * @returns 신원 + 데모 부가 데이터
+ */
+export function useStudentMe(): StudentMe {
+  const user = useCurrentUser();
+  const devIdentityId = useDevIdentityId();
+  const identified = user.isAuthenticated || findDevIdentity(devIdentityId) !== null;
+  if (!identified) return { id: '', name: '', demo: null };
+  return { id: user.id, name: user.name, demo: demoRowOf(user.id) };
 }

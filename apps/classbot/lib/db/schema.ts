@@ -1,7 +1,10 @@
 /**
- * 풀림 클래스봇 — Drizzle Postgres 스키마.
+ * 풀림 클래스봇 — Drizzle Postgres 스키마. **로컬 전용이다**(정본은 pullim-api).
  *
- * - 24개 테이블 (proc/spec/2026-05-18_be-api-design.md §2)
+ * - 27개 테이블. 종전 31개에서 `chat_messages` · `grading_history` · `emotion_checkins` ·
+ *   `wellbeing_snapshots` 넷이 계획 PR 8(마이그레이션 `0009`)에서 빠졌다 — 그 넷을 읽고 쓰던
+ *   route handler(`/api/chat` · `/api/grades` · `/api/wellness`)가 함께 걷혔다.
+ *   (원 설계는 proc/spec/2026-05-18_be-api-design.md §2)
  * - 단순화 원칙: 1:1 종속 메타는 JSONB로 흡수, 1:N은 별도 테이블.
  * - mock 시각 라벨("오늘 19:50")은 BE에 저장하지 않음 — `started_at` 같은 timestamp만 저장.
  *   FE가 KST 라벨로 포맷. Ph2 seed는 라벨이 필요한 곳에 한해 별도 컬럼(`*_label`)을 둠.
@@ -17,7 +20,6 @@ import {
   jsonb,
   pgTable,
   primaryKey,
-  serial,
   text,
   timestamp,
   uniqueIndex,
@@ -272,6 +274,20 @@ export const joinCodes = pgTable(
     classroomId: text('classroom_id').notNull(),
     teacherId: text('teacher_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * 이 시각 뒤에는 안 통한다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+     *
+     * **NULL 은 「안 닫힘」이다.** 두 부류가 여기 있다:
+     *   ① 이 컬럼이 생기기 전에 발급된 행,
+     *   ② **시드 데모 코드**(`scripts/seed.ts` 의 `CODE_MAP` — `MATH-2024` 등). 이건 실수가
+     *      아니라 **의도**다. 그 코드로 prod-verify 가 매일 반을 들어가므로(`tests/e2e`),
+     *      48시간을 주면 이틀 뒤부터 회귀 테스트가 깨진다. 데모 문 하나는 늘 열어 둔다.
+     *
+     * 기본값을 DB 에 두지 않은 이유도 그것이다: `DEFAULT now() + interval` 을 걸면 옛 행·시드에는
+     * 안 붙고 새 행에만 붙어 **같은 컬럼이 두 뜻**을 갖는다. 수명은 발급 경로
+     * (`lib/join-code.ts`)가 한 곳에서 정하고, 여기서는 「적혀 있으면 지킨다」만 한다.
+     */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
   (t) => ({
     byBot: index('join_codes_bot_idx').on(t.botId),
@@ -551,7 +567,8 @@ export const assignments = pgTable(
 );
 
 /**
- * 학생 제출 — FE `recordSubmission`(동일 assignment+student upsert) 의미의 실전판.
+ * 학생 제출 — 종전 FE `recordSubmission`(동일 assignment+student upsert · FE PR 6 에서 은퇴) 의미의 실전판.
+ * 제출의 정본은 이제 pullim-api `assignment_submissions` 다 — 이 표는 은퇴 대상(계획 PR 8).
  * (BE assignment 모듈이 소비 — DDL 제안: proc/spec/2026-07-03_be-assignment-submissions-ddl.md §2)
  *
  * 계약 범위: 이 테이블은 **최종 제출 스냅샷**이다(FE Submission 1:1). 풀이 진행 라이프사이클
@@ -570,11 +587,11 @@ export const submissions = pgTable(
     submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
     /** { [questionId]: answer } — FE Submission.answers 그대로 */
     answers: jsonb('answers').$type<Record<string, string>>().notNull().default({}),
-    /** 0~100 정수 (FE computeMockScore 산출) */
+    /** 0~100 정수 (종전 FE computeMockScore 산출 — FE PR 6 부터 점수는 정본 서버가 센다) */
     scorePercent: integer('score_percent').notNull(),
   },
   (t) => ({
-    // 멱등 invariant — recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
+    // 멱등 invariant — 종전 recordSubmission 의 "동일 assignment+student 는 갱신" 을 DB 로 강제
     byAssignmentStudent: uniqueIndex('submissions_assignment_student_uq')
       .on(t.assignmentId, t.studentId),
     byAssignment: index('submissions_assignment_idx').on(t.assignmentId),
@@ -633,23 +650,10 @@ export const assignmentQuestions = pgTable(
   }),
 );
 
-export const chatMessages = pgTable(
-  'chat_messages',
-  {
-    id: text('id').primaryKey(),
-    botId: text('bot_id').notNull().references(() => classBots.id, { onDelete: 'cascade' }),
-    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    role: text('role', { enum: ['student', 'bot'] }).notNull(),
-    text: text('text').notNull(),
-    replyKey: text('reply_key'),
-    scopeUsed: integer('scope_used'),
-    tier: text('tier', { enum: ['T1', 'T2', 'T3'] }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    byBotStudent: index('chat_messages_bot_student_idx').on(t.botId, t.studentId),
-  }),
-);
+/*
+ * `chat_messages` 는 여기 없다 — 대화는 pullim-api 정본(`classbot.messages`)이 소유한다.
+ * 이 리포의 `POST /api/chat` 과 그 표는 계획 PR 8(마이그레이션 `0009`)에서 걷혔다.
+ */
 
 /* ============================================================
  *  F. Grading
@@ -682,55 +686,20 @@ export const gradingItems = pgTable(
   }),
 );
 
-export const gradingHistory = pgTable(
-  'grading_history',
-  {
-    id: serial('id').primaryKey(),
-    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    assignmentTitle: text('assignment_title').notNull(),
-    gradedAtLabel: text('graded_at_label').notNull(),
-    score: integer('score').notNull(),
-    maxScore: integer('max_score').notNull(),
-  },
-  (t) => ({
-    byStudent: index('grading_history_student_idx').on(t.studentId),
-  }),
-);
+/*
+ * `grading_history` 는 여기 없다 — 그 표를 읽던 것은 `GET /api/grades` 하나뿐이었고,
+ * 둘 다 계획 PR 8(마이그레이션 `0009`)에서 걷혔다. 화면의 채점 이력은 `lib/mock` 이 든다.
+ */
 
 /* ============================================================
  *  G. Wellbeing
  * ========================================================== */
 
-export const emotionCheckIns = pgTable(
-  'emotion_checkins',
-  {
-    id: text('id').primaryKey(),
-    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    /** ISO yyyy-mm-dd */
-    date: text('date').notNull(),
-    mood: integer('mood').notNull(),
-    intensity: integer('intensity'),
-    intensityRange: jsonb('intensity_range').$type<[number, number] | null>(),
-    freeText: text('free_text'),
-    keywordFlag: text('keyword_flag', { enum: ['suicidal', 'depression', 'bullying'] }),
-  },
-  (t) => ({
-    uniqStudentDate: uniqueIndex('emotion_checkins_student_date_uq').on(t.studentId, t.date),
-  }),
-);
-
-export const wellbeingSnapshots = pgTable(
-  'wellbeing_snapshots',
-  {
-    studentId: text('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    date: text('date').notNull(),
-    score: integer('score').notNull(),
-    flag: text('flag', { enum: ['below-60-3days', 'below-40-instant'] }),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.studentId, t.date] }),
-  }),
-);
+/*
+ * `emotion_checkins` · `wellbeing_snapshots` 는 여기 없다 — 그 둘을 읽던 것은
+ * `GET /api/wellness` 하나뿐이었고(화면 소비자는 0), 셋 다 계획 PR 8(마이그레이션 `0009`)에서
+ * 걷혔다. 웰빙 화면이 읽는 것은 `lib/mock` 과 `lib/store` 다.
+ */
 
 export const crisisAlerts = pgTable(
   'crisis_alerts',
@@ -817,14 +786,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   selfEnrollments: many(selfEnrollments),
   selfStudyDays: many(selfStudyDays),
   assignments: many(assignments),
-  emotionCheckIns: many(emotionCheckIns),
-  wellbeingSnapshots: many(wellbeingSnapshots),
   crisisAlerts: many(crisisAlerts),
   bookmarks: many(replayBookmarks),
   replayQuestions: many(replayTeacherQuestions),
   watchProgress: many(replayWatchProgress),
-  gradingHistory: many(gradingHistory),
-  chatMessages: many(chatMessages),
 }));
 
 export const classBotsRelations = relations(classBots, ({ many, one }) => ({
@@ -928,11 +893,6 @@ export const botSettingsRelations = relations(botSettings, ({ one }) => ({
   bot: one(classBots, { fields: [botSettings.botId], references: [classBots.id] }),
 }));
 
-export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
-  bot: one(classBots, { fields: [chatMessages.botId], references: [classBots.id] }),
-  student: one(users, { fields: [chatMessages.studentId], references: [users.id] }),
-}));
-
 /* ============================================================
  *  추론 타입 — `import { type User } from '@/lib/db/schema'`
  * ========================================================== */
@@ -958,11 +918,7 @@ export type ReplayTeacherQuestionRow = typeof replayTeacherQuestions.$inferSelec
 export type ReplayWatchProgressRow = typeof replayWatchProgress.$inferSelect;
 export type AssignmentRow = typeof assignments.$inferSelect;
 export type AssignmentQuestionRow = typeof assignmentQuestions.$inferSelect;
-export type ChatMessageRow = typeof chatMessages.$inferSelect;
 export type GradingItemRow = typeof gradingItems.$inferSelect;
-export type GradingHistoryRow = typeof gradingHistory.$inferSelect;
-export type EmotionCheckInRow = typeof emotionCheckIns.$inferSelect;
-export type WellbeingSnapshotRow = typeof wellbeingSnapshots.$inferSelect;
 export type CrisisAlertRow = typeof crisisAlerts.$inferSelect;
 export type ReportRow = typeof reports.$inferSelect;
 export type TemplateRow = typeof templates.$inferSelect;

@@ -45,17 +45,22 @@
 
 ## 3. 이탈 감지 시스템 (ClassBot)
 
-| 유형 | 감지 방법 | 대응 | 알림 |
-|------|---------|------|------|
-| 주제이탈 | T1 임베딩 유사도 < 0.6 | 자동 리다이렉트 | 누적 3회 시 |
-| 답베끼기 | T1 패턴("답 알려줘") + T2 의도분류 | 사고유도 강제전환 | 즉시 |
-| 부적절질문 | T1 유해키워드 + T2 맥락분류 | 즉시 차단 | 즉시 |
-| 장시간무활동 | T1 타이머 (기본 5분) | 넛지 메시지 | 10분 초과 시 |
-| 반복우회시도 | T1 동일의도 3회+ | 세션 일시정지 | 즉시 |
-| 무의미입력 | T1 길이/엔트로피 + T2 보조 | 경고 메시지 | 3회 누적 시 |
+| 유형 | 감지 방법 | 대응 | 알림 | 차수 *(`[2026-09-16]`)* |
+|------|---------|------|------|------|
+| 주제이탈 | T1 임베딩 유사도 < 0.6 | 자동 리다이렉트 | 누적 3회 시 | **2차** — 임베딩이 필요해 LLM 게이트웨이 결정([실출시 로드맵 M3](../plan/2026-07-02_real-launch-roadmap.md)) 뒤 |
+| 답베끼기 | T1 패턴("답 알려줘") + T2 의도분류 | 사고유도 강제전환 | 즉시 | **1차** — T1 정규식 + 같은 문항 번호 반복 요청 · 세기 2. T2 는 2차 |
+| 부적절질문 | T1 유해키워드 + T2 맥락분류 | 즉시 차단 | 즉시 | **1차** — [13 § 5.2](13-reports-and-emotion-checkin.md) 키워드 게이트(자살·자해 / 우울 / 학교폭력) · 세기 3~5. T2 는 2차 |
+| 장시간무활동 | T1 타이머 (기본 5분) | 넛지 메시지 | 10분 초과 시 | **1차** — 저장 시각 간격 > 10분, 조회 시 계산(표 없음) · 명단 「최근 활동」 열 |
+| 반복우회시도 | T1 동일의도 3회+ | 세션 일시정지 | 즉시 | **1차** — 정규화한 문장이 3회 이상 같음 · 세기 2 |
+| 무의미입력 | T1 길이/엔트로피 + T2 보조 | 경고 메시지 | 3회 누적 시 | **1차** — 길이 < 3 또는 문자 엔트로피 낮음, 3회 누적 · 세기 1. T2 는 2차 |
+
+*(`[2026-09-16]` 「차수」 열은 [완성 설계 § 7](2026-09-16_classbot-completion-design.md) 결정 ⑤ 다 — **1차는 모델을 부르지 않는다.** 지금 `dev` 에는 실제 문장을 보는 감지기가 하나도 없다(`lib/mock/classbot.ts` 의 `crisisKeywords` 는 아무도 import 하지 않는다). 차수 표기가 없던 종전 표는 여섯 종을 한 층으로 적어 코드와 다른 말을 하고 있었다.)*
+
+- **어디서 도나** — 감지는 **pullim-api 챗 저장 훅**이다: 학생 메시지를 `messages` 에 저장한 직후, 같은 트랜잭션 밖에서 동기 규칙을 돌려 결과를 **`risk_signals`**(`kind` · `severity` 1~5 · `detail` · `acked_at`)에 쓴다. LLM 응답과 무관하게 돈다 — 응답이 실패해도 신호는 남는다. `[예정]` pullim-api PR 3.
+- **세기 4 이상 위기**(`crisis_keyword`)는 **`interventions.crisis` 를 자동 생성**한다. 교사가 **손으로** 보내는 crisis 는 pullim-api 에 이미 있다(`intervention.service.ts:27` `INTERVENTION_TYPES` 에 `'crisis'`) — 없는 것은 감지가 **자동으로** 만드는 경로다. 교사는 반 상세 「대화」 탭에서 신호 배지로 본다(`[예정]` FE PR 7 — [03 § 2.2](03-features-and-ia.md)).
 
 ### 대응 강도 (교사 설정)
-- 관대 / 보통 / 엄격 — 감지 임계치·차단 강도 조정
+- 관대 / 보통 / 엄격 — 감지 임계치·차단 강도 조정 *(`[2026-09-16]` **2차** — `bots.settings` 의 임계치 배수, 봇 설정 탭)*
 
 ---
 
@@ -308,20 +313,43 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 
 ### 11.1 세션
 - Next.js 15+ App Router 기반
-- **JWT access/refresh 세션** — 자체 구현(이메일/비밀번호). auth PR #88/#89(2026-06-02)로 인도. 서명 매 요청 검증, refresh 회전 + 로그아웃 블랙리스트(Postgres `auth_revoked_tokens`). 상세: [`2026-05-18_be-api-design.md` §6.1](2026-05-18_be-api-design.md). 공개 가입은 서버 할당 role(student/teacher)만 — admin 부여 불가.
-- **현재 사용자 해석기** — `lib/current-user.ts` 가 도메인 신원의 단일 진입점이고 **`dev` 에
-  이미 있다.** 서버는 `getCurrentUserIdFromRequest(req)` 로 `Authorization: Bearer` 토큰을
-  **서명까지 검증**한 뒤에만 claim(sub/role)을 믿고, 토큰이 없거나 검증에 실패하면
-  **데모 폴백**(`student_001` · `isAuthenticated: false`)으로 본다. 쓰기 가드가 그
-  `isAuthenticated: false` 를 401 로 처리한다.
+- **풀림 OS SSO 쿠키 세션** — 인증·인가는 **pullim-os·pullim-api 가 소유한다**. 클래스봇은
+  로그인 화면을 갖지 않고 `osLoginUrl()`(`apps/classbot/lib/auth/os-sso.ts`)로 OS 로그인에
+  위임하며, 복귀 뒤에는 `Domain=.pullim.ai` HttpOnly access 쿠키가 신원이다. 정본 표면은
+  `api.pullim.ai/classbot/*` 이고 **서버가** 그 쿠키에서 `sub` 를 파생한다
+  (`JwtVerifyGuard` + `EntitlementGuard('classbot')`). 쓰기는 double-submit
+  `X-CSRF-Token` 을 요구한다(`lib/auth/os-sso.ts` `fetchOsCsrfToken`).
+  *(`[2026-09-16 정정]` 종전 「**JWT access/refresh 세션** — 자체 구현(이메일/비밀번호) ·
+  auth PR #88/#89 로 인도 · refresh 회전 + `auth_revoked_tokens` 블랙리스트」는 **폐기됐다.**
+  클래스봇 자체 이메일/비밀번호 인증과 그 화면(`/login`·`/signup`)은 걷혔다 — 경위는
+  [`archive/2026-05-29_auth-login-signup.md`](../archive/2026-05-29_auth-login-signup.md).
+  공개 가입도 클래스봇 몫이 아니다 — 가입은 OS 에서 일어난다.)*
+- **현재 사용자 해석기** — `lib/current-user.ts` 가 Next route handler(`/api/*`) 신원의 단일
+  진입점이고 **`dev` 에 이미 있다.** `getCurrentUserIdFromRequest(req)` 는 **개발 전용 신원
+  쿠키**(아래 불릿)를 보고, 없으면 **데모 폴백**(`student_001` · `isAuthenticated: false` ·
+  `isIdentified: false`)으로 본다. 쓰기 가드가 `isIdentified: false` 를 401 로 처리한다.
+  ⚠️ **이 경로에는 production 신원이 없다.** 개발 신원 쿠키는 prod 호스트에서 항상 닫히고
+  (아래 ①), OS 세션 쿠키는 **pullim-api 가** 검증하므로 클래스봇 route handler 가 풀 수 없다
+  — 즉 prod 의 `/api/*` 는 익명이고 쓰기는 401 이다. prod 신원이 필요한 표면은 route handler
+  가 아니라 **정본 `api.pullim.ai/classbot/*`**(`lib/api/domain-fetch.ts`)다.
+  *(`[2026-09-16 정정]` 종전 「`Authorization: Bearer` 토큰을 **서명까지 검증**한 뒤에만
+  claim(sub/role)을 믿는다」는 폐기됐다 — 그 토큰을 발급하던 주체가 클래스봇 자체 인증
+  BE 뿐이었고, 그것이 걷히며 검증 경로도 함께 걷혔다.)*
+  *(`[2026-09-16 정정 · 완성 설계]` **이 해석기와 route handler 신원 경로는 은퇴 대상이다.**
+  [완성 설계](2026-09-16_classbot-completion-design.md) 결정 ① — BE 정본은 `api.pullim.ai/classbot/*` 하나이고,
+  이 리포의 `/api/*` 가운데 정본과 **겹치는 계열(반·봇·챗·과제)을 먼저** 걷는다(`[예정]` FE PR 8). 범위 밖 계열
+  (학부모·동의·담은 봇·자기주도·마켓)은 「로컬 전용」으로 남으므로, 그것들이 아직 이 해석기를 부르는 동안은
+  해석기도 개발 쿠키 경로(아래 불릿)도 남는다 — **참조가 0 이 되는 시점에** 걷는다. 그때까지 아래의 경계 셋은
+  그대로 규칙이다. 「prod 신원이 필요한 표면은 정본」이라는 위 서술은 바뀌지 않았다 — 바뀐 것은
+  「route handler 는 로컬 전용으로 남는다」가 「정본과 겹치는 것은 은퇴한다」로 좁아진 것이다.)*
 - **개발 전용 신원 폴백** — 위 해석기에 **한 겹을 더한 것**이고 **`dev` 에 있다**
   (`lib/dev-identity.ts` 의 `DEV_IDENTITY_COOKIE = 'pullim_dev_identity'` · `lib/current-user.ts`
   의 쿠키 경로 — **#266**). *(`[2026-09-14 정정]` 종전 「**`[예정]`** · `dev` 에는 그 파일도
   그 쿠키 처리도 없다 — #266 이 인도한다 · 아래는 현재 동작 설명이 아니다」는 그 PR 이
   머지되며 낡았다. 아래는 이제 **현재 동작 설명이면서 동시에 지켜야 할 규칙**이다 —
   경계 셋을 걷어내는 변경은 이 절 위반이다.)*
-  JWT 발급처(NestJS)가 로컬에 없어 `JWT_SECRET` 도 없는 동안 `/api/*` 를 실제 DB 로 확인할 수
-  없다. 그래서 `pullim_dev_identity` 쿠키를 **JWT 검증이 실패한 뒤에만** 폴백으로 읽는다.
+  `/api/*` 를 실제 DB 로 확인할 신원이 로컬에 없다 — OS 세션 쿠키는 pullim-api 소관이고
+  클래스봇 route handler 가 검증할 수 없다. 그래서 `pullim_dev_identity` 쿠키를 읽는다.
   **인증이 아니다** — 서버가 이 쿠키에 주는 것은 `isAuthenticated` 가 아니라
   `isIdentified`(그 사용자 **명의로** 처리해도 되는가)이고, 라우트 가드가 보는 값이 그쪽이다.
   경계 셋을 **규칙으로 못 박는다**:
@@ -329,19 +357,59 @@ Attempt (1) ── (N) ErrorPatternOccurrence
   일부다:
     - **배포 환경이 `production` 이면 무조건 닫는다.** 이름에 기대지 않는 방어선이라
       어떤 주소로 닿든·`Host` 를 무엇으로 위조하든 무력이다.
-    - **고정 허용 목록은 이름만으로 연다**: `localhost` · `127.0.0.1` · `::1` ·
-      `dev-classbot.pullim.ai`. **배포 환경을 몰라도 통과한다** — 이 넷은 production 배포가
-      절대 받지 않는 이름이라 이름 자체가 이미 확인이고, 여기까지 환경 확인을 요구하면
-      `VERCEL_ENV` 가 없는 **로컬 개발에서 신원이 사라져** 이 장치가 있는 이유가 없어진다.
-    - **`*.vercel.app` 은 배포 환경이 `preview` 라고 확인됐을 때만 연다 — 모르면 닫는다.**
-      이 접미사는 **production 배포도 받으므로** 이름이 확인이 못 된다. 「이름을 열어 두고
-      production 검사로 거른다」는 순서면 환경변수가 없을 때 production 기본 URL 이 그대로
-      통과한다. 순서를 뒤집어 **positive 확인**으로 둔다 — **fail-closed 는 이 분기의 규칙이지
-      위 고정 목록의 규칙이 아니다.**
+    - **고정 허용 목록은 이름만으로 연다**: `localhost` · `127.0.0.1` · `::1` — **로컬 셋뿐이다.**
+      **배포 환경을 몰라도 통과한다** — 이 셋은 배포가 절대 받지 않는 이름이라 이름 자체가
+      이미 확인이고, 여기까지 환경 확인을 요구하면 `VERCEL_ENV` 가 없는 **로컬 개발에서
+      신원이 사라져** 이 장치가 있는 이유가 없어진다.
+    - **배포 호스트는 열지 않는다** — `dev-classbot.pullim.ai` 도, preview 로 확인된
+      `*.vercel.app` 도 닫는다. 근거는 아래 `[2026-09-14 결정]` 박스다.
     - 환경은 `VERCEL_ENV ?? NEXT_PUBLIC_VERCEL_ENV` 로 읽고 **서버 전용 값이 먼저다** —
       권한 판정의 근거는 빌드 때 치환되지 않고 서버가 런타임에 직접 읽는 값이어야 한다.
     - `NODE_ENV` 로 가르지 않는다 — Vercel 은 preview 빌드도 `NODE_ENV='production'` 으로
       돌려서, 그 기준이면 정작 이 장치가 필요한 preview 에서 신원이 사라져 전부 401 이 된다.
+
+    > **`[2026-09-14 결정]` 배포 호스트를 목록에서 뺀다 — 세울 DB 가 없다.**
+    >
+    > 종전에는 `dev-classbot.pullim.ai` 를 고정 목록에 두고 `*.vercel.app` 을 preview 확인
+    > 시에만 열었다. **배포에 DB 가 있다는 전제**였는데 그 전제가 사실이 아니다 —
+    > Vercel 프로젝트 `pullim-classbot` 에 **환경변수가 하나도 없다**(`vercel env ls` 실측).
+    > `DATABASE_URL` 이 없으니 신원을 세워도 라우트가 `users` 를 조회하다 죽는다.
+    >
+    > **실측(2026-09-14 · `dev-classbot.pullim.ai` · 브라우저)**: 헤더의 역할 전환에서
+    > 학부모를 누르면 `/api/parent/children` 이 **500 을 여섯 번** 내고 화면이
+    > 「자녀 정보를 불러오지 못했어요 (HTTP 500)」로 끝난다. 익명일 때는 그 사슬이 시작도
+    > 하지 않는다 — 쿠키가 없으니 서버가 401 을 주고 화면이 mock·localStorage 로 돈다.
+    > 익명으로 확인한 다섯 화면(`/classbot` · `/classbot/classroom` · `/classbot/my-bots` ·
+    > `/teacher` · `/parent`)은 **전부 정상**이다.
+    >
+    > 그래서 배포에서 신원은 **없는 편이 맞다.** 노출 판정이 같은 함수를 쓰므로 전환 버튼도
+    > 배포에서 사라진다 — **버튼이 보이는 것 자체가 「눌러도 되는 길」이라는 약속**인데 그 길
+    > 끝이 오류 카드다. 이 단계(화면 먼저 · BE 배선 나중)에서 배포는 익명 mock 경로로 돈다.
+    >
+    > **경계 셋은 그대로다.** 이 결정이 바꾼 것은 ① 의 **목록에 어떤 이름이 드는가**이고,
+    > 방향은 **좁히는 쪽**이다 — ①(허용 목록 + fail-closed) · ②(id allowlist) ·
+    > ③(JWT 우선)은 모두 유지된다. production 방어선도 그대로다.
+    >
+    > **`[2026-09-14 · 저녁 보정]` 화면 전환 버튼은 배포에서도 뜬다 — 신원과 다른 판정이다.**
+    >
+    > 위 결정을 구현할 때 버튼 노출이 `isDevIdentityHost` 를 그대로 쓰고 있어 **배포에서
+    > 버튼까지 사라졌다.** 그건 과했다 — 그 버튼이 원래 하던 일은 **화면 전환**이고
+    > (`dev-role-switch.tsx` 머리주석), DB 가 필요한 것은 나중에 얹힌 **쿠키** 쪽뿐이다.
+    >
+    > 그래서 판정을 둘로 가른다:
+    >
+    > | | 여는 호스트 | 왜 |
+    > |---|---|---|
+    > | **화면 전환**(`isRoleSwitchHost`) | 로컬 + `dev-classbot.pullim.ai` + preview 확인된 `*.vercel.app` | 서버를 부르지 않는다 |
+    > | **명의**(`isDevIdentityHost`) | **로컬만** | 서버가 `users` 를 조회하고 배포에는 DB 가 없다 |
+    >
+    > 배포에서 버튼을 누르면 **화면만 바뀐다** — 학생·교사는 mock·localStorage 로 그대로
+    > 보이고, 학부모는 셸과 함께 「로그인이 필요해요」 안내를 보여준다(익명 상태의 정직한
+    > 답이다). production 배포면 **둘 다** 닫힌다.
+
+    > **되열 조건**: 배포에 DB 가 붙는 날(BE 배선). 그때 여는 것은 목록 한 줄이고,
+    > `*.vercel.app` 을 함께 열 때는 위 **positive 확인** 순서를 그대로 되살린다 —
+    > 그 접미사는 production 배포도 받으므로 이름이 확인이 못 된다.
 
     *(`[2026-09-14 정정]` 종전 이 자리는 「prod 호스트(`classbot.pullim.ai`)에서는 읽지
     않는다」는 **거부 목록** 한 줄이었다 — **#277** 이 그것을 허용 목록 + fail-closed 로
@@ -359,9 +427,20 @@ Attempt (1) ── (N) ErrorPatternOccurrence
   이쪽은 **지목한 신원의 명의로** 쓰기까지 허용한다.
 
 ### 11.2 라우트 보호
-- `(student)/*` — Learner 권한 필수
-- `(teacher)/*` — Manager/Owner 권한 필수
-- `/parent/*` — Assistant 권한 + 자녀 매칭(`parent_child_links`) 검증, 그리고
+- `(student)/*` — Learner 권한 필수. *(`[2026-09-16]` **비로그인이면 OS 로그인으로 보낸다** —
+  `RoleGuard` 가 `redirectToOsLogin()`(`lib/auth/os-sso.ts`)을 부르고 `next` 로 돌아온다. 공개 예외는
+  둘 — 소개 `/classbot/onboarding` 과 랜딩. `[예정]` FE PR 4. *(정정)* 종전 `role-guard.tsx:25` 의
+  「비로그인(데모 폴백)이면 통과시킨다」는 [완성 설계](2026-09-16_classbot-completion-design.md) 결정 ② 로
+  닫힌다 — 코어 화면의 데모 통과는 끝난다. prod-verify 는 이미 「익명 = 로그인 안내」 규칙이라 게이트 화면
+  기대값만 바뀌고, 익명 레인·로그인 레인 둘로 갈린다(`[예정]` PR 4-ci).)*
+- `(teacher)/*` — Manager/Owner 권한 필수. *(`[2026-09-16]` 비로그인은 위와 같이 OS 로그인으로. OS 가
+  `parent`·`institution` 으로 내려준 사람은 학생으로 위장시키지 않고 「클래스봇은 학생·교사용」 **안내 한 장**을
+  본다 — `mapRole`(`lib/auth/os-sso-provider.ts:43`)의 「그 외 → student」 를 걷는다(결정 ⑥ · `[예정]` FE PR 4).)*
+- `/parent/*` — **`[2026-09-16]` 별건 PR 까지 비활성** — 결정 ①·②·⑥ 을 합치면 이 트리에 들어올 신원이 없다
+  (개발 쿠키 은퇴 · 비로그인 차단 · OS `parent` 는 안내 페이지). 화면 셋과 서버 라우트 둘은 지우지 않고 남는다.
+  개발 쿠키를 이 트리에만 남기는 길은 택하지 않았다 — ① 과 다시 부딪힌다. 여는 것은 `packages/types` 의
+  claim union 을 넓히는 별건 PR 이다([03 § 2.3](03-features-and-ia.md)). 아래는 그 PR 이 열 때의 규칙이다.
+  Assistant 권한 + 자녀 매칭(`parent_child_links`) 검증, 그리고
   **자녀 동의**(§ 11.4). 종전 줄의 「Assistant 권한 + 자녀 매칭」은 그대로 두고 동의 한 겹을
   더한 것이다. **`[2026-09-14 인도 현황]`** `app/(parent)` 트리는 **세 화면이 다 `dev` 에
   있다** — 홈 · 자녀 과제는 **#281**, `/parent/self-study` 는 **#291**. 그 뒤를 받치는 서버는
@@ -374,6 +453,11 @@ Attempt (1) ── (N) ErrorPatternOccurrence
 ### 11.3 데이터 접근
 - Student는 자신 데이터만 read/write
 - Teacher는 자신이 만든 자원만 write, 학생 데이터는 read (집계)
+  *(`[2026-09-16]` **자기 반(operator)의 학생 봇 대화도 read 한다** — `GET /classbot/classes/:id/chat?student=…`,
+  `[예정]` pullim-api PR 3. pullim-api `authz.md § 1.5` 의 「chat 히스토리는 학생 본인만 · 교사 열람은 이 카드
+  범위 밖」은 그 리포의 PR 0 이 operator read 행으로 개정한다. 학생 화면에는 고지가 함께 선다 — 봇 대화 상단
+  **「선생님이 이 대화를 볼 수 있어요」**(`[예정]` FE PR 5). 고지 없는 열람은 이 절 위반이다.
+  [완성 설계 § 5·§ 6](2026-09-16_classbot-completion-design.md).)*
 - Parent는 자녀 매핑 + 자녀 승인 후 read만
 
 ### 11.4 학부모 열람 동의 (`consent_logs`)

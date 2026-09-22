@@ -2,20 +2,31 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { getBotHomePreview } from '@/lib/mock/classbot-home-preview';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { SectionHeading } from '@/components/shell/section-heading';
 import type { ClassBot } from '@/lib/mock';
 
 /**
- * 이 카드가 그리는 데 필요한 것은 **봇 하나뿐이다.**
+ * 이 카드가 그리는 데 필요한 것은 **봇 하나와, 있다면 그 봇이 걸린 반**이다.
  *
  * 예전엔 `enrollment` 까지 받았는데 카드가 그 값을 한 번도 읽지 않았고, 대신 「반에 속한
  * 봇」만 이 자리에 올 수 있다는 뜻이 돼서 **마켓에서 담은 봇(반 관계가 없다)이 홈에
  * 못 올라왔다.** 담은 봇도 학생에게는 「내 봇」이므로 그 제약을 뗀다 —
- * 반 봇(`RoomSlot`)과 담은 봇(`StudentBotSlot`) 둘 다 이 모양을 만족한다.
+ * `StudentBotSlot`(반 칸·담은 칸)이 이 모양을 만족한다.
+ *
+ * `classId` 를 읽는 이유는 대화의 단위가 반이라서다(완성 설계 § 6.2 · 해소 3 · 계획 PR 5a).
+ * 반 칸은 `/classbot/chat?classId=` 로 **그 반의 대화**를 열고, key 도 반으로 잡는다 — 같은 봇이
+ * 두 반에 걸린 학생에게서 `bot.id` key 가 겹치던 자리다. 담은 봇은 반이 없어 종전대로 `?bot=`.
  */
-type BotSlot = { bot: ClassBot };
+type BotSlot = { bot: ClassBot; classId?: string | null };
+
+/** 칸의 목적지와 key — `lib/store/mode-bots.ts` `studentBotSlotKey` 와 같은 규칙(반은 반으로, 담은 봇은 봇으로). */
+function slotTarget(slot: BotSlot): { key: string; href: string } {
+  return slot.classId
+    ? { key: `class:${slot.classId}`, href: `/classbot/chat?classId=${encodeURIComponent(slot.classId)}` }
+    : { key: `self:${slot.bot.id}`, href: `/classbot/chat?bot=${encodeURIComponent(slot.bot.id)}` };
+}
 
 function LiveBadge() {
   return (
@@ -33,17 +44,15 @@ function NewActivityDot() {
 }
 
 function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
-  const sig = botSignature(slot.bot);
   const preview = getBotHomePreview(slot.bot.id);
   const hasNewToday = !isLive && (preview?.lastAt.startsWith('오늘') ?? false);
 
   return (
     <li>
       <Link
-        href={`/classbot/chat?bot=${slot.bot.id}`}
+        href={slotTarget(slot).href}
         className={cn(
-          // 봇 시그니처는 아바타 한 곳에서만 — 라이너까지 칠하면 한 화면에 hue 가 [08 § 14.1] 한도(≤3종)를 넘는다
-          'group bg-card focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 gap-3 rounded-xl border p-3 transition-all shadow-pullim-xs',
+          'group bg-card focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex h-full min-h-11 gap-3 rounded-xl border p-3 transition-all shadow-pullim-xs',
           isLive
             ? 'border-pullim-danger/40 bg-pullim-danger/5 hover:bg-pullim-danger/10'
             : 'border-pullim-slate-200 hover:border-pullim-blue-300 hover:bg-pullim-blue-50/40',
@@ -51,16 +60,13 @@ function TutorCard({ slot, isLive }: { slot: BotSlot; isLive: boolean }) {
       >
         {/* Avatar */}
         <div className="relative shrink-0">
-          <span
-            className={cn(
-              'flex h-11 w-11 items-center justify-center rounded-xl text-xl',
-              // LIVE 표시는 이미 위험색 테두리 + LiveBadge 가 한다 — 링까지 다른 색을 더하지 않는다
-              isLive && 'ring-pullim-danger ring-2 pullim-anim-bot-breath',
-            )}
-            style={{ backgroundColor: sig.hex }}
-          >
-            {slot.bot.avatarEmoji}
-          </span>
+          <BotAvatar
+            subject={slot.bot.subject}
+            name={slot.bot.name}
+            size="lg"
+            // LIVE 표시는 이미 위험색 테두리 + LiveBadge 가 한다 — 링까지 다른 색을 더하지 않는다
+            className={cn(isLive && 'ring-pullim-danger ring-2 pullim-anim-bot-breath')}
+          />
           {isLive && (
             <span className="absolute -top-1 -right-1">
               <LiveBadge />
@@ -108,14 +114,11 @@ export function TutorShowcase({
 }) {
   return (
     <section>
-      <SectionHeading
-        title="내 봇"
-        action={<span className="text-pullim-slate-500 text-xs font-bold">{bots.length}명</span>}
-      />
+      <SectionHeading title="내 봇" />
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
         {bots.map((slot) => (
           <TutorCard
-            key={slot.bot.id}
+            key={slotTarget(slot).key}
             slot={slot}
             isLive={Boolean(activeLive[slot.bot.id])}
           />
@@ -124,7 +127,7 @@ export function TutorShowcase({
         <li>
           <Link
             href="/classbot/discover"
-            className="border-pullim-slate-200 text-pullim-slate-400 hover:border-pullim-blue-300 hover:text-pullim-blue-600 focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-dashed p-3 text-sm font-semibold transition-colors"
+            className="border-pullim-slate-200 text-pullim-slate-400 hover:border-pullim-blue-300 hover:text-pullim-blue-600 focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 flex h-full min-h-11 items-center justify-center gap-1.5 rounded-xl border border-dashed p-3 text-sm font-semibold transition-colors"
           >
             <span className="text-base leading-none">＋</span>
             봇 찾기

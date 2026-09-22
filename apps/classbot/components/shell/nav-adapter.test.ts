@@ -18,7 +18,7 @@ describe("nav-adapter", () => {
       // 반을 열고 참여 코드를 내는 화면 — 학생을 들이는 입구라 홈 바로 뒤에 온다
       "/teacher/classroom",
       "/teacher/classbot",
-      "/teacher/builder",
+      // 봇 빌더(`/teacher/builder`)는 레일에서 내렸다 — 라우트는 살아 있고 앱 안 여러 진입점이 쓴다 (nav-config)
       "/teacher/monitor",
       "/teacher/bots",
       // 게시된 봇이 모이는 곳 — 봇 관리 다음
@@ -31,6 +31,29 @@ describe("nav-adapter", () => {
     const items = secs.flatMap((s) => s.items);
     expect(items.find((i) => i.href === "/")?.active).toBe(true);
     expect(items.some((i) => i.href === "/classbot/chat")).toBe(true);
+  });
+  /*
+    결정 ④(2026-09-16 · nav-config): 「봇 대화」는 「내 수업방」 아래 한 단계다. PUDS `OsRail` 은 행마다
+    여백을 달리 줄 수 없어 어댑터가 평탄화하며 **부모 바로 뒤에 depth 1 로** 세운다 — 여기서 빠지면
+    배포 레일에서 「봇 대화」가 통째로 사라진다(`app-shell.tsx` 가 이 목록을 그대로 그린다).
+  */
+  it("student rail nests 봇 대화 right under 내 수업방 as a depth-1 row, others depth 0", () => {
+    const items = railSectionsForRole("student", "/classbot").flatMap((s) => s.items);
+    expect(items.map((i) => [i.href, i.depth])).toEqual([
+      ["/", 0],
+      ["/classbot/classroom", 0],
+      ["/classbot/chat", 1],
+      ["/classbot/assignment", 0],
+      ["/classbot/my-bots", 0],
+      ["/classbot/discover", 0],
+      ["/classbot/me/progress", 0],
+      ["/classbot/onboarding", 0],
+    ]);
+    // 들여쓴 행만 아이콘 앞에 빈 칸을 달고 있다 — 낭독기에는 안 들리는(aria-hidden) 여백이다.
+    const nested = items.find((i) => i.href === "/classbot/chat");
+    const flat = items.find((i) => i.href === "/classbot/classroom");
+    expect(JSON.stringify(nested?.icon)).toContain('"aria-hidden":true');
+    expect(JSON.stringify(flat?.icon)).not.toContain('"aria-hidden":true');
   });
   // 내 정보(/classbot/me) 는 nav 비노출 — 프로필 메뉴 전용 진입점.
   it("student rail exposes 학습 기록 but not /classbot/me", () => {
@@ -49,13 +72,17 @@ describe("nav-adapter", () => {
         .map((i) => i.label);
     expect(activeLabels("/teacher")).toEqual(["홈 대시보드"]);
     expect(activeLabels("/teacher/classbot")).toEqual(["내 클래스봇"]);
-    expect(activeLabels("/teacher/builder")).toEqual(["봇 빌더"]);
+    // 봇 빌더는 레일에서 내렸다 — 라우트는 살아 있지만 레일에 행이 없으니 어느 행도 켜지 않는다
+    expect(activeLabels("/teacher/builder")).toEqual([]);
     expect(activeLabels("/teacher/grading/7")).toEqual(["채점 허브"]);
     // nav 에 없고 어느 행에도 속한다고 선언되지 않은 페이지 — 현재 위치라고 주장할 행이 없으니 아무것도 켜지 않는다
     expect(activeLabels("/teacher/settings")).toEqual([]);
   });
-  // 학생 상세는 관제소 명단에서 눌러 들어가지만 경로가 `/teacher/monitor` 아래가 아니다 —
-  // 관제소 항목이 `matchPrefix` 로 소속을 밝혀서 잡는다 (nav-config).
+  // `/teacher/students*` 는 경로가 `/teacher/monitor` 아래가 아닌데도 관제소 소속이다 —
+  // 관제소 항목이 `matchPrefix` 로 밝혀서 잡는다 (nav-config).
+  // 「관제소 명단에서 눌러 들어간다」는 2026-09-18 에 더는 참이 아니다(계획 PR 7 · 결함 03-③) —
+  // 그 두 화면은 빈 상태이고 학생 상세로 보내는 자리가 없다. 그래도 이 판정은 그대로 지킨다:
+  // 라우트가 살아 있고, 밖에 남은 주소로 들어온 교사가 레일에서 제 위치를 잃으면 안 된다.
   it("teacher 학급 관제소 stays active on its 학생 상세 sub-pages", () => {
     const activeLabels = (pathname: string) =>
       railSectionsForRole("teacher", pathname)
@@ -82,16 +109,28 @@ describe("nav-adapter", () => {
     expect(activeLabels("/classbot/chat")).toEqual(["봇 대화"]);
     expect(activeLabels("/classbot/assignment/1")).toEqual(["받은 과제"]);
   });
-  // 과제 내기 · 커리큘럼은 각각 봇 · 대화에서 이어지는 화면인데 경로가 갈라져 있다 —
+  // 커리큘럼은 대화에서 이어지는 화면인데 경로가 갈라져 있다 —
   // 소속을 밝힌 항목이 잡되, 그 때문에 두 곳이 켜지지는 않아야 한다 (nav-config 의 matchPrefix).
   it("keeps split-off routes on the section that owns them", () => {
-    const teacherLabels = (pathname: string) =>
-      railSectionsForRole("teacher", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
     const studentLabels = (pathname: string) =>
       railSectionsForRole("student", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
-    expect(teacherLabels("/teacher/assignment/new")).toEqual(["내 클래스봇"]);
     expect(studentLabels("/classbot/learn/t1")).toEqual(["봇 대화"]);
     expect(studentLabels("/classbot/learn/t1/u1")).toEqual(["봇 대화"]);
+  });
+
+  /*
+    과제 내기는 **더 이상 「내 클래스봇」 소속이 아니다.** 종전에는 `/teacher/assignment` 아래에
+    `new` 하나뿐이라 봇 운영 항목이 `matchPrefix` 로 데려갔고, nav-config 의 그 자리 주석이
+    「나중에 형제 경로가 생기면 소속을 새로 정한다」고 예고해 두었다. 목록·상세가 생기면서
+    그 날이 왔다 — 이제 `/teacher/assignment/*` 셋 다 [낸 과제] 하나로 켜진다.
+    셋을 같이 못박는 이유는 하나만 어긋나도 교사가 「내가 어디 있는지」를 잃기 때문이다.
+  */
+  it("owns every /teacher/assignment/* route under 낸 과제", () => {
+    const teacherLabels = (pathname: string) =>
+      railSectionsForRole("teacher", pathname).flatMap((s) => s.items).filter((i) => i.active).map((i) => i.label);
+    expect(teacherLabels("/teacher/assignment")).toEqual(["낸 과제"]);
+    expect(teacherLabels("/teacher/assignment/new")).toEqual(["낸 과제"]);
+    expect(teacherLabels("/teacher/assignment/as_today")).toEqual(["낸 과제"]);
   });
   // 커리큘럼 소속은 레일만의 결정이 아니다 — 모바일 하단탭도 「대화」로 같이 켜져야
   // 같은 화면에서 「내가 어디 있는지」가 두 표면에 같게 나온다.

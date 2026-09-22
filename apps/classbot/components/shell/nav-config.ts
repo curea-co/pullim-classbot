@@ -1,13 +1,23 @@
 /**
  * 통합 네비게이션 설정 — 클래스봇 도메인 단일 추출본.
  * 원본 풀림 스터디 데모에서 클래스봇만 분리했기 때문에
- * 학생 GNB / 사이드바 / 하단탭 / 교사 nav 모두 클래스봇·빌더로 한정.
+ * 학생 GNB / 사이드바 / 하단탭 / 교사 nav 모두 클래스봇 라우트로 한정.
+ * (종전에는 「클래스봇·빌더로 한정」이었다 — 교사 레일에서 [봇 빌더]를 내린 뒤로
+ *  빌더는 레일에 없다. 라우트는 살아 있고 화면 안 여러 자리가 그리로 보낸다.)
+ *
+ * **학생 레일은 두 층이다**(2026-09-16 · 사용자 승인 — `apps/classbot/CLAUDE.md § 5` ㉠ ·
+ * `proc/spec/03 § 2.1` 「학생 레일」 메모 · 완성 설계 `2026-09-16_classbot-completion-design.md § 6.1`).
+ * 종전에는 도메인 → 항목 한 단계였다. 「봇 대화」가 「내 수업방」 **아래 한 단계**로 들어가면서
+ * `NavSubItem` 에 `children` 이 생겼고, 그리는 쪽 셋(`nav-adapter.ts` → PUDS `OsRail` ·
+ * `app-sidebar.tsx` · `mobile-drawer.tsx`)이 그것을 들여쓰기로 그린다. 반이 척추가 되는 결정(④)이다 —
+ * 대화는 반에서 나오는 것이라 반 아래에 산다. 경로는 `/classbot/chat` 그대로(반 전환은 화면 안).
+ * 「받은 과제」를 수업방 바로 뒤로 올린 것은 같은 결정의 덤 — 반에서 나오는 것 둘이 붙는다.
  */
 
 import {
   Home, MessageCircle, GraduationCap, BookOpen,
-  LayoutDashboard, Bot, Plus, Target, BookMarked, Compass, School, Sprout,
-  ClipboardCheck, BarChart3, TrendingUp, Radar, Settings,
+  LayoutDashboard, Bot, Target, BookMarked, Compass, School, Sprout,
+  ClipboardCheck, ClipboardList, BarChart3, TrendingUp, Radar, Settings,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +41,12 @@ export type NavSubItem = {
   matchPrefix?: string[];
   description?: string;
   locked?: boolean;
+  /**
+   * 이 항목 아래 한 단계(결정 ④ · 2026-09-16). **한 단계만이다** — 두 층을 더 여는 날은
+   * 레일이 트리가 되는 날이고, 그건 이 결정이 아니다. 지금 이 칸을 쓰는 항목은 학생 레일의
+   * 「내 수업방 ▾ 봇 대화」 하나다.
+   */
+  children?: NavSubItem[];
 };
 
 export type NavGroup = {
@@ -59,26 +75,33 @@ export type NavGroup = {
  */
 export type Role = 'student' | 'teacher' | 'parent';
 
-/** 풀림 클래스봇(학생) 섹션 */
+/**
+ * 풀림 클래스봇(학생) 섹션 — 순서와 층은 완성 설계 § 6.1 의 「바꾼 뒤」 열 그대로다:
+ * 홈 · 내 수업방 ▾ 봇 대화 · 받은 과제 · 담은 봇 · 봇 마켓 · 학습 기록 · 소개.
+ */
 export const classbotStudentSection: NavSubItem[] = [
   { href: '/classbot',            label: '홈',         icon: Home,          description: '내 봇 N개 + 오늘 과제' },
   // 참여 코드 입력이 여기 산다. 예전엔 참여한 반이 0개일 때만 뜨는 홈 히어로가 유일한
   // 입구라, 한 반에 들어간 뒤엔 다른 선생님 반에 들어갈 길이 화면에서 사라졌다.
-  { href: '/classbot/classroom',  label: '내 수업방',   icon: GraduationCap, description: '참여한 반 · 코드로 참여하기' },
-  // 마켓에서 담은 봇이 사는 자리. 「내 수업방」 바로 뒤에 두는 이유는 봇이 사는 곳 둘이
-  // 붙어 있어야 학생이 「선생님 반의 봇」과 「내가 고른 봇」을 한 눈에 가르기 때문이다.
-  // Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라 두 항목이 같은 곳처럼 읽힌다.
+  {
+    href: '/classbot/classroom',  label: '내 수업방',   icon: GraduationCap, description: '참여한 반 · 코드로 참여하기',
+    children: [
+      // 「봇 대화」는 반 아래에 산다(결정 ④) — 서버가 대화를 반 단위로 저장·인가하고
+      // (`POST/GET /classbot/classes/:classId/chat`), 화면의 선택 단위도 반이다(해소 3).
+      // 경로는 그대로 `/classbot/chat`. 커리큘럼·단원 화면(`/classbot/learn/*`)은 대화에서
+      // 이어지는 학습이라 여기 소속인데 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
+      { href: '/classbot/chat',   label: '봇 대화',     icon: MessageCircle, description: '반의 봇과 1:1 — 반 전환 가능', matchPrefix: ['/classbot/learn'] },
+    ],
+  },
+  // 반에서 나오는 것 둘(대화·과제)이 붙어 있어야 학생이 「선생님 반의 것」을 한 덩이로 읽는다.
+  { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
+  // 마켓에서 담은 봇이 사는 자리. Compass 를 재사용하지 않는다 — 그건 봇 마켓 아이콘이라
+  // 두 항목이 같은 곳처럼 읽힌다.
   { href: '/classbot/my-bots',    label: '담은 봇',     icon: BookMarked,   description: '마켓에서 담은 봇 — 혼자 학습' },
   // 담은 봇이 오는 곳이라 바로 뒤에 둔다. 레일에 세우는 이유: 이미 반과 담은 봇이 있는 학생은
   // 빈 상태 안내를 두 번 다시 안 보므로, 마켓이 그 안내에만 걸려 있으면 **새 봇을 찾을 길이
-  // 사라진다.** 종전에 닫아 뒀던 것은 화면이 mock 「공식 튜터 마켓」이라 레일 라벨과 도착지가
-  // 어긋났기 때문이고, 이 PR 이 그 화면을 교사 공유 봇으로 갈아끼우므로 함께 연다
-  // (`proc/spec/03 § 2.1`).
+  // 사라진다.** (`proc/spec/03 § 2.1`)
   { href: '/classbot/discover',   label: '봇 마켓',     icon: Compass,       description: '교사가 공유한 봇 둘러보기 · 담기' },
-  { href: '/classbot/assignment', label: '받은 과제',   icon: Target,        description: '풀이 워크스페이스 — 봇 처방·시험·연습' },
-  // 커리큘럼·단원 화면(`/classbot/learn/*`)은 봇 대화에서 이어지는 학습이라 여기 소속인데
-  // 경로가 `/classbot/chat` 아래가 아니라 접두사로는 안 잡힌다.
-  { href: '/classbot/chat',       label: '봇 대화',     icon: MessageCircle, description: '내 봇과 1:1 — 봇 전환 가능', matchPrefix: ['/classbot/learn'] },
   { href: '/classbot/me/progress', label: '학습 기록', icon: TrendingUp,   description: '내 학습 진행·성취 기록' },
   // 기획 보류 — 내 웰빙(/classbot/wellness) · 리플레이(/classbot/replay) 진입점 비노출. 재개 시 되살린다
   // 내 정보(/classbot/me) 는 nav 비노출 — 헤더 프로필 메뉴가 유일 진입점
@@ -106,25 +129,63 @@ export const studentNav: NavGroup[] = [
   { label: '', items: [studentHomeItem, ...studentDomains] },
 ];
 
-/** 교사 사이드바 — 클래스봇 운영 + 빌더 + 평가 */
+/** 교사 사이드바 — 클래스봇 운영 + 평가 (빌더는 레일에 없다 — 아래 [봇 빌더] 자리의 주석) */
 export const teacherNav: NavGroup[] = [
   {
     label: '워크스페이스',
     items: [
       { href: '/teacher',          label: '홈 대시보드', icon: LayoutDashboard, description: '내 클래스봇 운영 현황' },
-      // 반을 열고 참여 코드를 내는 곳. 학생을 들이는 유일한 입구라 홈 바로 다음에 둔다.
-      { href: '/teacher/classroom', label: '내 수업방',  icon: School,          description: '반 만들기 · 참여 코드 · 참여 학생' },
-      // 과제 내기(`/teacher/assignment/new`)는 봇에서 과제를 내보내는 화면이라 여기 소속인데
-      // 경로가 `/teacher/classbot` 아래가 아니라 접두사로는 안 잡힌다.
-      // `/teacher/assignment` 가 아니라 `new` 까지 적는다 — 지금 그 아래엔 이 화면뿐이고,
-      // 나중에 형제 경로가 생기면 소속을 새로 정하게 두려는 것이다(조용히 물려받지 않게).
-      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot, badge: 3,    description: '활성 봇 운영 + 라이브 모니터링', matchPrefix: ['/teacher/assignment/new'] },
-      // TODO(봇 빌더 이식): 다음 작업에서 이 항목을 걷고 [봇 관리] 하위(`/teacher/bots/new`)로 옮긴다.
-      //  그때 [봇 관리] 안의 「새 봇」이 유일한 진입점이 된다 (`proc/spec/03 § 4.4.7`).
-      { href: '/teacher/builder',  label: '봇 빌더',    icon: Plus,             description: '새 클래스봇 만들기 (8단계)' },
-      // 학생 상세(`/teacher/students/*`)는 관제소 명단에서 학생을 눌러 들어가는 화면인데
-      // 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 — 관제소 소속임을 여기서 밝힌다.
-      // 되돌아갈 곳의 기본값이 관제소인 것과 같은 근거다 (`students/[id]/entry-source.ts` 규칙 R2).
+      // 내 반의 참여 코드를 내고 반 상세로 들어가는 곳. 학생을 들이는 유일한 입구라 홈 바로 다음에 둔다.
+      // (반 만들기·명단은 정본 문이 열리는 계획 PR 5b 까지 가려져 있다 — `classroom-workspace.tsx`.)
+      { href: '/teacher/classroom', label: '내 수업방',  icon: School,          description: '내 반 · 참여 코드 · 반 상세' },
+      // 「과제 내기」의 소속이 여기서 **평가 그룹의 [낸 과제]로 옮겨 갔다.** 위 줄이 예고한
+      // 「나중에 형제 경로가 생기면 소속을 새로 정한다」의 그 자리다 — `/teacher/assignment` 아래에
+      // 목록·상세가 생겼으므로, `new` 만 떼어 이 항목에 붙여 두면 같은 트리가 두 레일 항목으로
+      // 갈린다. 이제 `/teacher/assignment/*` 전부가 [낸 과제] 소속이다(접두사로 자연히 잡힌다).
+      // 배지에 `3` 이 박혀 있었다 — 봇을 하나도 안 만든 계정에도 「내 클래스봇 ③」이 떴다.
+      // **걷은 것은 숫자이지 배지가 아니다**(`NavItem.badge` 는 그대로 있고 다른 항목이 쓸 수 있다).
+      // 여기에 진짜 수를 다시 넣으려면 레일이 정본을 읽어야 하는데, 이 파일은 훅을 부를 수 없는
+      // 정적 배열이다 — 셀 값은 `useOperatorClasses()`(`GET /classbot/bots?role=teacher`)에 있고,
+      // 그것을 레일까지 들고 오는 일은 이 PR 의 경계 밖이다(`app-sidebar.tsx` 가 클라이언트이므로
+      // 길은 있다). 그날까지는 **아무 숫자도 말하지 않는 쪽**이 맞는다.
+      { href: '/teacher/classbot', label: '내 클래스봇', icon: Bot,             description: '활성 봇 운영 + 라이브 모니터링' },
+      // 여기 「봇 빌더」가 있었다. **레일에서는 내렸다** (2026-09-15, 사용자 직접 지시 —
+      // `apps/classbot/CLAUDE.md § 5`). 레일은 「어디에 무엇이 사는가」를 적는 자리인데
+      // 빌더는 사는 곳이 아니라 **하는 일**이고, 그 일로 가는 길은 앱 안에 **여러 곳**이다 —
+      // [봇 관리]의 「새 클래스봇」과 빈 상태, 홈 대시보드, 운영 화면의 「새 클래스봇」,
+      // 학생 상세에서 과제 문항을 손보러 가는 길까지. 레일 항목은 그 위에 하나 더였다.
+      // (**세지 않는다** — 자리가 늘고 줄 때마다 틀리는 숫자를 주석에 박아 두지 않는다.
+      //  요지는 몇 개냐가 아니라 **레일에서 내려도 갈 길이 사라지지 않는다**는 것이다.)
+      //
+      // **라우트 `/teacher/builder` 는 살아 있다.** 페이지도 컴포넌트도 그대로고, 그 자리들이
+      // 계속 그리로 보낸다.
+      //
+      // **다만 레일 한 줄만 꺼지는 것이 아니다 — 빵부스러기도 같이 꺼진다.** 아래
+      // `buildBreadcrumb()` 이 `navForRole()` 을 훑어 지금 경로를 먹는 항목을 찾으므로,
+      // 레일에 행이 없으면 trail 이 뿌리 한 칸으로 끝나고 `breadcrumb.tsx` 가 막대를 통째로
+      // 안 그린다(`trail.length <= 1`). `/teacher/builder` 와 `/teacher/builder/[botId]`
+      // 둘 다 그렇다. **이 판정을 여기서 넓히지 않는다** — `matchPrefix` 를 읽게 고치면
+      // 레일에 없는 다른 경로들의 빵부스러기까지 함께 움직인다.
+      // 대신 **잃은 위치 단서를 그 화면이 직접 든다**: `/teacher/builder` 는
+      // `TeacherPageShell` 의 `backHref="/teacher/bots"`([봇 관리]) 로 돌아갈 길을 얻었고,
+      // `[botId]` 쪽은 이미 `backHref="/teacher/classbot"` 을 들고 있었다.
+      // 못박아 둔 자리 — `nav-config.test.ts` 의 `buildBreadcrumb` describe,
+      // `components/builder/__tests__/builder.test.tsx` 의 「돌아갈 길」.
+      //
+      // TODO(봇 빌더 이식): **남은 것은 경로 이동이다.** 빌더를 `/teacher/bots/new` 로 옮겨
+      //  [봇 관리] 안의 「새 클래스봇」이 유일한 진입점이 되게 한다 (`proc/spec/03 § 4.4.7`).
+      //  미뤄 둔 것이지 접은 것이 아니다 — 그때까지 라우트가 둘로 읽히는 상태가 남는다.
+
+      // `/teacher/students*` 는 경로가 `/teacher/monitor` 아래가 아니라 접두사로는 안 잡힌다 —
+      // 관제소 소속임을 여기서 밝힌다. **이 `matchPrefix` 가 그 라우트를 살려 두는 근거다.**
+      //
+      // 종전 근거 둘은 2026-09-18 에 사라졌다. ⑴ 「관제소 명단에서 학생을 눌러 들어간다」 —
+      // 계획 PR 7 이 관제소를 정본 신호 표로 바꾸며 줄이 반 상세 「대화」 탭으로 가게 됐고,
+      // 그 뒤 결함 03-③ 이 목 명단을 걷어 **학생 상세로 보내는 자리가 앱 전체에서 0** 이 됐다.
+      // ⑵ 「되돌아갈 곳의 기본값이 관제소인 것과 같은 근거」 — 그 규칙을 담던
+      // `students/[id]/entry-source.ts` 는 `?from=` 발신자가 0 이 돼 파일째 걷혔다.
+      // 지금 `/teacher/students*` 는 「읽어 올 수 없다」만 말하는 빈 상태이고, 라우트를 남긴 것은
+      // 이 접두사와 밖에 남은 주소 때문이다 — 지우면 그 주소가 Next 기본 404 로 떨어진다.
       { href: '/teacher/monitor',  label: '학급 관제소', icon: Radar,           description: '학급 실시간 현황 — 학생별 진입', matchPrefix: ['/teacher/students'] },
       // 봇 관리 — 봇 목록 → 봇별 설정. 전용 그룹이 없어 워크스페이스 끝에 둔다
       { href: '/teacher/bots',     label: '봇 관리',    icon: Settings,         description: '내 봇 목록 — 봇별 운영 규칙' },
@@ -136,6 +197,9 @@ export const teacherNav: NavGroup[] = [
   {
     label: '평가',
     items: [
+      // 채점·리포트보다 **앞선 단계**라 그룹 맨 위다 — 과제를 내야 제출이 생기고, 제출이 있어야
+      // 채점할 것이 생긴다. 목록·상세·내기가 모두 이 접두사 아래라 `matchPrefix` 가 필요 없다.
+      { href: '/teacher/assignment', label: '낸 과제',   icon: ClipboardList,   description: '낸 과제 현황 · 학생별 제출' },
       { href: '/teacher/grading',  label: '채점 허브',   icon: ClipboardCheck,  description: '학생 전체 · AI 초안 검수' },
       { href: '/teacher/reports',  label: '리포트 센터', icon: BarChart3,       description: '6종 리포트 + 학부모 발송' },
       // 기획 보류 — 수업 리플레이(/teacher/replay) 진입점 비노출. 재개 시 되살린다
@@ -249,20 +313,48 @@ export function buildBreadcrumb(pathname: string, role: Role): { label: string; 
   trail.push({ label: domainItem.label, href: domainItem.href });
   if (pathname === domainItem.href) return trail;
 
-  const candidates: NavSubItem[] = [...(domainItem.children ?? [])];
-  const seen = new Set<string>([domainItem.href]);
-  const matched: NavSubItem[] = [];
-  for (const c of candidates) {
-    if (seen.has(c.href)) continue;
-    if (pathname === c.href || pathname.startsWith(c.href + '/')) {
-      seen.add(c.href);
-      matched.push(c);
-    }
-  }
-  matched.sort((a, b) => a.href.length - b.href.length);
-  for (const m of matched) {
+  for (const m of subTrail(domainItem.children ?? [], pathname, new Set([domainItem.href]))) {
     trail.push({ label: m.label, href: m.href });
   }
 
   return trail;
+}
+
+/**
+ * 도메인 아래 항목들 중 지금 경로가 속한 줄기 — 위에서 아래로.
+ *
+ * 형제 사이에서는 종전 규칙 그대로다(경로 일치·경로 경계 접두사 · 짧은 href 먼저). 다른 것은
+ * **중첩**이다(결정 ④): 어떤 항목의 `children` 가운데 지금 경로가 속한 것이 있으면, 부모 자신이
+ * 경로를 먹지 않아도 부모를 먼저 싣고 그 아래를 이어 붙인다 — `/classbot/chat` 이 그렇다.
+ * `/classbot/classroom` 아래 경로가 아닌데 「내 수업방」 아래에 살아서, 빵부스러기가
+ * 「풀림 클래스봇 › 내 수업방 › 봇 대화」로 선다.
+ *
+ * `matchPrefix` 는 여기서도 읽지 않는다 — 교사 레일 주석(「이 판정을 여기서 넓히지 않는다」)과
+ * 같은 이유다. 그래서 `/classbot/learn/*` 는 종전대로 빵부스러기가 없다.
+ * @param items - 한 층의 항목들
+ * @param pathname - 지금 경로
+ * @param seen - 이미 실린 href(부모 도메인) — 같은 목적지를 두 번 싣지 않게
+ * @returns 실을 항목들(부모 → 자식 순)
+ */
+function subTrail(items: NavSubItem[], pathname: string, seen: Set<string>): NavSubItem[] {
+  const out: NavSubItem[] = [];
+  const own = items
+    .filter((c) => !seen.has(c.href) && (pathname === c.href || pathname.startsWith(c.href + '/')))
+    .sort((a, b) => a.href.length - b.href.length);
+  for (const c of own) {
+    seen.add(c.href);
+    out.push(c);
+  }
+  for (const c of items) {
+    if (!c.children?.length) continue;
+    const below = subTrail(c.children, pathname, seen);
+    if (below.length === 0) continue;
+    // 부모가 경로를 직접 먹지 않았어도 자식이 먹었으면 부모부터 싣는다.
+    if (!seen.has(c.href)) {
+      seen.add(c.href);
+      out.push(c);
+    }
+    out.push(...below);
+  }
+  return out;
 }

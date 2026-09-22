@@ -70,6 +70,28 @@ function renderAtHost(host: string) {
   return result;
 }
 
+/**
+ * host 를 **상호작용이 끝날 때까지** 유지한 채 실행한다.
+ *
+ * `renderAtHost` 는 렌더 직후 원복하므로 **클릭 시점에는 jsdom 기본 host(`localhost`)** 로
+ * 돌아가 있다. 쿠키 여부처럼 **클릭 핸들러가 host 를 읽는** 것을 재려면 그 원복이 곧
+ * 하네스를 재는 함정이 된다 — 실제로 이 파일에 그 함정으로 통과하는 테스트를 한 번 썼다.
+ * @param host - 유지할 host
+ * @param run - 그 host 에서 돌릴 것
+ */
+function atHost(host: string, run: () => void) {
+  const { location } = window;
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...location, hostname: host.split(':')[0], host },
+  });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(window, 'location', { configurable: true, value: location });
+  }
+}
+
 /** 배포 환경 변수를 세우고 되돌린다. */
 function withEnv(value: string | undefined, run: () => void) {
   const saved = process.env.NEXT_PUBLIC_VERCEL_ENV;
@@ -84,34 +106,68 @@ function withEnv(value: string | undefined, run: () => void) {
 }
 
 // 이 버튼의 노출 판정은 서버가 쓰는 `isDevIdentityHost` 와 **같은 함수**다.
-// 표가 둘이면 갈라진다 — 종전에는 여기서 `hostname !== PROD_HOST` 로 따로 비교해서,
-// 서버가 허용 목록으로 좁혀진 뒤에도 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
+// 표가 둘이면 갈라진다 — 실제로 두 번 갈라졌다. 처음에는 여기서 `hostname !== PROD_HOST` 로
+// 따로 비교해 서버가 허용 목록으로 좁혀진 뒤에도 버튼이 prod 아닌 **모든** 호스트에서 떴고,
+// 그다음에는 노출 전용 판정(`isRoleSwitchHost`)이 `dev-classbot.pullim.ai` 와 preview 를
+// 더 열어 **쿠키가 안 써지는 호스트에서 버튼만 서게** 했다(눌러도 아무 일이 없었다).
 it.each([
   ['classbot.pullim.ai', false],
   // 허용 목록 밖 — 종전에는 여기서 버튼이 떴다
   ['evil.example.com', false],
   ['pullim-classbot-abc123.example.net', false],
-  // `*.vercel.app` 은 preview 라고 확인되기 전까지 닫혀 있다(production 도 받는 접미사라서)
+  // 배포 호스트 — 신원 쿠키를 인정하지 않으므로(배포에 DB 가 없다) 버튼도 서지 않는다
   ['pullim-classbot-abc123-curea.vercel.app', false],
-  // 로컬·dev preview 는 계속 뜬다
+  ['dev-classbot.pullim.ai', false],
+  // 쿠키가 실제로 먹히는 로컬 셋만 뜬다
   ['localhost:3032', true],
-  ['dev-classbot.pullim.ai', true],
+  ['127.0.0.1:3032', true],
 ])('%s → 렌더 %s', (host, shown) => {
   const { container } = renderAtHost(host);
   expect(container.innerHTML === '').toBe(!shown);
 });
 
-it('preview 배포의 PR 미리보기에서는 뜬다', () => {
+// preview 라고 확인돼도 열리지 않는다 — 여는 기준이 「배포 환경」이 아니라 「쿠키가 먹히는
+// 호스트」이기 때문이다. 종전에는 이 자리가 `.not.toBeEmptyDOMElement()` 였고, 그게 곧
+// 「PR 미리보기에 눌러도 아무 일 없는 버튼이 선다」였다.
+it('preview 배포의 PR 미리보기에서도 뜨지 않는다 — 거기서도 쿠키는 안 써진다', () => {
   withEnv('preview', () => {
-    const { container } = renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app');
-    expect(container).not.toBeEmptyDOMElement();
+    expect(renderAtHost('pullim-classbot-git-feat-x-curea.vercel.app').container)
+      .toBeEmptyDOMElement();
   });
 });
 
-it('production 배포면 preview 도메인에서도 숨는다', () => {
+it('production 배포면 배포 도메인에서 숨는다', () => {
   withEnv('production', () => {
-    const { container } = renderAtHost('pullim-classbot-abc123-curea.vercel.app');
-    expect(container).toBeEmptyDOMElement();
+    expect(renderAtHost('pullim-classbot-abc123-curea.vercel.app').container).toBeEmptyDOMElement();
+    expect(renderAtHost('dev-classbot.pullim.ai').container).toBeEmptyDOMElement();
+  });
+});
+
+/*
+  **쿠키는 로컬에서만 쓴다** — 배포에서 명의를 세우면 라우트가 `users` 를 조회하고 배포에는
+  DB 가 없어 500 이 난다. 그 결정은 그대로고, 바뀐 것은 **그 사실을 노출 쪽이 따른다**는 것이다.
+  종전 이 케이스는 「버튼은 서되 눌러도 쿠키를 안 쓴다」를 지켰는데, 그게 바로 사용자가 만난
+  증상이었다 — 누를 수 있는 버튼이 아무 일도 하지 않는다. 그래서 지금 지키는 것은
+  **누를 것 자체가 없다**는 것이다. 쿠키가 남지 않는다는 원래의 보장은 그대로 함께 잰다.
+*/
+it('배포 호스트에서는 누를 버튼 자체가 없다 — 신원 쿠키도 남지 않는다', () => {
+  withEnv('preview', () => {
+    atHost('dev-classbot.pullim.ai', () => {
+      const { container } = render(<DevRoleSwitch role="student" />);
+      expect(container).toBeEmptyDOMElement();
+      expect(container.querySelector('a[href="/parent"]')).toBeNull();
+      expect(document.cookie).not.toContain(DEV_IDENTITY_COOKIE);
+    });
+  });
+});
+
+// 짝이 되는 확인 — 로컬에서는 **쓴다.** 위 테스트가 「아무 데서도 안 쓴다」로 통과하면
+// 이 장치가 죽은 것을 못 잡는다.
+it('로컬에서는 눌러 신원 쿠키를 쓴다', () => {
+  atHost('localhost:3032', () => {
+    const { container } = render(<DevRoleSwitch role="student" />);
+    fireEvent.click(container.querySelector('a[href="/parent"]')!);
+    expect(document.cookie).toContain(`${DEV_IDENTITY_COOKIE}=parent_001`);
   });
 });
 

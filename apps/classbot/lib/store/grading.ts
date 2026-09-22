@@ -1,12 +1,19 @@
 /**
- * 교사 채점 확정 store — 채점 허브 「AI 초안 검수」의 결론을 남긴다.
+ * 교사 채점 확정 store — 채점 허브 「AI 초안 검수」의 결론을 남기던 곳.
+ *
+ * ⚠ **이 store 를 읽는 화면이 없다(2026-09-18).** 채점 허브와 그 상세는 #370 이, 마지막 소비처였던
+ * 학생 상세의 채점 패널은 결함 03-③ 이 걷었다 — **확정이 서버가 아니라 이 브라우저에만 남는 것**이
+ * 그 화면들을 걷은 까닭 중 하나였다(다른 기기로 옮기면 방금 승인한 채점이 없었다).
+ * 지우지 않고 남긴 것은 `__tests__/grading.test.ts` 가 지키는 계약(approve · approveWithEdit ·
+ * merge · persist)이 정본에 채점 문이 열리는 날 그대로 쓸 모양이어서다. **새 화면에서 읽지 마라** —
+ * 읽으려면 아래 「서버 전송은 아직 없다」가 먼저 풀려야 한다.
  *
  * 정책:
  * - localStorage persist — 새로고침해도 확정이 남는다 (assignments.ts 와 동일 문법)
  * - 확정 방식 2종을 구분해 저장: `approved`(AI 초안 그대로) / `overridden`(교사가 고쳐서 승인).
  *   수정 후 승인은 교사가 고친 점수·의견·루브릭을 함께 남겨 다시 열었을 때 그대로 복원한다.
  * - mock 시드(`GradingItem.status`) 위에 확정 결과를 **덮어쓰는** 병합은 mergeGradingItems /
- *   useMergedGradingItems 가 맡는다 — assignments.ts 의 useMergedAssignments 와 같은 결
+ *   useMergedGradingItems 가 맡는다 — 종전 assignments.ts 의 useMergedAssignments(FE PR 6 에서 은퇴)와 같은 결이었다
  * - 소비 화면은 `useStoresHydrated(useGradingStore)` 로 rehydrate 를 기다린다
  *
  * 서버 전송은 아직 없다 — 정본 라우트가 생기면 decide() 안 TODO 자리에서 낙관 전송한다.

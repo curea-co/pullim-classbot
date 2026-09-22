@@ -8,13 +8,14 @@
  * ⚠️ **403 은 역할 불일치에만 쓴다.** "남의 반" 은 403 이 아니라 **404** 다 —
  * 403 은 "그 id 는 있는데 네 것이 아니다" 를 알려 줘서 남의 반이 존재한다는 사실이 새 나간다.
  * 소유권은 조회 조건에 넣어(`and(eq(id), eq(teacherId, 나))`) 0행이면 404 로 답한다.
- * `app/api/assignments/[id]/route.ts` 가 학생 쪽에서 쓰는 것과 같은 규약이다.
+ * (학생 쪽에서 같은 규약을 쓰던 `app/api/assignments/[id]/route.ts` 는 계획 PR 8 에서 걷혔다 —
+ * 규약은 교사 반 라우트에 그대로 선다.)
  *
  * 역할을 왜 도메인 `users.role` 로 다시 확인하나:
- *  - 공유 `UserRole` 타입에는 아직 `parent` 가 없다(student/teacher/admin). 그래서 JWT claim
- *    만으로는 학부모를 식별할 수 없고, 학부모 라우트가 영영 열리지 않는다.
- *  - `users` 는 이 앱 도메인의 역할 권위다. 행이 있으면 그 값을 쓰고, 없으면(가입 직후 등)
- *    토큰 claim 으로 떨어진다. 토큰이 teacher 라 해도 도메인 행이 student 면 막힌다 —
+ *  - 공유 `UserRole` 타입에는 아직 `parent` 가 없다(student/teacher/admin). 그래서 공유
+ *    claim union 만으로는 학부모를 식별할 수 없고, 학부모 라우트가 영영 열리지 않는다.
+ *  - `users` 는 이 앱 도메인의 역할 권위다. 행이 있으면 그 값을 쓰고, 없으면 신원 쿠키의
+ *    role 로 떨어진다. 쿠키가 teacher 라 해도 도메인 행이 student 면 막힌다 —
  *    느슨해지는 방향이 아니라 조여지는 방향이라 안전하다.
  *
  * ⚠️ 이 디렉터리는 `_` 로 시작해 Next.js App Router 의 라우트 세그먼트에서 제외된다
@@ -37,8 +38,8 @@ export interface Actor {
   id: string;
   role: ActorRole;
   /**
-   * 그 사용자 **명의로** 처리해도 되는가 — JWT 세션이거나, prod 가 아닌 곳의 allowlist
-   * 개발 신원(`lib/dev-identity.ts`). 「인증됐나」(`isAuthenticated`)와 이름을 가른 이유는
+   * 그 사용자 **명의로** 처리해도 되는가 — prod 가 아닌 곳의 allowlist 개발 신원
+   * (`lib/dev-identity.ts`). 「인증됐나」(`isAuthenticated`)와 이름을 가른 이유는
    * `lib/current-user.ts` 머리주석에 있다 — 개발 쿠키는 인증이 아니라 명의다.
    */
   isIdentified: boolean;
@@ -95,6 +96,22 @@ export function conflict(message: string): NextResponse {
 }
 
 /**
+ * 410 — 있었지만 이제 없다(만료된 참여 코드).
+ *
+ * 404 와 **가른다 — 다만 가르는 것은 존재를 숨기는 규칙의 예외다.** 이 리포의 기본은
+ * 「남의 것은 404」(존재조차 알리지 않는다)이고, 가르면 그 자체로 존재를 알려 주는 창이 된다.
+ * 그런데도 만료는 가른다: 만료된 코드는 **아무 권한도 주지 않으므로** 그 존재를 알아도 얻는
+ * 것이 없고, 대신 학생은 「내가 잘못 쳤나」와 「기간이 지났나」를 가려 다음 행동을 안다.
+ *
+ * **그러니 진짜로 없는 것에는 쓰지 마라** — 그건 `notFound()` 다. 이 함수는 「있었고, 지금은
+ * 쓸 수 없고, 그 사실을 알려도 안전한 것」에만 쓴다
+ * (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+ */
+export function gone(message: string): NextResponse {
+  return NextResponse.json({ message, code: 'GONE' }, { status: 410 });
+}
+
+/**
  * 요청 본문을 JSON 으로 읽는다 — 못 읽으면 null(호출부가 400 으로 옮긴다).
  * @param req - Next.js Request
  * @returns 파싱된 객체 또는 null
@@ -117,13 +134,15 @@ export function readTrimmed(value: unknown): string {
 /*
   ── 역할 가드 (1/6 이 세운 것) ──────────────────────────────────────────────
   가드는 **두 질문을 순서대로** 묻는다.
-   1. **누구인지 아는가**(`isIdentified`) — JWT 세션이거나, prod 가 아닌 곳의 allowlist
-      개발 신원(`lib/dev-identity.ts`). 모르면 401.
+   1. **누구인지 아는가**(`isIdentified`) — prod 가 아닌 곳의 allowlist 개발 신원
+      (`lib/dev-identity.ts`). 모르면 401. prod 에는 이 경로의 신원이 없다.
    2. **그 역할이 이 표면을 쓸 수 있는가** — 아니면 403.
 
   둘을 갈라 두는 이유: 개발용 신원이 생기면서 서버가 돌려주는 role 이 셋(학생·교사·학부모)이
-  됐다. 1번만 물으면 **학부모 명의로 학생 본인 표면**(`/api/assignments` · `/api/grades` ·
-  `/api/wellness` …)에 들어와 200 이나 빈 목록을 받는다. 「데이터가 없어서 비어 있다」와
+  됐다. 1번만 물으면 **학부모 명의로 학생 본인 표면**(`/api/me/self-bots` ·
+  `/api/me/study-days` · `/api/me/consents`)에 들어와 200 이나 빈 목록을 받는다.
+  *(예시로 들던 `/api/assignments` · `/api/grades` · `/api/wellness` 는 계획 PR 8 에서
+  걷혔다 — 가드 자체는 남은 표면에 그대로 선다.)* 「데이터가 없어서 비어 있다」와
   「그 역할은 볼 수 없다」는 전혀 다른 계약이라, 후자는 403 으로 말해야 한다.
   학부모의 자녀 열람은 별도 표면(`/parent/*`)에서 자녀 매칭·동의를 거쳐 온다
   (`proc/spec/05 § 11.2` · `§ 11.4`).

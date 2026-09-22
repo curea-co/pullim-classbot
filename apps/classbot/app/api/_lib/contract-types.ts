@@ -1,12 +1,21 @@
 /**
- * 수업방·참여 코드·과제 API 응답 계약 — 타입만 있는 파일(런타임 코드 없음).
+ * 같은 오리진 `/api/*` 응답 계약 — 타입만 있는 파일(런타임 코드 없음).
+ *
+ * *(`[계획 PR 8 정정]` 종전 제목은 「수업방·참여 코드·과제」였다. 과제 발사·참여·내 수업방
+ * 라우트가 정본과 겹쳐 걷히면서 그 계약들(`DispatchAssignment*` · `TeacherAssignmentsResponse` ·
+ * `MyClassroomsResponse` · `JoinByCode*` · `EnrollmentRow`)도 함께 걷었다. 남은 것은 교사 반
+ * 목록·코드·명단(마켓 축) · 마켓 · 동의 · 담은 봇 · 자기주도 · 학부모다.)*
  *
  * 서버(라우트)와 클라이언트(훅)가 **같은 타입**을 보게 하려고 계약을 여기 한 곳에 둔다.
  * `import type` 으로만 쓰이므로 이 파일은 번들에 남지 않는다 — 클라이언트가 읽어도
  * 서버 모듈이 딸려 오지 않는다.
  */
 
-/** 과제 행 — `assignments` 테이블 컬럼 그대로(타임스탬프는 JSON 직렬화로 문자열). */
+/**
+ * 과제 행 — `assignments` 테이블 컬럼 그대로(타임스탬프는 JSON 직렬화로 문자열).
+ * 이 모양을 **응답으로 내는 라우트는 이제 없다**(계획 PR 8) — 남은 쓰임은 화면 쪽 표시 타입이고,
+ * 학부모가 보는 축은 칸을 손으로 고른 `ParentAssignmentItem` 이다(아래).
+ */
 export interface AssignmentRow {
   id: string;
   botId: string;
@@ -55,6 +64,11 @@ export interface TeacherClassroomItem {
   studentCount: number;
   /** 지금 살아 있는 참여 코드(하이픈 없는 대문자 6자). 발급 전이면 null. */
   joinCode: string | null;
+  /**
+   * 코드가 닫히는 시각(ISO8601). 발급 전이거나 **만료가 생기기 전에 발급된 옛 코드**면 null —
+   * 그때는 「안 닫힘」이다 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+   */
+  joinCodeExpiresAt: string | null;
   /**
    * 짝 봇이 마켓에 걸려 있나. 짝 봇이 없는 반은 게시할 것도 없으므로 false 다.
    *
@@ -124,11 +138,15 @@ export interface CreateClassroomResponse {
   bot: ClassBotRow;
   /** 개설과 함께 발급된 참여 코드. */
   joinCode: string;
+  /** 그 코드가 닫히는 시각(ISO8601) — 개설 배너가 바로 쓴다. */
+  joinCodeExpiresAt: string;
 }
 
 /** `POST /api/teacher/classrooms/[id]/join-codes` 응답. */
 export interface IssueJoinCodeResponse {
   joinCode: string;
+  /** 새 코드가 닫히는 시각(ISO8601). */
+  joinCodeExpiresAt: string;
 }
 
 /** `GET /api/teacher/classrooms/[id]/students` 한 줄. */
@@ -144,57 +162,14 @@ export interface ClassroomStudentsResponse {
   students: ClassroomStudentItem[];
 }
 
-/** `POST /api/teacher/assignments` 본문. */
-export interface DispatchAssignmentInput {
-  botId: string;
-  title: string;
-  dueLabel: string;
-  questionCount: number;
-  difficulty: '하' | '중' | '상';
-  mode: 'practice' | 'exam' | 'wrong-conquest';
-  /** 교사가 고른 단원(표시 문자열). 생략하면 '단원 미정'·''·'' 로 떨어진다. */
-  scope?: string;
-  chapterFrom?: string;
-  chapterTo?: string;
-  /**
-   * 단원을 고르면 자동으로 따라오는 성취기준 코드(spec 14 § 5.4). 생략하면 빈 배열 —
-   * 컬럼이 `NOT NULL DEFAULT '[]'` 라 「없음」의 표현이 하나뿐이다(null 이중표현 금지).
-   */
-  achievementCodes?: string[];
-  /**
-   * 교사가 적어 보내는 한 줄. 학생 개요 화면이 `reasonHint` 로 읽는다
-   * (spec 12 § 3.3.2 · 14 § 3.3.1). 생략·공백이면 `null`.
-   */
-  reasonHint?: string;
-  /**
-   * 시험 모드 제한 시간(분, 10~180). **`mode === 'exam'` 에서만 뜻이 있다** — 다른 모드로
-   * 오면 서버가 `null` 로 떨어뜨린다(`scopeOverride` 가 시험에서만 1 인 것과 같은 결).
-   * 생략하면 `null`.
-   */
-  examTimeLimitMin?: number;
-  /**
-   * 진짜 마감 시각(ISO 8601). `dueLabel` 은 표시용이라 검증할 수 없어서 이 값을 함께 받는다 —
-   * spec 14 § 5.1 의 「마감은 미래」를 서버가 지키는 자리다. 오면 **반드시 미래**여야 하고,
-   * `dDay` 도 라벨 파싱 대신 이 값에서 센다. (보내는 쪽이 실으면 필수로 좁힌다.)
-   */
-  dueAt?: string;
-  /** 생략·빈 배열이면 반 전체. */
-  targetStudentIds?: string[];
-}
-
-/** `POST /api/teacher/assignments` 응답. */
-export interface DispatchAssignmentResponse {
-  assignment: AssignmentRow;
-}
-
-/** `GET /api/teacher/assignments` 응답. */
-export interface TeacherAssignmentsResponse {
-  assignments: AssignmentRow[];
-}
-
 /* ── 학생 ─────────────────────────────────────────────── */
 
-/** 학생이 보는 수업방 한 칸(`GET /api/me/classrooms`, 학부모 자녀 요약 공용). */
+/**
+ * 학생이 보는 수업방 한 칸 — 지금 쓰는 곳은 **학부모 자녀 요약**(`GET /api/parent/children`)이다.
+ * *(`[계획 PR 8 정정]` 종전에는 학생 본인 `GET /api/me/classrooms` 와 공용이었다. 그 라우트는
+ * 정본 `GET /classbot/bots?role=student` 와 겹쳐 걷혔고, 모양은 `app/api/_lib/student-views.ts`
+ * 의 질의가 그대로 낸다.)*
+ */
 export interface StudentClassroomItem {
   classroomId: string;
   label: string;
@@ -209,33 +184,6 @@ export interface StudentClassroomItem {
   joinedAt: string;
   /** 참여 경로 표기(학원·학교 이름). */
   via: string;
-}
-
-/** `GET /api/me/classrooms` 응답. */
-export interface MyClassroomsResponse {
-  classrooms: StudentClassroomItem[];
-}
-
-/** `enrollments` 테이블 한 행. */
-export interface EnrollmentRow {
-  botId: string;
-  studentId: string;
-  classroomId: string;
-  classroomLabel: string;
-  assignedBy: string;
-  assignedAt: string;
-  via: string;
-}
-
-/** `POST /api/enrollments` 본문. */
-export interface JoinByCodeInput {
-  code: string;
-}
-
-/** `POST /api/enrollments` 응답 — 이미 참여 중이었으면 `alreadyJoined:true` + 200. */
-export interface JoinByCodeResponse {
-  enrollment: EnrollmentRow;
-  alreadyJoined: boolean;
 }
 
 /* ── 학부모 ───────────────────────────────────────────── */
@@ -306,6 +254,9 @@ export interface ParentChildrenResponse {
  * `class_bots` 행을 그대로 흘리지 않고 **마켓이 보여줄 것만** 추린 모양이다.
  * 라이브 상태·빠른 질문·현재 수업 같은 운영 필드는 참여자에게나 쓸모가 있고,
  * 둘러보는 사람에게 내보내면 남의 수업방 운영 상황이 새 나간다.
+ *
+ * **그 선은 「참여자의 기록인가」이지 「`class_bots` 의 칸인가」가 아니다** — `scope` 는
+ * 같은 테이블에 있어도 **봇의 규칙**이라 실린다(아래 그 칸의 주석 · spec `03 § 4.13.4`).
  */
 export interface MarketplaceBotItem {
   botId: string;
@@ -315,6 +266,25 @@ export interface MarketplaceBotItem {
   grade: string;
   tone: '정중' | '친근' | '스파르타' | '차분' | '열정';
   greeting: string;
+  /**
+   * 안전 등급 — 「이 봇이 어디까지 답하나」 (spec `03 § 4.13.4`).
+   *
+   * **왜 이건 싣고 빠른 질문(`quickPrompts`)·라이브 상태(`isLive`)는 안 싣나.**
+   * 저 둘은 **참여자 것**이다 — 지금 수업이 도는지, 그 반에서 무엇을 묻게 해 뒀는지는
+   * 남의 수업방 운영 상황이라 둘러보는 사람에게 내보내지 않는다(위 머리주석). 그 판단은
+   * 그대로 둔다. `scope` 는 그 줄에 걸리지 않는다 — **봇의 규칙**이지 참여자의 기록이
+   * 아니고, 둘러보는 사람이 먼저 알아야 할 값이다.
+   *
+   * 실으니 고쳐지는 것: 담은 봇의 등급을 화면이 **추측하지 않는다.** 계약에 이 칸이
+   * 없던 동안 카탈로그에 없는 봇(= 풀림 공식 봇)은 `lib/store/mode-bots.ts` 의
+   * 기본값 L3 를 뒤집어썼고, 시드가 L4 로 넣은 봇이 학생 화면에서 L3 로 떠 있었다.
+   *
+   * **`number` 다 — 1~5 union 이 아니다.** 컬럼이 `integer NOT NULL DEFAULT 3` 이고
+   * CHECK 가 없어 DB 가 다섯 값을 강제하지 않는다(`ClassBotRow.scope` 와 같은 이유로
+   * 같은 타입이다). 화면 타입(`ScopeLevel` = 1|2|3|4|5)으로 좁히는 것은 **읽는 쪽**의
+   * 일이고, 계약이 미리 좁히면 범위 밖 값이 왔을 때 거짓말이 된다.
+   */
+  scope: number;
   /** 교사가 적은 한 줄 소개. 안 적었으면 null — 카드가 대체 문구를 고른다. */
   blurb: string | null;
   teacherName: string;
@@ -323,6 +293,18 @@ export interface MarketplaceBotItem {
   publishedAt: string | null;
   /** 지금 이 봇에 참여 중인 학생 수(`enrollments` 실측). */
   enrolledCount: number;
+  /**
+   * 풀림이 제공하는 기본 봇인가 (spec `03 § 4.13.1`).
+   *
+   * **컬럼이 아니라 파생이다** — 「소유자가 없는 봇(`class_bots.teacher_id IS NULL`)
+   * = 풀림 공식 봇」을 라우트가 계산해 채운다. 새 컬럼을 두면 소유자 유무와 이 값이
+   * 서로 어긋날 수 있는데, 파생이면 어긋날 자리 자체가 없다.
+   *
+   * 판별의 근거인 `teacherId` 는 **응답에 싣지 않는다** — 마켓은 둘러보는 곳이지
+   * 소유자 id 를 내보내는 자리가 아니다. 카드가 「누구의 봇인가」로 쓰는 것은
+   * `teacherName` · `organization` 이고, 공식 봇은 그 자리를 배지로 대신한다.
+   */
+  isOfficial: boolean;
 }
 
 /** `GET /api/marketplace/bots` 응답. */
@@ -577,23 +559,20 @@ export interface ParentSelfStudyBot {
   name: string;
   subject: string;
   /**
-   * 봇 얼굴 이모지 — 아이가 보는 것과 **같은 것**을 부모도 본다.
+   * 봇 얼굴 이모지 — **데이터 계약**이다. 지금 이 값을 그리는 화면은 없다.
    *
-   * 아이는 🧑‍🔬 를 보고 「과학봇」이라 부르는데 부모 화면에는 회색 글리프가 떠 있으면,
-   * 둘이 같은 봇을 이야기하면서 서로 다른 것을 보고 있다. 새로 여는 정보가 아니라
-   * **이미 주기로 한 봇을 정직하게 그리는 것**이다(마켓 카드도 같은 값을 쓴다).
+   * [08 § 14.1.1] 예외 2 가 좁혀지면서 아바타 면은 이모지를 쓰지 않는다. 학생·교사·학부모가
+   * 다 같이 `BotAvatar`(브랜드 블루 + 과목 이니셜)를 쓰므로 「부모가 아이와 같은 것을 보는가」는
+   * 이제 그 컴포넌트 하나가 지킨다 — 이 필드로 지키던 것을 **컴포넌트가 물려받았다.**
+   *
+   * ⛔ **그래도 지우지 마라.** 예외 2 가 좁힌 것은 화면이지 데이터가 아니다 —
+   * DB 컬럼 · 직렬화 · API 응답 · mock 은 그대로 이모지 문자열을 보존한다.
+   * **읽지 않을 뿐 지우지 않는다.**
    *
    * ⚠️ **`null` 이 오지 않는다.** `class_bots.avatar_emoji` 는 `NOT NULL DEFAULT '🤖'` 라
-   * 이모지를 안 고른 봇도 빈 값이 아니라 **`'🤖'`** 로 온다.
-   *
-   * ⛔ **그러니 `'🤖'` 를 「비어 있음」으로 보고 다른 글리프로 바꿔 그리지 마라.** 그 봇은
-   * **아이 화면에도 🤖 로 떠 있다.** 부모 쪽만 회색 아이콘으로 갈아 끼우면 이 필드가 없애려던
-   * 어긋남(둘이 같은 봇을 이야기하면서 다른 걸 보고 있음)을 **정확히 그 자리에서 다시 만든다.**
-   * 물음은 「빈 값을 무엇으로 채우나」가 아니라 **「부모가 아이와 같은 것을 보는가」**다.
-   *
-   * 대체가 필요하다면 대체값도 `'🤖'` 여야 한다 — 학생 쪽 `my-bot-card.tsx` 와 같은 모양
-   * (`bot.avatarEmoji || '🤖'`). 그 `||` 가 잡는 건 빈 문자열뿐이고, 컬럼 기본값 때문에
-   * 그 값은 나오지 않아야 정상이다. 두 화면이 **같이** 무너지게 두는 장치일 뿐이다.
+   * 이모지를 안 고른 봇도 빈 값이 아니라 **`'🤖'`** 로 온다. 다시 그리게 되는 날이 오면
+   * 그 사실부터 확인할 것 — 「비어 있음」으로 읽고 대체 글리프를 끼우면 역할마다 다른 얼굴이
+   * 다시 생긴다.
    */
   avatarEmoji: string;
   /** 담은 날(ISO 8601) — 화면은 「시작한 날」로 읽는다. */

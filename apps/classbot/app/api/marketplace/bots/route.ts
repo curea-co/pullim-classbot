@@ -5,7 +5,8 @@
  * 마켓은 "둘러보는 곳" 이라 누가 보든 내용이 같아야 한다. 그래서 도메인 역할을 되묻는
  * `resolveActor` 대신 신원만 확인하는 `getCurrentUserIdFromRequest` 를 쓴다:
  * 역할을 아예 읽지 않으므로 **나중에 누가 역할 분기를 끼워 넣을 자리가 없다.**
- * (`app/api/bots/route.ts` 가 쓰는 것과 같은 읽기 게이트다.)
+ * (종전에는 `app/api/bots/route.ts` 도 같은 읽기 게이트를 썼다 — 그 라우트는 계획 PR 8 에서
+ * 걷혔고, 이 게이트는 여기 남는다.)
  *
  * 로그인만 요구하는 이유: 게시된 봇에도 선생님 이름·소속이 붙는다. 인증 없이 열어 두면
  * 그 명단이 그대로 공개 목록이 된다.
@@ -34,6 +35,11 @@ export async function GET(req: Request): Promise<NextResponse> {
   const db = getDb();
 
   // 마켓이 보여줄 칸만 고른다 — 라이브 상태·빠른 질문은 참여자 것이라 내보내지 않는다.
+  //
+  // **`scope` 는 그 줄에 걸리지 않아 싣는다**(spec `03 § 4.13.4`). 「지금 수업이 도는가」·
+  // 「그 반에서 무엇을 묻게 해 뒀는가」는 남의 수업방 운영 상황이지만, 안전 등급은
+  // **봇의 규칙**이라 둘러보는 사람이 먼저 알아야 할 값이다. 빼 두면 담은 뒤 화면이
+  // 등급을 추측하게 되고(기본값 L3), 시드가 L4 로 넣은 공식 봇이 L3 로 떠 있었다.
   const rows = await db
     .select({
       botId: classBots.id,
@@ -43,10 +49,13 @@ export async function GET(req: Request): Promise<NextResponse> {
       grade: classBots.grade,
       tone: classBots.tone,
       greeting: classBots.greeting,
+      scope: classBots.scope,
       blurb: classBots.publishBlurb,
       teacherName: classBots.teacherName,
       organization: classBots.organization,
       publishedAt: classBots.publishedAt,
+      // 공식 봇 판별에만 쓰고 응답에서는 뺀다 — 아래 조립부 참조.
+      teacherId: classBots.teacherId,
     })
     .from(classBots)
     .where(eq(classBots.isPublished, true))
@@ -69,10 +78,14 @@ export async function GET(req: Request): Promise<NextResponse> {
     .groupBy(enrollments.botId);
   const countByBot = new Map(countRows.map((r) => [r.botId, r.count]));
 
-  const bots: MarketplaceBotItem[] = rows.map((row) => ({
+  // `teacherId` 를 여기서 떼어 낸다 — **판별에만 쓰고 내보내지 않는다.** 마켓은 둘러보는
+  // 곳이라 소유자 id 를 실을 자리가 아니고, 「소유자가 없는 봇 = 풀림 공식 봇」이라는
+  // 판별(spec `03 § 4.13.1`)은 컬럼을 새로 두지 않고 이 한 줄로 파생한다.
+  const bots: MarketplaceBotItem[] = rows.map(({ teacherId, ...row }) => ({
     ...row,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     enrolledCount: countByBot.get(row.botId) ?? 0,
+    isOfficial: teacherId === null,
   }));
 
   return NextResponse.json({ bots });

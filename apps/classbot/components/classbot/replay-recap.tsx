@@ -70,8 +70,14 @@ export function ReplayRecap({
       {/* 헤더 */}
       <div className="bg-pullim-slate-900 p-4 text-white">
         <div className="flex items-center justify-between">
+          {/*
+            봇은 **이름으로만** 가리킨다. 목록 행(`app/(student)/classbot/replay/page.tsx`)이
+            그렇게 그리므로, 그 행을 눌러 닿는 이 상세가 이모지를 달면 같은 봇이 두 모양이 된다.
+            배경면이 없는 인라인 글리프라 아바타 면(`BotAvatar`)으로 올릴 자리도 아니다
+            ([08 § 14.1.1] 예외 2 — 좁힌 것은 화면이고 데이터가 아니다).
+          */}
           <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-pullim-slate-400">
-            🧑‍🏫 {replay.botName} · 수업 정리
+            {replay.botName} · 수업 정리
           </span>
           <span className="text-xs text-pullim-slate-300">{replay.date}</span>
         </div>

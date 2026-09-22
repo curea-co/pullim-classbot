@@ -22,15 +22,19 @@ export type BotPolicyTab = {
   placeholder?: string;
 };
 
+/**
+ * 봇별 설정의 탭.
+ *
+ * **「봇 이름·말투」 탭(`identity`)은 2026-09-17 에 걷었다**(계획 PR 5d). 그 탭이 「준비 중」이라 적어 둔 일
+ * — 봇 이름과 말투, 첫 인사말 고치기 — 을 **봇별 설정 화면이 실제로 하게 됐다**(`PATCH /classbot/bots/:id` ·
+ * 탭 바 위 「이 봇」 칸). 탭을 그대로 두면 같은 화면이 위에서는 고치면서 아래에서는 「준비 중」이라 말한다.
+ *
+ * 옛 주소(`/teacher/settings?tab=identity`)는 끊기지 않는다 — `isBotPolicyTab` 이 이제 false 를 내므로
+ * 리다이렉트가 탭 없이 목록으로 떨어진다(`app/(teacher)/teacher/settings/page.tsx`).
+ */
 export const botPolicyTabs: BotPolicyTab[] = [
   { value: 'safety', label: '안전 등급', ready: true },
   { value: 'drift', label: '이탈 대응', ready: true },
-  {
-    value: 'identity',
-    label: '봇 이름·말투',
-    ready: false,
-    placeholder: '봇 이름과 말투, 첫 인사말을 고치는 자리예요.',
-  },
   {
     value: 'material',
     label: '수업 자료',
@@ -71,16 +75,29 @@ export type SafetySlot = {
  * 시간대별 안전 등급. 수업 중에는 좁게, 밤에는 넓게 두는 것이 기본 모양이다.
  * (밤에 좁게 두면 학생이 봇 대신 다른 데로 나간다는 것이 운영 쪽 판단.)
  *
- * ⚠ 봇마다 다른 스케줄이 아직 없다 — **데모 기본값 한 벌을 모든 봇이 같이 본다.**
- * 아래 이탈 대응 강도도 마찬가지다. 봇별로 갈라지는 것은 BE 가 붙을 때이고,
+ * **네 칸 중 가운데 둘은 이 봇의 기본 등급을 그대로 쓴다.** 양 끝(수업 시간 · 밤)만 고정이다 —
+ * 그 두 자리는 봇 성격이 아니라 시간이 정하는 자리여서다.
+ *
+ * 한 벌짜리 상수로 두었더니 **같은 화면이 제 말을 뒤집었다.** 머리 배지는 「L4」인데 바로 아래
+ * L1~L5 표에서 L4 에 「쓰는 중」이 안 붙었다 — 상수 스케줄 어디에도 L4 가 없어서다.
+ * L4 봇 둘(`cb_002` 영어봇 · `cb_004` 국어봇)에서 실제로 보이던 자리다. L3 봇 셋이 멀쩡해 보인 것은
+ * 맞아서가 아니라 상수의 한 칸과 우연히 겹쳐서였다.
+ *
+ * ⚠ **지금 몇 시인지는 보지 않는다.** 봇 등급을 읽을 뿐이다 — 서버 렌더가 시계를 타면
+ * 테스트와 prod-verify 가 흔들린다.
+ *
+ * ⚠ **갈리는 것은 스케줄까지다.** 시험 기간 덮어쓰기(바로 아래)와 이탈 대응 강도·알림 기준은
+ * 여전히 데모 기본값 한 벌을 모든 봇이 같이 본다. 그쪽이 봇별로 갈라지는 것은 BE 가 붙을 때이고,
  * 그전에 봇 수만큼 값을 지어내면 화면이 사실이 아닌 것을 말하게 된다.
  */
-export const safetySchedule: SafetySlot[] = [
-  { id: 'slot-class',   from: '08:00', to: '15:00', scope: 1, why: '수업 시간 — 올린 자료와 이번 단원 안에서만' },
-  { id: 'slot-after',   from: '15:00', to: '19:00', scope: 3, why: '방과 후 — 과목 전체 범위로 풀어 둠' },
-  { id: 'slot-evening', from: '19:00', to: '22:00', scope: 3, why: '저녁 자습 — 방과 후와 같게' },
-  { id: 'slot-night',   from: '22:00', to: '08:00', scope: 5, why: '밤 — 넓게 두되 유해 내용 거르기는 항상 켜짐' },
-];
+export function getSafetySchedule(scope: ScopeLevel): SafetySlot[] {
+  return [
+    { id: 'slot-class',   from: '08:00', to: '15:00', scope: 1,     why: '수업 시간 — 올린 자료와 이번 단원 안에서만' },
+    { id: 'slot-after',   from: '15:00', to: '19:00', scope,        why: '방과 후 — 이 봇의 기본 등급 그대로' },
+    { id: 'slot-evening', from: '19:00', to: '22:00', scope,        why: '저녁 자습 — 방과 후와 같게' },
+    { id: 'slot-night',   from: '22:00', to: '08:00', scope: 5,     why: '밤 — 넓게 두되 유해 내용 거르기는 항상 켜짐' },
+  ];
+}
 
 /** 시험 기간에 통째로 덮어쓰는 등급 */
 export const examOverride = {
@@ -146,7 +163,7 @@ export type ManagedBot = {
   subject: string;
   grade: string;
   tone: ClassBot['tone'];
-  /** 지금 안전 등급 — 카탈로그가 권위 */
+  /** 이 봇의 기본 안전 등급 — 카탈로그가 권위. 시간대 스케줄의 가운데 두 칸이 이 값을 따라간다 */
   scope: ScopeLevel;
   teacherName: string;
   /** 붙어 있는 학급 이름 — 아직 안 붙였으면 빈 배열. 상세 헤더에서 「어느 반의 규칙인가」를 읽힌다 */

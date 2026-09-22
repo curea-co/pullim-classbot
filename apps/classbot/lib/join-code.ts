@@ -33,6 +33,15 @@ export {
 export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 
+/**
+ * 코드 수명 — 발급 시각 +48시간 (`proc/spec/03 § 4.3` 「교사가 참여 코드를 확인·공유하는 자리」).
+ *
+ * 수업 한 번과 「집에 가서 해 볼게요」 하루를 덮는 길이다. 더 짧으면 결석생이 못 들어오고,
+ * 더 길면 새 나간 코드가 다음 수업까지 산다. 교사가 더 일찍 닫고 싶으면 [코드 다시 내기]가
+ * 그 길이다 — 갈아 끼우면 옛 코드는 그 자리에서 죽는다.
+ */
+export const JOIN_CODE_TTL_HOURS = 48;
+
 /** 코드 뽑기 재시도 한도 — 이만큼 다 부딪히면 포화로 보고 409 를 준다. */
 export const JOIN_CODE_MAX_ATTEMPTS = 8;
 
@@ -75,18 +84,32 @@ export interface IssueJoinCodeInput {
   teacherId: string;
 }
 
+/** 발급 결과 — 코드와 **그 코드가 닫히는 시각**. 둘은 같이 다닌다. */
+export interface IssuedJoinCode {
+  /** 하이픈 없는 대문자 6자. */
+  code: string;
+  /** 이 시각 뒤에는 안 통한다. */
+  expiresAt: Date;
+}
+
 /**
  * 새 참여 코드를 발급한다 — 유일성은 PK 충돌로만 판정한다.
  *
+ * **만료를 함께 돌려준다.** 갓 발급한 코드를 화면에 보여 주는 자리(수업방 개설 배너 ·
+ * 재발급 응답)가 그 값을 다시 조회하지 않아도 되게 하려는 것이다. 종전에는 코드만 돌려줘서
+ * 개설 직후 배너가 **만료를 모른 채** 「안 닫힘」으로 그렸다 — 아래 카드는 48시간을 말하는데
+ * 바로 위 배너는 아무 말도 안 하는 상태였다.
+ *
  * @param db - `getDb()` 또는 트랜잭션 핸들
  * @param input - 봇·반·교사 id (교사 id 필수)
- * @returns 발급된 코드(하이픈 없는 대문자 6자)
+ * @returns 발급된 코드와 닫히는 시각
  * @throws {JoinCodeExhaustedError} 재시도를 다 쓰도록 빈 코드를 못 찾았을 때
  */
 export async function issueJoinCode(
   db: JoinCodeWriter,
   input: IssueJoinCodeInput,
-): Promise<string> {
+): Promise<IssuedJoinCode> {
+  const expiresAt = new Date(Date.now() + JOIN_CODE_TTL_HOURS * 3_600_000);
   for (let attempt = 0; attempt < JOIN_CODE_MAX_ATTEMPTS; attempt += 1) {
     const code = generateJoinCode();
     // 조회 없이 바로 insert — 충돌하면 0행이 돌아온다(경합에 안전).
@@ -97,11 +120,14 @@ export async function issueJoinCode(
         botId: input.botId,
         classroomId: input.classroomId,
         teacherId: input.teacherId,
+        // 수명은 **발급이 정한다** — 스키마 DEFAULT 로 두면 옛 행과 새 행이 같은 컬럼을
+        // 다른 뜻으로 쓰게 된다(그 컬럼 주석). 재시도해도 같은 값이라 코드마다 안 흔들린다.
+        expiresAt,
       })
       .onConflictDoNothing()
       .returning({ code: joinCodes.code });
 
-    if (inserted.length > 0) return inserted[0].code;
+    if (inserted.length > 0) return { code: inserted[0].code, expiresAt };
   }
 
   throw new JoinCodeExhaustedError();

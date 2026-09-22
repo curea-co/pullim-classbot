@@ -115,7 +115,7 @@
 - 모든 응답 `application/json; charset=utf-8`.
 - 성공: 데이터 그대로 (`{ id, ... }` 또는 `[ ... ]`). 별도 wrapper 없음.
 - 에러: `{ error: { code: 'NOT_FOUND'|'FORBIDDEN'|'VALIDATION', message: string } }` + 적절한 HTTP status.
-- 인증: `x-user-id` 헤더. 없으면 mock `student_001` 또는 `teacher_001`로 fallback (Ph8 전 — 도메인 read/write 라우트 한정). **auth 라우트(`/auth/*`)는 Ph8 인도 완료로 JWT Bearer 기반이며, 매 요청 서명 검증한다 (§6.1).**
+- 인증: `x-user-id` 헤더. 없으면 mock `student_001` 또는 `teacher_001`로 fallback (Ph8 전 — 도메인 read/write 라우트 한정). *(`[2026-09-16 정정]` 종전 「auth 라우트(`/auth/*`)는 Ph8 인도 완료로 JWT Bearer 기반」은 폐기됐다 — 클래스봇 자체 인증 표면은 걷혔고 인증은 pullim-os·pullim-api 소관이다. §6.1 배너 참조.)*
 - 시각: ISO-8601 UTC 문자열. mock의 "오늘 19:50" 같은 상대 라벨은 client에서 포맷.
 - 빈 컬렉션은 `[]`, 빈 객체는 `null` 또는 키 누락.
 
@@ -209,7 +209,7 @@
 | `GET /api/templates?kind=...` | 템플릿 마켓 | 🟢 |
 | `GET /api/me/templates` | 내가 올린 템플릿 | 🟢 |
 
-총 **~36 endpoints** (Ph3 read 약 18 + mutate 약 18). Ph7에서 FE의 `from '@/lib/mock'`을 fetch로 점진 교체. (auth 슬라이스가 fetch 데이터 레이어 — `packages/api-client` — 를 Ph7 일정보다 먼저 인도했다. §5 Ph7·§6.1 참조.)
+총 **~36 endpoints** (Ph3 read 약 18 + mutate 약 18). Ph7에서 FE의 `from '@/lib/mock'`을 fetch로 점진 교체.
 
 ---
 
@@ -223,23 +223,35 @@
 | **Ph4** | mutate (CRUD) | 봇/반/과제/감정 체크인 POST·PATCH. 트랜잭션 invariant 검증 | TBD |
 | **Ph5** | 상태 전이 + 집계 | 라이브 시작/종료, 리플레이 status 전이, replay 자동 생성 트리거 | TBD |
 | **Ph6** | 리포트 집계 | mock 함수 → SQL aggregate (정답률·웰빙 평균·KPI) | TBD |
-| **Ph7** | FE 교체 | `lib/mock` 의존 → `fetch('/api/...')` 점진 교체 | **데이터 레이어 조기 인도** (auth PR #89, 2026-06-02) — auth 슬라이스가 `packages/api-client`(`auth-fetch` 토큰 첨부 + 401 자동 refresh + `token-manager`) 기반을 먼저 깔았다. 나머지 도메인의 mock→fetch 교체는 여전히 TBD (auth 시점에 50개 파일이 아직 `@/lib/mock` import). |
-| **Ph8** | 인증 | ~~NextAuth v5 / lucia-auth / 자체 — 결정 보류~~ | **결정·인도 완료** (auth PR #88/#89, 2026-06-02) — 자체 구현(이메일/비밀번호 + JWT access/refresh). 상세 §6.1 참조. |
+| **Ph7** | FE 교체 | `lib/mock` 의존 → `fetch('/api/...')` 점진 교체 | 도메인 mock→fetch 교체는 TBD. 코어 루프는 standalone `/api/*` 가 아니라 **정본 pullim-api `/classbot/*`** 로 재배선됐다(#203). |
+| **Ph8** | 인증 | ~~NextAuth v5 / lucia-auth / 자체~~ | **폐기 — 클래스봇이 인증을 갖지 않는다.** 인증·인가는 pullim-os·pullim-api 소관이고 클래스봇은 OS SSO 로 위임한다([`05-business-rules.md` §11.1](05-business-rules.md)). 종전 자체 구현(PR #88/#89)은 걷혔다 — §6.1 배너 참조. |
 | **Ph9** | prod DB | Neon / Supabase / RDS — 결정 보류 | TBD |
 
 ---
 
 ## 6. 결정 보류 / 미결 항목
 
-- ~~**인증 (Ph8)**: NextAuth.js v5 vs lucia-auth vs 자체.~~ → **§6.1에서 해소** (자체 구현, auth PR #88/#89, 2026-06-02).
+- ~~**인증 (Ph8)**: NextAuth.js v5 vs lucia-auth vs 자체.~~ → **클래스봇의 결정 항목이 아니다** — 인증은 pullim-os·pullim-api 가 소유하고 클래스봇은 OS SSO 로 위임한다. 종전 §6.1 의 자체 구현 결정은 폐기됐다.
 - **prod DB (Ph9)**: Neon(serverless) / Supabase / RDS.
 - **chat 영속화**: Ph5에서 LLM gateway 결정 후 풀 어떻게 잡을지 정함. Ph1 시드에는 `chat_messages` 비어 있음.
 - **replay segments/transcript JSONB vs 별도 테이블**: JSONB로 시작. 한 리플레이 평균 50줄·5MB 미만이라 안전. 검색·집계 요구 생기면 분리.
-- **마이그레이션 정책**: 도메인(Drizzle) 자산은 dev/prod 동일하게 `drizzle-kit migrate`. **단, auth는 TypeORM 마이그레이션으로 인도됨 — §6.2 공존 노트 참조.** prod release flow는 Ph9에서.
+- **마이그레이션 정책**: 도메인(Drizzle) 자산은 dev/prod 동일하게 `drizzle-kit migrate`. prod release flow는 Ph9에서. *(`[2026-09-16 정정]` 종전 「auth는 TypeORM 마이그레이션으로 인도됨 — §6.2 공존 노트」는 폐기됐다 — `auth_*` 테이블과 그 마이그레이션이 걷히며 Drizzle 단일로 돌아왔다.)*
 
 ---
 
 ## 6.1 Ph8 인증 — 인도된 결정 (auth PR #88/#89, 2026-06-02)
+
+> ## ⚠️ SUPERSEDED (2026-09-16) — 클래스봇 자체 인증 은퇴
+>
+> 본 §6.1·§6.2 가 기술한 **클래스봇 자체 이메일/비밀번호 + JWT** 모델은 **정본이 아니다.**
+> 인증·인가는 **pullim-os·pullim-api 가 소유**하고, 클래스봇은 `osLoginUrl()` 로 OS 로그인에
+> 위임한 뒤 `Domain=.pullim.ai` HttpOnly access 쿠키를 신원으로 쓴다(ADR-063 정합).
+> 여기 기술된 `auth_*` 테이블·`/auth/*` 표면·`/login`·`/signup` 화면·bcrypt·refresh 회전·
+> 토큰 블랙리스트는 **전부 걷혔다**. 아래 원문은 은퇴 전 이력 보존용이다.
+>
+> - 현재 세션 규약: [`05-business-rules.md` §11.1](05-business-rules.md)
+> - 정본 표면·인가: [`2026-07-03_be-api-m2-amendment.md` §3](2026-07-03_be-api-m2-amendment.md)
+> - 도입 경위(폐기된 계획): [`archive/2026-05-29_auth-login-signup.md`](../archive/2026-05-29_auth-login-signup.md)
 
 > 컨트롤타워가 **명시적으로 수용한 예외**: 인증 방식 확정이 Ph8 일정보다 먼저 일어났다.
 > 본 절은 새 범위를 발명하지 않고 **실제로 인도된 것만** 기록한다.

@@ -34,6 +34,18 @@ export type ClassBot = {
     studentCount: number;
   };
   enrolledCount: number;
+  /**
+   * 풀림이 제공하는 기본 봇인가 (spec `03 § 4.13.1` · `§ 4.13.3`).
+   *
+   * **optional 이다.** 이 카탈로그에 든 봇은 전부 **교사 봇**이라 그 칸이 아예 없고,
+   * 마켓 응답(`MarketplaceBotItem.isOfficial`)으로 온 봇만 값을 갖는다. 카탈로그 쪽에
+   * `false` 를 손으로 박아 두면 「아직 모른다」와 「공식 봇이 아니다」가 같은 값이 되는데,
+   * 봇을 **마켓 밖에서** 세우는 자리(`fallbackBot()` 등)는 실제로 그걸 모른다.
+   *
+   * 읽는 쪽은 **참일 때만** 갈라 그린다 — 없으면 종전(교사 봇) 그대로다.
+   * 그래야 이 칸이 안 닿는 화면이 조용히 모양을 바꾸지 않는다.
+   */
+  isOfficial?: boolean;
 };
 
 /**
@@ -439,30 +451,22 @@ export const upcomingLessons: UpcomingLesson[] = [
   },
 ];
 
-/** 교사 홈 — 처리 대기 항목 */
-export type PendingItem = {
-  id: string;
-  type: 'grading' | 'approval' | 'report';
-  label: string;
-  count: number;
-  href: string;
-};
-
-export const pendingItems: PendingItem[] = [
-  { id: 'p1', type: 'grading',  label: '서술형 채점 대기',  count: 12, href: '#grading' },
-  { id: 'p2', type: 'report',   label: '학부모 리포트 승인', count: 5,  href: '#reports' },
-  { id: 'p3', type: 'approval', label: '루브릭 수정 요청',   count: 2,  href: '#settings' },
-];
-
-/** 교사 프로필 */
-export const currentTeacher = {
-  name: '김보람',
-  title: '수학과 전임강사',
-  organization: '대치프리미엄 수학학원',
-  yearsOfExperience: 7,
-  activeBots: 3,
-  totalStudents: 47,
-};
+/*
+ * 교사 홈이 읽던 목 둘(`pendingItems`·`currentTeacher`)은 **2026-09-18 에 걷혔다.**
+ *
+ *  - `pendingItems` — 「서술형 채점 대기 12건」·「학부모 리포트 승인 5건」. 이 목록의 계약은
+ *    「교사가 지금 처리할 수 있는 일」이었고, 그래서 줄 하나가 서려면 **그 일이 끝나는 화면**이
+ *    있어야 했다(그 계약 때문에 「루브릭 수정 요청」 줄이 먼저 걷혔다 — 2026-09-16 소유자 지시).
+ *    정본에는 채점 쓰기도 리포트도 문이 아예 없고, 그 두 숫자가 데려가던 화면(`/teacher/grading` ·
+ *    `/teacher/reports`)도 아직 목이다. 계약을 못 지키는 목록이라 통째로 내렸다.
+ *  - `currentTeacher` — 「김보람 · 수학과 전임강사 · 대치프리미엄 수학학원 · 활성 봇 3 · 학생 47」.
+ *    빈 계정으로 로그인해도 이 이름과 이 숫자가 떴다. 이름은 세션(`useCurrentUser()`)이,
+ *    반 개수는 정본(`GET /classbot/bots?role=teacher`)이 대신한다. **소속은 대신할 것이 없다** —
+ *    세션 claim 에도 정본 반 카드에도 소속 칸이 없어 그 자리는 되살리지 않는다.
+ *
+ * 되살리지 마라. 같은 값이 다시 필요해지는 날은 정본에 그 문이 열리는 날이고, 그때 올 자리는
+ * 이 파일이 아니라 `hooks/api/*` 다.
+ */
 
 /** 교사 뷰 — 클래스 KPI 요약 */
 export const classKpis = {
@@ -859,15 +863,21 @@ export type GradingItem = {
 /**
  * 채점 시드 — **학생 명단(`monitoredRoster`)의 학생들이 낸 제출물**이다.
  *
+ * ⚠ **이 시드를 읽는 화면이 없다(2026-09-18).** 채점 허브와 그 상세는 #370 이, 학생 상세의 채점
+ * 패널은 이 PR 이 걷었다. 남은 소비처는 로컬 데모 시더(`scripts/seed.ts`)와
+ * `lib/store/__tests__/grading.test.ts` 둘이고, 화면이 읽던 `classbot-grading-roster.ts` 는 지웠다.
+ * **새 화면에서 읽지 마라** — 정본(pullim-api)에 채점 초안·루브릭·교사 확정 문이 없다.
+ *
+ * 아래 학생 신원을 맞춰 둔 내력(되살릴 때 그대로 지켜라):
  * 예전에는 이 시드가 `classRoster`(`s1`~`s18`, 중2 수학 A반)를 가리켰다. 그런데 학생 목록·상세는
- * `classbot-monitoring.ts` 의 `monitoredRoster`(`m01`~`m20`, 중1-3반 과학)를 읽는다.
+ * `classbot-monitoring.ts` 의 `monitoredRoster`(`m01`~`m20`, 중1-3반 과학)를 읽었다.
  * **둘은 다른 반·다른 과목의 다른 학생들이다.** 서연(중2 수학)과 김서연(중1 과학)은 이름이 비슷할 뿐
  * 같은 사람이 아니다. 그 상태로 채점 허브에서 학생을 누르면 수학 제출물을 보러 왔는데
  * 과학 대화 기록이 열렸다 — 브리지 표로 이으려 해도 **없는 관계를 지어내는 것**이라 풀리지 않았다.
  *
  * 그래서 모집단을 하나로 맞췄다. 채점 쪽 시드만 `monitoredRoster` 로 옮기고
  * (`classRoster` 는 다른 화면이 쓰므로 그대로 둔다), 과목·학년·단원도 그 학생들의 것
- * (중1 과학 · 물질의 상태 변화)으로 맞췄다. 이제 채점 항목 → 학생 상세가 같은 학생·같은 수업이다.
+ * (중1 과학 · 물질의 상태 변화)으로 맞췄다.
  *
  * 어느 학생이 어느 제출물을 갖는지는 **그 학생의 관제 상태에서 골랐다** — 점수를 지어내지 않으려고,
  * 이미 있는 도달·깊이·막힌 개념·지름길 수치와 어긋나지 않는 학생에게 붙였다.

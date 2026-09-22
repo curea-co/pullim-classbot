@@ -1,537 +1,81 @@
 /**
- * 교사가 낸 과제 store — E2E mock 시연의 핵심 인프라.
- * spec 14 § 5.5, § 10.2.
+ * 과제 **초안** store — 이 브라우저에만 사는 임시저장.
  *
- * 정책:
- * - localStorage persist — 새로고침 후에도 학생 화면에 보존
- * - mock 시드 + dispatched 합산은 lib/mock/classbot.ts의 getMyAssignments() 헬퍼에서
- * - 새 과제 id 패턴: `as_user_${Date.now()}` (시드 id와 충돌 회피)
+ * **낸 과제(`dispatched`)와 제출(`submissions`) 레인은 은퇴했다**(2026-09-16 계획 §06 R6~R10 · FE PR 6).
+ * 정본은 pullim-api 다 — 내기는 `hooks/api/assignment-dispatch.ts`(`POST /classes/:id/assignments`, 문항까지),
+ * 학생 읽기는 `app/(student)/classbot/assignment/use-assignment-reads.ts`, 제출은 `use-assignment-submit.ts`
+ * (`POST /assignments/:id/submit`), 제출 현황은 `useAssignmentSubmissions`(`GET /assignments/:id/submissions`).
+ * 함께 걷은 것: `useMergedAssignments`·`useAssignmentLookup`·`getQuestionsForAssignment`(mode 시드 폴백)·
+ * `computeMockScore`·`recordSubmission`·`withdraw`/`restore`/`updateDispatched`(정본에 문이 없어 화면이 숨겼다).
  *
- * `USE_REAL_CORE_BE`(정본 배선): 쓰기(dispatch/recordSubmission)는 스토어 선반영 후 pullim-api
- * 정본 라우트(OS 쿠키 + CSRF)로 전송(낙관적 — 실패 시 콘솔 경고 + 로컬 유지), 읽기(useMergedAssignments
- * 등)는 `GET /classbot/assignments?audience=student` 를 스토어 캐시로 동기화한다.
- * dispatch=`POST /classbot/classes/:classId/assignments`, submit=`POST /classbot/assignments/:id/submit`
- * (**`{ answers }` 만** — scorePercent 는 서버 권위 채점값). 플래그 OFF 면 기존 mock/localStorage 100% 불변.
+ * **초안은 남긴다.** 초안은 아직 아무에게도 안 간 것이라 기기 하나에만 있어도 뜻이 선다 — 서버에 둘 이유가 없다.
+ * 다만 지금 `saveDraft` 를 부르는 곳은 없다(출제 화면의 「임시저장」이 `disabled` · 준비 중 v2). 그 버튼이
+ * 열리는 날 이 스토어가 그 자리다.
+ *
+ * persist 키를 `pullim-assignments` → `pullim-assignment-drafts` 로 바꿨다 — 옛 키에는 `dispatched`·`submissions` 가
+ * 굳어 있어 그대로 이어받으면 은퇴한 레인이 상태에 다시 앉는다. 옛 키는 rehydrate 뒤에 지운다.
  */
 
-import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import {
-  type Assignment, type AssignmentQuestion,
-  studentAssignments, getAssignmentById as getSeedAssignmentById,
-  getQuestionsByAssignment, getQuestionsByIds, gradingModeOf,
-} from '@/lib/mock';
-import { classBots } from '@/lib/mock/classbot';
-import { USE_REAL_CORE_BE } from '@/lib/features';
-import { domainFetch, useSyncUserId } from '@/lib/api/domain-fetch';
+import type { Assignment, AssignmentQuestion } from '@/lib/mock';
 
-type DispatchStatus = 'draft' | 'sent' | 'scheduled' | 'withdrawn';
+/** 은퇴한 persist 키 — 옛 브라우저에 남은 것을 한 번 지운다. */
+const RETIRED_STORAGE_KEY = 'pullim-assignments';
 
+/** 초안 한 건 — 학생이 보는 모양(`Assignment`) + 출제 화면이 더 갖고 있던 것. */
 export type UserAssignment = Assignment & {
-  /** 내기 상태 — Assignment.state(학생 시점)와 별개 */
-  dispatchStatus: DispatchStatus;
-  /** 대상 학생 id 배열 — 전원에게 내면 빈 배열 (전체 enrolled 의미) */
+  /** 초안은 언제나 `'draft'` — 낸 과제는 여기 오지 않는다. */
+  dispatchStatus: 'draft';
+  /** 대상 학생 id — 비면 반 전체. */
   targetStudentIds: string[];
-  /** 교사가 낸 시각 (ISO8601) */
-  dispatchedAt?: string;
+  /** 마감 시각(ISO8601). 라벨(`dueLabel`·`dDay`)은 저장 시점에 굳으므로 견줄 값을 따로 둔다. */
+  dueAt?: string;
   /** 시험 모드 시간 제한 (분) */
   examTimeLimitMin?: number;
-  /** 오답 다시 내기(requiz) — 원 과제에서 오답률 높았던 문항 id 집합. 있으면 문항 해석이 이걸 그대로 쓴다. */
-  requizQuestionIds?: string[];
-  /**
-   * 교사가 출제 화면에서 직접 작성한 문항(유형·발문·배점·정답·루브릭).
-   * persist 대상 — 저장소는 그대로 localStorage 다. 비어 있으면 mock 시드/RAG 자동 추출로 해석한다.
-   */
+  /** 교사가 출제 화면에서 쓴 문항 — 내는 순간 `toDispatchQuestions` 가 정본 본문으로 옮긴다. */
   questions?: AssignmentQuestion[];
 };
 
-/** 학생 제출 기록 — 교사 진행률 / 점수 집계의 원천 */
-export type Submission = {
-  id: string;
-  assignmentId: string;
-  studentId: string;
-  /** 제출 시각 (ISO8601) — 라이브 인디케이터 / 정렬 */
-  submittedAt: string;
-  /** 학생 답안 — { [questionId]: answer } */
-  answers: Record<string, string>;
-  /** 점수 0~100 (mock 추정) */
-  scorePercent: number;
-};
-
 type AssignmentStore = {
-  /** 교사가 낸 과제 모음 (학생이 받음) */
-  dispatched: UserAssignment[];
   /** 임시 저장 모음 (학생 미발송) */
   drafts: UserAssignment[];
-  /** 학생 제출 기록 — 동일 assignmentId+studentId 는 upsert */
-  submissions: Submission[];
-
-  dispatch: (a: UserAssignment) => void;
   saveDraft: (a: UserAssignment) => void;
-  recordSubmission: (s: Omit<Submission, 'id' | 'submittedAt'>) => Submission;
-  /** 과제를 낸 직후 토스트 카피용 */
-  lastDispatched: { count: number; botName: string; assignmentTitle: string } | null;
-  clearLastDispatched: () => void;
+  removeDraft: (id: string) => void;
 };
 
 export const useAssignmentStore = create<AssignmentStore>()(
   persist(
     (set) => ({
-      dispatched: [],
       drafts: [],
-      submissions: [],
-      lastDispatched: null,
-
-      dispatch: (a) => {
-        set((s) => {
-          const targetCount = a.targetStudentIds.length === 0 ? 18 : a.targetStudentIds.length;
-          return {
-            dispatched: [{ ...a, dispatchStatus: 'sent', dispatchedAt: new Date().toISOString() }, ...s.dispatched],
-            drafts: s.drafts.filter((d) => d.id !== a.id),
-            lastDispatched: {
-              count: targetCount,
-              botName: a.assignedBy,
-              assignmentTitle: a.title,
-            },
-          };
-        });
-        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지, M2 단방향 신뢰)
-        if (USE_REAL_CORE_BE) void dispatchToBackend(a);
-      },
 
       saveDraft: (a) =>
         set((s) => {
-          const exists = s.drafts.find((d) => d.id === a.id);
-          if (exists) {
-            return { drafts: s.drafts.map((d) => (d.id === a.id ? { ...a, dispatchStatus: 'draft' } : d)) };
-          }
-          return { drafts: [...s.drafts, { ...a, dispatchStatus: 'draft' }] };
+          const exists = s.drafts.some((d) => d.id === a.id);
+          const next: UserAssignment = { ...a, dispatchStatus: 'draft' };
+          return {
+            drafts: exists ? s.drafts.map((d) => (d.id === a.id ? next : d)) : [...s.drafts, next],
+          };
         }),
 
-      recordSubmission: (payload) => {
-        const submission: Submission = {
-          ...payload,
-          id: `sub_${Date.now()}`,
-          submittedAt: new Date().toISOString(),
-        };
-        set((s) => {
-          // upsert — 동일 assignment+student 는 갱신
-          const filtered = s.submissions.filter(
-            (sub) => !(sub.assignmentId === submission.assignmentId && sub.studentId === submission.studentId),
-          );
-          return { submissions: [submission, ...filtered] };
-        });
-        // Ph7 — 낙관적 선반영 후 BE 전송 (실패 시 경고 + 로컬 유지)
-        if (USE_REAL_CORE_BE) void submitToBackend(submission);
-        return submission;
-      },
-
-      clearLastDispatched: () => set({ lastDispatched: null }),
+      removeDraft: (id) => set((s) => ({ drafts: s.drafts.filter((d) => d.id !== id) })),
     }),
     {
-      name: 'pullim-assignments',
+      name: 'pullim-assignment-drafts',
+      partialize: (s) => ({ drafts: s.drafts }),
+      onRehydrateStorage: () => () => {
+        // 옛 키의 `dispatched`·`submissions` 는 정본과 어긋난 사본이다 — 남겨 두면 e2e·개발자가 그것을 읽는다.
+        try {
+          window.localStorage.removeItem(RETIRED_STORAGE_KEY);
+        } catch {
+          // SSR·저장소 차단 환경 — 지울 것도 없다.
+        }
+      },
     },
   ),
 );
 
-/* ─────────────────────────────────────────────────────────────
- * Ph7 — BE 배선 (USE_REAL_CORE_BE ON 일 때만 동작)
- * ───────────────────────────────────────────────────────────── */
-
-/**
- * 정본 과제 요약 응답 — `AssignmentSummaryResponseDto`(문항·answerKey 미포함, bot==class → classId).
- * 시각 필드는 ISO-8601 문자열, dDay 는 정수.
- */
-interface AssignmentSummaryResponse {
-  id: string;
-  classId: string;
-  title: string;
-  scope: string;
-  subject: string;
-  grade: string;
-  mode: Assignment['mode'];
-  questionCount: number;
-  difficulty: Assignment['difficulty'];
-  dueLabel: string;
-  dDay: number;
-  dispatchStatus: DispatchStatus;
-  dispatchedAt: string | null;
-  examTimeLimitMin: number | null;
-  state: Assignment['state'];
-  chapterFrom: string | null;
-  chapterTo: string | null;
-  achievementCodes: string[] | null;
-}
-
-/** 정본 제출 응답 — `SubmissionResponseDto`(서버 권위 채점값). */
-interface SubmissionResponse {
-  submissionId: string;
-  assignmentId: string;
-  studentId: string;
-  /** 🔒 서버가 answers↔answer_key 대조로 재계산한 점수(essay 포함 시 null=미채점). */
-  scorePercent: number | null;
-  gradedAt: string | null;
-  submittedAt: string;
-}
-
-/** dDay 정수 → 학생 UI 라벨("D-1"·"오늘"). 서버는 정수, FE 표시는 문자열. */
-function dDayLabel(dDay: number): string {
-  return dDay <= 0 ? '오늘' : `D-${dDay}`;
-}
-
-/** "D-1"·"오늘" 라벨 → dDay 정수(서버 계약). 파싱 실패는 0. */
-function parseDDay(label: string): number {
-  const m = /(\d+)/.exec(label);
-  return m ? Number(m[1]) : 0;
-}
-
-/**
- * 문항 → 서버 전용 채점 정답키. mc=정답 인덱스(number), short/numeric=정답값(string),
- * essay=미지정(자동채점 불가). 서버가 이 값으로 채점하므로 요청에만 싣고 학생 조회 응답엔 미노출.
- */
-function answerKeyOf(q: AssignmentQuestion): number | string | undefined {
-  if (q.type === 'mc') return q.answerIndex;
-  if (q.type === 'short' || q.type === 'numeric') return q.answerKey;
-  return undefined;
-}
-
-/**
- * 정본 요약 응답 → 스토어 UserAssignment. 서버가 소유하는 필드는 그대로, 봇 카탈로그·워크스페이스
- * 링크 등 **FE 표시 전용 필드**(assignedBy·source·solveHref)는 mock 카탈로그·파생으로 채운다
- * (봇 카탈로그·문항 본문 = mock 권위, M3 경계). targetStudentIds 는 요약 응답에 없다 — 접근 술어는
- * 서버가 집행하므로 표시상 반 전체(빈 배열)로 둔다.
- */
-function toUserAssignment(row: AssignmentSummaryResponse): UserAssignment {
-  const bot = classBots.find((b) => b.id === row.classId);
-  return {
-    id: row.id,
-    botId: row.classId,
-    title: row.title,
-    scope: row.scope,
-    subject: row.subject,
-    grade: row.grade,
-    chapterFrom: row.chapterFrom ?? '',
-    chapterTo: row.chapterTo ?? '',
-    achievementCodes: row.achievementCodes ?? [],
-    questionCount: row.questionCount,
-    difficulty: row.difficulty,
-    mode: row.mode,
-    source: 'teacher-assigned',
-    assignedBy: bot?.name ?? '',
-    assignedAt: row.dispatchedAt ?? '',
-    dueLabel: row.dueLabel,
-    dDay: dDayLabel(row.dDay),
-    completedCount: 0,
-    state: row.state,
-    solveHref: `/classbot/assignment/${row.id}/solve?step=1`,
-    dispatchStatus: row.dispatchStatus,
-    targetStudentIds: [],
-    ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
-    ...(row.examTimeLimitMin != null ? { examTimeLimitMin: row.examTimeLimitMin } : {}),
-  };
-}
-
-/**
- * 교사가 과제를 냄 → `POST /classbot/classes/:classId/assignments`(classId = bot==class 의 botId).
- * body 는 정본 `DispatchAssignmentDto` — 문항은 answerKey 를 동봉(서버 전용 채점 소스),
- * targetStudentIds 빈 배열 = 반 전체. 성공 시 낙관 항목을 서버 생성 행으로 재키잉한다. 실패 시 경고 + 로컬 유지.
- */
-async function dispatchToBackend(a: UserAssignment): Promise<void> {
-  const body = {
-    title: a.title,
-    scope: a.scope,
-    subject: a.subject,
-    grade: a.grade,
-    mode: a.mode,
-    questionCount: a.questionCount,
-    difficulty: a.difficulty,
-    dueLabel: a.dueLabel,
-    dDay: parseDDay(a.dDay),
-    state: a.state,
-    chapterFrom: a.chapterFrom,
-    chapterTo: a.chapterTo,
-    achievementCodes: a.achievementCodes,
-    examTimeLimitMin: a.examTimeLimitMin ?? null,
-    // 빈 배열 = 반 전체(assignment_targets 0행). 서버가 각 id 를 :classId 멤버로 검증.
-    targetStudentIds: a.targetStudentIds,
-    questions: getQuestionsForAssignment(a).map((q, i) => {
-      const key = answerKeyOf(q);
-      return {
-        order: q.order ?? i,
-        type: q.type,
-        prompt: q.prompt,
-        ...(q.options ? { options: q.options } : {}),
-        ...(key !== undefined ? { answerKey: key } : {}),
-      };
-    }),
-  };
-  try {
-    const created = await domainFetch<AssignmentSummaryResponse>(
-      `/classes/${encodeURIComponent(a.botId)}/assignments`,
-      { method: 'POST', body },
-    );
-    useAssignmentStore.setState((s) => ({
-      dispatched: s.dispatched.map((d) =>
-        d.id === a.id ? { ...d, ...toUserAssignment(created) } : d,
-      ),
-    }));
-  } catch (e) {
-    console.warn('[assignments] BE 과제 내기 실패 — 로컬 유지:', e);
-  }
-}
-
-/**
- * 학생 제출 → `POST /classbot/assignments/:id/submit`. **body 는 `{ answers }` 만** — 점수는 보내지
- * 않는다(서버가 answer_key 대조로 재계산). 응답의 서버 권위 scorePercent 로 로컬 제출 점수를 갱신한다.
- * 실패 시 경고 + 로컬 유지(낙관 mock 점수 보존).
- */
-async function submitToBackend(submission: Submission): Promise<void> {
-  try {
-    const res = await domainFetch<SubmissionResponse>(
-      `/assignments/${encodeURIComponent(submission.assignmentId)}/submit`,
-      { method: 'POST', body: { answers: submission.answers } },
-    );
-    // 서버 권위 점수 소비(essay 미채점=null 은 낙관값 유지).
-    if (typeof res.scorePercent === 'number') {
-      const serverScore = res.scorePercent;
-      useAssignmentStore.setState((s) => ({
-        submissions: s.submissions.map((sub) =>
-          sub.id === submission.id ? { ...sub, scorePercent: serverScore } : sub,
-        ),
-      }));
-    }
-  } catch (e) {
-    console.warn('[assignments] BE 제출 기록 실패 — 로컬 유지:', e);
-  }
-}
-
-// 사용자당 1회 fetch 단일 비행 — 소비 훅이 여러 곳에 마운트돼도 중복 요청하지 않고,
-// 로그아웃/재로그인·사용자 전환 시(세션 사용자 변경) 재동기화한다.
-let backendAssignmentSync: {
-  key: string;
-  promise: Promise<UserAssignment[] | null>;
-} | null = null;
-
-/** 테스트 전용 — 단일 비행 캐시 리셋. */
-export function resetBackendAssignmentSyncForTests(): void {
-  backendAssignmentSync = null;
-}
-
-async function fetchBackendAssignments(): Promise<UserAssignment[] | null> {
-  try {
-    // 정본 라우트는 bare array(`AssignmentSummaryResponseDto[]`)를 반환한다 — 래핑 객체 아님.
-    const rows = await domainFetch<AssignmentSummaryResponse[]>('/assignments?audience=student');
-    return rows.map(toUserAssignment);
-  } catch (e) {
-    console.warn('[assignments] BE 과제 목록 동기화 실패 — 로컬 유지:', e);
-    return null;
-  }
-}
-
-/**
- * 플래그 ON 읽기 동기화 — `GET /classbot/assignments?audience=student` 를 dispatched
- * 캐시에 병합한다. 같은 id 는 BE 행이 진실, BE 에 없는 로컬 행은 유지(쓰기 실패분 보존).
- * 플래그 OFF 면 완전 no-op.
- */
-function useBackendAssignmentSync(): void {
-  // 세션 사용자 변경(로그인/로그아웃)에 반응 — 같은 마운트에서도 effect 재실행.
-  const syncUserId = useSyncUserId();
-  useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
-    let cancelled = false;
-    if (backendAssignmentSync?.key !== syncUserId) {
-      backendAssignmentSync = {
-        key: syncUserId,
-        promise: fetchBackendAssignments(),
-      };
-    }
-    void backendAssignmentSync.promise.then((rows) => {
-      if (cancelled || !rows) return;
-      useAssignmentStore.setState((s) => {
-        const beIds = new Set(rows.map((r) => r.id));
-        return { dispatched: [...s.dispatched.filter((d) => !beIds.has(d.id)), ...rows] };
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [syncUserId]);
-}
-
-/** SSR 안전 hydration — 서버에서는 빈 배열, 클라이언트에서만 store 반영 */
-export function useDispatchedAssignments(): UserAssignment[] {
-  return useAssignmentStore((s) => s.dispatched);
-}
-
-/** 새 과제 id 생성 — 시드 id와 충돌 회피용 prefix `as_user_` */
+/** 새 초안 id — 정본 id(`asg_…`)와 겹치지 않게 접두사를 둔다. */
 export function nextAssignmentId(): string {
-  return `as_user_${Date.now()}`;
-}
-
-/**
- * 학생이 보는 전체 과제 — 시드 + 교사가 새로 낸 과제 합산.
- * 교사가 낸 시각 역순으로 정렬되어 새 과제가 위로 옴.
- *
- * 학생 id 필터: targetStudentIds가 빈 배열이면 전체 enrolled,
- * 그렇지 않으면 해당 학생만 포함.
- */
-export function useMergedAssignments(studentId?: string): Assignment[] {
-  useBackendAssignmentSync(); // Ph7 — 플래그 OFF 면 no-op
-  const dispatched = useAssignmentStore((s) => s.dispatched);
-  const filteredDispatched = studentId
-    ? dispatched.filter((d) => d.targetStudentIds.length === 0 || d.targetStudentIds.includes(studentId))
-    : dispatched;
-  return [...filteredDispatched, ...studentAssignments];
-}
-
-/** id로 과제 lookup — 시드 + 교사가 낸 과제 모두 검색 */
-export function useAssignmentLookup(id: string): Assignment | undefined {
-  useBackendAssignmentSync(); // Ph7 — 딥링크 진입에서도 BE 캐시 동기화
-  const dispatched = useAssignmentStore((s) => s.dispatched);
-  return dispatched.find((d) => d.id === id) ?? getSeedAssignmentById(id);
-}
-
-/** mode 별 시드 과제 — 문항이 없는 과제를 시연 가능한 상태로 만드는 마지막 폴백. */
-const SEED_ASSIGNMENT_BY_MODE: Record<Assignment['mode'], string> = {
-  practice: 'as_today',
-  exam: 'as_exam_prep',
-  'wrong-conquest': 'as_prescription',
-};
-
-/**
- * 과제의 문항 풀 — 해석 우선순위:
- *   ① 오답 다시 내기 문항 → ② 교사가 출제 때 직접 작성한 문항 → ③ 같은 id 의 시드 문항 → ④ mode 시드 폴백.
- *
- * ④ 는 남겨 둔다: (a) 교사가 발문을 비워 두면 "단원 RAG 자동 추출" 규약이고(출제 폼이
- * 전부 작성됐을 때만 ② 를 싣는다), (b) `USE_REAL_CORE_BE` ON 경로에서 서버 요약 응답에는
- * 문항이 없어(M2 경계) 동기화된 과제가 문항 0개가 되며, (c) 이 변경 전 localStorage 에
- * 남아 있는 과제도 문항을 갖고 있지 않다. 셋 다 ④ 가 없으면 풀이 화면이 빈 화면이 된다.
- */
-/*
- * ⚠ M2 경계 (Codex #196 R4 — 의도된 한계): 서버에서 되받는 과제의 문항 **본문**은 여전히
- * mock 풀에서 해석한다 — 문항 콘텐츠의 DB 영속·서버 해석은 M3(QGen 생성 경로) 소관
- * (스키마 PR #192·BE PR #193 명시). M2 의 BE 는 과제 메타(행)만 진실이다.
- */
-export function getQuestionsForAssignment(
-  assignment: Assignment & { requizQuestionIds?: string[]; questions?: AssignmentQuestion[] },
-): AssignmentQuestion[] {
-  // 오답 다시 내기 과제 — 원 과제에서 틀린 바로 그 문항 집합을 보존 (generic 시드 대체 방지, Codex #186)
-  if (assignment.requizQuestionIds && assignment.requizQuestionIds.length > 0) {
-    const requizQs = getQuestionsByIds(assignment.requizQuestionIds);
-    if (requizQs.length > 0) return requizQs;
-  }
-  // 교사가 출제 화면에서 직접 넣은 문항이 진실
-  if (assignment.questions && assignment.questions.length > 0) {
-    return [...assignment.questions].sort((a, b) => a.order - b.order);
-  }
-  const seedQs = getQuestionsByAssignment(assignment.id);
-  if (seedQs.length > 0) return seedQs;
-  return getQuestionsByAssignment(SEED_ASSIGNMENT_BY_MODE[assignment.mode]).slice(
-    0,
-    assignment.questionCount,
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Submission helpers — 학생 제출 → 교사 진행률 / 점수 집계
- * ───────────────────────────────────────────────────────────── */
-
-/**
- * 과제 진행률 — 시드의 정적 completedCount 와 store submissions 를 합산.
- * 동일 학생이 시드 카운트에 이미 포함됐다고 가정하지 않음 (단순 합산).
- * 데모용 — 실제로는 questionCount cap 적용.
- */
-export function useAssignmentProgress(assignment: Assignment): {
-  completedCount: number;
-  submittedStudentCount: number;
-  avgScore: number | null;
-  latestSubmittedAt: string | null;
-} {
-  const submissions = useAssignmentStore((s) => s.submissions);
-  return computeProgress(assignment, submissions);
-}
-
-/** 컴포넌트 밖(루프·서버)에서 쓰는 동일 로직 */
-export function computeProgress(assignment: Assignment, submissions: Submission[]) {
-  const mine = submissions.filter((s) => s.assignmentId === assignment.id);
-  const submittedStudentCount = new Set(mine.map((s) => s.studentId)).size;
-  const completedCount = Math.min(
-    assignment.completedCount + submittedStudentCount,
-    assignment.questionCount,
-  );
-  const avgScore =
-    mine.length === 0 ? null : Math.round(mine.reduce((a, s) => a + s.scorePercent, 0) / mine.length);
-  const latestSubmittedAt =
-    mine.length === 0 ? null : mine.reduce((a, s) => (s.submittedAt > a ? s.submittedAt : a), mine[0].submittedAt);
-  return { completedCount, submittedStudentCount, avgScore, latestSubmittedAt };
-}
-
-/** 문항 배점 — 배점 없이 저장된 옛 데이터는 균등 배분(1점)으로 폴백. */
-function pointsOf(q: AssignmentQuestion): number {
-  return typeof q.points === 'number' && Number.isFinite(q.points) && q.points > 0 ? q.points : 1;
-}
-
-/** 단답 대조용 정규화 — 공백·대소문자 차이는 무시한다("0, 2" ≡ "0,2"). */
-function normalizeAnswer(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, '');
-}
-
-/** 수치 대조 — "33,400"·"2.0" 같은 표기 차이를 흡수하고, 숫자로 못 읽으면 문자열 대조로 폴백. */
-function numericEquals(answer: string, key: string): boolean {
-  const a = Number(answer.replace(/[,\s]/g, ''));
-  const k = Number(key.replace(/[,\s]/g, ''));
-  if (Number.isFinite(a) && Number.isFinite(k)) return Math.abs(a - k) < 1e-9;
-  return normalizeAnswer(answer) === normalizeAnswer(key);
-}
-
-/**
- * 자동 채점 정오 판정 — `gradingModeOf` 가 'auto' 인 문항만 대상.
- * 반환 `null` = 자동 채점 대상 아님(서술형 = 교사 채점, 또는 정답키가 비어 판정 불가).
- * 정답키가 없는 문항을 무조건 오답으로 매기지 않기 위해 오답(false)과 구분한다.
- */
-export function isQuestionCorrect(
-  q: AssignmentQuestion,
-  answer: string | undefined,
-): boolean | null {
-  if (gradingModeOf(q) === 'teacher') return null;
-  if (q.type === 'mc') {
-    if (q.answerIndex == null) return null;
-    return (answer ?? '') === String(q.answerIndex);
-  }
-  const key = q.answerKey?.trim();
-  if (!key) return null;
-  if (answer == null || answer.trim() === '') return false;
-  return q.type === 'numeric'
-    ? numericEquals(answer, key)
-    : normalizeAnswer(answer) === normalizeAnswer(key);
-}
-
-/**
- * 자동 채점 점수(0~100) — **문항 배점 가중**.
- * 분모는 자동 채점이 가능한 문항의 배점 합이다. 서술형(교사 채점)과 정답키 없는 문항은
- * 분자·분모 모두에서 빠진다 — 사람이 매길 점수를 mock 이 미리 깎지 않기 위해서다.
- * 자동 채점할 문항이 하나도 없으면 0(=미채점).
- */
-export function computeMockScore(
-  questions: AssignmentQuestion[],
-  answers: Record<string, string>,
-): number {
-  let earned = 0;
-  let total = 0;
-  for (const q of questions) {
-    const verdict = isQuestionCorrect(q, answers[q.id]);
-    if (verdict === null) continue;
-    const points = pointsOf(q);
-    total += points;
-    if (verdict) earned += points;
-  }
-  if (total === 0) return 0;
-  return Math.round((earned / total) * 100);
-}
-
-/** 특정 학생의 최신 submission */
-export function useStudentSubmission(assignmentId: string, studentId: string): Submission | undefined {
-  const submissions = useAssignmentStore((s) => s.submissions);
-  return submissions.find((s) => s.assignmentId === assignmentId && s.studentId === studentId);
+  return `as_draft_${Date.now()}`;
 }

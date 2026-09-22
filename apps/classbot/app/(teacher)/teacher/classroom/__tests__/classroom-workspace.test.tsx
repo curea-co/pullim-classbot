@@ -1,137 +1,197 @@
 /**
- * 내 수업방 — 갓 만든 반 배너가 **지금 살아 있는 코드**를 보여 주는지.
+ * 내 수업방 — 정본 카드(`GET /classbot/bots?role=teacher`)를 그리고, 반 만들기 폼이 **늘** 서 있고, 만든 반의 첫 코드가
+ * 배너와 그 반의 카드에 서는지.
  *
- * 참여 코드 다시 내기는 되돌릴 수 없다 — 새 코드가 나오는 순간 옛 코드는 못 쓴다. 그런데
- * 배너가 만들던 순간의 스냅샷을 들고 있으면, 배너 안에서 코드를 다시 내도 큰 글자는 죽은
- * 코드로 남는다. 교사가 그 값을 학생에게 건네면 아무도 못 들어온다.
+ * 계획 PR 5a 가 「없는 문을 화면에 세우지 않는다」로 폼을 가렸고, 5b 가 정본 문(`POST /classes`)에 붙여 그 가림막
+ * (`CLASS_CREATE_AVAILABLE`)을 걷었다 — 「다음 업데이트」 한 줄은 이제 없어야 한다. 카드의 봇 칩은 **아는 `ClassDto`**
+ * 로만 그린다(모르면 없음 · 없으면 「봇 없음」 · 있으면 이름 — 옛 profile 로 단정하지 않는다). 명단은 여전히 카드에 없다
+ * (반 상세 탭). 401 은 고장이 아니라 로그인 안내다(prod-verify 익명 레인이 읽는 문구).
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { ApiError } from '@pullim-classbot/api-client';
+import type { BotCardDto, ClassDto, JoinCodeDto } from '@/lib/api/classbot-dto';
+import type { CreatedClassroom } from '../create-classroom-form';
 import { ClassroomWorkspace } from '../classroom-workspace';
-import { ApiClientError } from '@/lib/api/client-fetch';
-import type { TeacherClassroomItem } from '@/hooks/api/types';
 
-const CLASSROOM_ID = 'cr_1';
-/** 만들던 순간 받은 코드 — 그 뒤 다시 내면 죽는다. */
-const SNAPSHOT_CODE = 'OLD111';
-/** 목록이 들고 있는 지금 코드. */
-const LIVE_CODE = 'NEW999';
-
-function room(joinCode: string | null): TeacherClassroomItem {
+/**
+ * 정본 카드 한 장(pullim-api #679 이후) — 두 번째 인자가 **반 이름**(`className`)이고 봇 이름은
+ * 「…의 봇」으로 **다른 글자**가 된다. 둘에 같은 글자를 넣으면 카드 제목이 어느 칸을 읽든 통과해
+ * 「목록 제목은 반 이름이다」가 하중을 안 받는다.
+ */
+function card(id: string, className: string, profile: BotCardDto['profile']): BotCardDto {
   return {
-    classroomId: CLASSROOM_ID,
-    label: '고2 미적분 A반',
-    organization: '풀림',
-    botId: 'cb_001',
-    botName: '수학이 형',
-    subject: '수학Ⅱ',
-    grade: '고2',
-    studentCount: 0,
-    joinCode,
-    isPublished: false,
-    publishedAt: null,
-    publishBlurb: null,
+    id,
+    botId: `bot_${id}`,
+    name: `${className}의 봇`,
+    className,
+    description: null,
+    isActive: true,
+    role: 'teacher',
+    profile,
   };
 }
 
-let classrooms: TeacherClassroomItem[] = [];
-/** 목록 조회 상태 — 데모(401)·장애(5xx)를 세우려면 갈아 끼울 수 있어야 한다. */
-let queryError: unknown = null;
+const PROFILE: NonNullable<BotCardDto['profile']> = {
+  subject: '수학Ⅱ', grade: '고2', tone: '친근', greeting: '안녕', scope: 3, avatarEmoji: '📐',
+  quickPrompts: [], enrolledCount: 3, isLive: false, currentLesson: null,
+};
+
+function knownClass(id: string, bot: ClassDto['bot'], joinCode: JoinCodeDto | null = null): ClassDto {
+  return {
+    id, operatorId: 't1', orgId: null, name: '반', description: null, subject: null, grade: null, isActive: true,
+    bot, joinCode, createdAt: '', updatedAt: '',
+  };
+}
+
+const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+
+let cards: BotCardDto[] = [];
+let queryError: ApiError | null = null;
+let pending = false;
+/** 이 세션이 아는 반 요약(반 id → ClassDto) — 만든 반의 첫 코드·붙인 봇이 카드에 서는지 본다. */
+let knownById: Record<string, ClassDto> = {};
+const refetch = jest.fn();
 jest.mock('@/hooks/api/classroom', () => ({
-  useTeacherClassrooms: () => ({
-    data: { classrooms },
-    isPending: false,
+  useOperatorClasses: () => ({
+    data: queryError || pending ? undefined : cards,
+    isPending: pending,
     isError: queryError !== null,
     error: queryError,
+    refetch,
   }),
+  useClassDetail: (id: string) => ({ data: knownById[id] }),
 }));
 
-/* 배너가 **어떤 code 를 넘기는지**가 이 테스트의 관심사라, 코드 상자는 값만 비춘다. */
+/* 코드 상자는 어느 반 id 와 어느 초기 코드를 받는지만 비춘다 — 발급 자체는 `join-code-block.test.tsx`. */
 jest.mock('../join-code-block', () => ({
-  JoinCodeBlock: ({ code, size }: { code: string | null; size?: 'md' | 'lg' }) => (
-    <span data-testid={size === 'lg' ? 'banner-code' : 'card-code'}>{code ?? '없음'}</span>
+  JoinCodeBlock: ({ classId, initial }: { classId: string; initial: JoinCodeDto | null }) => (
+    <span data-testid="card-code-block">{classId}:{initial?.code ?? '-'}</span>
   ),
 }));
 
-/* 「만들었다」를 눌러 배너를 띄우는 자리만 있으면 된다. */
+/* 폼은 제 테스트가 있다(`create-classroom-form.test.tsx`) — 여기서는 「만들었다」를 위로 올리는 길만 흉내 낸다. */
+const CREATED: CreatedClassroom = {
+  classId: 'cls_9',
+  name: '새 반',
+  joinCode: { id: 'jc_9', code: 'ZZ9Q2R', classId: 'cls_9', createdAt: '2026-09-17T00:00:00.000Z', expiresAt: hoursFromNow(48) },
+};
 jest.mock('../create-classroom-form', () => ({
-  CreateClassroomForm: ({
-    onCreated,
-  }: {
-    onCreated: (c: { classroomId: string; label: string; joinCode: string }) => void;
-  }) => (
-    <button
-      type="button"
-      data-testid="fake-create"
-      onClick={() =>
-        onCreated({ classroomId: CLASSROOM_ID, label: '고2 미적분 A반', joinCode: SNAPSHOT_CODE })
-      }
-    >
-      만들기
+  CreateClassroomForm: ({ onCreated }: { onCreated: (c: CreatedClassroom) => void }) => (
+    <button type="button" data-testid="create-classroom-form" onClick={() => onCreated(CREATED)}>
+      폼
     </button>
   ),
 }));
 
-jest.mock('../classroom-roster', () => ({ ClassroomRoster: () => null }));
-jest.mock('../publish-bot-block', () => ({ PublishBotBlock: () => null }));
-
 beforeEach(() => {
-  classrooms = [];
+  cards = [];
   queryError = null;
+  pending = false;
+  knownById = {};
+  refetch.mockClear();
 });
 
-/** 반을 만든 직후 상태로 만든다 — 배너가 떠 있다. */
-function createRoom() {
-  render(<ClassroomWorkspace />);
-  fireEvent.click(screen.getByTestId('fake-create'));
-}
-
-/*
-  prod 는 공개 화면이라 방문자에게 세션이 없고 prod-verify 도 쿠키 없이 이 화면을 친다.
-  401 을 빨간 카드로 그리면 데모로 들어온 사람에게 이 화면은 언제나 깨져 있다.
-*/
-describe('비로그인(401)', () => {
-  it('고장이 아니라 로그인 안내로 그린다', () => {
-    queryError = new ApiClientError('로그인이 필요합니다.', 401, 'AUTH_REQUIRED');
+describe('상태', () => {
+  it('401 은 고장이 아니라 로그인 안내다', () => {
+    queryError = new ApiError('unauthorized', 401);
     render(<ClassroomWorkspace />);
 
     expect(screen.getByText('로그인이 필요해요')).toBeInTheDocument();
     expect(screen.queryByTestId('classroom-error')).not.toBeInTheDocument();
   });
 
-  it('진짜 장애(5xx)는 그대로 오류로 그린다 — 401 과 한 덩어리로 묶지 않는다', () => {
-    queryError = new ApiClientError('서버 오류', 500, 'INTERNAL');
+  it('진짜 장애(5xx)는 오류로 그리고 다시 시도를 준다', () => {
+    queryError = new ApiError('서버 오류', 500);
     render(<ClassroomWorkspace />);
 
-    expect(screen.getByTestId('classroom-error')).toBeInTheDocument();
+    expect(screen.getByTestId('classroom-error')).toHaveTextContent('서버 오류');
     expect(screen.queryByText('로그인이 필요해요')).not.toBeInTheDocument();
+  });
+
+  it('반이 없으면 빈 상태 — 반 만들기 폼은 그 아래 서 있고 「다음 업데이트」 한 줄은 없다', () => {
+    render(<ClassroomWorkspace />);
+
+    expect(screen.getByText('아직 연 수업방이 없어요')).toBeInTheDocument();
+    expect(screen.getByTestId('create-classroom-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('classroom-create-pending')).toBeNull();
+    expect(screen.queryByText(/다음 업데이트/)).toBeNull();
   });
 });
 
-describe('갓 만든 수업방 배너', () => {
-  it('코드를 다시 내면 배너도 새 코드를 보여 준다 — 스냅샷에 머무르지 않는다', () => {
-    createRoom();
-    // 코드 다시 내기 성공 → 목록 쿼리가 갱신돼 새 코드가 온 상태.
-    classrooms = [room(LIVE_CODE)];
-    // 목록 갱신을 화면에 반영시킨다(같은 컴포넌트가 다시 그려지는 것과 같은 자리).
-    fireEvent.click(screen.getByTestId('fake-create'));
-
-    expect(screen.getByTestId('banner-code')).toHaveTextContent(LIVE_CODE);
-    expect(screen.getByTestId('banner-code')).not.toHaveTextContent(SNAPSHOT_CODE);
+describe('반 카드 — 정본 카드 한 장이 반 하나', () => {
+  beforeEach(() => {
+    cards = [card('cls_1', '고2 미적분 A반', PROFILE), card('cls_2', '봇 없는 반', null)];
   });
 
-  it('목록이 아직 그 방을 모르면 만들 때 받은 코드로 버틴다 — 빈칸을 보이지 않는다', () => {
-    createRoom();
+  it('반 이름 · 과목·학년을 그린다 — 봇을 모르면 칩이 없다(옛 profile 로 「봇 없음」을 단정하지 않는다)', () => {
+    render(<ClassroomWorkspace />);
 
-    expect(screen.getByTestId('banner-code')).toHaveTextContent(SNAPSHOT_CODE);
+    const a = screen.getByTestId('classroom-card-cls_1');
+    expect(a).toHaveTextContent('고2 미적분 A반');
+    // 카드 제목은 **반** 이름이다 — `card.name`(봇 이름)을 쓰면 여기가 「…의 봇」이 된다(#679).
+    expect(a).not.toHaveTextContent('고2 미적분 A반의 봇');
+    expect(a).toHaveTextContent('수학Ⅱ');
+    expect(a).toHaveTextContent('고2');
+    expect(screen.queryByTestId('classroom-bot-cls_1')).toBeNull();
+    expect(screen.queryByTestId('classroom-bot-cls_2')).toBeNull();
+    expect(screen.queryByText('봇 없음')).toBeNull();
   });
 
-  it('배너와 목록 카드가 같은 코드를 말한다', () => {
-    createRoom();
-    classrooms = [room(LIVE_CODE)];
-    fireEvent.click(screen.getByTestId('fake-create'));
+  it('아는 반은 봇 칩이 사실을 말한다 — 없으면 「봇 없음」, 있으면 아바타와 이름', () => {
+    knownById = {
+      cls_1: knownClass('cls_1', { id: 'bot_1', name: '문학 도우미', avatarEmoji: '📚' }),
+      cls_2: knownClass('cls_2', null),
+    };
+    render(<ClassroomWorkspace />);
 
-    expect(screen.getByTestId('banner-code')).toHaveTextContent(LIVE_CODE);
-    expect(screen.getByTestId('card-code')).toHaveTextContent(LIVE_CODE);
+    expect(screen.getByTestId('classroom-bot-cls_1')).toHaveTextContent('📚 문학 도우미');
+    expect(screen.getByTestId('classroom-bot-cls_2')).toHaveTextContent('봇 없음');
+  });
+
+  it('카드마다 그 반 id 로 코드 상자를 두고, 「자세히」는 반 상세(첫 탭)로 간다', () => {
+    render(<ClassroomWorkspace />);
+
+    expect(screen.getAllByTestId('card-code-block').map((el) => el.textContent)).toEqual(['cls_1:-', 'cls_2:-']);
+    expect(screen.getByTestId('classroom-detail-cls_1')).toHaveAttribute('href', '/teacher/classroom/cls_1');
+    expect(screen.getByRole('link', { name: '봇 없는 반 자세히' })).toHaveAttribute('href', '/teacher/classroom/cls_2');
+  });
+
+  it('이 세션이 아는 활성 코드가 있는 반은 그 코드로 상자가 선다', () => {
+    knownById = {
+      cls_2: knownClass('cls_2', null, { id: 'jc_2', code: 'AB3K9M', classId: 'cls_2', createdAt: '', expiresAt: null }),
+    };
+    render(<ClassroomWorkspace />);
+    expect(screen.getAllByTestId('card-code-block').map((el) => el.textContent)).toEqual(['cls_1:-', 'cls_2:AB3K9M']);
+  });
+
+  it('명단은 카드에 없다 — 반 상세 「명단」 탭이 그린다', () => {
+    render(<ClassroomWorkspace />);
+
+    expect(screen.queryByText('학생 명단')).toBeNull();
+    expect(document.querySelector('[data-testid^="classroom-roster-toggle-"]')).toBeNull();
+  });
+
+  it('반이 있어도 반 만들기 폼은 서 있다', () => {
+    render(<ClassroomWorkspace />);
+    expect(screen.getByTestId('create-classroom-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('classroom-create-pending')).toBeNull();
+  });
+});
+
+describe('반을 만들면', () => {
+  it('배너가 첫 코드와 닫히는 시각을 크게 들고 새 반의 「봇」 탭으로 가는 길을 준다 — 닫으면 사라진다', () => {
+    render(<ClassroomWorkspace />);
+    expect(screen.queryByTestId('classroom-created')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('create-classroom-form'));
+
+    expect(screen.getByText('「새 반」 반을 만들었어요')).toBeInTheDocument();
+    expect(screen.getByTestId('classroom-created-code')).toHaveTextContent('ZZ9-Q2R');
+    expect(screen.getByTestId('classroom-created-life')).toHaveTextContent('쓸 수 있어요');
+    expect(screen.getByTestId('classroom-created-detail')).toHaveAttribute('href', '/teacher/classroom/cls_9?tab=bot');
+
+    fireEvent.click(screen.getByRole('button', { name: '배너 닫기' }));
+    expect(screen.queryByTestId('classroom-created')).toBeNull();
   });
 });

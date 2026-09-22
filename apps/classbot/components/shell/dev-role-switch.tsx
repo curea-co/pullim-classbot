@@ -14,7 +14,9 @@
  *
  * 화면만 바꾸면 서버가 여전히 서연으로 보므로, 이동 **직전에** 개발용 신원 쿠키
  * (`lib/dev-identity.ts`)도 함께 쓴다 — 그래야 `/api/*` 가 그 역할의 데모 사용자로 응답한다.
- * 쿠키 역시 허용 목록 밖 호스트·production 배포에서는 무력이고, allowlist 밖 id 는 쓰지 않는다.
+ * 쿠키를 인정하는 호스트는 로컬 셋뿐이고(배포에는 DB 가 없다 — 그 파일 머리주석),
+ * **이 버튼이 뜨는 호스트도 같은 판정**(`isDevIdentityHost`)이다. 즉 쿠키가 안 써지는 곳에는
+ * 버튼도 서지 않는다. allowlist 밖 id 는 쓰지 않는다.
  *
  * ── 제거 방법 ─────────────────────────────────────────────────────────────
  *  1. components/shell/app-header.tsx 에서 `<DevRoleSwitch role={role} />`
@@ -31,7 +33,8 @@ import {
   DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  DEV_IDENTITIES, isDevIdentityHost, writeDevIdentityCookie, type DevIdentity,
+  DEV_IDENTITIES, isDevIdentityHost, writeDevIdentityCookie,
+  type DevIdentity,
 } from '@/lib/dev-identity';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
 import { cn } from '@/lib/utils';
@@ -82,9 +85,11 @@ export function DevRoleSwitch({ role, className }: { role: Role; className?: str
   // 호스트는 클라이언트에서만 알 수 있다 → 서버 스냅샷은 항상 false 로 두고
   // 하이드레이션 직후 클라이언트 스냅샷으로 갈린다(SSR 마크업 불일치 방지).
   //
-  // 판정은 **서버가 쓰는 그 함수**(`isDevIdentityHost`)를 그대로 부른다. 종전에는 여기서
-  // `hostname !== PROD_HOST` 로 따로 비교했는데, 표가 둘이면 갈라진다 — 실제로 서버가
-  // 허용 목록으로 좁혀진 뒤에도 이 버튼만 prod 아닌 **모든** 호스트에서 떠 있었다.
+  // 노출 판정은 쿠키를 쓰는 판정과 **같은 함수다**(`isDevIdentityHost`) — 아래 onClick 의
+  // `writeDevIdentityCookie` 가 안에서 그것을 다시 본다. 표가 둘이면 갈라진다:
+  // 종전에는 노출 전용 판정(`isRoleSwitchHost`)이 `dev-classbot.pullim.ai` 와 preview 를
+  // 더 열었는데, 그 호스트들에서는 쿠키가 안 써지고(배포에 DB 가 없어 일부러 닫아 뒀다)
+  // 화면 전환도 RoleGuard 가 되돌려서 **버튼만 서고 눌러도 아무 일이 없었다.**
   // `.host` 는 포트를 달고 오지만 그쪽이 떼어 준다.
   const visible = useSyncExternalStore(
     neverChanges,

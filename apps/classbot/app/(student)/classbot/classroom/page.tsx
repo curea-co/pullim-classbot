@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, GraduationCap, KeyRound, Target } from 'lucide-react';
 
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -11,7 +12,6 @@ import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
-import { botSignature } from '@/lib/tokens/bot-signature';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 
 /**
@@ -21,8 +21,9 @@ import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
  * 사라진다.** 「학생은 여러 선생님의 수업방에 참여할 수 있다」가 화면으로는 불가능해지는
  * 자리라, 참여 여부와 무관하게 늘 같은 곳에 입구를 둔다.
  *
- * 목록은 서버(`GET /api/me/classrooms`)가 진실이고, 데모 코드로 들어온 로컬 방은
- * 그 뒤에 붙는다(`useMyRooms`).
+ * 목록은 정본(`GET /classbot/bots?role=student`)이 진실이고, 데모 코드로 들어온 로컬 방은
+ * 그 뒤에 붙는다(`useMyRooms`). *(종전의 같은 오리진 `GET /api/me/classrooms` 는 계획 PR 8 에서
+ * 걷혔다.)*
  */
 export default function StudentClassroomPage() {
   // 실패 판정은 훅 하나가 소유한다 — 화면마다 401 을 따로 가르면 규칙이 갈린다.
@@ -106,19 +107,13 @@ function joinedLabel(assignedAt: string): string | null {
 
 function RoomCard({ room, onLeave }: { room: RoomSlot; onLeave?: () => void }) {
   const { bot, enrollment } = room;
-  const sig = botSignature(bot);
   const joined = joinedLabel(enrollment.assignedAt);
 
   return (
     <li>
       <article className="bg-card h-full rounded-2xl border p-4">
         <div className="flex items-start gap-3">
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
-            style={{ backgroundColor: sig.hex }}
-          >
-            {bot.avatarEmoji}
-          </span>
+          <BotAvatar subject={bot.subject} name={bot.name} size="md" />
           <div className="min-w-0 flex-1">
             <h3 className="text-pullim-slate-900 truncate text-sm font-bold tracking-tight">
               {enrollment.classroomLabel}

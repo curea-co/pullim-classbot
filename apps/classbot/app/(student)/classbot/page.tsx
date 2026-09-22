@@ -1,7 +1,8 @@
 'use client';
 
-import { useRosterMe } from '@/lib/current-user';
-import { useMergedAssignments, useAssignmentStore } from '@/lib/store/assignments';
+import { useStudentMe } from '@/lib/current-user';
+import { useVisibleAssignments } from '@/app/(student)/classbot/assignment/use-assignment-reads';
+import { readRowToAssignment } from '@/lib/assignment-demo';
 import { useLiveStore } from '@/lib/store/live';
 import { useLowConditionToday } from '@/lib/mock/classbot-light-day';
 import { useLightDayOn, useLightDayActions, useLightDayStore } from '@/lib/store/light-day';
@@ -9,7 +10,6 @@ import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { todayKey } from '@/lib/store/today-key';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useStudentBots } from '@/lib/store/mode-bots';
-import { getWellnessBotComment } from '@/lib/mock/classbot-wellness-bot';
 import { useSelfStreak } from '@/hooks/api/self-bots';
 import { TeacherClassHome } from '@/components/classbot/teacher-class-home';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -18,7 +18,6 @@ import {
   TutorShowcase,
   TodoPanel,
   GrowthPanel,
-  WellnessNudge,
   LightDayNudge,
   LightDayExitStrip,
   JoinedClasses,
@@ -33,12 +32,7 @@ import {
  *   1. LearningHero  — 인사 + 스트릭 + 이어서 하기 CTA + 주간 진행
  *   2. TutorShowcase — 내 튜터 personality 카드 그리드
  *   3. 2-col: TodoPanel(좌) + GrowthPanel(우)
- *   4. WellnessNudge  — 웰빙 봇 코멘트 (optional)
- *   5. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
- *
- * 4 번은 **반 봇 기준**이다(`myBots`). 담은 봇을 여기 섞지 않는 이유: 웰빙 한 마디는
- * 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고, 그 반의 교사가 학습을 보고 있다는
- * 전제 위에 선다(계약 §1 — 담은 봇에는 그 관계가 없다).
+ *   4. 참여 중인 클래스 — 규모 한 줄 + 「내 수업방」 상시 입구
  *
  * **홈은 하나다.** 예전에는 학습 모드(`lib/store/student-mode.ts`)를 보고 `self` 면 다른 홈
  * (`SelfHomePlaceholder`)을 그렸다. 그 분기는 걷었다 — 봇 마켓에서 담은 봇도 반 봇과 같은
@@ -65,11 +59,13 @@ export default function StudentClassbotPage() {
   // hook 1 — 참여(persist) 하이드레이션. 예전엔 학습 모드 스토어가 이 신호를 겸했는데
   // 홈이 더는 모드로 갈리지 않으므로(위 머리주석) 참여 스토어를 직접 본다.
   const hydrated = useStoresHydrated(useClassEnrollmentStore);
-  const me = useRosterMe();                               // hook 2
+  const me = useStudentMe();                              // hook 2
   const activeLive = useLiveStore(s => s.active);         // hook 3
-  const allAssignments = useMergedAssignments(me.id);     // hook 4
-  const submissions = useAssignmentStore(s => s.submissions); // hook 5
-  // hook 6 — 참여 중인 수업방. 서버(`/api/me/classrooms`) + 데모 스토어를 합친다.
+  // hook 4 — 받은 과제. 정본(`GET /classbot/assignments?audience=student`) 하나다 — 종전의 localStorage 병합
+  // (`useMergedAssignments`)은 PR 6 에서 걷었다. 서버 술어가 이미 참여 반으로 좁혀 주므로 여기서 반으로 다시 거르지 않는다.
+  const assignmentsQuery = useVisibleAssignments();
+  // hook 6 — 참여 중인 수업방. 정본(`GET /classbot/bots?role=student`) + 데모 스토어를 합친다.
+  // (종전의 같은 오리진 `/api/me/classrooms` 는 계획 PR 8 에서 걷혔다.)
   // 스토어만 보면 **선생님이 발급한 진짜 코드로 들어온 방이 안 보인다** — 스토어의
   // 브리지가 mock 봇 카탈로그에 없는 봇을 걸러 내기 때문이다(`components/classbot/home/my-rooms.ts`).
   const { rooms: myBots, isLoading: roomsLoading, isError: roomsError, retry: retryRooms } = useMyRooms();
@@ -82,7 +78,10 @@ export default function StudentClassbotPage() {
   // 남의 기록이 그대로 인증된다.
   const streak = useSelfStreak();
   // 가벼운 모드(Light Day) — 저조 신호·상태·hydration (spec §6 홈 배선). todayKey 는 같은 날 안정적.
-  const lowToday = useLowConditionToday(me.id);           // hook 7
+  // 가벼운 모드 저조 판정은 **목 웰빙 기록**을 읽는다 — 키는 roster id 다. 실계정에는 그 행이
+  // 없으므로(`me.demo === null`) 신호가 서지 않는다. 신원 id 를 그대로 넘기면 조회가 미스로
+  // 끝나는 것은 같지만, 「목 조회에 신원 키를 쓴다」는 잘못된 계약이 남는다.
+  const lowToday = useLowConditionToday(me.demo?.id ?? ''); // hook 7
   const lightOn = useLightDayOn(todayKey());              // hook 8
   const { enable: enableLight, disable: disableLight } = useLightDayActions(); // hook 9
   const lightHydrated = useStoresHydrated(useLightDayStore); // hook 10
@@ -123,24 +122,19 @@ export default function StudentClassbotPage() {
     );
   }
   const liveBots = myBots.filter(b => Boolean(activeLive[b.bot.id]));
-  // 웰빙 한 마디 — **반 봇**이 건네는 말이라 `myBots` 로만 잰다(위 머리주석 4번).
-  const wellnessComment = getWellnessBotComment(me.id, myBots.map(b => b.bot));
 
-  // 참여 중인 클래스(봇) 범위로 과제 스코프 — 반에서 나가면 그 반 과제도 홈에서 사라진다.
-  // (useMergedAssignments는 학생 id만 보므로 enrollment 기준 재필터 필요)
-  const enrolledBotIds = new Set(myBots.map(b => b.bot.id));
-
-  // Incomplete assignments — enrolled 범위 + sorted urgent first
-  const incompleteAssignments = allAssignments
-    .filter(a => enrolledBotIds.has(a.botId))
+  // 아직 안 끝낸 과제 — 급한 것이 앞. 히어로·할 일 패널이 mock 시절의 `Assignment` 모양을 읽어 어댑터를 지난다.
+  // 서버 행의 `completedCount` 는 제출 여부의 투영이다(`use-assignment-reads.ts`) — 낸 과제는 여기서 빠지고,
+  // 안 냈거나 **아직 모르는**(서버가 본인 제출 칸을 안 싣는) 과제가 「안 끝낸 것」으로 선다. 모르는 쪽을 남기는
+  // 편이 안전하다 — 낸 것을 할 일에 한 번 더 세우는 쪽이, 안 낸 것을 숨기는 쪽보다 덜 해롭다.
+  // 목록이 아직 안 왔으면 빈 배열이고, 패널은 그때 빈 상태를 잠깐 보인다.
+  const incompleteAssignments = (assignmentsQuery.data?.assignments ?? [])
+    .map(readRowToAssignment)
     .filter(a => a.completedCount < a.questionCount)
     .sort((a, b) => {
-      const order = (d: string) => d === '오늘' ? 0 : d === 'D-1' ? 1 : 2;
+      const order = (d: string) => d === '오늘' ? 0 : d === 'D-1' || d === '내일' ? 1 : 2;
       return order(a.dDay) - order(b.dDay);
     });
-
-  // suppress unused var lint — submissions hook is retained for hook ordering
-  void submissions;
 
   // ── 참여한 방이 있는 홈 ─────────────────────────────────────────────────────
   return (
@@ -168,10 +162,7 @@ export default function StudentClassbotPage() {
         <GrowthPanel streakDays={streak.count} />
       </div>
 
-      {/* 4. WellnessNudge — optional */}
-      {wellnessComment && <WellnessNudge comment={wellnessComment} />}
-
-      {/* 5. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
+      {/* 4. 참여 중인 클래스 — 규모를 한 줄로 말하고 「내 수업방」으로 보낸다.
           반별 나가기는 여기 없다 — 그 버튼은 `/classbot/classroom` 의 반 카드에 있다. */}
       <JoinedClasses rooms={myBots} />
     </div>

@@ -43,8 +43,11 @@ export function AssignmentOverviewHeader({ assignment: a }: { assignment: Assign
               **그대로** 찍히므로, 문장을 완성하는 쪽은 라벨이지 여기가 아니다.
               종전엔 여기만 ` 발사` 를 덧붙여, 라벨이 「방금 냈어요」인 새 과제에서
               「방금 냈어요 발사」로 겹쳤다. 주체는 바로 앞 `assignedBy` 가 말한다(14 § 8.1.2).
+
+              정본 행에는 교사 표시명이 없어 `assignedBy` 가 빈 문자열로 온다(`use-assignment-reads.ts` 머리주석) —
+              그때 「 · 날짜」로 점만 남지 않게, 있는 것만 점으로 잇는다.
             */}
-            {a.assignedBy} · {a.assignedAtLabel}
+            {[a.assignedBy, a.assignedAtLabel].filter(Boolean).join(' · ')}
           </span>
           <span className="text-pullim-slate-300">·</span>
           <span className="text-pullim-slate-500">{sourceMeta[a.source]}</span>

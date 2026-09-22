@@ -142,7 +142,8 @@ async function main(): Promise<void> {
   //
   // 예전에는 `created_by IS NOT NULL` 로 골랐다. 그건 「교사가 낸 과제」를 고르는 조건이
   // 아니라 **API 로 발사된 모든 과제**를 고르는 조건이다 —
-  // `POST /api/teacher/assignments` 는 발사 교사를 항상 `created_by` 에 적는다
+  // 당시 `POST /api/teacher/assignments`(계획 PR 8 에서 걷혔다 · 정본은 pullim-api
+  // `POST /classes/:classId/assignments`)는 발사 교사를 항상 `created_by` 에 적었다
   // (제출 현황 접근 검증의 권위라서 비워 둘 수가 없다). 그래서 데모를 한 번 확인하려고
   // 이 스크립트를 돌리면 **사람이 화면에서 낸 과제가 통째로 사라졌다.**
   //
@@ -277,7 +278,7 @@ async function main(): Promise<void> {
       .values({ id: classroomId, ...roomFields })
       .onConflictDoUpdate({ target: classrooms.id, set: roomFields });
 
-    const code = await issueJoinCode(db, { botId, classroomId, teacherId: room.teacherId });
+    const { code } = await issueJoinCode(db, { botId, classroomId, teacherId: room.teacherId });
     created.push({ room, code });
 
     if (room.seedAssignment) {
@@ -313,7 +314,7 @@ async function main(): Promise<void> {
   // ── 3. 기존 시드 반에도 코드를 하나 쥐어 준다 ─────────────────────
   // 「학생이 이미 있는 반」에서 코드 재발급을 눌러 보기 위한 자리.
   await db.delete(joinCodes).where(eq(joinCodes.classroomId, SEEDED_ROOM_WITH_CODE.classroomId));
-  const seededCode = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
+  const { code: seededCode } = await issueJoinCode(db, SEEDED_ROOM_WITH_CODE);
 
   // ── 3.5 마켓 예시 하나 ────────────────────────────────────────────
   // 빈 마켓만 보면 「게시가 되긴 하나」를 알 수 없다. 시드 봇 하나를 올려 두고,
@@ -349,7 +350,9 @@ async function main(): Promise<void> {
     console.log(`    ${room.label}   ${formatJoinCode(code)}   빈 방`);
   }
   console.log('');
-  console.log('  봇 마켓   공유된 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요)');
+  // 풀림 공식 봇 셋은 `seed.ts` 가 깔고 이 스크립트는 건드리지 않는다 — 소유자가 없어
+  // 위의 내리기(`cb_demo_%` · `cb_001`)에 잡히지 않는다. 그래서 마켓에 늘 넷이 서 있다.
+  console.log('  봇 마켓   교사가 공유한 봇 1개 — 수학이 형 (교사 화면에서 공유하고 그만둬 보세요) · 풀림 공식 봇 3개');
   console.log('');
   const minjun =
     demoStudentEnrollments === 0

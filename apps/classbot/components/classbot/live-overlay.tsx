@@ -210,13 +210,15 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
   const [text, setText] = useState('');
   const submit = useLiveStore(s => s.submitQuestion);
   const session = useLiveStore(s => s.active[botId]);
-  const studentName = useCurrentUser().name;
-  const myQuestions = (session?.pendingQuestions ?? []).filter(q => q.studentName === studentName);
+  const me = useCurrentUser();
+  // 큐에는 **id** 로 담기고 이름은 화면에서만 쓴다 — store 가 localStorage 에 적히는 자리라
+  // 이름을 넣지 않는다(`lib/store/live.ts` 머리주석). 그래서 내 질문도 id 로 고른다.
+  const myQuestions = (session?.pendingQuestions ?? []).filter(q => q.studentId === me.id);
 
   function handleSubmit() {
     const t = text.trim();
     if (!t) return;
-    submit(botId, studentName, t);
+    submit(botId, me.id, t);
     setText('');
   }
 
@@ -225,7 +227,8 @@ function StudentQuestionPanel({ botId }: { botId: string }) {
       <header className="mb-2 flex items-center gap-1.5">
         <MessageCircle className="text-pullim-blue-500 h-3.5 w-3.5" />
         <h2 className="text-pullim-slate-900 text-xs font-bold">선생님에게 질문</h2>
-        <span className="text-pullim-slate-500 ml-auto text-2xs">{studentName} 이름으로 전달돼요</span>
+        {/* 본인 화면이라 자기 이름을 부른다 — 이 값은 세션에서 읽고 저장하지 않는다. */}
+        <span className="text-pullim-slate-500 ml-auto text-2xs">{me.name} 이름으로 전달돼요</span>
       </header>
       <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} className="flex items-center gap-1.5">
         <input

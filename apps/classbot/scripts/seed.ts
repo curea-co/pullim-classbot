@@ -28,15 +28,12 @@ import {
   botCurriculumUnits,
   botQuestions,
   botSettings,
-  chatMessages,
   classBots,
   classrooms,
   consentLogs,
   crisisAlerts,
-  emotionCheckIns,
   enrollments,
   joinCodes,
-  gradingHistory,
   gradingItems,
   lessons,
   liveQuizzes,
@@ -49,26 +46,22 @@ import {
   reports,
   templates,
   users,
-  wellbeingSnapshots,
 } from '../lib/db/schema';
 
 import { currentPersona } from '../lib/mock/persona';
 import { childLinks, consentLog, currentParent } from '../lib/mock/family';
+import { getOfficialTutor } from '../lib/mock/classbot-official';
 import {
   botCurriculum,
   botSettings as mockBotSettings,
   classBots as mockClassBots,
   classRoster,
   crisisAlerts as mockCrisisAlerts,
-  currentTeacher,
-  emotionCheckIns as mockEmotionCheckIns,
-  gradingHistory as mockGradingHistory,
   gradingQueue,
   liveFeed,
   liveSessions as mockLiveSessions,
   myTemplateUploads,
   overriddenSample,
-  pendingItems as _pendingItems,
   currentQuiz,
   quizDrafts,
   quizHistory,
@@ -79,18 +72,13 @@ import {
   studentReplays,
   templates as mockTemplates,
   upcomingLessons,
-  wellbeingSnapshots as mockWellbeingSnapshots,
   type ClassroomStudent,
 } from '../lib/mock/classbot';
 
 const ALL_TABLES = [
   // 부모 순서로 — TRUNCATE RESTART IDENTITY CASCADE는 의존관계 자동 처리하지만 순서 명시로 가독성 확보
-  'chat_messages',
-  'grading_history',
   'grading_items',
   'crisis_alerts',
-  'wellbeing_snapshots',
-  'emotion_checkins',
   'reports',
   'templates',
   'interventions',
@@ -132,6 +120,59 @@ const BOT_TO_TEACHER: Record<string, string> = {
   cb_004: 'teacher_004', // 최다인
   cb_005: 'teacher_005', // 강윤호
 };
+
+/**
+ * 풀림 공식 기본 봇 셋 — 마켓에 늘 서 있어야 하는 봇 (`proc/spec/03 § 4.13.1`).
+ *
+ * **id 를 새로 짓는 까닭**: 값의 출처인 `ot_*` 는 은퇴한 mock 카탈로그 id 라 `class_bots`
+ * 행의 id 로 쓸 수 없다. `cb_` 는 이 테이블의 규약이고(런타임 생성은 `cb_<uuid>`,
+ * 데모는 `cb_demo_*`), 뒤에 `official_` 을 붙여 시드 봇(`cb_001`…)과도 섞이지 않게 한다.
+ * `cb_demo_%` 와 겹치지 않는 것도 조건이다 — `demo-reset.ts` 가 그 접두로 게시를 내린다.
+ */
+const OFFICIAL_BOT_SEEDS: Array<{ id: string; tutorId: string }> = [
+  { id: 'cb_official_math',    tutorId: 'ot_001' }, // 수학 마스터
+  { id: 'cb_official_english', tutorId: 'ot_002' }, // 영어 마스터
+  { id: 'cb_official_science', tutorId: 'ot_003' }, // 과학 마스터
+];
+
+/**
+ * 공식 봇 게시 시각의 기준점 — **못박은 값이고 `new Date()` 가 아니다.**
+ * 마켓 목록이 이 값의 내림차순이라, 실행 시각을 넣으면 **언제 시드를 돌렸느냐에 따라
+ * 목록 차례가 달라진다.** 같은 시드는 언제 돌려도 같은 결과여야 한다.
+ */
+const OFFICIAL_PUBLISHED_AT_BASE = new Date('2026-09-16T00:00:00Z');
+
+/**
+ * 세 행에 **같은 시각을 주지 않는다 — 1초씩 어긋낸다.**
+ *
+ * 목록 라우트의 정렬은 `desc(published_at)` **하나뿐**이고 보조 키가 없다. 세 행이 같은 값을
+ * 가지면 동률이라 **Postgres 가 돌려주는 차례가 실행마다 달라질 수 있다** — 값을 못박아
+ * 얻으려던 「같은 시드는 같은 결과」가 정작 이 셋 사이에서 서지 않는다.
+ *
+ * 내림차순이므로 **먼저 세울 봇에 더 늦은 시각**을 준다 — 위 목록 차례(수학 → 영어 → 과학)가
+ * 화면에 그대로 선다. 봇을 더하면 이 계산이 알아서 자리를 준다.
+ */
+function officialPublishedAt(index: number): Date {
+  const lastIndex = OFFICIAL_BOT_SEEDS.length - 1;
+  return new Date(OFFICIAL_PUBLISHED_AT_BASE.getTime() + (lastIndex - index) * 1000);
+}
+
+/**
+ * 로컬 데모 DB 의 교사 다섯. 화면이 읽는 값이 아니라 **이 시더가 쓰는 자리 데이터**다.
+ *
+ * `teacher_001` 의 프로필(직함·소속·경력·봇 수·학생 수)은 `lib/mock/classbot.ts` 의
+ * `currentTeacher` 에서 가져왔는데, 그 상수는 교사 화면들이 함께 읽는 바람에 **빈 계정에도
+ * 「김보람 · 대치프리미엄 수학학원 · 활성 봇 3개 · 학생 47명」이 뜨게 만들고 있었다.**
+ * 2026-09-18 에 그 상수를 걷으며, 시더가 쓰던 몫만 여기로 내렸다 — 시드 행은 로컬 DB 안에서만
+ * 살고 화면 인사말이 되지 않는다.
+ */
+const DEMO_TEACHER_PROFILE = {
+  title: '수학과 전임강사',
+  organization: '대치프리미엄 수학학원',
+  yearsOfExperience: 7,
+  activeBots: 3,
+  totalStudents: 47,
+} as const;
 
 const TEACHER_NAMES: Record<string, string> = {
   teacher_001: '김보람',
@@ -200,15 +241,7 @@ async function main() {
     id,
     name,
     role: 'teacher' as const,
-    profile: id === 'teacher_001'
-      ? {
-          title: currentTeacher.title,
-          organization: currentTeacher.organization,
-          yearsOfExperience: currentTeacher.yearsOfExperience,
-          activeBots: currentTeacher.activeBots,
-          totalStudents: currentTeacher.totalStudents,
-        }
-      : {},
+    profile: id === 'teacher_001' ? { ...DEMO_TEACHER_PROFILE } : {},
   }));
 
   const parentRows = [
@@ -309,6 +342,62 @@ async function main() {
   );
   console.log(`[seed] class_bots: ${mockClassBots.length}`);
 
+  /* 5b. class_bots — 풀림 공식 기본 봇 셋 (spec `03 § 4.13.1`)
+   *
+   * **`demo-reset.ts` 가 아니라 이쪽이다.** 데모를 되돌려도 마켓에 늘 있어야 하는 봇이라,
+   * 데모가 자기 것만 되돌리는 쪽이 아니라 기본 데이터를 까는 쪽에 둔다. 이 스크립트는
+   * 앞에서 전 테이블을 TRUNCATE 하므로 몇 번을 돌려도 같은 세 행이 된다.
+   *
+   * **소유자를 비운다(`teacherId: null`).** `class_bots.teacher_id` 는 이미 nullable 이라
+   * 스키마도 마이그레이션도 늘리지 않고, 「소유자가 없는 봇 = 풀림 공식 봇」을 마켓 API 가
+   * `isOfficial` 로 파생해 내보낸다(새 컬럼을 두지 않는 까닭). 덤이 하나 더 있다 —
+   * 게시 API 는 `where(id = ? and teacher_id = ?)` 로 소유자를 대조하므로 이 세 행은
+   * 어느 교사의 손에도 0행으로 잡힌다. 곧 **아무도 공식 봇을 내리거나 고칠 수 없다.**
+   * 되돌리는 스크립트가 따로 없는 대신 시드가 늘 같은 모양을 깔아 준다.
+   *
+   * 값은 `lib/mock/classbot-official.ts` 의 `ot_001~003` 에서 그대로 가져온다 —
+   * 이름·인사말·빠른 질문·한 줄 소개까지 이미 있어서 지어낼 값이 없다. 한 줄 소개
+   * (`publish_blurb`)는 그쪽의 `tagline` 이다.
+   *
+   * **커리큘럼 단원(`bot_curriculum_units`)은 넣지 않는다.** `ot_*` 의 `curriculum` 은
+   * `{ title, order }` 뿐인데 그 테이블은 `full_path`(「중2 수학 · 일차함수 · …」 꼴의
+   * 전체 경로)를 NOT NULL 로 요구한다 — 없는 값을 지어내야 한다. 게다가 그 테이블을
+   * 읽는 코드가 아직 없고(라우트 전수 확인), 런타임에 만들어지는 봇도 단원 없이 선다.
+   */
+  const officialBotRows = OFFICIAL_BOT_SEEDS.map(({ id, tutorId }, i) => {
+    const t = getOfficialTutor(tutorId);
+    // mock 에서 봇이 빠지면 조용히 한 줄 덜 깔리는데, 마켓에서 공식 봇이 사라진 것은
+    // 시드가 끝난 뒤에 알아채기 어렵다. 그래서 여기서 멈춘다.
+    if (!t) {
+      throw new Error(
+        `[seed] 공식 봇 원본 ${tutorId} 를 lib/mock/classbot-official.ts 에서 찾지 못했습니다.`,
+      );
+    }
+    return {
+      id,
+      name: t.name,
+      // 아바타는 화면이 과목 이니셜로 그리지만 emoji 문자열은 데이터로 남긴다(spec `08 § 14.1.1` 예외 2).
+      avatarEmoji: t.avatarEmoji,
+      teacherId: null,
+      teacherName: t.teacherName, // '풀림 공식'
+      organization: t.organization, // '풀림'
+      subject: t.subject,
+      grade: t.grade,
+      tone: t.tone,
+      greeting: t.greeting,
+      scope: t.scope,
+      isLive: false,
+      quickPrompts: t.quickPrompts,
+      // 참여 인원은 마켓이 참여 행을 실제로 세므로 전시용 숫자를 심지 않는다.
+      enrolledCount: 0,
+      isPublished: true,
+      publishedAt: officialPublishedAt(i),
+      publishBlurb: t.tagline,
+    };
+  });
+  await db.insert(classBots).values(officialBotRows);
+  console.log(`[seed] class_bots (풀림 공식): ${officialBotRows.length}`);
+
   /* 6. enrollments — 서연 본인만 enrolled로 (s1 → student_001). 출시 mock 은 빈 배열 → 가드. */
   if (studentEnrollments.length > 0) {
     await db.insert(enrollments).values(
@@ -325,7 +414,14 @@ async function main() {
   }
   console.log(`[seed] enrollments: ${studentEnrollments.length}`);
 
-  /* 6b. join_codes — 참여 코드(mock CODE_MAP)의 실전판. 학생 join 의 진입점. */
+  /*
+    6b. join_codes — 참여 코드(mock CODE_MAP)의 실전판. 학생 join 의 진입점.
+
+    **`expires_at` 을 일부러 비운다(= 안 닫힘).** 발급 경로(`lib/join-code.ts`)는 48시간을
+    주지만 이 코드들은 **데모 문**이라 늘 열려 있어야 한다 — prod-verify 가 `MATH-2024` 로
+    매일 반에 들어간다(`tests/e2e`). 여기에 수명을 주면 이틀 뒤부터 회귀가 깨진다.
+    (같은 이유를 `lib/db/schema.ts` 의 그 컬럼 주석이 ②로 적어 두었다.)
+  */
   const codeRows = Object.entries(CODE_MAP).map(([code, t]) => ({
     code,
     botId: t.botId,
@@ -614,7 +710,7 @@ async function main() {
     `[seed] assignments: ${studentAssignments.length}, assignment_questions: ${validQuestionRows.length}`,
   );
 
-  /* 16. grading_items (+ overriddenSample) + grading_history */
+  /* 16. grading_items (+ overriddenSample) — `grading_history` 는 표가 걷혔다(계획 PR 8) */
   await db.insert(gradingItems).values(
     [...gradingQueue, overriddenSample].map((g) => ({
       id: g.id,
@@ -636,58 +732,13 @@ async function main() {
     })),
   );
 
-  if (mockGradingHistory.length > 0) {
-    await db.insert(gradingHistory).values(
-      mockGradingHistory.map((h) => ({
-        studentId: mapStudentId(h.studentId),
-        assignmentTitle: h.assignmentTitle,
-        gradedAtLabel: h.gradedAt,
-        score: h.score,
-        maxScore: h.maxScore,
-      })),
-    );
-  }
-  console.log(
-    `[seed] grading_items: ${gradingQueue.length + 1}, grading_history: ${mockGradingHistory.length}`,
-  );
+  console.log(`[seed] grading_items: ${gradingQueue.length + 1}`);
 
-  /* 17. emotion_checkins */
-  if (mockEmotionCheckIns.length > 0) {
-    await db.insert(emotionCheckIns).values(
-      mockEmotionCheckIns.map((e) => ({
-        id: e.id,
-        studentId: mapStudentId(e.studentId),
-        date: e.date,
-        mood: e.mood,
-        intensity: e.intensity ?? null,
-        intensityRange: e.intensityRange ?? null,
-        freeText: e.freeText ?? null,
-        keywordFlag: e.keywordFlag ?? null,
-      })),
-    );
-  }
-  console.log(`[seed] emotion_checkins: ${mockEmotionCheckIns.length}`);
-
-  /* 18. wellbeing_snapshots — date 컬럼이 PK라 daysAgo→date 변환. mock 기준일 today */
-  const today = new Date('2026-05-11'); // mock의 daysAgo=0 기준일 (emotionCheckIns date='2026-05-11')
-  const wellbeingRows = mockWellbeingSnapshots.map((w) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - w.daysAgo);
-    return {
-      studentId: mapStudentId(w.studentId),
-      date: d.toISOString().slice(0, 10),
-      score: w.score,
-      flag: w.flag ?? null,
-    };
-  });
-
-  // 같은 (studentId, date) 중복 제거 — wellbeing은 일자별 1개만
-  const wellbeingDedup = new Map<string, typeof wellbeingRows[number]>();
-  for (const r of wellbeingRows) {
-    wellbeingDedup.set(`${r.studentId}|${r.date}`, r);
-  }
-  await db.insert(wellbeingSnapshots).values(Array.from(wellbeingDedup.values()));
-  console.log(`[seed] wellbeing_snapshots: ${wellbeingDedup.size}`);
+  /*
+   * 17·18 이 있던 자리 — `emotion_checkins` · `wellbeing_snapshots` 는 표가 걷혔다(계획 PR 8).
+   * 그 둘을 읽던 `GET /api/wellness` 가 함께 걷혔고, 웰빙 화면은 `lib/mock` 을 직접 읽으므로
+   * 시드가 채워 줄 곳이 없다. 목 배열(`emotionCheckIns` · `wellbeingSnapshots`)은 그대로 산다.
+   */
 
   /* 19. crisis_alerts */
   if (mockCrisisAlerts.length > 0) {
@@ -758,8 +809,8 @@ async function main() {
       id: m.id,
       kind: m.kind,
       title: m.title,
-      authorName: currentTeacher.name,
-      authorOrganization: currentTeacher.organization,
+      authorName: TEACHER_NAMES.teacher_001,
+      authorOrganization: DEMO_TEACHER_PROFILE.organization,
       isOfficial: false,
       pricing: 'free' as const,
       subject: '수학',
@@ -776,12 +827,12 @@ async function main() {
   await db.insert(templates).values([...baseRows, ...extraMyRows]);
   console.log(`[seed] templates: ${baseRows.length + extraMyRows.length}`);
 
-  /* 22. chat_messages — 1차에서는 비워둠 (런타임 영속화 시작 전) */
-  void chatMessages; // 명시적 미사용 표시
-  console.log('[seed] chat_messages: 0 (Ph1에서는 비어 있음)');
+  /*
+   * 22 가 있던 자리 — `chat_messages` 는 표가 걷혔다(계획 PR 8). 시드가 채운 적은 없고
+   * (「Ph1 에서는 비어 있음」), 대화 정본은 pullim-api 다.
+   */
 
   // unused but imported — quiet linter for unused vars
-  void _pendingItems;
   void myUploadIds;
 
   console.log('[seed] done ✅');

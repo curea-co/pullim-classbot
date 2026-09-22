@@ -1,52 +1,21 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { SnakeNamingStrategy } from "typeorm-naming-strategies";
+import { ConfigModule } from "@nestjs/config";
 
 import { AppController } from "./app.controller";
-import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
-import databaseConfig from "./config/database.config";
-import jwtConfig from "./config/jwt.config";
-import { AuthRevokedToken } from "./entities/auth-revoked-token.entity";
-import { AuthUser } from "./entities/auth-user.entity";
-import { AuthUserProvider } from "./entities/auth-user-provider.entity";
-import { AuthModule } from "./modules/auth/auth.module";
 
+/**
+ * 클래스봇 백엔드 루트 모듈 — 지금은 health 스켈레톤뿐이다.
+ *
+ * 인증은 이 앱이 갖지 않는다. 클래스봇은 외부 pullim-os / pullim-api SSO 에
+ * 인가를 맡기고, 자체 email/password 스택(구 classbot-local)은 폐기했다.
+ * 그 스택만을 위해 있던 TypeORM(auth_* 엔티티 셋)·전역 JwtAuthGuard 도 함께
+ * 걷었다 — 남은 엔티티가 없으므로 DB 연결이 더는 부팅 조건이 아니다.
+ *
+ * ConfigModule 은 .env 를 process.env 로 올려 main.ts 의 PORT·CORS_ORIGIN 이
+ * 파일 설정을 읽게 하려고 남긴다.
+ */
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [databaseConfig, jwtConfig],
-    }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: "postgres",
-        host: configService.getOrThrow<string>("database.host"),
-        port: configService.getOrThrow<number>("database.port"),
-        username: configService.getOrThrow<string>("database.username"),
-        password: configService.getOrThrow<string>("database.password"),
-        database: configService.getOrThrow<string>("database.name"),
-        // RDS 등 TLS 필요 시 DATABASE_SSL=true. rejectUnauthorized:false 는 RDS
-        // 관리형 인증서에 대응; 추후 CA bundle 을 ssl.ca 로 지정해 더 엄격히 할 수 있다.
-        ssl: configService.get<boolean>("database.ssl")
-          ? { rejectUnauthorized: false }
-          : false,
-        // 인증 엔티티만 등록 — classbot FE(Drizzle) 테이블은 TypeORM 이 관리하지 않는다.
-        entities: [AuthUser, AuthUserProvider, AuthRevokedToken],
-        // camelCase 프로퍼티 ↔ snake_case 컬럼 자동 변환 (본체 pullim 정렬).
-        namingStrategy: new SnakeNamingStrategy(),
-        // 스키마 변경은 마이그레이션으로만. 자동 동기화 금지(Drizzle 자산 보호).
-        synchronize: false,
-      }),
-    }),
-    AuthModule,
-  ],
+  imports: [ConfigModule.forRoot({ isGlobal: true })],
   controllers: [AppController],
-  providers: [
-    // 글로벌 JWT 가드 — 기본 전체 보호, @Public() 만 예외.
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-  ],
 })
 export class AppModule {}

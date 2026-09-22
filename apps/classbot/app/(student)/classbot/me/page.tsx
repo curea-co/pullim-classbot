@@ -5,6 +5,7 @@ import { ArrowRight, BarChart3, GraduationCap, Lock, Share2, Sparkles, UserRound
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ContextRail } from '@/components/shell/context-rail';
+import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -12,12 +13,11 @@ import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { useMyConsents } from '@/hooks/api/consents';
 import { useServerIdentityState } from '@/hooks/api/self-server';
 import { isShareableType } from './share/catalog';
-import { useCurrentUser, useRosterMe } from '@/lib/current-user';
+import { useCurrentUser, useStudentMe } from '@/lib/current-user';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 import { useMyRooms } from '@/components/classbot/home/my-rooms';
 import { useStoresHydrated } from '@/lib/store/use-hydrated';
 import { Skeleton } from '@/components/ui/skeleton';
-import { botSignature } from '@/lib/tokens/bot-signature';
 
 /** 역할 표시 이름 — 화면에서는 바꿀 수 없다(가입 때 정해진다). */
 const roleLabel: Record<string, string> = {
@@ -34,7 +34,7 @@ const roleLabel: Record<string, string> = {
  * 여기서 다시 만들지 않고 그쪽으로 보낸다(두 곳에서 고칠 수 있으면 어느 쪽이 참인지 흐려진다).
  */
 export default function MyProfilePage() {
-  const me = useRosterMe();
+  const me = useStudentMe();
   const user = useCurrentUser();
   // 참여한 반 — 신원이 있으면 서버, 없으면 데모 스토어다(`useMyRooms` 머리주석).
   // `isError` 를 버리면 조회 실패가 「참여한 수업이 없어요」로 확정된다 — 아래에서 가른다.
@@ -102,14 +102,15 @@ export default function MyProfilePage() {
     <div className="space-y-4">
       <BackLink href="/classbot">클래스봇 홈</BackLink>
 
-      <PageHeader eyebrow={{ icon: UserRound, text: '내 정보' }} title={me.name} />
+      {/* 이름을 아직 모르면 화면 이름으로 선다 — 데모 사람 이름을 빌려 쓰지 않는다. */}
+      <PageHeader eyebrow={{ icon: UserRound, text: '내 정보' }} title={me.name || '내 정보'} />
 
       <ContextRail railWidth="md" stickyRail rail={rail}>
         {/* ─── 기본 정보 ─── */}
         <section className="bg-card rounded-2xl border p-4">
           <SectionHeading title="기본 정보" />
           <dl className="divide-pullim-slate-100 divide-y">
-            <InfoRow label="이름" value={me.name} />
+            <InfoRow label="이름" value={me.name || '로그인하면 보여요'} muted={!me.name} />
             <InfoRow label="학년" value={grade ?? '수업에 참여하면 보여요'} muted={!grade} />
             <InfoRow
               label="역할"
@@ -141,16 +142,10 @@ export default function MyProfilePage() {
           ) : (
             <ul className="space-y-1.5">
               {myBots.map(({ bot, enrollment }) => {
-                const hex = botSignature(bot).hex;
                 return (
                   // 여기서 세는 것은 봇이 아니라 소속 반이다 — 같은 봇의 두 반이 한 줄로 접히면 안 된다.
                   <li key={enrollment.classroomId} className="bg-card flex items-center gap-3 rounded-2xl border p-3">
-                    <span
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
-                      style={{ backgroundColor: hex }}
-                    >
-                      {bot.avatarEmoji}
-                    </span>
+                    <BotAvatar subject={bot.subject} name={bot.name} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="text-pullim-slate-900 truncate text-sm font-bold">
                         {enrollment.classroomLabel}

@@ -9,10 +9,11 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { useClassBots, useStudentBots } from '../mode-bots';
+import { classSlotLabel, studentBotSlotKey, useClassBots, useStudentBots } from '../mode-bots';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import type { SelfBotRow } from '@/hooks/api/self-bots';
 import type { ClassBot } from '@/lib/mock';
+import type { RoomSlot } from '@/components/classbot/home/my-rooms';
 
 /*
   반 봇 소스도 **훅 경계에서** 세운다.
@@ -21,7 +22,7 @@ import type { ClassBot } from '@/lib/mock';
   그 방식은 실제 화면이 쓰는 길을 더 이상 흉내내지 못한다 —
   코드로 들어간 반은 DB 에 있고 스토어엔 없기 때문이다.
 */
-let classRooms: { bot: ClassBot; source: 'api' | 'local' }[] = [];
+let classRooms: RoomSlot[] = [];
 let roomsLoading = false;
 let roomsError = false;
 const retryRooms = jest.fn();
@@ -34,15 +35,22 @@ jest.mock('@/components/classbot/home/my-rooms', () => ({
   }),
 }));
 
-/** 반 봇 한 칸 — 화면이 읽는 필드만 채운다. */
-const classRoom = (botId: string, name: string) => ({
+/**
+ * 반 봇 한 칸 — 화면이 읽는 필드만 채운다.
+ * 반 id·이름은 기본으로 봇과 같다(bot == class). 같은 봇이 걸린 두 반을 세울 때만 따로 준다.
+ */
+const classRoom = (botId: string, name: string, classId = botId, classLabel = name): RoomSlot => ({
   bot: {
     id: botId, name, avatarEmoji: '🧑‍🏫', teacherName: '김수학 선생님',
     organization: '대치프리미엄 수학학원', subject: '수학Ⅱ', grade: '고2',
     tone: '친근' as const, greeting: '안녕!', quickPrompts: [], scope: 3 as const,
     isLive: false, enrolledCount: 1,
   } as unknown as ClassBot,
-  source: 'api' as const,
+  enrollment: {
+    botId, classroomId: classId, classroomLabel: classLabel,
+    assignedBy: '선생님', assignedAt: '', via: '',
+  },
+  source: 'api',
 });
 
 // 담은 봇 소스는 훅 계약(계약 §3)만 알면 된다 — 저장소 내부는 이 테스트의 관심사가 아니다.
@@ -69,8 +77,14 @@ jest.mock('@/hooks/api/marketplace', () => ({
   }),
 }));
 
-/** cb_001 = 데모 코드 MATH-2024 가 데려오는 봇. 마켓에도 같은 봇이 걸려 있을 수 있다. */
-const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
+/**
+ * cb_001 = 데모 코드 MATH-2024 가 데려오는 봇. 마켓에도 같은 봇이 걸려 있을 수 있다.
+ * @param botId - 마켓 봇 id
+ * @param name - 마켓이 적어 보내는 이름
+ * @param scope - 안전 등급. 기본 4 — 카탈로그의 `cb_001`(L3)·기본값(L3)과 **다른 값**이라
+ *   「마켓 값이 이긴다」를 재는 자리에서 어느 쪽이 나왔는지 갈린다
+ */
+const marketBot = (botId: string, name: string, scope = 4): MarketplaceBotItem => ({
   botId,
   name,
   avatarEmoji: '🤖',
@@ -78,11 +92,13 @@ const marketBot = (botId: string, name: string): MarketplaceBotItem => ({
   grade: '중2',
   tone: '친근',
   greeting: '안녕!',
+  scope,
   blurb: null,
   teacherName: '박마켓 선생님',
   organization: '풀림 마켓',
   publishedAt: '2026-09-01T00:00:00.000Z',
   enrolledCount: 3,
+  isOfficial: false, // 교사가 공유한 봇. 공식 봇은 소유자가 없는 쪽이다
 });
 
 /**
@@ -186,20 +202,50 @@ it('봇 id 가 같아도 이름·아바타가 바뀌면 목록이 따라온다',
   expect(result.current.slots[0].bot.avatarEmoji).toBe('📐');
 });
 
-// 한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
-// `useMyRooms()` 는 그 두 반을 일부러 다 남긴다(목록 단위가 반이라 그게 맞다). 그러나 챗의
-// 단위는 봇이라, 그대로 옮기면 같은 봇 버튼이 두 개 뜨고 `bot.id` React key 까지 겹친다.
-it('같은 봇으로 반이 둘이어도 대화 상대는 하나다', () => {
+/*
+  한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
+  종전에는 여기서 봇 id 로 접어 「대화 상대는 하나」로 만들었다. **뒤집혔다**(완성 설계 § 6.2 · 해소 3 ·
+  계획 PR 5a): 서버가 반 단위로 기록·인가하므로 두 반은 다른 대화다. 칸은 둘, key 는 반 id 다.
+*/
+it('같은 봇으로 반이 둘이면 칸도 둘 — 단위는 반이고 key 는 반 id 다', () => {
   marketBots = [];
   selfRows = [];
-  classRooms = [classRoom('cb_001', '수학봇'), classRoom('cb_001', '수학봇')];
+  classRooms = [
+    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
+    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
+  ];
   const { result } = render();
-  expect(result.current.slots).toHaveLength(1);
-  expect(result.current.slots[0].bot.id).toBe('cb_001');
-  expect(result.current.classCount).toBe(1);
-  // key 로 쓰이는 값이 유일해야 한다 — 중복이면 React 가 같은 자리를 두 번 그린다.
-  const ids = result.current.slots.map((s) => s.bot.id);
-  expect(new Set(ids).size).toBe(ids.length);
+  expect(result.current.slots).toHaveLength(2);
+  expect(result.current.classCount).toBe(2);
+  expect(result.current.slots.map((s) => (s.source === 'class' ? s.classId : null))).toEqual(['cls_a', 'cls_b']);
+  // React key · URL 정체는 봇이 아니라 반이다 — 둘이 겹치지 않는다.
+  const keys = result.current.slots.map(studentBotSlotKey);
+  expect(keys).toEqual(['class:cls_a', 'class:cls_b']);
+  expect(new Set(keys).size).toBe(keys.length);
+});
+
+// 웰빙 3면이 읽는 `useClassBots` 는 여전히 **봇** 단위다 — 반이 둘이어도 같은 봇이 두 번 말하지 않는다.
+it('useClassBots 는 같은 봇을 한 번만 돌려준다 — 반이 둘이어도', () => {
+  classRooms = [
+    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
+    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
+    classRoom('cb_002', '영어봇'),
+  ];
+  const { result } = renderHook(() => useClassBots(), { wrapper: Wrapper });
+  expect(result.current.map((b) => b.id)).toEqual(['cb_001', 'cb_002']);
+});
+
+// 선택기 라벨 「<반 이름> · <봇 이름>」 — 지금은 bot == class 라 두 이름이 같아 한 번만 적는다.
+it('classSlotLabel — 반 이름과 봇 이름이 같으면 한 번, 다르면 「반 · 봇」', () => {
+  classRooms = [
+    classRoom('cls_1', '고2 미적분 A반'),
+    classRoom('cb_001', '수학봇', 'cls_2', '중2 A반'),
+  ];
+  const { result } = render();
+  const labels = result.current.slots.map((s) => (s.source === 'class' ? classSlotLabel(s) : null));
+  expect(labels).toEqual(['고2 미적분 A반', '중2 A반 · 수학봇']);
+  // 담은 봇의 key 는 봇으로 — 반 id 와 다른 이름공간이다.
+  expect(studentBotSlotKey({ source: 'self', bot: classRoom('cb_009', 'x').bot })).toBe('self:cb_009');
 });
 
 // 먼저 담아 두고 나중에 선생님 코드로 들어간 학생 — 한 봇이 양쪽에 다 있다.
@@ -286,6 +332,57 @@ it('마켓이 아직 안 온 구간에는 자리표시자를 만들지 않는다
   const { result } = render();
   expect(result.current.isLoading).toBe(true);
   expect(result.current.slots).toHaveLength(0);
+});
+
+/* ── 마켓이 주는 칸은 마켓이 이긴다 ────────────────────────────────────────
+ * 담은 봇의 **안전 등급**은 오래 화면의 추측이었다. 계약에 `scope` 가 없어서 카탈로그에
+ * 없는 봇(= 풀림 공식 봇)이 기본값 L3 를 뒤집어썼고, 시드가 L4 로 넣은 봇이 학생 화면에는
+ * L3 로 떠 있었다(spec `03 § 4.13.4`). 계약이 그 칸을 실은 뒤로 규칙은 하나다 —
+ * **마켓이 준 칸은 마켓이 이기고, 마켓이 안 주는 칸만 카탈로그가 채운다.**
+ * ------------------------------------------------------------------------ */
+
+it('담은 봇의 안전 등급은 마켓 값이다 — 카탈로그에 없어도 기본값으로 떨어지지 않는다', async () => {
+  marketBots = [marketBot('cb_official_math', '수학 마스터', 4)];
+  selfRows = [{ botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(4);
+});
+
+it('카탈로그에 있는 봇도 마켓 등급이 이긴다 — 데모 고정값이 지금 규칙을 덮지 않게', async () => {
+  // 카탈로그의 `cb_001` 은 L3 다. 교사가 등급을 올려 뒀다면 화면도 그 값이어야 한다.
+  marketBots = [marketBot('cb_001', '마켓에 걸린 수학봇', 5)];
+  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(5);
+  // 빠른 질문은 여전히 카탈로그 것이다 — 마켓이 **안 주는** 칸이라 규칙이 갈린다.
+  expect(result.current.slots[0].bot.quickPrompts.length).toBeGreaterThan(0);
+});
+
+it('다섯 등급 밖이면 기본값 L3 — 없는 등급을 화면에 적지 않는다', async () => {
+  // 컬럼이 CHECK 없는 `integer` 라 이런 값이 올 수 있다(`class_bots.scope`).
+  marketBots = [marketBot('cb_009', '망가진 등급의 봇', 9)];
+  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(1));
+  expect(result.current.slots[0].bot.scope).toBe(3);
+});
+
+// 그리는 쪽(담은 봇 카드 · 채팅 헤더)은 뒤따르는 PR 이다(spec `03 § 4.13.3`).
+// 여기서 잠그는 것은 **값이 거기까지 닿는가** 하나다.
+it('공식 봇 표시가 그대로 넘어간다', async () => {
+  marketBots = [
+    { ...marketBot('cb_official_math', '수학 마스터'), isOfficial: true },
+    marketBot('cb_009', '선생님이 올린 봇'),
+  ];
+  selfRows = [
+    { botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' },
+    { botId: 'cb_009', addedAt: '2026-09-01T10:00:00.000Z' },
+  ];
+  const { result } = render();
+  await waitFor(() => expect(result.current.slots).toHaveLength(2));
+  expect(result.current.slots.map((s) => s.bot.isOfficial)).toEqual([true, false]);
 });
 
 /* ── 못 읽은 것을 「없다」로 그리지 않는다 ──────────────────────────────────

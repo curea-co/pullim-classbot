@@ -1,18 +1,23 @@
 'use client';
 
-import Link from 'next/link';
-import { Bookmark, Store } from 'lucide-react';
+import { Store } from 'lucide-react';
 
 import BackLink from '@/components/classbot/back-link';
 import { MarketplaceBotList } from '@/components/classbot/marketplace';
 import { PageHeader } from '@/components/shell/page-header';
 
 /**
- * 봇 마켓(학생) — 선생님들이 올린 봇을 둘러보고 **담는** 곳.
+ * 봇 마켓(학생) — 마켓에 올라온 봇을 둘러보고 **담는** 곳.
  *
  * 종전에는 mock `getOfficialTutors()` 세 개(수학·영어·과학 마스터)와 「곧 만날 봇」
- * 예고 셋을 그렸다. 둘 다 걷어냈다 — 이제 이 화면에 뜨는 것은 **교사가 실제로 공유한 봇**이고,
+ * 예고 셋을 그렸다. 둘 다 걷어냈다 — 여기 뜨는 것은 **서버에 행이 있는 봇**뿐이고,
  * 그 옆에 오지 않을 봇 예고를 나란히 두면 어느 쪽이 진짜인지 구별되지 않는다.
+ *
+ * **그 셋이 2026-09-16 에 돌아왔는데, 돌아온 모양이 다르다** — mock 이 아니라 소유자를
+ * 비운 `class_bots` 행으로 들어와 교사 봇과 **같은 목록·같은 규칙** 위에 선다
+ * (spec `03 § 4.13.1`). 그래서 이 화면의 첫 마디에서 **「선생님들이」라는 한정을 걷었다**
+ * (지시는 `§ 4.13.2`). 되돌리지 마라 — 그 말은 이제 목록의 일부만 가리킨다. 걷은 것은
+ * **한정 하나뿐**이고, 바로 아래가 지키라는 선은 문구에 그대로 남아 있다.
  *
  * 설명 문구는 예전에 **둘러보기까지만** 약속했다. 그때는 이 화면에 담는 동작이 없어서
  * 그게 사실이었지만 **지금은 담을 수 있다** — 그러니 「둘러보는 곳」은 이제 거짓이다.
@@ -23,6 +28,22 @@ import { PageHeader } from '@/components/shell/page-header';
  * 크고 작은 관계가 아니라서 「코드를 받아야 쓸 수 있어요」로 되돌리지 마라 — 그건 담기가
  * 생기기 전에도 정확하지 않았고(코드가 여는 것은 반이지 봇을 쓸 자격이 아니다) 지금은
  * 화면이 하는 일과 정면으로 어긋난다.
+ *
+ * **목록 제목 옆에 「담은 봇」 링크가 있었다 — 사용자 지시로 내렸다(2026-09-16).**
+ *
+ * 자리에 「모바일 유일 지름길이라 없애지 마라」는 주석이 붙어 있었다. **그 주석이 옳았다.**
+ * 내리면서 근거를 「레일에 있으니 괜찮다」로 갈아 적었는데, 그것도 틀렸다. 배포본을 폭별로
+ * 재서 얻은 사실은 이렇다(`/classbot/my-bots` 로 가는 링크가 보이는가):
+ *
+ *  - **375px**: **없다.** DOM 에는 있지만 폭 0 이라 안 보인다. 그 폭에서 보이는 길은 하단 탭
+ *    셋(홈·과제·대화)과 헤더 버튼 넷(계정 전환·검색·알림·프로필)뿐이다. 햄버거는 없다 —
+ *    `MobileDrawer`·`AppHeader` 는 어느 화면도 그리지 않는다(셸은 PUDS `DashboardShell` 이다).
+ *  - **820px / 1440px**: 보인다. 레일이 **글자까지** 그린다(「담은 봇」).
+ *
+ * 그래서 **폰에서는 담은 봇에 닿을 길이 화면에 없다.** 담기는 되는데 담은 것을 볼 자리가
+ * 없다는 뜻이다. 이 PR 은 지시대로 링크를 내리되 그 사실을 여기 적어 둔다 — 메우는 자리는
+ * 이 화면이 아니라 **하단 탭이나 홈**이고(레일·탭 변경은 `apps/classbot/CLAUDE.md § 5` 의
+ * 사용자 확인 사항이다), 그 결정 전까지 **이 링크를 슬쩍 되돌려 때우지 마라.**
  */
 export default function ClassbotDiscoverPage() {
   return (
@@ -31,34 +52,13 @@ export default function ClassbotDiscoverPage() {
       <PageHeader
         eyebrow={{ icon: Store, text: '풀림 클래스봇' }}
         title="봇 마켓"
-        description="선생님들이 만들어 공유한 봇을 둘러봐요. 마음에 들면 담아서 내 봇으로 두고, 선생님 반에 들어가려면 참여 코드를 따로 받아요."
+        description="풀림이 만든 봇과 선생님들이 올린 봇을 둘러봐요. 마음에 들면 담아서 내 봇으로 두고, 선생님 반에 들어가려면 참여 코드를 따로 받아요."
       />
 
       <MarketplaceBotList
         detailHref={(botId) => `/classbot/discover/${botId}`}
         emptyDescription="선생님이 봇을 올리면 여기에 보여요. 지금 듣는 수업은 내 수업방에서 볼 수 있어요."
         showSelfAdd
-        /*
-          담은 봇으로 가는 길을 페이지 헤더가 아니라 목록 제목 옆에 둔다.
-          헤더에 두면 좁은 화면에서 버튼이 제목 옆 자리를 먹어 설명문이 서너 글자씩
-          끊긴다(`PageHeader` 는 안 접히고 글자 쪽이 줄어든다). 목록 제목은 좁아지면
-          위아래로 접히므로 설명문이 제 폭을 쓴다. 교사 셸이 「내 수업방」 링크를
-          같은 자리에 두는 것도 같은 이유다.
-          모바일 하단 탭은 셋뿐이라(홈·과제·대화) 이 링크가 폰에서 담은 봇으로 가는
-          유일한 지름길이다 — 없애지 마라.
-        */
-        headingAction={
-          <Link
-            href="/classbot/my-bots"
-            aria-label="내가 담은 봇으로 가기"
-            className="bg-card hover:bg-pullim-slate-50/50 text-pullim-slate-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
-          >
-            <Bookmark className="h-3.5 w-3.5" aria-hidden />
-            {/* 보이는 글자는 두 어절(07 § 6.6). 「내 봇」으로 더 줄이지 않는다 —
-                반 봇까지 포함하는 말로 읽혀 「선생님 반의 봇」과 갈리지 않는다(§ 6.6.2(1)(2)). */}
-            담은 봇
-          </Link>
-        }
       />
     </div>
   );

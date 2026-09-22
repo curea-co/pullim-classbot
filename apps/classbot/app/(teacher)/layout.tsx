@@ -3,8 +3,9 @@ import { AppShell } from '@/components/shell/app-shell';
 import { RoleGuard } from '@/components/features/auth/role-guard';
 
 export default function TeacherLayout({ children }: { children: ReactNode }) {
-  // RBAC: 로그인 세션의 role 이 teacher 가 아니면 본인 홈으로 리다이렉트.
-  // (비로그인 데모는 통과 — 데모 흐름 보존, 쓰기는 서버 route 가 별도 가드.)
+  // 문은 풀림 OS 하나다(05 § 11.2 · 2026-09-16 계획 결정 ②): 비로그인은 OS 로그인으로,
+  // 학생은 학생 홈으로, 학부모·기관은 안내 한 장으로. admin 은 교사 화면을 쓴다
+  // (`packages/auth/src/routes.ts` — 운영자 화면 미도입). 데이터 자물쇠는 서버(pullim-api)다.
   return (
     <RoleGuard requiredRole="teacher">
       <AppShell role="teacher">{children}</AppShell>

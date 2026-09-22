@@ -4,24 +4,35 @@ import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useJoinByCode } from '@/hooks/api/classroom';
-import { ApiClientError } from '@/lib/api/client-fetch';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
+import { joinFailureMessage, useJoinByCode } from '@/hooks/api/classroom';
+// 표기 규칙의 주인(`lib/join-code.ts` 가 아니라 여기). `join-code.ts` 는 코드를 **발급**까지 소유해서
+// `node:crypto` 와 Drizzle 스키마를 끌고 오는데, client 컴포넌트가 그걸 import 하면 DB 스키마가
+// 브라우저 번들에 실린다. 이 파일은 의존성이 0 이라 그 유출이 없다.
+import { normalizeJoinCode } from '@/lib/join-code-format';
 import { cn } from '@/lib/utils';
 
 /**
  * 참여 코드 입력 한 벌 — 홈 hero(남색 면)와 「내 수업방」 카드(흰 면)가 같이 쓴다.
  *
- * 참여는 **실 API**(`POST /api/enrollments`, `useJoinByCode`)가 먼저다. 선생님이 발급한
- * 코드는 DB(`join_codes`)에만 있으므로 예전 mock 표(`CODE_MAP`)로는 영영 안 풀린다.
+ * 참여는 pullim-api 정본 하나다(`POST /classbot/enrollments`, `useJoinByCode`). 선생님이 발급한 코드는
+ * 그 서버의 `join_codes` 에만 있다.
  *
- * 다만 서버가 **모르는 코드(404)**·**신원이 없어 막은 경우(401)** 에는 예전 경로
- * (스토어의 `join()` → mock `resolveClassCode` → localStorage)로 한 번 더 시도한다.
- * 스토어를 **직접** 부른다 — `joinClass()` 는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로
- * 가고 그쪽 4xx 를 실패로 전파하므로, 그 경로를 타면 데모 코드가 통째로 막힌다.
- * 데모 코드 `MATH-2024`·`ENG-2024`·`SCI-2024` 가 그 자리다 — prod 회귀 자동화
- * (`tests/e2e/helpers.ts` 의 `joinDemoClass`)가 로그인 없이 그 코드로 들어가고,
- * 그 경로가 사라지면 prod-verify 가 통째로 깨진다.
+ * **실패는 실패로 보인다.** 종전에는 서버가 404·401 을 주면 예전 mock 표(`MATH-2024` 등)로 한 번 더
+ * 풀어 성공처럼 보였다 — 2026-09-16 계획 §01 R2 가 「서버가 401·404 를 주면 목 참여로 조용히 갈아탄다.
+ * 실패가 성공처럼 보인다」로 짚은 자리다. 그 폴백을 걷었고(결정 ②·§07), 서버가 가른 뜻은
+ * `joinFailureMessage` 가 그대로 말한다 — 없는 코드 · 닫힌 코드 · 이미 들어와 있음.
+ * 데모 코드로 반에 들어가던 prod 회귀 자동화는 **이미 옮겨졌다** — 대화 스펙 셋은
+ * `playwright.config.ts` 의 `STUDENT_SPECS`(로그인 레인)에 있고, `tests/e2e/helpers.ts` 의
+ * `joinDemoClass` 는 데모 코드를 넣던 두 줄을 걷었다(그 코드는 정본에서 404 다).
+ *
+ * **보내는 값은 정규화한다 — 그 책임이 여기 있다.** 교사 화면은 코드를 `WXP-M7U` 로 보여 주고
+ * 「복사」도 붙임표째 담는다(`app/(teacher)/teacher/classroom/join-code-block.tsx`). 그런데 저장된 코드에는
+ * 붙임표가 없고 **정본은 정규화를 하지 않는다** — 실측(2026-09-18 dev): `"WXP-M7U"` → 404 ·
+ * `"WXPM7U"` → 201. 그래서 보이는 대로 옮겨 적은 학생만 튕겼다. 서버로 나가기 직전에
+ * `normalizeJoinCode` 로 한 번 접어 그 어긋남을 닫는다.
+ *
+ * **입력칸은 건드리지 않는다.** 학생이 친 글자를 화면에서 뺏거나(커서가 튄다) 붙임표를 자동으로
+ * 끼워 넣지 않는다 — 고치는 것은 *보내는 값* 하나다.
  */
 export type JoinCodeFormTone = 'dark' | 'light';
 
@@ -49,6 +60,14 @@ const skin = {
   },
 } as const;
 
+/** 성공 토스트 한 줄 — 반 이름을 못 읽었으면 이름 없이 말한다(참여는 이미 됐다). */
+export function joinSuccessMessage(className: string | null, alreadyJoined: boolean): string {
+  if (alreadyJoined) {
+    return className ? `이미 들어와 있는 반이에요 — ${className}` : '이미 들어와 있는 반이에요.';
+  }
+  return className ? `${className}에 들어왔어요!` : '수업방에 들어왔어요!';
+}
+
 /**
  * 참여 코드를 받아 수업방에 들어간다.
  * @param tone - 놓이는 면(기본 light)
@@ -61,51 +80,21 @@ export function JoinCodeForm({ tone = 'light', onJoined }: Props) {
   const s = skin[tone];
 
   const handleJoin = async () => {
-    const raw = code.trim();
-    if (!raw) {
+    // 붙임표·공백을 지운 값이 서버가 아는 형태다. 빈칸 판정도 그 값으로 한다 —
+    // 붙임표만 친 입력(`-`)은 「코드가 있다」가 아니라 「보낼 코드가 없다」다.
+    const normalized = normalizeJoinCode(code);
+    if (!normalized) {
       toast.error('참여 코드를 입력해 주세요.');
       return;
     }
 
-    const succeed = (label: string, teacher: string, already: boolean) => {
-      toast.success(
-        already
-          ? `이미 참여한 반이에요 — ${label}`
-          : `${teacher}의 ${label}에 참여했어요!`,
-      );
+    try {
+      const res = await join.mutateAsync({ code: normalized });
+      toast.success(joinSuccessMessage(res.className, res.alreadyJoined));
       setCode('');
       onJoined?.();
-    };
-
-    try {
-      const res = await join.mutateAsync({ code: raw });
-      succeed(res.enrollment.classroomLabel, res.enrollment.assignedBy, res.alreadyJoined);
-      return;
     } catch (error) {
-      const apiError = error instanceof ApiClientError ? error : null;
-
-      // 서버가 모르는 코드(404)이거나 신원이 없어 막힌 경우(401)만 예전 데모 경로로 한 번 더.
-      // 403·409·5xx 는 서버가 뜻을 갖고 거절한 것이라 mock 성공으로 가장하지 않는다.
-      if (apiError && (apiError.status === 401 || apiError.status === 404)) {
-        // **스토어의 mock 참여를 직접 부른다** — `joinClass()` 를 쓰지 않는다.
-        // 그 함수는 `USE_REAL_CORE_BE` 가 켜지면 pullim-api 로 가고 그쪽 4xx 를 실패로
-        // 전파한다(mock 폴백은 5xx·네트워크 실패에만 준다). 여기 도착한 요청은 방금
-        // 같은 오리진 라우트가 401·404 로 거절한 것이라, 또 다른 BE 에 물어봐도 답이 같다 —
-        // 그리고 그 경로를 타면 플래그가 켜진 환경에서 `MATH-2024` 같은 데모 코드가
-        // 통째로 막혀 prod-verify 가 깨진다. 이 자리가 원하는 것은 **mock 해석** 하나다.
-        const legacy = useClassEnrollmentStore.getState().join(raw);
-        if (legacy.ok) {
-          succeed(legacy.enrollment.classroomLabel, legacy.enrollment.assignedBy, false);
-          return;
-        }
-        // 신원이 없어 막힌 것이면 「로그인이 필요합니다」보다 데모 경로의 문구가 맞는 말이다.
-        if (apiError.status === 401) {
-          toast.error(legacy.error);
-          return;
-        }
-      }
-
-      toast.error(apiError ? apiError.message : '참여하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      toast.error(joinFailureMessage(error));
     }
   };
 
@@ -113,12 +102,13 @@ export function JoinCodeForm({ tone = 'light', onJoined }: Props) {
     <div className="flex items-center gap-2">
       <div className="relative flex-1">
         <KeyRound className={cn('absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2', s.icon)} />
+        {/* 예시는 교사 화면이 보여 주는 그대로(붙임표 포함) — 학생이 옮겨 적을 것이 그 형태다. */}
         <input
           type="text"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => e.key === 'Enter' && void handleJoin()}
-          placeholder="참여 코드 입력 (예: ABC-123)"
+          placeholder="참여 코드 입력 (예: AB3-K9M)"
           aria-label="참여 코드 입력"
           maxLength={12}
           className={cn(

@@ -1,9 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import {
-  Bot, ChevronDown, ChevronUp, KeyRound, Plus, School, Users, X,
-} from 'lucide-react';
+import { ArrowRight, CheckCircle2, KeyRound, School, X } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadLoginGate } from '@/components/classbot/read-state';
@@ -11,41 +10,52 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTeacherClassrooms } from '@/hooks/api/classroom';
-import { ApiClientError } from '@/lib/api/client-fetch';
-import type { TeacherClassroomItem } from '@/hooks/api/types';
-import { ClassroomRoster } from './classroom-roster';
+import { useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
+import { isUnauthorized } from '@/lib/api/classbot-client';
+import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
+import { classTabHref } from './[id]/class-tabs';
 import { CreateClassroomForm, type CreatedClassroom } from './create-classroom-form';
 import { JoinCodeBlock } from './join-code-block';
-import { PublishBotBlock } from './publish-bot-block';
+import { KnownBotChip } from './known-bot-chip';
+import { toOperatorClass, type OperatorClass } from './operator-class';
 
 /**
- * 내 수업방 — 반을 열고, 참여 코드를 건네고, 들어온 학생을 본다.
+ * 내 수업방 — 내가 operator 인 반을 정본에서 읽고, 반을 만들고, 반마다 참여 코드를 낸다.
  *
- * 이 화면이 하는 일은 **참여 코드를 손에 쥐여 주는 것** 하나다. 반 목록·학생 명단도
- * 그 코드가 통했는지를 보여 주려고 있다 — 그래서 카드마다 가장 큰 글자가 코드다.
+ * 읽는 곳은 pullim-api `GET /classbot/bots?role=teacher`(`useOperatorClasses`), 만드는 곳은 `POST /classbot/classes`
+ * (`useCreateClassroom` · 계획 PR 5b — 5a 때 `CLASS_CREATE_AVAILABLE=false` 뒤에 가려 뒀던 폼을 정본 문으로 옮기고
+ * 그 상수를 걷었다). 두 세계의 반 id 를 한 화면에 섞지 않는다: 코드는 정본 반에만 붙고, 학생의 참여도 정본
+ * `POST /enrollments` 다.
  *
- * 데이터는 전부 DB 다(`/api/teacher/classrooms`). mock 카탈로그를 섞지 않는다 —
- * 참여 코드는 진짜 반에만 붙고, 가짜 반에 붙은 코드는 학생이 넣어도 안 열린다.
+ * 반을 만들면 **첫 코드가 함께 온다**(한 트랜잭션). 배너가 그 코드와 닫히는 시각을 크게 들고, 「봇 붙이러 가기」가
+ * 새 반 상세의 「봇」 탭(`?tab=bot`)으로 간다 — 교사가 지금 할 일은 코드를 건네는 것이고 다음 할 일은 봇을 붙이는
+ * 것이다. 목록이 다시 그려지면 그 반의 카드도 같은 코드로 선다(`useClassDetail` → `JoinCodeBlock.initial`).
+ *
+ * 카드의 봇 칩은 **반 상세 문이 준 `ClassDto`** 로 그린다(`useClassDetail` · `known-bot-chip.tsx` — 모른다 · 없다 ·
+ * 이 봇). 계획 PR 5d 전에는 이 자리가 **이 세션이 만들거나 고친 반만 아는** 캐시라 새로고침하면 칩이 다시
+ * 비었다 — 이제 묻는다(pullim-api #672).
+ *
+ * 그래서 카드마다 반 상세를 한 번씩 읽는다(목록 한 번 + 반 N 번).
+ * *(`[2026-09-19 정정]` 종전에는 「목록 문에는 `classes.bot_id` 가 실리지 않아 `POST /classes` 로 만든 반이
+ * 봇을 붙인 뒤에도 늘 「봇 없음」이 된다 · 목록 문이 그것을 싣게 되는 날 이 N 번은 없어진다」고 적었다.
+ * **그날이 왔다** — pullim-api #679 가 카드에 `botId` 를 싣고, 봇 이름(`name`)과 아바타(`profile.avatarEmoji`)
+ * 까지 함께 준다. 그래서 **이 N 번은 이제 없앨 수 있다 — 별건이다.** 칩 셋(모른다·없다·이 봇)을 카드 한 장에서
+ * 짓는 모양으로 다시 잡는 일이라 이 PR 의 범위 밖이다.)*
+ * 붙이고 떼는 자리는 반 상세 「봇」 탭. 카드에 **없는 것**(계획 PR 5a 그대로): 명단(반 상세 「명단」 탭) ·
+ * 봇 마켓 공유 칸(`/teacher/marketplace` 「내 봇 공유」 · 결정 ①).
  */
 export function ClassroomWorkspace() {
-  const query = useTeacherClassrooms();
-  const [formOpen, setFormOpen] = useState(false);
+  const query = useOperatorClasses();
   const [created, setCreated] = useState<CreatedClassroom | null>(null);
 
   /*
-    비로그인(401)은 **고장이 아니다.** prod 는 공개 화면이라 방문자에게 세션이 없고,
-    prod-verify 도 쿠키 없이 이 화면을 친다. 401 을 빨간 카드로 그리면 데모로 들어온
-    사람에게 이 화면은 언제나 깨져 있고, 새로 낸 탐색 경로가 사실상 막힌다.
-
-    다만 여기서는 `assignment-form.tsx` 처럼 mock 으로 굴리지 **않는다.** 이 화면이 건네는
-    것은 **참여 코드**이고, 가짜 반에 붙은 코드는 학생이 넣어도 안 열린다(위 머리주석).
-    없는 코드를 크게 보여 주는 것이 빈 화면보다 나쁘다 — 그래서 로그인으로 안내한다.
+    401 은 **고장이 아니다** — `classbotRead` 가 이미 OS 로그인으로 보내는 중이고(`lib/api/classbot-client.ts`),
+    RoleGuard 가 비로그인을 먼저 막는다. 그 사이 한 박자 화면은 게이트를 든다(prod-verify 익명 레인이 읽는
+    「로그인이 필요해요」 · `tests/e2e/public-and-gates.spec.ts`). 여기서 mock 으로 굴리지 **않는다** — 이 화면이
+    건네는 것은 참여 코드이고, 가짜 반에 붙은 코드는 학생이 넣어도 안 열린다.
   */
-  const signedOut =
-    query.isError && query.error instanceof ApiClientError && query.error.status === 401;
-
-  if (signedOut) return <ReadLoginGate label="수업방 참여 코드" />;
+  // 라벨은 게이트 문장 `${label}를 보려면` 에 들어간다 — 받침 없는 말이어야 「를」이 맞는다(「내 수업방를」 ✗).
+  if (query.isError && isUnauthorized(query.error)) return <ReadLoginGate label="수업방 참여 코드" />;
 
   if (query.isError) {
     return (
@@ -53,73 +63,23 @@ export function ClassroomWorkspace() {
         <p className="text-pullim-slate-700 text-sm" data-testid="classroom-error">
           {query.error.message}
         </p>
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void query.refetch()}>
+          다시 시도
+        </Button>
       </AlertCard>
     );
   }
 
-  const rooms = query.data?.classrooms ?? [];
-  // 방이 하나도 없으면 폼이 곧 이 화면의 본문이다 — 접어 두면 여기서 할 수 있는 일이 없다.
-  const showForm = formOpen || (!query.isPending && rooms.length === 0);
-
-  /*
-    갓 만든 방의 코드는 **목록에서 다시 찾는다.** `created` 는 만들던 순간의 스냅샷이라,
-    아래 배너 안 `JoinCodeBlock` 에서 코드를 다시 내면 목록은 갱신돼도 배너의 큰 글자는
-    죽은 코드로 남는다. 코드 다시 내기는 되돌릴 수 없어서(옛 코드는 그 순간 못 쓴다)
-    교사가 그 값을 학생에게 건네면 아무도 못 들어온다 — 갓 만든 반에서 가장 먼저 보는
-    자리가 여기라 더 그렇다.
-
-    스냅샷은 **목록이 아직 그 방을 모를 때만** 쓴다(만든 직후 재조회가 오기 전 한 구간).
-  */
-  const createdRoom = created
-    ? rooms.find((r) => r.classroomId === created.classroomId)
-    : undefined;
-  const createdCode = createdRoom ? createdRoom.joinCode : (created?.joinCode ?? null);
+  const rooms = (query.data ?? []).map(toOperatorClass);
 
   return (
     <>
-      {/*
-        갓 만든 수업방 — 코드가 나온 그 순간이 교사가 코드를 건네는 순간이다.
-        아래 목록에도 같은 코드가 있지만, 방이 여럿이면 새로 난 코드가 어느 카드인지 찾아야 한다.
-      */}
-      {created && (
-        <AlertCard tone="info" icon={KeyRound} title={`${created.label} — 수업방을 열었어요`}>
-          <p className="text-pullim-slate-700 text-sm">
-            이 코드를 학생에게 알려주세요. 학생이 코드를 넣으면 바로 이 반에 들어와요.
-          </p>
-          <div className="mt-3">
-            <JoinCodeBlock classroomId={created.classroomId} code={createdCode} size="lg" />
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setCreated(null)}
-            className="text-pullim-slate-600 hover:text-pullim-slate-900 mt-3"
-          >
-            <X />
-            닫기
-          </Button>
-        </AlertCard>
-      )}
+      {created && <CreatedBanner created={created} onDismiss={() => setCreated(null)} />}
 
       <section>
         <SectionHeading
           title={query.isPending ? '내 수업방' : `내 수업방 ${rooms.length}개`}
-          description="참여 코드를 알려주면 학생이 그 반으로 들어와요."
-          action={
-            rooms.length > 0 ? (
-              <Button
-                type="button"
-                variant={formOpen ? 'ghost' : 'pullim'}
-                onClick={() => setFormOpen((open) => !open)}
-                aria-expanded={formOpen}
-                data-testid="classroom-create-toggle"
-              >
-                {formOpen ? <X /> : <Plus />}
-                {formOpen ? '그만두기' : '수업방 만들기'}
-              </Button>
-            ) : undefined
-          }
+          description="참여 코드를 새로 내어 학생에게 알려주면 그 반으로 들어와요."
         />
 
         {query.isPending ? (
@@ -131,97 +91,98 @@ export function ClassroomWorkspace() {
           <EmptyState
             icon={School}
             title="아직 연 수업방이 없어요"
-            description="아래에서 반을 열면 참여 코드가 함께 나와요. 그 코드를 학생에게 알려주면 돼요."
+            description="아래에서 반을 만들면 참여 코드가 나와요. 그 코드를 학생에게 알려 주면 반으로 들어와요."
           />
         ) : (
           <ul className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="classroom-list">
             {rooms.map((room) => (
-              <RoomCard key={room.classroomId} room={room} />
+              <RoomCard key={room.id} room={room} />
             ))}
           </ul>
         )}
       </section>
 
-      {showForm && <CreateClassroomForm onCreated={(next) => { setCreated(next); setFormOpen(false); }} />}
+      <CreateClassroomForm onCreated={setCreated} />
     </>
   );
 }
 
 /**
- * 수업방 한 칸 — 무엇을 담나: 반 정체(이름·소속·과목·학년·봇) · 참여 코드 · 봇 마켓 공유 · 참여 학생.
- * 코드는 카드 안에서 제 상자를 갖는다. 다른 값과 같은 줄에 두면 그냥 또 하나의 값이 된다.
- *
- * 카드 안 순서는 **이 반이 밖으로 열리는 정도**를 따른다: 참여 코드(내가 부른 학생만) →
- * 봇 마켓(누구나 둘러봄) → 학생 명단(이미 들어온 사람). 공유 칸이 코드 바로 아래인 이유가 그것이다.
+ * 막 만든 반 — 코드가 주인공이다. 목록이 다시 읽히기 전 한 박자를 이 배너가 잇고, 다시 읽힌 뒤에도 교사가 닫을 때까지
+ * 남는다(카드로 눈을 옮기지 않고 여기서 바로 부르게). 다음 할 일(봇 붙이기)로 가는 길은 새 반의 「봇」 탭이다.
  */
-function RoomCard({ room }: { room: TeacherClassroomItem }) {
-  const [rosterOpen, setRosterOpen] = useState(false);
-
+function CreatedBanner({ created, onDismiss }: { created: CreatedClassroom; onDismiss: () => void }) {
+  const life = joinCodeLife(created.joinCode.expiresAt);
   return (
-    <li className="bg-card rounded-2xl border p-5" data-testid={`classroom-card-${room.classroomId}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-pullim-slate-900 text-sm font-bold">{room.label}</h3>
-          <p className="text-pullim-slate-500 mt-0.5 text-2xs">{room.organization}</p>
+    <AlertCard tone="info" icon={CheckCircle2} title={`「${created.name}」 반을 만들었어요`}>
+      <div className="flex flex-wrap items-end justify-between gap-3" data-testid="classroom-created">
+        <div>
+          <p className="text-pullim-slate-500 text-2xs font-bold">첫 참여 코드</p>
+          <p
+            className="text-pullim-slate-900 mt-0.5 font-mono text-3xl font-bold tracking-widest"
+            data-testid="classroom-created-code"
+          >
+            {formatJoinCode(created.joinCode.code)}
+          </p>
+          {life.state === 'open' && (
+            <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="classroom-created-life">
+              {life.label} 쓸 수 있어요
+            </p>
+          )}
         </div>
-        <Chip tone="neutral" className="shrink-0">
-          <Users aria-hidden />
-          <span>
-            <span className="sr-only">참여 학생 </span>
-            {room.studentCount}명
-          </span>
-        </Chip>
+        <div className="flex items-center gap-2">
+          <Link
+            href={classTabHref(created.classId, 'bot')}
+            data-testid="classroom-created-detail"
+            className="bg-pullim-blue-600 hover:bg-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-white transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            봇 붙이러 가기
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Button type="button" variant="ghost" size="sm" onClick={onDismiss} aria-label="배너 닫기">
+            <X />
+          </Button>
+        </div>
+      </div>
+    </AlertCard>
+  );
+}
+
+/**
+ * 반 한 칸 — 반 정체(이름 · 과목·학년 · 봇) · 참여 코드 · 「자세히」.
+ * 코드는 카드 안에서 제 상자를 갖는다. 다른 값과 같은 줄에 두면 그냥 또 하나의 값이 된다.
+ */
+function RoomCard({ room }: { room: OperatorClass }) {
+  // 이 반의 지금(붙은 봇 · 살아 있는 참여 코드). 읽기 전·실패면 `undefined` = 모른다 — 코드 상자는 「새로 내기」로만
+  // 채워지고 봇 칩은 빈다(빈 칩은 「봇 없음」이 아니다 · `known-bot-chip.tsx`).
+  const known = useClassDetail(room.id).data;
+  return (
+    <li className="bg-card rounded-2xl border p-5" data-testid={`classroom-card-${room.id}`}>
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-pullim-slate-900 min-w-0 truncate text-sm font-bold">{room.name}</h3>
+        {!room.isActive && <Chip tone="neutral" className="shrink-0">비활성</Chip>}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {room.subject && <Chip tone="info">{room.subject}</Chip>}
         {room.grade && <Chip tone="outline">{room.grade}</Chip>}
-        {room.botName && (
-          <Chip tone="outline">
-            <Bot aria-hidden />
-            <span>
-              <span className="sr-only">봇 </span>
-              {room.botName}
-            </span>
-          </Chip>
-        )}
+        <KnownBotChip known={known} data-testid={`classroom-bot-${room.id}`} />
       </div>
 
       <div className="border-pullim-blue-200 bg-pullim-blue-50 mt-4 rounded-xl border p-4">
-        <JoinCodeBlock classroomId={room.classroomId} code={room.joinCode} />
+        <JoinCodeBlock classId={room.id} initial={known?.joinCode ?? null} />
       </div>
 
-      {/*
-        공유는 반이 아니라 **봇**에 거는 일이라 봇이 없는 빈 반에는 이 칸이 없다.
-        (`botId` 가 null 인 반은 참여 행도 코드도 없는 껍데기다 — 계약 타입 주석 참조.)
-      */}
-      {room.botId && (
-        <PublishBotBlock
-          botId={room.botId}
-          botName={room.botName}
-          isPublished={room.isPublished}
-          publishedAt={room.publishedAt}
-          publishBlurb={room.publishBlurb}
-        />
-      )}
-
-      <div className="mt-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRosterOpen((open) => !open)}
-          aria-expanded={rosterOpen}
-          className="text-pullim-slate-600 hover:text-pullim-slate-900"
-          data-testid={`classroom-roster-toggle-${room.classroomId}`}
+      <div className="mt-4 flex justify-end">
+        <Link
+          href={classTabHref(room.id, 'members')}
+          aria-label={`${room.name} 자세히`}
+          data-testid={`classroom-detail-${room.id}`}
+          className="text-pullim-blue-600 hover:text-pullim-blue-700 focus-visible:ring-pullim-blue-400/50 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          {/* 인원수는 위 칩이 이미 말한다 — 이 버튼은 「명단을 여닫는다」만 말한다 */}
-          <Users />
-          학생 명단
-          {rosterOpen ? <ChevronUp /> : <ChevronDown />}
-        </Button>
-
-        {rosterOpen && <ClassroomRoster classroomId={room.classroomId} label={room.label} />}
+          자세히
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
     </li>
   );

@@ -15,14 +15,20 @@
  *
  * DB 는 mock 이라 실 Postgres 없이 **가드 순서와 조립된 SQL** 만 본다.
  */
-import { createHmac } from 'node:crypto';
-
-import type { AccessTokenPayload } from '@pullim-classbot/types';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 // ── getDb mock — select/update 체인을 가짜로 대체 ──
 const whereSpy = jest.fn();
 const setSpy = jest.fn();
+/**
+ * `select({...})` 에 넘어온 **열 묶음**을 잡아 둔다.
+ *
+ * 행 자체는 `mockSelectQueue` 가 주므로, 라우트가 어떤 열을 **실제로 고르는지**는 그것만으로는
+ * 잴 수 없다 — 픽스처에 있는 칸은 라우트가 안 골라도 그대로 나온다. 공식 봇 판별이
+ * `teacherId === null` 이라, 라우트에서 그 열이 빠지면 값이 `undefined` 가 되어
+ * **모든 봇이 조용히 「공식 봇 아님」**이 된다. 그 구멍을 여기서 닫는다.
+ */
+const selectSpy = jest.fn();
 
 /** 다음 `select` 들이 차례로 돌려줄 행 묶음(호출 순서대로 shift). */
 let mockSelectQueue: unknown[][] = [];
@@ -66,7 +72,10 @@ jest.mock('@/lib/db', () => {
 
   return {
     getDb: () => ({
-      select: () => selectChain(),
+      select: (projection?: unknown) => {
+        selectSpy(projection);
+        return selectChain();
+      },
       update: () => updateChain(),
     }),
   };
@@ -79,8 +88,6 @@ import {
 import { GET as getMarketplaceBot } from '@/app/api/marketplace/bots/[botId]/route';
 import { GET as getMarketplaceBots } from '@/app/api/marketplace/bots/route';
 
-const SECRET = 'test-jwt-secret';
-
 /** 게시된 봇 한 행 — `update ... returning` 이 돌려주는 모양. */
 const PUBLISHED_ROW = {
   id: 'cb_001',
@@ -91,49 +98,59 @@ const PUBLISHED_ROW = {
   publishBlurb: '같이 미적분 뜯어봐요',
 };
 
-beforeAll(() => {
-  process.env.JWT_SECRET = SECRET;
-});
+/**
+ * 마켓 라우트의 select 가 돌려주는 한 행.
+ *
+ * **`teacherId` 가 들어 있다** — 실제 select 는 그 칸을 늘 읽어 온다(값이 null 이거나
+ * 아니거나). 픽스처에서 빼면 「소유자가 없는 봇 = 공식 봇」 판별이 `undefined` 를 보게 돼
+ * 테스트가 라우트와 다른 것을 재게 된다.
+ */
+const MARKET_ROW = {
+  botId: 'cb_001',
+  name: '수학이 형',
+  avatarEmoji: '🧑‍🏫',
+  subject: '수학Ⅱ',
+  grade: '고2',
+  tone: '친근',
+  greeting: '안녕!',
+  // L3(기본값)이 아니라 L4 다 — 기본값을 그대로 둔 픽스처는 「라우트가 컬럼을 실어 보냈다」와
+  // 「아무도 안 실어서 기본값이 남았다」를 못 가른다.
+  scope: 4,
+  blurb: null,
+  teacherName: '김수학 선생님',
+  organization: '풀림',
+  publishedAt: new Date('2026-09-01T00:00:00Z'),
+  teacherId: 'teacher_001',
+};
 
 beforeEach(() => {
   whereSpy.mockClear();
   setSpy.mockClear();
+  selectSpy.mockClear();
   mockSelectQueue = [];
   mockUpdateQueue = [];
 });
 
-function base64Url(input: string | Buffer): string {
-  return (typeof input === 'string' ? Buffer.from(input, 'utf-8') : input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-function signToken(payload: Partial<AccessTokenPayload>): string {
-  const h = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const p = base64Url(JSON.stringify(payload));
-  const sig = base64Url(createHmac('sha256', SECRET).update(`${h}.${p}`).digest());
-  return `${h}.${p}.${sig}`;
-}
-
-/** 서명된 토큰을 실은 요청 — role 은 도메인 users 행이 다시 판정한다. */
+/**
+ * 개발용 신원 쿠키를 실은 요청.
+ *
+ * 역할은 **인자로 받지 않는다** — 쿠키 값(= allowlist 의 id)이 역할을 정하고, 그 위에서
+ * `resolveActor` 가 도메인 `users.role` 로 다시 판정한다. 종전 픽스처는 JWT claim 에
+ * role 을 실었지만 그 값은 이미 권위가 아니었다(테스트 이름이 그렇게 적혀 있다 —
+ * 「역할의 권위는 도메인 `users.role`」). 그 claim 경로가 걷히며 인자도 함께 걷었다.
+ */
 function req(
   sub: string,
-  role: 'student' | 'teacher',
   init: RequestInit = {},
+  host: string | null = DEV_HOST,
 ): Request {
-  const token = signToken({
-    sub,
-    email: `${sub}@example.com`,
-    role,
-    type: 'access',
-    jti: 'j1',
-    exp: Math.floor(Date.now() / 1000) + 3600,
-  });
   return new Request('http://localhost/api/x', {
     ...init,
-    headers: { authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+    headers: {
+      cookie: `pullim_dev_identity=${sub}`,
+      ...(host === null ? {} : { host }),
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -148,17 +165,11 @@ function req(
 const DEV_HOST = 'localhost:3032';
 
 /**
- * 개발용 신원 쿠키를 실은 요청.
- * 학부모는 JWT claim 에 없는 역할(`UserRole` 은 student/teacher/admin)이라
- * 토큰으로는 만들 수 없다 — 마켓의 「역할 무관」을 학부모로 확인하려면 이 경로뿐이다.
+ * 호스트를 바꿔 가며 보는 GET 픽스처 — 신원 판정이 **호스트에 걸린다**는 것을 확인한다
+ * (`host: null` = Host 헤더 없음 · prod 호스트 = 닫힘). 본문이 필요하면 `req` 를 쓴다.
  */
 function cookieReq(identity: string, host: string | null = DEV_HOST): Request {
-  return new Request('http://localhost/api/x', {
-    headers: {
-      cookie: `pullim_dev_identity=${identity}`,
-      ...(host === null ? {} : { host }),
-    },
-  });
+  return req(identity, {}, host);
 }
 
 /** 신원이 아예 없는 요청. */
@@ -182,7 +193,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockUpdateQueue = [[]]; // 명의를 where 에 넣었으므로 남의 봇은 0행
 
     const res = await publishBot(
-      req('teacher_002', 'teacher', { method: 'POST', body: '{}' }),
+      req('teacher_002', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -198,7 +209,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
     await publishBot(
-      req('teacher_001', 'teacher', { method: 'POST', body: '{}' }),
+      req('teacher_001', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -212,7 +223,7 @@ describe('POST /publish — 소유권은 조회 조건이다', () => {
     mockSelectQueue = [[{ role: 'student' }]];
 
     const res = await publishBot(
-      req('student_001', 'student', { method: 'POST', body: '{}' }),
+      req('student_001', { method: 'POST', body: '{}' }),
       botCtx,
     );
 
@@ -238,7 +249,7 @@ describe('POST /publish — 한 줄 소개', () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
     mockUpdateQueue = [[PUBLISHED_ROW]];
     return publishBot(
-      req('teacher_001', 'teacher', { method: 'POST', body: JSON.stringify(body) }),
+      req('teacher_001', { method: 'POST', body: JSON.stringify(body) }),
       botCtx,
     );
   }
@@ -279,7 +290,7 @@ describe('POST /publish — 한 줄 소개', () => {
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
     const res = await publishBot(
-      req('teacher_001', 'teacher', { method: 'POST' }),
+      req('teacher_001', { method: 'POST' }),
       botCtx,
     );
 
@@ -310,7 +321,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockUpdateQueue = [[{ ...PUBLISHED_ROW, isPublished: false, publishedAt: null }]];
 
     const res = await unpublishBot(
-      req('teacher_001', 'teacher', { method: 'DELETE' }),
+      req('teacher_001', { method: 'DELETE' }),
       botCtx,
     );
 
@@ -322,7 +333,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockSelectQueue = [[{ role: 'teacher' }]];
     mockUpdateQueue = [[PUBLISHED_ROW]];
 
-    await unpublishBot(req('teacher_001', 'teacher', { method: 'DELETE' }), botCtx);
+    await unpublishBot(req('teacher_001', { method: 'DELETE' }), botCtx);
 
     expect(setSpy.mock.calls[0][0]).not.toHaveProperty('publishBlurb');
   });
@@ -332,7 +343,7 @@ describe('DELETE /publish — 내리면 시각도 지운다', () => {
     mockUpdateQueue = [[]];
 
     const res = await unpublishBot(
-      req('teacher_002', 'teacher', { method: 'DELETE' }),
+      req('teacher_002', { method: 'DELETE' }),
       botCtx,
     );
 
@@ -385,24 +396,7 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
   it('역할을 읽지 않는다 — users 조회 자체가 없다', async () => {
     // 큐에 넣어 둔 한 묶음은 **게시 봇 조회**가 가져가야 한다. 역할을 물으러 갔다면
     // 그걸 먼저 삼켜 목록이 비고, 아래 기대가 깨진다.
-    mockSelectQueue = [
-      [
-        {
-          botId: 'cb_001',
-          name: '수학이 형',
-          avatarEmoji: '🧑‍🏫',
-          subject: '수학Ⅱ',
-          grade: '고2',
-          tone: '친근',
-          greeting: '안녕!',
-          blurb: null,
-          teacherName: '김수학 선생님',
-          organization: '풀림',
-          publishedAt: new Date('2026-09-01T00:00:00Z'),
-        },
-      ],
-      [{ botId: 'cb_001', count: 3 }],
-    ];
+    mockSelectQueue = [[MARKET_ROW], [{ botId: 'cb_001', count: 3 }]];
 
     const res = await getMarketplaceBots(cookieReq('student_001'));
     const body = (await res.json()) as {
@@ -423,6 +417,74 @@ describe('GET /api/marketplace/bots — 역할 무관, 미인증만 막는다', 
     const { text, params } = render(whereSpy.mock.calls[0][0]);
     expect(text).toContain('is_published');
     expect(params).toContain(true);
+  });
+
+  // 판별에 쓰는 열이 select 에서 빠지면 값이 `undefined` 가 되어 모든 봇이 조용히
+  // 「공식 봇 아님」이 된다 — 픽스처는 그걸 못 잡으므로 고르는 열을 직접 본다.
+  it('소유자 열을 실제로 고른다 — 공식 봇 판별의 근거다', async () => {
+    mockSelectQueue = [[]];
+
+    await getMarketplaceBots(cookieReq('student_001'));
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('teacherId');
+  });
+
+  /*
+    안전 등급은 **실어 보내는 칸**이다(spec `03 § 4.13.4`). 재는 것이 둘인 이유는 위
+    `teacherId` 와 같다 — 픽스처가 값을 갖고 있어서, 라우트가 그 열을 안 골라도 응답만
+    보는 테스트는 조용히 통과한다. 고르는 열과 나가는 값을 **둘 다** 본다.
+  */
+  it('안전 등급을 고르고 그대로 내보낸다 — 담은 뒤 화면이 등급을 추측하지 않게', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ botId: 'cb_001', count: 3 }]];
+
+    const res = await getMarketplaceBots(cookieReq('student_001'));
+    const body = (await res.json()) as { bots: Array<{ scope: number }> };
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('scope');
+    expect(body.bots[0].scope).toBe(4);
+  });
+
+  /*
+    `scope` 를 열면서 **옆칸까지 같이 열리는 것**이 이 변경에서 제일 쉬운 실수다.
+    빠른 질문·라이브 상태는 「참여자 것」이라 빼 둔 판단이 그대로다(계약 머리주석) —
+    갈리는 기준은 「`class_bots` 의 칸인가」가 아니라 「참여자의 기록인가」다.
+  */
+  it('빠른 질문·라이브 상태는 여전히 안 고른다', async () => {
+    mockSelectQueue = [[]];
+
+    await getMarketplaceBots(cookieReq('student_001'));
+
+    const columns = Object.keys(selectSpy.mock.calls[0][0] as object);
+    expect(columns).not.toContain('quickPrompts');
+    expect(columns).not.toContain('isLive');
+  });
+
+  /*
+    풀림 공식 봇은 **컬럼이 아니라 소유자 유무로 갈린다**(spec `03 § 4.13.1`).
+    그래서 여기서 재는 것은 둘이다 — 파생이 맞게 도는가, 그리고 판별에 쓴 `teacherId` 가
+    응답에 새지 않는가. 뒤엣것을 안 재면 「파생만 더하고 select 는 그대로 흘리는」 판이
+    조용히 통과한다.
+  */
+  it('소유자가 없는 행은 공식 봇이고, 소유자 id 는 응답에 없다', async () => {
+    mockSelectQueue = [
+      [
+        { ...MARKET_ROW, botId: 'cb_official_math', teacherId: null },
+        { ...MARKET_ROW, botId: 'cb_001', teacherId: 'teacher_001' },
+      ],
+      [],
+    ];
+
+    const res = await getMarketplaceBots(cookieReq('student_001'));
+    const body = (await res.json()) as {
+      bots: Array<{ botId: string; isOfficial: boolean }>;
+    };
+
+    expect(body.bots.map((b) => [b.botId, b.isOfficial])).toEqual([
+      ['cb_official_math', true],
+      ['cb_001', false],
+    ]);
+    expect(body.bots[0]).not.toHaveProperty('teacherId');
+    expect(body.bots[1]).not.toHaveProperty('teacherId');
   });
 });
 
@@ -451,5 +513,60 @@ describe('GET /api/marketplace/bots/[botId] — 안 걸린 봇은 없는 봇과 
     const res = await getMarketplaceBot(anonReq(), botCtx);
 
     expect(res.status).toBe(401);
+  });
+
+  // 단건도 목록과 **같은 판별**이어야 한다. 한쪽만 고치면 목록에서 공식이던 봇이
+  // 상세로 들어가는 순간 남의 봇이 된다.
+  it('소유자가 없으면 공식 봇이고, 소유자 id 는 응답에 없다', async () => {
+    mockSelectQueue = [
+      [{ ...MARKET_ROW, botId: 'cb_official_math', teacherId: null }],
+      [{ count: 0 }],
+    ];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { isOfficial: boolean } };
+
+    expect(res.status).toBe(200);
+    expect(body.bot.isOfficial).toBe(true);
+    expect(body.bot).not.toHaveProperty('teacherId');
+  });
+
+  it('소유자가 있으면 공식 봇이 아니다', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ count: 3 }]];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { isOfficial: boolean } };
+
+    expect(body.bot.isOfficial).toBe(false);
+    expect(body.bot).not.toHaveProperty('teacherId');
+  });
+
+  it('안전 등급을 고르고 그대로 내보낸다 — 목록과 같은 값이어야 한다', async () => {
+    mockSelectQueue = [[MARKET_ROW], [{ count: 3 }]];
+
+    const res = await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const body = (await res.json()) as { bot: { scope: number } };
+
+    expect(Object.keys(selectSpy.mock.calls[0][0] as object)).toContain('scope');
+    expect(body.bot.scope).toBe(4);
+  });
+
+  /*
+    두 라우트의 **열 집합이 대칭**인 것이 이 파일들의 규약이다. 한쪽에만 칸이 늘면 목록에서
+    본 봇이 상세로 들어가는 순간 다른 모양이 되고, 그 차이는 화면에서만 드러난다.
+    칸 이름을 여기 다시 적지 않고 **두 select 를 맞대어** 본다 — 목록을 적어 두면 칸이
+    늘 때마다 이 테스트도 같이 고쳐야 해서, 고치는 김에 대칭이 깨진 것을 지나치게 된다.
+  */
+  it('목록과 같은 열 묶음을 고른다 — 상세로 들어가며 모양이 달라지지 않게', async () => {
+    mockSelectQueue = [[]];
+    await getMarketplaceBots(cookieReq('student_001'));
+    const listColumns = Object.keys(selectSpy.mock.calls[0][0] as object).sort();
+
+    selectSpy.mockClear();
+    mockSelectQueue = [[]];
+    await getMarketplaceBot(cookieReq('student_001'), botCtx);
+    const detailColumns = Object.keys(selectSpy.mock.calls[0][0] as object).sort();
+
+    expect(detailColumns).toEqual(listColumns);
   });
 });

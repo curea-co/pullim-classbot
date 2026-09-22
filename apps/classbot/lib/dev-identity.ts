@@ -1,25 +1,51 @@
 /* ══════════════════════════════════════════════════════════════════════════
  * ⚠️ 개발 전용 신원 · 정식 오픈 전 제거 ⚠️
  *
+ * **은퇴 대상(2026-09-16 계획 §10 결정 ① · PR 8).** 화면 쪽 문은 풀림 OS 하나가 됐다 —
+ * RoleGuard 가 비로그인을 OS 로그인으로 보내고(결정 ②), 이 쿠키는 더는 화면 진입을 열지 못한다.
+ * 남은 쓰임은 아직 옮기지 않은 같은 오리진 `/api/*` 라우트의 **명의**뿐이고, 그 라우트들이
+ * 정본(pullim-api)으로 옮겨 가며 참조가 0 이 되는 순서로 걷는다. 새 코드는 이 쿠키를 읽지 마라.
+ * 로컬 개발은 OS 계정으로 한다(`classbot.pullim.local` hosts + pullim-api 로컬 기동 —
+ * `proc/plan/2026-07-01_classbot-sso-dev-deploy-runbook.md` §5-1).
+ *
  * **이것은 인증이 아니다.** 서명도 만료도 없는 평문 쿠키 한 줄일 뿐이라,
  * 값을 손으로 바꾸면 아래 allowlist 안의 다른 데모 사용자로 그냥 바뀐다.
- * 정식 인증(JWT · 풀림 통합 계정)을 **대체하지 않으며, 그보다 항상 뒤에 온다.**
+ * 정식 인증(풀림 OS 통합 계정)을 **대체하지 않는다.** 정식 신원은 OS 로그인이 세우는
+ * `Domain=.pullim.ai` 쿠키이고, 그것을 검증하는 쪽은 **pullim-api** 다 — classbot 의
+ * route handler 에는 그 서명을 풀 열쇠가 없다.
  *
- * 왜 두는가: classbot 로컬에는 `JWT_SECRET` 이 없고 로그인은 실행되지 않는
- * NestJS(:4032)로 간다 → 로컬에서 모든 `/api/*` 가 401 이라 데모가 아예 안 돈다.
- * 그래서 **아는 개발 호스트에서만** 이 쿠키를 신원으로 인정한다.
+ * 왜 두는가: 그래서 classbot 의 `/api/*` 는 **스스로 세울 수 있는 신원이 없다.**
+ * 아무 조치도 안 하면 로컬에서 모든 `/api/*` 가 401 이라 데모가 아예 안 돈다.
+ * 그래서 **로컬에서만** 이 쿠키를 신원으로 인정한다.
  *
- * 안전 장치 셋:
- *  1. **호스트 허용 목록 + fail-closed** — 로컬·preview 같이 **아는 이름에서만** 인정하고,
+ * ## 배포 호스트는 열지 않는다 — 열면 500 밖에 못 낸다
+ *
+ * 종전에는 `dev-classbot.pullim.ai` 와 preview `*.vercel.app` 도 열어 두었다. 그런데
+ * **배포에는 DB 가 없다**(Vercel 프로젝트에 `DATABASE_URL` 이 설정돼 있지 않다). 신원을
+ * 세우면 라우트가 `users` 를 조회하러 가고, 거기서 죽는다 — 실측(2026-09-14): 프리뷰에서
+ * 역할 전환 버튼으로 학부모를 누르면 `/api/parent/children` 이 **500** 을 여섯 번 내고
+ * 화면이 「자녀 정보를 불러오지 못했어요 (HTTP 500)」로 끝난다.
+ *
+ * **익명일 때는 그 사슬이 시작도 안 한다** — 쿠키가 없으니 서버가 401 을 주고, 화면이
+ * mock·localStorage 로 돌아간다. 배포된 클래스봇이 도는 방식이 그것이다. 그러니 배포에서
+ * 신원은 **없는 편이 맞다.** 버튼이 보이는 것 자체가 「눌러도 되는 길」이라는 약속인데
+ * 그 길 끝이 오류 카드라서다.
+ *
+ * 배포에 DB 가 붙는 날(BE 배선) 이 판단을 다시 본다. 그때 여는 것은 이 목록 한 줄이다.
+ *
+ * 안전 장치 둘:
+ *  1. **호스트 허용 목록 + fail-closed** — 로컬처럼 **아는 이름에서만** 인정하고,
  *     production 배포면 어떤 주소로 닿든 무력이다(`isDevIdentityHost`). Host 를 모르면
  *     막는다 — 신원을 세우는 판정이라 「모른다」를 「괜찮다」로 읽지 않는다.
  *  2. **allowlist** — 아래 `DEV_IDENTITIES` 의 5명 밖 id 는 전부 무시한다.
  *     임의 id 사칭이 불가능하다.
- *  3. **JWT 우선** — 유효한 JWT 가 있으면 JWT 가 이긴다. 이 쿠키는 폴백일 뿐이다
- *     (`lib/current-user.ts`).
+ * *(`[2026-09-16 정정]` 종전에는 안전 장치가 **셋**이었고 세 번째가 「**JWT 우선** — 유효한
+ * JWT 가 있으면 JWT 가 이긴다」였다. 그 방어선은 **없어졌다** — classbot 자체 인증이
+ * 걷히면서 서명 검증 경로도 함께 걷혔다(`05 § 11.1`). 즉 이 쿠키는 이제 폴백이 아니라
+ * **서버가 세울 수 있는 유일한 신원**이다. 그래서 위 둘이 더 중요해졌다.)*
  *
  * ── 제거 방법 ─────────────────────────────────────────────────────────────
- *  1. `lib/current-user.ts` 에서 `resolveDevIdentity` 폴백 블록 두 곳
+ *  1. `lib/current-user.ts` 에서 `resolveDevIdentity` 블록 두 곳
  *     (`getCurrentUserIdFromRequest` · `useCurrentUser`)과 그 import 를 지운다.
  *  2. `components/shell/dev-role-switch.tsx` 를 제거한다(그 파일 머리주석 참고).
  *  3. 이 파일과 `lib/__tests__/dev-identity.test.ts` 를 지운다.
@@ -72,18 +98,7 @@ const DEV_IDENTITY_HOSTNAMES: readonly string[] = [
   'localhost',
   '127.0.0.1',
   '::1',
-  /** dev preview 고정 도메인 — 외부 차단된 미리보기다. */
-  'dev-classbot.pullim.ai',
 ];
-
-/**
- * PR 별 Vercel preview 도메인 접미사.
- *
- * **이 접미사만으로는 안전하지 않다** — production 배포도 같은 접미사를 받는다. 그래서
- * 아래 판정은 이 접미사를 「배포 환경이 preview 라고 확인됐을 때만」 연다. 접미사를 여는
- * 이유는 PR 미리보기에서 역할 전환이 죽으면 개발 흐름이 상하기 때문이다.
- */
-const PREVIEW_HOSTNAME_SUFFIX = '.vercel.app';
 
 /**
  * `Host` 헤더에서 호스트명만 뗀다.
@@ -120,6 +135,14 @@ function deploymentEnv(): string | undefined {
 }
 
 /**
+ * 배포가 `production` 인가 — 이름에 기대지 않는 방어선.
+ * @returns production 배포면 true
+ */
+function isProductionDeploy(): boolean {
+  return deploymentEnv() === 'production';
+}
+
+/**
  * 이 호스트에서 개발용 신원을 인정해도 되는가.
  *
  * **모르면 닫는다(fail-closed).** 종전에는 `Host` 를 모를 때 통과였는데, 이 장치에서
@@ -127,28 +150,42 @@ function deploymentEnv(): string | undefined {
  * 같은 이유로 **배포 환경을 모를 때도 닫는다.** 환경변수가 없을 때 열리는 설계였다면
  * 그 변수가 빠지는 순간 이 파일이 막으려던 구멍이 조용히 되살아난다.
  *
- * `NODE_ENV` 로 가르지 않은 이유는 그대로다 — Vercel 은 preview 빌드도
- * `NODE_ENV='production'` 으로 돌려서, 그 기준이면 정작 이 장치가 필요한 preview 에서
- * 신원이 사라져 전체가 401 이 된다. 대신 **배포 환경**(`deploymentEnv()`)을 본다.
+ * `NODE_ENV` 로 가르지 않는 이유 — Vercel 은 preview 빌드도 `NODE_ENV='production'` 으로
+ * 돌려서, 그 이름으로 재면 preview 와 production 이 구분되지 않는다. 대신 **배포 환경**
+ * (`deploymentEnv()`)을 본다.
+ *
+ * ## 역할 전환 칩의 노출도 이 판정 하나를 따른다
+ *
+ * 2026-09-18 까지는 **노출 전용 판정**(`isRoleSwitchHost`)이 따로 있어서, 아래 목록에 더해
+ * `dev-classbot.pullim.ai` 와 preview `*.vercel.app` 을 열었다. 「화면만 바꾸는 일은 서버를
+ * 부르지 않으니 배포에서도 열어도 된다」는 생각이었는데, 정작 배포에서 그 버튼이 할 수 있는
+ * 일이 남아 있지 않았다:
+ *
+ *  - **쿠키가 안 써진다** — 아래 목록이 배포 호스트를 막으므로 `writeDevIdentityCookie` 가
+ *    그대로 되돌아간다. 눌러도 명의가 안 바뀐다.
+ *  - **화면도 안 바뀐다** — PR 8 이 화면 진입 게이트를 OS RoleGuard 로 옮겨, 로그인한 채로
+ *    다른 역할의 홈을 누르면 제 홈으로 되돌려진다.
+ *
+ * 즉 배포에서는 **버튼만 서고 아무 일도 일어나지 않았다.** 그래서 표를 하나로 되돌렸다 —
+ * 칩의 노출과 쿠키 쓰기가 이 함수 하나를 함께 본다
+ * (`components/shell/dev-role-switch.tsx`). 표가 둘이면 갈라지고, 갈라진 쪽이 곧
+ * 「눌러도 아무 일이 없는 버튼」이다.
+ *
+ * ⚠ 노출 쪽에서만 배포 호스트를 다시 여는 것은 그 결함을 되살리는 일이다. 여는 날은 이 파일의
+ * 결정(머리주석 「배포 호스트는 열지 않는다」)이 뒤집히는 날이고, 그때 여는 것은
+ * `DEV_IDENTITY_HOSTNAMES` 한 줄이라 칩도 함께 열린다.
  *
  * @param host - 요청 `Host` 헤더(포트 포함 가능) 또는 `window.location.host`
  * @returns 허용 목록 안이고 production 배포가 아니면 true, 그 밖은 전부 false
  */
 export function isDevIdentityHost(host: string | null | undefined): boolean {
-  const env = deploymentEnv();
   // 이름에 기대지 않는 방어선 — production 배포면 어떤 주소로 닿든, `Host` 를 무엇으로
   // 위조하든 무력이다.
-  if (env === 'production') return false;
+  if (isProductionDeploy()) return false;
   if (!host) return false;
   const hostname = hostnameOf(host);
   if (!hostname) return false;
-  // `*.vercel.app` 은 **preview 라고 확인됐을 때만** 연다.
-  //
-  // 이 접미사는 production 배포도 받는다 — 그래서 「이름을 열어 두고 production 검사로
-  // 거른다」는 순서면 환경변수가 없을 때 production 기본 URL 이 그대로 통과한다.
-  // 순서를 뒤집어 **positive 확인**으로 둔다: 모르면(undefined) 닫힌다.
-  // `.` 까지 포함해 비교하므로 `notvercel.app` · `vercel.app.attacker.com` 은 안 걸린다.
-  if (hostname.endsWith(PREVIEW_HOSTNAME_SUFFIX)) return env === 'preview';
+  // 배포 호스트는 이름이 무엇이든 여기서 걸린다 — 목록에 로컬 셋뿐이다(위 머리주석).
   return DEV_IDENTITY_HOSTNAMES.includes(hostname);
 }
 

@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Heart, MessageCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
@@ -10,23 +12,31 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import {
   getCheckInsForStudent, hasTodayCheckIn, moodMeta,
 } from '@/lib/mock';
-import { DEMO_FALLBACK_USER_ID, resolveRosterMe } from '@/lib/current-user';
+import { useStudentMe } from '@/lib/current-user';
 import { cn } from '@/lib/utils';
 
 export default function WellnessPage() {
-  // 서버 컴포넌트 — 세션 토큰은 client 보관이라 SSR 시점엔 데모 폴백. 신원은 해석기 경유.
-  const me = resolveRosterMe(DEMO_FALLBACK_USER_ID);
-  const checkIns = getCheckInsForStudent(me.id);
-  const checkedToday = hasTodayCheckIn(me.id);
+  // 종전에는 서버 컴포넌트라 상수(`DEMO_FALLBACK_USER_ID`)를 넘겼다 — 누가 보고 있든 데모
+  // 「서연」의 기분·웰빙이 떴다. 세션은 client 에만 있으므로 이 화면을 client 로 내려
+  // **실제 신원**을 본다.
+  const me = useStudentMe();
+  // 이 화면의 읽기는 전부 **목 웰빙 데이터**이고 키는 roster id 다. 실계정에는 그 행이 없어
+  // 빈 키가 되고, 아래 칸들은 각자의 빈 상태로 선다(「아직 기록이 없어요」·「웰빙 데이터가
+  // 아직 없어요」). 남의 기록을 내 것처럼 보여 주느니 비어 있는 편이 낫다.
+  const demoKey = me.demo?.id ?? '';
+  const checkIns = getCheckInsForStudent(demoKey);
+  const checkedToday = hasTodayCheckIn(demoKey);
 
   /* ── RAIL ──────────────────────────────────────────────── */
   const rail = (
     <>
-      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3]. enrollment 권위는 client에서만 읽히므로 분리 렌더. */}
-      <WellnessBotCommentCard studentId={me.id} />
+      {/* 담당 봇 코멘트 카드 — [13 § 3.3.3·9.3].
+          카드가 참여 스토어의 localStorage 복원을 스스로 기다린다 — 그동안 이 자리만 비고
+          나머지 칸은 그대로 선다. (이 페이지도 이제 client 다 — 분리 이유는 그 경계가 아니다.) */}
+      <WellnessBotCommentCard studentId={demoKey} />
 
       {/* 곁에 있어 메시지 — 웰빙 60 미만일 때 */}
-      {me.wellbeing < 60 && (
+      {me.demo != null && me.demo.wellbeing < 60 && (
         <section className="bg-pullim-slate-900 text-white rounded-2xl p-4">
           <h3 className="inline-flex items-center gap-1 text-sm font-bold text-white">
             <Heart className="h-3.5 w-3.5" />
@@ -94,7 +104,7 @@ export default function WellnessPage() {
           <ArrowRight className={cn('h-4 w-4', checkedToday ? 'text-pullim-blue-700' : 'text-white')} />
         </Link>
 
-        <WellbeingGauge studentId={me.id} />
+        <WellbeingGauge studentId={demoKey} />
       </div>
 
       {/* 주간 감정 그래프 */}

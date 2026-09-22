@@ -51,6 +51,40 @@ describe('BotIdentityCard', () => {
     expect(screen.getByText(new RegExp(`${bot.teacherName}의 디지털 분신`))).toBeInTheDocument();
   });
 
+  /*
+    풀림 공식 봇 — spec `03 § 4.13.3`.
+
+    「디지털 분신」은 **선생님의 복제**라는 뜻이라(`07 § 1`) 복제할 사람이 없는 봇에 붙으면
+    거짓이다. 그런데 그 말 자체가 틀린 게 아니라 **붙은 자리가 틀렸던** 것이므로, 아래 두
+    건은 **짝으로** 본다 — 공식 봇에서 사라지는가, 그리고 교사 봇에서 그대로 사는가.
+    이 패널은 학생·교사가 함께 쓰는 primitive 라, 한쪽을 고치다 다른 쪽 겉모습을 바꾸면
+    고친 화면보다 안 고친 화면에서 먼저 티가 난다.
+  */
+  it('공식 봇은 「…의 디지털 분신」을 쓰지 않는다 — 복제할 사람이 없다', () => {
+    const officialBot = { ...bot, teacherName: '풀림 공식', isOfficial: true };
+    render(<BotIdentityCard bot={officialBot} />);
+
+    expect(screen.queryByText(/디지털 분신/)).toBeNull();
+    // 그 자리를 비워 두지 않는다 — 무엇인지 한 마디로 말한다.
+    expect(screen.getByText('풀림이 만든 봇')).toBeInTheDocument();
+  });
+
+  it('교사 봇은 「…의 디지털 분신」 그대로 — 그 말을 걷은 것이 아니다', () => {
+    // `isOfficial` 이 명시적으로 false 인 길(마켓이 교사 봇이라고 알려준 봇).
+    render(<BotIdentityCard bot={{ ...bot, isOfficial: false }} />);
+
+    expect(screen.getByText(`${bot.teacherName}의 디지털 분신`)).toBeInTheDocument();
+    expect(screen.queryByText('풀림이 만든 봇')).toBeNull();
+  });
+
+  it('`isOfficial` 이 아예 없는 봇도 종전 그대로 — 모르는 값에 공식 봇 모양을 씌우지 않는다', () => {
+    // 카탈로그·`fallbackBot()` 이 세우는 봇에는 그 칸이 없다(`ClassBot.isOfficial?`).
+    expect(bot.isOfficial).toBeUndefined();
+    render(<BotIdentityCard bot={bot} />);
+
+    expect(screen.getByText(`${bot.teacherName}의 디지털 분신`)).toBeInTheDocument();
+  });
+
   it('shows scope badge with Shield icon and Korean label + mono code', () => {
     render(<BotIdentityCard bot={bot} />);
     // scope 3 → '교과 범위' label and 'L3' code

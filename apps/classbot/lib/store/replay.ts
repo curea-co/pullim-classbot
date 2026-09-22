@@ -1,6 +1,11 @@
 /**
  * 리플레이 store — 검수 단계 편집/승인 + 라이브 종료 시 신규 processing 인스턴스 생성.
  * v1 client-side persist (localStorage).
+ *
+ * ⚠ **교사 쪽 절반(`created` · `overrides` · `setTakeaways` · `approve` · `createFromLive` ·
+ * `promoteToReview`)을 읽는 화면이 없다(2026-09-18).** 교사 리플레이 목록·상세가 빈 상태가 됐다 —
+ * 검수·발송 확정이 이 브라우저 밖으로 나가지 않던 것이 그 까닭이고, 정본에 리플레이 문이 없다.
+ * 학생 쪽 절반(`resolvedWeakPoints` · `useResolvedWeakPoints`)은 학생 리플레이 화면이 계속 쓴다.
  */
 
 'use client';

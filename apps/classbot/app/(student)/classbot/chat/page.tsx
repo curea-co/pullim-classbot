@@ -3,18 +3,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback, Suspense, type Dispatch, type SetStateAction } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, GraduationCap, MessageCircleQuestion } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, Bookmark, ChevronDown, ChevronUp, Sparkles, Check, Compass, Eye, GraduationCap, MessageCircleQuestion } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { type QuickReplyKey, type ClassBot } from '@/lib/mock';
 import {
-  pickClassbotReply, type ReplyKey,
-  type QuickReplyKey, type LessonFlowKey,
-  type ClassBot,
-  LESSON_FLOW_KEYS,
-} from '@/lib/mock';
-import { useStudentBots, type StudentBotSlot, type StudentBotSource } from '@/lib/store/mode-bots';
-import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
-import { useStoresHydrated } from '@/lib/store/use-hydrated';
+  classSlotLabel, studentBotSlotKey, useStudentBots, type StudentBotSlot, type StudentBotSource,
+} from '@/lib/store/mode-bots';
 import { Chip } from '@/components/ui/chip';
 import {
   getBotLesson, getSelfExplain,
@@ -25,10 +20,9 @@ import {
   CONFIDENCE_OPTIONS, getCalibrationFeedback, CALIB_TONE_CLASS, type Confidence,
 } from '@/lib/tokens/quiz-calibration';
 import { RichText } from '@/components/classbot/rich-text';
+import { MathText, MathFormula } from '@/components/classbot/math-text';
 import { useLessonActionStore, type LessonRequest } from '@/lib/store/lesson-action';
 import { useCurrentUser } from '@/lib/current-user';
-import { tokenManager } from '@pullim-classbot/api-client/token-manager';
-import { USE_REAL_CORE_BE } from '@/lib/features';
 import { streamChat, fetchChatHistory, type ChatHistoryMessage, type ChatCard } from '@/lib/api/chat-stream';
 import { appendHistoryTurns, shouldAnnounceTurn, buildRealSendCallbacks, historySummaryGoalKey, rebindHistorySummaryGoalKeys, HISTORY_TURN_ID_PREFIX } from '@/lib/api/chat-turns';
 import { adaptCardToTurn, type AdaptedCardTurn, type CardAdaptContext } from '@/lib/api/chat-cards';
@@ -60,6 +54,9 @@ import { useMisconceptionStore } from '@/lib/store/misconception';
 import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
 import { cn } from '@/lib/utils';
+import {
+  chatLaneFor, CLASS_CHAT_TEACHER_VISIBLE_NOTICE, SELF_BOT_CHAT_LOCKED_NOTICE, SELF_BOT_CHAT_LOCKED_PLACEHOLDER,
+} from './chat-lane';
 
 /**
  * 메시지 타입 카탈로그 ([04 § 9.8], [08 § 15.1.3]).
@@ -84,15 +81,15 @@ type Turn = {
   /** epoch ms — 메시지 그루핑/디바이더 계산용 ([04 § 9.8]) */
   at: number;
   /**
-   * 실챗(flag-ON) SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
+   * SSE 스트리밍 진행 중 봇 턴 표식. true 인 동안은 a11y announce 게이트에서
    * 제외(토큰마다 중복 announce 방지) → done/error 에서 false 로 바뀌며 1회 announce.
-   * flag-OFF mock 턴은 미설정(undefined).
+   * 오프너·히스토리·카드 턴은 미설정(undefined).
    */
   streaming?: boolean;
   /**
    * 진입 시 이미 존재하던 턴(초기 오프너 인사/lesson-intro + 서버 히스토리 seed) 표식.
    * a11y announce 게이트에서 제외 — 과거 메시지를 "새 메시지"처럼 재announce 하지 않는다.
-   * 신규 도착(mock 신규 봇 턴·실챗 done)은 미설정(undefined) → announce 대상.
+   * 신규 도착(SSE done)은 미설정(undefined) → announce 대상.
    */
   seeded?: boolean;
   /** 메시지 타입 (기본 text) */
@@ -181,51 +178,84 @@ export default function ClassbotChatPage() {
   );
 }
 
+/**
+ * 딥링크 → 칸. **`?classId=` 가 정본**(반이 대화의 단위 · 완성 설계 § 6.2 · 해소 3)이고 `?bot=` 은 종전 링크
+ * (라이브 리다이렉트 `/classbot/live/[botId]` · 알림 · 회고 · 웰빙 CTA)의 호환이다 — 봇으로 오면 그 봇이
+ * 걸린 **첫 반**(반 칸이 앞에 실린다)을, 반이 없으면 담은 칸을 고른다. 둘 다 안 맞으면 null(호출부가 첫 칸).
+ * @param slots - 지금 목록
+ * @param classIdParam - `?classId=`
+ * @param botParam - `?bot=`
+ * @returns 칸 key(`studentBotSlotKey`) 또는 null
+ */
+function resolveSlotKey(slots: StudentBotSlot[], classIdParam: string | null, botParam: string | null): string | null {
+  if (classIdParam) {
+    const byClass = slots.find(s => s.source === 'class' && s.classId === classIdParam);
+    if (byClass) return studentBotSlotKey(byClass);
+  }
+  if (botParam) {
+    const byBot = slots.find(s => s.bot.id === botParam);
+    if (byBot) return studentBotSlotKey(byBot);
+  }
+  return null;
+}
+
+/** 칸의 URL — 반 칸은 `?classId=`, 담은 칸은 `?bot=`(`components/classbot/home/tutor-showcase.tsx` 와 같은 규칙). */
+function slotHref(slot: StudentBotSlot): string {
+  return slot.source === 'class'
+    ? `/classbot/chat?classId=${encodeURIComponent(slot.classId)}`
+    : `/classbot/chat?bot=${encodeURIComponent(slot.bot.id)}`;
+}
+
 function ClassbotChatPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const classIdParam = searchParams.get('classId');
   const botParam = searchParams.get('bot');
   const askParam = searchParams.get('ask'); // 회고 '질문' → 약점 맥락 prefill
-  // 반 봇과 담은 봇을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
+  // 반 칸과 담은 칸을 **한 목록으로** 본다(계약 §5). 학습 모드로 갈라 한쪽만 보여 주던 분기는
   // 걷었다 — 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
+  // **고르는 단위는 반이다**(계획 PR 5a · 해소 3) — 같은 봇이 두 반에 걸려 있으면 칸도 둘이고 기록도 둘이다.
+  // 종전에 여기 있던 `class-enrollment` persist 하이드레이션 게이트는 걷었다 — 반은 서버에서 오고
+  // (`useStudentBots().isLoading`), 이 화면은 그 스토어를 더 읽지 않는다.
   const { slots, isLoading: botsLoading, isError: botsError, retry: retryBots } = useStudentBots();
-  // 반 참여는 localStorage persist 라 하이드레이션 전에는 빈 목록으로 평가된다.
-  // (담은 봇 쪽 대기 구간은 `useStudentBots().isLoading` 이 이미 들고 있다.)
-  const classHydrated = useStoresHydrated(useClassEnrollmentStore);
-  const initialBotId = botParam && slots.some(s => s.bot.id === botParam) ? botParam : (slots[0]?.bot.id ?? 'cb_001');
-  const [selectedBotId, setSelectedBotId] = useState<string>(initialBotId);
+  const linkedKey = resolveSlotKey(slots, classIdParam, botParam);
+  const [selectedKey, setSelectedKey] = useState<string | null>(linkedKey);
   // `slots[0]` 은 목록이 비면 런타임에 undefined 다 — `noUncheckedIndexedAccess` 를 켜지
   // 않아 타입에는 안 나타나므로 여기서 **명시적으로** 옵셔널로 적는다. 아래 가드도 `bot` 이
   // 아니라 `current` 를 본다 — 별칭을 좁혀도 원본은 좁혀지지 않아 `current.source` 를 읽는
   // 자리가 가드 밖에 놓인 것처럼 남는다.
   const current: StudentBotSlot | undefined =
-    slots.find(s => s.bot.id === selectedBotId) ?? slots[0];
+    slots.find(s => studentBotSlotKey(s) === selectedKey) ?? slots[0];
+  const currentKey = current ? studentBotSlotKey(current) : null;
   const activeLive = useLiveStore(s => s.active);
 
-  // selectedBotId / ?bot= 정규화
-  useEffect(() => {
-    // 1) 외부 링크가 유효한 봇을 지정 → 반영
-    if (botParam && botParam !== selectedBotId && slots.some(s => s.bot.id === botParam)) {
-      setSelectedBotId(botParam);
-      return;
-    }
-    // 2) 반 나가기·담은 봇 빼기로 현재 봇이 목록에서 사라지면 첫 봇으로 정규화 + URL 동기화
-    //    (보이는 봇 = slots[0] 인데 selectedBotId/?bot= 가 옛 봇에 남는 split 방지)
-    if (slots.length > 0 && !slots.some(s => s.bot.id === selectedBotId)) {
-      const next = slots[0].bot.id;
-      setSelectedBotId(next);
-      if (botParam !== next) router.replace(`/classbot/chat?bot=${next}`, { scroll: false });
-    }
-  }, [botParam, slots, selectedBotId, router]);
-
-  function handleBotChange(nextId: string) {
-    setSelectedBotId(nextId);
-    // URL 동기화 — 다른 탭에서 라이브 알림이 와도 정확한 봇이 보이도록
-    router.replace(`/classbot/chat?bot=${nextId}`, { scroll: false });
+  // 딥링크가 **바뀌었을 때만** 따라간다 — 지금 칸과 다르다는 이유로 되돌리면, 칩을 눌러 칸을 바꾸고
+  // URL 이 따라오기 전 한 박자 동안 옛 링크가 선택을 뒤집는다(A→B→A→B). 렌더 중에 「직전에 본 링크」와
+  // 비교해 맞추는 React 의 정석 패턴이다(effect 안 setState 가 아니라 — 그쪽은 한 렌더를 더 태운다).
+  const [seenLinkedKey, setSeenLinkedKey] = useState<string | null>(linkedKey);
+  if (linkedKey !== seenLinkedKey) {
+    setSeenLinkedKey(linkedKey);
+    if (linkedKey) setSelectedKey(linkedKey);
   }
 
-  // persist(참여·담기) hydration 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
-  if (!classHydrated || botsLoading) {
+  // 반 나가기·담은 봇 빼기로 지금 칸이 목록에서 사라지면 URL 을 첫 칸으로 동기화한다. 보이는 칸은 이미
+  // `current` 의 `?? slots[0]` 폴백이 첫 칸이고, URL 이 바뀌면 위 링크 채택이 `selectedKey` 를 맞춘다 —
+  // 여기서 state 를 따로 만지지 않는다(URL 이 진실원).
+  useEffect(() => {
+    if (slots.length === 0 || slots.some(s => studentBotSlotKey(s) === selectedKey)) return;
+    router.replace(slotHref(slots[0]), { scroll: false });
+  }, [slots, selectedKey, router]);
+
+  function handleSlotChange(next: StudentBotSlot) {
+    setSelectedKey(studentBotSlotKey(next));
+    // URL 동기화 — 다른 탭에서 라이브 알림이 와도 정확한 반이 보이도록
+    router.replace(slotHref(next), { scroll: false });
+  }
+
+  // 반 목록(서버) 도착 전에는 봇이 빈 목록으로 평가됨 → 잘못된 빈 상태·CTA 플래시 방지.
+  // 이 분기의 `justify-center` 는 남겨 둔다 — 여기 든 것은 상자가 아니라 **한 줄 글자**라
+  // 가로 가운데가 맞다. 아래 빈 상태에서 같은 클래스를 걷어낸 것과 어긋나 보이지만 다른 경우다.
+  if (botsLoading) {
     return (
       <div className="flex h-full min-h-0 items-center justify-center">
         <div className="text-pullim-slate-500 text-sm">불러오는 중…</div>
@@ -242,35 +272,36 @@ function ClassbotChatPageInner() {
   // 반 목록을 **못 읽었으면** 「봇이 없다」로 확정하지 않는다 — 실제로 반 봇이 있는 학생에게
   // 참여·마켓 안내를 내밀면 「내 봇이 사라졌다」로 읽힌다. 다시 시도를 준다.
   if (!current && botsError) {
-    return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        <ReadErrorState onRetry={retryBots} />
-      </div>
-    );
+    return <ReadErrorState onRetry={retryBots} />;
   }
 
   if (!current) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <EmptyState
-            icon={Compass}
-            title="아직 대화할 봇이 없어요"
-            description="봇 마켓에서 마음에 드는 봇을 담으면 바로 대화할 수 있어요."
-            action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
-          />
-          <p className="text-pullim-slate-500 text-2xs">
-            선생님께 참여 코드를 받았다면{' '}
-            <Link
-              href="/classbot"
-              aria-label="참여 코드 입력하러 가기"
-              className="text-pullim-blue-700 font-bold underline underline-offset-2"
-            >
-              {/* 보이는 글자는 명사 두 어절(07 § 6.6) — 잃은 뜻은 위 aria-label 이 든다. */}
-              참여 코드
-            </Link>
-          </p>
-        </div>
+      /* 감싸는 껍데기가 없다. 여기 `flex h-full min-h-0 items-center justify-center` 가
+         있었는데, 두 가지가 다 거짓이었다 — 세로 가운데는 `h-full` 이 기댈 확정 높이가
+         위에 없어(`body` 는 `min-h-full`, 셸 본문은 높이 무지정) **처음부터 돌지 않았고**
+         (실측: 바깥 높이 224px = 내용 높이, 상자 top 이 바깥 top 과 같다), 가로 가운데는
+         flex 아이템을 **글자 폭으로 줄여** 상자를 봇 마켓보다 좁게 만들고 있었다.
+         걷어내면 블록 흐름으로 돌아가 제 폭을 쓴다 — 봇 마켓의 빈 상태가 늘 옳았던 이유가
+         그것이다. 다시 감싸지 마라. */
+      <div className="flex flex-col gap-2">
+        <EmptyState
+          icon={Compass}
+          title="아직 대화할 봇이 없어요"
+          description="선생님 반에 들어오면 그 반의 봇과 이야기할 수 있어요. 봇 마켓에서 마음에 드는 봇을 담아 둘 수도 있어요."
+          action={{ href: '/classbot/discover', label: '봇 마켓', ariaLabel: '봇 마켓 둘러보기' }}
+        />
+        <p className="text-pullim-slate-500 text-2xs text-center">
+          선생님께 참여 코드를 받았다면{' '}
+          <Link
+            href="/classbot"
+            aria-label="참여 코드 입력하러 가기"
+            className="text-pullim-blue-700 font-bold underline underline-offset-2"
+          >
+            {/* 보이는 글자는 명사 두 어절(07 § 6.6) — 잃은 뜻은 위 aria-label 이 든다. */}
+            참여 코드
+          </Link>
+        </p>
       </div>
     );
   }
@@ -283,14 +314,16 @@ function ClassbotChatPageInner() {
     // main(중앙) 스크롤바가 생기지 않는다. 모바일은 h-full + 스크롤 max-h 휴리스틱 유지.
     <div className="flex h-full min-h-0 flex-col gap-3 lg:h-[calc(100dvh-11rem)]">
       {/*
-        봇 선택 chip strip — **종류별로 나눠** 싣는다.
+        칸 선택 chip strip — **종류별로 나눠** 싣는다.
         학생이 알아야 할 것은 「어느 봇인가」만이 아니라 「선생님 반의 봇인가, 내가 담은 봇인가」다.
         그 구분을 색으로 하지 않는 이유: 시그니처 색은 이미 「어느 봇인가」에 쓰였고
         (`lib/tokens/bot-signature.ts` 머리주석), 초록·앰버는 앱 전역에서 걷어냈다.
         그래서 **말(그룹 이름)과 모양(담은 봇은 점선 테두리)** 으로 가른다 — 범례가 필요 없다.
+        반 칸의 칩은 **반 이름**이다(`classSlotLabel` — 봇 이름이 다르면 「반 · 봇」). 같은 봇이 두 반에
+        걸려 있으면 칩도 둘이다 — 대화의 단위가 반이라서다(완성 설계 § 6.2 · 해소 3).
       */}
       {slots.length > 1 && (
-        <section className="bg-card space-y-1.5 rounded-xl border p-2" aria-label="대화할 봇 고르기">
+        <section className="bg-card space-y-1.5 rounded-xl border p-2" aria-label="대화할 반 고르기">
           {BOT_SOURCE_ORDER.filter(source => slots.some(s => s.source === source)).map(source => {
             const meta = BOT_SOURCE_META[source];
             const GroupIcon = meta.icon;
@@ -301,18 +334,33 @@ function ClassbotChatPageInner() {
                   {meta.label}
                 </p>
                 <ul className="flex gap-1.5 overflow-x-auto">
-                  {slots.filter(s => s.source === source).map(({ bot: b }) => {
-                    const isActive = b.id === bot.id;
+                  {slots.filter(s => s.source === source).map(slot => {
+                    const b = slot.bot;
+                    const slotKey = studentBotSlotKey(slot);
+                    const label = slot.source === 'class' ? classSlotLabel(slot) : b.name;
+                    const isActive = slotKey === currentKey;
                     const isLiveNow = Boolean(activeLive[b.id]);
                     const sig = botSignature(b);
-                    // [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X)
+                    /*
+                      [04 § 9.4] 활성 봇은 시그니처 컬러 배경 + 흰 글자 (brand.600 단색 X).
+
+                      **이 색이 남아 있는 것은 누락이 아니다.** 아바타에서 시그니처를 걷은 변경의
+                      범위는 「아바타 면」까지이고, 남은 시그니처 자리와 함께 이 배경을 걷는 것은
+                      **별건 PR 의 범위**다(`lib/tokens/bot-signature.ts` 머리주석 — 자리 목록은
+                      거기에도 열거하지 않고 호출부 grep 에 맡긴다).
+                      그리고 그 별건 PR 은 **문서 PR 이 선행해야** 한다 — `04 § 9.4` 가 이 칩을
+                      「시그니처 컬러 배경 + 흰 글자」로 **아직 명문으로** 들고 있어, 코드만 먼저
+                      걷으면 그 순간 스펙 위반이 된다.
+                      그때까지 이 자리를 `BotAvatar` 로 바꾸지 마라 — 라임 바탕 위에 파란 배지가
+                      얹혀, 한 칩 안에 봇 얼굴이 둘이 된다.
+                    */
                     return (
-                      <li key={b.id} className="shrink-0">
+                      <li key={slotKey} className="shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleBotChange(b.id)}
+                          onClick={() => handleSlotChange(slot)}
                           aria-pressed={isActive}
-                          aria-label={`${b.name} — ${meta.label}`}
+                          aria-label={`${label} — ${meta.label}`}
                           style={isActive ? { backgroundColor: sig.hex, color: sig.kind === 'math' ? '#5C6B0A' : '#FFFFFF' } : undefined}
                           className={cn(
                             'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors',
@@ -322,8 +370,13 @@ function ClassbotChatPageInner() {
                             !isActive && source === 'class' && 'bg-pullim-slate-50 text-pullim-slate-700 hover:bg-pullim-slate-100 border-transparent',
                           )}
                         >
-                          <span className="text-base leading-none">{b.avatarEmoji}</span>
-                          <span>{b.name}</span>
+                          {/*
+                            칩은 **이름만** 말한다. 아래 필터 칩·리플레이 목록과 같은 규칙이다 —
+                            배경면 없이 이름 옆에 붙던 이모지 글리프는 봇을 한 번 더 말할 뿐이고,
+                            [08 § 14.1.1] 예외 2 는 화면이 아니라 데이터 자리의 계약이다.
+                            (활성 칩의 시그니처 색 배경은 아직 남아 있다 — 별건 PR 이 걷는다.)
+                          */}
+                          <span>{label}</span>
                           {isLiveNow && (
                             <LiveBadge variant="dot" aria-label="라이브 진행 중" />
                           )}
@@ -338,28 +391,40 @@ function ClassbotChatPageInner() {
         </section>
       )}
 
-      {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇/플래그 무관 항상. */}
+      {/* AI 검증 고지(핸드오프 §13.2) — 봇 답변=AI 생성물·검증 필요 상시 고지. 봇 무관 항상. */}
       <AiDisclosureNotice />
 
-      {/* 봇별 채팅 — key로 unmount/remount 시 state reset */}
-      <ChatPanel key={bot.id} bot={bot} source={current.source} initialAsk={botParam === bot.id ? (askParam ?? undefined) : undefined} />
+      {/* 칸별 채팅 — key(반 id · 담은 봇 id)로 unmount/remount 시 state reset. `?ask=` 는 링크가 이 칸을 가리킬 때만. */}
+      <ChatPanel key={currentKey ?? bot.id} slot={current} initialAsk={linkedKey === currentKey ? (askParam ?? undefined) : undefined} />
     </div>
   );
 }
 
 const STICKY_THRESHOLD = 80;
 
-function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: StudentBotSource; initialAsk?: string }) {
+function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: string }) {
+  const bot = slot.bot;
+  const source = slot.source;
+  // **대화의 단위는 반이다**(완성 설계 § 6.2 · 해소 3). 기록(`GET /classes/:classId/chat`)과 전송
+  // (`POST /classes/:classId/chat`)은 이 id 로 나간다 — `bot.id` 가 아니다. 담은 봇은 반이 없어 null 이고
+  // 그 칸은 아래 `locked` 가 문을 닫는다. 봇 단위로 남는 것은 로컬 학습 보조(수업 데이터·진행·목표 키)뿐이다.
+  const classId = slot.source === 'class' ? slot.classId : null;
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
+  // 담은 봇(source='self')은 지금 **닫힌 레인**이다 — 이유와 기한은 `./chat-lane.ts`. 잠기면 기록도
+  // 전송도 부르지 않고 composer 와 빠른 칩을 잠근 채 안내 한 줄을 세운다.
+  const locked = chatLaneFor(source) === 'locked' || classId === null;
   // A5: prefers-reduced-motion → 칩 stagger 무력화
   const reduced = useReducedMotion();
   // A5: 스크린리더 announce 텍스트는 격리된 SrLiveRegion 이 자체 state 로 들고,
   // ChatPanel 은 imperative setter 를 ref 로 받아 호출한다 → turns.map 리렌더 회피.
   const announceRef = useRef<((text: string) => void) | null>(null);
-  // 봇 주도 가이드 수업 데이터 (단일 출처)
+  // 봇 주도 가이드 수업 데이터 (단일 출처).
+  // 5b — 봇 단위로 남은 로컬 학습 보조 셋(이 수업 데이터 · 아래 세션 목표 키 `goalKey` · 오프너 turn id `t0_/t1_`)은
+  // 대화 단위가 반으로 바뀐 뒤에도 `bot.id` 를 키로 쓴다. 같은 봇이 걸린 두 반에서 진행·목표가 겹치는 문제는
+  // 목 수업 데이터가 정본으로 옮겨 가는 5b 에서 반 단위로 옮길지 정한다 — 여기서는 표기만.
   const lesson = useMemo(() => getBotLesson(bot.id), [bot.id]);
 
   // A6 컨텍스트 앵커 — 마지막 본 개념(비스크롤 헤더에 위치 표시 + 1탭 재진입)
@@ -404,18 +469,19 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     setValue(initialAsk ?? '');
   }, [initialAsk]);
 
-  // 플래그 ON — 진입 시 서버 완결 히스토리를 **초기 오프너(인사+lesson-intro) 뒤에 이어붙인다**
-  // (base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면 오프너만
-  // 유지(graceful). 플래그 OFF 는 네트워크 0 — mock 그대로.
+  // 진입 시 서버 완결 히스토리(`GET /classbot/classes/:classId/chat`)를 **초기 오프너(인사+lesson-intro) 뒤에
+  // 이어붙인다**(base spec §5 초기 메시지 계약 보존 — 오프너는 항상 선두 유지). 빈 히스토리/실패면
+  // 오프너만 유지(graceful). 종전의 `USE_REAL_CORE_BE` 게이트는 걷혔다 — 기록은 서버 하나에서 온다
+  // (2026-09-16 계획 §07 학생·봇 대화 줄). 읽는 단위는 **반**이다(계획 PR 5a · 해소 3).
   useEffect(() => {
-    if (!USE_REAL_CORE_BE) return;
+    if (locked || classId === null) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
     // summary 히스토리 배너 goalKey — **오늘 메시지에만**(로컬 store 는 과거 권위 아님, Codex #210:
     // 지난 날 키 주입은 타 기기/스토리지 초기화 시 거짓 0/N 배너). 지난 날은 undefined → 평문 폴백.
     const todayGoalKey = `${me.id}::${bot.id}::${todayKey()}`;
     const goalKeyForDay = (at: number) => historySummaryGoalKey(at, todayGoalKey);
-    void fetchChatHistory(bot.id)
+    void fetchChatHistory(classId)
       .then(msgs => {
         if (cancelled || msgs.length === 0) return;
         // 오프너-only 상태에서만 seed — fetch 지연 중 사용자가 먼저 보낸 새 턴과 순서 경쟁 방어.
@@ -432,7 +498,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
     return () => {
       cancelled = true;
     };
-  }, [bot.id, me.id]);
+  }, [classId, bot.id, me.id, locked]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -481,7 +547,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
 
   // A5: aria-live 미러링 — 단일 소스. 마지막 bot turn 만 감지해 1회 announce(중복 방지).
   // pending(타이핑 점)은 announce 안 함. send()/lessonRequest 양쪽에서 부르지 않고 여기로 통합.
-  // 실챗(flag-ON) 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
+  // SSE 스트리밍 중 턴(streaming=true)은 토큰마다 turns 가 바뀌어도 announce 제외 —
   // done/error 에서 streaming=false 로 바뀔 때 최종 content 로 1회만 announce.
   useEffect(() => {
     const last = turns[turns.length - 1];
@@ -515,66 +581,32 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
 
   function send(text: string, forcedKey?: QuickReplyKey) {
     const trimmed = text.trim();
-    if (!trimmed || pending) return;
+    if (!trimmed || pending || locked) return;
     const now = Date.now();
     // 학생 발화 = 입력 텍스트(빠른칩이면 칩 라벨). 표시·전송·영속이 모두 동일 텍스트라 서버
     // 히스토리도 화면과 일치한다(내부 프롬프트로 치환하지 않는다).
     setTurns(t => [...t, { id: `s${now}`, role: 'student', text: trimmed, at: now }]);
     setPending(true);
 
-    // 플래그 ON — pullim-api SSE 실챗(ADR-064 · v2 ADR-065). 서버가 user/assistant turn 을 영속하므로
-    // 별도 /api/chat 영속(아래 flag-OFF 경로)은 부르지 않는다(이중 영속 금지).
+    // pullim-api SSE 실챗(ADR-064 · v2 ADR-065) — 챗의 **유일한 레인**. 서버가 user/assistant turn 을
+    // 영속하므로 FE 는 따로 저장하지 않는다(이중 영속 금지).
     //
-    // ✅ v2(ADR-065) — flag-ON 도 리치 카드를 렌더한다(tool-calling):
-    //   LLM 이 per-kind tool 로 방출하는 구조화 카드가 SSE `event: card`(cardType/payload)로 도착하면
-    //   adaptCardToTurn 이 FE Turn payload 로 적응해 flag-OFF 와 **동일한 MessageBody 렌더러를 재사용**한다
-    //   (concept/example/quiz/summary/self-explain/problem-card/lesson-intro). 자유 텍스트는 token 프레임으로
-    //   스트리밍되며 카드와 도착 순서대로 인터리브된다(sendReal). 빠른칩은 여전히 **칩 라벨(이미 자연어)을
-    //   그대로 message 로** 전송해 "칩 누르면 그 주제로 학습 진행" 계약을 보존한다(forcedKey 는 후속 칩 추천
-    //   상태로 스레딩). flag-OFF 는 리치 mock 을 그대로 둔다(불변).
+    // 종전에는 `USE_REAL_CORE_BE` 가 꺼져 있으면 `pickClassbotReply` 목 응답을 900ms 가짜 지연 뒤에 붙이고
+    // 같은 오리진 `/api/chat` 에 학생 발화만 저장했다. 그 레인은 2026-09-16 계획 §07(학생·봇 대화 줄 —
+    // 「걷는 것: pickClassbotReply · 900ms 가짜 지연 · USE_REAL_CORE_BE 분기」)로 걷었다.
+    //
+    // ✅ v2(ADR-065) 리치 카드(tool-calling): LLM 이 per-kind tool 로 방출하는 구조화 카드가 SSE
+    //   `event: card`(cardType/payload)로 도착하면 adaptCardToTurn 이 FE Turn payload 로 적응해 MessageBody
+    //   렌더러가 그대로 그린다(concept/example/quiz/summary/self-explain/problem-card/lesson-intro). 자유 텍스트는
+    //   token 프레임으로 스트리밍되며 카드와 도착 순서대로 인터리브된다(sendReal). 빠른칩은 **칩 라벨(이미
+    //   자연어)을 그대로 message 로** 전송해 "칩 누르면 그 주제로 학습 진행" 계약을 보존한다(forcedKey 는
+    //   후속 칩 추천 상태로 스레딩).
     //   계약 SoT: pullim-api api.md §3.8(SSE card/done) + data-model §1.6(카드 payload) + ADR-065.
     //   스펙 정합: proc/spec/2026-06-23_chat-guided-lesson.md [2026-07-06 개정].
-    if (USE_REAL_CORE_BE) {
-      void sendReal(trimmed, forcedKey);
-      return;
-    }
-
-    // 로그인 세션이면 본인 명의로 메시지를 영속화한다(plan Phase 3 쓰기 thin-slice).
-    // 데모(비로그인)는 mock 대화만 — 서버가 401 로 거른다.
-    if (me.isAuthenticated) {
-      void persistChatMessage(bot.id, trimmed);
-    }
-
-    setTimeout(() => {
-      const at = Date.now();
-      const richTurn = isLessonFlowKey(forcedKey)
-        // 봇 주도 수업 흐름 — getBotLesson 데이터로 구조화 메시지 생성
-        ? buildLessonTurn(`b${at}`, at, forcedKey, lesson, conceptIdxRef)
-        // 일반 응답 — 톤별 문자열 + 레거시 메시지 타입 매핑
-        : buildRichBotTurn(`b${at}`, pickClassbotReply(text, bot.tone, forcedKey), at, forcedKey, bot.id);
-
-      // 진행 마킹(A1·B7) + 컨텍스트 앵커 갱신(A6).
-      const phase = kindToLessonPhase(richTurn.kind);
-      if (phase) useLessonProgressStore.getState().markPhase(me.id, bot.id, phase);
-      const step = kindToSessionStep(richTurn.kind);
-      if (step) useSessionGoalStore.getState().mark(goalKey, step);
-      if ((richTurn.kind === 'concept' || richTurn.kind === 'concept-detail') && richTurn.payload && 'concept' in richTurn.payload) {
-        setActiveConceptId(richTurn.payload.concept.id);
-      }
-      // summary 버블: freeze 된 pre-hydration snapshot 대신 goalKey 만 실어 보낸다(B7 finding#2).
-      // 렌더 시 MessageBody summary 분기가 hydration-게이트 라이브 store 를 읽어 배너와 항상 일치.
-      if (richTurn.kind === 'summary') {
-        richTurn.payload = { goalKey, nextLine: lesson.nextLine } satisfies SummaryPayload;
-      }
-
-      setTurns(t => [...t, richTurn]);
-      // [04 § 9.6] forcedKey가 있을 때만 후속 칩 추천 가능 (free text는 키 미지정)
-      setLastBotReplyKey(forcedKey);
-      setPending(false);
-    }, 900);
+    void sendReal(trimmed, forcedKey);
   }
 
-  // 플래그 ON — pullim-api SSE 실챗(ADR-064 · v2 ADR-065 리치 카드). 빈 assistant 버블(streaming=true)을
+  // pullim-api SSE 실챗(ADR-064 · v2 ADR-065 리치 카드). 빈 assistant 버블(streaming=true)을
   // 먼저 붙여 첫 토큰/카드 도착 전 타이핑 인디케이터를 보이고, 토큰은 현재 텍스트 세그먼트에 증분 append
   // (streaming 유지 → announce 제외), **card 프레임은 원자적 리치 카드 turn 으로 삽입**(카드 앞 텍스트는
   // finalize·카드 뒤 텍스트는 새 세그먼트로 lazy 생성 → 도착 순서대로 인터리브), done 에서 마지막 세그먼트
@@ -582,9 +614,11 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   // 콜백 상태전이는 buildRealSendCallbacks(순수 테스트 단위), 카드 적응은 adaptCardToTurn(순수)에 위임.
   // clientTurnId=crypto.randomUUID(멱등 키) — 재전송 시 서버가 dedup·done 재생.
   async function sendReal(text: string, forcedKey?: QuickReplyKey) {
+    // 반이 없는 칸(담은 봇)은 `send` 의 `locked` 가 이미 막았다 — 여기는 타입을 좁히는 자리다. 문이 없으면 보내지 않는다.
+    if (classId === null) return;
     // 스트리밍 세그먼트/카드 turn 제어는 모듈 스코프 컨트롤러(createRealChatTurnController)에 위임한다
     // — 컴포넌트 내부에서 커서(let)를 재대입하면 React Compiler 가 immutable 위반으로 막으므로
-    // (buildLessonTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
+    // (buildLessonActionTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
     const controller = createRealChatTurnController(
       setTurns,
       Date.now(),
@@ -608,7 +642,7 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
       setLastReplyKey: setLastBotReplyKey,
       setPending,
     });
-    await streamChat(bot.id, text, clientTurnId, callbacks);
+    await streamChat(classId, text, clientTurnId, callbacks);
   }
 
   function submit() {
@@ -713,6 +747,21 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
           )}
         </header>
 
+        {/*
+          반 대화 고지(완성 설계 § 6.2 「고지 문구」) — 반 칸에만, 화면을 보는 순간부터, 접히지 않는다.
+          정보성이라 경고색이 아니다(`AiDisclosureNotice` 와 같은 결). 담은 봇에는 보는 선생님이 없어 붙이지 않는다.
+        */}
+        {classId !== null && (
+          <p
+            role="note"
+            data-slot="chat-class-disclosure"
+            className="text-pullim-slate-500 border-pullim-slate-100 flex items-center gap-1.5 border-b px-3 py-1.5 text-2xs"
+          >
+            <Eye aria-hidden className="h-3 w-3 shrink-0" />
+            {CLASS_CHAT_TEACHER_VISIBLE_NOTICE}
+          </p>
+        )}
+
         {/* 라이브 진행 중이면 — 컴팩트 바 (펼치면 슬라이드·자막·즉석 퀴즈·질문) */}
         {isLive && <LiveCompactBar bot={bot} />}
 
@@ -748,9 +797,9 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
             */}
             <MisconceptionCoaching botId={bot.id} userId={me.id} onAppear={handleCardReveal} />
             {/*
-              로딩 표시 단일화 — 실챗(flag-ON)은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
-              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). flag-OFF mock 은 스트리밍 턴이
-              없어 기존처럼 pending → PendingBubble.
+              로딩 표시 단일화 — SSE 실챗은 streaming=true 빈 봇 버블이 이미 로딩/타이핑을
+              표현하므로 PendingBubble 을 억제한다(이중 로딩 방지). 스트리밍 턴이 아직 안 붙은
+              찰나(요청 개시 전)에만 pending → PendingBubble.
             */}
             {pending && !turns.some(t => t.streaming) && <PendingBubble bot={bot} />}
           </div>
@@ -789,47 +838,59 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
             동적 빠른 칩 — M7 stagger(60ms, A5 reduced-motion 시 0ms).
             A7: 모든 칩은 좌측 라이너를 가진다(DS). guide(수업 단계 — 시그니처색 라이너) vs ask(자유 질문 — 중립 slate 라이너) 색으로 구분.
           */}
-          <div className="flex flex-wrap gap-1.5">
-            {dynamicQuickReplies.map((p, i) => {
-              const kind = quickReplyChipKind(p.expectedReplyKey);
-              const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
-              const animationDelay = reduced ? '0ms' : `${i * 60}ms`;
-              const commonClass =
-                'pullim-anim-message-mount disabled:opacity-50 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1';
-              return (
-                <button
-                  key={p.text}
-                  type="button"
-                  onClick={() => send(p.text, p.expectedReplyKey)}
-                  disabled={pending}
-                  title={kind === 'guide' ? '수업 단계' : '자유 질문'}
-                  style={
-                    kind === 'guide'
-                      ? { borderLeftColor: botSig.hex, animationDelay }
-                      : { animationDelay }
-                  }
-                  className={cn(
-                    commonClass,
-                    // DS: 모든 빠른 칩은 좌측 라이너를 가진다. guide=시그니처색, ask=중립 slate 로 색 구분.
-                    kind === 'guide'
-                      ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
-                      : 'border border-l-2 border-pullim-slate-200 border-l-pullim-slate-300 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-r-full rounded-l',
-                  )}
-                >
-                  <Icon aria-hidden className="h-3.5 w-3.5" />
-                  <span>{p.text}</span>
-                </button>
-              );
-            })}
-          </div>
+          {locked ? (
+            /* 잠긴 레인 — 빠른 칩 자리에 안내 한 줄. 칩을 눌러도 갈 곳이 없어서 칩 자체를 내지 않는다. */
+            <p
+              role="note"
+              data-slot="chat-locked-notice"
+              className="text-pullim-slate-600 bg-pullim-slate-50 rounded-xl px-3 py-2 text-xs font-semibold"
+            >
+              {SELF_BOT_CHAT_LOCKED_NOTICE}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {dynamicQuickReplies.map((p, i) => {
+                const kind = quickReplyChipKind(p.expectedReplyKey);
+                const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
+                const animationDelay = reduced ? '0ms' : `${i * 60}ms`;
+                const commonClass =
+                  'pullim-anim-message-mount disabled:opacity-50 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400 focus-visible:ring-offset-1';
+                return (
+                  <button
+                    key={p.text}
+                    type="button"
+                    onClick={() => send(p.text, p.expectedReplyKey)}
+                    disabled={pending}
+                    title={kind === 'guide' ? '수업 단계' : '자유 질문'}
+                    style={
+                      kind === 'guide'
+                        ? { borderLeftColor: botSig.hex, animationDelay }
+                        : { animationDelay }
+                    }
+                    className={cn(
+                      commonClass,
+                      // DS: 모든 빠른 칩은 좌측 라이너를 가진다. guide=시그니처색, ask=중립 slate 로 색 구분.
+                      kind === 'guide'
+                        ? 'bg-pullim-blue-50 text-pullim-blue-700 hover:bg-pullim-blue-100 border-l-2 rounded-r-full rounded-l'
+                        : 'border border-l-2 border-pullim-slate-200 border-l-pullim-slate-300 bg-white text-pullim-slate-700 hover:bg-pullim-slate-50 rounded-r-full rounded-l',
+                    )}
+                  >
+                    <Icon aria-hidden className="h-3.5 w-3.5" />
+                    <span>{p.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <ChatComposer
             value={value}
             onValueChange={setValue}
             onSubmit={handleSubmit}
             onKeyDown={handleKeyDown}
-            placeholder={`${bot.name}에게 물어보세요…`}
-            disabled={isSendDisabled}
+            placeholder={locked ? SELF_BOT_CHAT_LOCKED_PLACEHOLDER : `${bot.name}에게 물어보세요…`}
+            disabled={locked || isSendDisabled}
+            inputDisabled={locked}
             textareaRef={textareaRef}
             leading={
               <>
@@ -853,33 +914,8 @@ function ChatPanel({ bot, source, initialAsk }: { bot: ClassBot; source: Student
   );
 }
 
-/* ─── 채팅 영속화 (plan Phase 3 쓰기 thin-slice) ─── */
-
 /**
- * 학생 메시지를 본인 명의로 서버에 저장한다(fire-and-forget).
- * 명의는 서버가 JWT claim 에서 결정 — 클라이언트는 botId/text 만 보낸다.
- * @param botId - 대상 봇 id
- * @param text - 메시지 본문
- */
-async function persistChatMessage(botId: string, text: string): Promise<void> {
-  try {
-    const accessToken = tokenManager.getAccessToken();
-    if (!accessToken) return;
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ botId, text }),
-    });
-  } catch {
-    // 영속화 실패는 데모 대화를 막지 않는다(조용히 무시).
-  }
-}
-
-/**
- * 서버 히스토리 메시지(role/content/createdAt·v2 cardType/cardPayload) → 챗 Turn(플래그 ON seed).
+ * 서버 히스토리 메시지(role/content/createdAt·v2 cardType/cardPayload) → 챗 Turn(진입 seed).
  * role: user→student, assistant→bot.
  * **v2(ADR-065)**: assistant 카드 블록(cardType 有)은 `adaptCardToTurn` 으로 리치 카드 turn 을 재구성해
  * `MessageBody` 가 그대로 재렌더한다(평문으로 뭉개지 않음). cardType 없거나 payload 형식 불일치면
@@ -915,8 +951,8 @@ function historyMessageToTurn(m: ChatHistoryMessage, i: number, goalKeyForDay?: 
 }
 
 /**
- * flag-ON 실챗(sendReal)의 스트리밍 세그먼트/카드 turn 컨트롤러 — **모듈 스코프**(React Compiler 의
- * immutable 위반을 피해 커서 상태를 컴포넌트 밖에서 변형; buildLessonTurn 의 idxRef 변형 선례와 동형).
+ * SSE 실챗(sendReal)의 스트리밍 세그먼트/카드 turn 컨트롤러 — **모듈 스코프**(React Compiler 의
+ * immutable 위반을 피해 커서 상태를 컴포넌트 밖에서 변형; buildLessonActionTurn 의 idxRef 변형 선례와 동형).
  *
  * 계약:
  *  - 첫 버블(타이핑 인디케이터·streaming=true·빈 텍스트) 을 즉시 선주입한다.
@@ -987,57 +1023,6 @@ function createRealChatTurnController(
   return { setStreamingText, finalizeText, appendCard };
 }
 
-/* ─── 메시지 타입 dispatch ([08 § 15.1.3]) ─── */
-
-function buildRichBotTurn(id: string, text: string, at: number, forcedKey: ReplyKey | undefined, botId: string): Turn {
-  // 시연용 — forcedKey 기반으로 다른 타입 매핑. v2에서 LLM tool-calling으로 대체.
-  if (forcedKey === 'slope') {
-    return {
-      id, role: 'bot', at, text,
-      kind: 'explain-step',
-      payload: {
-        steps: [
-          { num: 1, label: '두 점 잡기', body: '그래프나 식에서 지나는 점 두 개를 먼저 잡아.', formula: '(x₁, y₁), (x₂, y₂)' },
-          { num: 2, label: '변화량 적기', body: 'y가 얼마나 변했는지, x가 얼마나 변했는지 각각 적어.' },
-          { num: 3, label: '나누기', body: '(y의 변화량) ÷ (x의 변화량) — 순서 뒤집지 않게 조심해.' },
-        ],
-      } satisfies ExplainStepPayload,
-    };
-  }
-  if (forcedKey === 'exam_prep') {
-    // 봇 과목에 맞는 연습 문제로 안내 (하드코딩 X — 레슨 데이터에서)
-    const pq = getBotLesson(botId).practiceQuizzes[0];
-    return {
-      id, role: 'bot', at, text,
-      kind: 'problem-card',
-      payload: {
-        problemNumber: pq.problemNumber,
-        title: pq.title,
-        // 자기주도 출시: 데모 과제(as_prescription) 제거됨 → 튜터 학습 커리큘럼으로 연결.
-        ctaLabel: '학습',
-        // 보이는 글자는 「학습」 하나뿐이라 낭독기에는 무엇을 여는지 실어 보낸다
-        ctaAriaLabel: `${pq.title} 학습하러 가기`,
-        ctaHref: `/classbot/learn/${botId}`,
-      } satisfies ProblemCardPayload,
-    };
-  }
-  // 오늘 정리 — 레슨 summary 카드
-  if (forcedKey === 'today_summary') {
-    return { id, role: 'bot', at, text: getBotLesson(botId).summary, kind: 'summary' };
-  }
-  // 기본 — text 버블
-  return { id, role: 'bot', at, text, kind: 'text' };
-}
-
-/* ─── 봇 주도 가이드 수업 — 흐름키 → 구조화 메시지 ─── */
-
-// A7: 흐름키 런타임 목록은 chat.ts 의 LESSON_FLOW_KEYS 단일 출처에서 파생(중복 Set 제거).
-const LESSON_FLOW_KEY_SET: ReadonlySet<string> = new Set(LESSON_FLOW_KEYS);
-
-function isLessonFlowKey(k?: QuickReplyKey): k is LessonFlowKey {
-  return k !== undefined && LESSON_FLOW_KEY_SET.has(k);
-}
-
 /* ─── 진행 마킹 매핑(A1·B7) — turn.kind → 레슨 위상 / 세션 단계 ─── */
 
 /** turn.kind → A1 LessonPhase(없으면 undefined — 마킹 안 함). */
@@ -1070,48 +1055,6 @@ function kindToSessionStep(kind?: MessageKind): SessionStep | undefined {
     default:
       return undefined;
   }
-}
-
-/** 흐름키로 getBotLesson 데이터를 구조화 메시지로 변환. "다음 개념"은 idxRef 순환. */
-function buildLessonTurn(
-  id: string,
-  at: number,
-  key: LessonFlowKey,
-  lesson: BotLesson,
-  idxRef: { current: number },
-): Turn {
-  const concepts = lesson.concepts;
-  if (key === 'lesson_next') {
-    idxRef.current = (idxRef.current + 1) % Math.max(1, concepts.length);
-  }
-  if (key === 'lesson_concept' || key === 'lesson_next') {
-    const c = concepts[idxRef.current] ?? concepts[0];
-    const lead = key === 'lesson_next' ? '다음 개념 가보자' : '이 개념부터 보자';
-    return {
-      id, role: 'bot', at,
-      text: `${lead} — **${c.title}**`,
-      kind: 'concept',
-      payload: { concept: c } satisfies ConceptPayload,
-    };
-  }
-  if (key === 'lesson_example') {
-    return {
-      id, role: 'bot', at,
-      text: '예제야. 처음 단계는 내가, 뒷 단계는 네가 직접 채워봐 👇',
-      kind: 'example',
-      payload: { title: lesson.example.title, steps: lesson.example.steps } satisfies ExamplePayload,
-    };
-  }
-  // lesson_quiz
-  return {
-    id, role: 'bot', at,
-    text: '이해 점검 퀴즈야. 직접 풀어봐 👇',
-    kind: 'quiz',
-    payload: {
-      quiz: lesson.quiz,
-      conceptId: lesson.quiz.relatedConceptId ?? concepts[idxRef.current]?.id,
-    } satisfies QuizPayload,
-  };
 }
 
 function conceptTurn(id: string, at: number, c: LessonConcept, lead: string): Turn {
@@ -1239,7 +1182,7 @@ function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { tur
   return (
     <ChatBubbleFrame
       isStudent={isStudent}
-      bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }}
+      bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }}
       meName={meName}
       at={turn.at}
       continuation={continuation}
@@ -1250,7 +1193,17 @@ function Bubble({ turn, bot, continuation = false, meName, onCardReveal }: { tur
 }
 
 /* ─── 메시지 본문 dispatch ([08 § 15.1.3]) ─── */
-function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number; onCardReveal: () => void }) {
+/**
+ * turn 한 개의 본문 렌더 — 말풍선과 카드 여덟 종이 여기서 갈린다.
+ *
+ * 봇이 보내는 글에는 수식이 섞여 오므로 **본문을 그리는 자리마다** `MathText`(`$…$` 섞인 글)
+ * 또는 `MathFormula`(필드 전체가 수식인 `formula`)를 거친다 — 날것의 LaTeX 가 학생 화면에
+ * 글자 그대로 뜨지 않게. 새 카드를 더할 때도 같은 규칙을 따른다.
+ *
+ * `export` 는 단위 테스트가 카드별 본문 렌더를 직접 세우기 위한 것이다(같은 파일의
+ * `plainAnnounceText` 와 같은 이유). 라우트 계약과는 무관하다.
+ */
+export function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal }: { turn: Turn; isStudent: boolean; botLinerHex: string; botId: string; scope: number; onCardReveal: () => void }) {
   const dispatchLesson = useLessonActionStore(s => s.dispatch);
   // 버블 겉모양은 공유 프리미티브 한 곳에서 온다(과제 대화와 같은 말풍선).
   const baseBubbleClass = chatBubbleClass(isStudent);
@@ -1263,7 +1216,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
 
   // 봇 기본 텍스트 — 리치 텍스트 렌더
   if (!turn.kind || turn.kind === 'text') {
-    // 실챗(flag-ON) 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
+    // SSE 스트리밍 버블 — 첫 토큰 도착 전(streaming·빈 content)에는 타이핑 인디케이터
     // (점 애니메이션)를 렌더해 로딩 표시가 끊기지 않게 한다. 첫 토큰부터는 아래 텍스트 렌더로 전환.
     if (turn.streaming && turn.text === '') {
       return (
@@ -1285,7 +1238,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
     return (
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <div className="text-pullim-blue-700 inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
-          <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · {topic}
+          <Sparkles className="h-3.5 w-3.5" /> 오늘의 수업 · <MathText text={topic} />
         </div>
         <RichText text={turn.text} />
         <div className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2.5 text-base">
@@ -1303,18 +1256,15 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
       <div className={cn(baseBubbleClass, 'px-4 py-3 space-y-2.5')} style={linerStyle}>
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 space-y-2 rounded-xl border p-3">
-          <p className="text-pullim-slate-900 text-base font-bold">{concept.title}</p>
-          <p className="text-pullim-slate-600 text-[15px] leading-relaxed">{concept.summary}</p>
-          {concept.formula && (
-            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1 font-mono text-xs">
-              {concept.formula}
-            </code>
-          )}
+          <p className="text-pullim-slate-900 text-base font-bold"><MathText text={concept.title} /></p>
+          <p className="text-pullim-slate-600 text-[15px] leading-relaxed"><MathText text={concept.summary} /></p>
+          {/* formula 는 필드 전체가 수식이다 — `$` 구분자 없이 통째로 넘긴다. */}
+          {concept.formula && <MathFormula latex={concept.formula} className="text-xs" />}
           {concept.coreElements.length > 0 && (
             <ul className="flex flex-wrap gap-1.5">
               {concept.coreElements.map((el, i) => (
                 <li key={i} className="bg-pullim-slate-100 text-pullim-slate-600 rounded-full px-2 py-0.5 text-xs font-semibold">
-                  {el}
+                  <MathText text={el} />
                 </li>
               ))}
             </ul>
@@ -1340,11 +1290,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
         <RichText text={turn.text} />
         <div className="bg-card border-pullim-slate-200 space-y-3 rounded-xl border p-3">
           <RichText text={concept.detail} />
-          {concept.formula && (
-            <code className="bg-pullim-slate-50 text-pullim-slate-700 block rounded px-2 py-1.5 font-mono text-sm">
-              {concept.formula}
-            </code>
-          )}
+          {concept.formula && <MathFormula latex={concept.formula} className="py-1.5" />}
           {concept.tips.length > 0 && (
             <div>
               <div className="text-pullim-blue-700 mb-1.5 text-sm font-bold">학습 팁</div>
@@ -1352,7 +1298,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                 {concept.tips.map((t, i) => (
                   <li key={i} className="bg-pullim-blue-50/60 text-pullim-slate-800 flex gap-2 rounded-lg px-3 py-2 text-[15px]">
                     <span className="text-pullim-blue-600 shrink-0 font-bold">✓</span>
-                    <span className="min-w-0 flex-1">{t}</span>
+                    <span className="min-w-0 flex-1"><MathText text={t} /></span>
                   </li>
                 ))}
               </ul>
@@ -1364,7 +1310,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
               <ul className="flex flex-wrap gap-1.5">
                 {concept.coreElements.map((el, i) => (
                   <li key={i} className="bg-pullim-slate-100 text-pullim-slate-700 rounded-full px-2.5 py-1 text-sm font-semibold">
-                    {el}
+                    <MathText text={el} />
                   </li>
                 ))}
               </ul>
@@ -1378,11 +1324,11 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                   <li key={i} className="bg-pullim-slate-50 rounded-lg p-2.5">
                     <p className="text-pullim-slate-900 text-[15px] font-semibold">
                       <span className="text-pullim-blue-600 mr-1 font-mono">Q{i + 1}.</span>
-                      {s.q}
+                      <MathText text={s.q} />
                     </p>
                     {s.a && (
                       <p className="text-pullim-slate-600 mt-1 text-sm">
-                        <span className="text-pullim-blue-700 font-bold">정답 ·</span> {s.a}
+                        <span className="text-pullim-blue-700 font-bold">정답 ·</span> <MathText text={s.a} />
                       </p>
                     )}
                   </li>
@@ -1419,13 +1365,9 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
                   {s.num}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-pullim-slate-900 text-[15px] font-bold">{s.label}</div>
-                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed">{s.body}</div>
-                  {s.formula && (
-                    <code className="bg-pullim-slate-50 text-pullim-slate-700 mt-1 inline-block rounded px-1.5 py-0.5 font-mono text-xs">
-                      {s.formula}
-                    </code>
-                  )}
+                  <div className="text-pullim-slate-900 text-[15px] font-bold"><MathText text={s.label} /></div>
+                  <div className="text-pullim-slate-600 mt-0.5 text-[15px] leading-relaxed"><MathText text={s.body} /></div>
+                  {s.formula && <MathFormula latex={s.formula} className="mt-1 px-1.5 py-0.5 text-xs" />}
                 </div>
               </li>
             ))}
@@ -1486,7 +1428,7 @@ function MessageBody({ turn, isStudent, botLinerHex, botId, scope, onCardReveal 
           <span className="bg-pullim-blue-600 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-2xs font-bold text-white">
             {problemNumber}
           </span>
-          <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold">{title}</div>
+          <div className="text-pullim-slate-800 min-w-0 flex-1 text-[15px] font-semibold"><MathText text={title} /></div>
           <Link
             href={ctaHref}
             aria-label={ctaAriaLabel ?? `${title} — ${ctaLabel} 열기`}
@@ -1543,7 +1485,7 @@ function SummaryProgress({ goalKey, nextLine }: { goalKey: string; nextLine?: st
           <ArrowRight aria-hidden className="text-pullim-blue-600 h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">
             <span className="text-pullim-blue-700 mr-1 font-bold">다음 한 걸음 ·</span>
-            {nextLine}
+            <MathText text={nextLine} />
           </span>
         </div>
       )}
@@ -1624,7 +1566,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      <p className="text-pullim-slate-900 text-base font-bold">{quiz.question}</p>
+      <p className="text-pullim-slate-900 text-base font-bold"><MathText text={quiz.question} /></p>
       <ol role="radiogroup" aria-label="객관식 보기" className="mt-2.5 space-y-1.5">
         {quiz.options.map((opt, i) => {
           const isSelected = selected === i;
@@ -1648,7 +1590,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
                 )}
               >
                 <span className="font-mono">{['①', '②', '③', '④', '⑤'][i] ?? i + 1}</span>
-                <span className="min-w-0 flex-1">{opt}</span>
+                <span className="min-w-0 flex-1"><MathText text={opt} /></span>
                 {isCorrect && <Check className="h-4 w-4 shrink-0" />}
               </button>
             </li>
@@ -1665,7 +1607,7 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
               className="bg-pullim-blue-50 border-l-pullim-blue-400 text-pullim-slate-800 rounded-r-lg border-l-[3px] px-3 py-2 text-[15px] leading-relaxed"
             >
               <span className="text-pullim-blue-700 font-bold">힌트 {i + 1} · </span>
-              {h}
+              <MathText text={h} />
             </div>
           ))}
           {hintCount < maxHints ? (
@@ -1743,15 +1685,17 @@ function InlineQuiz({ quiz, conceptId, reviewWeaknessKey, botId, scope, onCardRe
           {correct ? (
             <div className="bg-pullim-blue-50 rounded-lg p-3 text-[15px]">
               <p className="text-pullim-blue-700 font-bold">정답이에요!</p>
-              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.explain}</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed"><MathText text={quiz.explain} /></p>
             </div>
           ) : (
             <div className="bg-pullim-danger-bg rounded-lg p-3 text-[15px]">
               <p className="text-pullim-danger font-bold">아쉽지만 다시 볼까요?</p>
-              <p className="text-pullim-slate-700 mt-1 leading-relaxed">{quiz.optionFeedback[selected ?? 0]}</p>
+              <p className="text-pullim-slate-700 mt-1 leading-relaxed">
+                <MathText text={quiz.optionFeedback[selected ?? 0] ?? ''} />
+              </p>
               <p className="text-pullim-slate-600 mt-1.5 text-sm leading-relaxed">
                 <span className="text-pullim-blue-700 font-bold">정답 · </span>
-                {quiz.explain}
+                <MathText text={quiz.explain} />
               </p>
             </div>
           )}
@@ -1842,7 +1786,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
 
   return (
     <div className="bg-card border-pullim-slate-200 rounded-xl border p-3">
-      <p className="text-pullim-slate-900 text-base font-bold">{prompt.prompt}</p>
+      <p className="text-pullim-slate-900 text-base font-bold"><MathText text={prompt.prompt} /></p>
       <textarea
         value={value}
         rows={3}
@@ -1875,7 +1819,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
           </div>
           <div className="bg-pullim-slate-50 text-pullim-slate-700 rounded-lg p-3 text-sm leading-relaxed">
             <span className="text-pullim-blue-700 font-bold">모범 답안 · </span>
-            {prompt.sampleAnswer}
+            <MathText text={prompt.sampleAnswer} />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {!positive ? (
@@ -1913,7 +1857,7 @@ function SelfExplainCard({ prompt, botId, onCardReveal }: { prompt: SelfExplainP
 
 function PendingBubble({ bot }: { bot: ClassBot }) {
   const botSig = botSignature(bot);
-  return <ChatPendingBubble bot={{ name: bot.name, avatarEmoji: bot.avatarEmoji, hex: botSig.hex }} />;
+  return <ChatPendingBubble bot={{ name: bot.name, subject: bot.subject, hex: botSig.hex }} />;
 }
 
 /* ─── A5 스크린리더 접근성 ─── */

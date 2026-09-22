@@ -1,14 +1,13 @@
 /**
  * 같은 오리진 도메인 API fetch — 수업방·참여 코드·과제 라우트 전용.
  *
- * `lib/api/read-fetch.ts` 와 무엇이 다른가:
- *  - read-fetch 는 **토큰이 없으면 서버에 가 보지도 않고** 로그인 게이트를 세운다.
- *    그건 학생 읽기 3면의 「로그인월」 규약이라 맞다.
- *  - 이 헬퍼는 그렇게 하지 않는다. 로컬 개발 신원은 **쿠키**로 오고 토큰이 없기 때문이다.
- *    쿠키는 같은 오리진 요청에 자동으로 실리므로, 토큰이 없어도 일단 보내고 **서버가**
- *    401 인지 아닌지 판단하게 둔다. 진짜 토큰이 있으면 `Authorization` 헤더도 같이 실는다.
- *  - 토큰 접근자는 read-fetch 와 **같은 것**(`tokenManager`)을 쓴다 — 저장 위치를 두 벌로
- *    나누면 한쪽만 로그아웃되는 상태가 생긴다.
+ * **토큰이 없어도 일단 보낸다.** 로컬 개발 신원은 **쿠키**로 오고 토큰이 없기 때문이다.
+ * 쿠키는 같은 오리진 요청에 자동으로 실리므로 보내 놓고 **서버가** 401 인지 아닌지 판단하게
+ * 둔다. 진짜 토큰이 있으면 `Authorization` 헤더도 같이 싣는다.
+ *
+ * *(짝이던 `lib/api/read-fetch.ts` — 토큰이 없으면 서버에 가 보지도 않고 로그인 게이트를
+ * 세우던 학생 읽기 3면용 헬퍼 — 는 그 세 라우트와 함께 계획 PR 8 에서 걷혔다. 토큰 접근자
+ * `tokenManager` 를 쓰는 곳은 이제 이 파일 하나다.)*
  *
  * 오류는 서버가 준 `{ message, code }` 를 그대로 실어 던진다 — 화면이 우리말 문구를
  * 그대로 보여줄 수 있어야 하기 때문이다.
@@ -22,7 +21,7 @@ export class ApiClientError extends Error {
     message: string,
     /** HTTP 상태. */
     public readonly status: number,
-    /** 계약 §4 의 오류 코드(AUTH_REQUIRED · FORBIDDEN · INVALID_INPUT · NOT_FOUND · CONFLICT). */
+    /** 계약 §4 의 오류 코드(AUTH_REQUIRED · FORBIDDEN · INVALID_INPUT · NOT_FOUND · GONE · CONFLICT). */
     public readonly code: string,
   ) {
     super(message);
@@ -41,6 +40,8 @@ function fallbackMessage(status: number): string {
   if (status === 401) return '로그인이 필요합니다.';
   if (status === 403) return '권한이 없어요.';
   if (status === 404) return '찾을 수 없어요.';
+  // 410 은 「있었지만 이제 없다」다 — 404 와 같은 말을 쓰면 서버가 굳이 가른 뜻이 화면에서 뭉개진다.
+  if (status === 410) return '기간이 지났어요.';
   if (status === 409) return '지금은 처리할 수 없어요.';
   return `요청에 실패했어요 (HTTP ${status})`;
 }
@@ -112,7 +113,12 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: 'POST', body: body ?? {} });
 }
 
-/** DELETE 단축 — 본문 없이 보낸다(자원을 끄는 라우트가 쓴다). */
+/** PATCH — 일부만 고친다(낸 과제 수정·회수). */
+export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return apiRequest<T>(path, { method: 'PATCH', body });
+}
+
+/** DELETE 단축. */
 export function apiDelete<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'DELETE' });
 }

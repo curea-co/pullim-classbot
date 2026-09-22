@@ -17,13 +17,17 @@
  *
  * 스트림 개시 **전** 실패는 실 HTTP 상태로 온다 — 429(rate-limit)·403(비멤버)·503(미가용).
  * 이들은 `onError` 로 사용자향 카피에 매핑한다(스트림 read 없음).
+ * **401 은 이 앱의 401 규칙을 따른다**(`lib/api/classbot-client.ts` — 세션이 끊겼다 → OS 로그인으로 보낸다).
+ * 서버 장애처럼 「연결할 수 없어요」로 말하지 않는다 — 히스토리(`fetchChatHistory`)는 `classbotRead` 가,
+ * 전송(`streamChat`)은 아래 401 분기가 같은 헬퍼를 부른다.
  *
- * ⚠️ 이 모듈은 `USE_REAL_CORE_BE` 플래그를 보지 않는다 — 순수 transport. 플래그 게이트는 호출부
- *   (chat/page.tsx send)의 책임이다.
+ * ⚠️ 이 모듈은 순수 transport 다 — 화면 상태(turns·pending)는 호출부(chat/page.tsx `sendReal`)가 들고,
+ *   콜백 상태전이는 `lib/api/chat-turns.ts` 가 순수 함수로 진다. 종전에 이 자리를 갈랐던
+ *   `USE_REAL_CORE_BE` 플래그는 2026-09-16 계획 PR 4 에서 걷혔고, 챗은 이 레인 하나만 탄다.
  */
-import { API_BASE } from '@/lib/auth/os-sso';
+import { API_BASE, redirectToOsLogin } from '@/lib/auth/os-sso';
 
-import { domainFetch } from './domain-fetch';
+import { classbotRead } from './classbot-client';
 import { fetchWithOsCsrfRecovery } from './csrf-fetch';
 
 /** classbot 정본 표면 base — OS API 호스트의 서비스 경계 프리픽스(`/classbot/*`). */
@@ -72,7 +76,13 @@ export interface ChatCard {
  * 클라이언트 에러 taxonomy — 사용자향 카피 키. 서버의 generic `error.code` 와는 별개다
  * (서버 code 는 관측용, 사용자에겐 아래 카피만 노출).
  */
-export type ChatStreamErrorCode = 'rate_limit' | 'forbidden' | 'unavailable' | 'stream' | 'network';
+export type ChatStreamErrorCode =
+  | 'unauthorized'
+  | 'rate_limit'
+  | 'forbidden'
+  | 'unavailable'
+  | 'stream'
+  | 'network';
 
 export interface ChatStreamError {
   code: ChatStreamErrorCode;
@@ -82,6 +92,7 @@ export interface ChatStreamError {
 
 /** 에러 코드 → 사용자향 카피(한글 하드코딩 — i18n 미도입). */
 export const CHAT_ERROR_COPY: Record<ChatStreamErrorCode, string> = {
+  unauthorized: '로그인이 필요해요. 풀림 로그인으로 옮겨 가고 있어요.',
   rate_limit: '메시지를 너무 빨리 보냈어요. 잠시 후 다시 시도해 주세요.',
   forbidden: '이 클래스의 봇과 대화할 권한이 없어요.',
   unavailable: '지금은 튜터에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.',
@@ -286,6 +297,14 @@ export async function streamChat(
     return;
   }
 
+  // 401 — 세션이 끊겼다. 서버 장애가 아니라 로그인 문제이므로 이 앱의 401 규칙대로 OS 로그인으로 보낸다
+  // (`lib/api/classbot-client.ts` 와 같은 헬퍼 · 현재 위치가 `next`). 카피는 리다이렉트가 도는 사이 버블에 남는다.
+  if (res.status === 401) {
+    redirectToOsLogin();
+    cb.onError({ code: 'unauthorized', message: CHAT_ERROR_COPY.unauthorized });
+    return;
+  }
+
   // 개시 전 실패 — 실 HTTP 상태(429/403/503/…). 스트림 read 없음.
   if (!res.ok) {
     const code = statusToErrorCode(res.status);
@@ -325,9 +344,10 @@ export interface ChatHistoryMessage {
 /**
  * 봇 대화 멀티턴 히스토리를 로드한다(GET, read + membership).
  * `WHERE class_id=:classId AND student_id=sub ORDER BY created_at` — **완결 turn 만** 반환.
+ * 401 은 `classbotRead` 가 OS 로그인으로 보낸 뒤 던진다(다른 훅과 같은 규칙).
  * @param classId - 봇==클래스 id.
  * @returns 시간순 완결 turn 배열(빈 배열 = 첫 진입).
  */
 export function fetchChatHistory(classId: string): Promise<ChatHistoryMessage[]> {
-  return domainFetch<ChatHistoryMessage[]>(`/classes/${classId}/chat`);
+  return classbotRead<ChatHistoryMessage[]>(`/classes/${classId}/chat`);
 }
