@@ -8,61 +8,32 @@ import { EmptyState } from '@/components/classbot/empty-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketplaceBots } from '@/hooks/api/marketplace';
-import { ApiClientError } from '@/lib/api/client-fetch';
 import { MarketplaceBotCard } from './marketplace-bot-card';
 
 /**
- * 마켓에 올라온 봇 목록 — **학생 셸과 교사 셸이 같은 이 컴포넌트를 쓴다.**
+ * 마켓에 공개된 봇 목록 — 학생·교사 셀이 같은 정본 목록을 쓴다.
  *
- * 목록 UI 를 두 벌 만들지 않는 이유는 손이 덜 가서가 아니다. 두 벌이면 카드에 무엇을
- * 적을지가 두 곳에서 갈리고, 「학생에게는 보이는데 교사에게는 안 보이는 값」이 생긴다 —
- * 마켓은 **같은 목록을 누가 보느냐**만 다른 화면이다.
- *
- * 셸마다 다른 것만 prop 으로 받는다:
- *  - 상세로 가는 경로(`detailHref`) — 셸이 갈려 있어 URL 이 다르다
- *  - 내가 올린 봇 표시(`ownBotIds`) — 교사 화면에서만 쓴다
- *  - 카드에서 바로 담기(`showSelfAdd`) — 학생 화면에서만 쓴다. 담기는 학생의 동작이다
+ * ADR-094 범위에서는 풀림 공식 봇만 게시된다. 교사 봇 게시·해제와
+ * 「내 봇」 표시는 open item 이므로 이 목록의 진입점과 prop 에서 제거한다.
  */
 export function MarketplaceBotList({
   detailHref,
-  ownBotIds,
   emptyDescription,
   headingAction,
   showSelfAdd = false,
 }: {
-  /** 봇 상세로 가는 길. 학생은 `/classbot/discover/…`, 교사는 `/teacher/marketplace/…`. */
+  /** 봇 상세로 가는 길. 학생·교사 셀의 URL 이 다르다. */
   detailHref: (botId: string) => string;
-  /** 「내 봇」 배지를 붙일 봇들. 교사 화면만 넘긴다. */
-  ownBotIds?: ReadonlySet<string>;
-  /** 빈 상태에서 **이 사람이** 할 수 있는 일 — 학생과 교사가 다르다. */
+  /** 정본이 빈 목록을 돌려줄 때 보여 줄 안내. */
   emptyDescription: string;
-  /** 목록 제목 오른쪽에 붙는 것(교사 화면의 「내 수업방」 링크 등). */
+  /** 목록 제목 오른쪽 액션. */
   headingAction?: ReactNode;
-  /** 카드마다 담기 버튼을 붙인다. 학생 셸만 넘긴다. @default false */
+  /** 카드에 담기 버튼을 붙인다. 학생 셀만 true. */
   showSelfAdd?: boolean;
 }) {
   const query = useMarketplaceBots();
 
-  /*
-    401 은 고장이 아니다 — **아직 열리지 않은 문**이다. 이 갈래를 에러에서 뺀 판단은
-    그대로 둔다. 여기에 빨간 「불러오지 못했어요」를 띄우면 멀쩡한 화면이 매번 고장 난
-    것처럼 보인다(내 수업방이 같은 401 을 같은 이유로 에러에서 뺐다 —
-    `app/(student)/classbot/classroom/page.tsx`).
-
-    ⛔ **다만 문구로 로그인을 시키지 마라.** 이 자리는 「로그인하면 봇 마켓을 볼 수 있어요」
-    였는데 **그 말이 참이 아니다.** 마켓은 같은 오리진 route handler(`app/api/marketplace/*`)
-    가 답하고, 그 핸들러는 OS 세션 서명을 풀 열쇠가 없다(`lib/current-user.ts` 머리주석).
-    개발 신원 쿠키도 로컬 호스트에서만 열린다(`lib/dev-identity.ts` 의 `DEV_IDENTITY_HOSTNAMES`).
-    그래서 배포본에서는 **로그인해도 401 이 온다** — 로그인 화면으로 보내 놓고 아무 일도
-    일어나지 않게 만드는 안내였다. 마켓을 정본(pullim-api)으로 옮기기 전까지(계획 5e)
-    사실인 말은 「아직 준비 중」이다. **되돌리지 마라.**
-
-    아래 이름(`isSignedOut` · `data-testid="marketplace-signin"`)은 그 사실을 알기 전에
-    붙였다. e2e 가 잡고 있어 이번 문구 수정에서는 그대로 두었다 — 정본 이전 때 함께 간다.
-  */
-  const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
-
-  if (query.isError && !isSignedOut) {
+  if (query.isError) {
     return (
       <AlertCard tone="danger" icon={Store} title="봇 마켓을 불러오지 못했어요">
         <p className="text-pullim-slate-700 text-sm" data-testid="marketplace-error">
@@ -76,26 +47,9 @@ export function MarketplaceBotList({
 
   return (
     <section>
-      {/*
-        `description` 을 넘기지 않는다. 이 자리에 「선생님들이 직접 만들어 공유한 봇이에요.」가
-        있었는데 바로 위 제목 「공유된 봇 N개」가 이미 같은 말이었다 — 화면이 이미 말하는
-        부제는 적지 않는다(07 § 6.7). **되살리지 마라**: 학생·교사 두 셸이 이 한 벌을 쓰므로
-        여기 한 줄이 두 화면에 동시에 되풀이로 돌아온다. 교사 쪽 설명은 페이지 헤더가 든다
-        (`app/(teacher)/teacher/marketplace/page.tsx`).
-
-        부제가 빠지면서 정렬도 바뀐다. `SectionHeading` 은 `sm:items-end` 라 제목+부제(44px)와
-        44px 버튼을 밑선으로 맞췄는데, 이제 왼쪽이 제목 한 줄(20px)뿐이라 밑선에 맞추면 제목
-        위로 24px 빈 칸이 생긴다(실측: 행 48→44px, 제목 offsetTop 0→24). 여기서 가운데로 맞춘다.
-
-        ⚠ 이건 **이 호출처만** 고친 것이다. `SectionHeading` 은 부제 없이 action 만 있는 모양을
-        늘 `sm:items-end` 로 그리고, 같은 모양이 지금 셋이다(교사 홈 「먼저 볼 학생」·
-        `class-reach-roster` 「학생 한 줄 보기」·여기). 나머지 둘은 이 PR 이전부터 그랬던
-        자리라 손대지 않았다 — `components/shell/*` 는 이 리포에서 사용자 확인 사항이라
-        (`apps/classbot/CLAUDE.md § 5`) 셋을 한 번에 고치는 건 별건으로 올린다.
-      */}
       <SectionHeading
         className="sm:items-center"
-        title={query.isPending || isSignedOut ? '공유된 봇' : `공유된 봇 ${bots.length}개`}
+        title={query.isPending ? '공개된 봇' : `공개된 봇 ${bots.length}개`}
         action={headingAction}
       />
 
@@ -104,28 +58,11 @@ export function MarketplaceBotList({
           <Skeleton className="h-44 w-full rounded-2xl" />
           <Skeleton className="h-44 w-full rounded-2xl" />
         </div>
-      ) : isSignedOut ? (
-        <div data-testid="marketplace-signin">
-          <EmptyState
-            icon={Store}
-            title="봇 마켓은 아직 준비 중이에요"
-            /*
-              「선생님들이」라는 한정을 걷었다 — 이 목록에는 풀림이 만든 기본 봇도 함께
-              선다(spec `03 § 4.13.1` · 문구 지시는 `§ 4.13.2`). 대신 바로 위 제목이 쓰는
-              말(「공유된 봇」)을 그대로 이어 받는다. 한 화면에서 같은 목록을 두 이름으로
-              부르지 않으려는 것이다. 되돌리지 마라.
-
-              `marketplace-bot-detail.tsx` 가 이 두 줄을 **글자까지 그대로** 쓴다 — 목록과
-              상세가 같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
-            */
-            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
-          />
-        </div>
       ) : bots.length === 0 ? (
         <div data-testid="marketplace-empty">
           <EmptyState
             icon={Store}
-            title="아직 공유된 봇이 없어요"
+            title="아직 공개된 봇이 없어요"
             description={emptyDescription}
           />
         </div>
@@ -136,7 +73,6 @@ export function MarketplaceBotList({
               key={bot.botId}
               bot={bot}
               href={detailHref(bot.botId)}
-              isMine={ownBotIds?.has(bot.botId) ?? false}
               showSelfAdd={showSelfAdd}
             />
           ))}

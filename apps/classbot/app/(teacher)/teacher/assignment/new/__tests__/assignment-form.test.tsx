@@ -39,7 +39,7 @@ const CLASS_B: BotCardDto = {
 function classDto(over: Partial<ClassDto> = {}): ClassDto {
   return {
     id: 'cls_b', operatorId: 'teacher_1', orgId: null, name: '중3 국어 B반', description: null,
-    subject: null, grade: null, isActive: true, bot: null, joinCode: null,
+    subject: null, grade: null, isActive: true, isSelfStudy: false, bot: null, joinCode: null,
     createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:00:00.000Z',
     ...over,
   };

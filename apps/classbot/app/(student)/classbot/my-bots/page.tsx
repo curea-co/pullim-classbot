@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/shell/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketplaceBots } from '@/hooks/api/marketplace';
 import { useMySelfBots, useRemoveSelfBot } from '@/hooks/api/self-bots';
-import { ApiClientError } from '@/lib/api/client-fetch';
+import { isUnauthorized } from '@/lib/api/classbot-client';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
 import { classBots as botCatalog } from '@/lib/mock/classbot';
 import { MyBotCard } from './my-bot-card';
@@ -76,18 +76,8 @@ function seedAsMarketItem(botId: string): MarketplaceBotItem | null {
  *  - **담은 것이 하나도 없을 때만** 화면이 갈린다 — 마켓이 401 이면 「마켓이 준비 중」까지
  *    함께 적고, 마켓이 답하면 「아직 담은 봇이 없어요」만 적는다
  *
- * ⛔ **401 갈래를 「로그인하세요」로 되돌리지 마라.** 마켓은 같은 오리진 route handler 가
- * 답하는데 그 핸들러에 OS 세션을 풀 열쇠가 없어(`lib/current-user.ts` 머리주석) 배포본에서는
- * **로그인해도 401 이 온다.** 그러니 두 갈래를 가르는 것은 「로그인 여부」가 아니라
- * 「마켓이 답했는가」다. 판단 근거 전문은 `components/classbot/marketplace/marketplace-bot-list.tsx`
- * 의 같은 자리에 있다.
- *
- * **이 화면에서 그 401 갈래를 실제로 보는 사람은 익명 방문자뿐이다** — 담은 봇 쪽은 마켓과
- * 달리 신원 게이트가 있어서다. 로그인하면 `useMySelfBots` 의 `enabled` 가 열려
- * `/api/me/self-bots` 를 부르고 그것도 401 이라, 아래 첫 삼항의 `mine.isError` 가 **먼저**
- * 갈라내 오류 카드를 띄운다. 익명은 localStorage 갈래라 `isError` 가 false 다.
- * 그 오류 카드(로그인한 학생이 보는 빨간 「불러오지 못했어요」)는 이 문구 수정의 범위 밖이고
- * 마켓 정본 이전(계획 5e)이 함께 푼다. **어느 쪽이든 로그인은 답이 아니다.**
+ * 마켓과 담은 목록은 모두 pullim-api OS 세션 경계로 읽는다. 401은 세션 만료라 공용 client가
+ * OS 로그인으로 돌려보내지만, 리다이렉트가 진행되는 동안에도 이미 받은 담은 목록은 지우지 않는다.
  *
  * 담은 목록 자체(`isLoading`)는 지금 하이드레이션 대기 구간이다. P3 에서 서버 조회가
  * 되면 같은 자리가 진짜 로딩이 된다 — 화면은 한 줄도 안 바뀐다.
@@ -105,7 +95,7 @@ export default function MyBotsPage() {
   }, [market.data]);
 
   // 마켓과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 아직 열리지 않은 문이다(머리주석 ⛔).
-  const isSignedOut = market.error instanceof ApiClientError && market.error.status === 401;
+  const isSignedOut = isUnauthorized(market.error);
   const isMarketBroken = market.isError && !isSignedOut;
   // 이름표를 못 붙인 까닭. 목록을 지우는 대신 목록 위에 한 줄로만 적는다.
   // 401 은 「아직 안 열렸다」, 5xx 는 「이번엔 못 읽었다」 — 다시 눌러 볼 값이 있는 쪽만 그렇게 적는다.

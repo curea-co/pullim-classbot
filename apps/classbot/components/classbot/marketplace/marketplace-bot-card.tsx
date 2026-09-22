@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, UserRound, Users } from 'lucide-react';
+import { Sparkles, Users } from 'lucide-react';
 
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { Chip } from '@/components/ui/chip';
@@ -26,12 +26,9 @@ import { SelfAddButton } from './self-add-button';
  * 낭독기에 이름 없는 링크가 된다.
  *
  * **공식 봇은 칸 넷이 갈린다**(spec `03 § 4.13.1` 「카드에서 공식 봇이 걷는 칸」).
- * 풀림이 제공하는 봇에는 **소유자가 없어서**(`class_bots.teacher_id` 가 NULL) 교사 봇을
+ * 풀림이 제공하는 봇은 로그인 불가 sentinel 소유라 실제 교사 프로필이 없다. 교사 봇을
  * 전제로 짜인 칸을 그대로 두면 카드가 사실이 아닌 것을 말한다:
  *  - **교사 이름 · 소속** — 「풀림 공식」 배지로 대신한다. 사람 이름 자리에 회사를 앉히지 않는다.
- *  - **「내 봇」 배지** — 붙지 않는다. `ownBotIds` 는 **내가 연 수업방의 봇 id 집합**이고
- *    (`marketplace-workspace.tsx`), 그 조회가 소유자 조건으로 잠겨 있어 공식 봇은 거기 못 든다 —
- *    **자동으로 그렇게 되지만 그게 의도다.** `isMine` 조건을 공식 봇 때문에 손볼 일이 아니다.
  *  - **「…에 올림」** — 적지 않는다. 게시한 사람이 없다. 값은 있지만(시드가 넣은 날) 그 날짜는
  *    「누가 언제 올렸다」를 뜻하지 않아 읽는 사람을 속인다.
  *  - **참여 학생 수** — 같게 세되 **0명이면 칸을 비운다.** 「0명」은 갓 선 봇의 정상 상태지
@@ -48,14 +45,11 @@ import { SelfAddButton } from './self-add-button';
 export function MarketplaceBotCard({
   bot,
   href,
-  isMine = false,
   showSelfAdd = false,
 }: {
   bot: MarketplaceBotItem;
   /** 상세로 가는 길. 셸마다 달라서(학생 `/classbot/discover/…`) 바깥에서 준다. */
   href: string;
-  /** 교사 화면에서 「내가 올린 봇」 표시. 학생 화면에서는 언제나 false. @default false */
-  isMine?: boolean;
   /** 카드에서 바로 담게 한다. 학생 셸만 넘긴다. @default false */
   showSelfAdd?: boolean;
 }) {
@@ -76,12 +70,6 @@ export function MarketplaceBotCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-pullim-slate-900 truncate text-sm font-bold">{bot.name}</h3>
-              {isMine && (
-                <Chip tone="info" className="shrink-0">
-                  <UserRound aria-hidden />
-                  내 봇
-                </Chip>
-              )}
             </div>
             {bot.isOfficial ? (
               /*

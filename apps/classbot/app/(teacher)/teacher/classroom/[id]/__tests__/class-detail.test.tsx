@@ -30,7 +30,7 @@ const DETAIL: BotDetailDto = {
 
 const KNOWN: ClassDto = {
   id: 'cls_1', operatorId: 't1', orgId: null, name: '고2 미적분 A반', description: null, subject: null, grade: null,
-  isActive: true, bot: null, createdAt: '', updatedAt: '',
+  isActive: true, isSelfStudy: false, bot: null, createdAt: '', updatedAt: '',
   joinCode: { id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '', expiresAt: null },
 };
 

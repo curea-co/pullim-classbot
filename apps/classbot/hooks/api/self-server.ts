@@ -5,13 +5,8 @@
  *
  * ## 왜 갈라져 있나
  *
- * 같은 판정(`useHasServerIdentity`)과 같은 조회(`GET /api/me/study-days`)를 두 곳이 쓰는데,
- * 그중 하나가 **스토어 파일**이다:
- *
- *  - `hooks/api/self-bots.ts` — 화면이 읽는 유일한 입구(계약 §3).
- *  - `lib/store/self-learning.ts` 의 `useStreak()` — 셸 헤더의 연속일수 뱃지
- *    (`components/shell/app-header.tsx`)가 **이미 부르고 있는 이름**이라 그 자리에 남아 있다.
- *    P4 에서 연속일수의 출처가 서버로 옮겨 가면서 그쪽도 이 조회가 필요해졌다.
+ * 자기주도 담기와 개인정보 동의 훅이 공유하는 신원 판정만 둔다. 공부한 날은 정본 API가
+ * 정리될 때까지 `self-bots.ts`와 `self-learning.ts`의 로컬 임시 소스로 분리되어 여기서 조회하지 않는다.
  *
  * 스토어가 `self-bots.ts` 를 직접 import 하면 **순환**이다 — `self-bots.ts` 가 스토어를
  * import 하기 때문이고, 그 순환을 피하려고 `SelfBotRow` 타입을 스토어 쪽에 둔 전례가 이미
@@ -22,33 +17,14 @@
  * 없다. **이 파일에 스토어 import 를 더하는 순간 그 성질이 깨진다.**
  */
 
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-
-import { ApiClientError, apiGet } from '@/lib/api/client-fetch';
+import { ApiClientError } from '@/lib/api/client-fetch';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useCurrentUserId } from '@/lib/current-user';
 import { useDevIdentityId } from '@/lib/use-dev-identity';
-import type { MyStudyDaysResponse } from '@/hooks/api/types';
 
 /** 401 은 다시 물어도 같은 답이다 — 게이트로 넘긴다. 그 밖에는 1회만 다시. */
 export function retryUnlessGuarded(failureCount: number, error: unknown): boolean {
   if (error instanceof ApiClientError && error.status < 500) return false;
   return failureCount < 1;
-}
-
-/**
- * 다시 해 볼 만한 실패인가 — 네트워크 단절·5xx·401 만. 그 밖(404·400)은 다시 해도 같은 답이다.
- *
- * 한 번만 도는 이관·백필이 「완료 표시를 남길지」를 이 값으로 정한다. 담은 봇(P3)과
- * 공부한 날(P4)이 **같은 판정**을 써야 해서 여기 있다 — 한쪽만 고치면 두 이관이 서로 다른
- * 조건으로 재시도한다.
- * @param error - 던져진 값(네트워크 예외까지 그대로)
- * @returns 다음 로드에서 다시 해 볼 만하면 true
- */
-export function isRetriableUploadError(error: unknown): boolean {
-  if (!(error instanceof ApiClientError)) return true; // 네트워크가 끊긴 경우 등
-  return error.status >= 500 || error.status === 401;
 }
 
 /** 지금 신원이 어느 갈래인가 — 「아직 모른다」가 독립된 값이다(아래 ⛔). */
@@ -107,52 +83,14 @@ export function useServerIdentityState(): ServerIdentityState {
 }
 
 /**
- * 공부한 날 쿼리 키 — 무효화할 때 이 상수를 쓴다(문자열을 손으로 다시 적지 마라).
- * 담은 봇(`selfBotKeys`)과 같은 규칙으로 신원 id 가 **꼬리**에 붙는다.
- */
-export const selfStudyDayKeys = {
-  mine: ['self-study-days'] as const,
-};
-
-/** 서버가 아는 공부한 날 — 로컬 갈래는 부르는 쪽이 붙인다. */
-export interface ServerStudyDays {
-  /** `'YYYY-MM-DD'` 오름차순. 아직 안 왔거나 명의가 아니면 `undefined`. */
-  days: string[] | undefined;
-  /**
-   * 지금 신원이 어느 갈래인가 — `days` 가 `undefined` 인 **세** 뜻을 가른다
-   * (아직 안 옴 / 데모라 갈 곳이 없음 / 판정 자체가 아직 안 섬).
-   */
-  identity: ServerIdentityState;
-}
-
-/**
- * 공부한 날을 **서버에서만** 읽는다 — `GET /api/me/study-days`.
+ * pullim-api classbot **도메인 transport**가 인증할 수 있는 신원인가.
  *
- * 신원이 없으면 요청을 아예 내보내지 않는다(`enabled`). prod 는 로그인 없이 열리는 공개
- * 데모라 서버가 401 로 답하는데, 그걸 화면에서 처리하는 게 아니라 **묻지 않는 것**이 규약이다
- * — 근거는 `hooks/api/self-bots.ts` 머리주석의 ⛔ 블록.
- *
- * 같은 키를 여러 곳에서 읽어도 요청은 하나다(react-query 가 키로 합친다). 그래서 셸 뱃지와
- * 화면이 동시에 이 훅을 불러도 왕복이 늘지 않는다.
- * @returns 서버 날짜와 신원 판정
+ * `useServerIdentityState()`는 same-origin route handler가 해석하는 개발 신원 쿠키까지
+ * `'server'`로 본다. 하지만 `classbotRead`/`classbotWrite`는 OS API 호스트로 직접 가며 그 쿠키를
+ * 인증하지 않는다. 따라서 도메인 호출은 복원된 `useAuth().user`만 서버 신원으로 인정한다.
  */
-export function useServerStudyDays(): ServerStudyDays {
-  const userId = useCurrentUserId();
-  const identity = useServerIdentityState();
-
-  const query = useQuery<MyStudyDaysResponse, ApiClientError>({
-    // 판정 대기 중에는 묻지 않는다 — 이 키의 `userId` 가 아직 데모 폴백이라, 그 상태로
-    // 물으면 **남의 키에 내 응답이 캐시된다.**
-    queryKey: [...selfStudyDayKeys.mine, userId],
-    queryFn: () => apiGet<MyStudyDaysResponse>('/api/me/study-days'),
-    enabled: identity === 'server',
-    retry: retryUnlessGuarded,
-  });
-
-  const days = query.data?.days;
-  return useMemo(
-    // 명의가 아니면 캐시에 남아 있던 값이라도 주지 않는다 — 그 상태의 정본은 여기가 아니다.
-    () => ({ days: identity === 'server' ? days : undefined, identity }),
-    [days, identity],
-  );
+export function useClassbotDomainIdentityState(): ServerIdentityState {
+  const { user, isReady } = useAuth();
+  if (user) return 'server';
+  return isReady ? 'demo' : 'pending';
 }
