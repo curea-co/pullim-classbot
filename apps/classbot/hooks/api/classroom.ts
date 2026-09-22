@@ -36,6 +36,7 @@ import {
 } from '@tanstack/react-query';
 import { ApiError } from '@pullim-classbot/api-client';
 
+import { botKeys } from '@/hooks/api/bot-keys';
 import {
   classbotRead,
   classbotWrite,
@@ -234,6 +235,9 @@ export function useAssignClassBot(): UseMutationResult<ClassDto, ApiError, Assig
     },
     onSuccess: (klass) => {
       writeClassDetail(queryClient, user?.id ?? null, klass);
+      // 내 봇 행의 classIds도 할당 결과로 바뀐다. 이 캐시가 낡으면 방금 떼어진 기존 봇이
+      // 바꾸기 목록에서 계속 "이 반에 붙은 봇"으로 필터링돼 즉시 되돌릴 수 없다.
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClasses });
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClass(klass.id) });
     },
