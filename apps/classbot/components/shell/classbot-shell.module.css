@@ -1,0 +1,54 @@
+.shell > header + div {
+  max-width: none;
+  margin-inline: 0;
+}
+
+.railCollapsed > header + div > aside {
+  display: none;
+}
+
+.railToggle {
+  display: none;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  place-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  outline: none;
+  transition: color 160ms var(--ease-standard), background-color 160ms var(--ease-standard);
+}
+
+.railToggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+}
+
+.railToggle:focus-visible {
+  outline: 2px solid var(--color-primary-300);
+  outline-offset: 2px;
+}
+
+.tabbar {
+  /* PUDS는 768px부터 탭바를 숨기지만, 플래너 셸은 920px에서 레일과 교대한다. */
+  display: flex !important;
+}
+
+@media (min-width: 921px) {
+  .railToggle {
+    display: grid;
+  }
+
+  .tabbar {
+    display: none !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .shell > header + div > aside {
+    display: none;
+  }
+}

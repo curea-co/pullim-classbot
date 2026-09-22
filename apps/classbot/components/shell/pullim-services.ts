@@ -9,11 +9,12 @@ type SiblingApp =
   | 'admissions'
   | 'studio';
 
-export type ClassbotServiceIconName = ServiceIconName | 'junior';
+export type ClassbotServiceIconName = ServiceIconName | 'home' | 'junior' | 'arcade';
 
 export type ClassbotSwitcherService = {
   slug: string;
   name: string;
+  description: string;
   icon: ClassbotServiceIconName;
   href: string;
   active?: boolean;
@@ -115,15 +116,70 @@ export function buildClassbotSwitcherServices(
   if (!osBase || !isAllowedOsHost(osBase.hostname)) return [];
 
   return [
-    { slug: 'os', name: 'OS홈', icon: 'pullim', href: osHomeHref(osBase) },
-    { slug: 'planner', name: '플래너', icon: 'planner', href: siblingHref(osBase, 'planner', overrides, '/planner') },
-    { slug: 'q', name: '문제큐', icon: 'q', href: siblingHref(osBase, 'q', overrides) },
-    { slug: 'writing', name: '라이팅 코치', icon: 'writing', href: siblingHref(osBase, 'writing', overrides) },
-    { slug: 'junior', name: '주니어', icon: 'junior', href: siblingHref(osBase, 'jr', overrides) },
-    { slug: 'arcade', name: '아케이드', icon: 'games', href: siblingHref(osBase, 'arcade', overrides) },
-    { slug: 'exam', name: '입시코치', icon: 'exam', href: siblingHref(osBase, 'admissions', overrides) },
-    { slug: 'classbot', name: '클래스봇', icon: 'classbot', href: '/classbot', active: true },
-    { slug: 'studio', name: '스튜디오', icon: 'studio', href: siblingHref(osBase, 'studio', overrides) },
+    {
+      slug: 'os',
+      name: 'OS홈',
+      description: '풀림 서비스 한 곳에서',
+      icon: 'home',
+      href: osHomeHref(osBase),
+    },
+    {
+      slug: 'planner',
+      name: '플래너',
+      description: '내 공부, 내가 설계한다.',
+      icon: 'planner',
+      href: siblingHref(osBase, 'planner', overrides, '/planner'),
+    },
+    {
+      slug: 'q',
+      name: '문제큐',
+      description: '풀고, 틀리고, 다시 자라난다.',
+      icon: 'q',
+      href: siblingHref(osBase, 'q', overrides),
+    },
+    {
+      slug: 'writing',
+      name: '라이팅 코치',
+      description: '한 줄, 한 단락이 더 좋아진다.',
+      icon: 'writing',
+      href: siblingHref(osBase, 'writing', overrides),
+    },
+    {
+      slug: 'junior',
+      name: '주니어',
+      description: '초등, 즐겁게 시작하는 첫 학습.',
+      icon: 'junior',
+      href: siblingHref(osBase, 'jr', overrides),
+    },
+    {
+      slug: 'arcade',
+      name: '아케이드',
+      description: '무료로 즐기는 학습 아케이드.',
+      icon: 'arcade',
+      href: siblingHref(osBase, 'arcade', overrides),
+    },
+    {
+      slug: 'exam',
+      name: '입시코치',
+      description: '입시 준비를 데이터로 한다.',
+      icon: 'exam',
+      href: siblingHref(osBase, 'admissions', overrides),
+    },
+    {
+      slug: 'classbot',
+      name: '클래스봇',
+      description: '선생님의 분신을 만든다.',
+      icon: 'classbot',
+      href: '/classbot',
+      active: true,
+    },
+    {
+      slug: 'studio',
+      name: '스튜디오',
+      description: '제작은 AI가, 검증은 사람이.',
+      icon: 'studio',
+      href: siblingHref(osBase, 'studio', overrides),
+    },
   ];
 }
 
