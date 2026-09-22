@@ -29,6 +29,7 @@ import {
 } from '@tanstack/react-query';
 import { ApiError } from '@pullim-classbot/api-client';
 
+import { botKeys } from '@/hooks/api/bot-keys';
 import { classroomKeys, writeClassDetail } from '@/hooks/api/classroom';
 import { classbotRead, classbotWrite, retryUnlessClientError } from '@/lib/api/classbot-client';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -44,10 +45,7 @@ import type {
  * 쿼리 키 — 내 봇 목록 하나뿐이다. 봇 하나를 따로 캐시하지 않는다: 읽는 문이 목록뿐이라
  * 두 자리에 같은 행을 두면 한쪽만 낡는다(`useMyBot` 이 목록에서 고른다).
  */
-export const botKeys = {
-  /** 정본 — 내 봇 목록(`GET /classbot/me/bots`). 신원 id 는 호출부가 꼬리에 붙인다. */
-  myBots: ['my-bots'] as const,
-};
+export { botKeys } from '@/hooks/api/bot-keys';
 
 /**
  * 쓰기 응답 한 행을 목록 캐시에 **반영한다** — 있으면 갈아 끼우고, 없으면(새로 만든 봇) 맨 앞에(서버도 최신순).
