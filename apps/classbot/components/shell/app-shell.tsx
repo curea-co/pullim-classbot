@@ -7,7 +7,7 @@ import { DashboardShell } from "@/components/ui/dashboard-shell";
 import { OsRail } from "@/components/ui/os-rail";
 import { OsTabbar } from "@/components/ui/os-tabbar";
 import { SkipLink } from "@/components/ui/skip-link";
-import { AppBrand, AppHeaderActions } from "./app-header";
+import { AppHeaderActions, AppHeaderStart, AppServiceSwitcher } from "./app-header";
 import { Breadcrumb } from "./breadcrumb";
 import { railSectionsForRole, tabItems } from "./nav-adapter";
 import type { Role } from "./nav-config";
@@ -17,7 +17,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
 
   const sections = railSectionsForRole(role, pathname);
   const rail = (
-    <div className="flex w-max flex-col gap-2 py-3">
+    <div id="app-rail" className="flex w-max flex-col gap-2 py-3">
       {sections.map((s, i) => (
         <OsRail
           key={s.head + i}
@@ -34,12 +34,12 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
       {/* WCAG 2.4.1 — 헤더·레일을 건너뛰는 첫 포커스 대상. 포커스 전엔 sr-only. */}
       <SkipLink />
       <DashboardShell
-        brand={<AppBrand role={role} />}
+        brand={<AppHeaderStart role={role} />}
+        switcher={<AppServiceSwitcher />}
         actions={<AppHeaderActions role={role} />}
         rail={rail}
-        // 사이드바 왼쪽 고정 — 데스크톱 레일을 항상 펼침으로 핀.
-        // collapsed={false}(항상 펼침) + hideToggle(접기 토글 숨김). 둘 다 PUDS 상류 prop 이다.
-        collapsed={false}
+        // 열기/접기는 topbar 첫 자리에 둔다. PUDS 내부 버튼만 숨기고,
+        // collapsed prop 은 넘기지 않아 셸의 저장 상태(puds-rail-collapsed)를 그대로 쓴다.
         hideToggle
         tabbar={role === "student" ? <OsTabbar items={tabItems(pathname)} linkComponent={Link} /> : undefined}
         linkComponent={Link}
