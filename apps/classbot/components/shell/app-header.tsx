@@ -5,8 +5,10 @@ import { useState, useEffect } from 'react';
 import { Bell, Search, Flame, User as UserIcon, LogOut, LogIn, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
-import { ClassbotMark } from '@/components/brand/classbot-mark';
 import { Badge } from '@/components/ui/badge';
+import { useRailCollapse } from '@/components/ui/rail-collapse-context';
+import { ServiceIcon } from '@/components/ui/service-icon';
+import { ServiceSwitcher } from '@/components/ui/service-switcher';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -20,6 +22,10 @@ import { type Role } from './nav-config';
 import { MobileDrawer } from './mobile-drawer';
 import { DevRoleSwitch } from './dev-role-switch';
 import { NotificationBell } from './notification-bell';
+import {
+  classbotSwitcherServices,
+  type ClassbotServiceIconName,
+} from './pullim-services';
 
 const roleHomeHref: Record<Role, string> = {
   student: '/',
@@ -48,7 +54,87 @@ const roleProfileHref: Record<Role, string> = {
   parent: '/parent',
 };
 
-/** 브랜드 로고 클러스터 — ClassbotMark + "풀림" + 역할 라벨, 역할 홈으로 링크. */
+/** 플래너와 같은 패널 글리프를 쓰는 데스크톱 레일 토글. */
+export function RailCollapseToggle() {
+  const { collapsed, toggle } = useRailCollapse();
+  const label = collapsed ? '사이드바 펼치기' : '사이드바 접기';
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-controls="app-rail"
+      aria-expanded={!collapsed}
+      aria-label={label}
+      title={label}
+      className="text-pullim-slate-600 hover:bg-pullim-slate-100 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-pullim-blue-300 md:inline-flex"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </svg>
+    </button>
+  );
+}
+
+/** DashboardShell 의 첫 슬롯 — 열기/접기 다음에 풀림 아이덴티티를 둔다. */
+export function AppHeaderStart({ role }: { role: Role }) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 md:gap-3">
+      <RailCollapseToggle />
+      <AppBrand role={role} />
+    </div>
+  );
+}
+
+function JuniorServiceIcon({ size }: { size: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 100 100"
+      width={size}
+      height={size}
+      aria-hidden="true"
+    >
+      <rect x="4" y="4" width="92" height="92" rx="18" fill="#0362DA" />
+      <circle cx="50" cy="50" r="22" fill="#E6FF4C" />
+    </svg>
+  );
+}
+
+function ServiceGlyph({ name, size = 22 }: { name: ClassbotServiceIconName; size?: number }) {
+  if (name === 'junior') return <JuniorServiceIcon size={size} />;
+  return <ServiceIcon name={name} size={size} aria-hidden="true" />;
+}
+
+/** 사용자 확정 9개 서비스 순서의 OS 공통 전환 메뉴. */
+export function AppServiceSwitcher() {
+  const services = classbotSwitcherServices();
+  if (services.length === 0) return null;
+
+  return (
+    <ServiceSwitcher
+      current="클래스봇"
+      className="shrink-0"
+      services={services.map((service) => ({
+        name: service.name,
+        href: service.href,
+        active: service.active,
+        icon: <ServiceGlyph name={service.icon} />,
+      }))}
+    />
+  );
+}
+
+/** 브랜드 로고 클러스터 — 풀림 공통 아이콘 + "풀림" + 클래스봇, 역할 홈으로 링크. */
 export function AppBrand({ role }: { role: Role }) {
   return (
     <Link
@@ -56,17 +142,17 @@ export function AppBrand({ role }: { role: Role }) {
       aria-label="풀림 클래스봇 홈"
       className="inline-flex items-center gap-2.5 shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
     >
-      {/* 로고 글리프 — os.pullim.ai `.mast .glyph`(30×30, radius 9px, pullim-blue 타일) 동형 */}
-      <ClassbotMark size={30} />
+      {/* 플래너와 같은 풀림 OS 마스트 아이콘. 서비스 아이콘은 바로 뒤 전환 버튼이 맡는다. */}
+      <ServiceIcon name="pullim" size={30} aria-hidden="true" />
       {/* 워드마크 — `.mast .wordmark`: 800 / 18px / letter-spacing -0.04em */}
-      <span className="text-pullim-slate-900 font-extrabold text-[18px] leading-none tracking-[-0.04em]">
+      <span className="text-pullim-slate-900 hidden font-extrabold text-[18px] leading-none tracking-[-0.04em] sm:inline">
         풀림
       </span>
       {/* 서비스명 — 상류 스펙 `.mast .sub` 는 mono **11px** 이지만 여기 텍스트는
           한국어(「클래스봇」)라 계약 §1(한국어 12px 미만 금지)에 걸린다.
           대괄호 임의 크기 자체도 금지라 토큰 클래스 text-2xs(12px)로 올린다.
           divider 간격(pl 9px·ml 2px)은 스펙대로 둔다. */}
-      <span className="text-pullim-slate-500 ml-[2px] border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em]">
+      <span className="text-pullim-slate-500 ml-[2px] hidden border-l border-pullim-slate-200 pl-[9px] font-mono text-2xs leading-none tracking-[0.04em] sm:inline">
         클래스봇
       </span>
     </Link>
@@ -80,7 +166,7 @@ export function AppHeaderActions({ role }: { role: Role }) {
       {/* 기획 보류 — 자기주도 모드 보류로 학습 모드 토글(StudentModeToggle) 비노출. 재개 시 되살린다 */}
 
       {/* RIGHT — 스트릭 + 검색 + 알림 + 프로필 (5요소 한도, Layer 1 §14.1) */}
-      <div className="flex flex-1 items-center justify-end gap-1">
+      <div className="flex shrink-0 items-center justify-end gap-1">
         {/* 개발 전용 · 정식 오픈 전 제거 — 이 한 줄 + import 만 지우면 된다 (dev-role-switch.tsx 주석 참고) */}
         <DevRoleSwitch role={role} />
         {/* 스트릭은 학생 것뿐이다 — 교사에는 표시할 스트릭이 없어 자리째 빠진다. */}
@@ -92,7 +178,7 @@ export function AppHeaderActions({ role }: { role: Role }) {
              계약 §4.1 은 비활성 후퇴를 접두사 variant 로만 허용하므로
              data-disabled 를 실제로 달고 그것을 겨냥한다. */
           data-disabled=""
-          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative inline-flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300"
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 relative hidden h-11 w-11 cursor-not-allowed items-center justify-center rounded-xl data-disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-300 sm:inline-flex"
           title="준비 중"
         >
           <Search className="h-[22px] w-[22px]" />
