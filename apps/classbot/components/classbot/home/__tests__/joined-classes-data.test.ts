@@ -36,6 +36,7 @@ function room(name: string, teacherName = ''): RoomSlot {
       assignedAt: '',
       via: '',
     },
+    isSelfStudy: false,
     source: 'api',
   };
 }

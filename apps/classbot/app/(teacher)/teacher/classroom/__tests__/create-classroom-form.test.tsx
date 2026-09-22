@@ -13,7 +13,7 @@ const JOIN_CODE: JoinCodeDto = {
 };
 function classDto(over: Partial<ClassDto>): ClassDto {
   return {
-    id: 'cls_1', operatorId: 't1', orgId: null, name: '반', description: null, subject: null, grade: null, isActive: true,
+    id: 'cls_1', operatorId: 't1', orgId: null, name: '반', description: null, subject: null, grade: null, isActive: true, isSelfStudy: false,
     bot: null, joinCode: JOIN_CODE, createdAt: '', updatedAt: '', ...over,
   };
 }

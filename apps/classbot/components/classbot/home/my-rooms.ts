@@ -19,6 +19,8 @@ import { classBots, type ClassBot, type StudentEnrollment } from '@/lib/mock/cla
 export interface RoomSlot {
   bot: ClassBot;
   enrollment: StudentEnrollment;
+  /** ADR-094 자습방. 대화는 일반 반과 같은 classId 경로를 쓰되 교사 열람 고지는 숨긴다. */
+  isSelfStudy: boolean;
   /**
    * 어디서 온 방인가. 이제 **'api' 만 만들어진다** — 'local' 은 종전 데모 방의 표식이었고 더는 생기지
    * 않는다. union 을 남긴 이유는 「나가기」 분기(`app/(student)/classbot/classroom/page.tsx`)가 이 값을
@@ -45,9 +47,8 @@ function toneOf(raw: string | null | undefined): ClassBot['tone'] | undefined {
 /**
  * 서버가 준 봇 카드 한 장을 화면이 쓰는 슬롯으로 옮긴다.
  *
- * 카드 `id` 는 **반 id** 다 — 탐색 키가 아직 반이라(ADR-092 open ①) 대화·과제·멤버십이 전부 이 값으로
- * 걸린다. `bot.id` 에도 같은 값을 넣는 것은 그 때문이고, 진짜 봇 id(`card.botId`)로 갈아 끼우는 일은
- * 겹치는 자리가 여럿이라(담은 봇과의 중복 판정 · 카탈로그 조회 키) **별건**이다.
+ * 카드 `id` 는 **반 id** 다 — 대화·과제·멤버십이 이 값으로 걸린다. 기존 교사 반은 호환상
+ * `bot.id`에도 같은 값을 유지하고, ADR-094 자습방만 실제 `card.botId`와 `classId`를 분리한다.
  *
  * **서버가 명시적으로 주는 칸은 서버 값이 이긴다** — 반 이름·봇 이름·과목·학년·아바타·말투·인사·범위·
  * 라이브·인원(`profile`). 그건 봇의 성격이 아니라 이 학생이 들어간 **그 반의 사실**이라서다.
@@ -82,8 +83,10 @@ export function toSlot(card: BotCardDto): RoomSlot {
   // **봇이 아예 안 붙은 반**의 자리다(그런 반은 대화 상대가 없으니 등급을 물을 데도 없다).
   const profileScope = profile && isScopeLevel(profile.scope) ? profile.scope : undefined;
 
+  const displayBotId = card.isSelfStudy === true ? (card.botId ?? card.id) : card.id;
   const bot: ClassBot = {
-    id: card.id,
+    // 기존 반 슬롯은 호환상 카드 id를 유지하고, 자습방은 마켓 봇 id와 classId를 분리한다.
+    id: displayBotId,
     name: card.name,
     avatarEmoji: profile?.avatarEmoji ?? seeded?.avatarEmoji ?? '🤖',
     teacherName,
@@ -97,12 +100,15 @@ export function toSlot(card: BotCardDto): RoomSlot {
     isLive: profile?.isLive ?? seeded?.isLive ?? false,
     ...(seeded?.currentLesson ? { currentLesson: seeded.currentLesson } : {}),
     enrolledCount: profile?.enrolledCount ?? seeded?.enrolledCount ?? 0,
+    // ADR-094 자습방은 공식 마켓 봇으로만 만들 수 있다. 카드 계약에는 공식 여부가
+    // 따로 없으므로 자습방 표식을 정체성 표시에 전달한다.
+    ...(card.isSelfStudy === true ? { isOfficial: true } : {}),
   };
 
   return {
     bot,
     enrollment: {
-      botId: card.id,
+      botId: displayBotId,
       classroomId: card.id,
       // **`card.name` 이 아니다.** #679 뒤로 그건 봇 이름이라, 여기에 쓰면 봇 이름이 반 이름 자리
       // 넷(내 수업방 제목·나가기·과제 링크·내 정보 줄)과 홈 「참여 중인 클래스」 줄까지 덮는다.
@@ -111,11 +117,12 @@ export function toSlot(card: BotCardDto): RoomSlot {
       assignedAt: '',
       via: organization,
     },
+    isSelfStudy: card.isSelfStudy === true,
     source: 'api',
   };
 }
 
-/** `useMyRooms()` 결과 — 목록과 「아직 모른다」·「못 읽었다」를 함께 준다. */
+/** 수업방 조회 결과 — 목록과 「아직 모른다」·「못 읽었다」를 함께 준다. */
 export interface MyRoomsResult {
   rooms: RoomSlot[];
   /**
@@ -142,15 +149,32 @@ export interface MyRoomsResult {
 }
 
 /**
- * 내가 참여 중인 수업방 — 서버 행만 쓴다.
+ * 일반 수업 화면이 쓰는 참여 반. ADR-094 자습방은 교사 반이 아니므로 제외한다.
  * @returns 참여 중인 방 · 로딩 · 실패 · 재시도
  */
 export function useMyRooms(): MyRoomsResult {
+  return useRooms(false);
+}
+
+/**
+ * 대화 선택기가 쓰는 전체 방. 일반 반과 ADR-094 자습방을 모두 포함한다.
+ * 이 훅은 `mode-bots.ts`만 사용한다. 홈·수업방·과제·내 정보·학습 기록은 `useMyRooms()`를 쓴다.
+ */
+export function useMyConversationRooms(): MyRoomsResult {
+  return useRooms(true);
+}
+
+/** 같은 정본 쿼리를 소비하고 자습방 포함 여부만 가르는 내부 훅. */
+function useRooms(includeSelfStudy: boolean): MyRoomsResult {
   const { data, isPending, error, refetch } = useMyClassrooms();
 
-  // 화면의 목록 key 는 `enrollment.classroomId` 다 — bot == class 라 지금은 봇 id 와 같지만,
-  // 봇을 반에서 떼는 날(계획 §05 bots 표) 갈리는 쪽이 이 칸이다.
-  const rooms = useMemo<RoomSlot[]>(() => (data ?? []).map(toSlot), [data]);
+  const rooms = useMemo<RoomSlot[]>(
+    () =>
+      (data ?? [])
+        .filter((card) => includeSelfStudy || card.isSelfStudy !== true)
+        .map(toSlot),
+    [data, includeSelfStudy],
+  );
 
   return {
     rooms,

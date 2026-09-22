@@ -124,6 +124,8 @@ export interface BotProfileDto {
 export interface BotCardDto {
   /** 반 id(`classes.id`) — 탐색 키. 대화·과제·멤버십이 전부 이 값으로 걸린다. */
   id: string;
+  /** ADR-094: 학생 본인만 들어 있는 자습방인가. 별도 담은-봇 목록 대신 이 파생값으로 가른다. */
+  isSelfStudy?: boolean;
   /**
    * 그 반에 붙은 봇 id(`classes.bot_id`) — 미배정이면 null. **`id` 와 다른 세계의 값이다.**
    * 없으면 아래 `name` 이 반 이름 폴백이라는 뜻이기도 하다.
@@ -239,14 +241,16 @@ export interface ClassBotSummaryDto {
  */
 export interface ClassDto {
   id: string;
-  /** 운영 교사 sub. */
-  operatorId: string;
+  /** 운영 교사 sub. ADR-094 자습방은 공식 sentinel 비노출을 위해 null. */
+  operatorId: string | null;
   orgId: string | null;
   name: string;
   description: string | null;
   subject: string | null;
   grade: string | null;
   isActive: boolean;
+  /** ADR-094 자습방 여부. */
+  isSelfStudy: boolean;
   bot: ClassBotSummaryDto | null;
   joinCode: JoinCodeDto | null;
   /** ISO 8601. */
@@ -298,11 +302,7 @@ export interface BotDto {
   scope: number;
   avatarEmoji: string | null;
   quickPrompts: string[];
-  /**
-   * 마켓 공개 — 칸은 있는데 **여는 문이 없다.** pullim-api classbot 에 게시·해제 라우트가 하나도 없어
-   * (2026-09-17 `origin/dev` 전수 확인) 이 앱의 봇 마켓은 여전히 같은 오리진 `/api/teacher/bots/:id/publish` 를
-   * 쓴다(`hooks/api/marketplace.ts`). 이 칸을 읽어 마켓 상태라고 말하지 마라 — 늘 `false` 다.
-   */
+  /** 마켓 공개 상태. ADR-094에서 공식 봇은 시드로 게시되며 교사 개인 봇 게시 UI는 지원하지 않는다. */
   isPublished: boolean;
   publishedAt: string | null;
   /** `classes.bot_id == id` 인 반 id 목록. */

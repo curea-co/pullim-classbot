@@ -56,7 +56,7 @@ const BOT: BotDto = {
 };
 const CLASS_DTO: ClassDto = {
   id: 'cls_1', operatorId: 'sub-1', orgId: null, name: '고2 미적분 A반', description: null, subject: null, grade: null,
-  isActive: true, bot: null, joinCode: null, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
+  isActive: true, isSelfStudy: false, bot: null, joinCode: null, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
 };
 
 function res(status: number, body: unknown): Response {
