@@ -86,25 +86,10 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
   });
 
   /**
-   * 봇 마켓 — mock 공식 튜터 3종을 걷어내고 교사가 실제로 공유한 봇 목록으로 갈았다.
-   *
-   * ⚠ 「마켓에서 봇을 얻는 길이 없다 / 봇을 얻는 길은 참여 코드뿐」이라고 적혀 있던 자리다.
-   * **더는 사실이 아니다** — 학생은 마켓에서 봇을 **담을** 수 있고, 담은 봇은 반 봇과 한 목록에서
-   * 대화한다(계약 §5). 여기서 담기 버튼을 단언하지 않는 이유는 길이 없어서가 아니라,
-   * 배포본에서 마켓이 목록 대신 「아직 준비 중」 안내를 그리기 때문이다.
-   *
-   * 마켓 목록을 여는 신원을 **배포본에서는 세울 수 없다.** 같은 오리진 route handler 가
-   * 답하는데 그 핸들러에 OS 세션을 풀 열쇠가 없고(`lib/current-user.ts`), 개발 신원 쿠키는
-   * 로컬 호스트에서만 열린다(`lib/dev-identity.ts`). 그래서 **로그인해도 401 이고**,
-   * 그 자리에 뜨는 것은 로그인 안내가 아니라 준비 중 안내다(`marketplace-signin` —
-   * 이름은 로그인 안내이던 시절의 것이다). 로컬에서 개발용 신원 쿠키를 꽂고 돌리면 목록이나
-   * 빈 상태가 나온다. **셋 다 정상**이므로 셋 중 하나면 통과로 둔다 —
-   * 여기서 검증하는 것은 「라우트가 서고 마켓 화면이 제 상태 중 하나를 그린다」다.
-   *
-   * 제목은 `exact` 로 잡는다. 기본 부분일치로 두면 오류 카드 제목
-   * 「봇 마켓을 불러오지 못했어요」까지 걸려 strict mode 위반이 난다.
+   * 봇 마켓은 OS 쿠키를 pullim-api가 검증하는 정본 목록을 읽는다. 인증된 배포본에서
+   * same-origin 401의 「준비 중」 상태로 빠지지 않고 공식 봇 목록 또는 빈 상태가 정착해야 한다.
    */
-  test('봇 마켓 — 마켓 화면이 제 상태 중 하나를 그린다', async ({ page }) => {
+  test('봇 마켓 — 정본 목록 또는 빈 상태가 정착한다', async ({ page }) => {
     await page.goto(BASE + '/classbot/discover', { waitUntil: 'networkidle' });
 
     const main = page.getByRole('main');
@@ -112,8 +97,7 @@ test.describe('신규 사용자 빈 상태 → 참여 코드 등록 (출시 IA)'
     await expect(
       main
         .getByTestId('marketplace-list')
-        .or(main.getByTestId('marketplace-empty'))
-        .or(main.getByTestId('marketplace-signin')),
+        .or(main.getByTestId('marketplace-empty')),
     ).toBeVisible({ timeout: 10_000 });
   });
 

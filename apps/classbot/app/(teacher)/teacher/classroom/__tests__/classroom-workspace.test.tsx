@@ -39,7 +39,7 @@ const PROFILE: NonNullable<BotCardDto['profile']> = {
 
 function knownClass(id: string, bot: ClassDto['bot'], joinCode: JoinCodeDto | null = null): ClassDto {
   return {
-    id, operatorId: 't1', orgId: null, name: '반', description: null, subject: null, grade: null, isActive: true,
+    id, operatorId: 't1', orgId: null, name: '반', description: null, subject: null, grade: null, isActive: true, isSelfStudy: false,
     bot, joinCode, createdAt: '', updatedAt: '',
   };
 }

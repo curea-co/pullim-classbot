@@ -10,7 +10,7 @@
 import { renderHook } from '@testing-library/react';
 import { ApiError } from '@pullim-classbot/api-client';
 
-import { toSlot, useMyRooms } from '../my-rooms';
+import { toSlot, useMyConversationRooms, useMyRooms } from '../my-rooms';
 import type { BotCardDto } from '@/lib/api/classbot-dto';
 import { classBots } from '@/lib/mock/classbot';
 // 순수 함수 하나만 빌려 온다 — 두 이름이 갈렸을 때 **선택기 칩이 실제로 두 마디가 되는지**를
@@ -127,6 +127,15 @@ describe('toSlot — 서버 카드 → 화면 슬롯', () => {
     expect(slot.enrollment.via).toBe('');
   });
 
+  it('ADR-094 자습방은 classId와 실제 botId를 분리하고 표시를 보존한다', () => {
+    const slot = toSlot({ ...card('self-class-1', '수학 봇 자습방'), isSelfStudy: true });
+
+    expect(slot.isSelfStudy).toBe(true);
+    expect(slot.enrollment.classroomId).toBe('self-class-1');
+    expect(slot.bot.id).toBe('bot_self-class-1');
+    expect(slot.bot.isOfficial).toBe(true);
+  });
+
   it('서버가 화면 union 밖의 말투·범위를 주면 카탈로그 값으로 접는다(캐스팅 없이)', () => {
     const seeded = classBots[0];
     const slot = toSlot(
@@ -235,6 +244,35 @@ describe('useMyRooms', () => {
     expect(result.current.rooms.every((r) => r.source === 'api')).toBe(true);
     expect(result.current.isError).toBe(false);
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it('일반 수업 소비에서는 ADR-094 자습방을 제외한다', () => {
+    query = {
+      data: [
+        card('class-1', '중2 A반'),
+        { ...card('self-class-1', '수학 봇 자습방'), isSelfStudy: true },
+      ],
+      isPending: false,
+    };
+
+    const { result } = renderHook(() => useMyRooms());
+    expect(result.current.rooms.map((room) => room.enrollment.classroomId)).toEqual(['class-1']);
+  });
+
+  it('대화 전용 목록은 일반 반과 자습방을 모두 포함한다', () => {
+    query = {
+      data: [
+        card('class-1', '중2 A반'),
+        { ...card('self-class-1', '수학 봇 자습방'), isSelfStudy: true },
+      ],
+      isPending: false,
+    };
+
+    const { result } = renderHook(() => useMyConversationRooms());
+    expect(result.current.rooms.map((room) => [room.enrollment.classroomId, room.isSelfStudy])).toEqual([
+      ['class-1', false],
+      ['self-class-1', true],
+    ]);
   });
 
   it('401 은 고장이 아니다 — 로그인으로 가는 중이라 에러 카드를 띄우지 않는다', () => {

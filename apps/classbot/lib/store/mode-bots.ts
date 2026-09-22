@@ -1,23 +1,17 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-import { useMarketplaceBots } from '@/hooks/api/marketplace';
-import { selfBotKeys, useMySelfBots } from '@/hooks/api/self-bots';
-import type { MarketplaceBotItem } from '@/hooks/api/types';
-import { classBots as botCatalog, type ClassBot } from '@/lib/mock/classbot';
-import { isScopeLevel } from '@/lib/mock/tutor';
-import { useMyRooms } from '@/components/classbot/home/my-rooms';
+import type { ClassBot } from '@/lib/mock/classbot';
+import { useMyConversationRooms } from '@/components/classbot/home/my-rooms';
 
 /**
  * 이 봇이 학생에게 온 경로.
  *
  * - `class` — 선생님이 낸 참여 코드로 들어간 반의 봇. **과제가 여기서 오고**, 그 반의
  *   선생님이 학생의 학습을 본다.
- * - `self`  — 학생이 봇 마켓에서 직접 담은 봇. 대화만 있고 반 관계는 없다 —
- *   `enrollments` 행이 없으므로 과제도, 관제소 노출도, 참여 인원 집계도 따라오지 않는다
- *   (계약 §1).
+ * - `self`  — 학생이 봇 마켓에서 담아 ADR-094가 만든 자습방. classId와 멤버십이 있어
+ *   기존 SSE 대화는 쓰지만, 실제 교사 반은 아니므로 과제·교사 열람 고지는 없다.
  */
 export type StudentBotSource = 'class' | 'self';
 
@@ -41,11 +35,11 @@ export interface ClassBotSlot {
   classLabel: string;
 }
 
-/** 마켓에서 담은 봇 한 칸 — 반이 없다(`enrollments` 행 없음 · 계약 §1). 챗 레인은 닫혀 있다(`chat-lane.ts`). */
+/** ADR-094 자습방 한 칸 — 담기가 만든 반 id 로 일반 반과 같은 SSE 대화 경로를 쓴다. */
 export interface SelfBotSlot {
   source: 'self';
   bot: ClassBot;
-  classId?: undefined;
+  classId: string;
   classLabel?: undefined;
 }
 
@@ -53,16 +47,16 @@ export interface SelfBotSlot {
 export type StudentBotSlot = ClassBotSlot | SelfBotSlot;
 
 /**
- * 칸의 React key · URL 정체 — 반 칸은 반으로, 담은 칸은 봇으로.
+ * 칸의 React key · URL 정체 — 일반 반과 자습방 모두 서로 다른 classId로.
  *
  * `bot.id` 를 key 로 쓰면 같은 봇이 두 반에 걸린 학생에게서 겹친다(위 `ClassBotSlot` 주석).
- * 두 접두사를 두는 이유는 담은 봇 id 가 같은 오리진 `class_bots.id` 라 정본 반 id 와 우연히 같을 수
- * 있어서다 — 다른 세계의 id 를 한 이름공간에 두지 않는다.
+ * 두 접두사는 목록을 읽을 때 출처도 함께 드러내고, 이후 키 계약이 bot 단위로 다시 바뀌더라도
+ * 일반 반과 자습방의 React 상태가 섞이지 않게 한다.
  * @param slot - 학생 화면 한 칸
- * @returns `class:<classId>` 또는 `self:<botId>`
+ * @returns `class:<classId>` 또는 `self:<classId>`
  */
 export function studentBotSlotKey(slot: StudentBotSlot): string {
-  return slot.source === 'class' ? `class:${slot.classId}` : `self:${slot.bot.id}`;
+  return slot.source === 'class' ? `class:${slot.classId}` : `self:${slot.classId}`;
 }
 
 /**
@@ -84,126 +78,16 @@ export function classSlotLabel(slot: ClassBotSlot): string {
 }
 
 export interface StudentBotsResult {
-  /** 반 봇 먼저, 그다음 담은 봇(담은 순). */
+  /** 정본 카드 순서. 일반 반과 자습방을 `isSelfStudy`로만 분류한다. */
   slots: StudentBotSlot[];
   classCount: number;
   selfCount: number;
-  /**
-   * 아직 「봇이 없다」고 단정하면 안 되는 구간.
-   *
-   * 담은 봇은 **두 소스가 다 와야** 목록에 오른다 — 담은 기록(로컬 하이드레이션)과
-   * 그 봇의 실제 정보(마켓 조회). 하나라도 안 왔는데 빈 상태를 그리면, 담은 봇이 있는
-   * 학생에게 「아무것도 없어요」가 한 번 번쩍인다.
-   */
+  /** 정본 학생 카드 목록의 첫 조회 중. */
   isLoading: boolean;
-  /**
-   * 두 목록 중 **하나라도 못 읽었다**(5xx·네트워크). `slots` 가 비어 있어도
-   * 「봇이 없다」가 아니라 「모른다」다.
-   *
-   *  - 반 목록 — `useMyRooms().isError`.
-   *  - **담은 봇 — `useMySelfBots().isError`.** 자기주도 출처가 서버로 갈린 뒤 생긴 값이다.
-   *    localStorage 시절에는 실패할 데가 없어 항상 `false` 였고 그래서 여기 안 실려 있었는데,
-   *    그대로 두면 담아 둔 봇이 있는 학생이 5xx 한 번에 **「아직 대화할 봇이 없어요」**
-   *    를 본다 — 없어진 게 아니라 못 읽은 것이라 데이터 유실처럼 보인다.
-   *    비로그인 데모·신원 판정 대기에서는 그 훅이 `false` 를 주므로(서버를 아예 부르지
-   *    않는다) 공개 데모가 이 값으로 빨개지지 않는다.
-   *
-   * 마켓 실패는 여기 들지 않는다 — 담은 봇은 마켓이 막혀도 이름만 잃고 목록에는
-   * 남는다(`fallbackBot`).
-   */
+  /** 정본 학생 카드 목록을 못 읽은 상태. 선택적 마켓/자기주도 요청은 이 값을 바꾸지 않는다. */
   isError: boolean;
-  /** 못 읽은 목록을 다시 읽기 — 반 목록과 담은 봇 **둘 다**. */
+  /** 정본 학생 카드 목록을 다시 읽기. */
   retry: () => void;
-}
-
-/**
- * 봇 성격 기본값 — **아무도 알려주지 않는** 칸. `components/classbot/home/my-rooms.ts` 와 같은 규약.
- *
- * ⚠ 「마켓 행이 알려주지 않는 칸」이 아니다 — 마켓은 이제 `scope` 를 준다
- * (spec `03 § 4.13.4`). 여기 남은 `scope: 3` 은 **마켓 행 자체가 없는** 길만 쓴다
- * (`fallbackBot()`). `toClassBot()` 에서 다시 쓰지 마라.
- */
-const UNKNOWN_BOT_DEFAULTS = {
-  quickPrompts: [],
-  scope: 3,
-  isLive: false,
-} satisfies Partial<ClassBot>;
-
-/**
- * 마켓 한 칸을 화면이 쓰는 봇으로 옮긴다.
- *
- * 시드 봇(`cb_001`…)은 카탈로그 쪽이 빠른 질문·커리큘럼까지 갖고 있어 그 위에 덮는다.
- * 다만 **과목·학년·선생님·소속·인삿말은 마켓 값이 이긴다** — 카탈로그는 데모 고정값이고
- * 마켓 행이 지금 게시된 사실이라서다(`my-rooms.ts` 의 `toSlot` 과 같은 판단).
- *
- * ## 안전 등급(`scope`)도 마켓 쪽이다 — 가르는 선은 「봇의 지금 규칙인가」다
- *
- * 카탈로그가 이기는 칸(`quickPrompts` · `isLive` · `currentLesson`)은 **서버가 안 주는**
- * 대화용 보조값이다. `scope` 는 다르다 — 마켓 계약이 그 칸을 싣기 시작했고
- * (spec `03 § 4.13.4`), 그 값은 `class_bots` 행에 지금 적혀 있는 **그 봇의 규칙**이다.
- * 카탈로그 값은 데모 고정값이라, 둘이 어긋나면 화면이 말하는 등급과 봇이 실제로 지키는
- * 등급이 갈린다. 그래서 **마켓 값이 이긴다** — 이름·과목을 마켓에 맡긴 것과 같은 까닭이다.
- *
- * 값이 다섯 등급 밖이면 기본값(L3)으로 떨어뜨린다. 컬럼에 CHECK 가 없어 그런 값이 올 수
- * 있고, 없는 등급을 화면에 적는 것보다 「기본값」이라고 말하는 편이 낫다.
- * @param item - `GET /api/marketplace/bots` 한 칸
- * @returns 챗·웰빙이 그대로 그릴 수 있는 봇
- */
-function toClassBot(item: MarketplaceBotItem): ClassBot {
-  const seeded = botCatalog.find((b) => b.id === item.botId);
-  const character: Pick<ClassBot, 'quickPrompts' | 'isLive' | 'currentLesson'> =
-    seeded ?? UNKNOWN_BOT_DEFAULTS;
-  return {
-    ...character,
-    id: item.botId,
-    name: item.name,
-    avatarEmoji: item.avatarEmoji,
-    teacherName: item.teacherName,
-    organization: item.organization,
-    subject: item.subject,
-    grade: item.grade,
-    tone: item.tone,
-    greeting: item.greeting,
-    scope: isScopeLevel(item.scope) ? item.scope : UNKNOWN_BOT_DEFAULTS.scope,
-    enrolledCount: item.enrolledCount,
-    // 「풀림 공식 봇인가」는 마켓만 안다(소유자 유무에서 파생된다 — spec `03 § 4.13.1`).
-    // 담은 봇 카드·채팅 헤더가 사람 이름을 적지 않으려면 여기까지 값이 닿아야 한다
-    // (`§ 4.13.3`) — 그리는 쪽은 그 두 화면이다.
-    isOfficial: item.isOfficial,
-  };
-}
-
-/**
- * 마켓이 이 봇을 모를 때 — 그래도 대화는 되게 한다.
- *
- * 두 경우에 온다: ① 선생님이 공유를 내렸다 ② 마켓 조회가 401·오류로 끝났다(비로그인 데모).
- * 둘 다 **담은 사실 자체는 살아 있다.** 담은 목록(`SelfBotRow`)에는 `{ botId, addedAt }`
- * 두 칸뿐이라 이름을 알 데가 없으므로, 시드 카탈로그에 있으면 그것을 쓰고 없으면
- * 이름 자리에 **상태**를 적는다 — `my-bot-card.tsx` 가 쓰는 말과 **같은 문자열**이다.
- * 두 화면이 같은 봇을 다른 이름으로 부르면 안 된다.
- *
- * 「불러오지 못했어요」로 적지 않는 이유도 그 파일과 같다 — 실패한 게 아니라 찾을 자리에
- * 없는 것이고, 봇은 멀쩡하다.
- * @param botId - 담은 봇 id (`class_bots.id`)
- * @returns 챗·웰빙이 그대로 그릴 수 있는 봇
- */
-function fallbackBot(botId: string): ClassBot {
-  // 시드 봇(`cb_001`…)은 카탈로그가 전부 갖고 있다 — 비로그인 데모가 여기서 살아난다.
-  const seeded = botCatalog.find((b) => b.id === botId);
-  if (seeded) return seeded;
-  return {
-    ...UNKNOWN_BOT_DEFAULTS,
-    id: botId,
-    name: '지금은 마켓에 없는 봇',
-    avatarEmoji: '🤖',
-    teacherName: '',
-    organization: '',
-    subject: '',
-    grade: '',
-    tone: '친근',
-    greeting: '안녕! 무엇이 궁금해?',
-    enrolledCount: 0,
-  };
 }
 
 /**
@@ -213,120 +97,43 @@ function fallbackBot(botId: string): ClassBot {
  * 그 분기는 걷었다 — 학생 입장에서 둘은 「대화할 수 있는 봇」이라는 한 종류이고,
  * 갈라 두면 마켓에서 담은 봇이 **어느 화면에서도 열리지 않는 진열장**이 된다.
  *
- * 같은 봇이 양쪽에 다 있을 수 있다 — 먼저 담아 두고 나중에 선생님 코드로 들어간 경우다.
- * 그때는 **한 번만** 싣고 **반 관계가 이긴다**: 그 봇에서 과제가 오고 선생님이 보고 있다는
- * 사실이 「내가 담았다」보다 학생이 알아야 할 것이라서다.
- *
- * 담은 봇의 표시 정보(이름·아바타·과목)는 마켓 조회에서 온다. 그런데 **표시 정보가 없다고
- * 봇을 목록에서 빼지는 않는다** — 공유가 내려가도 이미 담아 간 학생의 봇은 계속 돈다는 것이
- * 설계고(청사진 §2), 담기와 공유는 별개다. 여기서 빼면 학생은 `/classbot/my-bots` 에서
- * 「담아 둔 봇은 그대로 남아 있어요」를 읽고도 **그 봇과 대화할 수 없는** 반쪽 상태가 된다.
- * 그래서 마켓에 없으면 `fallbackBot()` 으로 **아는 것만 채워** 싣는다
- * (`app/(student)/classbot/my-bots/my-bot-card.tsx` 와 같은 말·같은 판단).
+ * 같은 봇이 일반 반과 자습방 양쪽에 있어도 classId가 다르므로 둘 다 싣는다. 기록과 교사
+ * 열람 여부가 다른 대화방을 botId가 같다는 이유로 접으면 안 된다. 표시 정보도 카드에 함께
+ * 오므로 채팅 목록은 선택적인 마켓 조회에 의존하지 않는다.
  * @returns 봇 목록 + 종류별 개수 + 로딩 구간
  */
 export function useStudentBots(): StudentBotsResult {
-  /*
-    반 봇은 **홈과 같은 출처**(`useMyRooms`)에서 온다.
-    예전엔 `useMyClassBots()`(zustand 스토어)만 봤는데, 그 스토어는 **mock 참여만** 담는다.
-    참여 코드로 실제 반에 들어간 학생은 행이 DB 에 생기므로 스토어가 비어 있고,
-    그 결과 **홈은 「참여 중인 클래스 5곳」인데 대화는 「아직 대화할 봇이 없어요」** 가 됐다 —
-    같은 학생, 같은 순간에. 코드로 들어간 반의 봇과 말을 못 하면 들어간 의미가 없다.
-  */
   const {
     rooms: classRooms,
     isLoading: roomsLoading,
     isError: roomsError,
     retry: retryRooms,
-  } = useMyRooms();
-  const selfBots = useMySelfBots();
-  const market = useMarketplaceBots();
-
-  /*
-    담은 봇은 훅이 결과 세 칸(`data`·`isLoading`·`isError`)만 돌려주고 `refetch` 는 주지
-    않는다 — 그 시그니처는 **동결**이라(`hooks/api/self-bots.ts` 머리주석) 넓히지 않고,
-    그 파일이 바로 이 용도로 내보내는 `selfBotKeys` 로 무효화한다.
-
-    ## 왜 이 파일이 출처 전환 PR 에 같이 들어 있나
-
-    이 소비 쪽 보정은 **출처 전환과 떼어 낼 수 없다.** 두 방향 다 막혀 있다:
-     - **앞서 낼 수 없다** — `selfBotKeys` 도 「실패할 수 있는 `isError`」도 그 전환이
-       들여오는 것이라, 먼저 낸 PR 은 컴파일되지 않거나 아무 뜻이 없다.
-     - **나중에 낼 수 없다** — 그 사이에 머지된 `dev` 는 담아 둔 봇을 5xx 한 번에
-       「아직 대화할 봇이 없어요」로 그린다. 없어진 게 아니라 못 읽은 것이라, 그 창에서
-       학생 눈에는 데이터 유실이다.
-
-    계층은 그대로 하나다 — `lib/store/*` 로, 전환이 건드리는 `lib/store/self-learning.ts`
-    와 **같은 층**이고 화면 파일(`app/`·`components/`)은 여전히 0개다.
-  */
-  const queryClient = useQueryClient();
-  const retry = useCallback(() => {
-    retryRooms();
-    void queryClient.invalidateQueries({ queryKey: selfBotKeys.mine });
-  }, [retryRooms, queryClient]);
-
-  const marketById = useMemo(
-    () => new Map((market.data?.bots ?? []).map((b) => [b.botId, b])),
-    [market.data],
+  } = useMyConversationRooms();
+  const slots = useMemo<StudentBotSlot[]>(
+    () =>
+      classRooms.map((room) => {
+        const classId = room.enrollment.classroomId;
+        return room.isSelfStudy
+          ? { source: 'self' as const, bot: room.bot, classId }
+          : {
+              source: 'class' as const,
+              bot: room.bot,
+              classId,
+              classLabel: room.enrollment.classroomLabel,
+            };
+      }),
+    [classRooms],
   );
-
-  // 「아직 안 왔다」와 「와 봤더니 없더라」를 가르는 값. 앞은 기다리고, 뒤는 fallback 이다.
-  const marketPending = market.isPending;
-
-  const slots = useMemo<StudentBotSlot[]>(() => {
-    const out: StudentBotSlot[] = [];
-    // 반 봇의 id — 담은 봇이 겹치면 반 관계가 이긴다(아래).
-    const classBotIds = new Set<string>();
-
-    // **반마다 한 칸이다**(해소 3 · 계획 PR 5a). 종전에는 여기서 봇 id 로 접어 「반이 여럿이어도 대화
-    // 상대는 하나」로 만들었다 — 단위가 봇이던 시절의 규칙이다. 서버는 반 단위로 기록하고 인가하므로
-    // 같은 봇이 걸린 「중2 A반」·「중2 B반」은 **다른 대화**다. 그래서 `useMyRooms()` 가 남긴 반을 그대로
-    // 옮기고, key 는 `studentBotSlotKey`(반 id)로 잡는다 — `bot.id` 를 key 로 쓰던 자리가 겹치는 문제는
-    // 그 헬퍼로 풀었다(`tutor-showcase.tsx` · 챗 선택기).
-    for (const room of classRooms) {
-      classBotIds.add(room.bot.id);
-      out.push({
-        source: 'class',
-        bot: room.bot,
-        classId: room.enrollment.classroomId,
-        classLabel: room.enrollment.classroomLabel,
-      });
-    }
-
-    // 담은 순서대로 — 담을 때마다 기존 칸이 자리를 바꾸지 않게.
-    const added = [...(selfBots.data ?? [])].sort((a, b) => a.addedAt.localeCompare(b.addedAt));
-    const seenSelf = new Set<string>();
-    for (const row of added) {
-      if (classBotIds.has(row.botId) || seenSelf.has(row.botId)) continue; // 반 관계가 이긴다
-      const item = marketById.get(row.botId);
-      // 마켓이 아직 답하지 않은 구간에는 자리표시자를 만들지 않는다 — 그 구간은 아래
-      // `isLoading` 이 이미 들고 있어서, 여기서 채우면 진짜 이름이 오기 전에
-      // 「지금은 마켓에 없는 봇」이 한 번 번쩍인다.
-      if (!item && marketPending) continue;
-      seenSelf.add(row.botId);
-      out.push({ source: 'self', bot: item ? toClassBot(item) : fallbackBot(row.botId) });
-    }
-    return out;
-    // `classRooms` 를 그대로 deps 에 둔다. 종전엔 봇 id 만 이은 문자열 키를 썼는데(브리지가
-    // 매 렌더 새 배열을 주던 탓), 그러면 **id 는 같은데 이름·아바타·과목만 바뀐 갱신을
-    // 놓친다** — 교사가 봇 이름을 고치거나 로컬 반이 서버 반으로 갈릴 때 챗·홈에 옛
-    // 메타데이터가 남았다. 이제 `useMyClassBots` 가 결과를 memo 로 눌러 참조가 안정적이다.
-  }, [classRooms, selfBots.data, marketById, marketPending]);
 
   return {
     slots,
     classCount: slots.filter((s) => s.source === 'class').length,
     selfCount: slots.filter((s) => s.source === 'self').length,
-    // 담은 기록이 하나도 없으면 마켓 조회를 기다릴 이유가 없다 — 반 봇만으로 화면을 확정한다.
-    // 반 목록도 이제 서버에서 오므로 그 구간을 함께 기다린다 — 안 그러면 코드로 들어간
-    // 학생에게 「대화할 봇이 없어요」가 한 번 번쩍이고 나서 목록이 채워진다.
-    isLoading:
-      roomsLoading ||
-      selfBots.isLoading ||
-      ((selfBots.data?.length ?? 0) > 0 && market.isPending),
-    // 담은 봇 실패도 함께 싣는다 — 근거는 `StudentBotsResult.isError` 주석.
-    isError: roomsError || selfBots.isError,
-    retry,
+    isLoading: roomsLoading,
+    // 일반 반과 자습방은 같은 정본 카드 목록이다. 선택적인 자기주도/마켓 조회 실패가
+    // 일반 반 채팅 전체를 오류로 바꾸던 두 번째 실패 축은 없다.
+    isError: roomsError,
+    retry: retryRooms,
   };
 }
 

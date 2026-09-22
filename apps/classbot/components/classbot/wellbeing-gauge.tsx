@@ -48,7 +48,7 @@ export function WellbeingGauge({
   /*
     ⚠ 봇 인사이트를 여기서 만들지 않는다 — **`ComponentBreakdown` 안에서** 만든다.
     이 컴포넌트는 교사 리포트(`/teacher/reports/[id]`)에서도 `compact` 로 쓰이는데, 인사이트
-    합성이 `useClassBots()` 를 부르고 그 훅이 `useMyRooms()` → 정본
+    합성이 `useClassBots()` 를 부르고 그 훅이 대화용 전체 방에서 일반 반만 골라 → 정본
     `GET /classbot/bots?role=student` 를 친다. 그 문은 **학생 시점**이라 교사에게는 제 반이
     나오지 않는다. *(종전에는 같은 오리진 `GET /api/me/classrooms` 였고 교사에게 403 이었다 —
     그 라우트는 계획 PR 8 에서 걷혔다. 아래 이유는 그대로다.)*

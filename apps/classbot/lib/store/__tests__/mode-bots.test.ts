@@ -1,439 +1,102 @@
-/**
- * `useStudentBots()` — 반 봇과 담은 봇을 한 목록으로 (계약 §5).
- *
- * 예전 이 파일은 학습 모드별로 「각 모드는 자기 목록만」을 지켰다. 그 분기는 걷었다 —
- * 갈라 두면 마켓에서 담은 봇이 어느 화면에서도 열리지 않는 진열장이 된다.
- * 지금 지켜야 할 규칙은 셋이다: **둘 다 실린다 · 겹치면 한 번만 · 겹치면 반이 이긴다.**
- */
-import { createElement, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+/** ADR-094 학생 봇 목록: 학생 카드 정본 하나를 isSelfStudy로 분류한다. */
+import { renderHook } from '@testing-library/react';
 
-import { classSlotLabel, studentBotSlotKey, useClassBots, useStudentBots } from '../mode-bots';
-import type { MarketplaceBotItem } from '@/hooks/api/types';
-import type { SelfBotRow } from '@/hooks/api/self-bots';
-import type { ClassBot } from '@/lib/mock';
 import type { RoomSlot } from '@/components/classbot/home/my-rooms';
+import type { ClassBot } from '@/lib/mock';
+import { classSlotLabel, studentBotSlotKey, useClassBots, useStudentBots } from '../mode-bots';
 
-/*
-  반 봇 소스도 **훅 경계에서** 세운다.
-  종전엔 실제 스토어에 mock 코드(`MATH-2024`)로 참여시켰는데, 그건 스토어 참여만
-  담는 경로다. `useStudentBots` 가 홈과 같은 `useMyRooms()` 를 보도록 바뀐 뒤로
-  그 방식은 실제 화면이 쓰는 길을 더 이상 흉내내지 못한다 —
-  코드로 들어간 반은 DB 에 있고 스토어엔 없기 때문이다.
-*/
-let classRooms: RoomSlot[] = [];
-let roomsLoading = false;
-let roomsError = false;
-const retryRooms = jest.fn();
+let rooms: RoomSlot[] = [];
+let loading = false;
+let error = false;
+const retry = jest.fn();
 jest.mock('@/components/classbot/home/my-rooms', () => ({
-  useMyRooms: () => ({
-    rooms: classRooms,
-    isLoading: roomsLoading,
-    isError: roomsError,
-    retry: retryRooms,
-  }),
+  useMyConversationRooms: () => ({ rooms, isLoading: loading, isError: error, retry }),
 }));
 
-/**
- * 반 봇 한 칸 — 화면이 읽는 필드만 채운다.
- * 반 id·이름은 기본으로 봇과 같다(bot == class). 같은 봇이 걸린 두 반을 세울 때만 따로 준다.
- */
-const classRoom = (botId: string, name: string, classId = botId, classLabel = name): RoomSlot => ({
-  bot: {
-    id: botId, name, avatarEmoji: '🧑‍🏫', teacherName: '김수학 선생님',
-    organization: '대치프리미엄 수학학원', subject: '수학Ⅱ', grade: '고2',
-    tone: '친근' as const, greeting: '안녕!', quickPrompts: [], scope: 3 as const,
-    isLive: false, enrolledCount: 1,
-  } as unknown as ClassBot,
-  enrollment: {
-    botId, classroomId: classId, classroomLabel: classLabel,
-    assignedBy: '선생님', assignedAt: '', via: '',
-  },
-  source: 'api',
-});
-
-// 담은 봇 소스는 훅 계약(계약 §3)만 알면 된다 — 저장소 내부는 이 테스트의 관심사가 아니다.
-let selfRows: SelfBotRow[] = [];
-let selfLoading = false;
-let selfError = false;
-jest.mock('@/hooks/api/self-bots', () => ({
-  // 무효화 키는 실제 모듈과 **같은 값**이어야 한다 — `retry` 가 이 키로 다시 읽는다.
-  selfBotKeys: { mine: ['self-bots'] as const },
-  useMySelfBots: () => ({
-    data: selfLoading || selfError ? undefined : selfRows,
-    isLoading: selfLoading,
-    isError: selfError,
-  }),
-}));
-
-// 마켓 조회도 훅 경계에서 세운다 — 여기서 검증할 것은 react-query 배선이 아니라 **합치는 규칙**이다.
-let marketBots: MarketplaceBotItem[] = [];
-let marketPending = false;
-jest.mock('@/hooks/api/marketplace', () => ({
-  useMarketplaceBots: () => ({
-    data: marketPending ? undefined : { bots: marketBots },
-    isPending: marketPending,
-  }),
-}));
-
-/**
- * cb_001 = 데모 코드 MATH-2024 가 데려오는 봇. 마켓에도 같은 봇이 걸려 있을 수 있다.
- * @param botId - 마켓 봇 id
- * @param name - 마켓이 적어 보내는 이름
- * @param scope - 안전 등급. 기본 4 — 카탈로그의 `cb_001`(L3)·기본값(L3)과 **다른 값**이라
- *   「마켓 값이 이긴다」를 재는 자리에서 어느 쪽이 나왔는지 갈린다
- */
-const marketBot = (botId: string, name: string, scope = 4): MarketplaceBotItem => ({
-  botId,
-  name,
-  avatarEmoji: '🤖',
-  subject: '수학',
-  grade: '중2',
-  tone: '친근',
-  greeting: '안녕!',
-  scope,
-  blurb: null,
-  teacherName: '박마켓 선생님',
-  organization: '풀림 마켓',
-  publishedAt: '2026-09-01T00:00:00.000Z',
-  enrolledCount: 3,
-  isOfficial: false, // 교사가 공유한 봇. 공식 봇은 소유자가 없는 쪽이다
-});
-
-/**
- * 테스트 하나가 쓰는 QueryClient.
- *
- * `useStudentBots()` 는 `useQueryClient()` 로 담은 봇 쿼리를 다시 읽으므로 provider 가
- * 있어야 한다(종전엔 세 소스를 다 mock 해서 없이도 돌았다).
- */
-let queryClient: QueryClient;
-function Wrapper({ children }: { children: ReactNode }) {
-  return createElement(QueryClientProvider, { client: queryClient }, children);
+function room(
+  botId: string,
+  classId: string,
+  isSelfStudy: boolean,
+  classLabel = '중2 A반',
+): RoomSlot {
+  return {
+    bot: {
+      id: botId,
+      name: `${botId} 봇`,
+      avatarEmoji: '🤖',
+      teacherName: '',
+      organization: '',
+      subject: '수학',
+      grade: '중2',
+      tone: '친근',
+      greeting: '안녕',
+      quickPrompts: [],
+      scope: 3,
+      isLive: false,
+      enrolledCount: 1,
+    } as ClassBot,
+    enrollment: {
+      botId,
+      classroomId: classId,
+      classroomLabel: classLabel,
+      assignedBy: '선생님',
+      assignedAt: '',
+      via: '',
+    },
+    isSelfStudy,
+    source: 'api',
+  };
 }
 
 beforeEach(() => {
-  selfRows = [];
-  selfLoading = false;
-  selfError = false;
-  marketBots = [];
-  marketPending = false;
-  classRooms = [];
-  roomsLoading = false;
-  roomsError = false;
-  retryRooms.mockClear();
-  queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
+  rooms = [];
+  loading = false;
+  error = false;
+  retry.mockClear();
 });
 
-const render = () => renderHook(() => useStudentBots(), { wrapper: Wrapper });
+it('일반 반과 자습방을 같은 카드 목록에서 순서대로 분류한다', () => {
+  rooms = [room('bot-a', 'class-a', false), room('bot-self', 'self-class', true)];
+  const { result } = renderHook(() => useStudentBots());
 
-it('반 봇만 있으면 반 봇만 — 담은 봇 소스가 비어도 목록이 선다', async () => {
-  classRooms = [classRoom('cb_001', '수학봇')];
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots.map((s) => [s.bot.id, s.source])).toEqual([['cb_001', 'class']]);
-});
-
-it('담은 봇만 있으면 담은 봇만 — 반이 없어도 대화할 봇이 생긴다', async () => {
-  marketBots = [marketBot('cb_009', '마켓 수학봇')];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(1));
-  expect(result.current.slots[0].source).toBe('self');
-  expect(result.current.slots[0].bot.name).toBe('마켓 수학봇');
-  expect(result.current).toMatchObject({ classCount: 0, selfCount: 1 });
-});
-
-it('둘 다 있으면 둘 다 — 반 봇이 먼저 실린다', async () => {
-  marketBots = [marketBot('cb_009', '마켓 수학봇')];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  classRooms = [classRoom('cb_001', '수학봇')];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(2));
-  expect(result.current.slots.map((s) => [s.bot.id, s.source])).toEqual([
-    ['cb_001', 'class'],
-    ['cb_009', 'self'],
+  expect(result.current.slots).toEqual([
+    expect.objectContaining({ source: 'class', classId: 'class-a' }),
+    expect.objectContaining({ source: 'self', classId: 'self-class' }),
   ]);
+  expect(result.current).toMatchObject({ classCount: 1, selfCount: 1 });
 });
 
-/*
-  웰빙 3면(체크인 반응 · 게이지의 봇 한 마디 · 웰빙 카드)은 **반 봇만** 읽어야 한다.
-  웰빙 코멘트는 「선생님 반의 봇이 학생의 컨디션에 건네는 말」이고 그 반의 교사가 학습을
-  본다는 전제 위에 선다 — 담기는 반 참여가 아니어서 그 관계가 없다(계약 §1).
-  종전 `useModeBots()` 가 둘을 합쳐 돌려주면서, 반 없이 봇만 담은 학생에게도 그 봇의 웰빙
-  코멘트가 떴다.
-*/
-it('useClassBots 는 담은 봇을 섞지 않는다 — 웰빙은 반 봇만 읽는다', () => {
-  marketBots = [marketBot('cb_009', '마켓 영어봇')];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  classRooms = [classRoom('cb_001', '수학봇')];
-
-  const both = renderHook(() => useStudentBots(), { wrapper: Wrapper });
-  expect(both.result.current.slots.map((s) => s.bot.id)).toEqual(['cb_001', 'cb_009']);
-
-  const classOnly = renderHook(() => useClassBots(), { wrapper: Wrapper });
-  expect(classOnly.result.current.map((b) => b.id)).toEqual(['cb_001']);
+it('자습방 key도 botId가 아닌 classId를 쓴다', () => {
+  const slot = { source: 'self' as const, bot: room('bot-self', 'self-class', true).bot, classId: 'self-class' };
+  expect(studentBotSlotKey(slot)).toBe('self:self-class');
 });
 
-it('반이 없고 담은 봇만 있으면 useClassBots 는 빈 목록이다', () => {
-  marketBots = [marketBot('cb_009', '마켓 영어봇')];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  classRooms = [];
+it('선택적인 별도 self/market 조회가 없어 일반 반은 그대로 열린다', () => {
+  rooms = [room('bot-a', 'class-a', false)];
+  const { result } = renderHook(() => useStudentBots());
 
-  const { result } = renderHook(() => useClassBots(), { wrapper: Wrapper });
-  expect(result.current).toEqual([]);
-});
-
-// 교사가 봇 이름·아바타를 고치면 그 갱신이 챗·홈까지 와야 한다.
-// 종전 memo 키는 **봇 id 만** 이은 문자열이라, id 가 같으면 이름이 바뀐 응답을 흘려보냈다.
-it('봇 id 가 같아도 이름·아바타가 바뀌면 목록이 따라온다', () => {
-  classRooms = [classRoom('cb_001', '수학봇')];
-  const { result, rerender } = render();
-  expect(result.current.slots[0].bot.name).toBe('수학봇');
-
-  const renamed = classRoom('cb_001', '미적분봇');
-  renamed.bot = { ...renamed.bot, avatarEmoji: '📐' } as typeof renamed.bot;
-  classRooms = [renamed];
-  rerender();
-
-  expect(result.current.slots[0].bot.name).toBe('미적분봇');
-  expect(result.current.slots[0].bot.avatarEmoji).toBe('📐');
-});
-
-/*
-  한 선생님이 「중2 A반」·「중2 B반」에 같은 봇을 걸어 둔 학생 — 반은 둘, 봇은 하나다.
-  종전에는 여기서 봇 id 로 접어 「대화 상대는 하나」로 만들었다. **뒤집혔다**(완성 설계 § 6.2 · 해소 3 ·
-  계획 PR 5a): 서버가 반 단위로 기록·인가하므로 두 반은 다른 대화다. 칸은 둘, key 는 반 id 다.
-*/
-it('같은 봇으로 반이 둘이면 칸도 둘 — 단위는 반이고 key 는 반 id 다', () => {
-  marketBots = [];
-  selfRows = [];
-  classRooms = [
-    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
-    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
-  ];
-  const { result } = render();
-  expect(result.current.slots).toHaveLength(2);
-  expect(result.current.classCount).toBe(2);
-  expect(result.current.slots.map((s) => (s.source === 'class' ? s.classId : null))).toEqual(['cls_a', 'cls_b']);
-  // React key · URL 정체는 봇이 아니라 반이다 — 둘이 겹치지 않는다.
-  const keys = result.current.slots.map(studentBotSlotKey);
-  expect(keys).toEqual(['class:cls_a', 'class:cls_b']);
-  expect(new Set(keys).size).toBe(keys.length);
-});
-
-// 웰빙 3면이 읽는 `useClassBots` 는 여전히 **봇** 단위다 — 반이 둘이어도 같은 봇이 두 번 말하지 않는다.
-it('useClassBots 는 같은 봇을 한 번만 돌려준다 — 반이 둘이어도', () => {
-  classRooms = [
-    classRoom('cb_001', '수학봇', 'cls_a', '중2 A반'),
-    classRoom('cb_001', '수학봇', 'cls_b', '중2 B반'),
-    classRoom('cb_002', '영어봇'),
-  ];
-  const { result } = renderHook(() => useClassBots(), { wrapper: Wrapper });
-  expect(result.current.map((b) => b.id)).toEqual(['cb_001', 'cb_002']);
-});
-
-// 선택기 라벨 「<반 이름> · <봇 이름>」 — 지금은 bot == class 라 두 이름이 같아 한 번만 적는다.
-it('classSlotLabel — 반 이름과 봇 이름이 같으면 한 번, 다르면 「반 · 봇」', () => {
-  classRooms = [
-    classRoom('cls_1', '고2 미적분 A반'),
-    classRoom('cb_001', '수학봇', 'cls_2', '중2 A반'),
-  ];
-  const { result } = render();
-  const labels = result.current.slots.map((s) => (s.source === 'class' ? classSlotLabel(s) : null));
-  expect(labels).toEqual(['고2 미적분 A반', '중2 A반 · 수학봇']);
-  // 담은 봇의 key 는 봇으로 — 반 id 와 다른 이름공간이다.
-  expect(studentBotSlotKey({ source: 'self', bot: classRoom('cb_009', 'x').bot })).toBe('self:cb_009');
-});
-
-// 먼저 담아 두고 나중에 선생님 코드로 들어간 학생 — 한 봇이 양쪽에 다 있다.
-it('겹치면 한 번만 싣고 반 관계가 이긴다', async () => {
-  marketBots = [marketBot('cb_001', '마켓에 걸린 수학봇')];
-  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
-  classRooms = [classRoom('cb_001', '수학봇')];
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots).toHaveLength(1);
-  expect(result.current.slots[0].source).toBe('class');
-  // 반 쪽 봇이 실렸다 — 마켓 행의 이름이 아니라 카탈로그 이름이다.
-  expect(result.current.slots[0].bot.name).toBe('수학봇');
-});
-
-/*
-  이 자리에 있던 「게시가 내려간 봇은 목록에서 빠진다」는 **뒤집혔다.**
-  빼면 학생이 `my-bots` 에서 「담아 둔 봇은 그대로 남아 있어요」를 읽고도 그 봇과
-  대화할 수 없는 반쪽 상태가 된다 — 아래 「공유가 내려간 봇」 묶음이 새 규칙이다.
-*/
-it('게시가 내려가도 담은 기록 자체는 건드리지 않는다', async () => {
-  marketBots = []; // 마켓에 없다
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  // 담은 기록은 저장소의 것이고 마켓 조회가 지우지 않는다 — 그래서 칸이 남는다.
-  expect(result.current.slots.map((x) => x.bot.id)).toEqual(['cb_009']);
-  expect(result.current.selfCount).toBe(1);
-});
-
-it('담은 기록이 있는데 마켓이 아직 안 왔으면 로딩 — 빈 목록으로 단정하지 않는다', () => {
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  marketPending = true;
-  const { result } = render();
-  expect(result.current.isLoading).toBe(true);
-});
-
-it('담은 봇 소스가 하이드레이션 전이면 로딩', () => {
-  selfLoading = true;
-  const { result } = render();
-  expect(result.current.isLoading).toBe(true);
-});
-
-it('담은 기록이 없으면 마켓을 기다리지 않는다 — 반 봇만으로 화면을 확정한다', () => {
-  marketPending = true; // 마켓은 아직 안 왔지만
-  classRooms = [classRoom('cb_001', '수학봇')];
-  const { result } = render();
-  expect(result.current.isLoading).toBe(false);
-  expect(result.current.slots).toHaveLength(1);
-});
-
-/*
-  ── 공유가 내려간 봇 ────────────────────────────────────────
-  담기와 공유는 별개다. 선생님이 마켓에서 내려도 이미 담아 간 학생의 봇은 계속 돈다
-  (청사진 §2). `my-bots` 화면이 학생에게 그렇게 약속하고 있으므로
-  (「담아 둔 봇은 그대로 남아 있어요」), 대화 목록에서 빠지면 그 약속이 거짓이 된다.
-*/
-it('공유가 내려가도 담은 봇은 목록에 남는다 — 시드 봇이면 이름까지 지킨다', async () => {
-  marketBots = []; // 마켓 조회는 끝났고(pending=false) 그 봇이 없다 = 공유가 내려갔다
-  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots).toHaveLength(1);
-  expect(result.current.slots[0].source).toBe('self');
-  // 시드 카탈로그가 이름을 갖고 있으므로 「알 수 없는 봇」으로 떨어지지 않는다.
-  expect(result.current.slots[0].bot.id).toBe('cb_001');
-  expect(result.current.slots[0].bot.name).not.toBe('지금은 마켓에 없는 봇');
-});
-
-it('카탈로그에도 없는 봇이면 이름 자리에 상태를 적고, 그래도 대화는 열어 둔다', async () => {
-  marketBots = [];
-  selfRows = [{ botId: 'bot_teacher_made_42', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots).toHaveLength(1);
-  // `my-bot-card.tsx` 와 **같은 문자열** — 두 화면이 같은 봇을 다르게 부르면 안 된다.
-  expect(result.current.slots[0].bot.name).toBe('지금은 마켓에 없는 봇');
-  expect(result.current.slots[0].bot.id).toBe('bot_teacher_made_42');
-});
-
-it('마켓이 아직 안 온 구간에는 자리표시자를 만들지 않는다 — 진짜 이름이 오기 전에 번쩍이지 않게', () => {
-  marketPending = true;
-  selfRows = [{ botId: 'bot_teacher_made_42', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  expect(result.current.isLoading).toBe(true);
-  expect(result.current.slots).toHaveLength(0);
-});
-
-/* ── 마켓이 주는 칸은 마켓이 이긴다 ────────────────────────────────────────
- * 담은 봇의 **안전 등급**은 오래 화면의 추측이었다. 계약에 `scope` 가 없어서 카탈로그에
- * 없는 봇(= 풀림 공식 봇)이 기본값 L3 를 뒤집어썼고, 시드가 L4 로 넣은 봇이 학생 화면에는
- * L3 로 떠 있었다(spec `03 § 4.13.4`). 계약이 그 칸을 실은 뒤로 규칙은 하나다 —
- * **마켓이 준 칸은 마켓이 이기고, 마켓이 안 주는 칸만 카탈로그가 채운다.**
- * ------------------------------------------------------------------------ */
-
-it('담은 봇의 안전 등급은 마켓 값이다 — 카탈로그에 없어도 기본값으로 떨어지지 않는다', async () => {
-  marketBots = [marketBot('cb_official_math', '수학 마스터', 4)];
-  selfRows = [{ botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(1));
-  expect(result.current.slots[0].bot.scope).toBe(4);
-});
-
-it('카탈로그에 있는 봇도 마켓 등급이 이긴다 — 데모 고정값이 지금 규칙을 덮지 않게', async () => {
-  // 카탈로그의 `cb_001` 은 L3 다. 교사가 등급을 올려 뒀다면 화면도 그 값이어야 한다.
-  marketBots = [marketBot('cb_001', '마켓에 걸린 수학봇', 5)];
-  selfRows = [{ botId: 'cb_001', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(1));
-  expect(result.current.slots[0].bot.scope).toBe(5);
-  // 빠른 질문은 여전히 카탈로그 것이다 — 마켓이 **안 주는** 칸이라 규칙이 갈린다.
-  expect(result.current.slots[0].bot.quickPrompts.length).toBeGreaterThan(0);
-});
-
-it('다섯 등급 밖이면 기본값 L3 — 없는 등급을 화면에 적지 않는다', async () => {
-  // 컬럼이 CHECK 없는 `integer` 라 이런 값이 올 수 있다(`class_bots.scope`).
-  marketBots = [marketBot('cb_009', '망가진 등급의 봇', 9)];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(1));
-  expect(result.current.slots[0].bot.scope).toBe(3);
-});
-
-// 그리는 쪽(담은 봇 카드 · 채팅 헤더)은 뒤따르는 PR 이다(spec `03 § 4.13.3`).
-// 여기서 잠그는 것은 **값이 거기까지 닿는가** 하나다.
-it('공식 봇 표시가 그대로 넘어간다', async () => {
-  marketBots = [
-    { ...marketBot('cb_official_math', '수학 마스터'), isOfficial: true },
-    marketBot('cb_009', '선생님이 올린 봇'),
-  ];
-  selfRows = [
-    { botId: 'cb_official_math', addedAt: '2026-09-01T09:00:00.000Z' },
-    { botId: 'cb_009', addedAt: '2026-09-01T10:00:00.000Z' },
-  ];
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(2));
-  expect(result.current.slots.map((s) => s.bot.isOfficial)).toEqual([true, false]);
-});
-
-/* ── 못 읽은 것을 「없다」로 그리지 않는다 ──────────────────────────────────
- * 담은 봇의 출처가 서버로 갈리면서 `useMySelfBots().isError` 에 처음으로 진짜 값이
- * 들어왔다. localStorage 시절엔 실패할 데가 없어 항상 false 였고, 그래서 이 훅이 그 값을
- * 안 보고 있었다 — 그대로 두면 5xx 한 번에 담아 둔 봇이 통째로 사라진 것처럼 보인다.
- * ------------------------------------------------------------------------ */
-
-it('담은 봇을 못 읽으면 「봇이 없다」가 아니라 isError 다 — 반 봇이 멀쩡해도', async () => {
-  classRooms = [classRoom('cb_001', '수학봇')];
-  selfError = true;
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  // 반 봇은 그대로 실린다 — 못 읽은 것은 담은 봇 쪽이다.
-  expect(result.current.slots.map((s) => s.bot.id)).toEqual(['cb_001']);
-  // 그리고 화면이 「이게 전부」라고 단정하지 않도록 오류를 싣는다.
-  expect(result.current.isError).toBe(true);
-});
-
-it('반도 담은 봇도 못 읽으면 빈 목록 + isError — 데이터 유실처럼 보이지 않게', async () => {
-  roomsError = true;
-  selfError = true;
-  const { result } = render();
-  await waitFor(() => expect(result.current.isLoading).toBe(false));
-  expect(result.current.slots).toHaveLength(0);
-  expect(result.current.isError).toBe(true);
-});
-
-it('retry 는 반 목록과 담은 봇을 **둘 다** 다시 읽는다', async () => {
-  roomsError = true;
-  selfError = true;
-  const invalidate = jest.spyOn(
-    // 같은 client 인스턴스를 봐야 호출이 잡힌다.
-    queryClient,
-    'invalidateQueries',
-  );
-  const { result } = render();
-  await waitFor(() => expect(result.current.isError).toBe(true));
-
-  result.current.retry();
-
-  expect(retryRooms).toHaveBeenCalledTimes(1);
-  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['self-bots'] });
-});
-
-it('비로그인 데모는 이 값으로 빨개지지 않는다 — 서버를 아예 부르지 않아 isError 가 false 다', async () => {
-  // 훅이 데모에서 주는 모양: 로컬 목록 + isError false.
-  marketBots = [marketBot('cb_009', '마켓 수학봇')];
-  selfRows = [{ botId: 'cb_009', addedAt: '2026-09-01T09:00:00.000Z' }];
-  selfError = false;
-  const { result } = render();
-  await waitFor(() => expect(result.current.slots).toHaveLength(1));
   expect(result.current.isError).toBe(false);
+  expect(result.current.slots).toHaveLength(1);
+});
+
+it('정본 학생 카드 조회의 로딩/오류/재시도를 그대로 전달한다', () => {
+  loading = true;
+  error = true;
+  const { result } = renderHook(() => useStudentBots());
+  expect(result.current).toMatchObject({ isLoading: true, isError: true });
+  result.current.retry();
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it('웰빙 봇은 자습방을 제외한다', () => {
+  rooms = [room('bot-a', 'class-a', false), room('bot-self', 'self-class', true)];
+  const { result } = renderHook(() => useClassBots());
+  expect(result.current.map((bot) => bot.id)).toEqual(['bot-a']);
+});
+
+it('일반 반 표시 이름은 반과 봇이 다르면 둘 다 보여 준다', () => {
+  rooms = [room('수학봇', 'class-a', false, '중2 A반')];
+  const { result } = renderHook(() => useStudentBots());
+  const slot = result.current.slots[0];
+  expect(slot.source === 'class' ? classSlotLabel(slot) : null).toBe('중2 A반 · 수학봇 봇');
 });

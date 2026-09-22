@@ -12,6 +12,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { ApiError } from '@pullim-classbot/api-client';
 import type { BotDto, ClassDto } from '@/lib/api/classbot-dto';
+import type { MarketplaceBotItem } from '@/hooks/api/types';
 import { BotAttachError } from '@/hooks/api/bot';
 import { botFailureMessage } from '@/lib/bot-failure-message';
 import { ClassBotTab } from '../class-bot-tab';
@@ -23,7 +24,23 @@ const BOT: BotDto = {
 };
 const CLASS_BASE: ClassDto = {
   id: 'cls_1', operatorId: 't1', orgId: null, name: '고2 국어 A반', description: null, subject: null, grade: null,
-  isActive: true, bot: null, joinCode: null, createdAt: '', updatedAt: '',
+  isActive: true, isSelfStudy: false, bot: null, joinCode: null, createdAt: '', updatedAt: '',
+};
+const OFFICIAL: MarketplaceBotItem = {
+  botId: 'official_math',
+  name: '풀림 수학 코치',
+  avatarEmoji: '➗',
+  subject: '수학',
+  grade: '중등',
+  tone: '차분',
+  greeting: '수학을 같이 풀어 보자.',
+  scope: 3,
+  blurb: '공식 수학 봇',
+  teacherName: '풀림',
+  organization: '풀림',
+  publishedAt: '2026-09-22T00:00:00.000Z',
+  enrolledCount: 0,
+  isOfficial: true,
 };
 
 let known: ClassDto | undefined;
@@ -32,6 +49,9 @@ let knownBot: BotDto | undefined;
 let myBots: BotDto[] | undefined;
 let myBotsPending: boolean;
 let myBotsError: unknown;
+let marketplaceBots: MarketplaceBotItem[];
+let marketplacePending: boolean;
+let marketplaceError: unknown;
 /**
  * `useOperatorClasses` — 고르개가 `classIds` 를 반 이름으로 옮길 때 쓴다.
  *
@@ -74,6 +94,14 @@ jest.mock('@/hooks/api/bot', () => ({
   useCreateBotForClass: () => ({ mutate: createMutate, isPending: false, isError: createError !== null, error: createError }),
   useUpdateBot: () => ({ mutate: updateMutate, isPending: false, isError: updateError !== null, error: updateError }),
 }));
+jest.mock('@/hooks/api/marketplace', () => ({
+  useMarketplaceBots: () => ({
+    data: { bots: marketplaceBots },
+    isPending: marketplacePending,
+    isError: marketplaceError !== null,
+    error: marketplaceError,
+  }),
+}));
 
 const toastSuccess = jest.fn();
 const toastError = jest.fn();
@@ -92,6 +120,9 @@ beforeEach(() => {
   myBots = [];
   myBotsPending = false;
   myBotsError = null;
+  marketplaceBots = [];
+  marketplacePending = false;
+  marketplaceError = null;
   operatorClasses = [];
   createError = null;
   updateError = null;
@@ -148,6 +179,20 @@ describe('지금 붙은 봇 — 셋으로 가른다', () => {
     expect(facts).toHaveTextContent('말투 · 친근');
     expect(facts).toHaveTextContent('L4 · 교육 범위');
     expect(screen.getByTestId('class-bot-greeting')).toHaveTextContent('안녕! 오늘은 뭘 볼까?');
+  });
+
+  it('붙은 봇이 공식 봇이면 상세를 보여 주되 교사 소유 봇처럼 고치게 하지 않는다', () => {
+    known = {
+      ...CLASS_BASE,
+      bot: { id: OFFICIAL.botId, name: OFFICIAL.name, avatarEmoji: OFFICIAL.avatarEmoji },
+    };
+    marketplaceBots = [OFFICIAL];
+    tab();
+
+    expect(screen.getByTestId('class-bot-facts')).toHaveTextContent('수학');
+    expect(screen.getByTestId('class-bot-greeting')).toHaveTextContent('수학을 같이 풀어 보자.');
+    expect(screen.queryByTestId('class-bot-edit-toggle')).toBeNull();
+    expect(screen.getByTestId('class-bot-detach')).toBeInTheDocument();
   });
 });
 
@@ -232,6 +277,20 @@ describe('다른 봇으로 바꾸기 — GET /me/bots 에서 고른다', () => {
     expect(assignMutate.mock.calls[0][0]).toEqual({ classId: 'cls_1', botId: 'bot_2' });
     expect(toastSuccess).toHaveBeenCalled();
     expect(screen.queryByTestId('class-bot-swap-form')).toBeNull();
+  });
+
+  it('풀림 공식 봇도 같은 고르개에서 반에 붙일 수 있다', () => {
+    marketplaceBots = [OFFICIAL];
+    openSwap();
+
+    const row = screen.getByTestId('class-bot-swap-official_math');
+    expect(row).toHaveTextContent('풀림 공식');
+    expect(row).toHaveTextContent('수학');
+    fireEvent.click(screen.getByTestId('class-bot-swap-pick-official_math'));
+
+    expect(assignMutate).toHaveBeenCalledTimes(1);
+    expect(assignMutate.mock.calls[0][0]).toEqual({ classId: 'cls_1', botId: 'official_math' });
+    expect(toastSuccess).toHaveBeenCalled();
   });
 
   it('붙이기가 실패하면 고르개는 열린 채로 남고 까닭을 토스트로 말한다', () => {

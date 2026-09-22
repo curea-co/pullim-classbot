@@ -20,27 +20,12 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketplaceBot } from '@/hooks/api/marketplace';
-import { ApiClientError } from '@/lib/api/client-fetch';
+import { isNotFound } from '@/lib/api/classbot-client';
 import { cn } from '@/lib/utils';
 import { formatPublishedAt } from './format';
 import { SelfAddButton } from './self-add-button';
 
-/**
- * 봇 상세 — 「이 봇이 누구인가」에 답하고, 학생이면 **담는다.**
- *
- * 마지막 칸이 안내에서 버튼으로 바뀌었다. 예전에는 「여기서는 담을 수 없어요, 선생님께
- * 참여 코드를 받으세요」라고 적혀 있었는데 지금은 담을 수 있다.
- *
- * 담기와 참여 코드는 **다른 것**이지 크고 작은 것이 아니다:
- *  - **담기** — 봇을 얻는다. 「내가 담은 봇」에 들어가고 1:1 로 쓴다. 누구나, 바로.
- *  - **참여 코드** — 선생님의 **반**을 얻는다. 과제를 받고 명단에 오른다. 선생님이 줄 때만.
- * 그래서 이 화면은 담기를 앞에 두되 참여 코드를 지우지 않고, 코드를 담기의 조건으로도
- * 적지 않는다. 「코드로만」·「코드뿐」은 예전에도 지금도 거짓이다.
- *
- * 학생 셸과 교사 셸이 같은 본문을 쓰고, 갈리는 것은 세로 간격(`className`)과 마지막
- * 칸(`viewer`)이다 — 교사는 담지 않는다. 대신 학생이 자기 봇을 담으면 무슨 일이
- * 벌어지는지(그리고 **벌어지지 않는지**) 그 자리에서 읽는다.
- */
+/** 마켓 봇 상세 — 학생은 담고, 교사는 반에 활용하는 길을 본다. */
 export function MarketplaceBotDetail({
   botId,
   backHref,
@@ -51,35 +36,16 @@ export function MarketplaceBotDetail({
   botId: string;
   backHref: string;
   backLabel: string;
-  /** 안내 문구와 「내 수업방」 링크가 갈린다 — 교사를 학생 셸로 보내지 않는다. */
   viewer: 'student' | 'teacher';
-  /** 셸별 세로 눈금. 교사 화면은 `space-y-7`. */
   className?: string;
 }) {
   const query = useMarketplaceBot(botId);
   const bot = query.data?.bot ?? null;
-  // 목록과 같은 이유로 401 만 따로 뗀다 — 고장이 아니라 아직 열리지 않은 문이다.
-  // **로그인해도 401 이 온다**는 사실과 그 근거는 `marketplace-bot-list.tsx` 의 같은 자리에 있다.
-  const isSignedOut = query.error instanceof ApiClientError && query.error.status === 401;
-  /*
-    404 도 고장이 아니다 — 이 라우트의 404 는 「없는 주소」가 아니라 **「지금은 공개돼 있지
-    않은 봇」이라는 정상 응답**이다(마켓 계약: 공유가 내려갔거나 아직 안 걸린 봇).
-    빨간 장애 카드로 그리면 흔한 상태를 서비스 고장으로 오인하게 만든다. 그리고 그 오인은
-    이 화면 자신의 문구와도 어긋난다 — 제목 밑 설명이 이미 「지금은 이 봇을 볼 수 없어요」로
-    **비가용**을 전제하고 있다. 서버 원문을 그대로 노출하지 않는 이유도 같다.
-  */
-  const isUnavailable = query.error instanceof ApiClientError && query.error.status === 404;
-  /*
-    비가용 안내도 보는 사람에 따라 갈린다 — 아래 본문이 `viewer` 로 갈리는 것과 같은 이유다.
-    **교사는 담지 않는다**(머리주석). 그런데 「이미 담아 둔 봇이라면 그대로 쓸 수 있어요」는
-    담은 학생에게만 참인 말이라, 교사 셸에서 그대로 띄우면 하지도 않은 일을 한 것처럼 읽힌다.
-    교사에게는 대신 이 상태에서 **되돌리는 방법**을 적는다. 다만 어느 화면에서 하라고는
-    적지 않는다 — 공유를 다시 거는 자리는 교사 화면 PR 소관이라 여기서 단정할 수 없다.
-  */
+  const isUnavailable = isNotFound(query.error);
   const unavailableDescription =
     viewer === 'student'
-      ? '공유가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요.'
-      : '공유가 내려갔거나 아직 공개되지 않았어요. 다시 공유하면 여기에 보여요.';
+      ? '공개가 내려갔거나 아직 공개되지 않았어요. 이미 담아 둔 봇이라면 그대로 쓸 수 있어요.'
+      : '지금은 마켓에서 볼 수 없는 봇이에요. 공개된 공식 봇 목록으로 돌아가 다른 봇을 둘러보세요.';
   const publishedLabel = formatPublishedAt(bot?.publishedAt);
 
   return (
@@ -89,35 +55,13 @@ export function MarketplaceBotDetail({
         <PageHeader
           eyebrow={{ icon: Store, text: '봇 소개' }}
           title={bot?.name ?? '봇 상세'}
-          /*
-            한 줄 소개가 없을 때 대신 적는 말에서도 **「선생님이 만들어」라는 한정을 걷었다.**
-            지금 시드로는 공식 봇이 `blurb` 를 갖고 있어 이 자리에 닿지 않지만, 닿기만 하면
-            바로 위 배지가 「풀림 공식」이라 말하는 옆에서 「선생님이 만들어 공유한 봇」이
-            된다 — 같은 파일 안에서 같은 종류의 거짓이다(spec `03 § 4.13.3`). 한정을 걷으면
-            공식 봇이든 교사 봇이든 참이고, 이 화면이 아는 것(마켓에 올라와 있다)까지만
-            말한다. `blurb` 가 null 인 길은 교사가 소개를 안 적었을 때에도 열려 있다.
-          */
           description={
-            bot?.blurb ?? (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '마켓에 공유된 봇이에요.')
+            bot?.blurb ?? (query.isError ? '지금은 이 봇을 볼 수 없어요.' : '마켓에 공개된 봇이에요.')
           }
         />
       </div>
 
-      {isSignedOut ? (
-        <div data-testid="marketplace-detail-signin">
-          <EmptyState
-            icon={Store}
-            /*
-              제목·설명 둘 다 `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 두 화면이
-              같은 상태를 다른 말로 설명하지 않게. 한쪽만 고치지 마라.
-              「선생님들이」라는 한정도 그대로 걷어 둔다 — 마켓에는 풀림이 만든 기본 봇도
-              함께 선다(spec `03 § 4.13.1` · `§ 4.13.3`).
-            */
-            title="봇 마켓은 아직 준비 중이에요"
-            description="준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요."
-          />
-        </div>
-      ) : isUnavailable ? (
+      {isUnavailable ? (
         <div data-testid="marketplace-detail-unavailable">
           <EmptyState
             icon={Store}
@@ -141,45 +85,32 @@ export function MarketplaceBotDetail({
           <section className="bg-card rounded-2xl border p-5" data-testid="marketplace-detail">
             <div className="flex items-start gap-4">
               <BotAvatar subject={bot.subject} name={bot.name} size="xl" />
-              {/*
-                봇 이름을 여기서 다시 적지 않는다 — 바로 위 페이지 제목이 이미 그 이름이고,
-                한 화면에 같은 글자가 두 번 서면 둘 중 무엇이 제목인지 안 읽힌다.
-              */}
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                {/*
-                  **카드와 같은 규칙**(spec `03 § 4.13.1`) — 공식 봇은 사람 이름 자리를
-                  「풀림 공식」 배지로 대신한다. 아래 `dl` 의 「만든 선생님」 줄이 빠지므로
-                  그 뜻을 이 배지가 든다. 배지 모양·색은 카드와 한 벌이다(`tone="info"`).
-                */}
                 {bot.isOfficial && (
                   <Chip tone="info">
                     <Sparkles aria-hidden />
                     풀림 공식<span className="sr-only"> — 풀림이 제공하는 공식 봇이에요</span>
                   </Chip>
                 )}
-                <Chip tone="neutral">{bot.subject}</Chip>
-                <Chip tone="outline">{bot.grade}</Chip>
-                <Chip tone="outline">{bot.tone} 말투</Chip>
+                {bot.subject && <Chip tone="neutral">{bot.subject}</Chip>}
+                {bot.grade && <Chip tone="outline">{bot.grade}</Chip>}
+                {bot.tone && <Chip tone="outline">{bot.tone} 말투</Chip>}
               </div>
             </div>
 
             <dl className="mt-4 space-y-2">
-              {/*
-                **카드와 같은 규칙** — 공식 봇에는 만든 선생님이 없으니(소유자를 비운 행이다)
-                이 줄을 아예 내린다. 값이 비어서가 아니라 값이 사람이 아니어서다 —
-                「풀림 공식 · 풀림」을 여기 적으면 회사가 선생님 행세를 한다.
-                호칭은 `teacherName` 에 이미 들어 있다 — 목록 카드와 같은 이유로 덧붙이지 않는다.
-              */}
               {!bot.isOfficial && (
                 <Fact icon={UserRound} label="만든 선생님">
-                  {bot.teacherName}
+                  {bot.teacherName || '알 수 없어요'}
                   {bot.organization ? ` · ${bot.organization}` : ''}
                 </Fact>
               )}
-              <Fact icon={Store} label="공유한 날">
-                {publishedLabel ?? '알 수 없어요'}
-              </Fact>
-              <Fact icon={Users} label="참여 학생">
+              {!bot.isOfficial && (
+                <Fact icon={Store} label="공개한 날">
+                  {publishedLabel ?? '알 수 없어요'}
+                </Fact>
+              )}
+              <Fact icon={Users} label="이용 학생">
                 {bot.enrolledCount}명
               </Fact>
             </dl>
@@ -209,16 +140,9 @@ export function MarketplaceBotDetail({
                 description="담으면 「내가 담은 봇」에 들어가요. 언제든 다시 뺄 수 있어요."
                 action={<SelfAddButton botId={botId} botName={bot.name} />}
               />
-              {/*
-                담기 버튼 바로 아래에 참여 코드를 적는다. 지우지 마라 —
-                「담았으니 이 반 학생이 됐다」는 오해가 생기는 자리가 여기다.
-                다만 조건으로 적지는 않는다. 담기는 코드를 기다리지 않는다.
-              */}
               <p className="text-pullim-slate-600 border-pullim-slate-200 mt-4 border-t pt-4 text-xs leading-relaxed">
-                담기는 이 봇을 <span className="text-pullim-slate-900 font-bold">내 것으로</span>{' '}
-                두는 거예요. 선생님의{' '}
-                <span className="text-pullim-slate-900 font-bold">반</span>에 들어가 과제를 받는
-                건 다른 일이라, 그건 참여 코드로 해요.
+                담기는 공식 봇과 혼자 공부할 수 있는 전용 공간을 만드는 일이에요. 선생님의
+                반에 들어가 과제를 받는 것은 참여 코드로 해요.
               </p>
               <Link
                 href="/classbot/classroom"
@@ -232,19 +156,10 @@ export function MarketplaceBotDetail({
               </Link>
             </section>
           ) : (
-            <AlertCard tone="info" icon={KeyRound} title="학생은 이 봇을 담아 갈 수 있어요">
+            <AlertCard tone="info" icon={KeyRound} title="풀림 공식 봇을 수업에 활용해 보세요">
               <p className="text-pullim-slate-700 text-sm leading-relaxed">
-                공유한 봇은 누구나 담아서 혼자 쓸 수 있어요. 담은 학생은{' '}
-                <span className="font-bold">반에 들어오지 않아요</span> — 참여 학생 수도, 학급
-                관제소도, 과제 받는 명단도 그대로예요. 반에 들이려면 내 수업방에서 참여 코드를
-                내고 알려 주세요.
-              </p>
-              {/*
-                내려도 이미 담아 간 학생의 봇은 계속 돈다. 이 비대칭을 여기 적어 두는 이유:
-                「내리면 회수된다」고 믿고 내렸다가 나중에 알게 되는 것이 제일 나쁘다.
-              */}
-              <p className="text-pullim-slate-700 mt-2 text-sm leading-relaxed">
-                공유를 내리면 마켓에서는 사라지지만, 이미 담아 간 학생의 봇은 계속 돌아가요.
+                내 수업방의 봇 설정에서 이 공식 봇을 고르면 학생들이 기존 참여 공간에서
+                바로 쓸 수 있어요.
               </p>
               <Link
                 href="/teacher/classroom"
@@ -262,7 +177,6 @@ export function MarketplaceBotDetail({
   );
 }
 
-/** 값 한 줄 — 이름표와 값이 같은 줄에 서고, 좁아지면 값이 아래로 접힌다. */
 function Fact({
   icon: Icon,
   label,

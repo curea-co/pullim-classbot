@@ -91,7 +91,7 @@ const JOIN_CODE: JoinCodeDto = {
 };
 const CLASS_DTO: ClassDto = {
   id: 'cls_1', operatorId: 'sub-1', orgId: null, name: '고2 미적분 A반', description: null, subject: '수학Ⅱ', grade: '고2',
-  isActive: true, bot: null, joinCode: JOIN_CODE, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
+  isActive: true, isSelfStudy: false, bot: null, joinCode: JOIN_CODE, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
 };
 const BOT_SUMMARY = { id: 'bot_1', name: '문학 도우미', avatarEmoji: '📚' };
 

@@ -47,7 +47,7 @@ type Slot = StudentBotsResult['slots'][number];
 /** 같은 봇이 걸린 두 반 — 봇 id 는 하나, 반 id 는 둘. */
 const A: Slot = { source: 'class', bot: BOT, classId: 'cls_a', classLabel: '중2 A반' };
 const B: Slot = { source: 'class', bot: BOT, classId: 'cls_b', classLabel: '중2 B반' };
-const SELF: Slot = { source: 'self', bot: SELF_BOT };
+const SELF: Slot = { source: 'self', bot: SELF_BOT, classId: 'self_cls_1' };
 
 function bots(slots: Slot[]): StudentBotsResult {
   return {
