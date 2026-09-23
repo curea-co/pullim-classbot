@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BotAttachError, useCreateBotForClass, useMyBot, useMyBots, useUpdateBot } from '@/hooks/api/bot';
 import { useAssignClassBot, useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
+import { useMarketplaceBots } from '@/hooks/api/marketplace';
+import type { MarketplaceBotItem } from '@/hooks/api/types';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { botFailureMessage } from '@/lib/bot-failure-message';
 import { classNameOf, type BotDto, type ClassBotSummaryDto, type CreateBotBody, type UpdateBotBody } from '@/lib/api/classbot-dto';
@@ -74,6 +76,11 @@ export function ClassBotTab({
   const summary: ClassBotSummaryDto | null | undefined = known === undefined ? undefined : known.bot;
   // 붙은 봇의 과목·학년·말투·등급은 내 봇 목록에서 온다 — 반 상세가 주는 요약에는 id·이름·아바타뿐이다.
   const currentBot = useMyBot(summary?.id).bot;
+  const marketplace = useMarketplaceBots();
+  const currentOfficialBot = marketplace.data?.bots.find(
+    (bot) => bot.isOfficial && bot.botId === summary?.id,
+  );
+  const currentBotDetails = currentBot ?? currentOfficialBot;
 
   const [mode, setMode] = useState<'idle' | 'create' | 'edit' | 'swap'>('idle');
   const [detachOpen, setDetachOpen] = useState(false);
@@ -100,7 +107,7 @@ export function ClassBotTab({
         description="이 반의 학생이 대화하는 봇이에요. 봇이 없으면 학생은 대화를 보낼 수 없어요."
       />
 
-      <CurrentBot summary={summary} bot={currentBot} />
+      <CurrentBot summary={summary} bot={currentBotDetails} />
 
       <div className="mt-4 flex flex-wrap gap-2" data-testid="class-bot-actions">
         {/* 으뜸 버튼은 「없다」고 알 때만 — 모르는 반에서 새 봇으로 미는 모양이면 멀쩡한 봇 위에 새 봇을 만든다(머리주석). */}
@@ -130,7 +137,7 @@ export function ClassBotTab({
           <ArrowLeftRight />
           다른 봇으로 바꾸기
         </Button>
-        {summary && (
+        {summary && !currentOfficialBot && (
           <Button
             type="button"
             variant="outline"
@@ -171,7 +178,7 @@ export function ClassBotTab({
           onDone={() => setMode('idle')}
         />
       )}
-      {mode === 'edit' && summary && (
+      {mode === 'edit' && summary && !currentOfficialBot && (
         <EditBotForm key={summary.id} summary={summary} bot={currentBot} onDone={() => setMode('idle')} />
       )}
 
@@ -190,7 +197,13 @@ export function ClassBotTab({
 }
 
 /** 지금 붙은 봇 — 모른다 · 없다 · 이 봇(머리주석). */
-function CurrentBot({ summary, bot }: { summary: ClassBotSummaryDto | null | undefined; bot: BotDto | undefined }) {
+function CurrentBot({
+  summary,
+  bot,
+}: {
+  summary: ClassBotSummaryDto | null | undefined;
+  bot: BotDto | MarketplaceBotItem | undefined;
+}) {
   if (summary === undefined) {
     return (
       <AlertCard tone="notice" icon={CircleHelp} title="지금 붙은 봇을 아직 불러올 수 없어요">
@@ -264,7 +277,7 @@ function BotFactChips({
   className = 'mt-1.5',
   'data-testid': testId,
 }: {
-  bot: BotDto;
+  bot: Pick<BotDto, 'subject' | 'grade' | 'tone' | 'scope'>;
   className?: string;
   'data-testid'?: string;
 }) {
@@ -304,6 +317,7 @@ function SwapBotForm({
   onDone: () => void;
 }) {
   const bots = useMyBots();
+  const marketplace = useMarketplaceBots();
   const classes = useOperatorClasses();
   const assign = useAssignClassBot();
   const [picked, setPicked] = useState<string | null>(null);
@@ -330,8 +344,11 @@ function SwapBotForm({
   const choices = (bots.data ?? []).filter(
     (bot) => bot.id !== currentBotId && !bot.classIds.includes(classId),
   );
+  const officialChoices = (marketplace.data?.bots ?? []).filter(
+    (bot) => bot.isOfficial && bot.botId !== currentBotId,
+  );
 
-  function handleAttach(bot: BotDto) {
+  function handleAttach(bot: Pick<BotDto, 'id' | 'name'>) {
     if (assign.isPending) return;
     setPicked(bot.id);
     assign.mutate(
@@ -348,25 +365,66 @@ function SwapBotForm({
 
   return (
     <section className="bg-card mt-4 rounded-2xl border p-5" aria-label="다른 봇으로 바꾸기" data-testid="class-bot-swap-form">
-      <h3 className="text-pullim-slate-900 text-sm font-bold">내 봇 중에서 고르기</h3>
+      <h3 className="text-pullim-slate-900 text-sm font-bold">내 봇 또는 풀림 공식 봇 고르기</h3>
       <p className="text-pullim-slate-500 mt-1 text-2xs">
         고른 봇이 이 반의 봇이 돼요. 한 반에는 봇 하나만 붙어요 — 지금 붙은 봇은 떨어져요.
       </p>
 
-      {bots.isPending ? (
+      {bots.isPending || marketplace.isPending ? (
         <p className="text-pullim-slate-500 mt-3 text-sm" data-testid="class-bot-swap-pending">
-          내 봇을 불러오는 중이에요.
+          선택할 봇을 불러오는 중이에요.
         </p>
-      ) : bots.isError ? (
+      ) : bots.isError || marketplace.isError ? (
         <p className="text-pullim-slate-700 mt-3 text-sm" data-testid="class-bot-swap-error">
-          {isUnauthorized(bots.error) ? '로그인이 필요해요.' : '내 봇을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'}
+          {isUnauthorized(bots.error) || isUnauthorized(marketplace.error)
+            ? '로그인이 필요해요.'
+            : '선택할 봇을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'}
         </p>
-      ) : choices.length === 0 ? (
+      ) : choices.length === 0 && officialChoices.length === 0 ? (
         <p className="text-pullim-slate-700 mt-3 text-sm" data-testid="class-bot-swap-empty">
           바꿀 만한 다른 봇이 아직 없어요. 「새 봇 만들어 붙이기」로 하나 만들어 주세요.
         </p>
       ) : (
         <ul className="mt-3 space-y-2" data-testid="class-bot-swap-list">
+          {officialChoices.map((bot) => {
+            const busy = assign.isPending && picked === bot.botId;
+            return (
+              <li
+                key={bot.botId}
+                className="border-pullim-blue-200 bg-pullim-blue-50/40 flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3"
+                data-testid={`class-bot-swap-${bot.botId}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-pullim-slate-900 truncate text-sm font-bold">
+                    {bot.avatarEmoji ? `${bot.avatarEmoji} ` : ''}
+                    {bot.name}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Chip tone="info">풀림 공식</Chip>
+                    {bot.subject && <Chip tone="info">{bot.subject}</Chip>}
+                    {bot.grade && <Chip tone="outline">{bot.grade}</Chip>}
+                    {bot.tone && <Chip tone="outline">말투 · {bot.tone}</Chip>}
+                    <Chip tone="neutral">
+                      {isScopeLevel(bot.scope) ? scopeOptionLabel(bot.scope) : `등급 ${bot.scope}`}
+                    </Chip>
+                  </div>
+                  <p className="text-pullim-slate-500 mt-1.5 text-2xs">풀림이 제공하는 공식 봇이에요</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={assign.isPending}
+                  aria-label={`${bot.name} 붙이기`}
+                  data-testid={`class-bot-swap-pick-${bot.botId}`}
+                  onClick={() => handleAttach({ id: bot.botId, name: bot.name })}
+                >
+                  {busy ? '붙이는 중…' : '이 봇으로'}
+                </Button>
+              </li>
+            );
+          })}
           {choices.map((bot) => {
             const rooms = bot.classIds.map((id) => classNames.get(id)).filter((name): name is string => Boolean(name));
             const busy = assign.isPending && picked === bot.id;

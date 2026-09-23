@@ -9,7 +9,7 @@
  *    `next` 로 실어 복귀시킨다. 오류는 그대로 다시 던져 호출부의 `isUnauthenticated` 판정도 선다.
  *  - **4xx 는 다시 보내도 같은 답이다.** 5xx·네트워크만 한 번 더.
  *
- * 문은 둘이다 — `classbotRead`(GET) · `classbotWrite`(POST · PUT · PATCH — 메서드 인자로 가른다 · 본문 없는 문은 `undefined`).
+ * 문은 둘이다 — `classbotRead`(GET) · `classbotWrite`(POST · PUT · PATCH · DELETE — 메서드 인자로 가른다 · 본문 없는 문은 `undefined`).
  *
  * 같은 오리진 `/api/*` 를 치는 `lib/api/client-fetch.ts` 와 짝이 되는 자리다 — 그쪽 오류는
  * `ApiClientError`, 이쪽은 `@pullim-classbot/api-client` 의 `ApiError` 다. 두 타입을 섞어 판정하지 마라.
@@ -68,7 +68,7 @@ export async function classbotRead<T>(path: string): Promise<T> {
 }
 
 /** 정본이 쓰기로 쓰는 메서드 셋 — 전부 `CsrfGuard` 를 지난다(`domain-fetch.ts` `CSRF_METHODS`). */
-export type ClassbotWriteMethod = 'POST' | 'PUT' | 'PATCH';
+export type ClassbotWriteMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
  * 정본 쓰기 — CSRF 는 `domainFetch` 가 붙인다. 상태 코드를 함께 돌려준다 —
@@ -77,6 +77,7 @@ export type ClassbotWriteMethod = 'POST' | 'PUT' | 'PATCH';
  * 기본은 POST 다. `PUT` 은 봇 할당(`PUT /classes/:classId/bot` — 전체 교체·멱등·null 해제),
  * `PATCH` 는 봇 부분 수정(`PATCH /bots/:id` — `undefined` 그대로·`null` 비움)과 신호 확인
  * (`PATCH /signals/:id/ack` — 본문 없음, 서버가 시각·주체를 정한다)이 쓴다(api.md § 3.5b · § 3.9).
+ * `DELETE` 는 ADR-094 자습방 멤버십 비활성화(`DELETE /me/self-bots/:botId`, 204)가 쓴다.
  * @param path - `/enrollments` 같은 `/classbot` 상대 경로
  * @param body - JSON 본문(`undefined` 면 보내지 않는다 — 본문 없는 문)
  * @param method - 쓰기 메서드. @default 'POST'
@@ -94,4 +95,3 @@ export async function classbotWrite<T>(
     return rethrowAfterLoginRedirect(error);
   }
 }
-

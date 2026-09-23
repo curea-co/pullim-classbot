@@ -13,14 +13,8 @@
  *    `useClassDetail`(`GET /classes/:classId`) — 계획 PR 5d 가 pullim-api PR 4(#672)의 읽기 문에 붙였다.
  *    **반이 지금 가리키는 봇(`classes.bot_id`)은 그 문으로만 온다** — 옛 `GET /bots*` 는 아직 class+profile 이라
  *    싣지 않는다. 종전의 세션 캐시 훅(`useKnownClassSummary`)은 그래서 걷혔다.
- *  - 같은 오리진 `/api/teacher/classrooms` 는 **`useTeacherClassrooms` 하나만** 남는다 — 내 수업방 화면은 더 안 읽고,
- *    봇 마켓의 「내 봇 공유」(`app/(teacher)/teacher/marketplace/*` · 결정 ① 범위 밖)가 게시 상태를 여기서 읽는다.
- *    **계획 PR 8 이 그 라우트를 남겨 둔 이유가 이 훅이다** — 마켓 축이 정본으로 옮겨 가는 날 함께 걷는다.
- *    같은 오리진 `useCreateClassroom`·`useClassroomStudents` 는 5b 가 걷었고, 그 라우트 핸들러도 같은 트리라
- *    이번에는 남았다(소비자 0 · 「마켓 축과 함께 후속 은퇴」).
- *    **그날은 아직 아니다** — 계획 PR 5d 가 pullim-api `origin/dev`(`2d24f323`)의 classbot 라우트를 전수로 훑었고
- *    게시·해제 표면이 **하나도 없다**(`BotDto.isPublished`·`publishedAt` 은 칸만 있고 여는 문이 없다). 그래서
- *    마켓 축은 이 PR 에서 손대지 않았다 — 옮길 곳이 없는 것을 옮기면 화면이 죽는다.
+ *  - ADR-094 뒤 봇 마켓도 pullim-api 정본이다. 교사 개인 봇 게시·해제는 지원 범위가 아니므로
+ *    종전 same-origin `useTeacherClassrooms`와 「내 봇 공유」 소비는 함께 제거했다.
  *
  * 정본 훅의 신원·캐시 규약:
  *  - 신원은 OS 세션(`useAuth`)이다. 세션 복원 전(`isReady=false`)에는 묻지 않는다 — 그 구간의
@@ -30,7 +24,6 @@
  *  - 오류는 `ApiError`(`@pullim-classbot/api-client`)다. 401 은 `lib/api/classbot-client.ts` 가
  *    로그인으로 보낸다. 목 폴백은 없다 — 실패는 실패로 보인다(계획 §07 학생·내 수업방 줄).
  *
- * 같은 오리진 훅의 오류는 종전대로 `ApiClientError` 다. 두 타입을 섞어 판정하지 마라.
  */
 
 import {
@@ -43,6 +36,7 @@ import {
 } from '@tanstack/react-query';
 import { ApiError } from '@pullim-classbot/api-client';
 
+import { botKeys } from '@/hooks/api/bot-keys';
 import {
   classbotRead,
   classbotWrite,
@@ -60,17 +54,13 @@ import type {
   EnrollmentDto,
   JoinCodeDto,
 } from '@/lib/api/classbot-dto';
-import { ApiClientError, apiGet } from '@/lib/api/client-fetch';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useCurrentUserId } from '@/lib/current-user';
-import type { TeacherClassroomsResponse } from '@/hooks/api/types';
 
 /**
  * 쿼리 키 — 무효화할 때 이 상수를 쓴다(문자열을 손으로 다시 적지 마라).
  * 신원 id 는 키의 **꼬리**에 붙으므로, 접두사만으로 무효화하면 모든 신원이 함께 갈린다.
  */
 export const classroomKeys = {
-  teacherClassrooms: ['teacher-classrooms'] as const,
   myClassrooms: ['my-classrooms'] as const,
   /** 정본 — 내가 operator 인 반 목록(`GET /bots?role=teacher`). */
   operatorClasses: ['operator-classes'] as const,
@@ -85,33 +75,6 @@ export const classroomKeys = {
    */
   classDetail: (classId: string) => ['class-detail', classId] as const,
 };
-
-/** 같은 오리진 교사 라우트용 — 401 은 재시도해도 같은 답이다. 그 밖에는 1회만 다시. */
-function retryUnlessGuarded(failureCount: number, error: unknown): boolean {
-  if (error instanceof ApiClientError && error.status < 500) return false;
-  return failureCount < 1;
-}
-
-/* ─── 교사 — 같은 오리진 `/api/teacher/classrooms` (봇 마켓 「내 봇 공유」만 읽는다 · 머리주석) ─── */
-
-/**
- * `GET /api/teacher/classrooms` — 내가 연 수업방 목록(같은 오리진).
- *
- * 내 수업방 화면(`/teacher/classroom`)은 더 이상 이것을 읽지 않는다 — `useOperatorClasses` 가 정본이다.
- * 남아 있는 소비자는 봇 마켓 「내 봇 공유」(머리주석). 새 소비자를 붙이지 마라.
- * @returns react-query 결과(`data.classrooms`)
- */
-export function useTeacherClassrooms(): UseQueryResult<
-  TeacherClassroomsResponse,
-  ApiClientError
-> {
-  const userId = useCurrentUserId();
-  return useQuery<TeacherClassroomsResponse, ApiClientError>({
-    queryKey: [...classroomKeys.teacherClassrooms, userId],
-    queryFn: () => apiGet<TeacherClassroomsResponse>('/api/teacher/classrooms'),
-    retry: retryUnlessGuarded,
-  });
-}
 
 /* ─── 교사 — pullim-api 정본 `api.pullim.ai/classbot/*` (계획 PR 5a · 5b) ─── */
 
@@ -272,6 +235,9 @@ export function useAssignClassBot(): UseMutationResult<ClassDto, ApiError, Assig
     },
     onSuccess: (klass) => {
       writeClassDetail(queryClient, user?.id ?? null, klass);
+      // 내 봇 행의 classIds도 할당 결과로 바뀐다. 이 캐시가 낡으면 방금 떼어진 기존 봇이
+      // 바꾸기 목록에서 계속 "이 반에 붙은 봇"으로 필터링돼 즉시 되돌릴 수 없다.
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClasses });
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClass(klass.id) });
     },

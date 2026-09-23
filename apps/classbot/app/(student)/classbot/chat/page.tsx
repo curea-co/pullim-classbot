@@ -12,7 +12,7 @@ import {
 } from '@/lib/store/mode-bots';
 import { Chip } from '@/components/ui/chip';
 import {
-  getBotLesson, getSelfExplain,
+  getBotLesson,
   type BotLesson, type LessonConcept, type LessonStep, type LessonQuiz, type SelfExplainPrompt,
 } from '@/lib/mock/classbot-lesson';
 import { InlineWorkedExample } from '@/components/classbot/inline-worked-example';
@@ -41,7 +41,7 @@ import { ContextAnchor } from '@/components/classbot/context-anchor';
 import { SessionGoalBanner } from '@/components/classbot/session-goal-banner';
 import { AiDisclosureNotice } from '@/components/classbot/ai-disclosure-notice';
 import {
-  CHAT_CONTINUOUS_THRESHOLD_MS, CHAT_TEXTAREA_MAX_PX,
+  CHAT_CONTINUOUS_THRESHOLD_MS,
   ChatBubbleFrame, ChatComposer, ChatDateDivider, ChatPendingBubble, ChatTypingDots,
   chatBubbleClass,
 } from '@/components/classbot/chat-transcript';
@@ -55,7 +55,7 @@ import { useProficiencyStore } from '@/lib/store/proficiency';
 import { MisconceptionCoaching } from '@/components/classbot/misconception-coaching';
 import { cn } from '@/lib/utils';
 import {
-  chatLaneFor, CLASS_CHAT_TEACHER_VISIBLE_NOTICE, SELF_BOT_CHAT_LOCKED_NOTICE, SELF_BOT_CHAT_LOCKED_PLACEHOLDER,
+  CLASS_CHAT_TEACHER_VISIBLE_NOTICE,
 } from './chat-lane';
 
 /**
@@ -189,7 +189,7 @@ export default function ClassbotChatPage() {
  */
 function resolveSlotKey(slots: StudentBotSlot[], classIdParam: string | null, botParam: string | null): string | null {
   if (classIdParam) {
-    const byClass = slots.find(s => s.source === 'class' && s.classId === classIdParam);
+    const byClass = slots.find(s => s.classId === classIdParam);
     if (byClass) return studentBotSlotKey(byClass);
   }
   if (botParam) {
@@ -199,11 +199,9 @@ function resolveSlotKey(slots: StudentBotSlot[], classIdParam: string | null, bo
   return null;
 }
 
-/** 칸의 URL — 반 칸은 `?classId=`, 담은 칸은 `?bot=`(`components/classbot/home/tutor-showcase.tsx` 와 같은 규칙). */
+/** 칸의 URL — 일반 반과 ADR-094 자습방 모두 대화 단위인 `?classId=`를 쓴다. */
 function slotHref(slot: StudentBotSlot): string {
-  return slot.source === 'class'
-    ? `/classbot/chat?classId=${encodeURIComponent(slot.classId)}`
-    : `/classbot/chat?bot=${encodeURIComponent(slot.bot.id)}`;
+  return `/classbot/chat?classId=${encodeURIComponent(slot.classId)}`;
 }
 
 function ClassbotChatPageInner() {
@@ -405,17 +403,12 @@ const STICKY_THRESHOLD = 80;
 function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: string }) {
   const bot = slot.bot;
   const source = slot.source;
-  // **대화의 단위는 반이다**(완성 설계 § 6.2 · 해소 3). 기록(`GET /classes/:classId/chat`)과 전송
-  // (`POST /classes/:classId/chat`)은 이 id 로 나간다 — `bot.id` 가 아니다. 담은 봇은 반이 없어 null 이고
-  // 그 칸은 아래 `locked` 가 문을 닫는다. 봇 단위로 남는 것은 로컬 학습 보조(수업 데이터·진행·목표 키)뿐이다.
-  const classId = slot.source === 'class' ? slot.classId : null;
+  // 일반 반과 자습방 모두 기록·전송은 카드가 준 반 id로 나간다 — `bot.id`가 아니다.
+  const classId = slot.classId;
   const botSig = botSignature(bot);
   const isLive = useLiveStore(s => Boolean(s.active[bot.id]));
   const { keyboardOpen } = useVisualViewport();
   const me = useCurrentUser();
-  // 담은 봇(source='self')은 지금 **닫힌 레인**이다 — 이유와 기한은 `./chat-lane.ts`. 잠기면 기록도
-  // 전송도 부르지 않고 composer 와 빠른 칩을 잠근 채 안내 한 줄을 세운다.
-  const locked = chatLaneFor(source) === 'locked' || classId === null;
   // A5: prefers-reduced-motion → 칩 stagger 무력화
   const reduced = useReducedMotion();
   // A5: 스크린리더 announce 텍스트는 격리된 SrLiveRegion 이 자체 state 로 들고,
@@ -474,7 +467,6 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
   // 오프너만 유지(graceful). 종전의 `USE_REAL_CORE_BE` 게이트는 걷혔다 — 기록은 서버 하나에서 온다
   // (2026-09-16 계획 §07 학생·봇 대화 줄). 읽는 단위는 **반**이다(계획 PR 5a · 해소 3).
   useEffect(() => {
-    if (locked || classId === null) return;
     let cancelled = false;
     const isOpenerTurn = (t: Turn) => t.id === `t0_${bot.id}` || t.id === `t1_${bot.id}`;
     // summary 히스토리 배너 goalKey — **오늘 메시지에만**(로컬 store 는 과거 권위 아님, Codex #210:
@@ -498,7 +490,7 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
     return () => {
       cancelled = true;
     };
-  }, [classId, bot.id, me.id, locked]);
+  }, [classId, bot.id, me.id]);
   const [showNewMessageBanner, setShowNewMessageBanner] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   // [04 § 9.6] 직전 봇 발화 응답키 — 동적 빠른칩 추천에 사용
@@ -581,7 +573,7 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
 
   function send(text: string, forcedKey?: QuickReplyKey) {
     const trimmed = text.trim();
-    if (!trimmed || pending || locked) return;
+    if (!trimmed || pending) return;
     const now = Date.now();
     // 학생 발화 = 입력 텍스트(빠른칩이면 칩 라벨). 표시·전송·영속이 모두 동일 텍스트라 서버
     // 히스토리도 화면과 일치한다(내부 프롬프트로 치환하지 않는다).
@@ -614,8 +606,6 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
   // 콜백 상태전이는 buildRealSendCallbacks(순수 테스트 단위), 카드 적응은 adaptCardToTurn(순수)에 위임.
   // clientTurnId=crypto.randomUUID(멱등 키) — 재전송 시 서버가 dedup·done 재생.
   async function sendReal(text: string, forcedKey?: QuickReplyKey) {
-    // 반이 없는 칸(담은 봇)은 `send` 의 `locked` 가 이미 막았다 — 여기는 타입을 좁히는 자리다. 문이 없으면 보내지 않는다.
-    if (classId === null) return;
     // 스트리밍 세그먼트/카드 turn 제어는 모듈 스코프 컨트롤러(createRealChatTurnController)에 위임한다
     // — 컴포넌트 내부에서 커서(let)를 재대입하면 React Compiler 가 immutable 위반으로 막으므로
     // (buildLessonActionTurn 이 idxRef 를 모듈 함수에서 변형하는 선례와 동일 이유), 커서 상태를 모듈로 뺀다.
@@ -751,7 +741,7 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
           반 대화 고지(완성 설계 § 6.2 「고지 문구」) — 반 칸에만, 화면을 보는 순간부터, 접히지 않는다.
           정보성이라 경고색이 아니다(`AiDisclosureNotice` 와 같은 결). 담은 봇에는 보는 선생님이 없어 붙이지 않는다.
         */}
-        {classId !== null && (
+        {source === 'class' && (
           <p
             role="note"
             data-slot="chat-class-disclosure"
@@ -838,17 +828,7 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
             동적 빠른 칩 — M7 stagger(60ms, A5 reduced-motion 시 0ms).
             A7: 모든 칩은 좌측 라이너를 가진다(DS). guide(수업 단계 — 시그니처색 라이너) vs ask(자유 질문 — 중립 slate 라이너) 색으로 구분.
           */}
-          {locked ? (
-            /* 잠긴 레인 — 빠른 칩 자리에 안내 한 줄. 칩을 눌러도 갈 곳이 없어서 칩 자체를 내지 않는다. */
-            <p
-              role="note"
-              data-slot="chat-locked-notice"
-              className="text-pullim-slate-600 bg-pullim-slate-50 rounded-xl px-3 py-2 text-xs font-semibold"
-            >
-              {SELF_BOT_CHAT_LOCKED_NOTICE}
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
               {dynamicQuickReplies.map((p, i) => {
                 const kind = quickReplyChipKind(p.expectedReplyKey);
                 const Icon = kind === 'guide' ? GraduationCap : MessageCircleQuestion;
@@ -880,17 +860,15 @@ function ChatPanel({ slot, initialAsk }: { slot: StudentBotSlot; initialAsk?: st
                   </button>
                 );
               })}
-            </div>
-          )}
+          </div>
 
           <ChatComposer
             value={value}
             onValueChange={setValue}
             onSubmit={handleSubmit}
             onKeyDown={handleKeyDown}
-            placeholder={locked ? SELF_BOT_CHAT_LOCKED_PLACEHOLDER : `${bot.name}에게 물어보세요…`}
-            disabled={locked || isSendDisabled}
-            inputDisabled={locked}
+            placeholder={`${bot.name}에게 물어보세요…`}
+            disabled={isSendDisabled}
             textareaRef={textareaRef}
             leading={
               <>

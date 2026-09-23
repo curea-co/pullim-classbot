@@ -29,7 +29,8 @@ jest.mock('@/lib/auth/os-sso', () => ({
 }));
 
 import { API_BASE } from '@/lib/auth/os-sso';
-import type { BotCardDto, BotDetailDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
+import type { BotCardDto, BotDetailDto, BotDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
+import { useMyBots } from '../bot';
 import {
   classroomKeys,
   joinFailureMessage,
@@ -85,13 +86,15 @@ let assignStatus: number;
 /** 교사 — 반 상세(`GET /classes/:classId`) 응답 코드와 본문. */
 let classStatus: number;
 let classDto: ClassDto;
+/** 교사 소유 봇 목록. 할당 PUT 뒤 서버가 돌려줄 classIds 변화까지 재현한다. */
+let ownedBots: BotDto[];
 
 const JOIN_CODE: JoinCodeDto = {
   id: 'jc_1', code: 'AB3K9M', classId: 'cls_1', createdAt: '2026-09-16T00:00:00.000Z', expiresAt: '2026-09-18T00:00:00.000Z',
 };
 const CLASS_DTO: ClassDto = {
   id: 'cls_1', operatorId: 'sub-1', orgId: null, name: '고2 미적분 A반', description: null, subject: '수학Ⅱ', grade: '고2',
-  isActive: true, bot: null, joinCode: JOIN_CODE, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
+  isActive: true, isSelfStudy: false, bot: null, joinCode: JOIN_CODE, createdAt: '2026-09-16T00:00:00.000Z', updatedAt: '2026-09-16T00:00:00.000Z',
 };
 const BOT_SUMMARY = { id: 'bot_1', name: '문학 도우미', avatarEmoji: '📚' };
 
@@ -138,6 +141,9 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
     if (teacherStatus >= 400) return Promise.resolve(res(teacherStatus, { statusCode: teacherStatus, message: 'nope' }));
     return Promise.resolve(res(200, teacherBots));
   }
+  if (url === `${BASE}/me/bots` && method === 'GET') {
+    return Promise.resolve(res(200, ownedBots));
+  }
   if (url === `${BASE}/classes/cls_1/join-codes` && method === 'POST') {
     if (issueStatus >= 400) return Promise.resolve(res(issueStatus, { statusCode: issueStatus, message: 'nope' }));
     return Promise.resolve(res(201, { ...JOIN_CODE, id: 'jc_2', code: 'ZZ9Q2R' }));
@@ -163,6 +169,10 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   if (url === `${BASE}/classes/cls_1/bot` && method === 'PUT') {
     if (assignStatus >= 400) return Promise.resolve(res(assignStatus, { statusCode: assignStatus, message: 'nope' }));
     const input = body as { botId: string | null };
+    ownedBots = ownedBots.map((bot) => ({
+      ...bot,
+      classIds: bot.id === input.botId ? ['cls_1'] : bot.classIds.filter((id) => id !== 'cls_1'),
+    }));
     return Promise.resolve(res(200, { ...CLASS_DTO, bot: input.botId ? { ...BOT_SUMMARY, id: input.botId } : null }));
   }
   return Promise.resolve(res(404, { statusCode: 404, message: 'not found' }));
@@ -210,6 +220,18 @@ beforeEach(() => {
   assignStatus = 200;
   classStatus = 200;
   classDto = CLASS_DTO;
+  ownedBots = [
+    {
+      id: 'bot_old', operatorId: 'sub-1', name: '기존 봇', avatarEmoji: null, subject: null, grade: null,
+      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null,
+      classIds: ['cls_1'], createdAt: '', updatedAt: '',
+    },
+    {
+      id: 'bot_new', operatorId: 'sub-1', name: '새 봇', avatarEmoji: null, subject: null, grade: null,
+      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null,
+      classIds: [], createdAt: '', updatedAt: '',
+    },
+  ];
   redirectToOsLogin.mockReset();
   queryClient = new QueryClient({
     defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity }, mutations: { retry: false } },
@@ -662,6 +684,21 @@ describe('useAssignClassBot — PUT /classbot/classes/:classId/bot', () => {
     });
     await waitFor(() => expect(teacherCalls().length).toBeGreaterThan(listBefore));
     await waitFor(() => expect(calls.filter((c) => c.url === `${BASE}/bots/cls_1`).length).toBeGreaterThan(detailBefore));
+  });
+
+  it('성공하면 내 봇 classIds도 다시 읽어 방금 떼어진 봇을 바꾸기 목록에 되돌린다', async () => {
+    const { result } = renderHook(
+      () => ({ mine: useMyBots(), assign: useAssignClassBot() }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.mine.data?.[0]?.classIds).toEqual(['cls_1']));
+
+    await act(async () => {
+      await result.current.assign.mutateAsync({ classId: 'cls_1', botId: 'bot_new' });
+    });
+
+    await waitFor(() => expect(result.current.mine.data?.find((bot) => bot.id === 'bot_old')?.classIds).toEqual([]));
+    expect(result.current.mine.data?.find((bot) => bot.id === 'bot_new')?.classIds).toEqual(['cls_1']);
   });
 
   it('남의 봇(404)·남의 반(403)은 실패로 끝난다 — 반 상세가 든 봇은 그대로다', async () => {

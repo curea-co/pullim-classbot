@@ -1,20 +1,11 @@
-/**
- * 봇 상세 — **내려간 봇의 404 는 고장이 아니다.**
- *
- * 이 라우트의 404 는 「없는 주소」가 아니라 「지금은 공개돼 있지 않은 봇」이라는 정상
- * 응답이다(공유가 내려갔거나 아직 안 걸린 봇). 빨간 장애 카드로 그리면 흔한 상태를
- * 서비스 고장으로 오인하게 만들고, 제목 밑 설명(「지금은 이 봇을 볼 수 없어요」)과도
- * 어긋난다. 5xx 만 장애로 남는다.
- *
- * 안내 문구는 보는 사람에 따라 갈린다 — **교사는 담지 않는다.**
- */
+/** pullim-api 정본 마켓 상세 상태. */
+import { ApiError } from '@pullim-classbot/api-client';
 import { render, screen } from '@testing-library/react';
 
-import { MarketplaceBotDetail } from '../marketplace-bot-detail';
-import { ApiClientError } from '@/lib/api/client-fetch';
 import type { MarketplaceBotItem } from '@/hooks/api/types';
+import { MarketplaceBotDetail } from '../marketplace-bot-detail';
 
-let queryError: ApiClientError | null = null;
+let queryError: ApiError | null = null;
 let queryBot: MarketplaceBotItem | null = null;
 jest.mock('@/hooks/api/marketplace', () => ({
   useMarketplaceBot: () => ({
@@ -25,143 +16,84 @@ jest.mock('@/hooks/api/marketplace', () => ({
   }),
 }));
 
-// 담기 버튼은 저장소를 물고 있어 이 테스트의 관심사가 아니다 — 상태 분기만 본다.
 jest.mock('../self-add-button', () => ({
   SelfAddButton: () => null,
 }));
+
+const officialBot: MarketplaceBotItem = {
+  botId: 'official-math',
+  name: '수학 마스터',
+  avatarEmoji: '📐',
+  subject: '수학',
+  grade: '초5~고1',
+  tone: '차분',
+  greeting: '안녕! 수학을 같이 풀어 보자.',
+  scope: 4,
+  blurb: '개념을 차근차근 짚어 줘요.',
+  teacherName: '풀림 공식',
+  organization: '풀림',
+  publishedAt: '2026-09-20T00:00:00.000Z',
+  enrolledCount: 0,
+  isOfficial: true,
+};
 
 beforeEach(() => {
   queryError = null;
   queryBot = null;
 });
 
-const teacherBot: MarketplaceBotItem = {
-  botId: 'cb_001',
-  name: '수학 도우미',
-  avatarEmoji: '📐',
-  subject: '수학',
-  grade: '중2',
-  tone: '친근',
-  greeting: '안녕! 오늘도 같이 풀어 보자.',
-  scope: 3,
-  blurb: '개념부터 차근차근 짚어 주는 봇이에요.',
-  teacherName: '김수학 선생님',
-  organization: '대치프리미엄 수학학원',
-  publishedAt: '2026-09-02T00:00:00.000Z',
-  enrolledCount: 12,
-  isOfficial: false,
-};
-
-const renderDetail = (viewer: 'student' | 'teacher') =>
-  render(
+function renderDetail(viewer: 'student' | 'teacher') {
+  return render(
     <MarketplaceBotDetail
-      botId="cb_001"
-      backHref="/classbot/discover"
+      botId="official-math"
+      backHref={viewer === 'student' ? '/classbot/discover' : '/teacher/marketplace'}
       backLabel="봇 마켓"
       viewer={viewer}
     />,
   );
+}
 
-it('404 는 안내형 비가용 상태로 — 빨간 장애 카드로 그리지 않는다', () => {
-  queryError = new ApiClientError('찾을 수 없어요.', 404, 'NOT_FOUND');
-
+it('404 `BOT_NOT_FOUND`는 서버 원문 대신 안내형 비가용 상태로 그린다', () => {
+  queryError = new ApiError('BOT_NOT_FOUND', 404, 'BOT_NOT_FOUND');
   renderDetail('student');
 
   expect(screen.getByTestId('marketplace-detail-unavailable')).toBeInTheDocument();
+  expect(screen.queryByText('BOT_NOT_FOUND')).not.toBeInTheDocument();
   expect(screen.queryByTestId('marketplace-detail-error')).not.toBeInTheDocument();
 });
 
-it('404 문구에 서버 원문을 싣지 않는다 — 비가용은 우리가 하는 말이다', () => {
-  queryError = new ApiClientError('찾을 수 없어요.', 404, 'NOT_FOUND');
-
+it('5xx 오류는 장애 카드로 그린다', () => {
+  queryError = new ApiError('서버 오류', 500);
   renderDetail('student');
 
-  expect(screen.queryByText('찾을 수 없어요.')).not.toBeInTheDocument();
+  expect(screen.getByTestId('marketplace-detail-error')).toHaveTextContent('서버 오류');
 });
 
-it('학생에게는 담아 둔 봇이 계속 돈다고 알린다', () => {
-  queryError = new ApiClientError('찾을 수 없어요.', 404, 'NOT_FOUND');
+it('공식 봇은 사람 소유자·게시일 대신 풀림 공식 배지를 그린다', () => {
+  queryBot = officialBot;
+  renderDetail('teacher');
 
-  renderDetail('student');
+  expect(screen.getAllByText(/풀림 공식/).length).toBeGreaterThan(0);
+  expect(screen.queryByText('만든 선생님')).not.toBeInTheDocument();
+  expect(screen.queryByText('공개한 날')).not.toBeInTheDocument();
+});
 
-  expect(screen.getByTestId('marketplace-detail-unavailable').textContent).toContain(
-    '이미 담아 둔 봇이라면',
+it('교사에게는 게시 UI 없이 수업방 활용 길만 안내한다', () => {
+  queryBot = officialBot;
+  renderDetail('teacher');
+
+  expect(screen.getByText('풀림 공식 봇을 수업에 활용해 보세요')).toBeInTheDocument();
+  expect(screen.queryByText(/게시|공유/)).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '내 수업방으로 가기' })).toHaveAttribute(
+    'href',
+    '/teacher/classroom',
   );
 });
 
-it('교사에게는 담기 이야기를 하지 않는다 — 교사는 담지 않는다', () => {
-  queryError = new ApiClientError('찾을 수 없어요.', 404, 'NOT_FOUND');
-
-  renderDetail('teacher');
-
-  const box = screen.getByTestId('marketplace-detail-unavailable');
-  expect(box.textContent).not.toContain('담아 둔');
-  expect(box.textContent).toContain('다시 공유하면');
-});
-
-it('5xx 는 그대로 장애 카드 — 이건 진짜 고장이다', () => {
-  queryError = new ApiClientError('서버 오류', 500, 'INTERNAL');
-
+it('학생에게는 담기가 전용 공간을 만든다고 안내한다', () => {
+  queryBot = officialBot;
   renderDetail('student');
 
-  expect(screen.getByTestId('marketplace-detail-error')).toBeInTheDocument();
-  expect(screen.queryByTestId('marketplace-detail-unavailable')).not.toBeInTheDocument();
-});
-
-it('401 은 「아직 준비 중」 안내 — 404 분기가 그 자리를 가로채지 않는다', () => {
-  queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
-
-  renderDetail('student');
-
-  expect(screen.getByTestId('marketplace-detail-signin')).toBeInTheDocument();
-  expect(screen.queryByTestId('marketplace-detail-unavailable')).not.toBeInTheDocument();
-});
-
-/*
-  아래 둘이 이 갈래의 문구를 잠근다.
-
-  ⑴ **로그인을 시키지 않는다.** 마켓은 같은 오리진 route handler 가 답하는데 그 핸들러에
-     OS 세션을 풀 열쇠가 없어(`lib/current-user.ts`) 배포본에서는 **로그인해도 401** 이다.
-     「로그인하면 이 봇을 볼 수 있어요」는 로그인한 사람에게도 떠서, 로그인 화면으로 보내 놓고
-     아무 일도 일어나지 않게 만들었다.
-  ⑵ **한정을 걷은 문장**을 그대로 지킨다(spec `03 § 4.13.3`). 마켓에는 풀림이 만든 기본 봇도
-     같이 서므로 「선생님들이 공유한 봇」은 참이 아니다.
-*/
-it('401 안내는 로그인을 시키지 않는다 — 로그인해도 안 풀리는 401 이다', () => {
-  queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
-
-  renderDetail('student');
-
-  expect(screen.getByTestId('marketplace-detail-signin').textContent).not.toContain('로그인');
-});
-
-it('401 안내는 「선생님들이」로 한정하지 않는다 — 목록과 같은 말로 맞춘다', () => {
-  queryError = new ApiClientError('로그인이 필요해요.', 401, 'AUTH_REQUIRED');
-
-  renderDetail('student');
-
-  const box = screen.getByTestId('marketplace-detail-signin');
-  expect(box.textContent).not.toContain('선생님들이');
-  // `marketplace-bot-list.tsx` 와 **같은 문자열**이다 — 한 상태를 두 말로 설명하지 않는다.
-  expect(box.textContent).toContain('봇 마켓은 아직 준비 중이에요');
-  expect(box.textContent).toContain('준비가 끝나면 공유된 봇을 여기에서 볼 수 있어요.');
-});
-
-it('한 줄 소개가 없으면 만든 사람을 단정하지 않는 말로 대신한다', () => {
-  // 교사가 소개를 안 적었거나, 공식 봇이 이 길에 닿았을 때 — 둘 다 같은 자리다.
-  queryBot = { ...teacherBot, blurb: null };
-
-  renderDetail('student');
-
-  expect(screen.queryByText('선생님이 만들어 공유한 봇이에요.')).not.toBeInTheDocument();
-  expect(screen.getByText('마켓에 공유된 봇이에요.')).toBeInTheDocument();
-});
-
-it('한 줄 소개가 있으면 그대로 쓴다 — 폴백이 소개를 덮지 않는다', () => {
-  queryBot = teacherBot;
-
-  renderDetail('student');
-
-  expect(screen.getByText(teacherBot.blurb as string)).toBeInTheDocument();
-  expect(screen.queryByText('마켓에 공유된 봇이에요.')).not.toBeInTheDocument();
+  expect(screen.getByTestId('marketplace-detail-self-add')).toHaveTextContent('전용 공간');
+  expect(screen.getByTestId('marketplace-detail-self-add')).toHaveTextContent('참여 코드');
 });
