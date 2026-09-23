@@ -39,6 +39,7 @@ import {
   useClasses,
   useClassMembers,
   useCreateClassroom,
+  useDeleteClass,
   useClassDetail,
   useIssueJoinCode,
   useJoinByCode,
@@ -175,6 +176,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   if (url === `${BASE}/classes/cls_1` && method === 'PATCH') {
     return Promise.resolve(res(200, { ...classDto, isActive: (body as { state?: string }).state !== 'archived' }));
   }
+  if (url === `${BASE}/classes/cls_1` && method === 'DELETE') return Promise.resolve(res(204, null));
   if (url === `${BASE}/classes/cls_1/members/stu_1` && method === 'DELETE') return Promise.resolve(res(204, null));
   if (url === `${BASE}/classes/cls_1/join-codes` && method === 'DELETE') return Promise.resolve(res(204, null));
   if (url === `${BASE}/classes/cls_1` && method === 'GET') {
@@ -242,12 +244,12 @@ beforeEach(() => {
   ownedBots = [
     {
       id: 'bot_old', operatorId: 'sub-1', name: '기존 봇', avatarEmoji: null, subject: null, grade: null,
-      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null,
+      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null,
       classIds: ['cls_1'], createdAt: '', updatedAt: '',
     },
     {
       id: 'bot_new', operatorId: 'sub-1', name: '새 봇', avatarEmoji: null, subject: null, grade: null,
-      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null,
+      tone: null, greeting: null, scope: 3, quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null,
       classIds: [], createdAt: '', updatedAt: '',
     },
   ];
@@ -812,6 +814,23 @@ describe('반 lifecycle 쓰기 계약', () => {
     });
     expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/classes/cls_1/members/stu_1`, method: 'DELETE' }));
     expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/classes/cls_1/join-codes`, method: 'DELETE' }));
+  });
+
+  it('반 영구 삭제 뒤 내 봇을 다시 읽어 classIds의 사라진 연결을 갱신한다', async () => {
+    const { result } = renderHook(
+      () => ({ bots: useMyBots(), remove: useDeleteClass() }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.bots.isSuccess).toBe(true));
+    const before = calls.filter((call) => call.url === `${BASE}/me/bots?state=active`).length;
+
+    await act(async () => {
+      await result.current.remove.mutateAsync('cls_1');
+    });
+
+    await waitFor(() => expect(
+      calls.filter((call) => call.url === `${BASE}/me/bots?state=active`).length,
+    ).toBeGreaterThan(before));
   });
 });
 

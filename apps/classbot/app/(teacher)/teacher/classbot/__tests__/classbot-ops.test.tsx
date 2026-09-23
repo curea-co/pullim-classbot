@@ -27,7 +27,7 @@ import TeacherClassbotPage from '../page';
 const ATTACHED: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근',
   greeting: null, scope: 4, avatarEmoji: '📚', quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: ['cls_1'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1'], createdAt: '', updatedAt: '',
 };
 
 const CLASS_1: BotCardDto = {

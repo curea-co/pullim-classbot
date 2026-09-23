@@ -20,12 +20,12 @@ import type { AssignmentSummaryDto, BotCardDto, BotDto } from '@/lib/api/classbo
 const TARGET: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '국어봇', subject: '국어', grade: '중3', tone: '친근',
   greeting: null, scope: 3, avatarEmoji: '📚', quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
 };
 const KEEP: BotDto = {
   id: 'bot_2', operatorId: 't1', name: '수학 도우미', subject: '수학', grade: '중2', tone: '차분',
   greeting: null, scope: 3, avatarEmoji: '🧮', quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: ['cls_3'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_3'], createdAt: '', updatedAt: '',
 };
 
 const klass = (id: string, name: string, enrolledCount: number): BotCardDto => ({
@@ -198,6 +198,18 @@ it('Escape 로 닫아도 지워지지 않는다', () => {
 
   expect(screen.queryByRole('alertdialog')).toBeNull();
   expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
+});
+
+it('보관 요청이 진행 중이면 Escape로 확인판을 닫을 수 없다', async () => {
+  archiveMutate.mockImplementationOnce(() => new Promise<void>(() => undefined));
+  render(<TeacherClassbotPage />);
+  openDeleteDialog(TARGET.name);
+  fireEvent.click(screen.getByRole('button', { name: '보관하기' }));
+
+  expect(await screen.findByRole('button', { name: '보관하는 중…' })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 });
 
 it('「보관하기」를 누르면 카드와 상단 통계 두 칸이 함께 줄어든다', async () => {

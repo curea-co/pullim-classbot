@@ -51,7 +51,7 @@ jest.mock('@/lib/tokens/bot-signature', () => {
  */
 const CREATED: BotDto = {
   id: 'bot_new', operatorId: 't1', name: '', subject: null, grade: null, tone: null, greeting: null,
-  scope: 3, avatarEmoji: null, quickPrompts: [], isPublished: false, publishedAt: null, classIds: [],
+  scope: 3, avatarEmoji: null, quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: [],
   createdAt: '', updatedAt: '',
 };
 /**

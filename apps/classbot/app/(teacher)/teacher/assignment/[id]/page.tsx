@@ -11,7 +11,7 @@ import { ReadErrorState } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { useAssignmentDetail, useAssignmentSubmissions } from '@/hooks/api/assignment-dispatch';
-import { useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
+import { useClassDetail, useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
 import type {
   AssignmentDetailDto,
   AssignmentQuestionDto,
@@ -71,6 +71,7 @@ function AssignmentDetail({ id }: { id: string }) {
   const detail = useAssignmentDetail(id);
   const submissions = useAssignmentSubmissions(id);
   const classes = useOperatorClasses();
+  const classroom = useClassDetail(detail.data?.classId);
   // 명단 — 상세가 오기 전에는 반을 모르므로 `undefined` 로 두면 훅이 묻지 않는다. 훅은 조건부로 부를 수 없어
   // 이른 return(로딩·오류) **앞**에 둔다.
   const members = useClassMembers(detail.data?.classId);
@@ -117,6 +118,17 @@ function AssignmentDetail({ id }: { id: string }) {
   const mode = assignmentModeBadge[modeOf(a)];
   const status = statusOf(a);
   const withdrawn = a.dispatchStatus === 'withdrawn';
+  const classReadOnly = classroom.isSuccess && !classroom.data.isActive;
+  const classLifecycleUnknown = classroom.isPending || classroom.isError;
+  const classReadOnlyMessage = classroom.isError
+    ? (httpStatusOf(classroom.error) === 404
+        ? '반을 찾을 수 없어 과제를 변경할 수 없어요. 과제 목록으로 돌아가 새로고침해 주세요.'
+        : httpStatusOf(classroom.error) === 403
+          ? '이 반의 운영 권한을 확인할 수 없어 과제를 변경할 수 없어요.'
+          : '반 상태를 확인하지 못해 과제 변경을 잠시 막았어요. 새로고침한 뒤 다시 시도해 주세요.')
+    : classroom.isPending
+      ? '반 상태를 확인하는 동안에는 과제를 변경할 수 없어요.'
+      : undefined;
   const dueSoon = isDueSoon(a);
 
   const rows = submissions.data ?? [];
@@ -138,7 +150,7 @@ function AssignmentDetail({ id }: { id: string }) {
       header={{
         eyebrow: { icon: ClipboardList, text: '평가' },
         title: a.title,
-        description: [klass?.name ?? '반 이름 없음', `${a.questionCount}문항`, `난이도 ${a.difficulty}`].join(' · '),
+        description: [classroom.data?.name ?? klass?.name ?? '반 이름 없음', `${a.questionCount}문항`, `난이도 ${a.difficulty}`].join(' · '),
       }}
     >
       {/* 이 과제가 무엇인지 — 모드·상태·마감은 한 줄에 함께 둔다. 셋이 같이 읽혀야 뜻이 선다 */}
@@ -156,6 +168,9 @@ function AssignmentDetail({ id }: { id: string }) {
         members={members.data}
         submissionCount={rows.length}
         submissionsReady={!submissions.isPending && !submissions.isError}
+        readOnly={classReadOnly || classLifecycleUnknown}
+        readOnlyMessage={classReadOnlyMessage}
+        onConflictRefresh={() => submissions.refetch()}
       />
 
       {/* 한눈에 — 있는 것만 센다. 대상은 명단의 활성 인원(못 읽으면 반 카드의 수, 그것도 없으면 —),
@@ -174,7 +189,7 @@ function AssignmentDetail({ id }: { id: string }) {
         />
         <SubmissionsPanel query={submissions} detail={a} roster={roster} />
         {/* 미제출 리마인드 — 명단을 읽을 수 있을 때만 선다(`remind-unsubmitted.tsx`). */}
-        {submissions.isSuccess && (
+        {submissions.isSuccess && !withdrawn && classroom.isSuccess && classroom.data.isActive && (
           <RemindUnsubmitted
             classId={a.classId}
             assignmentId={a.id}

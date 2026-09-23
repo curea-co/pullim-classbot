@@ -22,14 +22,14 @@ import TeacherBotSettingsPage from '../[botId]/page';
 const FULL: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근',
   greeting: '안녕! 오늘은 뭘 볼까?', scope: 4, avatarEmoji: '📚', quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
 };
 
 /** 이름만 있는 봇 — 과목·학년·말투·인사말이 전부 null 이고 어느 반에도 안 붙었다. */
 const BARE: BotDto = {
   id: 'bot_2', operatorId: 't1', name: '이름만 봇', subject: null, grade: null, tone: null,
   greeting: null, scope: 3, avatarEmoji: null, quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: [], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: [], createdAt: '', updatedAt: '',
 };
 
 /* ── 훅 바꿔 끼우기 — 모듈 수준 가변 상태 ─────────────────────── */

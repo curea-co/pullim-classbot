@@ -64,7 +64,9 @@ export function ClassActionsMenu({
         });
       },
       onError: (error) => toast.error(
-        statusOf(error) === 409
+        statusOf(error) === 404
+          ? '반을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+          : statusOf(error) === 409
           ? '다른 곳에서 반 정보가 변경되었어요. 새로고침 후 다시 시도해 주세요.'
           : '반을 다시 열지 못했어요. 잠시 후 다시 시도해 주세요.',
       ),
@@ -128,7 +130,9 @@ export function ClassActionsMenu({
               onArchived?.();
             },
             onError: (error) => setArchiveError(
-              statusOf(error) === 409
+              statusOf(error) === 404
+                ? '반을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(error) === 409
                 ? '다른 곳에서 반 정보가 변경되었어요. 새로고침 후 다시 시도해 주세요.'
                 : '반을 보관하지 못했어요. 잠시 후 다시 시도해 주세요.',
             ),
@@ -155,7 +159,9 @@ export function ClassActionsMenu({
               onDeleted?.();
             },
             onError: (error) => setDeleteError(
-              statusOf(error) === 409
+              statusOf(error) === 404
+                ? '반이 이미 삭제되었거나 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(error) === 409
                 ? '학생·과제·대화 기록이 있거나 아직 보관되지 않은 반은 영구 삭제할 수 없어요.'
                 : '반을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.',
             ),

@@ -51,7 +51,7 @@ let classDto: ClassDto;
 
 const BOT: BotDto = {
   id: 'bot_1', operatorId: 'sub-1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근', greeting: '안녕!',
-  scope: 3, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, classIds: [],
+  scope: 3, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: [],
   createdAt: '2026-09-17T00:00:00.000Z', updatedAt: '2026-09-17T00:00:00.000Z',
 };
 const CLASS_DTO: ClassDto = {

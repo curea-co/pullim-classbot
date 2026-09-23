@@ -327,9 +327,9 @@ export interface BotDto {
   isPublished: boolean;
   publishedAt: string | null;
   /** 운영 lifecycle. 보관한 봇은 활성 목록과 새 할당 후보에서 빠진다. */
-  state?: 'active' | 'archived';
+  state: 'active' | 'archived';
   /** ISO 8601 · 활성 봇이면 null. */
-  archivedAt?: string | null;
+  archivedAt: string | null;
   /** `classes.bot_id == id` 인 반 id 목록. */
   classIds: string[];
   createdAt: string;

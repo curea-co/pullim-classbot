@@ -50,7 +50,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useMyBot, useMyBots, useRestoreBot, useUpdateBot } from '@/hooks/api/bot';
-import { isUnauthorized } from '@/lib/api/classbot-client';
+import { isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { BotDto, UpdateBotBody } from '@/lib/api/classbot-dto';
 import { botFailureMessage } from '@/lib/bot-failure-message';
 import {
@@ -280,7 +280,11 @@ function ArchivedBotRestore({ bot }: { bot: BotDto }) {
       disabled={restore.isPending}
       onClick={() => restore.mutate(bot.id, {
         onSuccess: () => toast.success('봇을 복구했어요.'),
-        onError: () => toast.error('봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+        onError: (error) => toast.error(
+          statusOf(error) === 404
+            ? '봇을 찾을 수 없어요. 목록으로 돌아가 새로고침해 주세요.'
+            : '봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.',
+        ),
       })}
     >
       <RotateCcw aria-hidden /> {restore.isPending ? '복구 중…' : '봇 복구'}

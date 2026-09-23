@@ -280,6 +280,8 @@ export function useDeleteClass(): UseMutationResult<void, ApiError, string> {
     onSuccess: (_body, classId) => {
       queryClient.removeQueries({ queryKey: classroomKeys.classDetail(classId) });
       invalidateClassLifecycle(queryClient, classId);
+      // 영구 삭제는 classes.bot_id 연결도 없앤다. 봇의 classIds를 즉시 다시 읽어야 삭제된 반이 남지 않는다.
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
     },
   });
 }

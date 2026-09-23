@@ -237,7 +237,11 @@ function BotLifecycleMenu({ bot, archived, onChanged }: { bot: BotDto; archived:
                   onChanged(`「${bot.name}」을 다시 사용할 수 있어요.`);
                   toast.success(`「${bot.name}」을 다시 사용할 수 있어요.`);
                 },
-                onError: () => toast.error('봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+                onError: (error) => toast.error(
+                  statusOf(error) === 404
+                    ? '봇을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                    : '봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.',
+                ),
               })}
             >
               <RotateCcw /> {restore.isPending ? '복구하는 중…' : '다시 사용'}
@@ -265,7 +269,9 @@ function BotLifecycleMenu({ bot, archived, onChanged }: { bot: BotDto; archived:
               toast.success(`「${bot.name}」을 보관했어요.`);
             },
             onError: (mutationError) => setError(
-              statusOf(mutationError) === 409
+              statusOf(mutationError) === 404
+                ? '봇을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(mutationError) === 409
                 ? '반에서 사용 중인 봇은 보관할 수 없어요. 붙어 있는 모든 반에서 먼저 봇을 떼어 주세요.'
                 : '봇을 보관하지 못했어요. 잠시 후 다시 시도해 주세요.',
             ),

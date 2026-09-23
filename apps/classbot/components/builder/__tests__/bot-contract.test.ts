@@ -30,6 +30,8 @@ function bot(overrides: Partial<BotDto> = {}): BotDto {
     quickPrompts: ['오늘 배운 것 정리해 줘'],
     isPublished: false,
     publishedAt: null,
+    state: 'active',
+    archivedAt: null,
     classIds: ['cls_1', 'cls_2'],
     createdAt: '',
     updatedAt: '',

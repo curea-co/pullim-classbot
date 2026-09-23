@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { ApiError } from '@pullim-classbot/api-client';
 
 import type { AssignmentAuthoringDto, AssignmentDetailDto, ClassMemberDto } from '@/lib/api/classbot-dto';
 import { AssignmentLifecycleActions } from '../[id]/assignment-lifecycle-actions';
@@ -38,10 +40,58 @@ jest.mock('@/hooks/api/assignment-dispatch', () => ({
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 beforeEach(() => {
+  AUTHORING.questions = [{ order: 0, type: 'numeric', prompt: '1+1은?', answerKey: 2 }];
   mutateAsync.mockReset().mockResolvedValue(AUTHORING);
   withdrawMutate.mockReset();
   restoreMutate.mockReset();
   refetch.mockReset();
+});
+
+it('객관식의 빈 보기를 걷을 때 고른 답의 새 위치를 다시 계산한다', async () => {
+  AUTHORING.questions = [{ order: 0, type: 'mc', prompt: '고르세요', options: ['', '정답', '오답'], answerKey: 1 }];
+  render(<AssignmentLifecycleActions assignment={DETAIL} members={MEMBERS} submissionCount={0} submissionsReady />);
+  fireEvent.click(screen.getByRole('button', { name: '과제 수정' }));
+  fireEvent.click(await screen.findByRole('button', { name: '저장' }));
+
+  await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+  expect(mutateAsync.mock.calls[0][0].patch.questions[0]).toMatchObject({
+    options: ['정답', '오답'],
+    answerKey: 0,
+  });
+});
+
+it('객관식에서 고른 보기를 빈 값으로 지우면 저장하지 않는다', async () => {
+  AUTHORING.questions = [{ order: 0, type: 'mc', prompt: '고르세요', options: ['', '다른 답'], answerKey: 0 }];
+  render(<AssignmentLifecycleActions assignment={DETAIL} members={MEMBERS} submissionCount={0} submissionsReady />);
+  fireEvent.click(screen.getByRole('button', { name: '과제 수정' }));
+  fireEvent.click(await screen.findByRole('button', { name: '저장' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('객관식 보기와 정답');
+  expect(mutateAsync).not.toHaveBeenCalled();
+});
+
+it('편집 중 제출이 생겨 409가 나면 원본과 제출을 다시 읽고 메타데이터 전용으로 전환한다', async () => {
+  mutateAsync.mockRejectedValueOnce(new ApiError('제출이 존재합니다.', 409));
+
+  function RaceHarness() {
+    const [count, setCount] = useState(0);
+    return (
+      <AssignmentLifecycleActions
+        assignment={DETAIL}
+        members={MEMBERS}
+        submissionCount={count}
+        submissionsReady
+        onConflictRefresh={() => setCount(1)}
+      />
+    );
+  }
+
+  render(<RaceHarness />);
+  fireEvent.click(screen.getByRole('button', { name: '과제 수정' }));
+  fireEvent.click(await screen.findByRole('button', { name: '저장' }));
+
+  expect(await screen.findByText(/제출이 1건 있어 문항과 대상 학생은 잠겼어요/)).toBeInTheDocument();
+  expect(refetch).toHaveBeenCalled();
 });
 
 it('제출 여부를 읽는 동안에는 수정 버튼을 열지 않는다', () => {

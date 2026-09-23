@@ -42,8 +42,14 @@ export function LifecycleConfirmDialog({
 }: LifecycleConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  function handleOpenChange(nextOpen: boolean) {
+    // 요청 중 Escape 등으로 판이 사라지면 성공·실패를 확인할 자리와 초점 복귀 대상이 사라진다.
+    if (isPending && !nextOpen) return;
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal>
+    <Dialog open={open} onOpenChange={handleOpenChange} disablePointerDismissal>
       <DialogContent
         role="alertdialog"
         showCloseButton={false}

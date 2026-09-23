@@ -19,7 +19,7 @@ import { ClassBotTab } from '../class-bot-tab';
 
 const BOT: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근', greeting: '안녕! 오늘은 뭘 볼까?',
-  scope: 4, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, classIds: ['cls_1'],
+  scope: 4, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1'],
   createdAt: '', updatedAt: '',
 };
 const CLASS_BASE: ClassDto = {

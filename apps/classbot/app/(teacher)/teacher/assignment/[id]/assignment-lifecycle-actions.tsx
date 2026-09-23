@@ -35,11 +35,18 @@ export function AssignmentLifecycleActions({
   members,
   submissionCount,
   submissionsReady,
+  readOnly = false,
+  readOnlyMessage,
+  onConflictRefresh,
 }: {
   assignment: AssignmentDetailDto;
   members: ClassMemberDto[] | undefined;
   submissionCount: number;
   submissionsReady: boolean;
+  /** 보관된 반의 과제는 이력만 읽고 lifecycle 쓰기는 하지 않는다. */
+  readOnly?: boolean;
+  readOnlyMessage?: string;
+  onConflictRefresh?: () => Promise<unknown> | unknown;
 }) {
   const editRef = useRef<HTMLButtonElement>(null);
   const withdrawRef = useRef<HTMLButtonElement>(null);
@@ -53,8 +60,22 @@ export function AssignmentLifecycleActions({
   function handleRestore() {
     restore.mutate(assignment.id, {
       onSuccess: () => toast.success('과제를 다시 학생에게 열었어요.'),
-      onError: () => toast.error('과제를 다시 열지 못했어요. 잠시 후 다시 시도해 주세요.'),
+      onError: (error) => toast.error(
+        statusOf(error) === 404
+          ? '과제를 찾을 수 없어요. 목록을 새로고침해 주세요.'
+          : statusOf(error) === 409
+            ? '보관된 반의 과제는 반을 다시 연 뒤 열 수 있어요.'
+            : '과제를 다시 열지 못했어요. 잠시 후 다시 시도해 주세요.',
+      ),
     });
+  }
+
+  if (readOnly) {
+    return (
+      <p role="status" className="bg-pullim-slate-100 text-pullim-slate-700 rounded-xl p-3 text-xs font-semibold">
+        {readOnlyMessage ?? '보관된 반의 과제는 읽기 전용이에요. 반을 다시 연 뒤 수정·회수·복구할 수 있어요.'}
+      </p>
+    );
   }
 
   if (withdrawn) {
@@ -97,6 +118,7 @@ export function AssignmentLifecycleActions({
         members={members}
         submissionCount={submissionCount}
         finalFocus={editRef}
+        onConflictRefresh={onConflictRefresh}
       />
 
       <LifecycleConfirmDialog
@@ -119,7 +141,13 @@ export function AssignmentLifecycleActions({
               setWithdrawOpen(false);
               toast.success('과제를 회수했어요.');
             },
-            onError: () => setWithdrawError('과제를 회수하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+            onError: (error) => setWithdrawError(
+              statusOf(error) === 404
+                ? '과제를 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(error) === 409
+                  ? '반이 보관되었거나 과제 상태가 바뀌었어요. 새로고침한 뒤 다시 시도해 주세요.'
+                  : '과제를 회수하지 못했어요. 잠시 후 다시 시도해 주세요.',
+            ),
           });
         }}
       />
@@ -134,6 +162,7 @@ function EditAssignmentDialog({
   members,
   submissionCount,
   finalFocus,
+  onConflictRefresh,
 }: {
   assignmentId: string;
   open: boolean;
@@ -141,6 +170,7 @@ function EditAssignmentDialog({
   members: ClassMemberDto[] | undefined;
   submissionCount: number;
   finalFocus: RefObject<HTMLButtonElement | null>;
+  onConflictRefresh?: () => Promise<unknown> | unknown;
 }) {
   const authoring = useAssignmentAuthoring(assignmentId);
   const update = useUpdateAssignment();
@@ -181,18 +211,25 @@ function EditAssignmentDialog({
       setError('과제명, 마감 안내, 정수 D-day를 확인해 주세요.');
       return;
     }
-    const normalizedQuestions = questions.map((question) => ({
-      ...question,
-      prompt: question.prompt.trim(),
-      ...(question.type === 'mc'
-        ? { options: (question.options ?? []).map((option) => option.trim()).filter(Boolean) }
-        : {}),
-    }));
+    let removedSelectedOption = false;
+    const normalizedQuestions = questions.map((question) => {
+      if (question.type !== 'mc') return { ...question, prompt: question.prompt.trim() };
+
+      const rawOptions = question.options ?? [];
+      const selectedIndex = typeof question.answerKey === 'number' ? question.answerKey : -1;
+      const selectedOption = rawOptions[selectedIndex]?.trim();
+      if (!selectedOption) removedSelectedOption = true;
+      const options = rawOptions.map((option) => option.trim()).filter(Boolean);
+      const answerKey = selectedOption
+        ? rawOptions.slice(0, selectedIndex).filter((option) => option.trim()).length
+        : question.answerKey;
+      return { ...question, prompt: question.prompt.trim(), options, answerKey };
+    });
     if (!contentLocked && normalizedQuestions.some((question) => !question.prompt)) {
       setError('모든 문항의 질문을 입력해 주세요.');
       return;
     }
-    if (!contentLocked && normalizedQuestions.some((question) => {
+    if (!contentLocked && (removedSelectedOption || normalizedQuestions.some((question) => {
       if (question.type === 'essay') return false;
       if (question.type === 'mc') {
         return !question.options?.length
@@ -205,7 +242,7 @@ function EditAssignmentDialog({
         return typeof question.answerKey !== 'number' || !Number.isFinite(question.answerKey);
       }
       return typeof question.answerKey !== 'string' || !question.answerKey.trim();
-    })) {
+    }))) {
       setError('객관식 보기와 정답, 단답형·수치형 정답을 확인해 주세요.');
       return;
     }
@@ -229,7 +266,12 @@ function EditAssignmentDialog({
           ? '그 사이 제출이 생겼거나 과제가 바뀌었어요. 최신 내용을 다시 불러온 뒤 문항과 대상을 확인해 주세요.'
           : '과제를 수정하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.',
       );
-      if (statusOf(caught) === 409) void authoring.refetch();
+      if (statusOf(caught) === 409) {
+        await Promise.all([
+          authoring.refetch(),
+          onConflictRefresh?.(),
+        ]);
+      }
     }
   }
 

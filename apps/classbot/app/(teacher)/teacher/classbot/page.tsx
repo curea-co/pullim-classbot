@@ -502,7 +502,9 @@ function BotCardMenu({
           void onDelete(botId, botName)
             .then(() => setConfirming(false))
             .catch((error) => setArchiveError(
-              statusOf(error) === 409
+              statusOf(error) === 404
+                ? '봇을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(error) === 409
                 ? '반에서 사용 중인 봇은 보관할 수 없어요. 붙어 있는 모든 반에서 먼저 봇을 떼어 주세요.'
                 : '봇을 보관하지 못했어요. 잠시 후 다시 시도해 주세요.',
             ))
