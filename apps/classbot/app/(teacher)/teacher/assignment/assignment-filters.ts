@@ -68,7 +68,7 @@ export function toTeacherClass(card: BotCardDto): TeacherClass {
 }
 
 /** 화면에 뜨는 과제 상태 — 정본이 만드는 값은 이 둘뿐이다(머리주석). */
-export type AssignmentRowStatus = 'live' | 'closed';
+export type AssignmentRowStatus = 'live' | 'closed' | 'withdrawn';
 
 export type StatusFilter = 'all' | AssignmentRowStatus;
 export type ModeFilter = 'all' | AssignmentMode;
@@ -79,12 +79,14 @@ export const MODE_FILTER_DEFAULT: ModeFilter = 'all';
 export const statusLabels: Record<AssignmentRowStatus, string> = {
   live: '진행 중',
   closed: '마감',
+  withdrawn: '회수됨',
 };
 
 export const statusFilterOptions: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: '전체' },
   { value: 'live', label: '진행 중' },
   { value: 'closed', label: '마감' },
+  { value: 'withdrawn', label: '회수됨' },
 ];
 
 export const modeFilterOptions: { value: ModeFilter; label: string }[] = [
@@ -95,7 +97,7 @@ export const modeFilterOptions: { value: ModeFilter; label: string }[] = [
 ];
 
 export function toStatusFilter(v: string | undefined | null): StatusFilter {
-  return v === 'live' || v === 'closed' ? v : STATUS_FILTER_DEFAULT;
+  return v === 'live' || v === 'closed' || v === 'withdrawn' ? v : STATUS_FILTER_DEFAULT;
 }
 
 export function toModeFilter(v: string | undefined | null): ModeFilter {
@@ -133,11 +135,13 @@ export function remainingOf(a: AssignmentSummaryDto, now: number = Date.now()): 
 
 /** 화면용 상태 — 남은 날수가 음수면 마감, 아니면 진행 중. */
 export function statusOf(a: AssignmentSummaryDto, now: number = Date.now()): AssignmentRowStatus {
+  if (a.dispatchStatus === 'withdrawn') return 'withdrawn';
   return remainingOf(a, now) < 0 ? 'closed' : 'live';
 }
 
 /** 마감이 급한가 — 진행 중이고 오늘(0)·내일(1)이면 급하다. */
 export function isDueSoon(a: AssignmentSummaryDto, now: number = Date.now()): boolean {
+  if (a.dispatchStatus === 'withdrawn') return false;
   const remaining = remainingOf(a, now);
   return remaining >= 0 && remaining <= 1;
 }
@@ -204,6 +208,7 @@ export function filterRows(rows: AssignmentRow[], f: AssignmentListFilter): Assi
 const STATUS_ORDER: Record<AssignmentRowStatus, number> = {
   live: 0,
   closed: 1,
+  withdrawn: 2,
 };
 
 export function sortRows(rows: AssignmentRow[]): AssignmentRow[] {
@@ -223,10 +228,12 @@ export function summarize(rows: AssignmentRow[]): {
   live: number;
   dueSoon: number;
   closed: number;
+  withdrawn: number;
 } {
   return {
     live: rows.filter((r) => r.status === 'live').length,
     dueSoon: rows.filter((r) => r.dueSoon).length,
     closed: rows.filter((r) => r.status === 'closed').length,
+    withdrawn: rows.filter((r) => r.status === 'withdrawn').length,
   };
 }

@@ -6,8 +6,8 @@
  * 그 사실이 깨지면 여기서 먼저 걸린다.
  */
 import { assignmentModeBadge } from '../assignment-state';
-import { modeMeta as studentListMode } from '@/app/(student)/classbot/assignment/page';
-import { modeMeta as teacherOpsMode } from '@/app/(teacher)/teacher/classbot/page';
+import { assignmentModeMeta as studentListMode } from '@/components/classbot/assignment-mode-meta';
+import { assignmentModeMeta as teacherOpsMode } from '@/components/classbot/assignment-mode-meta';
 
 const MODES = ['practice', 'exam', 'wrong-conquest'] as const;
 

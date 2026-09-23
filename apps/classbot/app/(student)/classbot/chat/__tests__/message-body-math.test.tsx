@@ -10,7 +10,7 @@
  * (자기설명 카드는 `useLessonActionStore` + `useState` 뿐이라 그냥 선다 — 아래에서 세운다.)
  */
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MessageBody } from '../page';
+import { MessageBody } from '../chat-page';
 import type { LessonConcept, LessonStep } from '@/lib/mock/classbot-lesson';
 
 type Turn = Parameters<typeof MessageBody>[0]['turn'];

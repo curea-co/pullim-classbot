@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Copy, RefreshCw } from 'lucide-react';
+import { Copy, RefreshCw, XCircle } from 'lucide-react';
+import { LifecycleConfirmDialog } from '@/components/classbot/lifecycle-confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { useIssueJoinCode } from '@/hooks/api/classroom';
+import { useIssueJoinCode, useRevokeJoinCodes } from '@/hooks/api/classroom';
 import { statusOf } from '@/lib/api/classbot-client';
 import type { JoinCodeDto } from '@/lib/api/classbot-dto';
 // 표기 규칙의 주인. `lib/join-code.ts` 를 부르지 않는 이유는 그 파일이 코드 **발급**까지
@@ -68,12 +69,22 @@ export function JoinCodeBlock({
   /** 반 상세 머리에서는 한 칸 더 크게. @default 'md' */
   size?: 'md' | 'lg';
 }) {
-  const [issued, setIssued] = useState<JoinCodeDto | null>(null);
-  // 아는 코드(`initial`)가 있으면 그것이 선다 — 요약 캐시는 정본이 마지막으로 돌려준 활성 코드라 여기서 낸 코드보다
-  // 오래될 수 없다(`useIssueJoinCode` 가 새 코드를 요약에도 써 둔다). 모르면 이 상자가 낸 코드.
-  const current = initial ?? issued;
+  const [current, setCurrent] = useState<JoinCodeDto | null>(initial);
+  // 서버 refetch가 더 최신 값을 주면 맞춘다. 쓰기 직후에는 아래 성공 콜백이 먼저 단일 상태를 갱신하므로
+  // 옛 initial이 새 코드/폐기 결과를 다시 덮지 않는다.
+  useEffect(() => {
+    // refetch로 바뀐 서버 코드 스냅샷을 로컬 쓰기 상태와 동기화한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrent(initial);
+  }, [initial]);
 
   const issue = useIssueJoinCode();
+  const revoke = useRevokeJoinCodes();
+  const issueRef = useRef<HTMLButtonElement>(null);
+  const revokeRef = useRef<HTMLButtonElement>(null);
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [revokeOpen, setRevokeOpen] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const code = current?.code ?? null;
   const expiresAt = current?.expiresAt ?? null;
 
@@ -93,19 +104,27 @@ export function JoinCodeBlock({
     }
   }
 
-  function handleIssue() {
+  function runIssue() {
     issue.mutate(
       { classId },
       {
         onSuccess: (dto) => {
-          setIssued(dto);
+          setCurrent(dto);
+          setReplaceOpen(false);
           toast.success('새 참여 코드를 냈어요', { description: formatJoinCode(dto.code) });
         },
         onError: (error) => {
-          toast.error(issueFailureMessage(error));
+          const message = issueFailureMessage(error);
+          if (replaceOpen) setDialogError(message);
+          else toast.error(message);
         },
       },
     );
+  }
+
+  function handleIssue() {
+    if (code && !closed) setReplaceOpen(true);
+    else runIssue();
   }
 
   /*
@@ -179,6 +198,7 @@ export function JoinCodeBlock({
 
       <div className="mt-2">
         <Button
+          ref={issueRef}
           type="button"
           variant={code ? 'ghost' : 'pullim'}
           size="sm"
@@ -190,6 +210,20 @@ export function JoinCodeBlock({
           <RefreshCw />
           {issue.isPending ? '내는 중…' : '참여 코드 새로 내기'}
         </Button>
+        {code && !closed && (
+          <Button
+            ref={revokeRef}
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevokeOpen(true)}
+            disabled={revoke.isPending}
+            className="text-pullim-danger ml-1"
+            data-testid="join-code-revoke"
+          >
+            <XCircle /> 코드 닫기
+          </Button>
+        )}
         {/* 살아 있는 코드가 있을 때만 — 없는 코드가 닫힌다고 말할 일은 없다. */}
         {code && !closed && (
           <p className="text-pullim-slate-500 mt-1 text-2xs" data-testid="join-code-replace-note">
@@ -197,6 +231,43 @@ export function JoinCodeBlock({
           </p>
         )}
       </div>
+
+      <LifecycleConfirmDialog
+        open={replaceOpen}
+        onOpenChange={(open) => { setReplaceOpen(open); if (!open) setDialogError(null); }}
+        title="참여 코드를 새로 낼까요?"
+        description={`새 코드를 만들면 지금 코드 ${code ? formatJoinCode(code) : ''}은 바로 닫혀 더 이상 참여할 수 없어요. 이미 참여한 학생은 그대로예요.`}
+        confirmLabel="새 코드 내기"
+        pendingLabel="내는 중…"
+        isPending={issue.isPending}
+        error={dialogError}
+        finalFocus={issueRef}
+        tone="primary"
+        onConfirm={runIssue}
+      />
+
+      <LifecycleConfirmDialog
+        open={revokeOpen}
+        onOpenChange={(open) => { setRevokeOpen(open); if (!open) setDialogError(null); }}
+        title="참여 코드를 닫을까요?"
+        description="이 코드는 바로 사용할 수 없게 돼요. 이미 참여한 학생과 기존 기록은 그대로 남아요."
+        confirmLabel="코드 닫기"
+        pendingLabel="닫는 중…"
+        isPending={revoke.isPending}
+        error={dialogError}
+        finalFocus={revokeRef}
+        onConfirm={() => {
+          setDialogError(null);
+          revoke.mutate(classId, {
+            onSuccess: () => {
+              setCurrent(null);
+              setRevokeOpen(false);
+              toast.success('참여 코드를 닫았어요.');
+            },
+            onError: () => setDialogError('참여 코드를 닫지 못했어요. 잠시 후 다시 시도해 주세요.'),
+          });
+        }}
+      />
     </div>
   );
 }

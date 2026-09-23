@@ -1,4 +1,4 @@
-import { plainAnnounceText } from '../page';
+import { plainAnnounceText } from '../chat-page';
 
 /** plainAnnounceText 는 Turn 을 받지만 테스트는 announce 에 필요한 kind/text 만 채워 검증한다. */
 type PartialTurn = Parameters<typeof plainAnnounceText>[0];

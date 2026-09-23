@@ -1,4 +1,4 @@
-import { scoreExplanation } from '@/app/(student)/classbot/chat/page';
+import { scoreExplanation } from '@/app/(student)/classbot/chat/chat-page';
 import { getSelfExplain, getBotLesson } from '@/lib/mock/classbot-lesson';
 
 const KW = ['부호', '변화량', '기울기', 'y절편'];

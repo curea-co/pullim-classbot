@@ -22,7 +22,7 @@ import { ClassroomWorkspace } from '../classroom-workspace';
 function card(id: string, className: string, profile: BotCardDto['profile']): BotCardDto {
   return {
     id,
-    botId: `bot_${id}`,
+    botId: profile ? `bot_${id}` : null,
     name: `${className}의 봇`,
     className,
     description: null,
@@ -60,7 +60,36 @@ jest.mock('@/hooks/api/classroom', () => ({
     error: queryError,
     refetch,
   }),
+  useClasses: (state: 'active' | 'archived') => ({
+    data: queryError || pending
+      ? undefined
+      : state === 'archived'
+        ? []
+        : cards.map((row) => knownById[row.id] ?? ({
+          id: row.id,
+          operatorId: 't1',
+          orgId: null,
+          name: row.className ?? row.name,
+          description: row.description,
+          subject: row.profile?.subject ?? null,
+          grade: row.profile?.grade ?? null,
+          isActive: true,
+          isSelfStudy: false,
+          bot: row.botId ? { id: row.botId, name: row.name, avatarEmoji: row.profile?.avatarEmoji ?? null } : null,
+          joinCode: null,
+          createdAt: '',
+          updatedAt: '',
+        })),
+    isPending: pending,
+    isError: queryError !== null,
+    error: queryError,
+    refetch,
+  }),
   useClassDetail: (id: string) => ({ data: knownById[id] }),
+  useArchiveClass: () => ({ mutate: jest.fn(), isPending: false }),
+  useRestoreClass: () => ({ mutate: jest.fn(), isPending: false }),
+  useDeleteClass: () => ({ mutate: jest.fn(), isPending: false }),
+  useUpdateClass: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
 /* 코드 상자는 어느 반 id 와 어느 초기 코드를 받는지만 비춘다 — 발급 자체는 `join-code-block.test.tsx`. */
@@ -124,18 +153,16 @@ describe('반 카드 — 정본 카드 한 장이 반 하나', () => {
     cards = [card('cls_1', '고2 미적분 A반', PROFILE), card('cls_2', '봇 없는 반', null)];
   });
 
-  it('반 이름 · 과목·학년을 그린다 — 봇을 모르면 칩이 없다(옛 profile 로 「봇 없음」을 단정하지 않는다)', () => {
+  it('반 이름 · 과목·학년을 그리고 목록 DTO의 봇 없음 상태를 그대로 보인다', () => {
     render(<ClassroomWorkspace />);
 
     const a = screen.getByTestId('classroom-card-cls_1');
-    expect(a).toHaveTextContent('고2 미적분 A반');
+    expect(screen.getByRole('heading', { name: '고2 미적분 A반' })).toBeInTheDocument();
     // 카드 제목은 **반** 이름이다 — `card.name`(봇 이름)을 쓰면 여기가 「…의 봇」이 된다(#679).
-    expect(a).not.toHaveTextContent('고2 미적분 A반의 봇');
     expect(a).toHaveTextContent('수학Ⅱ');
     expect(a).toHaveTextContent('고2');
-    expect(screen.queryByTestId('classroom-bot-cls_1')).toBeNull();
-    expect(screen.queryByTestId('classroom-bot-cls_2')).toBeNull();
-    expect(screen.queryByText('봇 없음')).toBeNull();
+    expect(screen.getByTestId('classroom-bot-cls_1')).toHaveTextContent('고2 미적분 A반의 봇');
+    expect(screen.getByTestId('classroom-bot-cls_2')).toHaveTextContent('봇 없음');
   });
 
   it('아는 반은 봇 칩이 사실을 말한다 — 없으면 「봇 없음」, 있으면 아바타와 이름', () => {

@@ -21,6 +21,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ import { ApiError } from '@pullim-classbot/api-client';
 
 import { classbotRead, classbotWrite, retryUnlessClientError } from '@/lib/api/classbot-client';
 import type {
+  AssignmentAuthoringDto,
   AssignmentDetailDto,
   AssignmentSummaryDto,
   DispatchAssignmentBody,
@@ -39,6 +41,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 export const assignmentDispatchKeys = {
   teacherAssignments: ['teacher-assignments'] as const,
   detail: (id: string) => ['teacher-assignment', id] as const,
+  authoring: (id: string) => ['teacher-assignment-authoring', id] as const,
   submissions: (id: string) => ['assignment-submissions', id] as const,
 };
 
@@ -46,6 +49,20 @@ export const assignmentDispatchKeys = {
 export interface DispatchAssignmentRequest {
   classId: string;
   body: DispatchAssignmentBody;
+}
+
+export interface UpdateAssignmentBody {
+  title?: string;
+  dDay?: number;
+  dueLabel?: string;
+  state?: 'sent' | 'withdrawn';
+  questions?: DispatchAssignmentBody['questions'];
+  targetStudentIds?: string[];
+}
+
+export interface UpdateAssignmentInput {
+  assignmentId: string;
+  patch: UpdateAssignmentBody;
 }
 
 /**
@@ -72,6 +89,67 @@ export function useDispatchAssignment(): UseMutationResult<
       // 같은 브라우저에서 역할을 오갈 때 학생 쪽 목록도 새 과제를 봐야 한다.
       void queryClient.invalidateQueries({ queryKey: ['student-read'] });
     },
+  });
+}
+
+function invalidateAssignmentLifecycle(queryClient: QueryClient, assignmentId: string): void {
+  void queryClient.invalidateQueries({ queryKey: assignmentDispatchKeys.teacherAssignments });
+  void queryClient.invalidateQueries({ queryKey: assignmentDispatchKeys.detail(assignmentId) });
+  void queryClient.invalidateQueries({ queryKey: assignmentDispatchKeys.authoring(assignmentId) });
+  void queryClient.invalidateQueries({ queryKey: ['student-read'] });
+}
+
+/** 과제 메타데이터 또는 lifecycle을 부분 수정한다. */
+export function useUpdateAssignment(): UseMutationResult<AssignmentAuthoringDto, ApiError, UpdateAssignmentInput> {
+  const queryClient = useQueryClient();
+  return useMutation<AssignmentAuthoringDto, ApiError, UpdateAssignmentInput>({
+    mutationFn: async ({ assignmentId, patch }) =>
+      (
+        await classbotWrite<AssignmentAuthoringDto>(
+          `/assignments/${encodeURIComponent(assignmentId)}`,
+          patch,
+          'PATCH',
+        )
+      ).body,
+    onSuccess: (assignment) => invalidateAssignmentLifecycle(queryClient, assignment.id),
+  });
+}
+
+/** 낸 과제를 회수한다. 기록은 보존되고 학생의 활성 목록에서 빠진다. */
+export function useWithdrawAssignment(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: async (assignmentId) => {
+      await classbotWrite<null>(`/assignments/${encodeURIComponent(assignmentId)}`, undefined, 'DELETE');
+    },
+    onSuccess: (_body, assignmentId) => invalidateAssignmentLifecycle(queryClient, assignmentId),
+  });
+}
+
+/** 회수한 과제를 다시 학생 활성 목록에 연다. */
+export function useRestoreAssignment(): UseMutationResult<AssignmentAuthoringDto, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<AssignmentAuthoringDto, ApiError, string>({
+    mutationFn: async (assignmentId) =>
+      (
+        await classbotWrite<AssignmentAuthoringDto>(
+          `/assignments/${encodeURIComponent(assignmentId)}`,
+          { state: 'sent' },
+          'PATCH',
+        )
+      ).body,
+    onSuccess: (assignment) => invalidateAssignmentLifecycle(queryClient, assignment.id),
+  });
+}
+
+/** 교사 전용 편집 원본 — 정답과 대상 학생 id가 포함되므로 학생 화면에서 쓰지 않는다. */
+export function useAssignmentAuthoring(id: string): UseQueryResult<AssignmentAuthoringDto, ApiError> {
+  const { user, isReady } = useAuth();
+  return useQuery<AssignmentAuthoringDto, ApiError>({
+    queryKey: [...assignmentDispatchKeys.authoring(id), user?.id ?? null],
+    queryFn: () => classbotRead<AssignmentAuthoringDto>(`/assignments/${encodeURIComponent(id)}/authoring`),
+    enabled: isReady && user !== null && Boolean(id),
+    retry: retryUnlessClientError,
   });
 }
 

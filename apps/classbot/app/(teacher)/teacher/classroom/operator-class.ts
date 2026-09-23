@@ -1,4 +1,4 @@
-import { classNameOf, type BotCardDto, type BotDetailDto } from '@/lib/api/classbot-dto';
+import { classNameOf, type BotCardDto, type BotDetailDto, type ClassDto } from '@/lib/api/classbot-dto';
 
 /**
  * 교사가 보는 반 한 칸 — 정본 카드(`GET /classbot/bots?role=teacher` · `GET /bots/:id`)를 화면 모양으로.
@@ -35,7 +35,16 @@ export interface OperatorClass {
  * @param card - 카드 한 장(목록) 또는 상세
  * @returns 화면이 그대로 그리는 칸
  */
-export function toOperatorClass(card: BotCardDto | BotDetailDto): OperatorClass {
+export function toOperatorClass(card: BotCardDto | BotDetailDto | ClassDto): OperatorClass {
+  if ('joinCode' in card) {
+    return {
+      id: card.id,
+      name: card.name,
+      subject: card.subject,
+      grade: card.grade,
+      isActive: card.isActive,
+    };
+  }
   const profile = card.profile;
   return {
     id: card.id,

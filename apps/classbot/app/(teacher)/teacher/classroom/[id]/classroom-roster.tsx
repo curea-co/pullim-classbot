@@ -1,14 +1,16 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ClipboardList, Lock, MessageCircle, SearchX, Users } from 'lucide-react';
+import { ClipboardList, Lock, MessageCircle, SearchX, Trash2, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { LifecycleConfirmDialog } from '@/components/classbot/lifecycle-confirm-dialog';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClassMembers } from '@/hooks/api/classroom';
+import { useClassMembers, useRemoveClassMember } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { ClassMemberDto } from '@/lib/api/classbot-dto';
 import { memberLabel } from '@/lib/interventions';
@@ -92,17 +94,23 @@ const cell = 'border-pullim-slate-100 border-t px-2 py-2.5 align-middle whitespa
 export function ClassroomRoster({
   classId,
   classroomName,
+  readOnly = false,
 }: {
   /** 반 id(pullim-api). */
   classId: string;
   /** 반 이름 — 표 이름에 넣는다(낭독기에 어느 반 표인지). */
   classroomName: string;
+  readOnly?: boolean;
 }) {
   const query = useClassMembers(classId);
   /** 열려 있는 개입 판 — 명단 전체가 판 하나를 돌려 쓴다. */
   const [target, setTarget] = useState<{ member: ClassMemberDto; kind: InterventionKind } | null>(null);
   /** 판이 닫힐 때 포커스를 돌려줄 자리 — 방금 누른 줄의 버튼. */
   const openerRef = useRef<HTMLButtonElement>(null);
+  const rosterRef = useRef<HTMLDivElement>(null);
+  const [removeTarget, setRemoveTarget] = useState<ClassMemberDto | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const remove = useRemoveClassMember();
 
   const heading = (
     <SectionHeading
@@ -175,7 +183,7 @@ export function ClassroomRoster({
     <>
       {heading}
       {/* 가로로 미는 것은 표뿐이다 — 본문은 가로 스크롤을 갖지 않는다. */}
-      <div className="overflow-x-auto">
+      <div ref={rosterRef} tabIndex={-1} className="overflow-x-auto rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50">
         <table
           aria-label={`${classroomName} 명단 ${members.length}명`}
           style={{ minWidth: '38rem' }}
@@ -196,9 +204,14 @@ export function ClassroomRoster({
               <MemberRow
                 key={m.membershipId}
                 member={m}
+                readOnly={readOnly}
                 onSend={(kind, button) => {
                   openerRef.current = button;
                   setTarget({ member: m, kind });
+                }}
+                onRemove={(button) => {
+                  openerRef.current = button;
+                  setRemoveTarget(m);
                 }}
               />
             ))}
@@ -218,6 +231,34 @@ export function ClassroomRoster({
           finalFocus={openerRef}
         />
       )}
+      {removeTarget && (
+        <LifecycleConfirmDialog
+          open
+          onOpenChange={(open) => { if (!open) { setRemoveTarget(null); setRemoveError(null); } }}
+          title={`${memberLabel(removeTarget)} 학생을 「${classroomName}」에서 내보낼까요?`}
+          description="이후 새 과제와 반 대화에 참여할 수 없어요. 기존 제출과 대화 기록은 남아요. 다시 참여하려면 새 참여 코드가 필요해요."
+          confirmLabel="내보내기"
+          pendingLabel="내보내는 중…"
+          isPending={remove.isPending}
+          error={removeError}
+          finalFocus={openerRef}
+          onConfirm={() => {
+            setRemoveError(null);
+            remove.mutate(
+              { classId, memberId: removeTarget.memberId },
+              {
+                onSuccess: () => {
+                  const label = memberLabel(removeTarget);
+                  setRemoveTarget(null);
+                  toast.success(`${label} 학생을 반에서 내보냈어요.`);
+                  requestAnimationFrame(() => rosterRef.current?.focus());
+                },
+                onError: () => setRemoveError('학생을 내보내지 못했어요. 명단을 새로고침한 뒤 다시 시도해 주세요.'),
+              },
+            );
+          }}
+        />
+      )}
     </>
   );
 }
@@ -226,9 +267,13 @@ export function ClassroomRoster({
 function MemberRow({
   member: m,
   onSend,
+  onRemove,
+  readOnly,
 }: {
   member: ClassMemberDto;
   onSend: (kind: InterventionKind, button: HTMLButtonElement) => void;
+  onRemove: (button: HTMLButtonElement) => void;
+  readOnly: boolean;
 }) {
   const name = m.displayName?.trim() || null;
   return (
@@ -255,10 +300,21 @@ function MemberRow({
         {m.isActive ? <Chip tone="info">활성</Chip> : <Chip tone="neutral">비활성</Chip>}
       </td>
       <td className={cell}>
-        {m.isActive ? (
+        {m.isActive && !readOnly ? (
           <span className="flex items-center gap-1">
             <RowAction member={m} kind="remind" icon={ClipboardList} label="리마인드" onSend={onSend} />
             <RowAction member={m} kind="comment" icon={MessageCircle} label="코멘트" onSend={onSend} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-pullim-danger h-9 px-2.5"
+              aria-label={`${memberLabel(m)} 학생 내보내기`}
+              onClick={(event) => onRemove(event.currentTarget)}
+            >
+              <Trash2 aria-hidden className="h-3.5 w-3.5" />
+              내보내기
+            </Button>
           </span>
         ) : (
           <span className="text-pullim-slate-400 text-2xs">—</span>

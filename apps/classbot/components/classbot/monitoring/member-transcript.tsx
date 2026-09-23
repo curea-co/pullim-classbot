@@ -36,6 +36,7 @@ export function MemberTranscript({
   marks,
   onAck,
   pendingAckIds,
+  readOnly = false,
 }: {
   studentName: string;
   rows: TranscriptRow[];
@@ -44,6 +45,7 @@ export function MemberTranscript({
   onAck: (signalId: string) => void;
   /** 확인 요청이 나가 있는 신호 id. */
   pendingAckIds: ReadonlySet<string>;
+  readOnly?: boolean;
 }) {
   const marksByMessage = useMemo(() => groupMarksByMessage(marks), [marks]);
   const rowIds = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
@@ -74,7 +76,7 @@ export function MemberTranscript({
               return (
                 <li key={m.id} className="flex flex-wrap items-center gap-1.5">
                   <span className="text-pullim-slate-400 font-mono text-micro">{formatChatTime(new Date(m.createdAt).getTime())}</span>
-                  <SignalMarkChips mark={m} onAck={onAck} pending={pendingAckIds.has(m.id)} />
+                  <SignalMarkChips mark={m} onAck={onAck} pending={pendingAckIds.has(m.id)} readOnly={readOnly} />
                   {canJump ? (
                     <button
                       type="button"
@@ -136,7 +138,7 @@ export function MemberTranscript({
                   {rowMarks.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {rowMarks.map((m) => (
-                        <SignalMarkChips key={m.id} mark={m} onAck={onAck} pending={pendingAckIds.has(m.id)} />
+                        <SignalMarkChips key={m.id} mark={m} onAck={onAck} pending={pendingAckIds.has(m.id)} readOnly={readOnly} />
                       ))}
                     </div>
                   )}

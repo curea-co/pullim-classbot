@@ -53,6 +53,7 @@ import type {
   CreateClassResponse,
   EnrollmentDto,
   JoinCodeDto,
+  UpdateClassBody,
 } from '@/lib/api/classbot-dto';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -64,6 +65,8 @@ export const classroomKeys = {
   myClassrooms: ['my-classrooms'] as const,
   /** 정본 — 내가 operator 인 반 목록(`GET /bots?role=teacher`). */
   operatorClasses: ['operator-classes'] as const,
+  /** 반 lifecycle 목록. 활성/보관을 서버에서 나눠 읽는다. */
+  classes: (state: ClassLifecycleState) => ['classes', state] as const,
   /** 정본 — 반 하나(`GET /bots/:id`). 목록과 키를 따로 두는 이유는 반 상세가 목록 없이 열려서다. */
   operatorClass: (classId: string) => ['operator-class', classId] as const,
   /** 정본 — 반 명단(`GET /classes/:classId/members`). */
@@ -75,6 +78,19 @@ export const classroomKeys = {
    */
   classDetail: (classId: string) => ['class-detail', classId] as const,
 };
+
+export type ClassLifecycleState = 'active' | 'archived';
+
+/** `GET /classbot/classes?state=` — 반 lifecycle 목록(operator 전용). */
+export function useClasses(state: ClassLifecycleState): UseQueryResult<ClassDto[], ApiError> {
+  const { user, isReady } = useAuth();
+  return useQuery<ClassDto[], ApiError>({
+    queryKey: [...classroomKeys.classes(state), user?.id ?? null],
+    queryFn: () => classbotRead<ClassDto[]>(`/classes?state=${state}`),
+    enabled: isReady && user !== null,
+    retry: retryUnlessClientError,
+  });
+}
 
 /* ─── 교사 — pullim-api 정본 `api.pullim.ai/classbot/*` (계획 PR 5a · 5b) ─── */
 
@@ -186,7 +202,118 @@ export function useCreateClassroom(): UseMutationResult<CreateClassResponse, Api
     onSuccess: (created) => {
       writeClassDetail(queryClient, user?.id ?? null, created.class);
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClasses });
+      void queryClient.invalidateQueries({ queryKey: classroomKeys.classes('active') });
     },
+  });
+}
+
+export interface UpdateClassInput {
+  classId: string;
+  patch: UpdateClassBody;
+}
+
+function invalidateClassLifecycle(queryClient: QueryClient, classId: string): void {
+  void queryClient.invalidateQueries({ queryKey: ['classes'] });
+  void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClasses });
+  void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClass(classId) });
+  void queryClient.invalidateQueries({ queryKey: classroomKeys.classDetail(classId) });
+  void queryClient.invalidateQueries({ queryKey: classroomKeys.classMembers(classId) });
+  void queryClient.invalidateQueries({ queryKey: classroomKeys.myClassrooms });
+  void queryClient.invalidateQueries({ queryKey: ['student-read'] });
+}
+
+/** 반 이름·설정 또는 lifecycle을 부분 수정한다. */
+export function useUpdateClass(): UseMutationResult<ClassDto, ApiError, UpdateClassInput> {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  return useMutation<ClassDto, ApiError, UpdateClassInput>({
+    mutationFn: async ({ classId, patch }) =>
+      (await classbotWrite<ClassDto>(`/classes/${encodeURIComponent(classId)}`, patch, 'PATCH')).body,
+    onSuccess: (klass) => {
+      writeClassDetail(queryClient, user?.id ?? null, klass);
+      invalidateClassLifecycle(queryClient, klass.id);
+    },
+  });
+}
+
+/** 반을 보관한다. 기록·멤버십·봇 연결은 유지되고 새 쓰기는 서버가 막는다. */
+export interface ClassStateInput {
+  classId: string;
+  expectedUpdatedAt: string;
+}
+
+export function useArchiveClass(): UseMutationResult<ClassDto, ApiError, ClassStateInput> {
+  return useSetClassState('archived');
+}
+
+/** 보관한 반을 다시 연다. */
+export function useRestoreClass(): UseMutationResult<ClassDto, ApiError, ClassStateInput> {
+  return useSetClassState('active');
+}
+
+function useSetClassState(state: ClassLifecycleState): UseMutationResult<ClassDto, ApiError, ClassStateInput> {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  return useMutation<ClassDto, ApiError, ClassStateInput>({
+    mutationFn: async ({ classId, expectedUpdatedAt }) =>
+      (
+        await classbotWrite<ClassDto>(
+          `/classes/${encodeURIComponent(classId)}`,
+          { state, expectedUpdatedAt },
+          'PATCH',
+        )
+      ).body,
+    onSuccess: (klass) => {
+      writeClassDetail(queryClient, user?.id ?? null, klass);
+      invalidateClassLifecycle(queryClient, klass.id);
+    },
+  });
+}
+
+/** 보관됐고 활동 기록이 없는 반만 영구 삭제한다. */
+export function useDeleteClass(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: async (classId) => {
+      await classbotWrite<null>(`/classes/${encodeURIComponent(classId)}`, undefined, 'DELETE');
+    },
+    onSuccess: (_body, classId) => {
+      queryClient.removeQueries({ queryKey: classroomKeys.classDetail(classId) });
+      invalidateClassLifecycle(queryClient, classId);
+      // 영구 삭제는 classes.bot_id 연결도 없앤다. 봇의 classIds를 즉시 다시 읽어야 삭제된 반이 남지 않는다.
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
+    },
+  });
+}
+
+export interface RemoveClassMemberInput {
+  classId: string;
+  memberId: string;
+}
+
+/** 교사가 활성 학생을 반에서 내보낸다. */
+export function useRemoveClassMember(): UseMutationResult<void, ApiError, RemoveClassMemberInput> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, RemoveClassMemberInput>({
+    mutationFn: async ({ classId, memberId }) => {
+      await classbotWrite<null>(
+        `/classes/${encodeURIComponent(classId)}/members/${encodeURIComponent(memberId)}`,
+        undefined,
+        'DELETE',
+      );
+    },
+    onSuccess: (_body, { classId }) => invalidateClassLifecycle(queryClient, classId),
+  });
+}
+
+/** 학생 본인이 서버 수업방에서 나간다. */
+export function useLeaveClass(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: async (classId) => {
+      await classbotWrite<null>(`/classes/${encodeURIComponent(classId)}/members/me`, undefined, 'DELETE');
+    },
+    onSuccess: (_body, classId) => invalidateClassLifecycle(queryClient, classId),
   });
 }
 
@@ -268,6 +395,22 @@ export function useIssueJoinCode(): UseMutationResult<JoinCodeDto, ApiError, { c
       queryClient.setQueriesData<ClassDto>({ queryKey: classroomKeys.classDetail(dto.classId) }, (prev) =>
         prev ? { ...prev, joinCode: dto } : prev,
       );
+    },
+  });
+}
+
+/** 살아 있는 참여 코드를 닫는다. 멤버십은 그대로다. */
+export function useRevokeJoinCodes(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: async (classId) => {
+      await classbotWrite<null>(`/classes/${encodeURIComponent(classId)}/join-codes`, undefined, 'DELETE');
+    },
+    onSuccess: (_body, classId) => {
+      queryClient.setQueriesData<ClassDto>({ queryKey: classroomKeys.classDetail(classId) }, (prev) =>
+        prev ? { ...prev, joinCode: null } : prev,
+      );
+      void queryClient.invalidateQueries({ queryKey: classroomKeys.classes('active') });
     },
   });
 }

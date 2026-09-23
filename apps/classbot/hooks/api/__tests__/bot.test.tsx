@@ -51,7 +51,7 @@ let classDto: ClassDto;
 
 const BOT: BotDto = {
   id: 'bot_1', operatorId: 'sub-1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근', greeting: '안녕!',
-  scope: 3, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, classIds: [],
+  scope: 3, avatarEmoji: '📚', quickPrompts: [], isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: [],
   createdAt: '2026-09-17T00:00:00.000Z', updatedAt: '2026-09-17T00:00:00.000Z',
 };
 const CLASS_DTO: ClassDto = {
@@ -77,7 +77,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 
   if (url === `${API_BASE}/auth/csrf`) return Promise.resolve(res(200, { csrfToken: 'csrf-1' }));
 
-  if (url === `${BASE}/me/bots` && method === 'GET') {
+  if (url.startsWith(`${BASE}/me/bots?state=`) && method === 'GET') {
     if (myBotsStatus >= 400) return Promise.resolve(res(myBotsStatus, { statusCode: myBotsStatus, message: 'nope' }));
     return Promise.resolve(res(200, myBots));
   }
@@ -112,7 +112,7 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
 }
 
 const writes = () => calls.filter((c) => c.method !== 'GET' && c.url !== `${API_BASE}/auth/csrf`);
-const myBotsCalls = () => calls.filter((c) => c.method === 'GET' && c.url === `${BASE}/me/bots`);
+const myBotsCalls = () => calls.filter((c) => c.method === 'GET' && c.url.startsWith(`${BASE}/me/bots?state=`));
 /** 반 상세 캐시 한 칸 — 키 꼬리에 신원이 붙는다(`classroom.ts` `classroomKeys`). */
 const cachedClass = (classId: string) =>
   queryClient.getQueryData<ClassDto>([...classroomKeys.classDetail(classId), 'sub-1']);
@@ -257,7 +257,7 @@ describe('useUpdateBot — PATCH /classbot/bots/:id', () => {
     expect(patch.headers['X-CSRF-Token']).toBe('csrf-1');
     await waitFor(() => expect(result.current.mine.bot?.scope).toBe(2));
     // 줄이 늘지 않는다 — 있는 줄을 갈아 끼운 것이다.
-    expect(queryClient.getQueryData<BotDto[]>([...botKeys.myBots, 'sub-1'])).toHaveLength(2);
+    expect(queryClient.getQueryData<BotDto[]>([...botKeys.myBots, 'all', 'sub-1'])).toHaveLength(2);
   });
 
   it('고친 이름이 그 봇을 든 반 상세에도 선다 — 다른 봇을 든 반은 그대로', async () => {

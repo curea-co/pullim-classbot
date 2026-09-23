@@ -19,7 +19,7 @@ import { BotEditWorkspace } from '../edit-workspace';
 const BOT: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '국어봇', subject: '국어', grade: '중3', tone: '차분',
   greeting: '안녕! 오늘은 뭘 볼까?', scope: 4, avatarEmoji: '📚', quickPrompts: ['오늘 배운 것 정리해 줘'],
-  isPublished: false, publishedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1', 'cls_2'], createdAt: '', updatedAt: '',
 };
 
 type MyBot = { bot: BotDto | undefined; isPending: boolean; error: ApiError | null };
@@ -87,6 +87,22 @@ describe('첫 값을 읽는 동안', () => {
 
     expect(screen.getByText('로그인이 필요해요')).toBeInTheDocument();
     expect(screen.queryByText('없는 봇이에요')).toBeNull();
+  });
+
+  it('보관된 봇의 직접 수정 주소는 편집 폼 대신 복구 안내를 보여준다', () => {
+    myBot = {
+      bot: { ...BOT, state: 'archived', archivedAt: '2026-09-23T00:00:00.000Z' },
+      isPending: false,
+      error: null,
+    };
+    edit();
+
+    expect(screen.getByText('보관된 봇은 읽기 전용이에요')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: `${BOT.name} 봇 관리에서 복구하기` })).toHaveAttribute(
+      'href',
+      '/teacher/bots/bot_1',
+    );
+    expect(screen.queryByRole('button', { name: '고친 그대로 저장하기' })).toBeNull();
   });
 
   it('읽기가 실패하면 다시 시도를 권한다 — 「없는 봇」이라고 하지 않는다', () => {

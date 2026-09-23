@@ -10,7 +10,7 @@ import { Suspense, type ReactNode } from 'react';
 import { act, render, screen, within } from '@testing-library/react';
 import { ApiError } from '@pullim-classbot/api-client';
 import TeacherAssignmentDetailPage from '../[id]/page';
-import type { AssignmentDetailDto, ClassMemberDto, SubmissionsViewDto } from '@/lib/api/classbot-dto';
+import type { AssignmentDetailDto, ClassDto, ClassMemberDto, SubmissionsViewDto } from '@/lib/api/classbot-dto';
 
 type QueryState<T> = {
   data: T | undefined;
@@ -18,6 +18,7 @@ type QueryState<T> = {
   isError: boolean;
   error: ApiError | null;
   refetch: () => void;
+  isSuccess?: boolean;
 };
 const ok = <T,>(data: T): QueryState<T> => ({ data, isPending: false, isError: false, error: null, refetch: jest.fn() });
 const pending = <T,>(): QueryState<T> => ({ data: undefined, isPending: true, isError: false, error: null, refetch: jest.fn() });
@@ -63,10 +64,20 @@ const membersUnread = (): MembersState => ({ data: undefined, isSuccess: false }
 let detailState: QueryState<AssignmentDetailDto> = ok(DETAIL);
 let submissionsState: QueryState<SubmissionsViewDto[]> = ok(SUBMISSIONS);
 let membersState: MembersState = membersOk(MEMBERS);
+const ACTIVE_CLASS: ClassDto = {
+  id: 'cls_1', operatorId: 'teacher_1', orgId: null, name: '고2 미적분 A반', description: null,
+  subject: '수학Ⅱ', grade: '고2', isActive: true, isSelfStudy: false, bot: null, joinCode: null,
+  createdAt: '', updatedAt: '',
+};
+let classState: QueryState<ClassDto> = { ...ok(ACTIVE_CLASS), isSuccess: true };
 
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useAssignmentDetail: () => detailState,
   useAssignmentSubmissions: () => submissionsState,
+  useAssignmentAuthoring: () => ({ data: undefined, isPending: true, isError: false, refetch: jest.fn() }),
+  useUpdateAssignment: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useWithdrawAssignment: () => ({ mutate: jest.fn(), isPending: false }),
+  useRestoreAssignment: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
@@ -81,6 +92,10 @@ jest.mock('@/hooks/api/classroom', () => ({
     isPending: false, isError: false, error: null,
   }),
   useClassMembers: () => membersState,
+  useClassDetail: () => classState,
+}));
+jest.mock('../[id]/remind-unsubmitted', () => ({
+  RemindUnsubmitted: () => <div data-testid="remind-unsubmitted" />,
 }));
 
 function Wrap({ children }: { children: ReactNode }) {
@@ -97,6 +112,37 @@ beforeEach(() => {
   detailState = ok(DETAIL);
   submissionsState = ok(SUBMISSIONS);
   membersState = membersOk(MEMBERS);
+  classState = { ...ok(ACTIVE_CLASS), isSuccess: true };
+});
+
+it('보관된 반 과제는 정확한 반 이름과 읽기 전용 안내만 보이고 변경·리마인드를 막는다', async () => {
+  classState = { ...ok({ ...ACTIVE_CLASS, name: '지난 미적분반', isActive: false }), isSuccess: true };
+  submissionsState = { ...ok(SUBMISSIONS), isSuccess: true };
+  await renderDetail();
+
+  expect(screen.getByText(/지난 미적분반 · 2문항/)).toBeInTheDocument();
+  expect(screen.getByText(/보관된 반의 과제는 읽기 전용/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '과제 수정' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '과제 회수' })).toBeNull();
+  expect(screen.queryByTestId('remind-unsubmitted')).toBeNull();
+});
+
+it('과제는 남았지만 반이 404면 변경을 막고 반 부재를 정확히 안내한다', async () => {
+  classState = failed(404);
+  await renderDetail();
+
+  expect(screen.getByText(/반을 찾을 수 없어 과제를 변경할 수 없어요/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '과제 수정' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '과제 회수' })).toBeNull();
+});
+
+it('회수한 과제에는 미제출 리마인드를 보여주지 않는다', async () => {
+  detailState = ok({ ...DETAIL, dispatchStatus: 'withdrawn' });
+  submissionsState = { ...ok(SUBMISSIONS), isSuccess: true };
+  await renderDetail();
+
+  expect(screen.getByText('회수됨')).toBeInTheDocument();
+  expect(screen.queryByTestId('remind-unsubmitted')).toBeNull();
 });
 
 it('상세가 도는 동안은 기다린다', async () => {
@@ -119,7 +165,7 @@ it('5xx 는 404 로 덮지 않고 다시 시도할 수 있는 오류다', async 
   expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
 });
 
-it('메타·반 이름·지금 기준 마감을 그리고, 고치기/회수 버튼 대신 안내 한 줄을 둔다', async () => {
+it('메타·반 이름·지금 기준 마감을 그리고, 수정·회수 동작을 연다', async () => {
   await renderDetail();
   expect(screen.getByRole('heading', { name: '3단원 연습문제' })).toBeInTheDocument();
   expect(screen.getByText(/고2 미적분 A반 · 2문항 · 난이도 중/)).toBeInTheDocument();
@@ -129,9 +175,8 @@ it('메타·반 이름·지금 기준 마감을 그리고, 고치기/회수 버�
   expect(facts).toHaveTextContent('진행 중');
   expect(facts).not.toHaveTextContent('D-3');
 
-  expect(screen.getByTestId('assignment-edit-unavailable')).toHaveTextContent('고치거나 회수하는 기능은 아직');
-  expect(screen.queryByRole('link', { name: /고치기/ })).toBeNull();
-  expect(screen.queryByRole('button', { name: /회수/ })).toBeNull();
+  expect(screen.getByRole('button', { name: '과제 수정' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '과제 회수' })).toBeInTheDocument();
   expect(screen.queryByText('회수됨')).toBeNull();
 });
 
