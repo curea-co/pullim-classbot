@@ -74,12 +74,14 @@ export function SignalMarkChips({
   mark,
   onAck,
   pending,
+  readOnly = false,
   className,
 }: {
   mark: SignalMark;
   onAck: (signalId: string) => void;
   /** 확인 요청이 나가 있는 동안 — 두 번 누르지 않게 잠근다. */
   pending: boolean;
+  readOnly?: boolean;
   className?: string;
 }) {
   return (
@@ -105,6 +107,8 @@ export function SignalMarkChips({
           <CheckCircle2 aria-hidden className="h-3 w-3" />
           확인함
         </span>
+      ) : readOnly ? (
+        <span className="text-pullim-slate-500 text-2xs font-semibold">미확인</span>
       ) : (
         <button
           type="button"

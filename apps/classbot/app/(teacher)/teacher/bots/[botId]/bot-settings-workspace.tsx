@@ -35,7 +35,7 @@
 
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { AlarmClock, Compass, Pencil, SearchX, Settings, Shield } from 'lucide-react';
+import { AlarmClock, Archive, Compass, Pencil, RotateCcw, SearchX, Settings, Shield } from 'lucide-react';
 import { BotNote } from '@/components/classbot/bot-note';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -49,7 +49,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { useMyBot, useMyBots, useUpdateBot } from '@/hooks/api/bot';
+import { useMyBot, useMyBots, useRestoreBot, useUpdateBot } from '@/hooks/api/bot';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import type { BotDto, UpdateBotBody } from '@/lib/api/classbot-dto';
 import { botFailureMessage } from '@/lib/bot-failure-message';
@@ -83,7 +83,7 @@ export function BotSettingsWorkspace({ botId, tab }: { botId: string; tab: strin
     「다시 시도」는 **목록을 다시 읽는 것**이다 — `useMyBot` 은 그 목록에서 고르기만 해 재시도 손잡이가 없다.
     같은 쿼리라 구독이 하나 더 붙을 뿐 요청이 둘로 늘지는 않는다.
   */
-  const { refetch } = useMyBots();
+  const { refetch } = useMyBots('all');
 
   if (isPending) {
     return (
@@ -122,15 +122,22 @@ export function BotSettingsWorkspace({ botId, tab }: { botId: string; tab: strin
   const active = botPolicyTabs.find((t) => t.value === tab) ?? botPolicyTabs[0];
   // 등급은 서버가 `number` 로 준다 — 다섯으로 좁혀지지 않으면 시간대 표를 그리지 않는다(아래 `SafetyTab`).
   const level = isScopeLevel(bot.scope) ? bot.scope : null;
+  const archived = bot.state === 'archived';
 
   return (
     <Shell
       title={`${bot.name} 운영 규칙`}
       description={describeBot(bot)}
       // 이 봇의 기본 등급 — 목록·운영 화면의 배지와 같은 출처(scopeMeta)를 읽는다
-      action={<ScopeChip scope={bot.scope} testId="bot-scope-chip" />}
+      action={archived ? <ArchivedBotRestore bot={bot} /> : <ScopeChip scope={bot.scope} testId="bot-scope-chip" />}
     >
-      <BotIdentityCard bot={bot} />
+      {archived && (
+        <div className="bg-pullim-slate-50 text-pullim-slate-700 flex items-start gap-2 rounded-xl border p-3 text-sm">
+          <Archive className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          보관된 봇은 읽기 전용이에요. 다시 사용하거나 고치려면 먼저 복구해 주세요.
+        </div>
+      )}
+      <BotIdentityCard bot={bot} readOnly={archived} />
 
       {/* 탭 — URL 로 옮긴다. 준비 중 탭도 자리를 차지한다. */}
       <section className="bg-card rounded-2xl border p-4">
@@ -214,7 +221,7 @@ function describeBot(bot: BotDto): string {
  * @param bot - 정본 한 행
  * @returns 봇 정체 칸
  */
-function BotIdentityCard({ bot }: { bot: BotDto }) {
+function BotIdentityCard({ bot, readOnly = false }: { bot: BotDto; readOnly?: boolean }) {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -222,7 +229,7 @@ function BotIdentityCard({ bot }: { bot: BotDto }) {
       <SectionHeading
         title="이 봇"
         description="이름 · 인사말 · 말투 · 안전 등급을 여기서 고쳐요. 붙어 있는 반 전부에 바로 적용돼요."
-        action={
+        action={!readOnly ? (
           <Button
             type="button"
             variant={editing ? 'outline' : 'pullim'}
@@ -234,7 +241,7 @@ function BotIdentityCard({ bot }: { bot: BotDto }) {
             <Pencil />
             봇 고치기
           </Button>
-        }
+        ) : undefined}
       />
 
       {editing ? (
@@ -260,6 +267,24 @@ function BotIdentityCard({ bot }: { bot: BotDto }) {
         </div>
       )}
     </section>
+  );
+}
+
+function ArchivedBotRestore({ bot }: { bot: BotDto }) {
+  const restore = useRestoreBot();
+  return (
+    <Button
+      type="button"
+      size="touch"
+      variant="outline"
+      disabled={restore.isPending}
+      onClick={() => restore.mutate(bot.id, {
+        onSuccess: () => toast.success('봇을 복구했어요.'),
+        onError: () => toast.error('봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+      })}
+    >
+      <RotateCcw aria-hidden /> {restore.isPending ? '복구 중…' : '봇 복구'}
+    </Button>
   );
 }
 

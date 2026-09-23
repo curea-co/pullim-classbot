@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { ArrowRight, GraduationCap, KeyRound, Target } from 'lucide-react';
 
 import { BotAvatar } from '@/components/classbot/bot-avatar';
+import { LifecycleConfirmDialog } from '@/components/classbot/lifecycle-confirm-dialog';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState } from '@/components/classbot/read-state';
@@ -12,6 +15,7 @@ import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLeaveClass } from '@/hooks/api/classroom';
 import { useClassEnrollmentStore } from '@/lib/store/class-enrollment';
 
 /**
@@ -30,6 +34,14 @@ export default function StudentClassroomPage() {
   // `isError` 에 401 은 들지 않는다(신원이 없는 데모이고, 그때의 정답은 `rooms` 가 담는다).
   const { rooms, isLoading, isError, retry } = useMyRooms();
   const leaveClass = useClassEnrollmentStore((s) => s.leave);
+  const roomListRef = useRef<HTMLDivElement>(null);
+  const [notice, setNotice] = useState('');
+
+  function focusRooms(message: string) {
+    roomListRef.current?.focus();
+    setNotice('');
+    requestAnimationFrame(() => setNotice(message));
+  }
 
   return (
     <div className="space-y-4">
@@ -72,6 +84,8 @@ export default function StudentClassroomPage() {
       {/* ─── 참여 중인 수업방 ─── */}
       <SectionHeading title="참여 중인 수업방" />
 
+      <div ref={roomListRef} tabIndex={-1} aria-label="참여 중인 수업방 목록" className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50">
+      <p className="sr-only" role="status">{notice}</p>
       {isError ? (
         <ReadErrorState onRetry={retry} />
       ) : isLoading && rooms.length === 0 ? (
@@ -91,10 +105,12 @@ export default function StudentClassroomPage() {
               key={room.enrollment.classroomId}
               room={room}
               onLeave={room.source === 'local' ? () => leaveClass(room.bot.id) : undefined}
+              onLeft={(message) => focusRooms(message)}
             />
           ))}
         </ul>
       )}
+      </div>
     </div>
   );
 }
@@ -105,9 +121,32 @@ function joinedLabel(assignedAt: string): string | null {
   return m ? `${Number(m[2])}월 ${Number(m[3])}일 참여` : null;
 }
 
-function RoomCard({ room, onLeave }: { room: RoomSlot; onLeave?: () => void }) {
+function RoomCard({ room, onLeave, onLeft }: { room: RoomSlot; onLeave?: () => void; onLeft: (message: string) => void }) {
   const { bot, enrollment } = room;
   const joined = joinedLabel(enrollment.assignedAt);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const leave = useLeaveClass();
+  const leaveRef = useRef<HTMLButtonElement>(null);
+
+  function confirmLeave() {
+    if (onLeave) {
+      onLeave();
+      setLeaveOpen(false);
+      onLeft(`「${enrollment.classroomLabel}」에서 나왔어요.`);
+      toast.success(`「${enrollment.classroomLabel}」에서 나왔어요.`);
+      return;
+    }
+    setLeaveError(null);
+    leave.mutate(enrollment.classroomId, {
+      onSuccess: () => {
+        setLeaveOpen(false);
+        onLeft(`「${enrollment.classroomLabel}」에서 나왔어요.`);
+        toast.success(`「${enrollment.classroomLabel}」에서 나왔어요.`);
+      },
+      onError: () => setLeaveError('수업방에서 나가지 못했어요. 잠시 후 다시 시도해 주세요.'),
+    });
+  }
 
   return (
     <li>
@@ -141,16 +180,8 @@ function RoomCard({ room, onLeave }: { room: RoomSlot; onLeave?: () => void }) {
 
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-pullim-slate-400 text-2xs">{joined ?? ''}</span>
-          {onLeave ? (
-            <button
-              type="button"
-              onClick={onLeave}
-              aria-label={`${enrollment.classroomLabel} 나가기`}
-              className="text-pullim-slate-400 hover:text-pullim-slate-600 focus-visible:ring-pullim-blue-400/50 min-h-11 shrink-0 rounded-lg px-2 text-2xs font-medium underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2"
-            >
-              나가기
-            </button>
-          ) : (
+          <span className="flex items-center gap-1">
+          {room.source === 'api' && (
             <Link
               href="/classbot/assignment"
               aria-label={`${enrollment.classroomLabel}의 과제 보러 가기`}
@@ -160,8 +191,30 @@ function RoomCard({ room, onLeave }: { room: RoomSlot; onLeave?: () => void }) {
               <ArrowRight className="h-3 w-3" />
             </Link>
           )}
+            <button
+              ref={leaveRef}
+              type="button"
+              onClick={() => setLeaveOpen(true)}
+              aria-label={`${enrollment.classroomLabel} 나가기`}
+              className="text-pullim-slate-400 hover:text-pullim-slate-600 focus-visible:ring-pullim-blue-400/50 min-h-11 shrink-0 rounded-lg px-2 text-2xs font-medium underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2"
+            >
+              나가기
+            </button>
+          </span>
         </div>
       </article>
+      <LifecycleConfirmDialog
+        open={leaveOpen}
+        onOpenChange={(open) => { setLeaveOpen(open); if (!open) setLeaveError(null); }}
+        title={`「${enrollment.classroomLabel}」에서 나갈까요?`}
+        description="새 과제와 반 대화에 참여할 수 없어요. 기존 제출과 대화 기록은 남고, 다시 들어오려면 선생님의 참여 코드가 필요해요."
+        confirmLabel="나가기"
+        pendingLabel="나가는 중…"
+        isPending={leave.isPending}
+        error={leaveError}
+        finalFocus={leaveRef}
+        onConfirm={confirmLeave}
+      />
     </li>
   );
 }

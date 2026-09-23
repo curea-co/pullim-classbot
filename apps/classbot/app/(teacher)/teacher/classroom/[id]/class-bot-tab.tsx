@@ -65,11 +65,13 @@ const controlClass =
 export function ClassBotTab({
   classId,
   classroomName,
+  readOnly = false,
 }: {
   /** 반 id(pullim-api). */
   classId: string;
   /** 반 이름 — 떼기 판의 문장에 들어간다. */
   classroomName: string;
+  readOnly?: boolean;
 }) {
   const known = useClassDetail(classId).data;
   /** `undefined` 모른다(읽는 중·실패) · `null` 없다 · 요약 = 이 봇. */
@@ -109,7 +111,7 @@ export function ClassBotTab({
 
       <CurrentBot summary={summary} bot={currentBotDetails} />
 
-      <div className="mt-4 flex flex-wrap gap-2" data-testid="class-bot-actions">
+      {!readOnly && <div className="mt-4 flex flex-wrap gap-2" data-testid="class-bot-actions">
         {/* 으뜸 버튼은 「없다」고 알 때만 — 모르는 반에서 새 봇으로 미는 모양이면 멀쩡한 봇 위에 새 봇을 만든다(머리주석). */}
         <Button
           type="button"
@@ -165,12 +167,12 @@ export function ClassBotTab({
             {assign.isPending ? '떼는 중…' : '봇 떼기'}
           </Button>
         )}
-      </div>
+      </div>}
 
-      {mode === 'create' && (
+      {!readOnly && mode === 'create' && (
         <NewBotForm classId={classId} replacing={summary !== null} onDone={() => setMode('idle')} />
       )}
-      {mode === 'swap' && (
+      {!readOnly && mode === 'swap' && (
         <SwapBotForm
           classId={classId}
           classroomName={classroomName}
@@ -178,11 +180,11 @@ export function ClassBotTab({
           onDone={() => setMode('idle')}
         />
       )}
-      {mode === 'edit' && summary && !currentOfficialBot && (
+      {!readOnly && mode === 'edit' && summary && !currentOfficialBot && (
         <EditBotForm key={summary.id} summary={summary} bot={currentBot} onDone={() => setMode('idle')} />
       )}
 
-      {summary && (
+      {!readOnly && summary && (
         <DetachBotDialog
           botName={summary.name}
           classroomName={classroomName}

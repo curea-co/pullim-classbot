@@ -1,5 +1,5 @@
 /**
- * 교사 운영 메인(SCR-C-17) — 봇 카드 「더보기 → 봇 삭제」와 되묻는 판.
+ * 교사 운영 메인(SCR-C-17) — 봇 카드 「더보기 → 봇 보관」과 되묻는 판.
  *
  * 여기서 재는 것은 **화면 안 상태로 도는 삭제**다. 봇 목록은 이제 정본
  * (`GET /classbot/me/bots`)이지만 **봇을 지우는 문은 정본에 없다** — 그래서 「지웠다」는
@@ -38,16 +38,18 @@ const klass = (id: string, name: string, enrolledCount: number): BotCardDto => (
 
 /** 사용자가 정한 고정 문구 — 누가 말을 다듬으면 여기서 빨개진다 */
 const WARNING =
-  '현재 이 봇으로 학습 중인 학생들이 있어요. 봇을 삭제하면 해당 학생은 봇을 이용할 수 없어요.';
+  '반에서 사용 중인 봇은 먼저 모든 반에서 떼어야 해요. 보관하면 새 반에 붙이거나 설정을 고칠 수 없지만 기존 과제·대화 기록은 남고, 봇 관리의 보관함에서 다시 복구할 수 있어요.';
 
 /* ── 훅 바꿔 끼우기 ─────────────────────────────────────────── */
 
 let bots: BotDto[] = [];
+const archiveMutate = jest.fn();
 jest.mock('@/hooks/api/bot', () => ({
   ...jest.requireActual('@/hooks/api/bot'),
   useMyBots: () => ({
     data: bots, isPending: false, isError: false, error: null, refetch: jest.fn(),
   }),
+  useArchiveBot: () => ({ mutateAsync: archiveMutate, isPending: false }),
 }));
 
 /** 낸 과제는 정본(`GET /classbot/assignments?audience=teacher`)에서 온다 — 테스트마다 갈아 끼운다. */
@@ -77,6 +79,10 @@ beforeEach(() => {
     klass('cls_2', '중3 국어 B반', 7),
     klass('cls_3', '중2 수학 A반', 18),
   ];
+  archiveMutate.mockReset();
+  archiveMutate.mockImplementation(async (botId: string) => {
+    bots = bots.filter((bot) => bot.id !== botId);
+  });
 });
 
 /**
@@ -102,15 +108,15 @@ function expectKpi(label: string, value: string) {
   expect(kpi(label)).toMatch(new RegExp(`(?<!\\d)${value}`));
 }
 
-/** 「더보기 → 봇 삭제」로 되묻는 판을 연다 */
+/** 「더보기 → 봇 보관」으로 되묻는 판을 연다 */
 function openDeleteDialog(botName: string) {
   const trigger = screen.getByRole('button', { name: `${botName} 더보기` });
   fireEvent.click(trigger);
-  fireEvent.click(screen.getByRole('menuitem', { name: '봇 삭제' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: '봇 보관' }));
   return trigger;
 }
 
-it('카드의 나가는 길은 여전히 「더보기」 하나뿐이고, 그 안에 「봇 삭제」가 있다', () => {
+it('카드의 나가는 길은 여전히 「더보기」 하나뿐이고, 그 안에 「봇 보관」이 있다', () => {
   render(<TeacherClassbotPage />);
   const card = screen.getByTestId(`bot-ops-card-${TARGET.id}`);
   // 카드 위에 삭제 버튼을 따로 깔지 않았다
@@ -118,7 +124,7 @@ it('카드의 나가는 길은 여전히 「더보기」 하나뿐이고, 그 �
 
   fireEvent.click(within(card).getByRole('button', { name: `${TARGET.name} 더보기` }));
   const menu = screen.getByRole('menu');
-  expect(within(menu).getByRole('menuitem', { name: '봇 삭제' })).toBeInTheDocument();
+  expect(within(menu).getByRole('menuitem', { name: '봇 보관' })).toBeInTheDocument();
   // 종전 둘도 그대로다
   expect(within(menu).getByRole('menuitem', { name: '수정하기' })).toBeInTheDocument();
   expect(within(menu).getByRole('menuitem', { name: '과제 내기' })).toBeInTheDocument();
@@ -128,25 +134,25 @@ it('판이 열리면 정해진 문구가 그대로 뜬다 — 제목·본문·�
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.name);
 
-  const dialog = screen.getByTestId('bot-delete-dialog');
+  const dialog = screen.getByRole('alertdialog');
   expect(within(dialog).getByText(WARNING)).toBeInTheDocument();
-  expect(dialog).toHaveTextContent(`${TARGET.name}을 삭제할까요?`); // 국어봇 → 받침 있음
-  expect(within(dialog).getByRole('button', { name: '그만두기' })).toBeInTheDocument();
-  expect(within(dialog).getByRole('button', { name: `${TARGET.name} 삭제` })).toBeInTheDocument();
+  expect(dialog).toHaveTextContent(`「${TARGET.name}」을 보관할까요?`);
+  expect(within(dialog).getByRole('button', { name: '취소' })).toBeInTheDocument();
+  expect(within(dialog).getByRole('button', { name: '보관하기' })).toBeInTheDocument();
 });
 
 it('되묻는 판은 alertdialog 이고 제목·본문이 연결돼 있다', () => {
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.name);
 
-  const dialog = screen.getByTestId('bot-delete-dialog');
+  const dialog = screen.getByRole('alertdialog');
   expect(dialog).toHaveAttribute('role', 'alertdialog');
 
   const labelledBy = dialog.getAttribute('aria-labelledby');
   const describedBy = dialog.getAttribute('aria-describedby');
   expect(labelledBy).toBeTruthy();
   expect(describedBy).toBeTruthy();
-  expect(document.getElementById(labelledBy!)).toHaveTextContent('삭제할까요?');
+  expect(document.getElementById(labelledBy!)).toHaveTextContent('보관할까요?');
   expect(document.getElementById(describedBy!)).toHaveTextContent(WARNING);
 });
 
@@ -162,23 +168,23 @@ it('되묻는 판은 alertdialog 이고 제목·본문이 연결돼 있다', () 
   같은 이유로 `finalFocus` 도 prop 자체는 잴 수 없다(그쪽은 아래 「그만두기」 테스트가
   결과를 잰다). 두 prop 의 존재 이유는 컴포넌트 머리주석에 적어 뒀다.
 */
-it('열리면 포커스는 「그만두기」에 있다', async () => {
+it('열리면 포커스는 「취소」에 있다', async () => {
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.name);
 
-  const cancel = within(screen.getByTestId('bot-delete-dialog'))
-    .getByRole('button', { name: '그만두기' });
+  const cancel = within(screen.getByRole('alertdialog'))
+    .getByRole('button', { name: '취소' });
   await waitFor(() => expect(document.activeElement).toBe(cancel));
 });
 
-it('「그만두기」를 누르면 아무것도 지워지지 않고 포커스가 「더보기」로 돌아온다', async () => {
+it('「취소」를 누르면 아무것도 보관되지 않고 포커스가 「더보기」로 돌아온다', async () => {
   render(<TeacherClassbotPage />);
   const before = kpi('내 봇');
   const trigger = openDeleteDialog(TARGET.name);
 
-  fireEvent.click(screen.getByRole('button', { name: '그만두기' }));
+  fireEvent.click(screen.getByRole('button', { name: '취소' }));
 
-  expect(screen.queryByTestId('bot-delete-dialog')).toBeNull();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
   expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
   expect(kpi('내 봇')).toBe(before);
   await waitFor(() => expect(document.activeElement).toBe(trigger));
@@ -188,23 +194,23 @@ it('Escape 로 닫아도 지워지지 않는다', () => {
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.name);
 
-  fireEvent.keyDown(screen.getByTestId('bot-delete-dialog'), { key: 'Escape' });
+  fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
 
-  expect(screen.queryByTestId('bot-delete-dialog')).toBeNull();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
   expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
 });
 
-it('「삭제」를 누르면 카드와 상단 통계 두 칸이 함께 줄어든다', () => {
+it('「보관하기」를 누르면 카드와 상단 통계 두 칸이 함께 줄어든다', async () => {
   render(<TeacherClassbotPage />);
 
   expectKpi('내 봇', '2개');
   expectKpi('붙은 학급', '3개');
 
   openDeleteDialog(TARGET.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
+  fireEvent.click(screen.getByRole('button', { name: '보관하기' }));
 
   // 카드가 사라진다
-  expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull();
+  await waitFor(() => expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull());
   expect(screen.getByTestId(`bot-ops-card-${KEEP.id}`)).toBeInTheDocument();
 
   // 그 봇을 세던 자리가 전부 함께 줄어든다 — 지운 봇 몫만큼, 정확히
@@ -212,7 +218,7 @@ it('「삭제」를 누르면 카드와 상단 통계 두 칸이 함께 줄어�
   expectKpi('붙은 학급', `${KEEP.classIds.length}개`);
 });
 
-it('「낸 과제」는 함께 줄지 않는다 — 봇을 지워도 그 반과 그 반의 과제는 그대로다', () => {
+it('「낸 과제」는 함께 줄지 않는다 — 봇을 보관해도 그 반과 그 반의 과제는 그대로다', async () => {
   teacherAssignments = [
     dispatchedFor('cls_1', 'as_kor_1'),
     dispatchedFor('cls_3', 'as_math_1'),
@@ -222,21 +228,22 @@ it('「낸 과제」는 함께 줄지 않는다 — 봇을 지워도 그 반과 
   expect(screen.getByTestId('dispatched-group-cls_1')).toBeInTheDocument();
 
   openDeleteDialog(TARGET.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
+  fireEvent.click(screen.getByRole('button', { name: '보관하기' }));
 
   // 카드는 사라졌지만 그 반의 과제 묶음은 제 이름으로 그대로 선다
-  expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull();
+  await waitFor(() => expect(screen.queryByTestId(`bot-ops-card-${TARGET.id}`)).toBeNull());
   expectKpi('낸 과제', '2건');
   const group = screen.getByTestId('dispatched-group-cls_1');
   expect(within(group).getByRole('heading', { name: '중3 국어 A반' })).toBeInTheDocument();
   expect(within(group).getByText('as_kor_1 과제')).toBeInTheDocument();
 });
 
-it('봇을 전부 지우면 헤더 CTA 가 사라지고 빈 상태의 「봇 만들기」만 남는다', () => {
+it('봇을 전부 보관하면 헤더 CTA 가 사라지고 빈 상태의 「봇 만들기」만 남는다', async () => {
   render(<TeacherClassbotPage />);
-  for (const bot of bots) {
+  for (const bot of [TARGET, KEEP]) {
     openDeleteDialog(bot.name);
-    fireEvent.click(screen.getByRole('button', { name: `${bot.name} 삭제` }));
+    fireEvent.click(screen.getByRole('button', { name: '보관하기' }));
+    await waitFor(() => expect(screen.queryByTestId(`bot-ops-card-${bot.id}`)).toBeNull());
   }
 
   expect(screen.queryByRole('link', { name: '새 클래스봇' })).toBeNull();
@@ -265,32 +272,32 @@ it('바깥을 눌러도 안 닫힌다 — 되돌릴 수 없는 일을 묻는 판
   fireEvent.mouseUp(backdrop);
   fireEvent.click(backdrop);
 
-  expect(screen.getByTestId('bot-delete-dialog')).toBeInTheDocument();
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   expect(screen.getByTestId(`bot-ops-card-${TARGET.id}`)).toBeInTheDocument();
 });
 
-it('프리미티브 기본 X 버튼은 뜨지 않는다 — 판의 나가는 길은 「그만두기」 하나다', () => {
+it('프리미티브 기본 X 버튼은 뜨지 않는다 — 판의 나가는 길은 「취소」 하나다', () => {
   // `showCloseButton={false}` 를 지키는 단정. 프리미티브의 sr 텍스트가 영어 `Close` 라
   // 되살아나면 이 판에서만 한국어 사이에 영어 이름이 하나 낀다.
   render(<TeacherClassbotPage />);
   openDeleteDialog(TARGET.name);
 
-  const dialog = screen.getByTestId('bot-delete-dialog');
+  const dialog = screen.getByRole('alertdialog');
   expect(within(dialog).queryByRole('button', { name: 'Close' })).toBeNull();
   // 판 안의 버튼은 딱 둘 — 그만두기 · 삭제
   expect(within(dialog).getAllByRole('button')).toHaveLength(2);
 });
 
-it('메뉴의 「봇 삭제」는 「판을 여는 항목」이라고 낭독기에 말한다', () => {
+it('메뉴의 「봇 보관」은 「판을 여는 항목」이라고 낭독기에 말한다', () => {
   // 옆 두 항목은 링크라 저절로 갈리지만 이 항목만 겉보기가 같고 하는 일이 다르다.
   render(<TeacherClassbotPage />);
   fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 더보기` }));
 
-  expect(screen.getByRole('menuitem', { name: '봇 삭제' }))
+  expect(screen.getByRole('menuitem', { name: '봇 보관' }))
     .toHaveAttribute('aria-haspopup', 'dialog');
 });
 
-it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 사실이 낭독기에 뜬다', async () => {
+it('보관하면 포커스가 「내 봇」 목록으로 옮겨가고, 보관 사실이 낭독기에 뜬다', async () => {
   // 포커스 이동(rAF)·`role="status"` 알림 둘 다 이 PR 이 새로 지은 동작이라 재는 곳이
   // 여기뿐이다. 순서도 함께 잰다 — 알림은 포커스가 자리를 잡은 **뒤**에 실린다.
   render(<TeacherClassbotPage />);
@@ -300,17 +307,12 @@ it('삭제하면 포커스가 「내 봇」 목록으로 옮겨가고, 지운 �
   expect(screen.getByRole('status')).toHaveTextContent('');
 
   openDeleteDialog(TARGET.name);
-  fireEvent.click(screen.getByRole('button', { name: `${TARGET.name} 삭제` }));
+  fireEvent.click(screen.getByRole('button', { name: '보관하기' }));
 
-  /*
-    아직은 비어 있어야 한다 — 알림이 카드가 사라지는 그 커밋에 함께 실리면, polite 발화와
-    포커스 이동이 한 프레임 안에서 겹쳐 「…을 삭제했어요」가 잘린다. 이 줄이 그 순서를
-    못박는다(먼저 포커스, 그 다음 알림).
-  */
-  expect(screen.getByRole('status')).toHaveTextContent('');
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
 
   await waitFor(() => expect(document.activeElement).toBe(list));
   await waitFor(() =>
-    expect(screen.getByRole('status')).toHaveTextContent(`${TARGET.name}을 삭제했어요.`),
+    expect(screen.getByRole('status')).toHaveTextContent(`${TARGET.name}을 보관했어요.`),
   );
 });

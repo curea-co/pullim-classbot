@@ -20,10 +20,17 @@ jest.mock('@/lib/auth/os-sso', () => ({
 
 import { API_BASE } from '@/lib/auth/os-sso';
 import type {
-  AssignmentDetailDto, AssignmentSummaryDto, DispatchAssignmentBody, SubmissionsViewDto,
+  AssignmentAuthoringDto, AssignmentDetailDto, AssignmentSummaryDto, DispatchAssignmentBody, SubmissionsViewDto,
 } from '@/lib/api/classbot-dto';
 import {
-  useAssignmentDetail, useAssignmentSubmissions, useDispatchAssignment, useTeacherAssignments,
+  useAssignmentAuthoring,
+  useAssignmentDetail,
+  useAssignmentSubmissions,
+  useDispatchAssignment,
+  useRestoreAssignment,
+  useTeacherAssignments,
+  useUpdateAssignment,
+  useWithdrawAssignment,
 } from '../assignment-dispatch';
 
 const BASE = `${API_BASE}/classbot`;
@@ -53,6 +60,9 @@ const BODY: DispatchAssignmentBody = {
     { order: 1, type: 'essay', prompt: '설명하시오' },
   ],
 };
+const AUTHORING: AssignmentAuthoringDto = {
+  id: 'asg_1', classId: 'cls_1', dispatchStatus: 'sent', ...BODY,
+};
 
 interface Call { url: string; method: string; body?: unknown; headers: Record<string, string>; credentials?: RequestCredentials }
 let calls: Call[];
@@ -76,6 +86,12 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   }
   if (readStatus >= 400) return Promise.resolve(res(readStatus, { statusCode: readStatus }));
   if (url === `${BASE}/assignments?audience=teacher`) return Promise.resolve(res(200, [SUMMARY]));
+  if (url === `${BASE}/assignments/asg_1/authoring`) return Promise.resolve(res(200, AUTHORING));
+  if (url === `${BASE}/assignments/asg_1` && method === 'PATCH') {
+    const patch = body as Record<string, unknown>;
+    return Promise.resolve(res(200, { ...AUTHORING, ...patch, dispatchStatus: patch.state === 'sent' ? 'sent' : AUTHORING.dispatchStatus }));
+  }
+  if (url === `${BASE}/assignments/asg_1` && method === 'DELETE') return Promise.resolve(res(204, null));
   if (url === `${BASE}/assignments/asg_1`) return Promise.resolve(res(200, DETAIL));
   if (url === `${BASE}/assignments/asg_1/submissions`) return Promise.resolve(res(200, SUBMISSIONS));
   return Promise.resolve(res(404, { statusCode: 404 }));
@@ -186,5 +202,39 @@ describe('useAssignmentSubmissions — GET /classbot/assignments/:id/submissions
     expect(calls[0].url).toBe(`${BASE}/assignments/asg_1/submissions`);
     expect(result.current.data).toEqual(SUBMISSIONS);
     expect(result.current.data?.[0].scorePercent).toBeNull();
+  });
+});
+
+describe('과제 lifecycle — authoring · 수정 · 회수 · 복구', () => {
+  it('정답과 대상은 학생 상세가 아니라 교사 authoring 문에서만 읽는다', async () => {
+    const { result } = renderHook(() => useAssignmentAuthoring('asg_1'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(calls[0].url).toBe(`${BASE}/assignments/asg_1/authoring`);
+    expect(result.current.data?.questions[0]).toHaveProperty('answerKey', 1);
+    expect(result.current.data?.targetStudentIds).toEqual([]);
+  });
+
+  it('문항·대상 수정은 PATCH에 그대로 싣고 회수는 DELETE, 복구는 state sent PATCH다', async () => {
+    const { result } = renderHook(() => ({
+      update: useUpdateAssignment(),
+      withdraw: useWithdrawAssignment(),
+      restore: useRestoreAssignment(),
+    }), { wrapper: Wrapper });
+
+    await act(async () => {
+      await result.current.update.mutateAsync({
+        assignmentId: 'asg_1',
+        patch: { questions: BODY.questions, targetStudentIds: ['stu_1'] },
+      });
+      await result.current.withdraw.mutateAsync('asg_1');
+      await result.current.restore.mutateAsync('asg_1');
+    });
+
+    expect(calls.find((call) => call.method === 'PATCH' && (call.body as Record<string, unknown>)?.questions)).toMatchObject({
+      url: `${BASE}/assignments/asg_1`,
+      body: { questions: BODY.questions, targetStudentIds: ['stu_1'] },
+    });
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/assignments/asg_1`, method: 'DELETE' }));
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/assignments/asg_1`, method: 'PATCH', body: { state: 'sent' } }));
   });
 });

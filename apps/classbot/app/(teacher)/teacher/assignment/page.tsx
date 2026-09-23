@@ -108,10 +108,11 @@ function AssignmentList() {
         2026-09-18 에 그 장을 내렸다 — 정본에 채점 큐를 세는 문이 없다. 문이 열리면 같은 자리에
         같은 모양(링크 카드)으로 되살리면 된다. 채점 허브로 가는 길은 레일이 이미 연다.
       */}
-      <KpiStatBar cols={3}>
+      <KpiStatBar cols={4}>
         <KpiStat label="진행 중" value={`${summary.live}건`} />
         <KpiStat label="마감 임박" value={`${summary.dueSoon}건`} tone={summary.dueSoon > 0 ? 'alert' : 'default'} />
         <KpiStat label="마감" value={`${summary.closed}건`} />
+        <KpiStat label="회수됨" value={`${summary.withdrawn}건`} />
       </KpiStatBar>
 
       <FilterBar filter={filter} carriedClassName={carriedClass?.name ?? (filter.classId ? '반 하나' : undefined)} />

@@ -46,6 +46,7 @@ jest.mock('@/hooks/api/assignment-dispatch', () => ({
 jest.mock('@/hooks/api/bot', () => ({
   ...jest.requireActual('@/hooks/api/bot'),
   useMyBots: () => ({ data: [], isPending: false, isError: false, error: null, refetch: jest.fn() }),
+  useArchiveBot: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
 beforeEach(() => {

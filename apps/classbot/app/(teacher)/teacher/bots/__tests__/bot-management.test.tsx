@@ -39,6 +39,8 @@ let listPending = false;
 let listError: ApiError | null = null;
 const refetch = jest.fn();
 const updateMutate = jest.fn();
+const archiveMutate = jest.fn();
+const restoreMutate = jest.fn();
 let updateError: unknown = null;
 
 jest.mock('@/hooks/api/bot', () => ({
@@ -64,6 +66,8 @@ jest.mock('@/hooks/api/bot', () => ({
     isError: updateError !== null,
     error: updateError,
   }),
+  useArchiveBot: () => ({ mutate: archiveMutate, isPending: false }),
+  useRestoreBot: () => ({ mutate: restoreMutate, isPending: false }),
 }));
 
 const toastSuccess = jest.fn();
@@ -83,6 +87,8 @@ beforeEach(() => {
   updateError = null;
   refetch.mockClear();
   updateMutate.mockReset();
+  archiveMutate.mockReset();
+  restoreMutate.mockReset();
   toastSuccess.mockReset();
   toastMessage.mockReset();
 });

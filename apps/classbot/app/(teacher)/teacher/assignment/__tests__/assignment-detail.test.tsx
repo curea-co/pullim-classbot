@@ -67,6 +67,10 @@ let membersState: MembersState = membersOk(MEMBERS);
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useAssignmentDetail: () => detailState,
   useAssignmentSubmissions: () => submissionsState,
+  useAssignmentAuthoring: () => ({ data: undefined, isPending: true, isError: false, refetch: jest.fn() }),
+  useUpdateAssignment: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useWithdrawAssignment: () => ({ mutate: jest.fn(), isPending: false }),
+  useRestoreAssignment: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 jest.mock('@/hooks/api/classroom', () => ({
   ...jest.requireActual('@/hooks/api/classroom'),
@@ -119,7 +123,7 @@ it('5xx 는 404 로 덮지 않고 다시 시도할 수 있는 오류다', async 
   expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
 });
 
-it('메타·반 이름·지금 기준 마감을 그리고, 고치기/회수 버튼 대신 안내 한 줄을 둔다', async () => {
+it('메타·반 이름·지금 기준 마감을 그리고, 수정·회수 동작을 연다', async () => {
   await renderDetail();
   expect(screen.getByRole('heading', { name: '3단원 연습문제' })).toBeInTheDocument();
   expect(screen.getByText(/고2 미적분 A반 · 2문항 · 난이도 중/)).toBeInTheDocument();
@@ -129,9 +133,8 @@ it('메타·반 이름·지금 기준 마감을 그리고, 고치기/회수 버�
   expect(facts).toHaveTextContent('진행 중');
   expect(facts).not.toHaveTextContent('D-3');
 
-  expect(screen.getByTestId('assignment-edit-unavailable')).toHaveTextContent('고치거나 회수하는 기능은 아직');
-  expect(screen.queryByRole('link', { name: /고치기/ })).toBeNull();
-  expect(screen.queryByRole('button', { name: /회수/ })).toBeNull();
+  expect(screen.getByRole('button', { name: '과제 수정' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '과제 회수' })).toBeInTheDocument();
   expect(screen.queryByText('회수됨')).toBeNull();
 });
 

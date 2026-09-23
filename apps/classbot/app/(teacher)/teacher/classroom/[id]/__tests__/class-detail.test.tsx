@@ -47,14 +47,25 @@ let detailError: ApiError | null = null;
 let assignments: AssignmentSummaryDto[] = [];
 let known: ClassDto | undefined;
 jest.mock('@/hooks/api/classroom', () => ({
-  useOperatorClass: () => ({
-    data: detailError ? undefined : detail,
+  useClassDetail: () => ({
+    data: detailError ? undefined : known ?? (detail ? {
+      ...KNOWN,
+      name: detail.className,
+      description: detail.description,
+      subject: detail.profile?.subject ?? null,
+      grade: detail.profile?.grade ?? null,
+      isActive: detail.isActive,
+      joinCode: null,
+    } : undefined),
     isPending: detail === null && detailError === null,
     isError: detailError !== null,
     error: detailError,
     refetch: jest.fn(),
   }),
-  useClassDetail: () => ({ data: known }),
+  useUpdateClass: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useArchiveClass: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useRestoreClass: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useDeleteClass: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 jest.mock('@/hooks/api/assignment-dispatch', () => ({
   useTeacherAssignments: () => ({ data: assignments, isPending: false, isError: false, error: null, refetch: jest.fn() }),
@@ -92,7 +103,7 @@ beforeEach(() => {
 });
 
 describe('머리', () => {
-  it('반 이름 · 과목·학년 · 참여 코드 상자가 선다 — 봇을 모르면 봇 칩은 없다(「봇 없음」이라 하지 않는다)', () => {
+  it('반 이름 · 과목·학년 · 참여 코드 상자가 선다 — 상세 DTO에 봇이 없으면 「봇 없음」이라 말한다', () => {
     detailAt();
 
     // 제목은 **반** 이름이다 — 상세의 `name`(「미적분 도우미」)은 봇 이름이다(#679).
@@ -101,8 +112,7 @@ describe('머리', () => {
     const facts = screen.getByTestId('class-facts');
     expect(facts).toHaveTextContent('수학Ⅱ');
     expect(facts).toHaveTextContent('고2');
-    expect(screen.queryByTestId('class-bot-chip')).toBeNull();
-    expect(facts).not.toHaveTextContent('봇 없음');
+    expect(screen.getByTestId('class-bot-chip')).toHaveTextContent('봇 없음');
     expect(screen.getByTestId('detail-code-block')).toHaveTextContent('cls_1:-');
     expect(screen.getByRole('link', { name: '내 수업방' })).toHaveAttribute('href', '/teacher/classroom');
   });

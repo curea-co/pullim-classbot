@@ -1,6 +1,6 @@
 import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
-import { modeMeta as studentModeMeta } from '@/app/(student)/classbot/assignment/page';
-import { modeMeta as teacherModeMeta } from '@/app/(teacher)/teacher/classbot/page';
+import { assignmentModeMeta as studentModeMeta } from '@/components/classbot/assignment-mode-meta';
+import { assignmentModeMeta as teacherModeMeta } from '@/components/classbot/assignment-mode-meta';
 import { modeMeta as detailModeMeta } from '@/components/classbot/assignment-overview-header';
 
 /**

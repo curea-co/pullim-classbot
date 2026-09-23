@@ -3,24 +3,26 @@
 import { Suspense, useCallback, useMemo, useRef, useState, type Ref } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
-  Bot, Send, Plus, Sparkles, Clock, Target, AlertCircle, ArrowRight, Inbox,
+  Bot, Send, Plus, Clock, ArrowRight, Inbox,
   Rocket, Wrench, School,
-  MoreHorizontal, Trash2,
+  Archive, MoreHorizontal,
 } from 'lucide-react';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { KpiStatLink } from '@/components/classbot/kpi-stat-link';
 import { ComingSoonButton } from '@/components/classbot/coming-soon-button';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { assignmentModeMeta as modeMeta } from '@/components/classbot/assignment-mode-meta';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { josa } from '@/lib/mock';
-import { useMyBots } from '@/hooks/api/bot';
+import { useArchiveBot, useMyBots } from '@/hooks/api/bot';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
 import { useOperatorClasses } from '@/hooks/api/classroom';
-import { isUnauthorized } from '@/lib/api/classbot-client';
+import { isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { ApiError } from '@pullim-classbot/api-client';
 import { classNameOf, type AssignmentSummaryDto, type BotDto } from '@/lib/api/classbot-dto';
 import { dDayLabel, dispatchedAtLabel } from '@/lib/assignment-labels';
@@ -40,7 +42,6 @@ import {
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { cn } from '@/lib/utils';
-import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 
 /**
  * 클래스봇 운영 메인 (SCR-C-17) — 「내가 만든 봇들이 어느 학급에 붙어서 어떻게 돌고 있나」.
@@ -120,54 +121,10 @@ export default function TeacherClassbotPage() {
     [teacherClasses.data],
   );
 
-  /*
-    삭제는 **화면 안 상태로만** 돈다 — 지운 봇의 id 를 여기 모아 두고 걸러낸다.
-    서버에도 캐시에도 쓰지 않는 까닭: 봇을 지우는 문이 정본에 아예 없다(`POST /bots`·`PATCH /bots/:id`
-    둘뿐 — `hooks/api/bot.ts` 머리주석). 읽어 온 목록에서 한 줄을 빼는 것이 이 화면이 할 수 있는 전부다.
-    react-query 캐시(`botKeys.myBots`)를 직접 고치지 않는 것도 같은 이유다 — 그 캐시는 봇 관리·빌더가
-    함께 읽으므로, 여기서 지우면 이 화면에서 누른 버튼이 남의 화면까지 바꾼다.
-    진짜 삭제는 BE 별건이고, 그 방향은 `03 § 4.4.8` 이 정본으로 적어 뒀다 —
-    **하드 삭제를 만들지 않고 `archived_at` 소프트 삭제 + 목록 필터로 간다.**
-    까닭은 봇·반이 이미 여러 표의 부모라, `DELETE` 한 줄이 학생의 대화·제출·과제·성취를
-    교사 버튼 하나로 지우기 때문이다.
-
-    ── 이 리포의 판례 둘과 이 자리의 관계 ──────────────────────────────────────
-    이 화면에는 「사실이 아닌 것은 걷는다」와 「되돌릴 수 없는 일에만 되묻는다」가 이미
-    판례로 적혀 있다. 이 삭제는 둘 다에 걸리는 모양이라, 왜 그래도 이렇게 두는지를
-    여기 적어 둔다 — 다음 사람이 세 판단을 같이 읽으라고.
-
-    ㉠ #320 이 이 파일 머리주석에 「등록 학생 관리」를 걷은 이유를 적어 뒀다 —
-      「그 섹션이 사실이 아니어서다 … 스스로 「데모 — 새로고침 시 초기화」라 적을 만큼
-      **저장도 없는 토글**이었다」. 이 삭제도 저장이 없다(새로고침이면 봇이 돌아온다).
-      **다른 점은 걷을 자리가 아니라 놓을 자리라는 것**이다 — 그 섹션은 넘겨 줄 화면도,
-      BE 가 내려줄 데이터도, 정본 방향을 적은 문서도 없이 토글만 있었다. 봇 삭제는
-      **권위 문서가 갈 자리를 이름 대고 정해 뒀다**(`03 § 4.2.1`·`§ 4.4.8`) — 이 화면의
-      버튼이 「지금은 화면 안 데모」라는 것, 모달이 고정 문구라는 것, 그리고 BE 가
-      `archived_at` 소프트 삭제로 간다는 것까지 그 두 절이 적는다.
-      ⚠️ **스키마에 그 컬럼이 이미 있는 것은 아니다** — `§ 4.4.8 (a)` 가 「`deleted_at`·
-      `archived_at`·`status` 같은 소프트 삭제 컬럼은 없다. 지금 있는 것은 하드 삭제 한 길뿐이다」
-      라고 못박는다. 있는 것은 **결정**이지 **컬럼**이 아니고, 지우는 **라우트**도 아직 없다.
-      그래서 이 PR 은 그 앞단(되묻는 판·포커스·숫자 동반 감소)을 먼저 세운다.
-      **BE 가 붙을 때 바뀌는 곳은 `handleDelete` 하나가 아니다** — `§ 4.4.8 (e)` 가
-      같이 고쳐야 하는 술어를 전수로 센다((e-1) 읽기 일곱 · (e-2) 쓰기 검증 넷 ·
-      일부러 안 거르는 ⛔ 둘). 여기서 서는 것은 그 BE 작업의 **화면 쪽 절반**이다.
-    ㉡ 되묻기 관용구는 「되돌릴 수 없는 일에만 되묻는다」이고 두 자리가 그 기준을 주석으로
-      못 박아 뒀다 — `classroom/join-code-block.tsx`(「코드 다시 내기는 **되돌릴 수 없다**」),
-      `classbot/my-bots/my-bot-card.tsx`(「빼기는 되묻지 않는다 — 다시 담으면 그만이라
-      되돌릴 수 없는 일이 아니다」). **지금 구현만 재면 이 삭제는 후자 쪽**이다.
-      그런데도 되묻는 판을 먼저 세우는 까닭은, 이 자리에 올 진짜 삭제가 학생의 대화·제출·
-      성취까지 함께 지우는 cascade 라서다(바로 위). 되묻는 판을 BE 와 같이
-      들이면 그때 급히 지어야 하고, 그 판이 접근성까지 맞는지 아무도 못 본다.
-      `my-bot-card` 주석도 「대화 기록까지 지우게 되는 P4 부터는 이 판단을 다시 봐야
-      한다」로 같은 방향을 가리킨다 — 여기가 그 P4 쪽 자리다.
-
-    화면에 「데모 — 새로고침 시 초기화」 같은 안내는 **넣지 않는다.** 규칙서·권위 문서
-    어디에도 그 안내를 강제하는 조항이 없고, 검토 끝에 사용자가 넣지 않기로 정했다.
-    (넣지 않기로 한 결정이지, 안 본 자리가 아니다.)
-  */
-  const [deletedBotIds, setDeletedBotIds] = useState<ReadonlySet<string>>(() => new Set());
+  // 보관은 서버의 soft archive다. 활성 목록 캐시를 무효화해 운영 화면과 봇 관리가 같은 상태를 본다.
   const [deleteNotice, setDeleteNotice] = useState('');
   const botListRef = useRef<HTMLElement>(null);
+  const archiveBot = useArchiveBot();
 
   /*
     숫자가 거짓말하지 않게 — 이 화면에서 그 봇을 세는 자리가 셋이다(카드 · 상단 통계 「내 봇」 ·
@@ -179,10 +136,7 @@ export default function TeacherClassbotPage() {
     지운 봇의 과제도 함께 내렸는데, 지금 그렇게 하면 **멀쩡히 살아 있는 반의 과제를 없는 것처럼**
     말하게 되고 도착지 `/teacher/assignment` 의 「전체」와도 어긋난다.
   */
-  const bots = useMemo(
-    () => (myBots.data ?? []).filter((b) => !deletedBotIds.has(b.id)),
-    [myBots.data, deletedBotIds],
-  );
+  const bots = useMemo(() => myBots.data ?? [], [myBots.data]);
   /*
     붙은 학급 수는 **봇 행이 실어 준 `classIds`**(= `classes.bot_id == id`)로 센다 — 반 목록을
     못 읽어도 아는 값이다. 한 반은 봇 하나만 가리키므로 겹칠 일이 없지만, 세는 값이라 Set 으로 못박는다.
@@ -192,13 +146,8 @@ export default function TeacherClassbotPage() {
     [bots],
   );
 
-  const handleDelete = useCallback((botId: string, botName: string) => {
-    setDeletedBotIds(prev => {
-      if (prev.has(botId)) return prev;
-      const next = new Set(prev);
-      next.add(botId);
-      return next;
-    });
+  const handleDelete = useCallback(async (botId: string, botName: string) => {
+    await archiveBot.mutateAsync(botId);
     /*
       지우면 그 카드가 사라지므로 포커스를 돌려줄 「더보기」 트리거도 함께 없어진다.
       그대로 두면 포커스가 `body` 로 떨어져 낭독기가 문서 처음으로 되감긴다.
@@ -213,9 +162,10 @@ export default function TeacherClassbotPage() {
     */
     requestAnimationFrame(() => {
       botListRef.current?.focus();
-      setDeleteNotice(`${josa(botName, '을/를')} 삭제했어요.`);
+      setDeleteNotice(`${josa(botName, '을/를')} 보관했어요.`);
     });
-  }, []);
+    toast.success(`${josa(botName, '을/를')} 보관했어요.`);
+  }, [archiveBot]);
 
   return (
     <div className="space-y-7">
@@ -346,7 +296,7 @@ function BotOpsList({
   isPending: boolean;
   error: ApiError | null;
   onRetry: () => void;
-  onDelete: (botId: string, botName: string) => void;
+  onDelete: (botId: string, botName: string) => Promise<void>;
   /** 삭제 직후 낭독기에 읽어줄 말 — 눈으로 읽는 안내가 아니다 */
   notice: string;
 }) {
@@ -477,7 +427,7 @@ function BotCardMenu({
 }: {
   botId: string;
   botName: string;
-  onDelete: (botId: string, botName: string) => void;
+  onDelete: (botId: string, botName: string) => Promise<void>;
 }) {
   /*
     판이 닫힐 때 포커스를 돌려줄 자리를 손으로 대 준다.
@@ -486,6 +436,8 @@ function BotCardMenu({
   */
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [confirming, setConfirming] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   return (
     <>
@@ -509,7 +461,7 @@ function BotCardMenu({
           ))}
           <DropdownMenuSeparator />
           {/*
-            삭제는 되돌릴 수 없는 일이라 위 둘과 눈으로도 갈려야 한다 —
+            보관은 현재 운영에서 봇을 내리는 일이라 위 둘과 눈으로도 갈려야 한다 —
             이 리포의 danger 토큰(`AlertCard tone="danger"` 가 쓰는 `--color-pullim-danger`)
             을 그대로 쓴다. 메뉴의 `variant="destructive"` 는 PUDS `--destructive` 를 따라가
             이 화면의 빨강과 다른 빨강이 된다.
@@ -532,8 +484,8 @@ function BotCardMenu({
             className="text-pullim-danger focus:bg-pullim-danger-bg focus:text-pullim-danger px-2 py-1.5 [&_svg]:text-pullim-danger"
             onClick={() => setConfirming(true)}
           >
-            <Trash2 className="h-4 w-4" aria-hidden />
-            봇 삭제
+            <Archive className="h-4 w-4" aria-hidden />
+            봇 보관
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -542,7 +494,20 @@ function BotCardMenu({
         botName={botName}
         open={confirming}
         onOpenChange={setConfirming}
-        onConfirm={() => onDelete(botId, botName)}
+        isPending={isArchiving}
+        error={archiveError}
+        onConfirm={() => {
+          setArchiveError(null);
+          setIsArchiving(true);
+          void onDelete(botId, botName)
+            .then(() => setConfirming(false))
+            .catch((error) => setArchiveError(
+              statusOf(error) === 409
+                ? '반에서 사용 중인 봇은 보관할 수 없어요. 붙어 있는 모든 반에서 먼저 봇을 떼어 주세요.'
+                : '봇을 보관하지 못했어요. 잠시 후 다시 시도해 주세요.',
+            ))
+            .finally(() => setIsArchiving(false));
+        }}
         finalFocus={triggerRef}
       />
     </>
@@ -573,7 +538,7 @@ function BotOpsCard({
   bot: BotDto;
   classes: ReadonlyMap<string, TeacherClass>;
   assignmentCount: number | null;
-  onDelete: (botId: string, botName: string) => void;
+  onDelete: (botId: string, botName: string) => Promise<void>;
 }) {
   // 과목·학년 중 있는 것만 잇는다 — 둘 다 없으면 줄 자체가 없다.
   const facts = [bot.subject, bot.grade].filter((v): v is string => Boolean(v)).join(' · ');
@@ -669,12 +634,6 @@ function BotOpsCard({
  *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
  * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
  */
-export const modeMeta = {
-  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
-  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
-  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
-} as const;
-
 /**
  * 반별로 묶는다 — 조인 키는 정본 행의 `classId`. 이름은 정본 반 목록(`useOperatorClasses`)에서,
  * 거기 없는 반의 과제는 맨 뒤에 「반 목록에 없는 반」으로 따로 둔다(지어낸 이름을 붙이지 않는다).

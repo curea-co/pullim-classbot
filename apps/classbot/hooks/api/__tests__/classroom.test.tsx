@@ -30,17 +30,21 @@ jest.mock('@/lib/auth/os-sso', () => ({
 
 import { API_BASE } from '@/lib/auth/os-sso';
 import type { BotCardDto, BotDetailDto, BotDto, ClassDto, ClassMemberDto, JoinCodeDto } from '@/lib/api/classbot-dto';
-import { useMyBots } from '../bot';
+import { useArchiveBot, useMyBot, useMyBots, useRestoreBot } from '../bot';
 import {
   classroomKeys,
   joinFailureMessage,
+  useArchiveClass,
   useAssignClassBot,
+  useClasses,
   useClassMembers,
   useCreateClassroom,
   useClassDetail,
   useIssueJoinCode,
   useJoinByCode,
   useMyClassrooms,
+  useRemoveClassMember,
+  useRevokeJoinCodes,
   useOperatorClass,
   useOperatorClasses,
 } from '../classroom';
@@ -141,8 +145,15 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
     if (teacherStatus >= 400) return Promise.resolve(res(teacherStatus, { statusCode: teacherStatus, message: 'nope' }));
     return Promise.resolve(res(200, teacherBots));
   }
-  if (url === `${BASE}/me/bots` && method === 'GET') {
+  if (url === `${BASE}/me/bots?state=active` && method === 'GET') {
     return Promise.resolve(res(200, ownedBots));
+  }
+  if (url === `${BASE}/me/bots?state=all` && method === 'GET') {
+    return Promise.resolve(res(200, ownedBots));
+  }
+  if (url === `${BASE}/bots/bot_old` && method === 'DELETE') return Promise.resolve(res(204, null));
+  if (url === `${BASE}/bots/bot_old` && method === 'PATCH') {
+    return Promise.resolve(res(200, { ...ownedBots[0], state: 'active', archivedAt: null }));
   }
   if (url === `${BASE}/classes/cls_1/join-codes` && method === 'POST') {
     if (issueStatus >= 400) return Promise.resolve(res(issueStatus, { statusCode: issueStatus, message: 'nope' }));
@@ -158,6 +169,14 @@ function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
       }),
     );
   }
+  if (url === `${BASE}/classes?state=active` && method === 'GET') {
+    return Promise.resolve(res(200, [classDto]));
+  }
+  if (url === `${BASE}/classes/cls_1` && method === 'PATCH') {
+    return Promise.resolve(res(200, { ...classDto, isActive: (body as { state?: string }).state !== 'archived' }));
+  }
+  if (url === `${BASE}/classes/cls_1/members/stu_1` && method === 'DELETE') return Promise.resolve(res(204, null));
+  if (url === `${BASE}/classes/cls_1/join-codes` && method === 'DELETE') return Promise.resolve(res(204, null));
   if (url === `${BASE}/classes/cls_1` && method === 'GET') {
     if (classStatus >= 400) return Promise.resolve(res(classStatus, { statusCode: classStatus, message: 'nope' }));
     return Promise.resolve(res(200, classDto));
@@ -766,5 +785,51 @@ describe('useClassDetail — GET /classbot/classes/:classId', () => {
     const { result } = renderHook(() => useClassDetail('cls_1'), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(redirectToOsLogin).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('반 lifecycle 쓰기 계약', () => {
+  it('상태 목록을 state query로 읽고 보관 PATCH에 조회한 updatedAt을 싣는다', async () => {
+    const { result } = renderHook(() => ({ list: useClasses('active'), archive: useArchiveClass() }), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/classes?state=active`, method: 'GET' }));
+
+    await act(async () => {
+      await result.current.archive.mutateAsync({ classId: 'cls_1', expectedUpdatedAt: CLASS_DTO.updatedAt });
+    });
+    expect(calls).toContainEqual(expect.objectContaining({
+      url: `${BASE}/classes/cls_1`,
+      method: 'PATCH',
+      body: { state: 'archived', expectedUpdatedAt: CLASS_DTO.updatedAt },
+    }));
+  });
+
+  it('학생 내보내기와 참여 코드 폐기는 DELETE로 보낸다', async () => {
+    const { result } = renderHook(() => ({ remove: useRemoveClassMember(), revoke: useRevokeJoinCodes() }), { wrapper: Wrapper });
+    await act(async () => {
+      await result.current.remove.mutateAsync({ classId: 'cls_1', memberId: 'stu_1' });
+      await result.current.revoke.mutateAsync('cls_1');
+    });
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/classes/cls_1/members/stu_1`, method: 'DELETE' }));
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/classes/cls_1/join-codes`, method: 'DELETE' }));
+  });
+});
+
+describe('봇 lifecycle 쓰기 계약', () => {
+  it('상세 선택은 보관함까지 포함해 읽고 DELETE 보관 · state active PATCH 복구를 보낸다', async () => {
+    const { result } = renderHook(() => ({
+      one: useMyBot('bot_old'),
+      archive: useArchiveBot(),
+      restore: useRestoreBot(),
+    }), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.one.bot?.id).toBe('bot_old'));
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/me/bots?state=all`, method: 'GET' }));
+
+    await act(async () => {
+      await result.current.archive.mutateAsync('bot_old');
+      await result.current.restore.mutateAsync('bot_old');
+    });
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/bots/bot_old`, method: 'DELETE' }));
+    expect(calls).toContainEqual(expect.objectContaining({ url: `${BASE}/bots/bot_old`, method: 'PATCH', body: { state: 'active' } }));
   });
 });

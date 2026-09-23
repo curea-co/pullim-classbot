@@ -25,6 +25,7 @@ jest.mock('@/hooks/api/classroom', () => ({
     error,
     refetch,
   }),
+  useRemoveClassMember: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
 function member(over: Partial<ClassMemberDto> & { memberId: string }): ClassMemberDto {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, KeyRound, School, X } from 'lucide-react';
 import { AlertCard } from '@/components/classbot/alert-card';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -10,14 +10,15 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClassDetail, useOperatorClasses } from '@/hooks/api/classroom';
+import { useClasses, type ClassLifecycleState } from '@/hooks/api/classroom';
 import { isUnauthorized } from '@/lib/api/classbot-client';
 import { formatJoinCode, joinCodeLife } from '@/lib/join-code-format';
 import { classTabHref } from './[id]/class-tabs';
 import { CreateClassroomForm, type CreatedClassroom } from './create-classroom-form';
 import { JoinCodeBlock } from './join-code-block';
 import { KnownBotChip } from './known-bot-chip';
-import { toOperatorClass, type OperatorClass } from './operator-class';
+import { ClassActionsMenu } from './class-actions-menu';
+import type { ClassDto } from '@/lib/api/classbot-dto';
 
 /**
  * 내 수업방 — 내가 operator 인 반을 정본에서 읽고, 반을 만들고, 반마다 참여 코드를 낸다.
@@ -45,8 +46,13 @@ import { toOperatorClass, type OperatorClass } from './operator-class';
  * 봇 마켓 공유 칸(`/teacher/marketplace` 「내 봇 공유」 · 결정 ①).
  */
 export function ClassroomWorkspace() {
-  const query = useOperatorClasses();
+  const active = useClasses('active');
+  const archived = useClasses('archived');
+  const [state, setState] = useState<ClassLifecycleState>('active');
   const [created, setCreated] = useState<CreatedClassroom | null>(null);
+  const [notice, setNotice] = useState('');
+  const listRef = useRef<HTMLElement>(null);
+  const query = state === 'active' ? active : archived;
 
   /*
     401 은 **고장이 아니다** — `classbotRead` 가 이미 OS 로그인으로 보내는 중이고(`lib/api/classbot-client.ts`),
@@ -70,17 +76,39 @@ export function ClassroomWorkspace() {
     );
   }
 
-  const rooms = (query.data ?? []).map(toOperatorClass);
+  const rooms = query.data ?? [];
+
+  function focusList(message: string) {
+    listRef.current?.focus();
+    setNotice('');
+    requestAnimationFrame(() => setNotice(message));
+  }
 
   return (
     <>
       {created && <CreatedBanner created={created} onDismiss={() => setCreated(null)} />}
 
-      <section>
+      <section ref={listRef} tabIndex={-1} aria-label="내 수업방" className="scroll-mt-20 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50">
         <SectionHeading
-          title={query.isPending ? '내 수업방' : `내 수업방 ${rooms.length}개`}
+          title={query.isPending ? '내 수업방' : `${state === 'active' ? '운영 중' : '지난 수업방'} ${rooms.length}개`}
           description="참여 코드를 새로 내어 학생에게 알려주면 그 반으로 들어와요."
         />
+
+        <p className="sr-only" role="status">{notice}</p>
+        <div role="tablist" aria-label="수업방 상태" className="bg-pullim-slate-100 mb-4 inline-flex rounded-xl p-1">
+          {(['active', 'archived'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={state === value}
+              onClick={() => setState(value)}
+              className={`min-h-11 rounded-lg px-4 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 ${state === value ? 'bg-card text-pullim-slate-900 shadow-sm' : 'text-pullim-slate-500'}`}
+            >
+              {value === 'active' ? `운영 중 ${active.data?.length ?? 0}` : `지난 수업방 ${archived.data?.length ?? 0}`}
+            </button>
+          ))}
+        </div>
 
         {query.isPending ? (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2" aria-hidden>
@@ -90,13 +118,13 @@ export function ClassroomWorkspace() {
         ) : rooms.length === 0 ? (
           <EmptyState
             icon={School}
-            title="아직 연 수업방이 없어요"
-            description="아래에서 반을 만들면 참여 코드가 나와요. 그 코드를 학생에게 알려 주면 반으로 들어와요."
+            title={state === 'active' ? '아직 연 수업방이 없어요' : '보관한 수업방이 없어요'}
+            description={state === 'active' ? '아래에서 반을 만들면 참여 코드가 나와요. 그 코드를 학생에게 알려 주면 반으로 들어와요.' : '수업이 끝난 반을 보관하면 기존 기록을 유지한 채 여기에 모여요.'}
           />
         ) : (
           <ul className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="classroom-list">
             {rooms.map((room) => (
-              <RoomCard key={room.id} room={room} />
+              <RoomCard key={room.id} room={room} onChanged={focusList} />
             ))}
           </ul>
         )}
@@ -152,26 +180,37 @@ function CreatedBanner({ created, onDismiss }: { created: CreatedClassroom; onDi
  * 반 한 칸 — 반 정체(이름 · 과목·학년 · 봇) · 참여 코드 · 「자세히」.
  * 코드는 카드 안에서 제 상자를 갖는다. 다른 값과 같은 줄에 두면 그냥 또 하나의 값이 된다.
  */
-function RoomCard({ room }: { room: OperatorClass }) {
-  // 이 반의 지금(붙은 봇 · 살아 있는 참여 코드). 읽기 전·실패면 `undefined` = 모른다 — 코드 상자는 「새로 내기」로만
-  // 채워지고 봇 칩은 빈다(빈 칩은 「봇 없음」이 아니다 · `known-bot-chip.tsx`).
-  const known = useClassDetail(room.id).data;
+function RoomCard({ room, onChanged }: { room: ClassDto; onChanged: (message: string) => void }) {
   return (
     <li className="bg-card rounded-2xl border p-5" data-testid={`classroom-card-${room.id}`}>
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-pullim-slate-900 min-w-0 truncate text-sm font-bold">{room.name}</h3>
-        {!room.isActive && <Chip tone="neutral" className="shrink-0">비활성</Chip>}
+        <div className="flex shrink-0 items-center gap-1">
+          {!room.isActive && <Chip tone="neutral">보관됨</Chip>}
+          <ClassActionsMenu
+            classroom={room}
+            onArchived={() => onChanged(`「${room.name}」 반을 보관했어요.`)}
+            onDeleted={() => onChanged(`「${room.name}」 반을 영구 삭제했어요.`)}
+            onRestored={() => onChanged(`「${room.name}」 반을 다시 열었어요.`)}
+          />
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {room.subject && <Chip tone="info">{room.subject}</Chip>}
         {room.grade && <Chip tone="outline">{room.grade}</Chip>}
-        <KnownBotChip known={known} data-testid={`classroom-bot-${room.id}`} />
+        <KnownBotChip known={room} data-testid={`classroom-bot-${room.id}`} />
       </div>
 
-      <div className="border-pullim-blue-200 bg-pullim-blue-50 mt-4 rounded-xl border p-4">
-        <JoinCodeBlock classId={room.id} initial={known?.joinCode ?? null} />
-      </div>
+      {room.isActive ? (
+        <div className="border-pullim-blue-200 bg-pullim-blue-50 mt-4 rounded-xl border p-4">
+          <JoinCodeBlock classId={room.id} initial={room.joinCode} />
+        </div>
+      ) : (
+        <p className="bg-pullim-slate-50 text-pullim-slate-600 mt-4 rounded-xl p-4 text-xs">
+          새 참여·과제·대화가 멈췄어요. 기존 기록은 상세에서 볼 수 있어요.
+        </p>
+      )}
 
       <div className="mt-4 flex justify-end">
         <Link

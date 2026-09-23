@@ -73,6 +73,7 @@ jest.mock('@/hooks/api/bot', () => ({
     error: botsError,
     refetch,
   }),
+  useArchiveBot: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
 let assignments: AssignmentSummaryDto[] = [];
@@ -165,7 +166,7 @@ describe('목이 화면에 남아 있지 않다', () => {
     // 남은 셋은 그대로다 — 「아무것도 없어서 통과」를 막는다
     expect(within(menu).getByRole('menuitem', { name: '수정하기' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: '과제 내기' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: '봇 삭제' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '봇 보관' })).toBeInTheDocument();
   });
 });
 

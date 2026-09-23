@@ -90,6 +90,16 @@ export interface AssignmentDetailDto extends AssignmentSummaryDto {
 }
 
 /**
+ * 교사 전용 과제 편집 응답. 학생용 상세와 달리 채점 정답과 대상 학생 id를 포함한다.
+ * `GET /classbot/assignments/:id/authoring`과 `PATCH /classbot/assignments/:id`만 이 모양을 쓴다.
+ */
+export interface AssignmentAuthoringDto extends DispatchAssignmentBody {
+  id: string;
+  classId: string;
+  dispatchStatus: string;
+}
+
+/**
  * `BotProfileView` — 카드·상세의 `profile` 칸. **입력원이 갈려 있다**(pullim-api #679 · ADR-092):
  * 페르소나 일곱 칸(과목·학년·말투·인사말·scope·아바타·quickPrompts)은 그 반에 붙은 봇(`classes.bot_id` → `bots`)에서,
  * 마지막 세 칸(`enrolledCount`·`isLive`·`currentLesson`)은 **반의 상태**라 아직 `class_bot_profiles` 에서 온다.
@@ -259,6 +269,17 @@ export interface ClassDto {
   updatedAt: string;
 }
 
+/** `PATCH /classbot/classes/:id` — 반 메타데이터와 lifecycle을 부분 수정한다. */
+export interface UpdateClassBody {
+  /** GET에서 읽은 값. 다른 탭에서 먼저 고쳤으면 서버가 409로 오래된 덮어쓰기를 막는다. */
+  expectedUpdatedAt: string;
+  name?: string;
+  description?: string | null;
+  subject?: string | null;
+  grade?: string | null;
+  state?: 'active' | 'archived';
+}
+
 /**
  * `CreateClassDto` — `POST /classbot/classes` 본문. `name` 만 필수(≤100자). `subject`·`grade` ≤50자.
  * `botId` 는 **이미 있는 내 봇을 붙이는 것**이지 여기서 봇을 만들지 않는다(남의 봇·없는 봇 404). `orgId` 는 받지 않는다.
@@ -305,6 +326,10 @@ export interface BotDto {
   /** 마켓 공개 상태. ADR-094에서 공식 봇은 시드로 게시되며 교사 개인 봇 게시 UI는 지원하지 않는다. */
   isPublished: boolean;
   publishedAt: string | null;
+  /** 운영 lifecycle. 보관한 봇은 활성 목록과 새 할당 후보에서 빠진다. */
+  state?: 'active' | 'archived';
+  /** ISO 8601 · 활성 봇이면 null. */
+  archivedAt?: string | null;
   /** `classes.bot_id == id` 인 반 id 목록. */
   classIds: string[];
   createdAt: string;
@@ -339,6 +364,8 @@ export interface UpdateBotBody {
   scope?: number;
   avatarEmoji?: string | null;
   quickPrompts?: string[];
+  /** `active`는 보관 복구에 쓴다. 보관은 `DELETE /bots/:id`가 소유한다. */
+  state?: 'active';
 }
 
 /** `EnrollmentResponseDto` — `POST /classbot/enrollments`. 신규 201 · 이미 멤버 200, 본문은 같다. */
