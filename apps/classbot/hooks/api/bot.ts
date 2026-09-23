@@ -53,13 +53,16 @@ export { botKeys } from '@/hooks/api/bot-keys';
  * 접두사 갱신(`setQueriesData`)이라 **목록을 아직 아무도 안 읽었으면 아무 일도 안 한다.** 그게 맞다 — 한 줄짜리
  * 목록을 여기서 지어내면 「내 봇은 이것 하나」라고 말하는 셈이고, 그건 이 응답이 아는 사실이 아니다.
  */
-function writeBotIntoList(queryClient: QueryClient, bot: BotDto): void {
-  queryClient.setQueriesData<BotDto[]>({ queryKey: botKeys.myBots }, (prev) => {
+function writeBotIntoList(queryClient: QueryClient, bot: BotDto, userId: string | null): void {
+  const upsert = (prev: BotDto[] | undefined) => {
     if (!prev) return prev;
     const at = prev.findIndex((row) => row.id === bot.id);
     if (at < 0) return [bot, ...prev];
     return prev.map((row) => (row.id === bot.id ? bot : row));
-  });
+  };
+  // 목록과 단건 파생(useMyBot)이 각각 active/all 캐시를 읽으므로 쓰기 응답을 두 곳에 함께 잇는다.
+  queryClient.setQueryData<BotDto[]>([...botKeys.myBots, userId], upsert);
+  queryClient.setQueryData<BotDto[]>([...botKeys.myBots, 'all', userId], upsert);
 }
 
 /**
@@ -70,11 +73,16 @@ function writeBotIntoList(queryClient: QueryClient, bot: BotDto): void {
  * 이쪽이 봇이다.
  * @returns react-query 결과(`data` = 봇 배열)
  */
-export function useMyBots(): UseQueryResult<BotDto[], ApiError> {
+export type BotLifecycleState = 'active' | 'archived' | 'all';
+
+export function useMyBots(state: BotLifecycleState = 'active'): UseQueryResult<BotDto[], ApiError> {
   const { user, isReady } = useAuth();
   return useQuery<BotDto[], ApiError>({
-    queryKey: [...botKeys.myBots, user?.id ?? null],
-    queryFn: () => classbotRead<BotDto[]>('/me/bots'),
+    // 활성 목록은 기존 키를 유지해 배포 중인 캐시/테스트와 호환한다.
+    queryKey: state === 'active'
+      ? [...botKeys.myBots, user?.id ?? null]
+      : [...botKeys.myBots, state, user?.id ?? null],
+    queryFn: () => classbotRead<BotDto[]>(`/me/bots?state=${state}`),
     enabled: isReady && user !== null,
     retry: retryUnlessClientError,
   });
@@ -99,7 +107,7 @@ export interface MyBotResult {
  * @returns 고른 봇과 목록의 진행 상태
  */
 export function useMyBot(botId: string | null | undefined): MyBotResult {
-  const query = useMyBots();
+  const query = useMyBots('all');
   return {
     bot: botId ? query.data?.find((row) => row.id === botId) : undefined,
     isPending: query.isPending,
@@ -115,13 +123,14 @@ export function useMyBot(botId: string | null | undefined): MyBotResult {
  */
 export function useCreateBot(): UseMutationResult<BotDto, ApiError, CreateBotBody> {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   return useMutation<BotDto, ApiError, CreateBotBody>({
     mutationFn: async (input) => {
       const { body } = await classbotWrite<BotDto>('/bots', input);
       return body;
     },
     onSuccess: (bot) => {
-      writeBotIntoList(queryClient, bot);
+      writeBotIntoList(queryClient, bot, user?.id ?? null);
       void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
     },
   });
@@ -140,13 +149,14 @@ export interface UpdateBotInput {
  */
 export function useUpdateBot(): UseMutationResult<BotDto, ApiError, UpdateBotInput> {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   return useMutation<BotDto, ApiError, UpdateBotInput>({
     mutationFn: async ({ botId, patch }) => {
       const { body } = await classbotWrite<BotDto>(`/bots/${encodeURIComponent(botId)}`, patch, 'PATCH');
       return body;
     },
     onSuccess: (bot) => {
-      writeBotIntoList(queryClient, bot);
+      writeBotIntoList(queryClient, bot, user?.id ?? null);
       // 반 상세가 든 봇 이름·아바타는 `bots` 행의 사본이다 — 고친 값으로 맞춰야 머리 칩이 옛 이름을 부르지 않는다.
       for (const classId of bot.classIds) {
         queryClient.setQueriesData<ClassDto>({ queryKey: classroomKeys.classDetail(classId) }, (prev) =>
@@ -157,6 +167,31 @@ export function useUpdateBot(): UseMutationResult<BotDto, ApiError, UpdateBotInp
       }
       void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
       void queryClient.invalidateQueries({ queryKey: classroomKeys.operatorClasses });
+    },
+  });
+}
+
+/** 붙어 있지 않은 봇을 보관한다. 서버는 반복 DELETE를 204로 받는다. */
+export function useArchiveBot(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: async (botId) => {
+      await classbotWrite<null>(`/bots/${encodeURIComponent(botId)}`, undefined, 'DELETE');
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
+    },
+  });
+}
+
+/** 보관한 봇을 다시 활성 목록으로 돌린다. */
+export function useRestoreBot(): UseMutationResult<BotDto, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<BotDto, ApiError, string>({
+    mutationFn: async (botId) =>
+      (await classbotWrite<BotDto>(`/bots/${encodeURIComponent(botId)}`, { state: 'active' }, 'PATCH')).body,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: botKeys.myBots });
     },
   });
 }
@@ -208,7 +243,7 @@ export function useCreateBotForClass(): UseMutationResult<
   return useMutation<CreateBotForClassResult, ApiError | BotAttachError, CreateBotForClassInput>({
     mutationFn: async ({ classId, bot: input }) => {
       const { body: bot } = await classbotWrite<BotDto>('/bots', input);
-      writeBotIntoList(queryClient, bot);
+      writeBotIntoList(queryClient, bot, user?.id ?? null);
       let klass: ClassDto;
       try {
         ({ body: klass } = await classbotWrite<ClassDto>(

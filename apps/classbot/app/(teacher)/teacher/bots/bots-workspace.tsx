@@ -1,15 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { Bot, ChevronRight, MessageSquare, Plus, Settings, Shield } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Archive, Bot, ChevronRight, MessageSquare, MoreVertical, Plus, RotateCcw, Settings, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
+import { BotDeleteDialog } from '@/components/classbot/bot-delete-dialog';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
 import { Chip } from '@/components/ui/chip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMyBots } from '@/hooks/api/bot';
-import { isUnauthorized } from '@/lib/api/classbot-client';
+import { useArchiveBot, useMyBots, useRestoreBot, type BotLifecycleState } from '@/hooks/api/bot';
+import { isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { BotDto } from '@/lib/api/classbot-dto';
 import { botPolicyTabs } from '@/lib/mock/classbot-bot-policy';
 import { isScopeLevel, scopeMeta } from '@/lib/mock/tutor';
@@ -33,9 +42,20 @@ import { isScopeLevel, scopeMeta } from '@/lib/mock/tutor';
  * @returns 봇 관리 목록 화면
  */
 export function BotsWorkspace({ carriedTab }: { carriedTab?: string }) {
-  const query = useMyBots();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [notice, setNotice] = useState('');
+  const [state, setState] = useState<Exclude<BotLifecycleState, 'all'>>('active');
+  const active = useMyBots('active');
+  const archived = useMyBots('archived');
+  const query = state === 'active' ? active : archived;
   const bots = query.data ?? [];
   const carriedTabLabel = botPolicyTabs.find((t) => t.value === carriedTab)?.label;
+
+  function focusList(message: string) {
+    listRef.current?.focus();
+    setNotice('');
+    requestAnimationFrame(() => setNotice(message));
+  }
 
   return (
     <TeacherPageShell
@@ -68,7 +88,7 @@ export function BotsWorkspace({ carriedTab }: { carriedTab?: string }) {
           그래서 이 버튼과 아래 빈 상태의 href 도 아직 `/teacher/builder` 그대로다.
         */
         action:
-          bots.length > 0 ? (
+          state === 'active' && bots.length > 0 ? (
             <Link
               href="/teacher/builder"
               data-testid="bots-new-cta"
@@ -80,6 +100,22 @@ export function BotsWorkspace({ carriedTab }: { carriedTab?: string }) {
           ) : undefined,
       }}
     >
+      <div ref={listRef} tabIndex={-1} className="space-y-4 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50">
+      <p className="sr-only" role="status">{notice}</p>
+      <div role="tablist" aria-label="봇 상태" className="bg-pullim-slate-100 inline-flex rounded-xl p-1">
+        {(['active', 'archived'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={state === value}
+            onClick={() => setState(value)}
+            className={`min-h-11 rounded-lg px-4 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-pullim-blue-400/50 ${state === value ? 'bg-card text-pullim-slate-900 shadow-sm' : 'text-pullim-slate-500'}`}
+          >
+            {value === 'active' ? `사용 중 ${active.data?.length ?? 0}` : `보관함 ${archived.data?.length ?? 0}`}
+          </button>
+        ))}
+      </div>
       {query.isPending ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-busy="true" data-testid="bot-manage-loading">
           <Skeleton className="h-28 w-full rounded-2xl" />
@@ -95,17 +131,18 @@ export function BotsWorkspace({ carriedTab }: { carriedTab?: string }) {
       ) : bots.length === 0 ? (
         <EmptyState
           icon={Bot}
-          title="아직 만든 봇이 없어요"
-          description="봇을 만들면 여기에서 그 봇의 이름·말투와 운영 규칙을 고칠 수 있어요."
-          action={{ href: '/teacher/builder', label: '봇 만들기' }}
+          title={state === 'active' ? '아직 만든 봇이 없어요' : '보관한 봇이 없어요'}
+          description={state === 'active' ? '봇을 만들면 여기에서 그 봇의 이름·말투와 운영 규칙을 고칠 수 있어요.' : '더 이상 쓰지 않는 봇을 보관하면 기존 기록과 함께 여기에 모여요.'}
+          action={state === 'active' ? { href: '/teacher/builder', label: '봇 만들기' } : undefined}
         />
       ) : (
         <ul data-testid="bot-manage-list" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {bots.map((bot) => (
-            <BotManageCard key={bot.id} bot={bot} carriedTab={carriedTab} />
+            <BotManageCard key={bot.id} bot={bot} carriedTab={carriedTab} archived={state === 'archived'} onChanged={focusList} />
           ))}
         </ul>
       )}
+      </div>
     </TeacherPageShell>
   );
 }
@@ -122,7 +159,17 @@ export function BotsWorkspace({ carriedTab }: { carriedTab?: string }) {
  * @param carriedTab - 이어 붙일 탭(없으면 상세 기본 탭)
  * @returns 목록 한 줄
  */
-function BotManageCard({ bot, carriedTab }: { bot: BotDto; carriedTab?: string }) {
+function BotManageCard({
+  bot,
+  carriedTab,
+  archived,
+  onChanged,
+}: {
+  bot: BotDto;
+  carriedTab?: string;
+  archived: boolean;
+  onChanged: (message: string) => void;
+}) {
   const href = carriedTab
     ? `/teacher/bots/${encodeURIComponent(bot.id)}?tab=${encodeURIComponent(carriedTab)}`
     : `/teacher/bots/${encodeURIComponent(bot.id)}`;
@@ -130,10 +177,10 @@ function BotManageCard({ bot, carriedTab }: { bot: BotDto; carriedTab?: string }
   const facts = [bot.subject, bot.grade].filter((v): v is string => Boolean(v)).join(' · ');
 
   return (
-    <li data-testid={`bot-manage-card-${bot.id}`}>
+    <li data-testid={`bot-manage-card-${bot.id}`} className="bg-card flex items-start gap-1 rounded-2xl border p-2">
       <Link
         href={href}
-        className="bg-card hover:border-pullim-blue-300 focus-visible:ring-pullim-blue-400/50 flex items-start gap-4 rounded-2xl border p-5 transition-colors outline-none focus-visible:ring-2"
+        className="hover:bg-pullim-slate-50 focus-visible:ring-pullim-blue-400/50 flex min-w-0 flex-1 items-start gap-4 rounded-xl p-3 transition-colors outline-none focus-visible:ring-2"
       >
         <BotAvatar subject={bot.subject} name={bot.name} size="lg" />
         <span className="min-w-0 flex-1">
@@ -159,7 +206,79 @@ function BotManageCard({ bot, carriedTab }: { bot: BotDto; carriedTab?: string }
           <ChevronRight className="h-4 w-4" aria-hidden />
         </span>
       </Link>
+      <BotLifecycleMenu bot={bot} archived={archived} onChanged={onChanged} />
     </li>
+  );
+}
+
+function BotLifecycleMenu({ bot, archived, onChanged }: { bot: BotDto; archived: boolean; onChanged: (message: string) => void }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const archive = useArchiveBot();
+  const restore = useRestoreBot();
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          ref={triggerRef}
+          aria-label={`${bot.name} 메뉴`}
+          className="text-pullim-slate-500 hover:bg-pullim-slate-100 focus-visible:ring-pullim-blue-400/50 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl outline-none focus-visible:ring-2"
+        >
+          <MoreVertical className="h-4 w-4" aria-hidden />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {archived ? (
+            <DropdownMenuItem
+              disabled={restore.isPending}
+              onClick={() => restore.mutate(bot.id, {
+                onSuccess: () => {
+                  onChanged(`「${bot.name}」을 다시 사용할 수 있어요.`);
+                  toast.success(`「${bot.name}」을 다시 사용할 수 있어요.`);
+                },
+                onError: (error) => toast.error(
+                  statusOf(error) === 404
+                    ? '봇을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                    : '봇을 복구하지 못했어요. 잠시 후 다시 시도해 주세요.',
+                ),
+              })}
+            >
+              <RotateCcw /> {restore.isPending ? '복구하는 중…' : '다시 사용'}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => setArchiveOpen(true)}>
+              <Archive /> 봇 보관
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <BotDeleteDialog
+        botName={bot.name}
+        open={archiveOpen}
+        onOpenChange={(open) => { setArchiveOpen(open); if (!open) setError(null); }}
+        finalFocus={triggerRef}
+        isPending={archive.isPending}
+        error={error}
+        onConfirm={() => {
+          setError(null);
+          archive.mutate(bot.id, {
+            onSuccess: () => {
+              setArchiveOpen(false);
+              onChanged(`「${bot.name}」을 보관했어요.`);
+              toast.success(`「${bot.name}」을 보관했어요.`);
+            },
+            onError: (mutationError) => setError(
+              statusOf(mutationError) === 404
+                ? '봇을 찾을 수 없어요. 목록을 새로고침해 주세요.'
+                : statusOf(mutationError) === 409
+                ? '반에서 사용 중인 봇은 보관할 수 없어요. 붙어 있는 모든 반에서 먼저 봇을 떼어 주세요.'
+                : '봇을 보관하지 못했어요. 잠시 후 다시 시도해 주세요.',
+            ),
+          });
+        }}
+      />
+    </>
   );
 }
 

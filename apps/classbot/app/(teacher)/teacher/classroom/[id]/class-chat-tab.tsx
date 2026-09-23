@@ -40,7 +40,7 @@ import { classTabHref } from './class-tabs';
  * 401 은 여기서 말하지 않는다 — 반 머리(`class-detail.tsx`)가 게이트를 들거나 로그인으로 가는 중이다. 403·404 도
  * 머리가 먼저 가른다(남의 반 · 없는 반). 그래서 이 탭의 오류는 대개 일시 장애다 — 다시 시도 하나로 답한다.
  */
-export function ClassChatTab({ classId }: { classId: string }) {
+export function ClassChatTab({ classId, readOnly = false }: { classId: string; readOnly?: boolean }) {
   const members = useClassMembers(classId);
   const signals = useClassSignals(classId);
   const router = useRouter();
@@ -124,7 +124,7 @@ export function ClassChatTab({ classId }: { classId: string }) {
             className="self-start"
           />
         ) : (
-          <TranscriptPanel key={selectedId} classId={classId} studentId={selectedId} studentName={selectedName} />
+          <TranscriptPanel key={selectedId} classId={classId} studentId={selectedId} studentName={selectedName} readOnly={readOnly} />
         )}
       </div>
     </div>
@@ -209,7 +209,7 @@ export function ackFailureMessage(error: unknown): string {
 }
 
 /** 오른쪽 — 고른 학생의 기록 + 신호. `key={studentId}` 로 학생이 바뀌면 통째로 다시 선다. */
-function TranscriptPanel({ classId, studentId, studentName }: { classId: string; studentId: string; studentName: string }) {
+function TranscriptPanel({ classId, studentId, studentName, readOnly = false }: { classId: string; studentId: string; studentName: string; readOnly?: boolean }) {
   const chat = useMemberChat(classId, studentId);
   const signals = useStudentSignals(classId, studentId);
   const ack = useAckSignal(classId);
@@ -219,6 +219,7 @@ function TranscriptPanel({ classId, studentId, studentName }: { classId: string;
   const marks = useMemo(() => (signals.data?.signals ?? []).map(toSignalMark), [signals.data]);
 
   function handleAck(signalId: string) {
+    if (readOnly) return;
     setPendingAckIds((cur) => new Set(cur).add(signalId));
     ack.mutate(
       { signalId, studentId },
@@ -279,6 +280,7 @@ function TranscriptPanel({ classId, studentId, studentName }: { classId: string;
       marks={marks}
       onAck={handleAck}
       pendingAckIds={pendingAckIds}
+      readOnly={readOnly}
     />
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock, Sparkles, Target, AlertCircle, AlertTriangle, Inbox } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Sparkles, AlertTriangle, Inbox } from 'lucide-react';
 import { PageHeader } from '@/components/shell/page-header';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { ReadErrorState, ReadLoginGate } from '@/components/classbot/read-state';
@@ -9,29 +9,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BotAvatar } from '@/components/classbot/bot-avatar';
 import BackLink from '@/components/classbot/back-link';
 import { EmptyState } from '@/components/classbot/empty-state';
+import { assignmentModeMeta as modeMeta } from '@/components/classbot/assignment-mode-meta';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { useMyRooms, type RoomSlot } from '@/components/classbot/home/my-rooms';
 import type { AssignmentReadRow } from '@/hooks/api/read/types';
 import { useVisibleAssignments } from './use-assignment-reads';
 import { botSignature } from '@/lib/tokens/bot-signature';
-import { getAssignmentVisual, assignmentModeBadge, type AssignmentModeBadge } from '@/lib/tokens/assignment-state';
+import { getAssignmentVisual } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
-
-type AssignmentMode = AssignmentReadRow['mode'];
-
-/**
- * 모드 배지 3종 — [08 § 15.6] 「뱃지 3종(연습/오답정복/시험)이 모두 파랑 계열로 보이던 회귀를 해결」.
- * 그래서 **셋은 서로 다른 면**이어야 한다. 같은 표가 정한 값 그대로:
- *   연습     → brand 계열 옅은 면
- *   오답정복 → `accent.lime`   (레몬이 여기 쓰이는 근거. [§ 1.6] 남용 금지의 예외다)
- *   시험     → `surface.inverse` solid (navy) — 시험은 오류가 아니라 모드 전환이라 빨강이 아니다
- * `fg` 는 각 면 위에서 읽히는 글자색이다. 레몬 위에 흰 글씨를 얹으면 안 읽힌다.
- */
-export const modeMeta: Record<AssignmentMode, AssignmentModeBadge & { color: string; icon: typeof Target }> = {
-  'practice':       { ...assignmentModeBadge.practice,          color: assignmentModeBadge.practice.bg,          icon: Target },
-  'exam':           { ...assignmentModeBadge.exam,              color: assignmentModeBadge.exam.bg,              icon: AlertCircle },
-  'wrong-conquest': { ...assignmentModeBadge['wrong-conquest'], color: assignmentModeBadge['wrong-conquest'].bg, icon: Sparkles },
-};
 
 /**
  * D-day 칩 앞 아이콘 — 색이 아니라 **모양**으로 상태를 한 번 더 말한다 ([08 § 14.1] 색만으로 의미 전달 금지).

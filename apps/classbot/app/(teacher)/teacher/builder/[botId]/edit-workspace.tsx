@@ -101,6 +101,23 @@ export function BotEditWorkspace({ botId }: { botId: string }) {
     );
   }
 
+  if (bot.state === 'archived') {
+    return (
+      <Shell title="봇 수정">
+        <EmptyState
+          icon={Bot}
+          title="보관된 봇은 읽기 전용이에요"
+          description="봇 관리에서 다시 사용으로 복구한 뒤 내용을 수정할 수 있어요. 기존 반과 대화 기록은 그대로 보존돼요."
+          action={{
+            href: `/teacher/bots/${encodeURIComponent(bot.id)}`,
+            label: '봇 관리에서 복구',
+            ariaLabel: `${bot.name} 봇 관리에서 복구하기`,
+          }}
+        />
+      </Shell>
+    );
+  }
+
   // 첫 값은 **한 번만** 심는다 — 목록이 뒤에서 다시 읽혀도 교사가 고치던 값을 덮지 않게, 봇이 바뀔 때만 새로 연다.
   return <BotEditForm key={bot.id} bot={bot} />;
 }

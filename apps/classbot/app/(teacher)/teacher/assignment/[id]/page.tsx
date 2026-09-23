@@ -2,17 +2,16 @@
 
 import { use, useMemo } from 'react';
 import Link from 'next/link';
-import { ClipboardList, Info, Users } from 'lucide-react';
+import { ClipboardList, Users } from 'lucide-react';
 import { ApiError } from '@pullim-classbot/api-client';
 import { TeacherPageShell } from '@/components/classbot/teacher-page-shell';
-import { BotNote } from '@/components/classbot/bot-note';
 import { EmptyState } from '@/components/classbot/empty-state';
 import { KpiStat, KpiStatBar } from '@/components/classbot/kpi-stat';
 import { ReadErrorState } from '@/components/classbot/read-state';
 import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { useAssignmentDetail, useAssignmentSubmissions } from '@/hooks/api/assignment-dispatch';
-import { useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
+import { useClassDetail, useClassMembers, useOperatorClasses } from '@/hooks/api/classroom';
 import type {
   AssignmentDetailDto,
   AssignmentQuestionDto,
@@ -26,6 +25,7 @@ import { assignmentModeBadge } from '@/lib/tokens/assignment-state';
 import { cn } from '@/lib/utils';
 import { isDueSoon, modeOf, remainingOf, statusLabels, statusOf, toTeacherClass } from '../assignment-filters';
 import { RemindUnsubmitted } from './remind-unsubmitted';
+import { AssignmentLifecycleActions } from './assignment-lifecycle-actions';
 
 type Params = Promise<{ id: string }>;
 
@@ -71,6 +71,7 @@ function AssignmentDetail({ id }: { id: string }) {
   const detail = useAssignmentDetail(id);
   const submissions = useAssignmentSubmissions(id);
   const classes = useOperatorClasses();
+  const classroom = useClassDetail(detail.data?.classId);
   // 명단 — 상세가 오기 전에는 반을 모르므로 `undefined` 로 두면 훅이 묻지 않는다. 훅은 조건부로 부를 수 없어
   // 이른 return(로딩·오류) **앞**에 둔다.
   const members = useClassMembers(detail.data?.classId);
@@ -116,6 +117,18 @@ function AssignmentDetail({ id }: { id: string }) {
   const a = detail.data;
   const mode = assignmentModeBadge[modeOf(a)];
   const status = statusOf(a);
+  const withdrawn = a.dispatchStatus === 'withdrawn';
+  const classReadOnly = classroom.isSuccess && !classroom.data.isActive;
+  const classLifecycleUnknown = classroom.isPending || classroom.isError;
+  const classReadOnlyMessage = classroom.isError
+    ? (httpStatusOf(classroom.error) === 404
+        ? '반을 찾을 수 없어 과제를 변경할 수 없어요. 과제 목록으로 돌아가 새로고침해 주세요.'
+        : httpStatusOf(classroom.error) === 403
+          ? '이 반의 운영 권한을 확인할 수 없어 과제를 변경할 수 없어요.'
+          : '반 상태를 확인하지 못해 과제 변경을 잠시 막았어요. 새로고침한 뒤 다시 시도해 주세요.')
+    : classroom.isPending
+      ? '반 상태를 확인하는 동안에는 과제를 변경할 수 없어요.'
+      : undefined;
   const dueSoon = isDueSoon(a);
 
   const rows = submissions.data ?? [];
@@ -137,29 +150,28 @@ function AssignmentDetail({ id }: { id: string }) {
       header={{
         eyebrow: { icon: ClipboardList, text: '평가' },
         title: a.title,
-        description: [klass?.name ?? '반 이름 없음', `${a.questionCount}문항`, `난이도 ${a.difficulty}`].join(' · '),
+        description: [classroom.data?.name ?? klass?.name ?? '반 이름 없음', `${a.questionCount}문항`, `난이도 ${a.difficulty}`].join(' · '),
       }}
     >
       {/* 이 과제가 무엇인지 — 모드·상태·마감은 한 줄에 함께 둔다. 셋이 같이 읽혀야 뜻이 선다 */}
       <div data-testid="assignment-detail-facts" className="flex flex-wrap items-center gap-2">
         <span className={cn('rounded-full px-2 py-0.5 text-2xs font-bold', mode.bg, mode.fg)}>{mode.label}</span>
-        <Chip tone="outline" className="py-1">{statusLabels[status]}</Chip>
+        <Chip tone="outline" className="py-1">{withdrawn ? '회수됨' : statusLabels[status]}</Chip>
         <span className={cn('font-mono text-2xs font-bold', dueSoon ? 'text-pullim-danger' : 'text-pullim-slate-500')}>
           {dDayLabel(remainingOf(a))} ({a.dueLabel})
         </span>
         <span className="text-pullim-slate-500 text-2xs">{a.scope}</span>
       </div>
 
-      {/*
-        고치기·회수 버튼이 있던 자리 — 정본에 그 문이 없어 버튼을 두지 않는다. 죽은 버튼보다 한 줄이 낫다.
-        문이 생기면(pullim-api 후속) 여기에 다시 붙인다.
-      */}
-      <div data-testid="assignment-edit-unavailable">
-        <BotNote icon={Info}>
-          낸 과제를 고치거나 회수하는 기능은 아직 정본 서버(pullim-api)에 없어요. 잘못 낸 과제는 새로 내 주세요 —
-          학생 화면에는 두 과제가 모두 보여요.
-        </BotNote>
-      </div>
+      <AssignmentLifecycleActions
+        assignment={a}
+        members={members.data}
+        submissionCount={rows.length}
+        submissionsReady={!submissions.isPending && !submissions.isError}
+        readOnly={classReadOnly || classLifecycleUnknown}
+        readOnlyMessage={classReadOnlyMessage}
+        onConflictRefresh={() => submissions.refetch()}
+      />
 
       {/* 한눈에 — 있는 것만 센다. 대상은 명단의 활성 인원(못 읽으면 반 카드의 수, 그것도 없으면 —),
           제출은 제출 현황의 행 수다. */}
@@ -177,7 +189,7 @@ function AssignmentDetail({ id }: { id: string }) {
         />
         <SubmissionsPanel query={submissions} detail={a} roster={roster} />
         {/* 미제출 리마인드 — 명단을 읽을 수 있을 때만 선다(`remind-unsubmitted.tsx`). */}
-        {submissions.isSuccess && (
+        {submissions.isSuccess && !withdrawn && classroom.isSuccess && classroom.data.isActive && (
           <RemindUnsubmitted
             classId={a.classId}
             assignmentId={a.id}

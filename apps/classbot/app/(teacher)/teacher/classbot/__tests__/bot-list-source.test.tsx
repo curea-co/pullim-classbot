@@ -28,14 +28,14 @@ import TeacherClassbotPage from '../page';
 const FULL: BotDto = {
   id: 'bot_1', operatorId: 't1', name: '문학 도우미', subject: '국어', grade: '고2', tone: '친근',
   greeting: null, scope: 4, avatarEmoji: '📚', quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: ['cls_1'], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: ['cls_1'], createdAt: '', updatedAt: '',
 };
 
 /** 이름만 있는 봇 — 과목·학년이 null 이고 어느 반에도 안 붙었다. */
 const BARE: BotDto = {
   id: 'bot_2', operatorId: 't1', name: '이름만 봇', subject: null, grade: null, tone: null,
   greeting: null, scope: 3, avatarEmoji: null, quickPrompts: [],
-  isPublished: false, publishedAt: null, classIds: [], createdAt: '', updatedAt: '',
+  isPublished: false, publishedAt: null, state: 'active', archivedAt: null, classIds: [], createdAt: '', updatedAt: '',
 };
 
 const CLASS_1: BotCardDto = {
@@ -73,6 +73,7 @@ jest.mock('@/hooks/api/bot', () => ({
     error: botsError,
     refetch,
   }),
+  useArchiveBot: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
 let assignments: AssignmentSummaryDto[] = [];
@@ -165,7 +166,7 @@ describe('목이 화면에 남아 있지 않다', () => {
     // 남은 셋은 그대로다 — 「아무것도 없어서 통과」를 막는다
     expect(within(menu).getByRole('menuitem', { name: '수정하기' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: '과제 내기' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: '봇 삭제' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '봇 보관' })).toBeInTheDocument();
   });
 });
 

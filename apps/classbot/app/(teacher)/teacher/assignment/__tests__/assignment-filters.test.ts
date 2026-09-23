@@ -200,7 +200,7 @@ describe('summarize — 거르개와 무관하게 전체를 센다', () => {
       CLASSES,
       NOW,
     );
-    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, closed: 1 });
+    expect(summarize(rows)).toEqual({ live: 2, dueSoon: 1, closed: 1, withdrawn: 0 });
   });
 });
 
@@ -211,9 +211,9 @@ describe('URL', () => {
   it('건 조건만 적는다 — 반은 `class` 한 칸이다', () => {
     expect(assignmentListHref({ status: 'live', mode: 'all', classId: 'cls_1' })).toBe('/teacher/assignment?status=live&class=cls_1');
   });
-  it('모르는 값은 기본값으로 떨어진다 — 정본에 없는 「회수됨」도 그렇다', () => {
+  it('모르는 값은 기본값으로 떨어지고 회수됨은 보존한다', () => {
     expect(toStatusFilter('weird')).toBe('all');
-    expect(toStatusFilter('withdrawn')).toBe('all');
+    expect(toStatusFilter('withdrawn')).toBe('withdrawn');
     expect(toStatusFilter(null)).toBe('all');
     expect(toModeFilter('weird')).toBe('all');
     expect(toStatusFilter('closed')).toBe('closed');

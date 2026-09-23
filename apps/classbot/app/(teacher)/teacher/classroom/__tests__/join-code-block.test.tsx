@@ -18,8 +18,10 @@ const mutate = jest.fn((_vars: { classId: string }, handlers: Handlers) => {
   if ('dto' in outcome) handlers.onSuccess(outcome.dto);
   else handlers.onError(outcome.error);
 });
+const revokeMutate = jest.fn((_classId: string, handlers: { onSuccess: () => void }) => handlers.onSuccess());
 jest.mock('@/hooks/api/classroom', () => ({
   useIssueJoinCode: () => ({ mutate, isPending: false }),
+  useRevokeJoinCodes: () => ({ mutate: revokeMutate, isPending: false }),
 }));
 
 const toastSuccess = jest.fn();
@@ -41,6 +43,7 @@ const issueButton = () => screen.getByTestId('join-code-issue');
 beforeEach(() => {
   outcome = { dto: issued() };
   mutate.mockClear();
+  revokeMutate.mockClear();
   toastSuccess.mockClear();
   toastError.mockClear();
 });
@@ -124,6 +127,28 @@ describe('JoinCodeBlock — 이 세션이 아는 코드(initial)', () => {
 
     rerender(<JoinCodeBlock classId="cls_1" initial={issued(null, 'ZZ9Q2R')} />);
     expect(screen.getByTestId('join-code')).toHaveTextContent('ZZ9-Q2R');
+  });
+
+  it('재발급 성공 직후 initial보다 새 코드를 우선해 보여 준다', () => {
+    outcome = { dto: issued(null, 'NEW123') };
+    render(<JoinCodeBlock classId="cls_1" initial={issued(null, 'OLD123')} />);
+
+    fireEvent.click(issueButton());
+    fireEvent.click(screen.getByRole('button', { name: '새 코드 내기' }));
+
+    expect(screen.getByTestId('join-code')).toHaveTextContent('NEW-123');
+    expect(screen.getByTestId('join-code')).not.toHaveTextContent('OLD-123');
+  });
+
+  it('코드 닫기 성공 직후 initial을 다시 보여 주지 않는다', () => {
+    render(<JoinCodeBlock classId="cls_1" initial={issued(null, 'OLD123')} />);
+
+    fireEvent.click(screen.getByTestId('join-code-revoke'));
+    fireEvent.click(screen.getByRole('button', { name: '코드 닫기' }));
+
+    expect(revokeMutate).toHaveBeenCalledWith('cls_1', expect.any(Object));
+    expect(screen.queryByTestId('join-code')).toBeNull();
+    expect(screen.getByTestId('join-code-hint')).toBeInTheDocument();
   });
 });
 

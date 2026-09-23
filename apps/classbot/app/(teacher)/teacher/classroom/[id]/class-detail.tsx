@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { ClipboardList, Lock, Plus, School, SearchX } from 'lucide-react';
 import { EmptyState } from '@/components/classbot/empty-state';
@@ -10,12 +11,13 @@ import { SectionHeading } from '@/components/shell/section-heading';
 import { Chip } from '@/components/ui/chip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTeacherAssignments } from '@/hooks/api/assignment-dispatch';
-import { useClassDetail, useOperatorClass } from '@/hooks/api/classroom';
+import { useClassDetail } from '@/hooks/api/classroom';
 import { isNotFound, isUnauthorized, statusOf } from '@/lib/api/classbot-client';
 import type { AssignmentSummaryDto, ClassDto } from '@/lib/api/classbot-dto';
 import { cn } from '@/lib/utils';
 import { JoinCodeBlock } from '../join-code-block';
 import { KnownBotChip } from '../known-bot-chip';
+import { ClassActionsMenu } from '../class-actions-menu';
 import { toOperatorClass, type OperatorClass } from '../operator-class';
 import { ClassBotTab } from './class-bot-tab';
 import { ClassChatTab } from './class-chat-tab';
@@ -56,8 +58,8 @@ export function ClassDetail({
   /** 지금 열린 탭 — `page.tsx` 가 `?tab=` 에서 읽어 넘긴다. */
   tab: ClassTabId;
 }) {
-  const query = useOperatorClass(classId);
-  const known = useClassDetail(classId).data;
+  const router = useRouter();
+  const query = useClassDetail(classId);
 
   if (query.isPending) {
     return (
@@ -110,14 +112,33 @@ export function ClassDetail({
     );
   }
 
-  const room = toOperatorClass(query.data);
+  const classroom = query.data;
+  const room = toOperatorClass(classroom);
+  const readOnly = !classroom.isActive;
 
   return (
-    <Shell title={room.name} description={<RoomFacts room={room} known={known} />}>
+    <Shell
+      title={room.name}
+      description={<RoomFacts room={room} known={classroom} />}
+      action={
+        <ClassActionsMenu
+          classroom={classroom}
+          onArchived={() => router.replace('/teacher/classroom')}
+          onDeleted={() => router.replace('/teacher/classroom')}
+        />
+      }
+    >
       {/* 참여 코드 — 머리 바로 아래 제 상자. 카드에서와 같은 상자라 교사가 같은 자리에서 같은 일을 한다. */}
-      <section className="border-pullim-blue-200 bg-pullim-blue-50 rounded-2xl border p-5">
-        <JoinCodeBlock classId={room.id} initial={known?.joinCode ?? null} size="lg" />
-      </section>
+      {readOnly ? (
+        <section className="border-pullim-slate-200 bg-pullim-slate-50 rounded-2xl border p-5" role="status">
+          <p className="text-pullim-slate-900 text-sm font-bold">보관된 수업방이에요</p>
+          <p className="text-pullim-slate-600 mt-1 text-xs">기존 명단·과제·제출·대화 기록은 볼 수 있지만 새 참여와 쓰기 동작은 멈춰 있어요. 다시 열면 새 참여 코드가 발급돼요.</p>
+        </section>
+      ) : (
+        <section className="border-pullim-blue-200 bg-pullim-blue-50 rounded-2xl border p-5">
+          <JoinCodeBlock classId={room.id} initial={classroom.joinCode} size="lg" />
+        </section>
+      )}
 
       <div>
         <nav aria-label="반 상세" className="border-pullim-slate-200 flex gap-1 border-b">
@@ -148,13 +169,13 @@ export function ClassDetail({
         </nav>
         <section className="pt-5" data-testid={`class-panel-${tab}`}>
           {tab === 'members' ? (
-            <ClassroomRoster classId={room.id} classroomName={room.name} />
+            <ClassroomRoster classId={room.id} classroomName={room.name} readOnly={readOnly} />
           ) : tab === 'bot' ? (
-            <ClassBotTab classId={room.id} classroomName={room.name} />
+            <ClassBotTab classId={room.id} classroomName={room.name} readOnly={readOnly} />
           ) : tab === 'chat' ? (
-            <ClassChatTab classId={room.id} />
+            <ClassChatTab classId={room.id} readOnly={readOnly} />
           ) : (
-            <ClassAssignments classId={room.id} />
+            <ClassAssignments classId={room.id} readOnly={readOnly} />
           )}
         </section>
       </div>
@@ -163,12 +184,12 @@ export function ClassDetail({
 }
 
 /** 이 화면의 골격 — 뒤로 가기는 늘 내 수업방이다(레일에 없는 화면이라 이 링크가 위치 단서다). */
-function Shell({ title, description, children }: { title: ReactNode; description?: ReactNode; children: ReactNode }) {
+function Shell({ title, description, action, children }: { title: ReactNode; description?: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <TeacherPageShell
       backHref="/teacher/classroom"
       backLabel="내 수업방"
-      header={{ eyebrow: { icon: School, text: '반 상세' }, title, description }}
+      header={{ eyebrow: { icon: School, text: '반 상세' }, title, description, action }}
     >
       {children}
     </TeacherPageShell>
@@ -191,7 +212,7 @@ function RoomFacts({ room, known }: { room: OperatorClass; known: ClassDto | und
 }
 
 /** 과제 탭 — 이 반의 과제만. 거르는 자리는 화면이다(머리주석). */
-function ClassAssignments({ classId }: { classId: string }) {
+function ClassAssignments({ classId, readOnly = false }: { classId: string; readOnly?: boolean }) {
   const query = useTeacherAssignments();
   const newHref = `/teacher/assignment/new?classId=${encodeURIComponent(classId)}`;
 
@@ -199,7 +220,7 @@ function ClassAssignments({ classId }: { classId: string }) {
     <SectionHeading
       title="이 반에 낸 과제"
       description="줄을 누르면 제출 현황으로 가요."
-      action={
+      action={!readOnly ? (
         <Link
           href={newHref}
           data-testid="class-new-assignment"
@@ -208,7 +229,7 @@ function ClassAssignments({ classId }: { classId: string }) {
           <Plus className="h-4 w-4" />
           새 과제 내기
         </Link>
-      }
+      ) : undefined}
     />
   );
 
@@ -245,7 +266,7 @@ function ClassAssignments({ classId }: { classId: string }) {
           icon={ClipboardList}
           title="이 반에 낸 과제가 없어요"
           description="새 과제를 내면 여기 모여요."
-          action={{ href: newHref, label: '새 과제 내기' }}
+          action={readOnly ? undefined : { href: newHref, label: '새 과제 내기' }}
         />
       </>
     );

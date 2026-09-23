@@ -20,6 +20,7 @@ jest.mock('@/hooks/api/classroom', () => ({
   useClassMembers: () => ({
     data: members, isPending: false, isSuccess: true, isError: false, error: null, refetch: jest.fn(),
   }),
+  useRemoveClassMember: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
 let assignments: AssignmentSummaryDto[] = [];
